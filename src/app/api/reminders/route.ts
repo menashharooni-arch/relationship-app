@@ -2,85 +2,136 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getSupabase } from "@/lib/supabase";
 
+const SEQUENCE = [
+  {
+    day: 1,
+    subject: (name: string) => `Follow up with ${name} today 🔥`,
+    intro: "just shared their info with you. The best time to reach out is now.",
+  },
+  {
+    day: 15,
+    subject: (name: string) => `15-day check-in: ${name}`,
+    intro: "connected with you 15 days ago. A quick message keeps the relationship warm.",
+  },
+  {
+    day: 30,
+    subject: (name: string) => `Don't lose ${name}`,
+    intro: "shared their info 30 days ago. One message now could turn this into real business.",
+  },
+];
+
 export async function GET(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  // Verify this is called by Vercel Cron
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const supabase = getSupabase();
-  const today = new Date().toISOString().split("T")[0];
+  let totalSent = 0;
 
-  // Get all leads with follow_up_date = today, joined with the card owner's profile
-  const { data: leads } = await supabase
-    .from("leads")
-    .select("name, email, phone, notes, card_owner")
-    .eq("follow_up_date", today);
+  for (const step of SEQUENCE) {
+    const now = Date.now();
+    const windowStart = new Date(now - (step.day + 1) * 86400000).toISOString();
+    const windowEnd = new Date(now - step.day * 86400000).toISOString();
 
-  if (!leads || leads.length === 0) {
-    return NextResponse.json({ sent: 0 });
+    // Leads captured in this day window
+    const { data: candidates } = await supabase
+      .from("leads")
+      .select("id, name, email, phone, notes, card_owner")
+      .gte("created_at", windowStart)
+      .lt("created_at", windowEnd);
+
+    if (!candidates?.length) continue;
+
+    // Filter out ones already notified at this step
+    const ids = candidates.map((l) => l.id);
+    const { data: alreadySent } = await supabase
+      .from("lead_reminders")
+      .select("lead_id")
+      .in("lead_id", ids)
+      .eq("day_trigger", step.day);
+
+    const sentSet = new Set(alreadySent?.map((r) => r.lead_id) ?? []);
+    const pending = candidates.filter((l) => !sentSet.has(l.id));
+    if (!pending.length) continue;
+
+    // Group by card_owner
+    const byOwner: Record<string, typeof pending> = {};
+    for (const lead of pending) {
+      byOwner[lead.card_owner] = byOwner[lead.card_owner] ?? [];
+      byOwner[lead.card_owner].push(lead);
+    }
+
+    for (const [username, leads] of Object.entries(byOwner)) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, email")
+        .eq("username", username)
+        .single();
+
+      if (!profile?.email) continue;
+
+      const leadRows = leads
+        .map(
+          (l) => `
+          <tr>
+            <td style="padding:12px 0;border-bottom:1px solid #1f2937;">
+              <p style="margin:0;font-weight:600;color:#ffffff;">${l.name}</p>
+              <a href="mailto:${l.email}" style="color:#60a5fa;font-size:13px;">${l.email}</a>
+              ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${l.phone}</p>` : ""}
+              ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${l.notes}</p>` : ""}
+            </td>
+          </tr>`
+        )
+        .join("");
+
+      const firstName = profile.name.split(" ")[0];
+      const isPlural = leads.length > 1;
+
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "Evercard <onboarding@resend.dev>",
+        to: profile.email,
+        subject: step.subject(isPlural ? `${leads.length} leads` : leads[0].name),
+        html: `
+          <div style="background:#030712;min-height:100vh;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="max-width:520px;margin:0 auto;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.2em;color:#4b5563;text-transform:uppercase;margin:0 0 32px;">EVERCARD</p>
+
+              <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0 0 8px;">
+                Hey ${firstName} 👋
+              </h1>
+              <p style="color:#9ca3af;font-size:15px;margin:0 0 32px;">
+                ${isPlural ? `${leads.length} people` : leads[0].name} ${step.intro}
+              </p>
+
+              <table style="width:100%;border-collapse:collapse;">
+                ${leadRows}
+              </table>
+
+              <div style="margin-top:32px;">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app"}/dashboard"
+                   style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:99px;font-size:14px;font-weight:600;">
+                  Open Dashboard →
+                </a>
+              </div>
+
+              <p style="color:#374151;font-size:12px;margin-top:40px;border-top:1px solid #111827;padding-top:20px;">
+                Evercard sends follow-up reminders at day 1, 15, and 30 after a lead connects with you.
+              </p>
+            </div>
+          </div>
+        `,
+      });
+
+      // Record that these reminders were sent
+      await supabase.from("lead_reminders").insert(
+        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
+      );
+
+      totalSent++;
+    }
   }
 
-  // Group leads by card_owner
-  const byOwner = leads.reduce<Record<string, typeof leads>>((acc, lead) => {
-    acc[lead.card_owner] = acc[lead.card_owner] ?? [];
-    acc[lead.card_owner].push(lead);
-    return acc;
-  }, {});
-
-  let sent = 0;
-
-  for (const [username, ownerLeads] of Object.entries(byOwner)) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("name, email")
-      .eq("username", username)
-      .single();
-
-    if (!profile?.email) continue;
-
-    const leadList = ownerLeads
-      .map(
-        (l) =>
-          `<li style="margin-bottom:12px;">
-            <strong>${l.name}</strong> — <a href="mailto:${l.email}">${l.email}</a>
-            ${l.phone ? `<br/>${l.phone}` : ""}
-            ${l.notes ? `<br/><em style="color:#6b7280;">${l.notes}</em>` : ""}
-          </li>`
-      )
-      .join("");
-
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "Evercard <onboarding@resend.dev>",
-      to: profile.email,
-      subject: `${ownerLeads.length} follow-up${ownerLeads.length > 1 ? "s" : ""} due today`,
-      html: `
-        <div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:32px 16px;">
-          <p style="font-size:11px;font-weight:700;letter-spacing:0.15em;color:#9ca3af;text-transform:uppercase;margin-bottom:24px;">EVERCARD</p>
-          <h1 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px;">
-            Hey ${profile.name.split(" ")[0]}, time to follow up
-          </h1>
-          <p style="color:#6b7280;font-size:15px;margin-bottom:24px;">
-            You set a reminder to reach out to ${ownerLeads.length === 1 ? "this person" : "these people"} today:
-          </p>
-          <ul style="list-style:none;padding:0;margin:0 0 32px;">
-            ${leadList}
-          </ul>
-          <a href="https://relationship-app-alpha.vercel.app/dashboard"
-             style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:99px;font-size:14px;font-weight:600;">
-            Open Dashboard →
-          </a>
-          <p style="color:#d1d5db;font-size:12px;margin-top:32px;">
-            Evercard · You're receiving this because you set a follow-up reminder.
-          </p>
-        </div>
-      `,
-    });
-
-    sent++;
-  }
-
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent: totalSent });
 }
