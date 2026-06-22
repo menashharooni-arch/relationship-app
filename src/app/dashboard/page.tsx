@@ -4,6 +4,7 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadCard from "@/components/LeadCard";
 import QRCard from "@/components/QRCard";
+import QRDownloadButton from "@/components/QRDownloadButton";
 import Link from "next/link";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
@@ -15,21 +16,31 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
+    .from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
 
-  const { data: leads } = await supabase
-    .from("leads")
-    .select("id, name, email, phone, notes, created_at")
-    .eq("card_owner", profile.username)
-    .order("created_at", { ascending: false });
+  const [{ data: leads }, { count: totalViews }, { count: weekViews }] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("id, name, email, phone, notes, follow_up_date, created_at")
+      .eq("card_owner", profile.username)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("card_views")
+      .select("*", { count: "exact", head: true })
+      .eq("username", profile.username),
+    supabase
+      .from("card_views")
+      .select("*", { count: "exact", head: true })
+      .eq("username", profile.username)
+      .gte("viewed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+  ]);
 
   const cardUrl = `${APP_URL}/card/${profile.username}`;
   const allLeads = leads ?? [];
+  const followUpsToday = allLeads.filter(
+    (l) => l.follow_up_date === new Date().toISOString().split("T")[0]
+  );
 
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-10">
@@ -42,33 +53,54 @@ export default async function DashboardPage() {
             <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/profile" className="text-sm text-gray-400 hover:text-white transition-colors">
-              Edit card
-            </Link>
+            <Link href="/profile" className="text-sm text-gray-400 hover:text-white transition-colors">Edit card</Link>
             <SignOutButton />
           </div>
         </div>
 
-        {/* Card URL + QR */}
+        {/* Follow-up alert */}
+        {followUpsToday.length > 0 && (
+          <div className="bg-blue-600 rounded-2xl px-5 py-4 mb-5 flex items-center gap-3">
+            <span className="text-xl">🔔</span>
+            <p className="text-white text-sm font-medium">
+              {followUpsToday.length === 1
+                ? `Follow up with ${followUpsToday[0].name} today`
+                : `${followUpsToday.length} follow-ups due today`}
+            </p>
+          </div>
+        )}
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { label: "Total leads", value: allLeads.length },
+            { label: "Card views", value: totalViews ?? 0 },
+            { label: "Views this week", value: weekViews ?? 0 },
+          ].map((s) => (
+            <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4 text-center">
+              <p className="text-2xl font-bold text-white">{s.value}</p>
+              <p className="text-gray-500 text-xs mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Card URL */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
           <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Your card link</p>
           <div className="flex items-center gap-3 bg-gray-950 rounded-xl px-4 py-3 mb-4">
             <span className="text-blue-400 text-sm truncate flex-1">{cardUrl}</span>
             <CopyButton text={cardUrl} />
           </div>
-          <a
-            href={cardUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-500 hover:text-white transition-colors"
-          >
+          <a href={cardUrl} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-gray-500 hover:text-white transition-colors">
             Preview your card →
           </a>
         </div>
 
-        {/* QR code */}
-        <div className="mb-6">
+        {/* QR code + download */}
+        <div className="mb-6 space-y-3">
           <QRCard url={cardUrl} />
+          <QRDownloadButton url={cardUrl} />
         </div>
 
         {/* Leads */}
@@ -80,10 +112,8 @@ export default async function DashboardPage() {
             </span>
           </div>
           {allLeads.length > 0 && (
-            <a
-              href={`/api/leads/export?username=${profile.username}`}
-              className="text-xs text-gray-400 hover:text-white transition-colors border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg"
-            >
+            <a href={`/api/leads/export?username=${profile.username}`}
+              className="text-xs text-gray-400 hover:text-white transition-colors border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg">
               Export CSV
             </a>
           )}
