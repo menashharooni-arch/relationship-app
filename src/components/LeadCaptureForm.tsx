@@ -42,7 +42,7 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
         required
         value={form.name}
         onChange={handleChange}
-        className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
       />
       <input
         type="email"
@@ -51,7 +51,7 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
         required
         value={form.email}
         onChange={handleChange}
-        className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
       />
       <input
         type="tel"
@@ -59,7 +59,7 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
         placeholder="Your phone (optional)"
         value={form.phone}
         onChange={handleChange}
-        className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
       />
       {status === "error" && (
         <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>
@@ -67,7 +67,7 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
       <button
         type="submit"
         disabled={status === "loading"}
-        className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm border border-gray-700"
+        className="w-full bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
