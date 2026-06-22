@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
+import ViewTracker from "@/components/ViewTracker";
 
 function ContactRow({ icon, value, href }: { icon: React.ReactNode; value: string; href: string }) {
   return (
@@ -52,6 +53,7 @@ export default async function CardPage({ params }: { params: Promise<{ username:
 
   return (
     <main className="min-h-screen bg-slate-100 flex flex-col items-center px-5 py-12 gap-6">
+      <ViewTracker username={profile.username} />
 
       {/* Front card */}
       <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden px-8 pt-8 pb-2">
