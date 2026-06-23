@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadCard from "@/components/LeadCard";
+import LeadPipeline from "@/components/LeadPipeline";
 import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
 import UpgradeButton from "@/components/UpgradeButton";
@@ -17,11 +18,14 @@ const FREE_LIMIT = 25;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
   const sortBy = params.sort ?? "newest";
+  const view = params.view ?? "list";
+  const filterStatus = params.status ?? "all";
+  const filterDate = params.date ?? "all";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -41,7 +45,7 @@ export default async function DashboardPage({
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, name, email, phone, message, location, notes, status, follow_up_date, created_at")
+      .select("id, name, email, phone, message, location, notes, status, tags, follow_up_date, created_at")
       .eq("card_owner", profile.username)
       .order(
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
@@ -68,6 +72,22 @@ export default async function DashboardPage({
   const peakViews = Math.max(...chartData.map((d) => d.views), 0);
   const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
+
+  // Apply filters server-side
+  const dateThreshold = filterDate === "today"
+    ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    : filterDate === "week"
+    ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    : filterDate === "month"
+    ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+
+  const filteredLeads = allLeads.filter((l) => {
+    if (filterStatus !== "all" && (l.status || "new") !== filterStatus) return false;
+    if (dateThreshold && l.created_at < dateThreshold) return false;
+    return true;
+  });
+
   const conversionRate =
     totalViewsLast30 > 0 ? ((allLeads.length / totalViewsLast30) * 100).toFixed(1) : "—";
 
@@ -251,29 +271,72 @@ export default async function DashboardPage({
         </div>
 
         {/* Contacts header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-slate-900">Contacts</h2>
             <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
               {allLeads.length}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {allLeads.length > 1 && <SortSelect value={sortBy} />}
-            <div className="hidden sm:flex items-center gap-3">
-              {(["hot", "warm", "cold", "closed"] as const).map((s) => {
-                const colors: Record<string, string> = { hot: "#dc2626", warm: "#d97706", cold: "#2563eb", closed: "#16a34a" };
-                return (
-                  <span key={s} className="text-[10px] font-semibold capitalize" style={{ color: colors[s] }}>{s}</span>
-                );
-              })}
-            </div>
+          <div className="flex items-center gap-2">
             {allLeads.length > 0 && (
               <a href={`/api/leads/export?username=${profile.username}`}
-                className="text-xs text-slate-500 hover:text-slate-900 transition-colors border border-slate-300 hover:border-slate-400 px-3 py-1.5 rounded-lg">
+                className="text-xs text-slate-500 hover:text-slate-900 transition-colors border border-slate-200 hover:border-slate-400 px-3 py-1.5 rounded-lg">
                 Export CSV
               </a>
             )}
+          </div>
+        </div>
+
+        {/* Filters + view toggle */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* View toggle */}
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 mr-1">
+            <Link
+              href={`?view=list&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${view === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              List
+            </Link>
+            <Link
+              href={`?view=pipeline&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${view === "pipeline" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Pipeline
+            </Link>
+          </div>
+
+          {/* Status filter */}
+          <Link href={`?view=${view}&status=all&date=${filterDate}&sort=${sortBy}`}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterStatus === "all" ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-500 hover:border-slate-400"}`}>
+            All
+          </Link>
+          {[
+            { id: "new", label: "New" },
+            { id: "warm", label: "Contacted" },
+            { id: "hot", label: "Hot" },
+            { id: "cold", label: "Follow Up" },
+            { id: "closed", label: "Archived" },
+          ].map((s) => (
+            <Link key={s.id} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}`}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filterStatus === s.id ? "bg-slate-900 text-white border-slate-900" : "border-slate-200 text-slate-500 hover:border-slate-400"}`}>
+              {s.label}
+            </Link>
+          ))}
+
+          {/* Date filter */}
+          <div className="ml-auto flex items-center gap-1">
+            {[
+              { id: "all", label: "All time" },
+              { id: "month", label: "30d" },
+              { id: "week", label: "7d" },
+              { id: "today", label: "Today" },
+            ].map((d) => (
+              <Link key={d.id} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}`}
+                className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${filterDate === d.id ? "bg-blue-600 text-white" : "text-slate-400 hover:text-slate-700"}`}>
+                {d.label}
+              </Link>
+            ))}
           </div>
         </div>
 
@@ -287,12 +350,21 @@ export default async function DashboardPage({
             <p className="font-semibold text-slate-600 mb-1">No contacts yet</p>
             <p className="text-sm text-slate-400">Share your card link or QR code to start collecting.</p>
           </div>
+        ) : view === "pipeline" ? (
+          <LeadPipeline initialLeads={filteredLeads} />
         ) : (
-          <div className="space-y-3">
-            {allLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
-            ))}
-          </div>
+          <>
+            {allLeads.length > 1 && <div className="mb-3"><SortSelect value={sortBy} /></div>}
+            {filteredLeads.length === 0 ? (
+              <p className="text-center text-slate-400 text-sm py-10">No contacts match this filter.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredLeads.map((lead) => (
+                  <LeadCard key={lead.id} lead={lead} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>

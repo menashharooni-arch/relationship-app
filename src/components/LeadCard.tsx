@@ -11,6 +11,7 @@ type Lead = {
   location: string | null;
   notes: string | null;
   status: string | null;
+  tags: string[] | null;
   created_at: string;
 };
 
@@ -41,9 +42,26 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
+const TAG_COLORS = [
+  "bg-blue-100 text-blue-700",
+  "bg-purple-100 text-purple-700",
+  "bg-amber-100 text-amber-700",
+  "bg-green-100 text-green-700",
+  "bg-rose-100 text-rose-700",
+  "bg-cyan-100 text-cyan-700",
+];
+
+function tagColor(tag: string) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) & 0xffff;
+  return TAG_COLORS[h % TAG_COLORS.length];
+}
+
 export default function LeadCard({ lead }: { lead: Lead }) {
   const [notes, setNotes] = useState(lead.notes || "");
   const [status, setStatus] = useState<Status>((lead.status as Status) || "new");
+  const [tags, setTags] = useState<string[]>(lead.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -62,6 +80,29 @@ export default function LeadCard({ lead }: { lead: Lead }) {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase().replace(/\s+/g, "-");
+    if (!tag || tags.includes(tag)) return;
+    const next = [...tags, tag];
+    setTags(next);
+    setTagInput("");
+    await fetch(`/api/leads/${lead.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags: next }),
+    });
+  }
+
+  async function removeTag(tag: string) {
+    const next = tags.filter((t) => t !== tag);
+    setTags(next);
+    await fetch(`/api/leads/${lead.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags: next }),
+    });
   }
 
   async function cycleStatus() {
@@ -139,6 +180,26 @@ export default function LeadCard({ lead }: { lead: Lead }) {
           <p className="text-slate-600 text-sm italic">&ldquo;{lead.message}&rdquo;</p>
         </div>
       )}
+
+      {/* Tags */}
+      <div className="mt-3 pt-3 border-t border-slate-100">
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {tags.map((tag) => (
+            <span key={tag} className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${tagColor(tag)}`}>
+              {tag}
+              <button onClick={() => removeTag(tag)} className="opacity-60 hover:opacity-100 leading-none">×</button>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); } }}
+            onBlur={() => { if (tagInput.trim()) addTag(tagInput); }}
+            placeholder="+ add tag"
+            className="text-[11px] text-slate-500 placeholder-slate-300 bg-transparent focus:outline-none w-20 min-w-0"
+          />
+        </div>
+      </div>
 
       {/* Notes */}
       <div className="mt-3 pt-3 border-t border-slate-100">
