@@ -1,173 +1,144 @@
+// LocalBusiness — Warm Amber
+// Style: Amber header stripe, warm cream body, phone as hero contact
+// Includes: Company logo/monogram, name, phone (prominent), email, website, QR
+// Best for: Restaurants, retail, contractors, salons, home services, local shops
+
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
-const Insta = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-  </svg>
-);
-const XIcon = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-);
-const TikTok = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.76a8.16 8.16 0 004.77 1.52V6.83a4.85 4.85 0 01-1-.14z"/>
-  </svg>
-);
+const AMBER  = "#b45309";
+const AMBER2 = "#d97706";
+const CREAM  = "#fffbf0";
+const WARM   = "#92400e";
 
 export default function LocalBusiness({ data }: { data: CardData }) {
-  const socials = [
-    data.instagram && { icon: <Insta />, label: data.instagram, color: "#c13584" },
-    data.twitter && { icon: <XIcon />, label: data.twitter, color: "#92400e" },
-    data.tiktok && { icon: <TikTok />, label: data.tiktok, color: "#92400e" },
-  ].filter(Boolean) as { icon: React.ReactNode; label: string; color: string }[];
+  const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl flex flex-col"
+      className="relative w-full flex flex-col rounded-2xl overflow-hidden"
       style={{
         aspectRatio: "1.75 / 1",
-        background: "#FFFBF0",
-        boxShadow: "0 8px 32px rgba(245,158,11,0.12), 0 2px 8px rgba(0,0,0,0.07)",
+        background: CREAM,
+        boxShadow: "0 4px 24px rgba(180,83,9,0.13), 0 1px 4px rgba(0,0,0,0.07)",
       }}
     >
-      {/* Top accent bar — thicker and more vibrant */}
+      {/* ── Amber top stripe ───────────────────────────── */}
       <div
-        className="shrink-0"
-        style={{ height: 7, background: "linear-gradient(to right, #f59e0b, #d97706, #b45309)" }}
-      />
-
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left panel */}
+        style={{
+          height: "36%",
+          background: `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`,
+          position: "relative",
+          flexShrink: 0,
+        }}
+      >
+        {/* Subtle diagonal texture */}
         <div
-          className="flex flex-col items-center justify-center px-4 py-4"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            width: "36%",
-            borderRight: "1px solid #fde68a",
-            background: "linear-gradient(160deg, #fffbf0 0%, #fef3c7 100%)",
+            backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 14px)",
           }}
-        >
-          {/* Company logo or monogram */}
+        />
+
+        {/* Top-right: company badge */}
+        <div className="absolute top-0 right-0 h-full flex items-center pr-5">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={data.logoUrl}
-              alt="Logo"
-              className="mb-2.5 rounded-2xl object-contain"
-              style={{ width: "52%", aspectRatio: "1/1", background: "#fef3c7", padding: 6 }}
+              alt="logo"
+              className="rounded-xl object-contain"
+              style={{ width: 46, height: 46, background: "rgba(255,255,255,0.15)", padding: 4 }}
             />
           ) : (
             <div
-              className="flex items-center justify-center font-black text-white rounded-2xl mb-2.5"
+              className="rounded-xl flex items-center justify-center font-black text-amber-800"
               style={{
-                width: "52%",
-                aspectRatio: "1/1",
-                background: "linear-gradient(135deg, #fbbf24, #b45309)",
-                fontSize: "clamp(16px, 4vw, 30px)",
-                boxShadow: "0 6px 18px rgba(245,158,11,0.40), 0 2px 6px rgba(0,0,0,0.1)",
+                width: 46, height: 46,
+                background: "rgba(255,255,255,0.92)",
+                fontSize: "clamp(15px, 3.5vw, 20px)",
               }}
             >
-              {(data.company ?? "K")[0]}
+              {initials}
             </div>
           )}
-
-          {/* Company name */}
-          <p className="font-extrabold text-amber-900 text-center leading-tight" style={{ fontSize: "clamp(10px, 2vw, 13px)" }}>
-            {data.company}
-          </p>
-
-          {/* Badge */}
-          <div
-            className="mt-2 px-2.5 py-0.5 rounded-full font-bold"
-            style={{ background: "#f59e0b", color: "#fff", fontSize: 7.5, letterSpacing: "0.1em" }}
-          >
-            LOCAL BUSINESS
-          </div>
         </div>
 
-        {/* Right panel */}
-        <div className="flex-1 flex flex-col justify-between px-5 py-4">
-          {/* Name + title */}
-          <div>
-            <h2 className="font-extrabold text-gray-900 leading-tight" style={{ fontSize: "clamp(14px, 3vw, 20px)" }}>
-              {data.name}
-            </h2>
-            <div className="w-8 h-[2px] mt-1" style={{ background: "linear-gradient(to right, #f59e0b, #d97706)" }} />
-            <p style={{ fontSize: 9.5, color: "#92400e", fontWeight: 700, letterSpacing: "0.12em", marginTop: 4 }}>
-              {(data.title ?? "").toUpperCase()}
+        {/* Bottom-left name area within stripe */}
+        <div className="absolute bottom-0 left-0 px-5 pb-3">
+          <h2
+            className="font-extrabold text-white leading-tight"
+            style={{ fontSize: "clamp(13px, 3vw, 20px)", lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+          >
+            {data.name}
+          </h2>
+          {data.title && (
+            <p style={{ fontSize: 8.5, color: "rgba(254,243,199,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
+              {data.title}
             </p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Cream body ─────────────────────────────────── */}
+      <div
+        className="flex-1 flex"
+        style={{ padding: "10px 18px 12px" }}
+      >
+        {/* Left: company + contact info */}
+        <div className="flex-1 flex flex-col justify-between">
+          {/* Company name */}
+          <div>
+            <p className="font-black" style={{ fontSize: 10.5, color: WARM, letterSpacing: "0.04em" }}>
+              {data.company}
+            </p>
+            <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
           </div>
 
-          {/* Contact info */}
+          {/* Contacts: phone is HERO */}
           <div className="flex flex-col gap-[6px]">
             {data.phone && (
               <div className="flex items-center gap-2">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: "linear-gradient(135deg, #fbbf24, #d97706)" }}
-                >
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                  </svg>
-                </div>
-                <span className="font-extrabold text-gray-900" style={{ fontSize: "clamp(12px, 2.5vw, 15px)" }}>{data.phone}</span>
+                <span style={{ color: AMBER }}><IcoPhone /></span>
+                <span className="font-bold" style={{ fontSize: 12, color: WARM }}>{formatPhone(data.phone)}</span>
               </div>
             )}
-
             {data.email && (
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: "#fef3c7" }}
-                >
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#b45309" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
-                  </svg>
-                </div>
-                <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span style={{ color: AMBER }}><IcoMail /></span>
+                <span className="truncate" style={{ fontSize: 10, color: "#78350f" }}>{data.email}</span>
               </div>
             )}
-
-            {data.address && (
+            {data.website && (
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#fef3c7" }}>
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#b45309" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                  </svg>
-                </div>
-                <span className="text-gray-600" style={{ fontSize: 10 }}>{data.address}</span>
+                <span style={{ color: AMBER }}><IcoGlobe /></span>
+                <span style={{ fontSize: 10, color: "#78350f" }}>{data.website}</span>
               </div>
             )}
           </div>
 
-          {/* Social links */}
-          {socials.length > 0 && (
-            <div className="flex flex-col gap-[4px]">
-              {socials.map((s, i) => (
-                <div key={i} className="flex items-center gap-1.5" style={{ color: s.color }}>
-                  {s.icon}
-                  <span style={{ fontSize: 9 }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
+          {/* Address if set */}
+          {data.address && (
+            <p style={{ fontSize: 8.5, color: "#a16207" }}>{data.address}</p>
           )}
+        </div>
 
-          {/* Bottom: website + QR */}
-          <div className="flex items-end justify-between">
-            <div>
-              {data.website && (
-                <span className="font-semibold" style={{ fontSize: 10, color: "#b45309" }}>{data.website}</span>
-              )}
-            </div>
-            <QR size={42} bg="#fef3c7" fg="#78350f" />
-          </div>
+        {/* Right: QR */}
+        <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
+          <p style={{ fontSize: 6.5, color: "#d97706", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Scan to save contact
+          </p>
+          <QR size={44} bg="#fff8e6" fg={AMBER} />
         </div>
       </div>
+
+      {/* Bottom gold accent bar */}
+      <div
+        className="absolute bottom-0 left-0 right-0"
+        style={{ height: 3, background: `linear-gradient(90deg, ${AMBER}, #f59e0b, ${AMBER2})` }}
+      />
     </div>
   );
 }

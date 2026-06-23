@@ -1,169 +1,150 @@
+// LuxuryMinimal — Ivory & Gold
+// Style: Cream/ivory background, gold left strip, faded decorative initials, ultra-premium editorial feel
+// Includes: Name, title, phone, email, website, QR — stripped back, refined
+// Best for: Luxury real estate, wealth management, executives, high-end services, attorneys
+
 import React from "react";
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
-const GOLD = "#C9A96E";
-const GOLD_DARK = "#A07840";
-const GOLD_LIGHT = "#E8D5A8";
-
-const Insta = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
-  </svg>
-);
-const XIcon = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
-);
-const TikTok = () => (
-  <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.76a8.16 8.16 0 004.77 1.52V6.83a4.85 4.85 0 01-1-.14z"/>
-  </svg>
-);
+const GOLD   = "#b08d57";
+const GOLD2  = "#c9a96e";
+const IVORY  = "#fafaf6";
+const TEXT   = "#1c1612";
+const MUTED  = "#8c7b60";
 
 export default function LuxuryMinimal({ data }: { data: CardData }) {
-  const socials = [
-    data.instagram && { icon: <Insta />, label: data.instagram },
-    data.twitter && { icon: <XIcon />, label: data.twitter },
-    data.tiktok && { icon: <TikTok />, label: data.tiktok },
-  ].filter(Boolean) as { icon: React.ReactNode; label: string }[];
+  const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl flex"
+      className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: "1.75 / 1",
-        background: "linear-gradient(160deg, #FAF8F3 0%, #F5F1EA 100%)",
-        boxShadow: `0 8px 32px rgba(160,120,64,0.12), 0 2px 8px rgba(0,0,0,0.07)`,
+        background: IVORY,
+        boxShadow: "0 4px 28px rgba(176,141,87,0.14), 0 1px 4px rgba(0,0,0,0.07)",
       }}
     >
-      {/* Left gold accent strip */}
+      {/* ── Gold left strip ────────────────────────────── */}
       <div
-        className="shrink-0"
         style={{
           width: 5,
-          background: `linear-gradient(to bottom, ${GOLD_LIGHT}, ${GOLD}, ${GOLD_DARK}, transparent)`,
+          background: `linear-gradient(to bottom, ${GOLD2}, ${GOLD}, #8c6c34)`,
+          flexShrink: 0,
         }}
       />
 
-      {/* Left panel */}
+      {/* ── Decorative faded initials ──────────────────── */}
       <div
-        className="flex flex-col justify-between py-6 pl-5 pr-4"
-        style={{ width: "38%", borderRight: `1px solid ${GOLD}30` }}
+        className="absolute inset-0 flex items-center pointer-events-none select-none"
+        style={{ paddingLeft: 22 }}
       >
-        {/* Top: logo or faded initials */}
-        <div>
+        <span
+          className="font-black"
+          style={{
+            fontSize: "clamp(55px, 15vw, 100px)",
+            color: "rgba(176,141,87,0.07)",
+            letterSpacing: "-0.04em",
+            lineHeight: 1,
+            userSelect: "none",
+          }}
+        >
+          {initials}
+        </span>
+      </div>
+
+      {/* ── Left panel: company + name identity ────────── */}
+      <div
+        className="relative flex flex-col justify-between"
+        style={{ width: "44%", padding: "18px 16px 17px 16px" }}
+      >
+        {/* Company + optional logo */}
+        <div className="flex items-center gap-2">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded" style={{ opacity: 0.9 }} />
-          ) : (
-            <div
-              className="font-light select-none"
-              style={{
-                fontSize: "clamp(28px, 7vw, 52px)",
-                color: `${GOLD}50`,
-                lineHeight: 1,
-                letterSpacing: "0.05em",
-              }}
-            >
-              {data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2)}
-            </div>
-          )}
-        </div>
-
-        {/* Bottom: company identity + socials */}
-        <div>
-          <div className="w-8 h-px mb-2.5" style={{ background: `linear-gradient(to right, ${GOLD}, ${GOLD}40)` }} />
+            <img src={data.logoUrl} alt="logo" className="w-5 h-5 object-contain shrink-0 rounded" />
+          ) : null}
           <p
-            style={{
-              fontSize: 8,
-              fontWeight: 700,
-              letterSpacing: "0.32em",
-              color: GOLD,
-              textTransform: "uppercase",
-              lineHeight: 1.5,
-            }}
+            style={{ fontSize: 8, letterSpacing: "0.28em", color: GOLD, fontWeight: 700, textTransform: "uppercase" }}
           >
             {data.company}
           </p>
-          {socials.length > 0 ? (
-            <div className="flex items-center gap-2 mt-2.5" style={{ color: `${GOLD}70` }}>
-              {socials.map((s, i) => <span key={i}>{s.icon}</span>)}
-            </div>
-          ) : (
-            <p style={{ fontSize: 7.5, color: GOLD_DARK, opacity: 0.6, letterSpacing: "0.18em", marginTop: 5 }}>Est. 2018</p>
-          )}
         </div>
-      </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-between py-6 px-7">
-        {/* Name + title */}
+        {/* Name — refined, light weight */}
         <div>
           <h2
-            className="text-gray-800 leading-tight"
+            className="text-gray-900 leading-tight"
             style={{
-              fontSize: "clamp(15px, 3.5vw, 24px)",
+              fontSize: "clamp(14px, 3.2vw, 21px)",
               fontWeight: 300,
-              letterSpacing: "0.04em",
+              letterSpacing: "0.01em",
+              color: TEXT,
+              lineHeight: 1.2,
             }}
           >
             {data.name}
           </h2>
-          <p
-            style={{
-              fontSize: 8,
-              fontWeight: 700,
-              letterSpacing: "0.28em",
-              color: GOLD,
-              textTransform: "uppercase",
-              marginTop: 6,
-            }}
-          >
-            {data.title}
-          </p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className="h-px flex-1" style={{ maxWidth: 20, background: GOLD }} />
+            <p
+              style={{ fontSize: 7.5, letterSpacing: "0.22em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
+            >
+              {data.title}
+            </p>
+          </div>
         </div>
 
-        {/* Gold divider */}
-        <div className="w-full h-px" style={{ background: `linear-gradient(to right, ${GOLD}50, transparent)` }} />
+        {/* Subtle bottom detail */}
+        <div className="h-px w-10" style={{ background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
+      </div>
 
-        {/* Contact */}
-        <div className="flex flex-col gap-[6px]">
+      {/* ── Thin center divider ────────────────────────── */}
+      <div
+        className="self-stretch"
+        style={{ width: 1, margin: "16px 0", background: `linear-gradient(to bottom, transparent, ${GOLD}40, transparent)` }}
+      />
+
+      {/* ── Right panel: contact details ───────────────── */}
+      <div
+        className="flex-1 flex flex-col justify-between"
+        style={{ padding: "18px 18px 17px 16px" }}
+      >
+        {/* Tagline */}
+        <p style={{ fontSize: 7.5, letterSpacing: "0.28em", color: MUTED, textTransform: "uppercase" }}>
+          — Private Contact —
+        </p>
+
+        {/* Contact rows with gold icon accents */}
+        <div className="flex flex-col gap-[8px]">
           {data.phone && (
-            <div className="flex items-center gap-2.5">
-              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
-              <span style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.phone}</span>
+            <div className="flex items-center gap-2">
+              <span style={{ color: GOLD }}><IcoPhone /></span>
+              <span style={{ fontSize: 11, color: TEXT, fontWeight: 400, letterSpacing: "0.03em" }}>{formatPhone(data.phone)}</span>
             </div>
           )}
           {data.email && (
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
-              <span className="truncate" style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.email}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span style={{ color: GOLD }}><IcoMail /></span>
+              <span className="truncate" style={{ fontSize: 10, color: MUTED }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2.5">
-              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
-              <span style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.website}</span>
+            <div className="flex items-center gap-2">
+              <span style={{ color: GOLD }}><IcoGlobe /></span>
+              <span style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
             </div>
           )}
         </div>
 
-        {/* Bottom: social handles or address */}
-        {socials.length > 0 ? (
-          <div className="flex flex-col gap-[5px]">
-            {socials.map((s, i) => (
-              <div key={i} className="flex items-center gap-2" style={{ color: `${GOLD}75` }}>
-                {s.icon}
-                <span style={{ fontSize: 8.5, letterSpacing: "0.06em" }}>{s.label}</span>
-              </div>
-            ))}
-          </div>
-        ) : data.address ? (
-          <p style={{ fontSize: 8.5, color: GOLD_DARK, opacity: 0.6, letterSpacing: "0.08em" }}>
-            {data.address}
+        {/* QR */}
+        <div className="flex flex-col items-end gap-1">
+          <p style={{ fontSize: 6, color: GOLD2, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+            Scan to save contact
           </p>
-        ) : null}
+          <QR size={40} bg="#f5f0e8" fg={GOLD} />
+        </div>
       </div>
     </div>
   );
