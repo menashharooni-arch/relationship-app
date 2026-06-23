@@ -1,6 +1,25 @@
 "use client";
 
 import { useState } from "react";
+
+function parseSocial(raw: string, platform: "instagram" | "twitter" | "tiktok" | "linkedin"): string {
+  const v = raw.trim();
+  if (!v) return "";
+  const urlStr = v.includes("://") ? v : `https://${v}`;
+  try {
+    const url = new URL(urlStr);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (platform === "linkedin") {
+      if (parts[0] === "in" && parts[1]) return `linkedin.com/in/${parts[1]}`;
+      return v;
+    }
+    const handle = parts[0]?.replace(/^@/, "");
+    if (handle) return `@${handle}`;
+  } catch { /* not a URL */ }
+  if (v.startsWith("@")) return v;
+  if (/^[\w.]+$/.test(v) && platform !== "linkedin") return `@${v}`;
+  return v;
+}
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { SAMPLE_DATA } from "@/components/card-templates/types";
@@ -151,13 +170,41 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           <input name="phone"    type="tel"   placeholder="Phone number"          value={form.phone}    onChange={handle} className={inputCls} />
           <input name="email"    type="email" placeholder="Email address"          value={form.email}    onChange={handle} className={inputCls} />
           <input name="website"               placeholder="Website (yoursite.com)" value={form.website}  onChange={handle} className={inputCls} />
-          <input name="linkedin"              placeholder="LinkedIn URL"            value={form.linkedin} onChange={handle} className={inputCls} />
+          <input
+            name="linkedin"
+            placeholder="LinkedIn — paste your profile URL"
+            value={form.linkedin}
+            onChange={handle}
+            onBlur={(e) => setForm((p) => ({ ...p, linkedin: parseSocial(e.target.value, "linkedin") }))}
+            className={inputCls}
+          />
 
           <div className="h-px bg-gray-100 my-1" />
-          <p className="text-xs text-gray-400 font-medium">Social (optional)</p>
-          <input name="instagram" placeholder="Instagram @handle" value={form.instagram} onChange={handle} className={inputCls} />
-          <input name="twitter"   placeholder="X / Twitter @handle" value={form.twitter} onChange={handle} className={inputCls} />
-          <input name="tiktok"    placeholder="TikTok @handle"    value={form.tiktok}   onChange={handle} className={inputCls} />
+          <p className="text-xs text-gray-400 font-medium">Social (optional — paste any URL or type @handle)</p>
+          <input
+            name="instagram"
+            placeholder="Instagram"
+            value={form.instagram}
+            onChange={handle}
+            onBlur={(e) => setForm((p) => ({ ...p, instagram: parseSocial(e.target.value, "instagram") }))}
+            className={inputCls}
+          />
+          <input
+            name="twitter"
+            placeholder="X / Twitter"
+            value={form.twitter}
+            onChange={handle}
+            onBlur={(e) => setForm((p) => ({ ...p, twitter: parseSocial(e.target.value, "twitter") }))}
+            className={inputCls}
+          />
+          <input
+            name="tiktok"
+            placeholder="TikTok"
+            value={form.tiktok}
+            onChange={handle}
+            onBlur={(e) => setForm((p) => ({ ...p, tiktok: parseSocial(e.target.value, "tiktok") }))}
+            className={inputCls}
+          />
 
           <div className="flex gap-3 mt-2">
             <button

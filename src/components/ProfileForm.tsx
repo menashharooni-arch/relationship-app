@@ -12,6 +12,25 @@ import { SAMPLE_DATA } from "@/components/card-templates/types";
 import type { ComponentType } from "react";
 import type { CardData } from "@/components/card-templates/types";
 
+function parseSocial(raw: string, platform: "instagram" | "twitter" | "tiktok" | "linkedin"): string {
+  const v = raw.trim();
+  if (!v) return "";
+  const urlStr = v.includes("://") ? v : `https://${v}`;
+  try {
+    const url = new URL(urlStr);
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (platform === "linkedin") {
+      if (parts[0] === "in" && parts[1]) return `linkedin.com/in/${parts[1]}`;
+      return v;
+    }
+    const handle = parts[0]?.replace(/^@/, "");
+    if (handle) return `@${handle}`;
+  } catch { /* not a URL */ }
+  if (v.startsWith("@")) return v;
+  if (/^[\w.]+$/.test(v) && platform !== "linkedin") return `@${v}`;
+  return v;
+}
+
 const TEMPLATES: { id: string; label: string; Component: ComponentType<{ data: CardData }> }[] = [
   { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
   { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
@@ -137,9 +156,14 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           <input
             name={f.name}
             type="text"
-            placeholder="@yourhandle"
+            placeholder={f.name === "linkedin" ? "linkedin.com/in/yourname or paste URL" : "@yourhandle or paste URL"}
             value={form[f.name as keyof typeof form]}
             onChange={handle}
+            onBlur={(e) => {
+              const platform = f.name as "instagram" | "twitter" | "tiktok" | "linkedin";
+              const parsed = parseSocial(e.target.value, platform);
+              setForm((prev) => ({ ...prev, [f.name]: parsed }));
+            }}
             className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
