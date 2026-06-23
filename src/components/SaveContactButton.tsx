@@ -20,7 +20,7 @@ function normalizeUrl(url: string): string {
   return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
 }
 
-export default function SaveContactButton({ person }: { person: Person }) {
+export default function SaveContactButton({ person, username }: { person: Person; username?: string }) {
   const [saved, setSaved] = useState(false);
 
   function downloadVCard() {
@@ -54,6 +54,13 @@ export default function SaveContactButton({ person }: { person: Person }) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setSaved(true);
+    if (username) {
+      fetch("/api/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, event_type: "contact_save" }),
+      }).catch(() => {});
+    }
   }
 
   if (saved) {

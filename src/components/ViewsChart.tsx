@@ -41,10 +41,10 @@ export default function ViewsChart({ data }: { data: DayData[] }) {
                 rx={2}
                 fill={
                   d.views === 0
-                    ? "#111827"
+                    ? "#e2e8f0"
                     : isHov || isToday
-                    ? "#3b82f6"
-                    : "#1d4ed8"
+                    ? "#2563eb"
+                    : "#93c5fd"
                 }
                 style={{ transition: "fill 0.1s", cursor: "default" }}
                 onMouseEnter={() => setHovered(i)}
@@ -54,17 +54,17 @@ export default function ViewsChart({ data }: { data: DayData[] }) {
                 <>
                   <rect
                     x={x + gap / 2 - 16}
-                    y={y - 22}
+                    y={y - 24}
                     width={barW + 32}
                     height={18}
                     rx={4}
-                    fill="#1e3a6e"
+                    fill="#1e293b"
                   />
                   <text
                     x={x + barW / 2 + gap / 2}
-                    y={y - 9}
+                    y={y - 11}
                     textAnchor="middle"
-                    fill="#93c5fd"
+                    fill="#ffffff"
                     fontSize={10}
                     fontWeight={700}
                   >
@@ -77,10 +77,10 @@ export default function ViewsChart({ data }: { data: DayData[] }) {
         })}
       </svg>
 
-      <div className="flex justify-between mt-1" style={{ fontSize: 10, color: "#4b5563" }}>
+      <div className="flex justify-between mt-1" style={{ fontSize: 10, color: "#94a3b8" }}>
         <span>{fmt(data[0].date)}</span>
         {hovered !== null ? (
-          <span style={{ color: "#60a5fa" }}>{fmt(data[hovered].date)}</span>
+          <span style={{ color: "#2563eb", fontWeight: 600 }}>{fmt(data[hovered].date)}</span>
         ) : (
           <span>Today</span>
         )}

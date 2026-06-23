@@ -19,7 +19,7 @@ const FREE_LIMIT = 25;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -27,6 +27,7 @@ export default async function DashboardPage({
   const view = params.view ?? "list";
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
+  const chartRange = params.range ?? "30d";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -35,6 +36,8 @@ export default async function DashboardPage({
     .from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
 
+  const chartDays = chartRange === "7d" ? 7 : 30;
+  const chartCutoff = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
@@ -44,6 +47,8 @@ export default async function DashboardPage({
     { data: recentViews },
     { data: extraCards },
     { data: notifications },
+    { data: locationViews },
+    { count: contactSaves },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -56,9 +61,13 @@ export default async function DashboardPage({
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username),
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username)
       .gte("viewed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-    supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", thirtyDaysAgo),
+    supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", chartCutoff),
     supabase.from("cards").select("id, username, name, title, company").eq("user_id", user.id).order("created_at", { ascending: true }),
     supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    isPro
+      ? supabase.from("card_views").select("location").eq("username", profile.username).not("location", "is", null).gte("viewed_at", thirtyDaysAgo)
+      : Promise.resolve({ data: null }),
+    supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", profile.username).eq("event_type", "contact_save"),
   ]);
 
   const viewsByDate: Record<string, number> = {};
@@ -66,12 +75,21 @@ export default async function DashboardPage({
     const date = new Date(v.viewed_at).toISOString().split("T")[0];
     viewsByDate[date] = (viewsByDate[date] ?? 0) + 1;
   }
-  const chartData = Array.from({ length: 30 }, (_, i) => {
-    const date = new Date(Date.now() - (29 - i) * 86400000).toISOString().split("T")[0];
+  const chartData = Array.from({ length: chartDays }, (_, i) => {
+    const date = new Date(Date.now() - (chartDays - 1 - i) * 86400000).toISOString().split("T")[0];
     return { date, views: viewsByDate[date] ?? 0 };
   });
 
   const totalViewsLast30 = chartData.reduce((s, d) => s + d.views, 0);
+
+  // Location breakdown (Pro only)
+  const locationCounts: Record<string, number> = {};
+  for (const v of locationViews ?? []) {
+    if (v.location) locationCounts[v.location] = (locationCounts[v.location] ?? 0) + 1;
+  }
+  const topLocations = Object.entries(locationCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
   const peakViews = Math.max(...chartData.map((d) => d.views), 0);
   const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
@@ -185,24 +203,61 @@ export default async function DashboardPage({
         {/* Analytics chart */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Card views · Last 30 days</p>
-            <span className="text-slate-400 text-xs">{totalViewsLast30} total</span>
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Card views</p>
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+              {(["7d", "30d"] as const).map((r) => (
+                <Link key={r} href={`?range=${r}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                  className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${chartRange === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+                  {r === "7d" ? "7 days" : "30 days"}
+                </Link>
+              ))}
+            </div>
           </div>
           <ViewsChart data={chartData} />
-          <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-4 gap-4 mt-5 pt-4 border-t border-slate-100">
             <div>
               <p className="text-slate-900 font-bold text-lg">{viewsToday}</p>
-              <p className="text-slate-500 text-xs mt-0.5">Views today</p>
+              <p className="text-slate-500 text-xs mt-0.5">Today</p>
             </div>
             <div>
               <p className="text-slate-900 font-bold text-lg">{peakViews}</p>
               <p className="text-slate-500 text-xs mt-0.5">Best day</p>
             </div>
             <div>
+              <p className="text-slate-900 font-bold text-lg">{contactSaves ?? 0}</p>
+              <p className="text-slate-500 text-xs mt-0.5">Contact saves</p>
+            </div>
+            <div>
               <p className="text-slate-900 font-bold text-lg">{conversionRate}{conversionRate !== "—" ? "%" : ""}</p>
-              <p className="text-slate-500 text-xs mt-0.5">Lead conversion</p>
+              <p className="text-slate-500 text-xs mt-0.5">Conversion</p>
             </div>
           </div>
+
+          {/* Location breakdown — Pro only */}
+          {isPro && topLocations.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-3">Top locations · Last 30 days</p>
+              <div className="space-y-2">
+                {topLocations.map(([loc, count]) => (
+                  <div key={loc} className="flex items-center gap-3">
+                    <p className="text-slate-700 text-xs flex-1 truncate">{loc}</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(count / topLocations[0][1]) * 100}%` }} />
+                      </div>
+                      <span className="text-slate-500 text-xs w-6 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!isPro && (
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <p className="text-slate-400 text-xs">Location breakdown available on Pro</p>
+              <Link href="/pricing" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Upgrade →</Link>
+            </div>
+          )}
         </div>
 
         {/* Share your card */}
