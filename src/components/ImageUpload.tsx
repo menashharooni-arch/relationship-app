@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
+import "react-easy-crop/react-easy-crop.css";
 
 type Props = {
   field: "photo" | "logo";
