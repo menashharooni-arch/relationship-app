@@ -8,6 +8,14 @@ interface Person {
   phone: string;
   website: string;
   linkedin?: string;
+  instagram?: string;
+  twitter?: string;
+  tiktok?: string;
+}
+
+function normalizeUrl(url: string): string {
+  if (!url) return "";
+  return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
 }
 
 export default function SaveContactButton({ person }: { person: Person }) {
@@ -17,16 +25,18 @@ export default function SaveContactButton({ person }: { person: Person }) {
       "VERSION:3.0",
       `FN:${person.name}`,
       `N:${person.name.split(" ").slice(1).join(" ")};${person.name.split(" ")[0]};;;`,
-      `TITLE:${person.title}`,
-      `ORG:${person.company}`,
-      `EMAIL:${person.email}`,
-      `TEL:${person.phone}`,
-      `URL:https://${person.website}`,
     ];
 
-    if (person.linkedin) {
-      lines.push(`URL;type=LinkedIn:https://${person.linkedin}`);
-    }
+    if (person.title)   lines.push(`TITLE:${person.title}`);
+    if (person.company) lines.push(`ORG:${person.company}`);
+    if (person.email)   lines.push(`EMAIL:${person.email}`);
+    if (person.phone)   lines.push(`TEL:${person.phone}`);
+    if (person.website) lines.push(`URL:${normalizeUrl(person.website)}`);
+
+    if (person.linkedin)  lines.push(`URL;type=LinkedIn:${normalizeUrl(person.linkedin)}`);
+    if (person.instagram) lines.push(`X-SOCIALPROFILE;type=instagram:${person.instagram.replace(/^@/, "")}`);
+    if (person.twitter)   lines.push(`X-SOCIALPROFILE;type=twitter:${person.twitter.replace(/^@/, "")}`);
+    if (person.tiktok)    lines.push(`X-SOCIALPROFILE;type=tiktok:${person.tiktok.replace(/^@/, "")}`);
 
     lines.push("END:VCARD");
 
@@ -44,8 +54,11 @@ export default function SaveContactButton({ person }: { person: Person }) {
   return (
     <button
       onClick={downloadVCard}
-      className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+      className="w-full bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-900 border border-gray-200 font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
     >
+      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
       Save Contact
     </button>
   );

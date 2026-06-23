@@ -99,7 +99,7 @@ export default function FlowSettingsForm({
                   disabled={!isPro && key !== "day1"}
                   className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                 />
-                <span className="text-xs text-gray-600">local time</span>
+                <span className="text-xs text-gray-600">UTC</span>
               </div>
             )}
 
