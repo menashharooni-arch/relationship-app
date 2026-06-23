@@ -6,11 +6,18 @@ const FREE_LEAD_LIMIT = 25;
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, phone, card_owner } = await req.json();
+    const { name, email, phone, message, card_owner } = await req.json();
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     }
+
+    // Extract location from Vercel's built-in geo headers (no API key needed)
+    const city = req.headers.get("x-vercel-ip-city");
+    const country = req.headers.get("x-vercel-ip-country");
+    const location = city && country
+      ? `${decodeURIComponent(city)}, ${country}`
+      : country || null;
 
     const supabase = getSupabase();
 
@@ -20,7 +27,7 @@ export async function POST(req: NextRequest) {
       .eq("username", card_owner)
       .single();
 
-    if (ownerProfile?.plan !== "pro") {
+    if (ownerProfile?.plan !== "pro" && ownerProfile?.plan !== "enterprise") {
       const { count } = await supabase
         .from("leads")
         .select("*", { count: "exact", head: true })
@@ -36,7 +43,14 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabase
       .from("leads")
-      .insert({ name, email, phone: phone || null, card_owner });
+      .insert({
+        name,
+        email,
+        phone: phone || null,
+        message: message || null,
+        location: location || null,
+        card_owner,
+      });
 
     if (error) {
       console.error("Supabase insert error:", error.message);
@@ -82,7 +96,7 @@ export async function POST(req: NextRequest) {
             </div>
           </div>
         `,
-      }).catch(() => {}); // don't fail the request if email fails
+      }).catch(() => {}); // non-blocking
     }
 
     return NextResponse.json({ success: true });

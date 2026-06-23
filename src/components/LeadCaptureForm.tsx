@@ -6,9 +6,9 @@ type Status = "idle" | "loading" | "done" | "error" | "limit";
 
 export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
   const [status, setStatus] = useState<Status>("idle");
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
@@ -76,6 +76,14 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
         value={form.phone}
         onChange={handleChange}
         className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
+      />
+      <textarea
+        name="message"
+        placeholder="Quick message (optional)"
+        value={form.message}
+        onChange={handleChange}
+        rows={2}
+        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm resize-none"
       />
       {status === "error" && (
         <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>

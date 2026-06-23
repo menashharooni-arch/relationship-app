@@ -41,34 +41,19 @@ export default async function DashboardPage({
   ] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, name, email, phone, notes, status, follow_up_date, created_at")
+      .select("id, name, email, phone, message, location, notes, status, follow_up_date, created_at")
       .eq("card_owner", profile.username)
       .order(
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
         { ascending: sortBy === "name-asc" || sortBy === "oldest" }
       ),
-    supabase
-      .from("card_views")
-      .select("*", { count: "exact", head: true })
-      .eq("username", profile.username),
-    supabase
-      .from("card_views")
-      .select("*", { count: "exact", head: true })
-      .eq("username", profile.username)
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username),
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username)
       .gte("viewed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-    supabase
-      .from("card_views")
-      .select("viewed_at")
-      .eq("username", profile.username)
-      .gte("viewed_at", thirtyDaysAgo),
-    supabase
-      .from("cards")
-      .select("id, username, name, title, company")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true }),
+    supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", thirtyDaysAgo),
+    supabase.from("cards").select("id, username, name, title, company").eq("user_id", user.id).order("created_at", { ascending: true }),
   ]);
 
-  // Build 30-day chart data
   const viewsByDate: Record<string, number> = {};
   for (const v of recentViews ?? []) {
     const date = new Date(v.viewed_at).toISOString().split("T")[0];
@@ -84,16 +69,13 @@ export default async function DashboardPage({
   const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
   const conversionRate =
-    totalViewsLast30 > 0
-      ? ((allLeads.length / totalViewsLast30) * 100).toFixed(1)
-      : "—";
+    totalViewsLast30 > 0 ? ((allLeads.length / totalViewsLast30) * 100).toFixed(1) : "—";
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
   const isEnterprise = profile.plan === "enterprise";
   const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
   const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
 
-  // Check if this enterprise user is the office owner
   const { data: ownedOffice } = isEnterprise
     ? await supabase.from("offices").select("id, name").eq("owner_id", user.id).single()
     : { data: null };
@@ -101,15 +83,15 @@ export default async function DashboardPage({
   const cardUrl = `${APP_URL}/card/${profile.username}`;
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10">
+    <main className="min-h-screen bg-slate-50 px-5 py-8">
       <div className="max-w-2xl mx-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">Kontact</p>
+            <p className="text-[11px] font-bold tracking-[0.25em] text-blue-600 uppercase mb-1">Kontact</p>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+              <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
               {isEnterprise ? (
                 <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
@@ -118,18 +100,18 @@ export default async function DashboardPage({
                   Office Plan
                 </span>
               ) : (
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"}`}>
                   {isPro ? "Pro" : "Free"}
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/templates" className="text-sm text-gray-400 hover:text-white transition-colors">Card design</Link>
-            <Link href="/profile" className="text-sm text-gray-400 hover:text-white transition-colors">Edit card</Link>
-            <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white transition-colors">Flows</Link>
+            <Link href="/templates" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Card design</Link>
+            <Link href="/profile" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Edit card</Link>
+            <Link href="/settings/flows" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">Flows</Link>
             {ownedOffice && (
-              <Link href="/office" className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors">Team</Link>
+              <Link href="/office" className="text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors">Team</Link>
             )}
             <SignOutButton />
           </div>
@@ -137,28 +119,26 @@ export default async function DashboardPage({
 
         {/* Upgrade success */}
         {params.upgraded && (
-          <div className="bg-green-900/30 border border-green-700/50 rounded-2xl px-5 py-4 mb-5 flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-            <p className="text-green-300 text-sm font-medium">
-              Welcome to Pro! Your plan is now active.
-            </p>
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4 mb-5 flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            <p className="text-green-700 text-sm font-medium">Welcome to Pro! Your plan is now active.</p>
           </div>
         )}
 
         {/* Free plan banner */}
         {!isPro && (
-          <div className={`rounded-2xl px-5 py-4 mb-5 flex items-center justify-between gap-4 ${atLimit ? "bg-red-900/30 border border-red-700/50" : "bg-blue-950/50 border border-blue-800/40"}`}>
+          <div className={`rounded-2xl px-5 py-4 mb-5 flex items-center justify-between gap-4 ${atLimit ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-200"}`}>
             <div>
-              <p className={`font-semibold text-sm ${atLimit ? "text-red-300" : "text-white"}`}>
+              <p className={`font-semibold text-sm ${atLimit ? "text-red-700" : "text-slate-900"}`}>
                 {atLimit ? "Lead limit reached" : "Free Plan"}
               </p>
-              <p className="text-gray-400 text-xs mt-0.5">
+              <p className="text-slate-500 text-xs mt-0.5">
                 {allLeads.length} / {FREE_LIMIT} leads used
                 {atLimit ? " — upgrade to capture more" : nearLimit ? " — almost full" : ""}
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <Link href="/pricing" className="text-xs text-gray-400 hover:text-white transition-colors">See plans</Link>
+              <Link href="/pricing" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">See plans</Link>
               <UpgradeButton />
             </div>
           </div>
@@ -171,58 +151,51 @@ export default async function DashboardPage({
             { label: "Card views", value: totalViews ?? 0 },
             { label: "Views this week", value: weekViews ?? 0 },
           ].map((s) => (
-            <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4 text-center">
-              <p className="text-2xl font-bold text-white">{s.value}</p>
-              <p className="text-gray-500 text-xs mt-1">{s.label}</p>
+            <div key={s.label} className="bg-white border border-slate-200 rounded-2xl px-4 py-4 text-center shadow-sm">
+              <p className="text-2xl font-bold text-slate-900">{s.value}</p>
+              <p className="text-slate-500 text-xs mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Analytics chart */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Card views · Last 30 days</p>
-            <span className="text-gray-600 text-xs">{totalViewsLast30} total</span>
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Card views · Last 30 days</p>
+            <span className="text-slate-400 text-xs">{totalViewsLast30} total</span>
           </div>
-
           <ViewsChart data={chartData} />
-
-          <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-gray-800">
+          <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-slate-100">
             <div>
-              <p className="text-white font-bold text-lg">{viewsToday}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Views today</p>
+              <p className="text-slate-900 font-bold text-lg">{viewsToday}</p>
+              <p className="text-slate-500 text-xs mt-0.5">Views today</p>
             </div>
             <div>
-              <p className="text-white font-bold text-lg">{peakViews}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Best day</p>
+              <p className="text-slate-900 font-bold text-lg">{peakViews}</p>
+              <p className="text-slate-500 text-xs mt-0.5">Best day</p>
             </div>
             <div>
-              <p className="text-white font-bold text-lg">{conversionRate}{conversionRate !== "—" ? "%" : ""}</p>
-              <p className="text-gray-500 text-xs mt-0.5">Lead conversion</p>
+              <p className="text-slate-900 font-bold text-lg">{conversionRate}{conversionRate !== "—" ? "%" : ""}</p>
+              <p className="text-slate-500 text-xs mt-0.5">Lead conversion</p>
             </div>
           </div>
         </div>
 
         {/* Share your card */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
-          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-4">Share your card</p>
-
-          {/* Primary share button */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm">
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-4">Share your card</p>
           <ShareButton
             url={cardUrl}
             title="My Kontact card"
             text="Save my contact and connect with me instantly."
             label="Share Card"
           />
-
-          {/* Copy link row */}
-          <div className="flex items-center gap-3 bg-gray-950 rounded-xl px-4 py-3 mt-3">
-            <span className="text-blue-400 text-sm truncate flex-1">{cardUrl}</span>
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mt-3">
+            <span className="text-blue-600 text-sm truncate flex-1">{cardUrl}</span>
             <CopyButton text={cardUrl} />
           </div>
-
           <a href={cardUrl} target="_blank" rel="noopener noreferrer"
-            className="block text-center text-xs text-gray-500 hover:text-white transition-colors mt-3">
+            className="block text-center text-xs text-slate-400 hover:text-slate-700 transition-colors mt-3">
             Preview your live card →
           </a>
         </div>
@@ -234,48 +207,42 @@ export default async function DashboardPage({
         </div>
 
         {/* My Cards */}
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">My Cards</p>
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">My Cards</p>
             {isPro && (extraCards?.length ?? 0) < 2 && (
-              <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">
+              <Link href="/cards/new" className="text-xs text-blue-600 hover:text-blue-700 transition-colors font-medium">
                 + Add card
               </Link>
             )}
           </div>
-
           <div className="space-y-2">
-            {/* Primary card (from profile) */}
-            <div className="flex items-center justify-between bg-gray-950 rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
               <div>
-                <p className="text-white text-sm font-semibold">{profile.name}</p>
-                <p className="text-gray-500 text-xs">{profile.title || "Primary card"} · /{profile.username}</p>
+                <p className="text-slate-900 text-sm font-semibold">{profile.name}</p>
+                <p className="text-slate-500 text-xs">{profile.title || "Primary card"} · /{profile.username}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Primary</span>
-                <Link href="/profile" className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
+                <Link href="/profile" className="text-xs text-slate-500 hover:text-slate-900 transition-colors">Edit</Link>
               </div>
             </div>
-
-            {/* Extra cards */}
             {(extraCards ?? []).map((card) => (
-              <div key={card.id} className="flex items-center justify-between bg-gray-950 rounded-xl px-4 py-3">
+              <div key={card.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
                 <div>
-                  <p className="text-white text-sm font-semibold">{card.name || card.username}</p>
-                  <p className="text-gray-500 text-xs">{card.title || card.company || "Extra card"} · /{card.username}</p>
+                  <p className="text-slate-900 text-sm font-semibold">{card.name || card.username}</p>
+                  <p className="text-slate-500 text-xs">{card.title || card.company || "Extra card"} · /{card.username}</p>
                 </div>
                 <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-gray-500 hover:text-white transition-colors">
+                  className="text-xs text-slate-500 hover:text-slate-900 transition-colors">
                   View →
                 </a>
               </div>
             ))}
-
-            {/* Upgrade prompt for free users */}
             {!isPro && (
-              <div className="flex items-center justify-between border border-dashed border-gray-700 rounded-xl px-4 py-3">
-                <p className="text-gray-600 text-xs">Pro users can create up to 3 cards</p>
-                <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium">
+              <div className="flex items-center justify-between border border-dashed border-slate-300 rounded-xl px-4 py-3">
+                <p className="text-slate-400 text-xs">Pro users can create up to 3 cards</p>
+                <Link href="/pricing" className="text-xs text-blue-600 hover:text-blue-700 transition-colors font-medium">
                   Upgrade →
                 </Link>
               </div>
@@ -283,28 +250,27 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        {/* Leads header */}
+        {/* Contacts header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-white">Leads</h2>
+            <h2 className="text-lg font-bold text-slate-900">Contacts</h2>
             <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
               {allLeads.length}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {allLeads.length > 1 && <SortSelect value={sortBy} />}
-            {/* Status legend */}
             <div className="hidden sm:flex items-center gap-3">
               {(["hot", "warm", "cold", "closed"] as const).map((s) => {
-                const colors: Record<string, string> = { hot: "#fca5a5", warm: "#fcd34d", cold: "#93c5fd", closed: "#86efac" };
+                const colors: Record<string, string> = { hot: "#dc2626", warm: "#d97706", cold: "#2563eb", closed: "#16a34a" };
                 return (
-                  <span key={s} className="text-[10px] font-medium capitalize" style={{ color: colors[s] }}>{s}</span>
+                  <span key={s} className="text-[10px] font-semibold capitalize" style={{ color: colors[s] }}>{s}</span>
                 );
               })}
             </div>
             {allLeads.length > 0 && (
               <a href={`/api/leads/export?username=${profile.username}`}
-                className="text-xs text-gray-400 hover:text-white transition-colors border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg">
+                className="text-xs text-slate-500 hover:text-slate-900 transition-colors border border-slate-300 hover:border-slate-400 px-3 py-1.5 rounded-lg">
                 Export CSV
               </a>
             )}
@@ -312,9 +278,14 @@ export default async function DashboardPage({
         </div>
 
         {allLeads.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-gray-800 rounded-2xl text-gray-600">
-            <p className="font-medium text-gray-500 mb-1">No leads yet</p>
-            <p className="text-sm">Share your card link or QR code to start collecting.</p>
+          <div className="text-center py-20 border border-dashed border-slate-300 rounded-2xl">
+            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6 text-slate-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+            </div>
+            <p className="font-semibold text-slate-600 mb-1">No contacts yet</p>
+            <p className="text-sm text-slate-400">Share your card link or QR code to start collecting.</p>
           </div>
         ) : (
           <div className="space-y-3">
