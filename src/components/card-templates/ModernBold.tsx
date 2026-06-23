@@ -41,15 +41,19 @@ export default function ModernBold({ data }: { data: CardData }) {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl shadow-xl flex"
-      style={{ aspectRatio: "1.75 / 1", background: "#050d1a" }}
+      className="relative w-full overflow-hidden rounded-2xl flex"
+      style={{
+        aspectRatio: "1.75 / 1",
+        background: "radial-gradient(ellipse at 25% 55%, #0e1f3a 0%, #050d1a 70%)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(37,99,235,0.15)",
+      }}
     >
       {/* Faded giant monogram in background */}
       <div
         className="absolute select-none pointer-events-none font-black leading-none"
         style={{
           fontSize: "clamp(100px, 22vw, 160px)",
-          color: "rgba(59,130,246,0.06)",
+          color: "rgba(59,130,246,0.08)",
           top: "50%",
           left: "-2%",
           transform: "translateY(-52%)",
@@ -59,16 +63,28 @@ export default function ModernBold({ data }: { data: CardData }) {
         {(data.name ?? "A")[0]}
       </div>
 
+      {/* Blue glow behind the divider */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: 40,
+          top: 0,
+          bottom: 0,
+          left: "40%",
+          background: "radial-gradient(ellipse at center, rgba(59,130,246,0.12) 0%, transparent 70%)",
+        }}
+      />
+
       {/* Blue diagonal accent */}
       <div
         className="absolute"
         style={{
-          width: 3,
+          width: 4,
           top: 0,
           bottom: 0,
           left: "42%",
-          background: "linear-gradient(to bottom, #3b82f6, #1d4ed8, transparent)",
-          opacity: 0.6,
+          background: "linear-gradient(to bottom, #60a5fa, #1d4ed8, transparent)",
+          opacity: 0.75,
         }}
       />
 
@@ -79,18 +95,18 @@ export default function ModernBold({ data }: { data: CardData }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={data.logoUrl} alt="Logo" className="w-5 h-5 rounded object-contain shrink-0" />
           )}
-          <p style={{ fontSize: 9, letterSpacing: "0.25em", color: "#4b5563", fontWeight: 700 }}>
+          <p style={{ fontSize: 9, letterSpacing: "0.28em", color: "#4b5563", fontWeight: 700 }}>
             {(data.company ?? "").toUpperCase()}
           </p>
         </div>
 
         {/* Name + Title */}
         <div>
-          <div className="w-5 h-px mb-3" style={{ background: "#3b82f6" }} />
-          <h2 className="font-black text-white leading-tight" style={{ fontSize: "clamp(16px, 3.5vw, 26px)" }}>
+          <div className="w-6 h-px mb-3" style={{ background: "linear-gradient(to right, #60a5fa, #3b82f6)" }} />
+          <h2 className="font-black text-white leading-tight" style={{ fontSize: "clamp(16px, 3.5vw, 26px)", textShadow: "0 0 20px rgba(59,130,246,0.2)" }}>
             {data.name}
           </h2>
-          <p style={{ fontSize: 9, color: "#3b82f6", letterSpacing: "0.18em", fontWeight: 700, marginTop: 4 }}>
+          <p style={{ fontSize: 9, color: "#60a5fa", letterSpacing: "0.2em", fontWeight: 700, marginTop: 5 }}>
             {(data.title ?? "").toUpperCase()}
           </p>
         </div>
@@ -106,29 +122,29 @@ export default function ModernBold({ data }: { data: CardData }) {
 
       {/* Right panel */}
       <div className="flex-1 flex flex-col justify-center px-6 gap-[9px]" style={{ color: "#94a3b8" }}>
-        <div className="w-6 h-px mb-1" style={{ background: "#3b82f6" }} />
+        <div className="w-6 h-px mb-1" style={{ background: "linear-gradient(to right, #3b82f6, transparent)" }} />
 
         {data.phone && (
           <div className="flex items-center gap-2">
-            <Phone />
+            <span style={{ color: "#3b82f6" }}><Phone /></span>
             <span style={{ fontSize: 11 }}>{data.phone}</span>
           </div>
         )}
         {data.email && (
-          <div className="flex items-center gap-2 truncate">
-            <Mail />
+          <div className="flex items-center gap-2 min-w-0">
+            <span style={{ color: "#3b82f6" }}><Mail /></span>
             <span className="truncate" style={{ fontSize: 11 }}>{data.email}</span>
           </div>
         )}
         {data.website && (
           <div className="flex items-center gap-2">
-            <Globe />
+            <span style={{ color: "#3b82f6" }}><Globe /></span>
             <span style={{ fontSize: 11 }}>{data.website}</span>
           </div>
         )}
 
         {socials.length > 0 && (
-          <div className="mt-1 pt-2 flex flex-col gap-[5px]" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="mt-1 pt-2 flex flex-col gap-[5px]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
             {socials.map((s, i) => (
               <div key={i} className="flex items-center gap-2" style={{ color: s.color }}>
                 {s.icon}

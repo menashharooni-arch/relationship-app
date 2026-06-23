@@ -42,29 +42,55 @@ export default function PhotoFirst({ data }: { data: CardData }) {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl shadow-lg flex"
-      style={{ aspectRatio: "1.75 / 1", background: "#ffffff" }}
+      className="relative w-full overflow-hidden rounded-2xl flex"
+      style={{
+        aspectRatio: "1.75 / 1",
+        background: "#ffffff",
+        boxShadow: "0 8px 32px rgba(99,102,241,0.15), 0 2px 8px rgba(0,0,0,0.08)",
+      }}
     >
       {/* Left: Photo panel */}
       <div
         className="relative flex flex-col items-center justify-center"
         style={{
           width: "38%",
-          background: "linear-gradient(155deg, #6366f1 0%, #8b5cf6 50%, #4f46e5 100%)",
+          background: "linear-gradient(155deg, #4f46e5 0%, #7c3aed 50%, #6d28d9 100%)",
           flexShrink: 0,
         }}
       >
-        <div className="absolute inset-0 opacity-20"
-          style={{ backgroundImage: "radial-gradient(circle at 30% 107%, #ffd89b 0%, transparent 50%), radial-gradient(circle at 80% 10%, #a78bfa 0%, transparent 30%)" }}
+        {/* Layered radial glows for depth */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 80% 20%, rgba(167,139,250,0.35) 0%, transparent 55%), radial-gradient(circle at 20% 80%, rgba(79,70,229,0.5) 0%, transparent 50%)",
+          }}
         />
 
         {data.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.photoUrl} alt={data.name} className="w-20 h-20 rounded-full object-cover border-2 border-white/30 relative" />
+          <img
+            src={data.photoUrl}
+            alt={data.name}
+            className="relative rounded-full object-cover"
+            style={{
+              width: "52%",
+              aspectRatio: "1/1",
+              border: "2px solid rgba(255,255,255,0.5)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,255,255,0.1)",
+            }}
+          />
         ) : (
           <div
-            className="relative flex items-center justify-center rounded-full border-2"
-            style={{ width: "52%", aspectRatio: "1/1", background: "rgba(255,255,255,0.15)", borderColor: "rgba(255,255,255,0.3)" }}
+            className="relative flex items-center justify-center rounded-full"
+            style={{
+              width: "52%",
+              aspectRatio: "1/1",
+              background: "rgba(255,255,255,0.15)",
+              border: "2px solid rgba(255,255,255,0.4)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.2), 0 0 0 4px rgba(255,255,255,0.08)",
+              backdropFilter: "blur(4px)",
+            }}
           >
             <span className="font-black text-white" style={{ fontSize: "clamp(16px, 4vw, 30px)" }}>
               {data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -72,18 +98,18 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           </div>
         )}
 
-        <div className="relative text-center mt-2 px-3">
-          <p className="font-bold text-white leading-tight" style={{ fontSize: "clamp(10px, 2vw, 14px)" }}>
+        <div className="relative text-center mt-2.5 px-3">
+          <p className="font-extrabold text-white leading-tight" style={{ fontSize: "clamp(10px, 2vw, 14px)" }}>
             {data.name}
           </p>
-          <p className="text-purple-200" style={{ fontSize: 9, letterSpacing: "0.1em", marginTop: 2 }}>
+          <p style={{ fontSize: 8.5, letterSpacing: "0.12em", marginTop: 2, color: "rgba(196,181,253,0.9)" }}>
             {data.title}
           </p>
         </div>
 
-        {/* Social icons row at bottom */}
+        {/* Social icons row */}
         {socials.length > 0 && (
-          <div className="relative flex items-center gap-2.5 mt-2 text-white/60">
+          <div className="relative flex items-center gap-2.5 mt-2" style={{ color: "rgba(255,255,255,0.55)" }}>
             {socials.map((s, i) => <span key={i}>{s.icon}</span>)}
           </div>
         )}
@@ -98,44 +124,44 @@ export default function PhotoFirst({ data }: { data: CardData }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={data.logoUrl} alt="Logo" className="w-6 h-6 rounded object-contain shrink-0" />
             )}
-            <p className="font-black text-gray-900" style={{ fontSize: "clamp(11px, 2.2vw, 15px)" }}>
+            <p className="font-extrabold text-gray-900" style={{ fontSize: "clamp(11px, 2.2vw, 15px)" }}>
               {data.company}
             </p>
           </div>
-          <div className="w-6 h-[2px] mt-1" style={{ background: "linear-gradient(to right, #6366f1, #8b5cf6)" }} />
+          <div className="w-8 h-[2px] mt-1.5" style={{ background: "linear-gradient(to right, #6366f1, #8b5cf6)" }} />
         </div>
 
         {/* Middle: contact */}
-        <div className="flex flex-col gap-[6px]" style={{ color: "#4b5563" }}>
+        <div className="flex flex-col gap-[6px]">
           {data.phone && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" style={{ color: "#6366f1" }}>
               <Phone />
-              <span style={{ fontSize: 11 }}>{data.phone}</span>
+              <span className="text-gray-700 font-medium" style={{ fontSize: 11 }}>{data.phone}</span>
             </div>
           )}
           {data.email && (
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#6366f1" }}>
               <Mail />
-              <span className="truncate" style={{ fontSize: 11 }}>{data.email}</span>
+              <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" style={{ color: "#6366f1" }}>
               <Globe />
-              <span style={{ fontSize: 11 }}>{data.website}</span>
+              <span className="text-gray-700" style={{ fontSize: 11 }}>{data.website}</span>
             </div>
           )}
           {socials.map((s, i) => (
             <div key={i} className="flex items-center gap-2" style={{ color: s.color }}>
               {s.icon}
-              <span style={{ fontSize: 11 }}>{s.label}</span>
+              <span style={{ fontSize: 10.5 }}>{s.label}</span>
             </div>
           ))}
         </div>
 
         {/* Bottom: QR */}
         <div className="flex items-end justify-between">
-          <div style={{ fontSize: 9, color: "#d1d5db", letterSpacing: "0.1em" }}>
+          <div style={{ fontSize: 8, color: "#c4b5fd", letterSpacing: "0.12em", fontWeight: 600 }}>
             SCAN TO CONNECT
           </div>
           <QR size={44} bg="#f3f4f6" fg="#111827" />

@@ -1,17 +1,17 @@
 import type { CardData } from "./types";
 
 const Phone = () => (
-  <svg className="w-3 h-3 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
   </svg>
 );
 const Mail = () => (
-  <svg className="w-3 h-3 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
   </svg>
 );
 const Globe = () => (
-  <svg className="w-3 h-3 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582" />
   </svg>
 );
@@ -40,45 +40,67 @@ export default function ClassicPro({ data }: { data: CardData }) {
   const hasSocial = data.linkedin || data.instagram || data.twitter || data.tiktok;
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl shadow-lg bg-white flex"
-      style={{ aspectRatio: "1.75 / 1" }}
+      className="relative w-full overflow-hidden rounded-2xl flex"
+      style={{
+        aspectRatio: "1.75 / 1",
+        background: "#ffffff",
+        boxShadow: "0 8px 32px rgba(37,99,235,0.10), 0 2px 8px rgba(0,0,0,0.08)",
+      }}
     >
       {/* Bottom accent bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: "linear-gradient(to right, #3b82f6, #8b5cf6)" }} />
+      <div
+        className="absolute bottom-0 left-0 right-0"
+        style={{ height: 5, background: "linear-gradient(to right, #1d4ed8, #7c3aed)" }}
+      />
 
-      {/* Left panel */}
-      <div className="w-[40%] flex flex-col justify-between px-6 py-5 border-r border-gray-100">
+      {/* Left panel — pale blue tint */}
+      <div
+        className="w-[40%] flex flex-col justify-between px-6 py-6"
+        style={{
+          background: "linear-gradient(160deg, #eef4ff 0%, #f5f8ff 100%)",
+          borderRight: "1px solid #dbeafe",
+        }}
+      >
         <div>
           {/* Logo / company initial */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2.5 mb-5">
             {data.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-contain shrink-0" />
+              <img
+                src={data.logoUrl}
+                alt="Logo"
+                className="w-9 h-9 rounded-xl object-contain shrink-0"
+                style={{ boxShadow: "0 2px 8px rgba(37,99,235,0.15)" }}
+              />
             ) : (
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm font-black"
-                style={{ background: "#1e3a6e", color: "#60a5fa" }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black"
+                style={{
+                  background: "linear-gradient(135deg, #1e3a6e, #1d4ed8)",
+                  color: "#93c5fd",
+                  boxShadow: "0 2px 8px rgba(37,99,235,0.25)",
+                }}
               >
                 {(data.company ?? "K")[0]}
               </div>
             )}
-            <span className="text-gray-600 font-semibold leading-tight" style={{ fontSize: 11 }}>
+            <span className="text-blue-900/70 font-semibold leading-tight" style={{ fontSize: 10 }}>
               {data.company}
             </span>
           </div>
 
-          <div className="w-8 h-[2px] bg-blue-600 mb-3" />
-          <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: "clamp(14px, 3.2vw, 22px)" }}>
+          <div className="w-10 h-[2px] mb-3" style={{ background: "linear-gradient(to right, #1d4ed8, #7c3aed)" }} />
+          <h2 className="font-extrabold text-gray-900 leading-tight" style={{ fontSize: "clamp(14px, 3.2vw, 22px)" }}>
             {data.name}
           </h2>
-          <p className="font-bold text-blue-600 uppercase mt-1" style={{ fontSize: 9, letterSpacing: "0.15em" }}>
+          <p className="font-bold text-blue-600 uppercase mt-1.5" style={{ fontSize: 9, letterSpacing: "0.16em" }}>
             {data.title}
           </p>
         </div>
 
         {/* Social icons row */}
         {hasSocial && (
-          <div className="flex items-center gap-2 text-gray-400">
+          <div className="flex items-center gap-2.5 text-blue-400/70">
             {data.linkedin && <LinkedIn />}
             {data.instagram && <Insta />}
             {data.twitter && <XIcon />}
@@ -88,27 +110,27 @@ export default function ClassicPro({ data }: { data: CardData }) {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-center px-6 gap-[7px]">
+      <div className="flex-1 flex flex-col justify-center px-6 gap-2">
         {data.phone && (
-          <div className="flex items-center gap-2">
-            <Phone />
-            <span className="text-gray-700" style={{ fontSize: 11 }}>{data.phone}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-blue-400"><Phone /></span>
+            <span className="text-gray-700 font-medium" style={{ fontSize: 11 }}>{data.phone}</span>
           </div>
         )}
         {data.email && (
-          <div className="flex items-center gap-2">
-            <Mail />
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="text-blue-400"><Mail /></span>
             <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
           </div>
         )}
         {data.website && (
-          <div className="flex items-center gap-2">
-            <Globe />
+          <div className="flex items-center gap-2.5">
+            <span className="text-blue-400"><Globe /></span>
             <span className="text-gray-700" style={{ fontSize: 11 }}>{data.website}</span>
           </div>
         )}
         {hasSocial && (
-          <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-[5px]">
+          <div className="mt-2 pt-2 flex flex-col gap-[5px]" style={{ borderTop: "1px solid #e0e8ff" }}>
             {data.instagram && (
               <div className="flex items-center gap-2" style={{ color: "#c13584" }}>
                 <Insta />
@@ -116,13 +138,13 @@ export default function ClassicPro({ data }: { data: CardData }) {
               </div>
             )}
             {data.twitter && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-500">
                 <XIcon />
                 <span style={{ fontSize: 10 }}>{data.twitter}</span>
               </div>
             )}
             {data.tiktok && (
-              <div className="flex items-center gap-2 text-gray-600">
+              <div className="flex items-center gap-2 text-gray-500">
                 <TikTok />
                 <span style={{ fontSize: 10 }}>{data.tiktok}</span>
               </div>
