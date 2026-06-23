@@ -24,32 +24,51 @@ export default function LocalBusiness({ data }: { data: CardData }) {
     data.twitter && { icon: <XIcon />, label: data.twitter, color: "#92400e" },
     data.tiktok && { icon: <TikTok />, label: data.tiktok, color: "#92400e" },
   ].filter(Boolean) as { icon: React.ReactNode; label: string; color: string }[];
+
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl shadow-lg flex flex-col"
-      style={{ aspectRatio: "1.75 / 1", background: "#FFFCF5" }}
+      className="relative w-full overflow-hidden rounded-2xl flex flex-col"
+      style={{
+        aspectRatio: "1.75 / 1",
+        background: "#FFFBF0",
+        boxShadow: "0 8px 32px rgba(245,158,11,0.12), 0 2px 8px rgba(0,0,0,0.07)",
+      }}
     >
-      {/* Top accent bar */}
-      <div className="h-[5px] w-full shrink-0" style={{ background: "linear-gradient(to right, #f59e0b, #d97706)" }} />
+      {/* Top accent bar — thicker and more vibrant */}
+      <div
+        className="shrink-0"
+        style={{ height: 7, background: "linear-gradient(to right, #f59e0b, #d97706, #b45309)" }}
+      />
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel */}
-        <div className="flex flex-col items-center justify-center px-5 py-4" style={{ width: "36%", borderRight: "1px solid #fde68a" }}>
+        <div
+          className="flex flex-col items-center justify-center px-4 py-4"
+          style={{
+            width: "36%",
+            borderRight: "1px solid #fde68a",
+            background: "linear-gradient(160deg, #fffbf0 0%, #fef3c7 100%)",
+          }}
+        >
           {/* Company logo or monogram */}
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="Logo" className="mb-2 rounded-2xl object-contain"
-              style={{ width: "52%", aspectRatio: "1/1", background: "#fef3c7", padding: 6 }} />
+            <img
+              src={data.logoUrl}
+              alt="Logo"
+              className="mb-2.5 rounded-2xl object-contain"
+              style={{ width: "52%", aspectRatio: "1/1", background: "#fef3c7", padding: 6 }}
+            />
           ) : (
             <div
-              className="flex items-center justify-center font-black text-white rounded-2xl mb-2"
+              className="flex items-center justify-center font-black text-white rounded-2xl mb-2.5"
               style={{
                 width: "52%",
                 aspectRatio: "1/1",
-                background: "linear-gradient(135deg, #f59e0b, #b45309)",
+                background: "linear-gradient(135deg, #fbbf24, #b45309)",
                 fontSize: "clamp(16px, 4vw, 30px)",
-                boxShadow: "0 4px 12px rgba(245,158,11,0.35)",
+                boxShadow: "0 6px 18px rgba(245,158,11,0.40), 0 2px 6px rgba(0,0,0,0.1)",
               }}
             >
               {(data.company ?? "K")[0]}
@@ -57,14 +76,14 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           )}
 
           {/* Company name */}
-          <p className="font-black text-gray-800 text-center leading-tight" style={{ fontSize: "clamp(10px, 2vw, 13px)" }}>
+          <p className="font-extrabold text-amber-900 text-center leading-tight" style={{ fontSize: "clamp(10px, 2vw, 13px)" }}>
             {data.company}
           </p>
 
           {/* Badge */}
           <div
-            className="mt-2 px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: "#fef3c7", color: "#92400e", fontSize: 8, letterSpacing: "0.08em" }}
+            className="mt-2 px-2.5 py-0.5 rounded-full font-bold"
+            style={{ background: "#f59e0b", color: "#fff", fontSize: 7.5, letterSpacing: "0.1em" }}
           >
             LOCAL BUSINESS
           </div>
@@ -74,36 +93,42 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="flex-1 flex flex-col justify-between px-5 py-4">
           {/* Name + title */}
           <div>
-            <h2 className="font-bold text-gray-900 leading-tight" style={{ fontSize: "clamp(14px, 3vw, 20px)" }}>
+            <h2 className="font-extrabold text-gray-900 leading-tight" style={{ fontSize: "clamp(14px, 3vw, 20px)" }}>
               {data.name}
             </h2>
-            <p style={{ fontSize: 10, color: "#92400e", fontWeight: 600, letterSpacing: "0.12em", marginTop: 2 }}>
+            <div className="w-8 h-[2px] mt-1" style={{ background: "linear-gradient(to right, #f59e0b, #d97706)" }} />
+            <p style={{ fontSize: 9.5, color: "#92400e", fontWeight: 700, letterSpacing: "0.12em", marginTop: 4 }}>
               {(data.title ?? "").toUpperCase()}
             </p>
           </div>
 
           {/* Contact info */}
-          <div className="flex flex-col gap-[5px]">
-            {/* Phone — most important, bigger */}
+          <div className="flex flex-col gap-[6px]">
             {data.phone && (
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#fef3c7" }}>
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#b45309" strokeWidth={2}>
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: "linear-gradient(135deg, #fbbf24, #d97706)" }}
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                   </svg>
                 </div>
-                <span className="font-bold text-gray-800" style={{ fontSize: "clamp(12px, 2.5vw, 15px)" }}>{data.phone}</span>
+                <span className="font-extrabold text-gray-900" style={{ fontSize: "clamp(12px, 2.5vw, 15px)" }}>{data.phone}</span>
               </div>
             )}
 
             {data.email && (
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "#fef3c7" }}>
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: "#fef3c7" }}
+                >
                   <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#b45309" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
                   </svg>
                 </div>
-                <span className="text-gray-600 truncate" style={{ fontSize: 11 }}>{data.email}</span>
+                <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
               </div>
             )}
 
@@ -122,7 +147,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
           {/* Social links */}
           {socials.length > 0 && (
-            <div className="flex flex-col gap-[4px] mb-1">
+            <div className="flex flex-col gap-[4px]">
               {socials.map((s, i) => (
                 <div key={i} className="flex items-center gap-1.5" style={{ color: s.color }}>
                   {s.icon}
@@ -136,7 +161,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           <div className="flex items-end justify-between">
             <div>
               {data.website && (
-                <span style={{ fontSize: 10, color: "#d97706", fontWeight: 600 }}>{data.website}</span>
+                <span className="font-semibold" style={{ fontSize: 10, color: "#b45309" }}>{data.website}</span>
               )}
             </div>
             <QR size={42} bg="#fef3c7" fg="#78350f" />

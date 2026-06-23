@@ -3,6 +3,7 @@ import type { CardData } from "./types";
 
 const GOLD = "#C9A96E";
 const GOLD_DARK = "#A07840";
+const GOLD_LIGHT = "#E8D5A8";
 
 const Insta = () => (
   <svg className="w-2.5 h-2.5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
@@ -29,34 +30,38 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-2xl shadow-lg flex"
-      style={{ aspectRatio: "1.75 / 1", background: "#F8F6F2" }}
+      className="relative w-full overflow-hidden rounded-2xl flex"
+      style={{
+        aspectRatio: "1.75 / 1",
+        background: "linear-gradient(160deg, #FAF8F3 0%, #F5F1EA 100%)",
+        boxShadow: `0 8px 32px rgba(160,120,64,0.12), 0 2px 8px rgba(0,0,0,0.07)`,
+      }}
     >
       {/* Left gold accent strip */}
       <div
         className="shrink-0"
         style={{
-          width: 4,
-          background: `linear-gradient(to bottom, ${GOLD}, ${GOLD_DARK}, transparent)`,
+          width: 5,
+          background: `linear-gradient(to bottom, ${GOLD_LIGHT}, ${GOLD}, ${GOLD_DARK}, transparent)`,
         }}
       />
 
       {/* Left panel */}
       <div
         className="flex flex-col justify-between py-6 pl-5 pr-4"
-        style={{ width: "38%", borderRight: `1px solid ${GOLD}22` }}
+        style={{ width: "38%", borderRight: `1px solid ${GOLD}30` }}
       >
-        {/* Top: logo or initials */}
+        {/* Top: logo or faded initials */}
         <div>
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded" style={{ opacity: 0.85 }} />
+            <img src={data.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded" style={{ opacity: 0.9 }} />
           ) : (
             <div
               className="font-light select-none"
               style={{
                 fontSize: "clamp(28px, 7vw, 52px)",
-                color: `${GOLD}28`,
+                color: `${GOLD}50`,
                 lineHeight: 1,
                 letterSpacing: "0.05em",
               }}
@@ -68,25 +73,25 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
         {/* Bottom: company identity + socials */}
         <div>
-          <div className="w-6 h-px mb-2" style={{ background: GOLD }} />
+          <div className="w-8 h-px mb-2.5" style={{ background: `linear-gradient(to right, ${GOLD}, ${GOLD}40)` }} />
           <p
             style={{
               fontSize: 8,
-              fontWeight: 600,
-              letterSpacing: "0.3em",
+              fontWeight: 700,
+              letterSpacing: "0.32em",
               color: GOLD,
               textTransform: "uppercase",
-              lineHeight: 1.4,
+              lineHeight: 1.5,
             }}
           >
             {data.company}
           </p>
           {socials.length > 0 ? (
-            <div className="flex items-center gap-2 mt-2" style={{ color: `${GOLD}80` }}>
+            <div className="flex items-center gap-2 mt-2.5" style={{ color: `${GOLD}70` }}>
               {socials.map((s, i) => <span key={i}>{s.icon}</span>)}
             </div>
           ) : (
-            <p style={{ fontSize: 8, color: "#b8a88a", letterSpacing: "0.15em", marginTop: 3 }}>Est. 2018</p>
+            <p style={{ fontSize: 7.5, color: GOLD_DARK, opacity: 0.6, letterSpacing: "0.18em", marginTop: 5 }}>Est. 2018</p>
           )}
         </div>
       </div>
@@ -98,9 +103,9 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-800 leading-tight"
             style={{
-              fontSize: "clamp(16px, 3.5vw, 24px)",
+              fontSize: "clamp(15px, 3.5vw, 24px)",
               fontWeight: 300,
-              letterSpacing: "0.03em",
+              letterSpacing: "0.04em",
             }}
           >
             {data.name}
@@ -108,11 +113,11 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <p
             style={{
               fontSize: 8,
-              fontWeight: 600,
-              letterSpacing: "0.25em",
+              fontWeight: 700,
+              letterSpacing: "0.28em",
               color: GOLD,
               textTransform: "uppercase",
-              marginTop: 5,
+              marginTop: 6,
             }}
           >
             {data.title}
@@ -120,25 +125,25 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         </div>
 
         {/* Gold divider */}
-        <div className="w-full h-px" style={{ background: `linear-gradient(to right, ${GOLD}60, transparent)` }} />
+        <div className="w-full h-px" style={{ background: `linear-gradient(to right, ${GOLD}50, transparent)` }} />
 
         {/* Contact */}
-        <div className="flex flex-col gap-[5px]">
+        <div className="flex flex-col gap-[6px]">
           {data.phone && (
-            <div className="flex items-center gap-2">
-              <div className="w-px h-3 shrink-0" style={{ background: GOLD }} />
+            <div className="flex items-center gap-2.5">
+              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
               <span style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.phone}</span>
             </div>
           )}
           {data.email && (
-            <div className="flex items-center gap-2">
-              <div className="w-px h-3 shrink-0" style={{ background: GOLD }} />
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
               <span className="truncate" style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2">
-              <div className="w-px h-3 shrink-0" style={{ background: GOLD }} />
+            <div className="flex items-center gap-2.5">
+              <div className="w-px h-3.5 shrink-0" style={{ background: `linear-gradient(to bottom, ${GOLD}, ${GOLD}40)` }} />
               <span style={{ fontSize: 10, color: "#6b5e4e", letterSpacing: "0.05em" }}>{data.website}</span>
             </div>
           )}
@@ -146,16 +151,16 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
         {/* Bottom: social handles or address */}
         {socials.length > 0 ? (
-          <div className="flex flex-col gap-[4px]">
+          <div className="flex flex-col gap-[5px]">
             {socials.map((s, i) => (
-              <div key={i} className="flex items-center gap-1.5" style={{ color: `${GOLD}80` }}>
+              <div key={i} className="flex items-center gap-2" style={{ color: `${GOLD}75` }}>
                 {s.icon}
-                <span style={{ fontSize: 8.5, letterSpacing: "0.05em" }}>{s.label}</span>
+                <span style={{ fontSize: 8.5, letterSpacing: "0.06em" }}>{s.label}</span>
               </div>
             ))}
           </div>
         ) : data.address ? (
-          <p style={{ fontSize: 8.5, color: "#b8a88a", letterSpacing: "0.08em" }}>
+          <p style={{ fontSize: 8.5, color: GOLD_DARK, opacity: 0.6, letterSpacing: "0.08em" }}>
             {data.address}
           </p>
         ) : null}
