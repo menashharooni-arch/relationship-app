@@ -10,7 +10,7 @@ export default function QRDownloadButton({ url }: { url: string }) {
     const canvas = containerRef.current?.querySelector("canvas");
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = "evercard-qr.png";
+    link.download = "kontact-qr.png";
     link.href = canvas.toDataURL("image/png");
     link.click();
   }

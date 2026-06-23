@@ -15,7 +15,7 @@ export default async function OnboardingPage() {
     <main className="min-h-screen bg-slate-100 flex items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <p className="text-xs font-bold tracking-[0.25em] text-gray-400 uppercase mb-4">Evercard</p>
+          <p className="text-xs font-bold tracking-[0.25em] text-gray-400 uppercase mb-4">Kontact</p>
           <h1 className="text-2xl font-bold text-gray-900">Set up your card</h1>
           <p className="text-gray-500 text-sm mt-2">
             This takes 60 seconds. Your card will be live instantly.

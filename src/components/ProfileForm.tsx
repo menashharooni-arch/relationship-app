@@ -12,6 +12,9 @@ type Profile = {
   phone: string | null;
   website: string | null;
   linkedin: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  tiktok: string | null;
 };
 
 export default function ProfileForm({ profile }: { profile: Profile }) {
@@ -23,6 +26,9 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     phone: profile.phone || "",
     website: profile.website || "",
     linkedin: profile.linkedin || "",
+    instagram: profile.instagram || "",
+    twitter: profile.twitter || "",
+    tiktok: profile.tiktok || "",
   });
   const [status, setStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
 
@@ -38,17 +44,12 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-
-    const { error } = await supabase
-      .from("profiles")
-      .update(form)
-      .eq("username", profile.username);
-
+    const { error } = await supabase.from("profiles").update(form).eq("username", profile.username);
     setStatus(error ? "error" : "saved");
     if (!error) setTimeout(() => setStatus("idle"), 2000);
   }
 
-  const fields = [
+  const mainFields = [
     { name: "name", label: "Full name", required: true },
     { name: "title", label: "Job title" },
     { name: "company", label: "Company" },
@@ -58,20 +59,43 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     { name: "linkedin", label: "LinkedIn URL" },
   ];
 
+  const socialFields = [
+    { name: "instagram", label: "Instagram handle" },
+    { name: "twitter", label: "X / Twitter handle" },
+    { name: "tiktok", label: "TikTok handle" },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 mb-2">
         <p className="text-xs text-gray-500">Card URL</p>
-        <p className="text-blue-400 text-sm">evercard.app/card/{profile.username}</p>
+        <p className="text-blue-400 text-sm">kontact.app/card/{profile.username}</p>
       </div>
 
-      {fields.map((f) => (
+      {mainFields.map((f) => (
         <div key={f.name}>
           <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
           <input
             name={f.name}
             type={f.type || "text"}
             required={f.required}
+            value={form[f.name as keyof typeof form]}
+            onChange={handle}
+            className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
+      ))}
+
+      <div className="h-px bg-gray-800 my-2" />
+      <p className="text-xs text-gray-500 font-medium">Social links</p>
+
+      {socialFields.map((f) => (
+        <div key={f.name}>
+          <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
+          <input
+            name={f.name}
+            type="text"
+            placeholder="@yourhandle"
             value={form[f.name as keyof typeof form]}
             onChange={handle}
             className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
