@@ -1,7 +1,12 @@
 import LoginForm from "@/components/LoginForm";
 import KontactLogo from "@/components/KontactLogo";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   return (
     <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
@@ -11,10 +16,10 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome back</h1>
           <p className="text-gray-500 text-sm mt-2">
-            Sign in or create your account.
+            {next ? "Sign in to accept your invitation." : "Sign in or create your account."}
           </p>
         </div>
-        <LoginForm />
+        <LoginForm redirectTo={next} />
       </div>
     </main>
   );
