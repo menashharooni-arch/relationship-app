@@ -124,22 +124,22 @@ const FAQS = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col">
+    <main className="min-h-screen bg-white flex flex-col">
 
       {/* Nav */}
-      <nav className="border-b border-gray-900">
+      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
           <KontactLogo size={30} />
           <div className="flex items-center gap-8">
-            <Link href="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">
+            <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Pricing
             </Link>
-            <Link href="/login" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
               Sign in
             </Link>
             <Link
               href="/login"
-              className="bg-white hover:bg-gray-100 text-gray-900 font-semibold px-5 py-2 rounded-full text-sm transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
             </Link>
@@ -150,53 +150,53 @@ export default function HomePage() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-28 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 border border-gray-800 rounded-full px-4 py-1.5 text-xs text-gray-400 mb-10">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+          <div className="inline-flex items-center gap-2 border border-slate-200 rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-slate-50">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
 
-          <h1 className="text-[3.25rem] font-bold text-white leading-[1.1] tracking-tight mb-6">
+          <h1 className="text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
             The digital business card that captures every lead.
           </h1>
 
-          <p className="text-gray-400 text-lg leading-relaxed mb-10 max-w-md">
+          <p className="text-slate-500 text-lg leading-relaxed mb-10 max-w-md">
             Share your card by link, QR code, or NFC tap. Leads save your contact in one touch. Automated follow-ups do the rest.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/login"
-              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
             >
               Create your free card
             </Link>
             <Link
               href="/pricing"
-              className="border border-gray-700 hover:border-gray-600 text-gray-300 hover:text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              className="border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
             >
               View pricing
             </Link>
           </div>
 
-          <p className="text-gray-600 text-xs mt-5">Ready in 60 seconds. No design experience needed.</p>
+          <p className="text-slate-400 text-xs mt-5">Ready in 60 seconds. No design experience needed.</p>
         </div>
 
         {/* Card preview */}
         <div className="relative hidden lg:block">
-          <div className="absolute -inset-6 bg-blue-600/10 rounded-3xl blur-3xl" />
+          <div className="absolute -inset-6 bg-blue-50 rounded-3xl" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-gray-500 text-xs tracking-wide">Live card preview</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-slate-400 text-xs tracking-wide">Live card preview</span>
             </div>
             <ClassicPro data={SAMPLE_DATA} />
-            <p className="text-gray-600 text-xs mt-3 pl-1">kontact.app/card/alexmorgan</p>
+            <p className="text-slate-400 text-xs mt-3 pl-1">kontact.app/card/alexmorgan</p>
           </div>
         </div>
       </section>
 
       {/* Stats bar */}
-      <div className="border-y border-gray-800 py-10 px-6">
+      <div className="border-y border-slate-100 bg-slate-50 py-10 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
           {[
             { value: "60 sec", label: "Average setup time" },
@@ -204,8 +204,8 @@ export default function HomePage() {
             { value: "100%", label: "Browser-based, no app needed" },
           ].map((s) => (
             <div key={s.label}>
-              <p className="text-2xl font-bold text-white mb-1">{s.value}</p>
-              <p className="text-gray-500 text-sm">{s.label}</p>
+              <p className="text-2xl font-bold text-slate-900 mb-1">{s.value}</p>
+              <p className="text-slate-500 text-sm">{s.label}</p>
             </div>
           ))}
         </div>
@@ -215,18 +215,18 @@ export default function HomePage() {
       <section className="py-28 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">How it works</p>
-            <h2 className="text-3xl font-bold text-white">Simple by design</h2>
+            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">How it works</p>
+            <h2 className="text-3xl font-bold text-slate-900">Simple by design</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
             {STEPS.map((s, i) => (
               <div key={s.n} className="relative">
                 {i < STEPS.length - 1 && (
-                  <div className="hidden sm:block absolute top-5 left-[60%] w-full h-px bg-gray-800" />
+                  <div className="hidden sm:block absolute top-5 left-[60%] w-full h-px bg-slate-200" />
                 )}
-                <div className="text-xs font-bold text-gray-600 tracking-widest mb-4">{s.n}</div>
-                <h3 className="text-white font-semibold text-base mb-2">{s.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{s.body}</p>
+                <div className="text-xs font-bold text-slate-400 tracking-widest mb-4">{s.n}</div>
+                <h3 className="text-slate-900 font-semibold text-base mb-2">{s.title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
@@ -234,20 +234,20 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section className="border-t border-gray-800 py-28 px-6">
+      <section className="border-t border-slate-100 bg-slate-50 py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">Features</p>
-            <h2 className="text-3xl font-bold text-white">Everything you need to network smarter</h2>
+            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">Features</p>
+            <h2 className="text-3xl font-bold text-slate-900">Everything you need to network smarter</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
-              <div key={f.title} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-6 hover:border-gray-700 transition-colors">
-                <div className="w-9 h-9 rounded-xl bg-gray-800 flex items-center justify-center text-gray-300 mb-4">
+              <div key={f.title} className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
                   {f.icon}
                 </div>
-                <p className="text-white font-semibold text-sm mb-2">{f.title}</p>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.body}</p>
+                <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
+                <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
               </div>
             ))}
           </div>
@@ -255,15 +255,15 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section className="border-t border-gray-800 py-28 px-6">
+      <section className="border-t border-slate-100 py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">Testimonials</p>
-            <h2 className="text-3xl font-bold text-white">What our users say</h2>
+            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">Testimonials</p>
+            <h2 className="text-3xl font-bold text-slate-900">What our users say</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-gray-900/60 border border-gray-800 rounded-2xl p-7 flex flex-col">
+              <div key={t.name} className="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col shadow-sm">
                 <div className="flex gap-0.5 mb-5">
                   {[...Array(5)].map((_, i) => (
                     <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
@@ -271,14 +271,14 @@ export default function HomePage() {
                     </svg>
                   ))}
                 </div>
-                <p className="text-gray-300 text-sm leading-relaxed flex-1 mb-6">"{t.quote}"</p>
+                <p className="text-slate-600 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
                     {t.initial}
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm leading-tight">{t.name}</p>
-                    <p className="text-gray-500 text-xs">{t.role}</p>
+                    <p className="text-slate-900 font-semibold text-sm leading-tight">{t.name}</p>
+                    <p className="text-slate-500 text-xs">{t.role}</p>
                   </div>
                 </div>
               </div>
@@ -288,17 +288,17 @@ export default function HomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="border-t border-gray-800 py-28 px-6">
+      <section className="border-t border-slate-100 bg-slate-50 py-28 px-6">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mb-3">FAQ</p>
-            <h2 className="text-3xl font-bold text-white">Common questions</h2>
+            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">FAQ</p>
+            <h2 className="text-3xl font-bold text-slate-900">Common questions</h2>
           </div>
-          <div className="space-y-0 divide-y divide-gray-800">
+          <div className="space-y-0 divide-y divide-slate-200">
             {FAQS.map((f) => (
               <div key={f.q} className="py-6">
-                <p className="text-white font-semibold text-sm mb-2">{f.q}</p>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.a}</p>
+                <p className="text-slate-900 font-semibold text-sm mb-2">{f.q}</p>
+                <p className="text-slate-500 text-sm leading-relaxed">{f.a}</p>
               </div>
             ))}
           </div>
@@ -306,17 +306,17 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="border-t border-gray-800 py-28 px-6">
+      <section className="bg-blue-600 py-28 px-6">
         <div className="max-w-xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
             Your next deal starts with a better introduction.
           </h2>
-          <p className="text-gray-400 mb-10">
+          <p className="text-blue-100 mb-10">
             Set up your digital card in 60 seconds. Free to start, no credit card needed.
           </p>
           <Link
             href="/login"
-            className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
+            className="inline-block bg-white hover:bg-blue-50 text-blue-600 font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
           >
             Create your free card
           </Link>
@@ -324,15 +324,15 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-12 px-6">
+      <footer className="border-t border-slate-200 py-12 px-6 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <KontactLogo size={26} />
-          <div className="flex items-center gap-8 text-sm text-gray-500">
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Sign in</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Get started</Link>
+          <div className="flex items-center gap-8 text-sm text-slate-500">
+            <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
+            <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
+            <Link href="/login" className="hover:text-slate-900 transition-colors">Get started</Link>
           </div>
-          <p className="text-gray-600 text-xs">© {new Date().getFullYear()} Kontact. All rights reserved.</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} Kontact. All rights reserved.</p>
         </div>
       </footer>
     </main>
