@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import ImageUpload from "@/components/ImageUpload";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import ModernBold from "@/components/card-templates/ModernBold";
+import PhotoFirst from "@/components/card-templates/PhotoFirst";
+import LocalBusiness from "@/components/card-templates/LocalBusiness";
+import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import { SAMPLE_DATA } from "@/components/card-templates/types";
+import type { ComponentType } from "react";
+import type { CardData } from "@/components/card-templates/types";
+
+const TEMPLATES: { id: string; label: string; Component: ComponentType<{ data: CardData }> }[] = [
+  { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
+  { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
+  { id: "photo-first",    label: "Photo First",    Component: PhotoFirst },
+  { id: "local-business", label: "Local Business", Component: LocalBusiness },
+  { id: "luxury-minimal", label: "Luxury Minimal", Component: LuxuryMinimal },
+];
 
 type Profile = {
   username: string;
@@ -18,11 +34,13 @@ type Profile = {
   tiktok: string | null;
   photo_url: string | null;
   logo_url: string | null;
+  template: string | null;
 };
 
 export default function ProfileForm({ profile }: { profile: Profile }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(profile.photo_url);
   const [logoUrl, setLogoUrl] = useState<string | null>(profile.logo_url);
+  const [template, setTemplate] = useState(profile.template ?? "classic-pro");
   const [form, setForm] = useState({
     name: profile.name || "",
     title: profile.title || "",
@@ -49,7 +67,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-    const { error } = await supabase.from("profiles").update(form).eq("username", profile.username);
+    const { error } = await supabase.from("profiles").update({ ...form, template }).eq("username", profile.username);
     setStatus(error ? "error" : "saved");
     if (!error) setTimeout(() => setStatus("idle"), 2000);
   }
@@ -126,6 +144,34 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           />
         </div>
       ))}
+
+      {/* Template picker */}
+      <div className="h-px bg-gray-800 my-2" />
+      <p className="text-xs text-gray-500 font-medium">Card design</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {TEMPLATES.map(({ id, label, Component }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTemplate(id)}
+            className="text-left rounded-xl overflow-hidden border-2 transition-all"
+            style={{
+              borderColor: template === id ? "#2563eb" : "#1f2937",
+              boxShadow: template === id ? "0 0 0 2px #2563eb30" : "none",
+            }}
+          >
+            <div className="w-full pointer-events-none" style={{ transform: "scale(0.85)", transformOrigin: "top left", width: "117%", height: "auto" }}>
+              <Component data={SAMPLE_DATA} />
+            </div>
+            <p
+              className="text-xs font-semibold text-center py-1.5 truncate bg-gray-900"
+              style={{ color: template === id ? "#60a5fa" : "#6b7280", fontSize: 10 }}
+            >
+              {label}
+            </p>
+          </button>
+        ))}
+      </div>
 
       {status === "error" && <p className="text-red-400 text-xs text-center">Something went wrong.</p>}
 

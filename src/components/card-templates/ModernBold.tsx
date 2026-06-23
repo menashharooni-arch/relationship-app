@@ -1,4 +1,5 @@
 import React from "react";
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 
 const Phone = () => (
@@ -44,7 +45,7 @@ export default function ModernBold({ data }: { data: CardData }) {
       className="relative w-full overflow-hidden rounded-2xl flex"
       style={{
         aspectRatio: "1.75 / 1",
-        background: "radial-gradient(ellipse at 25% 55%, #0e1f3a 0%, #050d1a 70%)",
+        background: "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 18px 18px, radial-gradient(ellipse at 25% 55%, #0e1f3a 0%, #050d1a 70%)",
         boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(37,99,235,0.15)",
       }}
     >
@@ -121,38 +122,51 @@ export default function ModernBold({ data }: { data: CardData }) {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-center px-6 gap-[9px]" style={{ color: "#94a3b8" }}>
-        <div className="w-6 h-px mb-1" style={{ background: "linear-gradient(to right, #3b82f6, transparent)" }} />
-
-        {data.phone && (
-          <div className="flex items-center gap-2">
-            <span style={{ color: "#3b82f6" }}><Phone /></span>
-            <span style={{ fontSize: 11 }}>{data.phone}</span>
-          </div>
-        )}
-        {data.email && (
-          <div className="flex items-center gap-2 min-w-0">
-            <span style={{ color: "#3b82f6" }}><Mail /></span>
-            <span className="truncate" style={{ fontSize: 11 }}>{data.email}</span>
-          </div>
-        )}
-        {data.website && (
-          <div className="flex items-center gap-2">
-            <span style={{ color: "#3b82f6" }}><Globe /></span>
-            <span style={{ fontSize: 11 }}>{data.website}</span>
-          </div>
-        )}
-
-        {socials.length > 0 && (
-          <div className="mt-1 pt-2 flex flex-col gap-[5px]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-            {socials.map((s, i) => (
-              <div key={i} className="flex items-center gap-2" style={{ color: s.color }}>
-                {s.icon}
-                <span style={{ fontSize: 10 }}>{s.label}</span>
+      <div className="flex-1 flex flex-col justify-between px-6 py-5" style={{ color: "#94a3b8" }}>
+        <div>
+          <div className="w-6 h-px mb-2" style={{ background: "linear-gradient(to right, #3b82f6, transparent)" }} />
+          <div className="flex flex-col gap-[8px]">
+            {data.phone && (
+              <div className="flex items-center gap-2">
+                <span style={{ color: "#3b82f6" }}><Phone /></span>
+                <span style={{ fontSize: 11 }}>{data.phone}</span>
               </div>
-            ))}
+            )}
+            {data.email && (
+              <div className="flex items-center gap-2 min-w-0">
+                <span style={{ color: "#3b82f6" }}><Mail /></span>
+                <span className="truncate" style={{ fontSize: 11 }}>{data.email}</span>
+              </div>
+            )}
+            {data.website && (
+              <div className="flex items-center gap-2">
+                <span style={{ color: "#3b82f6" }}><Globe /></span>
+                <span style={{ fontSize: 11 }}>{data.website}</span>
+              </div>
+            )}
+
+            {socials.length > 0 && (
+              <div className="pt-1.5 flex flex-col gap-[5px]" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                {socials.map((s, i) => (
+                  <div key={i} className="flex items-center gap-2" style={{ color: s.color }}>
+                    {s.icon}
+                    <span style={{ fontSize: 10 }}>{s.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* QR + card URL */}
+        <div className="flex items-end justify-between">
+          {data.cardUrl && (
+            <span style={{ fontSize: 7.5, color: "rgba(59,130,246,0.5)", letterSpacing: "0.05em" }}>
+              {data.cardUrl}
+            </span>
+          )}
+          <QR size={38} bg="rgba(255,255,255,0.05)" fg="#3b82f6" />
+        </div>
       </div>
     </div>
   );
