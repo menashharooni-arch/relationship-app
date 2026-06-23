@@ -33,8 +33,8 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
     return (
       <div className="text-center py-6">
         <p className="text-2xl mb-2">👋</p>
-        <p className="text-white font-semibold">Info sent!</p>
-        <p className="text-gray-500 text-sm mt-1">They'll be in touch soon.</p>
+        <p className="text-slate-900 font-semibold">Info sent!</p>
+        <p className="text-slate-500 text-sm mt-1">They'll be in touch soon.</p>
       </div>
     );
   }
@@ -43,8 +43,8 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
     return (
       <div className="text-center py-6">
         <p className="text-2xl mb-2">📨</p>
-        <p className="text-white font-semibold">Card at capacity</p>
-        <p className="text-gray-500 text-sm mt-1">This person's card is full. Ask them to upgrade to Kontact Pro.</p>
+        <p className="text-slate-900 font-semibold">Card at capacity</p>
+        <p className="text-slate-500 text-sm mt-1">This person's card is full. Ask them to upgrade to Kontact Pro.</p>
       </div>
     );
   }

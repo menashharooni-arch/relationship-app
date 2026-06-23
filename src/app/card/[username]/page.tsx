@@ -81,8 +81,10 @@ export default async function CardPage({ params }: { params: Promise<{ username:
   // NFC-ready URL: this exact path is what gets programmed into NFC chips
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
 
+  const firstName = profile.name?.split(" ")[0] ?? "them";
+
   return (
-    <main className="min-h-screen bg-slate-100 flex flex-col items-center px-5 py-10 gap-6">
+    <main className="min-h-screen bg-slate-100 flex flex-col items-center px-5 py-10 gap-5">
       <ViewTracker username={profile.username} />
 
       {/* Business card template */}
@@ -90,39 +92,48 @@ export default async function CardPage({ params }: { params: Promise<{ username:
         <TemplateComponent data={cardData} />
       </div>
 
-      {/* Action buttons */}
-      <div className="w-full max-w-sm flex flex-col gap-3">
-        <ShareButton
-          url={publicCardUrl}
-          title={`${profile.name}'s digital card`}
-          text={`Connect with ${profile.name?.split(" ")[0] ?? "me"} — save their contact instantly.`}
-          label="Share this card"
-        />
+      {/* Step 1: Save contact */}
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+          <p className="text-slate-900 font-semibold text-sm">Save {firstName}&apos;s contact</p>
+        </div>
+        <p className="text-slate-500 text-xs mb-4 ml-8">Downloads a .vcf file — tap to add directly to your phone contacts.</p>
         <SaveContactButton person={person} />
+      </div>
+
+      {/* Step 2: Share your info */}
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+          <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+        </div>
+        <p className="text-slate-500 text-xs mb-4 ml-8">They&apos;ll receive your details and can follow up with you.</p>
+        <LeadCaptureForm cardOwner={profile.username} />
+      </div>
+
+      {/* Secondary actions */}
+      <div className="w-full max-w-sm flex flex-col gap-2">
         {profile.linkedin && (
           <a
             href={`https://${profile.linkedin}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full border border-gray-300 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-semibold py-3 px-6 rounded-full transition-colors text-sm text-center bg-white"
+            className="w-full border border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600 font-medium py-3 px-6 rounded-full transition-colors text-sm text-center bg-white"
           >
             Connect on LinkedIn
           </a>
         )}
-      </div>
-
-      {/* Lead capture */}
-      <div className="w-full max-w-sm flex items-center gap-3 my-1">
-        <div className="flex-1 h-px bg-gray-300" />
-        <span className="text-gray-400 text-xs">or share your info</span>
-        <div className="flex-1 h-px bg-gray-300" />
-      </div>
-      <div className="w-full max-w-sm">
-        <LeadCaptureForm cardOwner={profile.username} />
+        <ShareButton
+          url={publicCardUrl}
+          title={`${profile.name}'s digital card`}
+          text={`Connect with ${firstName} — save their contact instantly.`}
+          label="Share this card"
+        />
       </div>
 
       {!isPro && (
-        <p className="text-gray-400 text-xs pb-4">Powered by Kontact</p>
+        <p className="text-slate-400 text-xs pb-4">Powered by Kontact</p>
       )}
     </main>
   );

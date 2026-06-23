@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface Person {
   name: string;
   title: string;
@@ -19,6 +21,8 @@ function normalizeUrl(url: string): string {
 }
 
 export default function SaveContactButton({ person }: { person: Person }) {
+  const [saved, setSaved] = useState(false);
+
   function downloadVCard() {
     const lines = [
       "BEGIN:VCARD",
@@ -49,14 +53,26 @@ export default function SaveContactButton({ person }: { person: Person }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setSaved(true);
+  }
+
+  if (saved) {
+    return (
+      <div className="w-full bg-green-50 border border-green-200 text-green-700 font-semibold py-3 px-6 rounded-full text-sm flex items-center justify-center gap-2">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        Saved to Contacts!
+      </div>
+    );
   }
 
   return (
     <button
       onClick={downloadVCard}
-      className="w-full bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-900 border border-gray-200 font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
+      className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
     >
-      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
       </svg>
       Save Contact
