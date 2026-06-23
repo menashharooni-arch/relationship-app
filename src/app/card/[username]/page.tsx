@@ -69,6 +69,9 @@ export default async function CardPage({ params }: { params: Promise<{ username:
     phone: profile.phone || "",
     website: profile.website || "",
     linkedin: profile.linkedin || "",
+    instagram: profile.instagram || "",
+    twitter: profile.twitter || "",
+    tiktok: profile.tiktok || "",
   };
 
   const templateId = (profile.template as string) || "classic-pro";
