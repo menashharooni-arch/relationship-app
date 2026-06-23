@@ -99,7 +99,7 @@ export default async function CardPage({ params }: { params: Promise<{ username:
           <p className="text-slate-900 font-semibold text-sm">Save {firstName}&apos;s contact</p>
         </div>
         <p className="text-slate-500 text-xs mb-4 ml-8">Downloads a .vcf file — tap to add directly to your phone contacts.</p>
-        <SaveContactButton person={person} />
+        <SaveContactButton person={person} username={profile.username} />
       </div>
 
       {/* Step 2: Share your info */}
