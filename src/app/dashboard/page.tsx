@@ -4,6 +4,7 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadCard from "@/components/LeadCard";
 import LeadPipeline from "@/components/LeadPipeline";
+import NotificationBell from "@/components/NotificationBell";
 import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
 import UpgradeButton from "@/components/UpgradeButton";
@@ -42,6 +43,7 @@ export default async function DashboardPage({
     { count: weekViews },
     { data: recentViews },
     { data: extraCards },
+    { data: notifications },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -56,6 +58,7 @@ export default async function DashboardPage({
       .gte("viewed_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", thirtyDaysAgo),
     supabase.from("cards").select("id, username, name, title, company").eq("user_id", user.id).order("created_at", { ascending: true }),
+    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
   ]);
 
   const viewsByDate: Record<string, number> = {};
@@ -133,6 +136,7 @@ export default async function DashboardPage({
             {ownedOffice && (
               <Link href="/office" className="text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors">Team</Link>
             )}
+            <NotificationBell initialNotifications={notifications ?? []} />
             <SignOutButton />
           </div>
         </div>
