@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import ImageUpload from "@/components/ImageUpload";
 
 type Profile = {
   username: string;
@@ -15,9 +16,13 @@ type Profile = {
   instagram: string | null;
   twitter: string | null;
   tiktok: string | null;
+  photo_url: string | null;
+  logo_url: string | null;
 };
 
 export default function ProfileForm({ profile }: { profile: Profile }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(profile.photo_url);
+  const [logoUrl, setLogoUrl] = useState<string | null>(profile.logo_url);
   const [form, setForm] = useState({
     name: profile.name || "",
     title: profile.title || "",
@@ -70,6 +75,25 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 mb-2">
         <p className="text-xs text-gray-500">Card URL</p>
         <p className="text-blue-400 text-sm">kontact.app/card/{profile.username}</p>
+      </div>
+
+      {/* Photo + Logo uploads */}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4 space-y-4">
+        <p className="text-xs text-gray-500 font-medium">Photos & Logo</p>
+        <ImageUpload
+          field="photo"
+          currentUrl={photoUrl}
+          label="Profile photo (shown on Photo card template)"
+          shape="circle"
+          onUploaded={(url) => setPhotoUrl(url)}
+        />
+        <ImageUpload
+          field="logo"
+          currentUrl={logoUrl}
+          label="Company logo (shown on all card templates)"
+          shape="square"
+          onUploaded={(url) => setLogoUrl(url)}
+        />
       </div>
 
       {mainFields.map((f) => (
