@@ -88,9 +88,15 @@ export default async function DashboardPage({
       ? ((allLeads.length / totalViewsLast30) * 100).toFixed(1)
       : "—";
 
-  const isPro = profile.plan === "pro";
+  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isEnterprise = profile.plan === "enterprise";
   const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
   const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
+
+  // Check if this enterprise user is the office owner
+  const { data: ownedOffice } = isEnterprise
+    ? await supabase.from("offices").select("id, name").eq("owner_id", user.id).single()
+    : { data: null };
 
   const cardUrl = `${APP_URL}/card/${profile.username}`;
 
@@ -104,8 +110,8 @@ export default async function DashboardPage({
             <p className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">Kontact</p>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-                {isPro ? "Pro" : "Free"}
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isEnterprise ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+                {isEnterprise ? "Enterprise" : isPro ? "Pro" : "Free"}
               </span>
             </div>
           </div>
@@ -113,6 +119,9 @@ export default async function DashboardPage({
             <Link href="/templates" className="text-sm text-gray-400 hover:text-white transition-colors">Card design</Link>
             <Link href="/profile" className="text-sm text-gray-400 hover:text-white transition-colors">Edit card</Link>
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white transition-colors">Flows</Link>
+            {ownedOffice && (
+              <Link href="/office" className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors">Team</Link>
+            )}
             <SignOutButton />
           </div>
         </div>

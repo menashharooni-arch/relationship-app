@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
-export default function LoginForm() {
+export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +33,7 @@ export default function LoginForm() {
         setErrorMsg(error.message === "Invalid login credentials" ? "Wrong email or password." : error.message);
         setStatus("error");
       } else {
-        window.location.href = "/dashboard";
+        window.location.href = redirectTo ?? "/dashboard";
       }
     } else {
       const { error } = await supabase.auth.signUp({ email, password });
@@ -41,7 +41,7 @@ export default function LoginForm() {
         setErrorMsg(error.message);
         setStatus("error");
       } else {
-        window.location.href = "/onboarding";
+        window.location.href = redirectTo ?? "/onboarding";
       }
     }
   }
