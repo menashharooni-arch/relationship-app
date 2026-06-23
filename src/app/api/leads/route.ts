@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const { data: ownerProfile } = await supabase
       .from("profiles")
-      .select("plan, name, email, phone, company")
+      .select("id, plan, name, email, phone, company")
       .eq("username", card_owner)
       .single();
 
@@ -55,6 +55,48 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("Supabase insert error:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Insert in-app notification for the card owner (non-blocking)
+    if (ownerProfile?.id) {
+      const locStr = location ? ` from ${location}` : "";
+      supabase.from("notifications").insert({
+        user_id: ownerProfile.id,
+        type: "new_lead",
+        title: `New lead: ${name}`,
+        body: `${email}${locStr} just shared their info with you.`,
+      }).then(() => {});
+    }
+
+    // Send email to card owner about the new lead (non-blocking)
+    if (ownerProfile?.name && ownerProfile?.email) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const locStr = location ? ` in ${location}` : "";
+      resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "Kontact <onboarding@resend.dev>",
+        to: ownerProfile.email,
+        subject: `New lead: ${name} just connected with you`,
+        html: `
+          <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="max-width:480px;margin:0 auto;">
+              <h2 style="font-size:20px;font-weight:700;color:#111827;margin:0 0 12px;">You have a new lead 🎉</h2>
+              <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 20px;">
+                <strong>${name}</strong> just shared their info with you${locStr} via your Kontact card.
+              </p>
+              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
+                <p style="margin:0 0 6px;font-weight:700;color:#111827;">${name}</p>
+                <a href="mailto:${email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${email}</a>
+                ${phone ? `<p style="margin:0;color:#6b7280;font-size:13px;">${phone}</p>` : ""}
+                ${message ? `<p style="margin:8px 0 0;color:#6b7280;font-size:13px;font-style:italic;">"${message}"</p>` : ""}
+              </div>
+              <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app"}/dashboard"
+                style="display:inline-block;background:#2563eb;color:#ffffff;font-weight:600;padding:12px 24px;border-radius:100px;text-decoration:none;font-size:14px;">
+                View in dashboard →
+              </a>
+            </div>
+          </div>
+        `,
+      }).catch(() => {});
     }
 
     // Send instant confirmation email to the lead
