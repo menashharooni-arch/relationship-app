@@ -1,3 +1,4 @@
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 
 const Phone = () => (
@@ -57,7 +58,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       <div
         className="w-[40%] flex flex-col justify-between px-6 py-6"
         style={{
-          background: "linear-gradient(160deg, #eef4ff 0%, #f5f8ff 100%)",
+          background: "radial-gradient(circle, rgba(37,99,235,0.1) 1px, transparent 1px) 0 0 / 12px 12px, linear-gradient(160deg, #eef4ff 0%, #f5f8ff 100%)",
           borderRight: "1px solid #dbeafe",
         }}
       >
@@ -110,53 +111,65 @@ export default function ClassicPro({ data }: { data: CardData }) {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-center px-6 gap-2">
-        {data.phone && (
-          <div className="flex items-center gap-2.5">
-            <span className="text-blue-400"><Phone /></span>
-            <span className="text-gray-700 font-medium" style={{ fontSize: 11 }}>{data.phone}</span>
-          </div>
-        )}
-        {data.email && (
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="text-blue-400"><Mail /></span>
-            <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
-          </div>
-        )}
-        {data.website && (
-          <div className="flex items-center gap-2.5">
-            <span className="text-blue-400"><Globe /></span>
-            <span className="text-gray-700" style={{ fontSize: 11 }}>{data.website}</span>
-          </div>
-        )}
-        {hasSocial && (
-          <div className="mt-2 pt-2 flex flex-col gap-[5px]" style={{ borderTop: "1px solid #e0e8ff" }}>
-            {data.instagram && (
-              <div className="flex items-center gap-2" style={{ color: "#c13584" }}>
-                <Insta />
-                <span style={{ fontSize: 10 }}>{data.instagram}</span>
-              </div>
-            )}
-            {data.twitter && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <XIcon />
-                <span style={{ fontSize: 10 }}>{data.twitter}</span>
-              </div>
-            )}
-            {data.tiktok && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <TikTok />
-                <span style={{ fontSize: 10 }}>{data.tiktok}</span>
-              </div>
-            )}
-            {data.linkedin && (
-              <div className="flex items-center gap-2" style={{ color: "#0077b5" }}>
-                <LinkedIn />
-                <span style={{ fontSize: 10 }}>{data.linkedin}</span>
-              </div>
-            )}
-          </div>
-        )}
+      <div className="flex-1 flex flex-col justify-between px-6 py-5">
+        <div className="flex flex-col gap-2">
+          {data.phone && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-blue-400"><Phone /></span>
+              <span className="text-gray-700 font-medium" style={{ fontSize: 11 }}>{data.phone}</span>
+            </div>
+          )}
+          {data.email && (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-blue-400"><Mail /></span>
+              <span className="text-gray-700 truncate" style={{ fontSize: 11 }}>{data.email}</span>
+            </div>
+          )}
+          {data.website && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-blue-400"><Globe /></span>
+              <span className="text-gray-700" style={{ fontSize: 11 }}>{data.website}</span>
+            </div>
+          )}
+          {hasSocial && (
+            <div className="mt-1.5 pt-1.5 flex flex-col gap-[4px]" style={{ borderTop: "1px solid #e0e8ff" }}>
+              {data.instagram && (
+                <div className="flex items-center gap-2" style={{ color: "#c13584" }}>
+                  <Insta />
+                  <span style={{ fontSize: 9.5 }}>{data.instagram}</span>
+                </div>
+              )}
+              {data.twitter && (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <XIcon />
+                  <span style={{ fontSize: 9.5 }}>{data.twitter}</span>
+                </div>
+              )}
+              {data.tiktok && (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <TikTok />
+                  <span style={{ fontSize: 9.5 }}>{data.tiktok}</span>
+                </div>
+              )}
+              {data.linkedin && (
+                <div className="flex items-center gap-2" style={{ color: "#0077b5" }}>
+                  <LinkedIn />
+                  <span style={{ fontSize: 9.5 }}>{data.linkedin}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* QR + card URL */}
+        <div className="flex items-end justify-between">
+          {data.cardUrl && (
+            <span style={{ fontSize: 7.5, color: "#93c5fd", letterSpacing: "0.05em" }}>
+              {data.cardUrl}
+            </span>
+          )}
+          <QR size={38} bg="#eef4ff" fg="#1e3a6e" />
+        </div>
       </div>
     </div>
   );

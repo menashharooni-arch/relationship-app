@@ -110,9 +110,18 @@ export default async function DashboardPage({
             <p className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">Kontact</p>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isEnterprise ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-                {isEnterprise ? "Enterprise" : isPro ? "Pro" : "Free"}
-              </span>
+              {isEnterprise ? (
+                <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+                  </svg>
+                  Office Plan
+                </span>
+              ) : (
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+                  {isPro ? "Pro" : "Free"}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

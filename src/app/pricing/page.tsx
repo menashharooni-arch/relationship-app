@@ -32,9 +32,9 @@ const features = {
   enterprise: [
     "Everything in Pro",
     "Unlimited team members",
-    "Shared team dashboard",
+    "Shared office dashboard",
     "Individual card per member",
-    "Admin controls",
+    "Admin seat controls",
     "Priority support",
     "Custom onboarding",
     "NFC cards (coming soon)",
@@ -174,9 +174,16 @@ export default function PricingPage() {
           </button>
         </div>
 
-        {/* Enterprise */}
+        {/* Office Plan */}
         <div className="relative bg-gradient-to-b from-purple-950 to-gray-900 border border-purple-700/50 rounded-3xl p-8 flex flex-col">
-          <p className="text-xs font-bold tracking-widest text-purple-400 uppercase mb-3">Enterprise</p>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-lg bg-purple-600/30 flex items-center justify-center">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-purple-400">
+                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-xs font-bold tracking-widest text-purple-400 uppercase">Office Plan</p>
+          </div>
           <div className="mb-1">
             <div className="flex items-end gap-1">
               <span className="text-4xl font-bold text-white">${(seats * 5).toLocaleString()}</span>
@@ -216,9 +223,9 @@ export default function PricingPage() {
             onClick={() => handleUpgrade("enterprise")}
             disabled={loading !== null}
             className="w-full font-semibold py-3 rounded-full transition-colors text-sm"
-            style={{ background: "linear-gradient(to right, #7c3aed, #4f46e5)", color: "#fff", opacity: loading !== null ? 0.5 : 1 }}
+            style={{ background: "linear-gradient(to right, #7c3aed, #4f46e5)", color: "#fff", opacity: loading !== null ? 0.5 : 1, boxShadow: "0 4px 20px rgba(124,58,237,0.35)" }}
           >
-            {loading === "enterprise" ? "Loading…" : `Get Enterprise · $${seats * 5}/mo →`}
+            {loading === "enterprise" ? "Loading…" : `Get Office Plan · $${seats * 5}/mo →`}
           </button>
           <p className="text-center text-gray-600 text-xs mt-3">Billed monthly per seat. Cancel anytime.</p>
         </div>
