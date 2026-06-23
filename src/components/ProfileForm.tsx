@@ -107,16 +107,18 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     { name: "tiktok", label: "TikTok handle" },
   ];
 
+  const inputCls = "w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 mb-2">
-        <p className="text-xs text-gray-500">Card URL</p>
-        <p className="text-blue-400 text-sm">kontact.app/card/{profile.username}</p>
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 mb-2 shadow-sm">
+        <p className="text-xs text-slate-400">Card URL</p>
+        <p className="text-blue-600 text-sm">kontact.app/card/{profile.username}</p>
       </div>
 
       {/* Photo + Logo uploads */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4 space-y-4">
-        <p className="text-xs text-gray-500 font-medium">Photos & Logo</p>
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 space-y-4 shadow-sm">
+        <p className="text-xs text-slate-500 font-medium">Photos & Logo</p>
         <ImageUpload
           field="photo"
           currentUrl={photoUrl}
@@ -135,24 +137,24 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
 
       {mainFields.map((f) => (
         <div key={f.name}>
-          <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
+          <label className="text-xs text-slate-500 block mb-1">{f.label}</label>
           <input
             name={f.name}
             type={f.type || "text"}
             required={f.required}
             value={form[f.name as keyof typeof form]}
             onChange={handle}
-            className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            className={inputCls}
           />
         </div>
       ))}
 
-      <div className="h-px bg-gray-800 my-2" />
-      <p className="text-xs text-gray-500 font-medium">Social links</p>
+      <div className="h-px bg-slate-200 my-2" />
+      <p className="text-xs text-slate-500 font-medium">Social links</p>
 
       {socialFields.map((f) => (
         <div key={f.name}>
-          <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
+          <label className="text-xs text-slate-500 block mb-1">{f.label}</label>
           <input
             name={f.name}
             type="text"
@@ -164,14 +166,14 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
               const parsed = parseSocial(e.target.value, platform);
               setForm((prev) => ({ ...prev, [f.name]: parsed }));
             }}
-            className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            className={inputCls}
           />
         </div>
       ))}
 
       {/* Template picker */}
-      <div className="h-px bg-gray-800 my-2" />
-      <p className="text-xs text-gray-500 font-medium">Card design</p>
+      <div className="h-px bg-slate-200 my-2" />
+      <p className="text-xs text-slate-500 font-medium">Card design</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {TEMPLATES.map(({ id, label, Component }) => (
           <button
@@ -180,7 +182,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             onClick={() => setTemplate(id)}
             className="text-left rounded-xl overflow-hidden border-2 transition-all"
             style={{
-              borderColor: template === id ? "#2563eb" : "#1f2937",
+              borderColor: template === id ? "#2563eb" : "#e2e8f0",
               boxShadow: template === id ? "0 0 0 2px #2563eb30" : "none",
             }}
           >
@@ -188,8 +190,8 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
               <Component data={SAMPLE_DATA} />
             </div>
             <p
-              className="text-xs font-semibold text-center py-1.5 truncate bg-gray-900"
-              style={{ color: template === id ? "#60a5fa" : "#6b7280", fontSize: 10 }}
+              className="text-xs font-semibold text-center py-1.5 truncate bg-white"
+              style={{ color: template === id ? "#2563eb" : "#6b7280", fontSize: 10 }}
             >
               {label}
             </p>
@@ -197,12 +199,12 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         ))}
       </div>
 
-      {status === "error" && <p className="text-red-400 text-xs text-center">Something went wrong.</p>}
+      {status === "error" && <p className="text-red-500 text-xs text-center">Something went wrong.</p>}
 
       <button
         type="submit"
         disabled={status === "loading"}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
       >
         {status === "loading" ? "Saving…" : status === "saved" ? "Saved ✓" : "Save Changes"}
       </button>
