@@ -6,12 +6,12 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  title: "Evercard",
+  title: "Kontact",
   description: "Your digital business card",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Evercard",
+    title: "Kontact",
   },
 };
 

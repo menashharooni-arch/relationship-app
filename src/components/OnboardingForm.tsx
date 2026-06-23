@@ -17,6 +17,9 @@ export default function OnboardingForm({ userId }: { userId: string }) {
     phone: "",
     website: "",
     linkedin: "",
+    instagram: "",
+    twitter: "",
+    tiktok: "",
   });
 
   const supabase = createBrowserClient(
@@ -46,10 +49,13 @@ export default function OnboardingForm({ userId }: { userId: string }) {
       return;
     }
 
+    // Send welcome email (fire and forget)
+    fetch("/api/welcome", { method: "POST" }).catch(() => {});
+
     router.push("/dashboard");
   }
 
-  const fields = [
+  const mainFields = [
     { name: "name", placeholder: "Full name", required: true },
     { name: "title", placeholder: "Job title (e.g. Founder, Sales Director)" },
     { name: "company", placeholder: "Company name" },
@@ -59,13 +65,19 @@ export default function OnboardingForm({ userId }: { userId: string }) {
     { name: "linkedin", placeholder: "LinkedIn (e.g. linkedin.com/in/yourname)" },
   ];
 
+  const socialFields = [
+    { name: "instagram", placeholder: "Instagram handle (e.g. @yourname)" },
+    { name: "twitter", placeholder: "X / Twitter handle (e.g. @yourname)" },
+    { name: "tiktok", placeholder: "TikTok handle (e.g. @yourname)" },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-3">
-      {/* Username — shown first, special */}
+      {/* Username */}
       <div>
         <label className="text-xs text-gray-500 font-medium block mb-1">Your card URL</label>
         <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm focus-within:border-blue-400 transition-colors">
-          <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0">evercard.app/card/</span>
+          <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0">kontact.app/card/</span>
           <input
             name="username"
             placeholder="yourname"
@@ -79,13 +91,28 @@ export default function OnboardingForm({ userId }: { userId: string }) {
 
       <div className="h-px bg-gray-100 my-2" />
 
-      {fields.map((f) => (
+      {mainFields.map((f) => (
         <input
           key={f.name}
           name={f.name}
           type={f.type || "text"}
           placeholder={f.placeholder}
           required={f.required}
+          value={form[f.name as keyof typeof form]}
+          onChange={handle}
+          className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
+        />
+      ))}
+
+      <div className="h-px bg-gray-100 my-2" />
+      <p className="text-xs text-gray-400 font-medium">Social links (optional)</p>
+
+      {socialFields.map((f) => (
+        <input
+          key={f.name}
+          name={f.name}
+          type="text"
+          placeholder={f.placeholder}
           value={form[f.name as keyof typeof form]}
           onChange={handle}
           className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"

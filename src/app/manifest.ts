@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Evercard",
-    short_name: "Evercard",
+    name: "Kontact",
+    short_name: "Kontact",
     description: "Your digital business card",
     start_url: "/",
     display: "standalone",

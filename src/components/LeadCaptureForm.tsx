@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 
+type Status = "idle" | "loading" | "done" | "error" | "limit";
+
 export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -20,7 +22,11 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
       body: JSON.stringify({ ...form, card_owner: cardOwner }),
     });
 
-    setStatus(res.ok ? "done" : "error");
+    if (res.status === 402) {
+      setStatus("limit");
+    } else {
+      setStatus(res.ok ? "done" : "error");
+    }
   }
 
   if (status === "done") {
@@ -29,6 +35,16 @@ export default function LeadCaptureForm({ cardOwner }: { cardOwner: string }) {
         <p className="text-2xl mb-2">👋</p>
         <p className="text-white font-semibold">Info sent!</p>
         <p className="text-gray-500 text-sm mt-1">They'll be in touch soon.</p>
+      </div>
+    );
+  }
+
+  if (status === "limit") {
+    return (
+      <div className="text-center py-6">
+        <p className="text-2xl mb-2">📨</p>
+        <p className="text-white font-semibold">Card at capacity</p>
+        <p className="text-gray-500 text-sm mt-1">This person's card is full. Ask them to upgrade to Kontact Pro.</p>
       </div>
     );
   }

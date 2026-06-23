@@ -4,60 +4,144 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 export default function LoginForm() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  async function handleGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
+    setErrorMsg("");
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    setStatus(error ? "error" : "sent");
+    if (mode === "signin") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setErrorMsg(error.message === "Invalid login credentials" ? "Wrong email or password." : error.message);
+        setStatus("error");
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setErrorMsg(error.message);
+        setStatus("error");
+      } else {
+        window.location.href = "/onboarding";
+      }
+    }
   }
 
-  if (status === "sent") {
-    return (
-      <div className="text-center">
-        <p className="text-3xl mb-3">📬</p>
-        <p className="text-white font-semibold text-lg">Check your email</p>
-        <p className="text-gray-400 text-sm mt-2">
-          We sent a sign-in link to <span className="text-blue-400">{email}</span>
-        </p>
-      </div>
-    );
+  async function handleForgot() {
+    if (!email) {
+      setErrorMsg("Enter your email first.");
+      setStatus("error");
+      return;
+    }
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
+    setErrorMsg("Password reset link sent — check your email.");
+    setStatus("error");
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-4">
-      <input
-        type="email"
-        placeholder="your@email.com"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-      />
-      {status === "error" && (
-        <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>
+    <div className="w-full space-y-5">
+      {/* Mode toggle */}
+      <div className="flex bg-gray-900 border border-gray-800 rounded-full p-1">
+        {(["signin", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); }}
+            className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
+            style={{
+              background: mode === m ? "#1d4ed8" : "transparent",
+              color: mode === m ? "#fff" : "#6b7280",
+            }}
+          >
+            {m === "signin" ? "Sign in" : "Create account"}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          type="email"
+          placeholder="your@email.com"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          required
+          minLength={6}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+        />
+
+        {status === "error" && (
+          <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+        >
+          {status === "loading"
+            ? "…"
+            : mode === "signin" ? "Sign in →" : "Create account →"}
+        </button>
+      </form>
+
+      {mode === "signin" && (
+        <button
+          type="button"
+          onClick={handleForgot}
+          className="w-full text-center text-gray-500 hover:text-gray-300 text-xs transition-colors"
+        >
+          Forgot password?
+        </button>
       )}
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-gray-800" />
+        <span className="text-gray-600 text-xs">or</span>
+        <div className="flex-1 h-px bg-gray-800" />
+      </div>
+
       <button
-        type="submit"
-        disabled={status === "loading"}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+        type="button"
+        onClick={handleGoogle}
+        className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-gray-900 font-semibold py-3 px-6 rounded-full transition-colors text-sm"
       >
-        {status === "loading" ? "Sending…" : "Send Magic Link"}
+        <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
       </button>
-    </form>
+    </div>
   );
 }

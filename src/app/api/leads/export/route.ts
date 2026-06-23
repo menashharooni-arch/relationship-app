@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="evercard-leads.csv"`,
+      "Content-Disposition": `attachment; filename="kontact-leads.csv"`,
     },
   });
 }

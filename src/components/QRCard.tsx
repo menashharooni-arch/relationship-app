@@ -1,6 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
+import { KontactIcon } from "@/components/KontactLogo";
 
 export default function QRCard({ url }: { url: string }) {
   return (
@@ -15,18 +16,9 @@ export default function QRCard({ url }: { url: string }) {
         }}
       />
 
-      {/* Evercard icon */}
-      <div className="w-14 h-14 rounded-2xl bg-[#1a2d5a] border border-blue-800 flex items-center justify-center mb-8 z-10">
-        <span
-          className="text-2xl font-bold"
-          style={{
-            background: "linear-gradient(135deg, #60a5fa, #a78bfa)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          E
-        </span>
+      {/* Kontact icon */}
+      <div className="mb-8 z-10">
+        <KontactIcon size={52} />
       </div>
 
       {/* QR code */}
