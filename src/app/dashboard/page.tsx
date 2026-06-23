@@ -64,9 +64,7 @@ export default async function DashboardPage({
     supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", chartCutoff),
     supabase.from("cards").select("id, username, name, title, company").eq("user_id", user.id).order("created_at", { ascending: true }),
     supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
-    isPro
-      ? supabase.from("card_views").select("location").eq("username", profile.username).not("location", "is", null).gte("viewed_at", thirtyDaysAgo)
-      : Promise.resolve({ data: null }),
+    supabase.from("card_views").select("location").eq("username", profile.username).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
     supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", profile.username).eq("event_type", "contact_save"),
   ]);
 
