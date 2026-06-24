@@ -21,6 +21,7 @@ import MobileNav from "@/components/MobileNav";
 import PushSetup from "@/components/PushSetup";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
+import DeselectCardButton from "@/components/DeselectCardButton";
 import { Suspense } from "react";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
@@ -270,6 +271,7 @@ export default async function DashboardPage({
                 <p className="text-gray-600 text-xs mt-0.5">Select a card to make it the active dashboard card</p>
               </div>
               <div className="flex items-center gap-3">
+                {selectedCard && <DeselectCardButton />}
                 {(isPro || (extraCards?.length ?? 0) < 2) && (
                   <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
