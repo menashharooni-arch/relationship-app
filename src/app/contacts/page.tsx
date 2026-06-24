@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
@@ -16,17 +17,20 @@ export default async function ContactsPage() {
     .single();
   if (!profile) redirect("/onboarding");
 
-  const { data: leads } = await supabase
-    .from("leads")
-    .select("id, name, email, phone, company, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, created_at")
-    .eq("card_owner", profile.username)
-    .order("name", { ascending: true });
-
-  const { data: extraCards } = await supabase
+  const admin = getAdminSupabase();
+  const { data: extraCards } = await admin
     .from("cards")
     .select("id, username, name")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
+
+  const allUsernames = [profile.username, ...(extraCards ?? []).map((c) => c.username)];
+
+  const { data: leads } = await admin
+    .from("leads")
+    .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, created_at")
+    .in("card_owner", allUsernames)
+    .order("name", { ascending: true });
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
