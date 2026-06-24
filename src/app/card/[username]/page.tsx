@@ -27,10 +27,43 @@ function initials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function normalizeUrl(raw: string, base: string) {
+// Build a valid profile URL from whatever was stored: a full URL, a platform URL
+// (e.g. "instagram.com/x"), an "@handle", or a bare handle.
+function socialUrl(platform: string, raw?: string | null): string | null {
   if (!raw) return null;
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
+  const v = raw.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+
+  const lower = v.toLowerCase();
+  const domain: Record<string, string> = {
+    linkedin: "linkedin.com",
+    instagram: "instagram.com",
+    twitter: "x.com",
+    tiktok: "tiktok.com",
+    snapchat: "snapchat.com",
+    youtube: "youtube.com",
+  };
+  // Already references the platform's own domain → just make it absolute.
+  if ((domain[platform] && lower.includes(domain[platform])) || (platform === "twitter" && lower.includes("twitter.com"))) {
+    return `https://${v.replace(/^\/+/, "")}`;
+  }
+
+  const handle = v.replace(/^@+/, "").trim();
+  if (!handle) return null;
+
+  switch (platform) {
+    case "linkedin":
+      if (/^(in|company|pub|school)\//i.test(handle)) return `https://linkedin.com/${handle}`;
+      return `https://linkedin.com/in/${handle}`;
+    case "instagram": return `https://instagram.com/${handle}`;
+    case "twitter":   return `https://x.com/${handle}`;
+    case "tiktok":    return `https://tiktok.com/@${handle}`;
+    case "snapchat":  return `https://snapchat.com/add/${handle}`;
+    case "youtube":   return `https://youtube.com/@${handle}`;
+    case "website":   return /\.[a-z]{2,}/i.test(handle) ? `https://${handle.replace(/^\/+/, "")}` : null;
+    default:          return `https://${handle}`;
+  }
 }
 
 function SectionNumber({ n }: { n: number }) {
@@ -105,8 +138,10 @@ export default async function CardPage({
     .eq("username", username)
     .single();
 
+  // Resolve extra cards with the admin client so row-level security doesn't hide
+  // newly added cards from the public page.
   const { data: extraCard } = !profileData
-    ? await supabase.from("cards").select("*, profiles!inner(plan, photo_url)").eq("username", username).single()
+    ? await getAdminSupabase().from("cards").select("*, profiles!inner(plan, photo_url)").eq("username", username).single()
     : { data: null };
 
   const ownerProfile = extraCard
@@ -176,45 +211,14 @@ export default async function CardPage({
 
   // Build serializable social link data (no ReactNode icons — SocialLinkIntercept renders icons by label)
   const connectLinks = [
-    profile.linkedin && {
-      label: "LinkedIn",
-      href: normalizeUrl(profile.linkedin, "https://linkedin.com/in")!,
-      color: "#0A66C2",
-    },
-    profile.instagram && {
-      label: "Instagram",
-      href: normalizeUrl(profile.instagram, "https://instagram.com")!,
-      color: "#E1306C",
-    },
-    profile.twitter && {
-      label: "X / Twitter",
-      href: normalizeUrl(profile.twitter, "https://x.com")!,
-      color: "#000000",
-    },
-    snapchat && {
-      label: "Snapchat",
-      href: snapchat.startsWith("@")
-        ? `https://snapchat.com/add/${snapchat.slice(1)}`
-        : normalizeUrl(snapchat, "https://snapchat.com/add")!,
-      color: "#FFCA28",
-      textColor: "#1a1a00",
-    },
-    profile.tiktok && {
-      label: "TikTok",
-      href: normalizeUrl(profile.tiktok, "https://tiktok.com/@")!,
-      color: "#010101",
-    },
-    youtube && {
-      label: "YouTube",
-      href: normalizeUrl(youtube, "https://youtube.com/")!,
-      color: "#FF0000",
-    },
-    profile.website && {
-      label: "Website",
-      href: normalizeUrl(profile.website, "https://")!,
-      color: "#1D4ED8",
-    },
-  ].filter(Boolean) as { label: string; href: string; color: string; textColor?: string }[];
+    { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   color: "#0A66C2" },
+    { label: "Instagram",   href: socialUrl("instagram", profile.instagram), color: "#E1306C" },
+    { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     color: "#000000" },
+    { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           color: "#FFCA28", textColor: "#1a1a00" },
+    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       color: "#010101" },
+    { label: "YouTube",     href: socialUrl("youtube", youtube),             color: "#FF0000" },
+    { label: "Website",     href: socialUrl("website", profile.website),     color: "#1D4ED8" },
+  ].filter((l) => l.href) as { label: string; href: string; color: string; textColor?: string }[];
 
   // Total connect items = social links + action links
   const hasConnectSection = connectLinks.length > 0 || actionLinks.length > 0;
