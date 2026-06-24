@@ -11,6 +11,7 @@ type Props = {
   label: string;
   shape?: "circle" | "square";
   cardId?: string;
+  defer?: boolean;
   onUploaded: (url: string) => void;
 };
 
@@ -49,7 +50,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   });
 }
 
-export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, onUploaded }: Props) {
+export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, defer, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -86,6 +87,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
       form.append("file", file);
       form.append("field", field);
       if (cardId) form.append("card_id", cardId);
+      if (defer) form.append("defer", "true");
 
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const json = await res.json();
