@@ -90,7 +90,7 @@ export async function generateMetadata({
     .single();
 
   const { data: card } = !profile
-    ? await admin.from("cards").select("name, title, company, photo_url").eq("username", username).single()
+    ? await admin.from("cards").select("name, title, company").eq("username", username).single()
     : { data: null };
 
   const p = profile ?? card;
@@ -139,14 +139,17 @@ export default async function CardPage({
     .single();
 
   // Resolve extra cards with the admin client so row-level security doesn't hide
-  // newly added cards from the public page.
+  // newly added cards. Fetch the owner profile separately rather than via a
+  // PostgREST embedded join (which needs a direct cards->profiles FK that may not exist).
+  const admin = getAdminSupabase();
   const { data: extraCard } = !profileData
-    ? await getAdminSupabase().from("cards").select("*, profiles!inner(plan, photo_url)").eq("username", username).single()
+    ? await admin.from("cards").select("*").eq("username", username).single()
     : { data: null };
 
-  const ownerProfile = extraCard
-    ? (extraCard as { profiles?: { plan?: string; photo_url?: string } }).profiles
-    : null;
+  const { data: ownerProfile } = extraCard
+    ? await admin.from("profiles").select("plan, photo_url").eq("id", extraCard.user_id).single()
+    : { data: null };
+
   const profile = profileData ?? (extraCard ? { ...extraCard, plan: ownerProfile?.plan ?? "free" } : null);
 
   if (!profile) notFound();
