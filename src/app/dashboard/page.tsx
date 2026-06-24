@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getSourceLabel } from "@/lib/source-labels";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadPipeline from "@/components/LeadPipeline";
@@ -16,7 +18,10 @@ import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
+import PushSetup from "@/components/PushSetup";
 import type { FlowPresets } from "@/components/LeadCard";
+import CardSelectionPersist from "@/components/CardSelectionPersist";
+import { Suspense } from "react";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 const FREE_LIMIT = 25;
@@ -45,6 +50,7 @@ export default async function DashboardPage({
   const chartDays = chartRange === "7d" ? 7 : 30;
   const chartCutoff = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000).toISOString();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const analyticsUsername = selectedCard ?? profile.username;
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -59,28 +65,30 @@ export default async function DashboardPage({
     { data: notifications },
     { data: locationViews },
     { count: contactSaves },
+    { data: sourceEvents },
   ] = await Promise.all([
     (() => {
       const cardOwner = selectedCard ?? profile.username;
       return supabase
         .from("leads")
-        .select("id, name, email, phone, company, message, location, notes, status, tags, follow_up_date, created_at, card_owner")
+        .select("id, name, email, phone, company, message, location, notes, status, tags, source, follow_up_date, created_at, card_owner")
         .eq("card_owner", cardOwner)
         .order(
           sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
           { ascending: sortBy === "name-asc" || sortBy === "oldest" }
         );
     })(),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username)
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername),
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername)
       .gte("viewed_at", sevenDaysAgo),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username)
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername)
       .gte("viewed_at", fourteenDaysAgo).lt("viewed_at", sevenDaysAgo),
-    supabase.from("card_views").select("viewed_at").eq("username", profile.username).gte("viewed_at", chartCutoff),
+    supabase.from("card_views").select("viewed_at").eq("username", analyticsUsername).gte("viewed_at", chartCutoff),
     supabase.from("cards").select("id, username, name, title, company").eq("user_id", user.id).order("created_at", { ascending: true }),
     supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
-    supabase.from("card_views").select("location").eq("username", profile.username).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
-    supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", profile.username).eq("event_type", "contact_save"),
+    supabase.from("card_views").select("location").eq("username", analyticsUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
+    supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).eq("event_type", "contact_save"),
+    getAdminSupabase().from("card_events").select("source, event_type").eq("card_owner_username", selectedCard ?? profile.username).gte("created_at", thirtyDaysAgo),
   ]);
 
   const viewsByDate: Record<string, number> = {};
@@ -103,6 +111,25 @@ export default async function DashboardPage({
   const peakViews = Math.max(...chartData.map((d) => d.views), 0);
   const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
+
+  // Source breakdown: views and leads per source (last 30d)
+  const viewsBySource: Record<string, number> = {};
+  for (const e of sourceEvents ?? []) {
+    if (e.event_type === "viewed_card" && e.source) {
+      viewsBySource[e.source] = (viewsBySource[e.source] ?? 0) + 1;
+    }
+  }
+  const leadsBySource: Record<string, number> = {};
+  for (const l of allLeads) {
+    const s = (l as { source?: string }).source ?? "direct_link";
+    leadsBySource[s] = (leadsBySource[s] ?? 0) + 1;
+  }
+  const allSources = Array.from(new Set([...Object.keys(viewsBySource), ...Object.keys(leadsBySource)]));
+  const sourceBreakdown = allSources
+    .map((src) => ({ source: src, label: getSourceLabel(src), views: viewsBySource[src] ?? 0, leads: leadsBySource[src] ?? 0 }))
+    .sort((a, b) => b.views - a.views || b.leads - a.leads)
+    .slice(0, 8);
+  const maxSourceViews = Math.max(...sourceBreakdown.map((s) => s.views), 1);
 
   const dateThreshold = filterDate === "today"
     ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -164,6 +191,10 @@ export default async function DashboardPage({
 
   return (
     <>
+      <Suspense>
+        <CardSelectionPersist selectedCard={selectedCard} />
+      </Suspense>
+
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
@@ -221,6 +252,9 @@ export default async function DashboardPage({
       <main className="min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
+          {/* Push notification opt-in */}
+          <PushSetup />
+
           {/* Upgrade success banner */}
           {params.upgraded && (
             <div className="flex items-center gap-3 bg-green-950 border border-green-800/60 rounded-2xl px-5 py-3.5 mb-5">
@@ -261,6 +295,82 @@ export default async function DashboardPage({
               <UpgradeButton />
             </div>
           )}
+
+          {/* My Cards — full width */}
+          <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-white font-semibold text-sm">My Cards</p>
+                <p className="text-gray-600 text-xs mt-0.5">Select a card to view its leads</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {selectedCard && (
+                  <Link href="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors">
+                    ← View all
+                  </Link>
+                )}
+                {(isPro || (extraCards?.length ?? 0) < 2) && (
+                  <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                    + Add card
+                  </Link>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {/* Primary card */}
+              {(() => {
+                const isActive = !selectedCard || selectedCard === profile.username;
+                return (
+                  <Link
+                    href={`?card=${profile.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                    className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-blue-600/20 border border-blue-600/30 text-blue-400"}`}>
+                      {initials(profile.name || "SC")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-sm font-medium truncate">{profile.name}</p>
+                      <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Viewing</span>}
+                      <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold">Primary</span>
+                    </div>
+                  </Link>
+                );
+              })()}
+              {/* Extra cards */}
+              {(extraCards ?? []).map((card) => {
+                const isActive = selectedCard === card.username;
+                return (
+                  <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
+                    <Link
+                      href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                      className="flex items-center gap-3 flex-1 min-w-0"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
+                        {(card.name || card.username)[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
+                        <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
+                      </div>
+                      {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Viewing</span>}
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
+                      <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
+                    </div>
+                  </div>
+                );
+              })}
+              {!isPro && (extraCards?.length ?? 0) >= 2 && (
+                <div className="flex items-center justify-between border border-dashed border-gray-800 rounded-xl px-4 py-3 flex-1 min-w-[200px]">
+                  <p className="text-gray-600 text-xs">Upgrade for unlimited cards</p>
+                  <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Two-column layout: left=main, right=card panel */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
@@ -362,75 +472,34 @@ export default async function DashboardPage({
                     <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
                   </div>
                 )}
-              </div>
 
-              {/* My Cards */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-white font-semibold text-sm">My Cards</p>
-                    <p className="text-gray-600 text-xs mt-0.5">Select a card to view its leads</p>
-                  </div>
-                  {(isPro || (extraCards?.length ?? 0) < 2) && (
-                    <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
-                      + Add card
-                    </Link>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {/* Primary card */}
-                  {(() => {
-                    const isActive = !selectedCard || selectedCard === profile.username;
-                    return (
-                      <Link
-                        href={`?card=${profile.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
-                        className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}
-                      >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-blue-600/20 border border-blue-600/30 text-blue-400"}`}>
-                          {initials(profile.name || "SC")}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-white text-sm font-medium truncate">{profile.name}</p>
-                          <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Viewing</span>}
-                          <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold">Primary</span>
-                        </div>
-                      </Link>
-                    );
-                  })()}
-                  {/* Extra cards */}
-                  {(extraCards ?? []).map((card) => {
-                    const isActive = selectedCard === card.username;
-                    return (
-                      <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
-                        <Link
-                          href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
-                          className="flex items-center gap-3 flex-1 min-w-0"
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
-                            {(card.name || card.username)[0]?.toUpperCase()}
+                {/* Traffic sources */}
+                {sourceBreakdown.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-800/80">
+                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Traffic sources · 30d</p>
+                    <div className="space-y-3">
+                      {sourceBreakdown.map(({ source: src, label, views, leads }) => (
+                        <div key={src}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-gray-300 text-xs truncate max-w-[60%]">{label}</span>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-gray-500 text-xs">{views} view{views !== 1 ? "s" : ""}</span>
+                              {leads > 0 && (
+                                <span className="text-emerald-400 text-xs font-semibold">{leads} lead{leads !== 1 ? "s" : ""}</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
-                            <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
+                          <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: `${Math.max((views / maxSourceViews) * 100, 3)}%` }}
+                            />
                           </div>
-                          {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Viewing</span>}
-                        </Link>
-                        <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
-                          <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
                         </div>
-                      </div>
-                    );
-                  })}
-                  {!isPro && (extraCards?.length ?? 0) >= 2 && (
-                    <div className="flex items-center justify-between border border-dashed border-gray-800 rounded-xl px-4 py-3">
-                      <p className="text-gray-600 text-xs">Upgrade for unlimited cards</p>
-                      <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
+                      ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Contacts section */}

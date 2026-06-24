@@ -17,6 +17,7 @@ type Lead = {
   email: string;
   phone: string | null;
   company: string | null;
+  company_description?: string | null;
   message: string | null;
   location: string | null;
   notes: string | null;
@@ -24,6 +25,9 @@ type Lead = {
   tags: string[] | null;
   follow_up_date: string | null;
   created_at: string;
+  where_met?: string | null;
+  convo_details?: string | null;
+  follow_up_sequence?: { day: number; message: string; sent_at: string | null }[] | null;
 };
 
 type Status = "new_contact" | "touch" | "dissolved";
@@ -117,7 +121,7 @@ export default function LeadCard({
 
   // Inline editing
   const [editingContact, setEditingContact] = useState(false);
-  const [editForm, setEditForm] = useState({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "" });
+  const [editForm, setEditForm] = useState({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "", company_description: (lead as { company_description?: string }).company_description || "" });
   const [editSaving, setEditSaving] = useState(false);
 
   // Flow automation
@@ -138,6 +142,17 @@ export default function LeadCard({
   const [smsError, setSmsError] = useState<number | null>(null);
   const [meetContext, setMeetContext] = useState("");
   const [tone, setTone] = useState<"friendly" | "professional" | "direct">("friendly");
+
+  const [showSeqGenerator, setShowSeqGenerator] = useState(false);
+  const [seqWhereMet, setSeqWhereMet] = useState(lead.where_met || "");
+  const [seqConvoDetails, setSeqConvoDetails] = useState(lead.convo_details || "");
+  const [generatingSeq, setGeneratingSeq] = useState(false);
+  const [pendingSequence, setPendingSequence] = useState<{ day: number; message: string }[] | null>(null);
+  const [savedSequence, setSavedSequence] = useState<{ day: number; message: string; sent_at: string | null }[]>(
+    Array.isArray((lead as { follow_up_sequence?: unknown }).follow_up_sequence)
+      ? (lead as { follow_up_sequence?: { day: number; message: string; sent_at: string | null }[] }).follow_up_sequence ?? []
+      : []
+  );
 
   async function patchLead(fields: Record<string, unknown>) {
     const res = await fetch(`/api/leads/${lead.id}`, {
@@ -222,6 +237,7 @@ export default function LeadCard({
       email: editForm.email.trim() || null,
       phone: editForm.phone.trim() || null,
       company: editForm.company.trim() || null,
+      company_description: editForm.company_description.trim() || null,
     });
     setEditSaving(false);
     if (ok) {
@@ -293,7 +309,7 @@ export default function LeadCard({
     setSendingSMS(null);
   }
 
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["new_contact"];
   const initial = lead.name.trim()[0]?.toUpperCase() ?? "?";
   const followUpOverdue = followUpDate && new Date(followUpDate) < new Date(new Date().toDateString());
   const visibleTags = tags.filter((t) => !RESERVED_TAGS.has(t));
@@ -419,7 +435,7 @@ export default function LeadCard({
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setEditingContact(false); setEditForm({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "" }); }} className="text-[10px] text-gray-600 hover:text-gray-300 transition-colors">
+                  <button onClick={() => { setEditingContact(false); setEditForm({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "", company_description: (lead as { company_description?: string }).company_description || "" }); }} className="text-[10px] text-gray-600 hover:text-gray-300 transition-colors">
                     Cancel
                   </button>
                   <button onClick={saveContactEdit} disabled={editSaving || !editForm.name.trim()} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-blue-600 text-white disabled:opacity-40 transition-opacity">
@@ -459,6 +475,16 @@ export default function LeadCard({
                     value={editForm.company}
                     onChange={(e) => setEditForm((f) => ({ ...f, company: e.target.value }))}
                     placeholder="Company"
+                    className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Company description</label>
+                  <input
+                    type="text"
+                    value={editForm.company_description}
+                    onChange={(e) => setEditForm((f) => ({ ...f, company_description: e.target.value }))}
+                    placeholder="Brief description of what your company does"
                     className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>
@@ -641,6 +667,133 @@ export default function LeadCard({
                   <p className="text-[11px] text-amber-500/80">
                     Select a preset above to activate the automation schedule.
                   </p>
+                )}
+
+                {activePreset && !flowPaused && (
+                  <div className="mt-3">
+                    {savedSequence.length > 0 ? (
+                      /* Show existing sequence summary */
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] text-gray-400 font-medium">Saved sequence ({savedSequence.length} messages)</p>
+                        {savedSequence.map((item) => (
+                          <div key={item.day} className="flex items-start gap-2 text-[11px]">
+                            <span className="text-gray-500 shrink-0 mt-0.5">Day {item.day}</span>
+                            <span className={item.sent_at ? "text-green-400" : "text-gray-400"}>
+                              {item.sent_at ? "✓ Sent" : "Scheduled"}
+                            </span>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => { setShowSeqGenerator(true); setPendingSequence(null); }}
+                          className="text-[11px] text-blue-400 hover:text-blue-300 underline mt-1"
+                        >
+                          Regenerate sequence
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowSeqGenerator(true)}
+                        className="w-full py-2 text-[12px] bg-gray-800 hover:bg-gray-700 border border-gray-700 border-dashed rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
+                      >
+                        + Generate AI follow-up sequence
+                      </button>
+                    )}
+
+                    {showSeqGenerator && (
+                      <div className="mt-3 space-y-3 bg-gray-800 rounded-xl p-3">
+                        <p className="text-[11px] text-gray-300 font-medium">Generate sequence messages</p>
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Where did you meet?</label>
+                          <input
+                            type="text"
+                            value={seqWhereMet}
+                            onChange={(e) => setSeqWhereMet(e.target.value)}
+                            placeholder="e.g. Real estate conference, LinkedIn, referral"
+                            className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-gray-400 mb-1">Conversation details</label>
+                          <textarea
+                            value={seqConvoDetails}
+                            onChange={(e) => setSeqConvoDetails(e.target.value)}
+                            placeholder="What did you talk about? Their interests, pain points, context..."
+                            rows={2}
+                            className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                          />
+                        </div>
+                        {!pendingSequence && (
+                          <button
+                            onClick={async () => {
+                              if (generatingSeq) return;
+                              setGeneratingSeq(true);
+                              try {
+                                const r = await fetch(`/api/leads/${lead.id}/generate-sequence`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ presetKey: activePreset, whereMet: seqWhereMet, convoDetails: seqConvoDetails }),
+                                });
+                                const d = await r.json();
+                                if (d.sequence) setPendingSequence(d.sequence);
+                              } catch { /* fail silently */ }
+                              setGeneratingSeq(false);
+                            }}
+                            disabled={generatingSeq}
+                            className="w-full py-2 text-[11px] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg transition-colors font-medium"
+                          >
+                            {generatingSeq ? "Generating…" : "Generate AI messages"}
+                          </button>
+                        )}
+                        {pendingSequence && (
+                          <div className="space-y-2">
+                            <p className="text-[11px] text-gray-300 font-medium">Preview & edit before saving:</p>
+                            {pendingSequence.map((item, idx) => (
+                              <div key={item.day} className="space-y-1">
+                                <p className="text-[10px] text-gray-500 font-medium">Day {item.day}</p>
+                                <textarea
+                                  value={item.message}
+                                  onChange={(e) => {
+                                    const updated = [...pendingSequence];
+                                    updated[idx] = { ...updated[idx], message: e.target.value };
+                                    setPendingSequence(updated);
+                                  }}
+                                  rows={3}
+                                  className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-[10px] focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                                />
+                              </div>
+                            ))}
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                onClick={async () => {
+                                  if (!pendingSequence) return;
+                                  const seq = pendingSequence.map((s) => ({ ...s, sent_at: null }));
+                                  try {
+                                    await fetch(`/api/leads/${lead.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ follow_up_sequence: seq }),
+                                    });
+                                    setSavedSequence(seq);
+                                    setPendingSequence(null);
+                                    setShowSeqGenerator(false);
+                                  } catch { /* fail silently */ }
+                                }}
+                                className="flex-1 py-2 text-[11px] bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium"
+                              >
+                                Save & activate
+                              </button>
+                              <button
+                                onClick={() => { setPendingSequence(null); setShowSeqGenerator(false); }}
+                                className="px-3 py-2 text-[11px] text-gray-400 hover:text-white border border-gray-700 rounded-lg transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )}

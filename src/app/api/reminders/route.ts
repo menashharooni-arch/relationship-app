@@ -250,5 +250,59 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // === PRESET-BASED SEQUENCE PROCESSING ===
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart.getTime() + 86400000);
+
+  const { data: seqLeads } = await supabase
+    .from("leads")
+    .select("id, name, email, card_owner, created_at, follow_up_sequence, tags, status")
+    .neq("status", "dissolved")
+    .not("follow_up_sequence", "is", null);
+
+  for (const seqLead of seqLeads ?? []) {
+    const seq = seqLead.follow_up_sequence as { day: number; message: string; sent_at: string | null }[] | null;
+    if (!seq?.length) continue;
+    if ((seqLead.tags ?? []).includes("flow-paused")) continue;
+
+    const createdAt = new Date(seqLead.created_at).getTime();
+
+    for (const item of seq) {
+      if (item.sent_at) continue;
+      const dueMs = createdAt + item.day * 86400000;
+      if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
+      if (!seqLead.email) continue;
+
+      const { data: ownerProfile } = await supabase
+        .from("profiles")
+        .select("name, email, title, company")
+        .eq("username", seqLead.card_owner)
+        .single();
+
+      if (!ownerProfile) continue;
+
+      const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
+      const leadFirst = (seqLead.name as string).split(" ")[0];
+
+      try {
+        await resend.emails.send({
+          from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+          replyTo: ownerProfile.email ?? undefined,
+          to: seqLead.email as string,
+          subject: `${ownerFirst} following up`,
+          html: `<div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;"><p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;"><p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>${ownerProfile.title ? `<p style="margin:0;color:#6b7280;font-size:12px;">${ownerProfile.title}</p>` : ""}${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="color:#2563eb;font-size:13px;">${ownerProfile.email}</a>` : ""}</div><p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard · <a href="{{unsubscribe_url}}" style="color:#d1d5db;">Unsubscribe</a></p></div></div>`,
+        });
+
+        const updatedSeq = seq.map((s) =>
+          s.day === item.day ? { ...s, sent_at: new Date().toISOString() } : s
+        );
+        await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
+        totalSent++;
+      } catch { /* fail silently */ }
+    }
+  }
+  // === END PRESET-BASED SEQUENCE PROCESSING ===
+
   return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour });
 }

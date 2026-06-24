@@ -191,7 +191,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 mb-2 shadow-sm">
         <p className="text-xs text-slate-400">Card URL</p>
-        <p className="text-[#1D4ED8] text-sm">swiftcard.app/card/{profile.username}</p>
+        <p className="text-[#1D4ED8] text-sm">swiftcard.me/card/{profile.username}</p>
       </div>
 
       {/* Photo + Logo uploads */}

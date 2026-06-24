@@ -54,7 +54,7 @@ export const SAMPLE_DATA: CardData = {
   initials: "AM",
   photoUrl: null,
   logoUrl: null,
-  cardUrl: "swiftcard.app/card/alexmorgan",
+  cardUrl: "swiftcard.me/card/alexmorgan",
 };
 
 export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827" }: { size?: number; bg?: string; fg?: string }) {

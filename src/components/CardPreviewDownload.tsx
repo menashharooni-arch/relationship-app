@@ -30,12 +30,11 @@ export default function CardPreviewDownload({ data, template, username }: Props)
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-6">
-      <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-4">Card preview</p>
-      <div ref={cardRef} className="w-full pointer-events-none">
+    <div>
+      <div ref={cardRef} className="w-full pointer-events-none rounded-xl overflow-hidden">
         <Template data={data} />
       </div>
-      <div className="mt-4">
+      <div className="mt-3">
         <DownloadCardButton cardRef={cardRef} filename={`swiftcard-${username}.png`} />
       </div>
     </div>

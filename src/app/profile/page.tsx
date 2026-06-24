@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import ProfileForm from "@/components/ProfileForm";
+import FlowSettingsForm from "@/components/FlowSettingsForm";
+import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import MobileNav from "@/components/MobileNav";
 import CopyButton from "@/components/CopyButton";
 import Link from "next/link";
@@ -14,6 +17,21 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
+
+  const admin = getAdminSupabase();
+  const { data: emailPrefs } = await admin
+    .from("email_preferences")
+    .select("marketing_emails, receipt_emails")
+    .eq("user_id", user.id)
+    .single();
+
+  const defaults = {
+    day1: { enabled: true, time: "13:00" },
+    day15: { enabled: true, time: "13:00" },
+    day30: { enabled: true, time: "13:00" },
+  };
+  const settings = (profile.flow_settings as typeof defaults) ?? defaults;
+  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
   return (
     <main className="min-h-screen bg-cream px-5 py-10 pb-24 md:pb-10">
@@ -50,6 +68,19 @@ export default async function ProfilePage() {
         </div>
 
         <ProfileForm profile={profile} />
+
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Follow-up Automation</h2>
+          <FlowSettingsForm initialSettings={settings} isPro={isPro} />
+        </div>
+
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Email Preferences</h2>
+          <EmailPreferencesForm
+            initialMarketing={emailPrefs?.marketing_emails ?? true}
+            initialReceipts={emailPrefs?.receipt_emails ?? true}
+          />
+        </div>
       </div>
     </main>
   );

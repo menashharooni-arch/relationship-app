@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getSupabase } from "@/lib/supabase";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { getSourceLabel } from "@/lib/source-labels";
+import { sendPushToUser } from "@/lib/push";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
@@ -49,16 +49,16 @@ export async function POST(req: NextRequest) {
       ? `${decodeURIComponent(city)}, ${country}`
       : country || null;
 
-    const supabase = getSupabase();
+    const admin = getAdminSupabase();
 
-    const { data: ownerProfile } = await supabase
+    const { data: ownerProfile } = await admin
       .from("profiles")
       .select("id, plan, name, email, phone, company, zapier_webhook_url")
       .eq("username", card_owner)
       .single();
 
     if (ownerProfile?.plan !== "pro" && ownerProfile?.plan !== "enterprise") {
-      const { count } = await supabase
+      const { count } = await admin
         .from("leads")
         .select("*", { count: "exact", head: true })
         .eq("card_owner", card_owner);
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { error } = await supabase
+    const { data: insertedLead, error } = await admin
       .from("leads")
       .insert({
         name,
@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
         tags: tags ?? null,
         source: source || null,
         visitor_id: visitor_id || null,
-      });
+      })
+      .select("id")
+      .single();
 
     if (error) {
       console.error("Supabase insert error:", error.message);
@@ -107,17 +109,28 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
-    // Insert in-app notification for the card owner (non-blocking, needs admin to bypass RLS)
+    // Insert in-app notification for the card owner (non-blocking)
     if (ownerProfile?.id) {
       const sourceLabel = source ? getSourceLabel(source) : null;
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
-      const admin = getAdminSupabase();
       admin.from("notifications").insert({
         user_id: ownerProfile.id,
         type: "new_lead",
         title: `New contact: ${name}`,
         body: `${name} shared their info with you${sourceStr}.`,
       }).then(() => {});
+
+      // Push notification — phone buzz + optional vCard save
+      if (insertedLead?.id) {
+        const vcardUrl = `${APP_URL}/api/leads/vcard?id=${insertedLead.id}`;
+        sendPushToUser(ownerProfile.id, {
+          title: `New contact: ${name}`,
+          body: phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save"),
+          url: `${APP_URL}/dashboard`,
+          vcardUrl,
+          tag: `lead-${insertedLead.id}`,
+        }).catch(() => {});
+      }
     }
 
     // Send email to card owner about the new lead (non-blocking)
