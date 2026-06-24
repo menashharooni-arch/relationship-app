@@ -29,6 +29,14 @@ function normalizeUrl(raw: string, base: string) {
   return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
 }
 
+function SectionNumber({ n }: { n: number }) {
+  return (
+    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "#1D4ED8" }}>
+      {n}
+    </span>
+  );
+}
+
 export default async function CardPage({
   params,
   searchParams,
@@ -55,11 +63,16 @@ export default async function CardPage({
 
   if (!profile) notFound();
 
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
-
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
-  const customization = (profile.customization ?? {}) as { snapchat?: string; about?: string; accentColor?: string; font?: string; links?: { emoji: string; label: string; url: string }[]; testimonials?: { name: string; text: string }[] };
+  const customization = (profile.customization ?? {}) as {
+    snapchat?: string;
+    about?: string;
+    accentColor?: string;
+    font?: string;
+    links?: { emoji: string; label: string; url: string }[];
+    testimonials?: { name: string; text: string }[];
+  };
   const snapchat = customization.snapchat || "";
   const about = customization.about || "";
   const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
@@ -103,21 +116,8 @@ export default async function CardPage({
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
 
-  // Build clickable social links
-  const socialLinks = [
-    snapchat && {
-      label: "Snapchat",
-      href: snapchat.startsWith("@")
-        ? `https://snapchat.com/add/${snapchat.slice(1)}`
-        : normalizeUrl(snapchat, "https://snapchat.com/add"),
-      color: "#FFFC00",
-      textColor: "#000000",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-          <path d="M12.065 2C7.965 2 5.044 5.004 5.044 9.251v.307l-.001.111c-.046.97-.5 1.842-1.259 2.39a.43.43 0 00-.125.566c.108.192.33.286.548.24.556-.12 1.099-.308 1.617-.559a.142.142 0 01.147.007c.035.024.058.063.058.104 0 .043-.026.082-.065.103-.695.369-1.118 1.09-1.118 1.87 0 .168.019.335.057.5.198.867.915 1.542 1.838 1.717.282.053.573.08.866.08.303 0 .604-.028.895-.083.163-.031.325.054.393.207.716 1.613 2.26 2.682 4.011 2.862.173.017.345.026.52.026.176 0 .348-.009.521-.026 1.75-.18 3.295-1.249 4.011-2.862.068-.153.23-.238.393-.207.291.055.592.083.895.083.293 0 .584-.027.866-.08.923-.175 1.64-.85 1.838-1.717.038-.165.057-.332.057-.5 0-.78-.423-1.501-1.118-1.87a.117.117 0 01-.065-.103c0-.041.023-.08.058-.104a.143.143 0 01.147-.007c.518.251 1.061.44 1.617.559.218.046.44-.048.548-.24a.43.43 0 00-.125-.566c-.759-.548-1.213-1.42-1.259-2.39l-.001-.111v-.307C18.956 5.004 16.035 2 11.935 2h.13z"/>
-        </svg>
-      ),
-    },
+  // Build clickable social/connect links — only include filled-in values
+  const connectLinks = [
     profile.linkedin && {
       label: "LinkedIn",
       href: normalizeUrl(profile.linkedin, "https://linkedin.com/in"),
@@ -148,6 +148,19 @@ export default async function CardPage({
         </svg>
       ),
     },
+    snapchat && {
+      label: "Snapchat",
+      href: snapchat.startsWith("@")
+        ? `https://snapchat.com/add/${snapchat.slice(1)}`
+        : normalizeUrl(snapchat, "https://snapchat.com/add"),
+      color: "#FFCA28",
+      textColor: "#1a1a00",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+          <path d="M12.065 2C7.965 2 5.044 5.004 5.044 9.251v.307l-.001.111c-.046.97-.5 1.842-1.259 2.39a.43.43 0 00-.125.566c.108.192.33.286.548.24.556-.12 1.099-.308 1.617-.559a.142.142 0 01.147.007c.035.024.058.063.058.104 0 .043-.026.082-.065.103-.695.369-1.118 1.09-1.118 1.87 0 .168.019.335.057.5.198.867.915 1.542 1.838 1.717.282.053.573.08.866.08.303 0 .604-.028.895-.083.163-.031.325.054.393.207.716 1.613 2.26 2.682 4.011 2.862.173.017.345.026.52.026.176 0 .348-.009.521-.026 1.75-.18 3.295-1.249 4.011-2.862.068-.153.23-.238.393-.207.291.055.592.083.895.083.293 0 .584-.027.866-.08.923-.175 1.64-.85 1.838-1.717.038-.165.057-.332.057-.5 0-.78-.423-1.501-1.118-1.87a.117.117 0 01-.065-.103c0-.041.023-.08.058-.104a.143.143 0 01.147-.007c.518.251 1.061.44 1.617.559.218.046.44-.048.548-.24a.43.43 0 00-.125-.566c-.759-.548-1.213-1.42-1.259-2.39l-.001-.111v-.307C18.956 5.004 16.035 2 11.935 2h.13z"/>
+        </svg>
+      ),
+    },
     profile.tiktok && {
       label: "TikTok",
       href: normalizeUrl(profile.tiktok, "https://tiktok.com/@"),
@@ -170,6 +183,9 @@ export default async function CardPage({
     },
   ].filter(Boolean) as { label: string; href: string | null; color: string; textColor?: string; icon: React.ReactNode }[];
 
+  // Total connect items = social links + action links
+  const hasConnectSection = connectLinks.length > 0 || actionLinks.length > 0;
+
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       <CardEventTracker username={profile.username} source={source} />
@@ -184,28 +200,6 @@ export default async function CardPage({
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
           <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">About</p>
           <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{about}</p>
-        </div>
-      )}
-
-      {/* Action links (link-in-bio) */}
-      {actionLinks.length > 0 && (
-        <div className="w-full max-w-sm flex flex-col gap-2">
-          {actionLinks.map((link, i) => (
-            <a
-              key={i}
-              href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 w-full py-3.5 px-5 rounded-2xl font-semibold text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-sm"
-              style={{ background: "#fff", border: "1px solid #E4DDD4", color: "#0f172a" }}
-            >
-              <span className="text-base">{link.emoji}</span>
-              {link.label}
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 ml-auto opacity-30">
-                <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
-              </svg>
-            </a>
-          ))}
         </div>
       )}
 
@@ -225,22 +219,36 @@ export default async function CardPage({
         </div>
       )}
 
-      {/* Save contact */}
+      {/* ── Section 1: Save Contact ── */}
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
         <div className="flex items-center gap-3 mb-1">
-          <span className="w-6 h-6 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shrink-0">1</span>
+          <SectionNumber n={1} />
           <p className="text-slate-900 font-semibold text-sm">Save {firstName}&apos;s contact</p>
         </div>
         <p className="text-slate-400 text-xs mb-4 ml-9">One tap adds them to your phone contacts — no app needed.</p>
         <SaveContactButton person={person} username={profile.username} source={source} />
       </div>
 
-      {/* Social links */}
-      {socialLinks.length > 0 && (
+      {/* ── Section 2: Share Your Info Back ── */}
+      <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+        <div className="flex items-center gap-3 mb-1">
+          <SectionNumber n={2} />
+          <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+        </div>
+        <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
+        <LeadCaptureForm cardOwner={profile.username} source={source} />
+      </div>
+
+      {/* ── Section 3: Other Ways to Connect ── */}
+      {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-3">Connect with {firstName}</p>
+          <div className="flex items-center gap-3 mb-4">
+            <SectionNumber n={3} />
+            <p className="text-slate-900 font-semibold text-sm">Other ways to connect with {firstName}</p>
+          </div>
           <div className="flex flex-col gap-2">
-            {socialLinks.map((s) =>
+            {/* Social platform links */}
+            {connectLinks.map((s) =>
               s.href ? (
                 <a
                   key={s.label}
@@ -258,22 +266,33 @@ export default async function CardPage({
                 </a>
               ) : null
             )}
+            {/* Custom action links (link-in-bio style) */}
+            {actionLinks.map((link, i) => (
+              <a
+                key={i}
+                href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 w-full py-3.5 px-5 rounded-2xl font-semibold text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-sm"
+                style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", color: "#0f172a" }}
+              >
+                <span className="text-base">{link.emoji}</span>
+                {link.label}
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 ml-auto opacity-30">
+                  <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
+                </svg>
+              </a>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Share info */}
+      {/* ── Section 4: Share This Card ── */}
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-        <div className="flex items-center gap-3 mb-1">
-          <span className="w-6 h-6 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shrink-0">2</span>
-          <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+        <div className="flex items-center gap-3 mb-4">
+          <SectionNumber n={hasConnectSection ? 4 : 3} />
+          <p className="text-slate-900 font-semibold text-sm">Share this card</p>
         </div>
-        <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
-        <LeadCaptureForm cardOwner={profile.username} source={source} />
-      </div>
-
-      {/* Share card */}
-      <div className="w-full max-w-sm">
         <ShareButton
           url={publicCardUrl}
           title={`${profile.name}'s digital card`}
@@ -281,28 +300,6 @@ export default async function CardPage({
           label="Share this card"
         />
       </div>
-
-      {!isPro && (
-        <a
-          href={`${APP_URL}/login?mode=signup`}
-          className="flex items-center gap-2 rounded-2xl px-5 py-3 transition-opacity hover:opacity-80"
-          style={{ background: "#fff", border: "1px solid #E4DDD4" }}
-        >
-          <div className="w-5 h-5 rounded bg-[#1D4ED8] flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <p className="text-slate-600 text-xs font-semibold">Get your own card — free</p>
-            <p className="text-slate-400 text-[10px]">Powered by SwiftCard</p>
-          </div>
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-300">
-            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-          </svg>
-        </a>
-      )}
     </main>
   );
 }
