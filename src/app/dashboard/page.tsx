@@ -194,7 +194,8 @@ export default async function DashboardPage({
     tiktok: activeSource.tiktok || "",
     linkedin: activeSource.linkedin || "",
     initials: activeSource.name ? initials(activeSource.name) : "SC",
-    photoUrl: activeSource.photo_url || null,
+    // One profile picture is shared across all cards (lives on the profile).
+    photoUrl: profile.photo_url || null,
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
     customization: activeSource.customization ?? {},

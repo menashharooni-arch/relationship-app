@@ -106,12 +106,18 @@ export default async function CardPage({
     .single();
 
   const { data: extraCard } = !profileData
-    ? await supabase.from("cards").select("*, profiles!inner(plan)").eq("username", username).single()
+    ? await supabase.from("cards").select("*, profiles!inner(plan, photo_url)").eq("username", username).single()
     : { data: null };
 
-  const profile = profileData ?? (extraCard ? { ...extraCard, plan: (extraCard as { profiles?: { plan?: string } }).profiles?.plan ?? "free" } : null);
+  const ownerProfile = extraCard
+    ? (extraCard as { profiles?: { plan?: string; photo_url?: string } }).profiles
+    : null;
+  const profile = profileData ?? (extraCard ? { ...extraCard, plan: ownerProfile?.plan ?? "free" } : null);
 
   if (!profile) notFound();
+
+  // One profile picture is shared across all of an account's cards.
+  const accountPhotoUrl = profileData ? (profileData.photo_url ?? null) : (ownerProfile?.photo_url ?? null);
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
@@ -144,7 +150,7 @@ export default async function CardPage({
     snapchat,
     about,
     initials: profile.name ? initials(profile.name) : "SC",
-    photoUrl: profile.photo_url || null,
+    photoUrl: accountPhotoUrl,
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
     customization: profile.customization ?? {},
