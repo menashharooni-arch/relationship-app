@@ -17,24 +17,31 @@ export async function GET(req: NextRequest) {
 
   const { data: leads } = await supabase
     .from("leads")
-    .select("name, email, phone, notes, created_at")
+    .select("name, email, phone, company, status, notes, follow_up_date, created_at")
     .eq("card_owner", profile.username)
     .order("created_at", { ascending: false });
 
+  function esc(v: string | null | undefined) {
+    return `"${(v ?? "").replace(/"/g, '""')}"`;
+  }
+
   const rows = (leads ?? []).map((l) => [
-    `"${l.name}"`,
-    `"${l.email}"`,
-    `"${l.phone ?? ""}"`,
-    `"${(l.notes ?? "").replace(/"/g, '""')}"`,
-    `"${new Date(l.created_at).toLocaleDateString()}"`,
+    esc(l.name),
+    esc(l.email),
+    esc(l.phone),
+    esc(l.company),
+    esc(l.status || "new"),
+    esc(l.notes),
+    esc(l.follow_up_date ? l.follow_up_date.slice(0, 10) : null),
+    esc(new Date(l.created_at).toLocaleDateString()),
   ].join(","));
 
-  const csv = ["Name,Email,Phone,Notes,Date", ...rows].join("\n");
+  const csv = ["Name,Email,Phone,Company,Status,Notes,Follow-up date,Date added", ...rows].join("\n");
 
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="kontact-leads.csv"`,
+      "Content-Disposition": `attachment; filename="swiftcard-leads.csv"`,
     },
   });
 }

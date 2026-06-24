@@ -3,12 +3,29 @@
 import { useState } from "react";
 
 type FlowDay = { enabled: boolean; time: string };
-type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay };
+type FlowPreset = { name: string; days: number[] };
+type FlowSettings = {
+  day1: FlowDay;
+  day15: FlowDay;
+  day30: FlowDay;
+  customNote?: string;
+  presets?: {
+    "1": FlowPreset;
+    "2": FlowPreset;
+    "3": FlowPreset;
+  };
+};
 
-const DAYS: { key: keyof FlowSettings; label: string; desc: string }[] = [
-  { key: "day1", label: "Day 1", desc: "Sent the day after someone scans your card" },
-  { key: "day15", label: "Day 15", desc: "Mid-month reminder to follow up with new leads" },
-  { key: "day30", label: "Day 30", desc: "End-of-month check-in for older leads" },
+const DEFAULT_PRESETS = {
+  "1": { name: "Warm Touch", days: [1, 7] },
+  "2": { name: "Standard", days: [1, 15, 30] },
+  "3": { name: "Long-term", days: [7, 30, 60] },
+};
+
+const GLOBAL_DAYS: { key: keyof Omit<FlowSettings, "presets" | "customNote">; label: string; desc: string }[] = [
+  { key: "day1",  label: "Day 1 Email",  desc: "Sent the day after someone scans your card" },
+  { key: "day15", label: "Day 15 Email", desc: "Mid-month reminder to follow up with new leads" },
+  { key: "day30", label: "Day 30 Email", desc: "End-of-month check-in for older leads" },
 ];
 
 export default function FlowSettingsForm({
@@ -18,20 +35,48 @@ export default function FlowSettingsForm({
   initialSettings: FlowSettings;
   isPro: boolean;
 }) {
-  const [settings, setSettings] = useState<FlowSettings>(initialSettings);
+  const [settings, setSettings] = useState<FlowSettings>({
+    ...initialSettings,
+    presets: initialSettings.presets ?? DEFAULT_PRESETS,
+    customNote: initialSettings.customNote ?? "",
+  });
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  function toggleDay(key: keyof FlowSettings) {
+  function toggleDay(key: keyof Omit<FlowSettings, "presets" | "customNote">) {
     setSettings((prev) => ({
       ...prev,
-      [key]: { ...prev[key], enabled: !prev[key].enabled },
+      [key]: { ...(prev[key] as FlowDay), enabled: !(prev[key] as FlowDay).enabled },
     }));
   }
 
-  function setTime(key: keyof FlowSettings, time: string) {
+  function setTime(key: keyof Omit<FlowSettings, "presets" | "customNote">, time: string) {
     setSettings((prev) => ({
       ...prev,
-      [key]: { ...prev[key], time },
+      [key]: { ...(prev[key] as FlowDay), time },
+    }));
+  }
+
+  function setPresetName(preset: "1" | "2" | "3", name: string) {
+    setSettings((prev) => ({
+      ...prev,
+      presets: {
+        ...prev.presets!,
+        [preset]: { ...prev.presets![preset], name },
+      },
+    }));
+  }
+
+  function setPresetDays(preset: "1" | "2" | "3", raw: string) {
+    const days = raw
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !isNaN(n) && n > 0 && n <= 365);
+    setSettings((prev) => ({
+      ...prev,
+      presets: {
+        ...prev.presets!,
+        [preset]: { ...prev.presets![preset], days },
+      },
     }));
   }
 
@@ -50,65 +95,122 @@ export default function FlowSettingsForm({
     }
   }
 
+  const presets = settings.presets ?? DEFAULT_PRESETS;
+
   return (
-    <div className="space-y-4">
-      {/* Info banner */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4">
-        <p className="text-gray-400 text-sm leading-relaxed">
-          When someone scans your card, Kontact automatically sends follow-up emails at day 1, 15, and 30.
-          Toggle each one on or off and set the time they go out (your local time).
-        </p>
+    <div className="space-y-6">
+
+      {/* Global reminder emails */}
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Global Reminder Emails</p>
+        <div className="bg-[#F0EBE1] border border-[#E4DDD4] rounded-2xl px-4 py-3 mb-3">
+          <p className="text-slate-600 text-sm leading-relaxed">
+            These emails go to <strong>you</strong> reminding you to follow up with new leads.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {GLOBAL_DAYS.map(({ key, label, desc }) => {
+            const day = settings[key] as FlowDay;
+            const locked = !isPro && key !== "day1";
+            return (
+              <div key={key} className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl px-4 py-4" style={{ opacity: locked ? 0.5 : 1 }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-slate-900 font-semibold text-sm">{label}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
+                  </div>
+                  <button
+                    onClick={() => { if (!locked) toggleDay(key); }}
+                    disabled={locked}
+                    className="relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0"
+                    style={{ background: day.enabled ? "#1D4ED8" : "#D1C9BC", width: "42px", height: "22px" }}
+                  >
+                    <div
+                      className="absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200"
+                      style={{ width: "18px", height: "18px", transform: day.enabled ? "translateX(21px)" : "translateX(2px)" }}
+                    />
+                  </button>
+                </div>
+                {day.enabled && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500">Send at</label>
+                    <input
+                      type="time"
+                      value={day.time}
+                      onChange={(e) => { if (!locked) setTime(key, e.target.value); }}
+                      disabled={locked}
+                      className="bg-[#F0EBE1] border border-[#E4DDD4] text-slate-900 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
+                    />
+                    <span className="text-xs text-slate-400">UTC</span>
+                  </div>
+                )}
+                {locked && <p className="text-[11px] text-[#1D4ED8] mt-1.5">Pro plan required</p>}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {DAYS.map(({ key, label, desc }) => {
-        const day = settings[key];
-        return (
-          <div
-            key={key}
-            className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4"
-            style={{ opacity: isPro || key === "day1" ? 1 : 0.5 }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-white font-semibold text-sm">{label} Email</p>
-                <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+      {/* Follow-up presets */}
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Follow-up Presets</p>
+        <div className="bg-[#F0EBE1] border border-[#E4DDD4] rounded-2xl px-4 py-3 mb-3">
+          <p className="text-slate-600 text-sm leading-relaxed">
+            Define 3 preset schedules. On each contact, pick which preset to use — it shows the exact dates when messages will go out.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {(["1", "2", "3"] as const).map((p) => {
+            const preset = presets[p];
+            return (
+              <div key={p} className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl px-4 py-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 rounded-full bg-[#1D4ED8] flex items-center justify-center text-white text-xs font-black shrink-0">
+                    {p}
+                  </div>
+                  <input
+                    value={preset.name}
+                    onChange={(e) => setPresetName(p, e.target.value)}
+                    placeholder={`Preset ${p} name`}
+                    className="flex-1 bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 rounded-xl px-3 py-1.5 text-sm font-semibold focus:outline-none focus:border-[#1D4ED8] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Send on days (comma-separated)</label>
+                  <input
+                    defaultValue={preset.days.join(", ")}
+                    onBlur={(e) => setPresetDays(p, e.target.value)}
+                    placeholder="e.g. 1, 15, 30"
+                    className="w-full bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Will send on: {preset.days.map((d) => `Day ${d}`).join(" → ")}
+                  </p>
+                </div>
               </div>
+            );
+          })}
+        </div>
+      </div>
 
-              {/* Toggle */}
-              <button
-                onClick={() => { if (isPro || key === "day1") toggleDay(key); }}
-                disabled={!isPro && key !== "day1"}
-                className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0"
-                style={{ background: day.enabled ? "#2563eb" : "#374151" }}
-              >
-                <div
-                  className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  style={{ transform: day.enabled ? "translateX(22px)" : "translateX(2px)" }}
-                />
-              </button>
-            </div>
-
-            {/* Time picker */}
-            {day.enabled && (
-              <div className="flex items-center gap-3">
-                <label className="text-xs text-gray-500">Send at</label>
-                <input
-                  type="time"
-                  value={day.time}
-                  onChange={(e) => { if (isPro || key === "day1") setTime(key, e.target.value); }}
-                  disabled={!isPro && key !== "day1"}
-                  className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                />
-                <span className="text-xs text-gray-600">UTC</span>
-              </div>
-            )}
-
-            {!isPro && key !== "day1" && (
-              <p className="text-[11px] text-blue-400 mt-2">Pro plan required</p>
-            )}
-          </div>
-        );
-      })}
+      {/* Personal note appended to AI follow-ups */}
+      <div>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Personal Note</p>
+        <div className="bg-[#F0EBE1] border border-[#E4DDD4] rounded-2xl px-4 py-3 mb-3">
+          <p className="text-slate-600 text-sm leading-relaxed">
+            Optional: add a personal closing line appended to every automated follow-up sent to your leads. Great for a calendar link, a signature, or a quick offer.
+          </p>
+        </div>
+        <textarea
+          value={settings.customNote ?? ""}
+          onChange={(e) => setSettings((prev) => ({ ...prev, customNote: e.target.value }))}
+          placeholder="e.g. Book a call with me: calendly.com/yourname"
+          rows={3}
+          maxLength={300}
+          className="w-full bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors resize-none"
+        />
+        <p className="text-xs text-slate-400 mt-1 text-right">{(settings.customNote ?? "").length}/300</p>
+      </div>
 
       {status === "error" && (
         <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>
@@ -117,9 +219,9 @@ export default function FlowSettingsForm({
       <button
         onClick={save}
         disabled={status === "saving"}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+        className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
       >
-        {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Save Settings"}
+        {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : "Save Settings"}
       </button>
     </div>
   );

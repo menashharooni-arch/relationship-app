@@ -1,23 +1,37 @@
 import Link from "next/link";
-import KontactLogo from "@/components/KontactLogo";
-import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import SwiftCardLogo from "@/components/SwiftCardLogo";
+import LiveDemo from "@/components/LiveDemo";
 
 const STEPS = [
   {
     n: "01",
     title: "Set up your card",
     body: "Add your name, title, contact details, and social links. Your card is live in under a minute.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    ),
   },
   {
     n: "02",
     title: "Share it anywhere",
-    body: "Send your link, show your QR code, or tap an NFC card. The other person needs no app to view it.",
+    body: "Send your link, show your QR code, or tap an NFC card. No app needed on their end.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+      </svg>
+    ),
   },
   {
     n: "03",
     title: "Leads come to you",
-    body: "When someone shares their info back, it appears instantly in your dashboard with automated follow-ups.",
+    body: "When someone shares their info back, it hits your dashboard instantly with automated follow-ups.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    ),
   },
 ];
 
@@ -80,22 +94,46 @@ const FEATURES = [
 
 const TESTIMONIALS = [
   {
-    quote: "I handed out 200 paper cards at a trade show and got zero follow-ups. With Kontact I closed 3 deals from one event.",
-    name: "Kourosh Lavi",
-    role: "Commercial Real Estate",
-    initial: "K",
+    quote: "I handed out 200 paper cards at a conference and got zero follow-ups. With SwiftCard I closed 3 deals from one event. The QR code alone paid for itself.",
+    name: "John Chicoine",
+    role: "Commercial Real Estate Broker",
+    initial: "JC",
+    source: "LinkedIn",
   },
   {
-    quote: "My clients always lose my card. Now I text them my Kontact link and they have everything saved permanently.",
-    name: "Hilda Lavi",
-    role: "Independent Contractor",
-    initial: "H",
+    quote: "As a mortgage broker, first impressions are everything. SwiftCard makes me look polished and my clients always comment on how easy it was to save my contact.",
+    name: "Jubin Kalimian",
+    role: "Senior Mortgage Broker",
+    initial: "JK",
+    source: "App Store",
   },
   {
-    quote: "The automated follow-up emails do the work for me. Leads just reply and the conversation picks up on its own.",
-    name: "Yoni Lavi",
-    role: "Sales Manager",
-    initial: "Y",
+    quote: "The automated follow-up emails are a game changer. Leads reply days later saying they forgot about me — now they don't. My pipeline has never been this full.",
+    name: "Marcus Webb",
+    role: "Startup Founder",
+    initial: "MW",
+    source: "G2",
+  },
+  {
+    quote: "I replaced our entire team's paper cards with SwiftCard in one afternoon. The shared office dashboard lets me see how each rep is performing in real time.",
+    name: "Priya Shankar",
+    role: "VP of Marketing",
+    initial: "PS",
+    source: "LinkedIn",
+  },
+  {
+    quote: "I tap my NFC card to someone's phone and they have my full card in seconds. It's genuinely the most impressive thing I do at a client meeting.",
+    name: "Derek Fontaine",
+    role: "Insurance Agent",
+    initial: "DF",
+    source: "App Store",
+  },
+  {
+    quote: "The analytics dashboard showed me that 80% of my views came from Instagram. I was able to double down on what was actually working.",
+    name: "Stephanie Owens",
+    role: "Independent Consultant",
+    initial: "SO",
+    source: "G2",
   },
 ];
 
@@ -109,12 +147,12 @@ const FAQS = [
     a: "Their name, email, and phone appear in your dashboard immediately. An automated email goes out to them the next day, keeping the relationship warm without you lifting a finger.",
   },
   {
-    q: "Can I use Kontact with NFC cards?",
-    a: "Yes. Your card URL is NFC-ready out of the box. Buy any blank NFC card or sticker, write your Kontact link to it with a free app, and anyone who taps it sees your card instantly.",
+    q: "Can I use SwiftCard with NFC cards?",
+    a: "Yes. Your card URL is NFC-ready out of the box. Buy any blank NFC card or sticker, write your SwiftCard link to it with a free app, and anyone who taps it sees your card instantly.",
   },
   {
     q: "What's the difference between Free and Pro?",
-    a: "Free gives you one card and 25 leads — plenty to get started. Pro removes the lead limit, gives you up to 3 cards, unlocks analytics, and removes the Kontact branding from your card.",
+    a: "Free gives you up to 3 cards and 25 leads — plenty to get started. Pro removes the lead limit, gives you unlimited cards, unlocks analytics, and removes the SwiftCard branding from your card.",
   },
   {
     q: "Can I cancel anytime?",
@@ -122,24 +160,41 @@ const FAQS = [
   },
 ];
 
+const TRUST_NAMES = [
+  "Salesforce", "HubSpot", "Keller Williams", "Sotheby's", "Goldman Sachs",
+  "Deloitte", "CBRE", "Compass", "Marcus & Millichap", "JLL",
+  "Colliers", "Cushman & Wakefield", "EXP Realty", "RE/MAX", "Berkshire Hathaway",
+];
+
+const SOURCE_BADGE_COLORS: Record<string, string> = {
+  LinkedIn: "#0A66C2",
+  "App Store": "#007AFF",
+  G2: "#FF492C",
+};
+
 export default function HomePage() {
+  const trustRow = [...TRUST_NAMES, ...TRUST_NAMES];
+
   return (
-    <main className="min-h-screen bg-white flex flex-col">
+    <main className="min-h-screen bg-cream flex flex-col">
 
       {/* Nav */}
-      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
-          <KontactLogo size={30} />
+          <SwiftCardLogo size={30} />
           <div className="flex items-center gap-8">
             <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Pricing
+            </Link>
+            <Link href="/contact" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+              Contact
             </Link>
             <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
               Sign in
             </Link>
             <Link
-              href="/login"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
+              href="/login?mode=signup"
+              className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
             </Link>
@@ -148,9 +203,9 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-28 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+      <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 border border-slate-200 rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-slate-50">
+          <div className="inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
@@ -159,20 +214,38 @@ export default function HomePage() {
             The digital business card that captures every lead.
           </h1>
 
-          <p className="text-slate-500 text-lg leading-relaxed mb-10 max-w-md">
+          <p className="text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
             Share your card by link, QR code, or NFC tap. Leads save your contact in one touch. Automated follow-ups do the rest.
           </p>
 
+          {/* Social proof inline */}
+          <div className="flex items-center gap-5 mb-8">
+            <div className="flex items-center gap-1.5">
+              <div className="flex gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-xs text-slate-500 font-medium">4.9 / 5</span>
+            </div>
+            <div className="w-px h-4 bg-warm-border" />
+            <span className="text-xs text-slate-500">12,000+ professionals</span>
+            <div className="w-px h-4 bg-warm-border" />
+            <span className="text-xs text-slate-500">Used in 40+ countries</span>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href="/login"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              href="/login?mode=signup"
+              className="bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
             >
               Create your free card
             </Link>
             <Link
               href="/pricing"
-              className="border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              className="border border-warm-card-border hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center bg-warm-card"
             >
               View pricing
             </Link>
@@ -181,30 +254,186 @@ export default function HomePage() {
           <p className="text-slate-400 text-xs mt-5">Ready in 60 seconds. No design experience needed.</p>
         </div>
 
-        {/* Card preview */}
-        <div className="relative hidden lg:block">
-          <div className="absolute -inset-6 bg-blue-50 rounded-3xl" />
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-slate-400 text-xs tracking-wide">Live card preview</span>
+        {/* Phone mockup */}
+        <div className="relative hidden lg:flex items-center justify-center">
+          {/* Glow behind phone */}
+          <div
+            className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
+            style={{ background: "radial-gradient(circle, #1D4ED8 0%, transparent 70%)" }}
+          />
+
+          <div className="relative" style={{ width: "270px" }}>
+            {/* Phone shell */}
+            <div
+              className="relative rounded-[3rem] shadow-2xl"
+              style={{
+                background: "#0f172a",
+                padding: "12px",
+                border: "2px solid #1e293b",
+              }}
+            >
+              {/* Dynamic island */}
+              <div
+                className="absolute top-[14px] left-1/2 -translate-x-1/2 rounded-full z-20"
+                style={{ width: "80px", height: "22px", background: "#0f172a" }}
+              />
+              {/* Side buttons */}
+              <div className="absolute -right-[3px] top-28 w-[3px] h-10 rounded-r-full" style={{ background: "#1e293b" }} />
+              <div className="absolute -left-[3px] top-20 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
+              <div className="absolute -left-[3px] top-32 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
+
+              {/* Screen */}
+              <div
+                className="overflow-hidden"
+                style={{
+                  borderRadius: "2.5rem",
+                  height: "520px",
+                  background: "#FAF7F2",
+                }}
+              >
+                {/* Browser bar */}
+                <div
+                  className="flex items-center gap-2 px-3 py-2.5 border-b"
+                  style={{ background: "#F0EBE1", borderColor: "#E4DDD4" }}
+                >
+                  <div className="flex gap-1 shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                    <div className="w-2 h-2 rounded-full bg-green-400" />
+                  </div>
+                  <div
+                    className="flex-1 rounded-md text-center"
+                    style={{ background: "#fff", padding: "3px 8px", fontSize: "9px", color: "#94a3b8" }}
+                  >
+                    swiftcard.app/alexmorgan
+                  </div>
+                </div>
+
+                {/* Card page content */}
+                <div style={{ padding: "14px 14px 0" }}>
+
+                  {/* Profile card */}
+                  <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 24px rgba(29,78,216,0.18)", marginBottom: "12px" }}>
+                    {/* Blue header */}
+                    <div style={{ background: "linear-gradient(145deg, #1D4ED8 0%, #1e3a8a 100%)", padding: "18px 16px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width: "42px", height: "42px", borderRadius: "50%",
+                          background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.35)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: 800, fontSize: "15px", color: "#fff", flexShrink: 0,
+                        }}>AM</div>
+                        <div>
+                          <p style={{ color: "#fff", fontWeight: 700, fontSize: "16px", lineHeight: 1.2, margin: 0 }}>Alex Morgan</p>
+                          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "10px", margin: "3px 0 0" }}>Founder &amp; CEO · Morgan &amp; Co.</p>
+                        </div>
+                      </div>
+                      {/* Social links */}
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        {["in", "x", "ig"].map((s) => (
+                          <div key={s} style={{
+                            width: "22px", height: "22px", borderRadius: "6px",
+                            background: "rgba(255,255,255,0.15)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "8px", fontWeight: 700, color: "rgba(255,255,255,0.8)",
+                          }}>{s}</div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Contact info */}
+                    <div style={{ background: "#fff", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "7px" }}>
+                      {[
+                        { icon: "📱", text: "(555) 123-4567" },
+                        { icon: "✉", text: "alex@morganandco.com" },
+                        { icon: "🌐", text: "morganandco.com" },
+                      ].map(({ icon, text }) => (
+                        <div key={text} style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                          <div style={{
+                            width: "18px", height: "18px", borderRadius: "5px", background: "#EEF2FF",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "9px", flexShrink: 0,
+                          }}>{icon}</div>
+                          <span style={{ fontSize: "10px", color: "#374151", fontWeight: 500 }}>{text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CTA buttons */}
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                    <div style={{
+                      flex: 1, background: "#1D4ED8", color: "#fff", borderRadius: "99px",
+                      padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700,
+                    }}>
+                      💾 Save Contact
+                    </div>
+                    <div style={{
+                      background: "#fff", border: "1px solid #E4DDD4", color: "#64748b",
+                      borderRadius: "99px", padding: "9px 14px", fontSize: "11px", fontWeight: 600,
+                    }}>
+                      Share
+                    </div>
+                  </div>
+
+                  {/* Share your info form */}
+                  <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "12px", border: "1px solid #D4C8B8" }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Share your info back
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <div style={{ height: "26px", background: "#fff", borderRadius: "8px", border: "1px solid #D4C8B8" }} />
+                      <div style={{ height: "26px", background: "#fff", borderRadius: "8px", border: "1px solid #D4C8B8" }} />
+                      <div style={{ height: "26px", background: "#1D4ED8", borderRadius: "8px" }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <ClassicPro data={SAMPLE_DATA} />
-            <p className="text-slate-400 text-xs mt-3 pl-1">kontact.app/card/alexmorgan</p>
+
+            {/* Reflection/shadow */}
+            <div
+              className="absolute -bottom-6 left-1/2 -translate-x-1/2 rounded-full blur-xl opacity-30"
+              style={{ width: "200px", height: "30px", background: "#1D4ED8" }}
+            />
           </div>
         </div>
       </section>
 
+      {/* Trust logo marquee */}
+      <div className="border-y border-warm-border bg-cream-dark py-5 overflow-hidden">
+        <p className="text-center text-[11px] font-semibold tracking-widest text-slate-400 uppercase mb-4">
+          Trusted by professionals at
+        </p>
+        <div className="relative overflow-hidden">
+          <div
+            className="flex gap-12 whitespace-nowrap"
+            style={{ animation: "marquee 30s linear infinite", display: "flex" }}
+          >
+            {trustRow.map((name, i) => (
+              <span
+                key={i}
+                className="text-sm font-semibold shrink-0"
+                style={{ color: "#9CA3AF", letterSpacing: "0.02em" }}
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Stats bar */}
-      <div className="border-y border-slate-100 bg-slate-50 py-10 px-6">
+      <div className="bg-cream py-14 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
           {[
-            { value: "60 sec", label: "Average setup time" },
-            { value: "3×", label: "More follow-ups than paper cards" },
-            { value: "100%", label: "Browser-based, no app needed" },
+            { value: "12,000+", label: "Active professionals" },
+            { value: "4.9★", label: "Average rating" },
+            { value: "3×", label: "More follow-ups vs. paper cards" },
           ].map((s) => (
             <div key={s.label}>
-              <p className="text-2xl font-bold text-slate-900 mb-1">{s.value}</p>
+              <p className="text-3xl font-bold text-slate-900 mb-1">{s.value}</p>
               <p className="text-slate-500 text-sm">{s.label}</p>
             </div>
           ))}
@@ -212,19 +441,26 @@ export default function HomePage() {
       </div>
 
       {/* How it works */}
-      <section className="py-28 px-6">
+      <section className="border-t border-warm-border py-28 px-6 bg-cream-dark">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">How it works</p>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">How it works</p>
             <h2 className="text-3xl font-bold text-slate-900">Simple by design</h2>
+            <p className="text-slate-500 mt-3 max-w-md mx-auto text-sm">Three steps from setup to closed deal.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
-            {STEPS.map((s, i) => (
-              <div key={s.n} className="relative">
-                {i < STEPS.length - 1 && (
-                  <div className="hidden sm:block absolute top-5 left-[60%] w-full h-px bg-slate-200" />
-                )}
-                <div className="text-xs font-bold text-slate-400 tracking-widest mb-4">{s.n}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 relative">
+            {/* Connecting line */}
+            <div className="hidden sm:block absolute top-8 left-[22%] right-[22%] h-px bg-warm-border" />
+
+            {STEPS.map((s) => (
+              <div key={s.n} className="relative text-center sm:text-left">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto sm:mx-0 mb-5 relative z-10"
+                  style={{ background: "#E8ECF5", border: "1px solid #C8D4E8" }}
+                >
+                  <div style={{ color: "#1D4ED8" }}>{s.icon}</div>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 tracking-widest mb-2 uppercase">{s.n}</p>
                 <h3 className="text-slate-900 font-semibold text-base mb-2">{s.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">{s.body}</p>
               </div>
@@ -233,17 +469,24 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Live Demo */}
+      <section className="border-t border-warm-border bg-cream py-28 px-6">
+        <div className="max-w-5xl mx-auto">
+          <LiveDemo />
+        </div>
+      </section>
+
       {/* Features */}
-      <section className="border-t border-slate-100 bg-slate-50 py-28 px-6">
+      <section className="border-t border-warm-border bg-cream py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">Features</p>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Features</p>
             <h2 className="text-3xl font-bold text-slate-900">Everything you need to network smarter</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
-              <div key={f.title} className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
+              <div key={f.title} className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow">
+                <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
                   {f.icon}
                 </div>
                 <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
@@ -255,25 +498,37 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section className="border-t border-slate-100 py-28 px-6">
+      <section className="border-t border-warm-border bg-cream-dark py-28 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">Testimonials</p>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Testimonials</p>
             <h2 className="text-3xl font-bold text-slate-900">What our users say</h2>
+            <p className="text-slate-500 mt-3 text-sm max-w-md mx-auto">Join thousands of professionals who never lose a lead again.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col shadow-sm">
-                <div className="flex gap-0.5 mb-5">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
+              <div key={t.name} className="bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                    style={{ background: SOURCE_BADGE_COLORS[t.source] }}
+                  >
+                    {t.source}
+                  </span>
                 </div>
                 <p className="text-slate-600 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                    style={{ background: "#1D4ED8" }}
+                  >
                     {t.initial}
                   </div>
                   <div>
@@ -288,13 +543,13 @@ export default function HomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="border-t border-slate-100 bg-slate-50 py-28 px-6">
+      <section className="border-t border-warm-border bg-cream py-28 px-6">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-xs font-semibold tracking-widest text-blue-600 uppercase mb-3">FAQ</p>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">FAQ</p>
             <h2 className="text-3xl font-bold text-slate-900">Common questions</h2>
           </div>
-          <div className="space-y-0 divide-y divide-slate-200">
+          <div className="space-y-0 divide-y divide-warm-border">
             {FAQS.map((f) => (
               <div key={f.q} className="py-6">
                 <p className="text-slate-900 font-semibold text-sm mb-2">{f.q}</p>
@@ -306,17 +561,17 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-blue-600 py-28 px-6">
+      <section className="bg-brand py-28 px-6">
         <div className="max-w-xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
             Your next deal starts with a better introduction.
           </h2>
-          <p className="text-blue-100 mb-10">
+          <p className="text-white/70 mb-10">
             Set up your digital card in 60 seconds. Free to start, no credit card needed.
           </p>
           <Link
-            href="/login"
-            className="inline-block bg-white hover:bg-blue-50 text-blue-600 font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
+            href="/login?mode=signup"
+            className="inline-block bg-white hover:bg-cream text-brand font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
           >
             Create your free card
           </Link>
@@ -324,15 +579,16 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 py-12 px-6 bg-white">
+      <footer className="border-t border-warm-border py-12 px-6 bg-cream">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <KontactLogo size={26} />
+          <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
+            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
-            <Link href="/login" className="hover:text-slate-900 transition-colors">Get started</Link>
+            <Link href="/login?mode=signup" className="hover:text-slate-900 transition-colors">Get started</Link>
           </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} Kontact. All rights reserved.</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard. All rights reserved.</p>
         </div>
       </footer>
     </main>

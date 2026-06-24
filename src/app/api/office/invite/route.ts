@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
 export async function POST(req: Request) {
@@ -74,17 +73,18 @@ export async function POST(req: Request) {
   const inviteUrl = `${APP_URL}/join/${token}`;
   const ownerFirst = (ownerProfile?.name ?? "Your team").split(" ")[0];
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: "Kontact <onboarding@resend.dev>",
+    from: "SwiftCard <onboarding@resend.dev>",
     to: email.trim(),
-    subject: `${ownerFirst} invited you to join ${office.name} on Kontact`,
+    subject: `${ownerFirst} invited you to join ${office.name} on SwiftCard`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
         <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 8px;">You're invited to ${office.name}</h2>
-        <p style="color:#555;margin:0 0 24px;">${ownerFirst} has invited you to join their team on Kontact — the digital business card platform. You'll get your own card and access to the team dashboard.</p>
+        <p style="color:#555;margin:0 0 24px;">${ownerFirst} has invited you to join their team on SwiftCard — the digital business card platform. You'll get your own card and access to the team dashboard.</p>
         <a href="${inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:100px;font-size:15px;">Accept invitation →</a>
         <p style="color:#999;font-size:12px;margin-top:28px;">This invite expires in 7 days. If you didn't expect this, ignore this email.</p>
-        <p style="color:#ccc;font-size:11px;margin:0;">Powered by Kontact</p>
+        <p style="color:#ccc;font-size:11px;margin:0;">Powered by SwiftCard</p>
       </div>
     `,
   }).catch(() => {});

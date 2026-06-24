@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
-export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -62,7 +62,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
   return (
     <div className="w-full space-y-5">
       {/* Mode toggle */}
-      <div className="flex bg-gray-900 border border-gray-800 rounded-full p-1">
+      <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
         {(["signin", "signup"] as const).map((m) => (
           <button
             key={m}
@@ -70,8 +70,8 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
             onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); }}
             className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
             style={{
-              background: mode === m ? "#1d4ed8" : "transparent",
-              color: mode === m ? "#fff" : "#6b7280",
+              background: mode === m ? "#1D4ED8" : "transparent",
+              color: mode === m ? "#fff" : "#8B8070",
             }}
           >
             {m === "signin" ? "Sign in" : "Create account"}
@@ -86,7 +86,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+          className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
         <input
           type="password"
@@ -95,7 +95,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+          className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
 
         {status === "error" && (
@@ -105,7 +105,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         <button
           type="submit"
           disabled={status === "loading"}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+          className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
         >
           {status === "loading"
             ? "…"
@@ -117,16 +117,16 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         <button
           type="button"
           onClick={handleForgot}
-          className="w-full text-center text-gray-500 hover:text-gray-300 text-xs transition-colors"
+          className="w-full text-center text-slate-400 hover:text-slate-600 text-xs transition-colors"
         >
           Forgot password?
         </button>
       )}
 
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-px bg-gray-800" />
-        <span className="text-gray-600 text-xs">or</span>
-        <div className="flex-1 h-px bg-gray-800" />
+        <div className="flex-1 h-px bg-[#E4DDD4]" />
+        <span className="text-slate-400 text-xs">or</span>
+        <div className="flex-1 h-px bg-[#E4DDD4]" />
       </div>
 
       <button

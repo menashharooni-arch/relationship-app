@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getVisitorId } from "@/lib/visitor";
 
 interface Person {
   name: string;
@@ -20,10 +21,34 @@ function normalizeUrl(url: string): string {
   return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
 }
 
-export default function SaveContactButton({ person, username }: { person: Person; username?: string }) {
+function trackEvent(username: string, eventType: string, source: string) {
+  const visitorId = getVisitorId();
+  fetch("/api/card-events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      card_owner_username: username,
+      visitor_id: visitorId,
+      event_type: eventType,
+      source,
+    }),
+  }).catch(() => {});
+}
+
+export default function SaveContactButton({
+  person,
+  username,
+  source = "direct_link",
+}: {
+  person: Person;
+  username?: string;
+  source?: string;
+}) {
   const [saved, setSaved] = useState(false);
 
   function downloadVCard() {
+    if (username) trackEvent(username, "clicked_save_contact", source);
+
     const lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
@@ -36,12 +61,10 @@ export default function SaveContactButton({ person, username }: { person: Person
     if (person.email)   lines.push(`EMAIL:${person.email}`);
     if (person.phone)   lines.push(`TEL:${person.phone}`);
     if (person.website) lines.push(`URL:${normalizeUrl(person.website)}`);
-
     if (person.linkedin)  lines.push(`URL;type=LinkedIn:${normalizeUrl(person.linkedin)}`);
     if (person.instagram) lines.push(`X-SOCIALPROFILE;type=instagram:${person.instagram.replace(/^@/, "")}`);
     if (person.twitter)   lines.push(`X-SOCIALPROFILE;type=twitter:${person.twitter.replace(/^@/, "")}`);
     if (person.tiktok)    lines.push(`X-SOCIALPROFILE;type=tiktok:${person.tiktok.replace(/^@/, "")}`);
-
     lines.push("END:VCARD");
 
     const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });
@@ -53,8 +76,13 @@ export default function SaveContactButton({ person, username }: { person: Person
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
     setSaved(true);
+
     if (username) {
+      // Track the actual download (triggers notification to owner)
+      trackEvent(username, "downloaded_vcard", source);
+      // Keep legacy analytics event
       fetch("/api/analytics/event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

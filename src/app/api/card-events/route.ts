@@ -1,0 +1,96 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { createClient } from "@/lib/supabase-server";
+import { getSourceLabel } from "@/lib/source-labels";
+
+// Public: called from card page without auth
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const {
+      card_owner_username,
+      visitor_id,
+      event_type,
+      source,
+      visitor_name,
+      visitor_email,
+      visitor_phone,
+      referrer_url,
+      device_info,
+    } = body;
+
+    if (!card_owner_username || !event_type) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const admin = getAdminSupabase();
+
+    await admin.from("card_events").insert({
+      card_owner_username,
+      visitor_id: visitor_id || null,
+      event_type,
+      source: source || "direct_link",
+      visitor_name: visitor_name || null,
+      visitor_email: visitor_email || null,
+      visitor_phone: visitor_phone || null,
+      referrer_url: referrer_url || null,
+      device_info: device_info || null,
+    });
+
+    // Fire in-app notification for meaningful events (not every view)
+    if (event_type === "downloaded_vcard") {
+      const { data: owner } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("username", card_owner_username)
+        .single();
+
+      if (owner?.id) {
+        const sourceLabel = getSourceLabel(source);
+        const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
+        await admin.from("notifications").insert({
+          user_id: owner.id,
+          type: "contact_saved",
+          title: "Contact saved",
+          body: `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`,
+        });
+      }
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ ok: true });
+  }
+}
+
+// Private: fetch events for a visitor (card owner only)
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) return NextResponse.json([], { status: 200 });
+
+    const visitorId = req.nextUrl.searchParams.get("visitor_id");
+    if (!visitorId) return NextResponse.json([], { status: 200 });
+
+    const admin = getAdminSupabase();
+    const { data } = await admin
+      .from("card_events")
+      .select("id, event_type, source, visitor_name, visitor_email, created_at")
+      .eq("card_owner_username", profile.username)
+      .eq("visitor_id", visitorId)
+      .order("created_at", { ascending: true });
+
+    return NextResponse.json(data ?? []);
+  } catch {
+    return NextResponse.json([]);
+  }
+}

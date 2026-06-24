@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-const ALLOWED = ["template", "name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok"];
+const ALLOWED = ["template", "name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "customization"];
 
 export async function PATCH(req: Request) {
   const supabase = await createClient();

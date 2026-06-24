@@ -8,13 +8,15 @@ import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
-const GOLD   = "#b08d57";
-const GOLD2  = "#c9a96e";
+const GOLD_DEFAULT  = "#b08d57";
+const GOLD2_DEFAULT = "#c9a96e";
 const IVORY  = "#fafaf6";
 const TEXT   = "#1c1612";
 const MUTED  = "#8c7b60";
 
 export default function LuxuryMinimal({ data }: { data: CardData }) {
+  const GOLD  = data.customization?.accentColor ?? GOLD_DEFAULT;
+  const GOLD2 = data.customization?.accentColor ?? GOLD2_DEFAULT;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
@@ -23,7 +25,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       style={{
         aspectRatio: "1.75 / 1",
         background: IVORY,
-        boxShadow: "0 4px 28px rgba(176,141,87,0.14), 0 1px 4px rgba(0,0,0,0.07)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
       {/* ── Gold left strip ────────────────────────────── */}
@@ -143,7 +145,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <p style={{ fontSize: 6, color: GOLD2, letterSpacing: "0.18em", textTransform: "uppercase" }}>
             Scan to save contact
           </p>
-          <QR size={40} bg="#f5f0e8" fg={GOLD} />
+          <QR size={92} bg="#f5f0e8" fg={GOLD} />
         </div>
       </div>
     </div>

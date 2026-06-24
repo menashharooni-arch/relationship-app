@@ -1,25 +1,30 @@
 import LoginForm from "@/components/LoginForm";
-import KontactLogo from "@/components/KontactLogo";
+import SwiftCardLogo from "@/components/SwiftCardLogo";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; mode?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, mode } = await searchParams;
+  const initialMode = mode === "signup" ? "signup" : "signin";
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+    <main className="min-h-screen bg-cream flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-10">
-          <div className="flex justify-center mb-8">
-            <KontactLogo size={32} />
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <SwiftCardLogo size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-          <p className="text-gray-500 text-sm mt-2">
-            {next ? "Sign in to accept your invitation." : "Sign in or create your account."}
+          <h1 className="text-2xl font-bold text-slate-900">
+            {initialMode === "signup" ? "Create your account" : "Welcome back"}
+          </h1>
+          <p className="text-slate-500 text-sm mt-2">
+            {next ? "Sign in to accept your invitation." : initialMode === "signup" ? "Free forever. Ready in 60 seconds." : "Sign in or create your account."}
           </p>
         </div>
-        <LoginForm redirectTo={next} />
+        <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">
+          <LoginForm redirectTo={next} initialMode={initialMode} />
+        </div>
       </div>
     </main>
   );

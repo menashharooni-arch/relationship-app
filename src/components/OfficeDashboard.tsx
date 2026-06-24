@@ -73,19 +73,19 @@ export default function OfficeDashboard({
   return (
     <div className="space-y-6">
       {/* Office header card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+      <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Office</p>
-            <h2 className="text-xl font-bold text-white">{office.name}</h2>
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Office</p>
+            <h2 className="text-xl font-bold text-slate-900">{office.name}</h2>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-white">{activeCount} <span className="text-gray-500 text-base font-normal">/ {office.seats}</span></p>
-            <p className="text-gray-500 text-xs mt-0.5">active seats</p>
+            <p className="text-2xl font-bold text-slate-900">{activeCount} <span className="text-slate-400 text-base font-normal">/ {office.seats}</span></p>
+            <p className="text-slate-400 text-xs mt-0.5">active seats</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-gray-800">
+        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-100">
           {[
             { label: "Active", value: activeCount, color: "#86efac" },
             { label: "Pending", value: pendingCount, color: "#fcd34d" },
@@ -93,15 +93,15 @@ export default function OfficeDashboard({
           ].map((s) => (
             <div key={s.label} className="text-center">
               <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-gray-600 text-xs mt-0.5">{s.label}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Invite form */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-4">Invite a team member</p>
+      <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
+        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-4">Invite a team member</p>
         <form onSubmit={sendInvite} className="flex gap-3">
           <input
             type="email"
@@ -109,55 +109,55 @@ export default function OfficeDashboard({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="colleague@company.com"
             required
-            className="flex-1 bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400 transition-colors"
           />
           <button
             type="submit"
             disabled={inviteStatus === "sending" || activeCount >= office.seats}
-            className="shrink-0 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
+            className="shrink-0 bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
           >
             {inviteStatus === "sending" ? "Sending…" : inviteStatus === "sent" ? "Sent!" : "Send invite"}
           </button>
         </form>
-        {inviteStatus === "error" && <p className="text-red-400 text-xs mt-2">{inviteError}</p>}
+        {inviteStatus === "error" && <p className="text-red-500 text-xs mt-2">{inviteError}</p>}
         {activeCount >= office.seats && (
-          <p className="text-yellow-400 text-xs mt-2">Seat limit reached. Contact support to add more seats.</p>
+          <p className="text-amber-600 text-xs mt-2">Seat limit reached. Contact support to add more seats.</p>
         )}
       </div>
 
       {/* Member list */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-4">
+      <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
+        <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-4">
           Members ({memberList.length})
         </p>
 
         {memberList.length === 0 ? (
-          <p className="text-gray-600 text-sm text-center py-8">No members yet. Send your first invite above.</p>
+          <p className="text-slate-400 text-sm text-center py-8">No members yet. Send your first invite above.</p>
         ) : (
           <div className="space-y-2">
             {memberList.map((member) => (
-              <div key={member.id} className="flex items-center justify-between bg-gray-950 rounded-xl px-4 py-3">
+              <div key={member.id} className="flex items-center justify-between bg-[#F0EBE1] rounded-xl px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-white text-sm font-medium truncate">{member.invite_email}</p>
+                    <p className="text-slate-900 text-sm font-medium truncate">{member.invite_email}</p>
                     <span
                       className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{
-                        background: member.status === "active" ? "#14532d" : "#78350f",
-                        color: member.status === "active" ? "#86efac" : "#fcd34d",
+                        background: member.status === "active" ? "#dcfce7" : "#fef9c3",
+                        color: member.status === "active" ? "#15803d" : "#854d0e",
                       }}
                     >
                       {member.status === "active" ? "Active" : "Pending"}
                     </span>
                   </div>
                   {member.status === "active" && member.joined_at && (
-                    <p className="text-gray-600 text-xs">
+                    <p className="text-slate-400 text-xs">
                       Joined {new Date(member.joined_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   )}
                   {member.status === "pending" && (
-                    <p className="text-gray-600 text-xs">
-                      Invite: <span className="text-gray-500">{appUrl}/join/{member.invite_token}</span>
+                    <p className="text-slate-400 text-xs truncate max-w-[200px]">
+                      Invite: {appUrl}/join/{member.invite_token}
                     </p>
                   )}
                 </div>
@@ -165,7 +165,7 @@ export default function OfficeDashboard({
                 <button
                   onClick={() => removeMember(member.id)}
                   disabled={removingId === member.id}
-                  className="shrink-0 ml-3 text-xs text-gray-600 hover:text-red-400 transition-colors disabled:opacity-40"
+                  className="shrink-0 ml-3 text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40"
                 >
                   {removingId === member.id ? "…" : "Remove"}
                 </button>

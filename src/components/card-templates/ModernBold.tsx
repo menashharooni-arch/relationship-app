@@ -8,11 +8,12 @@ import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
-const BG    = "#070d1c";
-const BLUE  = "#3b82f6";
-const DIM   = "#1e3a5f";
+const BG           = "#070d1c";
+const BLUE_DEFAULT = "#3b82f6";
+const DIM          = "#1e3a5f";
 
 export default function ModernBold({ data }: { data: CardData }) {
+  const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
     data.twitter   && { icon: <IcoX />,        color: "#94a3b8" },
@@ -26,7 +27,7 @@ export default function ModernBold({ data }: { data: CardData }) {
       style={{
         aspectRatio: "1.75 / 1",
         background: BG,
-        boxShadow: "0 4px 32px rgba(0,0,0,0.55), 0 1px 6px rgba(59,130,246,0.1)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)",
       }}
     >
       {/* Subtle grid texture */}
@@ -131,15 +132,12 @@ export default function ModernBold({ data }: { data: CardData }) {
         </div>
 
         {/* QR + label */}
-        <div className="flex items-end justify-between">
-          {data.cardUrl && (
-            <span style={{ fontSize: 7.5, color: "#334155", letterSpacing: "0.04em" }}>{data.cardUrl}</span>
-          )}
+        <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
             <p style={{ fontSize: 6.5, color: "#334155", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Scan to save contact
             </p>
-            <QR size={42} bg={DIM} fg={BLUE} />
+            <QR size={92} bg={DIM} fg={BLUE} />
           </div>
         </div>
       </div>

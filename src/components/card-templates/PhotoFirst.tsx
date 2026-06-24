@@ -8,9 +8,10 @@ import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
-const ACCENT = "#6d28d9";
+const ACCENT_DEFAULT = "#6d28d9";
 
 export default function PhotoFirst({ data }: { data: CardData }) {
+  const ACCENT = data.customization?.accentColor ?? ACCENT_DEFAULT;
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
     data.twitter   && { icon: <IcoX />,        color: "#64748b" },
@@ -24,7 +25,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
       style={{
         aspectRatio: "1.75 / 1",
         background: "#fff",
-        boxShadow: "0 4px 24px rgba(109,40,217,0.12), 0 1px 4px rgba(0,0,0,0.08)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
       {/* ── Left: full-height photo panel ──────────────── */}
@@ -142,7 +143,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
             <p style={{ fontSize: 6.5, color: "#a78bfa", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Scan to save contact
             </p>
-            <QR size={42} bg="#f5f0ff" fg={ACCENT} />
+            <QR size={92} bg="#f5f0ff" fg={ACCENT} />
           </div>
         </div>
       </div>

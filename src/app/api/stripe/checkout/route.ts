@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const priceId = body.priceId || process.env.STRIPE_PRICE_ID!;
     const quantity = typeof body.quantity === "number" && body.quantity > 0 ? body.quantity : 1;
+    const couponId: string | undefined = typeof body.couponId === "string" ? body.couponId : undefined;
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       success_url: `${APP_URL}/dashboard?upgraded=true`,
       cancel_url: `${APP_URL}/pricing`,
+      ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
     });
 
     return NextResponse.json({ url: session.url });

@@ -1,7 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { KontactIcon } from "@/components/KontactLogo";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 export default function QRCard({ url }: { url: string }) {
   return (
@@ -16,9 +16,9 @@ export default function QRCard({ url }: { url: string }) {
         }}
       />
 
-      {/* Kontact icon */}
+      {/* SwiftCard icon */}
       <div className="mb-8 z-10">
-        <KontactIcon size={52} />
+        <SwiftCardIcon size={52} />
       </div>
 
       {/* QR code */}

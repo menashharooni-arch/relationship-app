@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import KontactLogo from "@/components/KontactLogo";
+import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -88,7 +88,7 @@ export default function TemplatesPage() {
             </svg>
             Dashboard
           </Link>
-          <KontactLogo size={28} />
+          <SwiftCardLogo size={28} />
         </div>
 
         <h1 className="text-3xl font-bold text-white mb-2">Your card, your way.</h1>

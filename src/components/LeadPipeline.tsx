@@ -9,17 +9,26 @@ type Lead = {
   phone: string | null;
   message: string | null;
   location: string | null;
+  notes: string | null;
   status: string | null;
+  tags: string[] | null;
   created_at: string;
 };
 
-const COLUMNS: { id: string; label: string; dot: string }[] = [
-  { id: "new",    label: "New",        dot: "bg-slate-400" },
-  { id: "warm",   label: "Contacted",  dot: "bg-amber-400" },
-  { id: "hot",    label: "Hot Lead",   dot: "bg-red-500" },
-  { id: "cold",   label: "Follow Up",  dot: "bg-blue-500" },
-  { id: "closed", label: "Archived",   dot: "bg-green-500" },
+const COLUMNS: { id: string; label: string; color: string; bg: string; border: string }[] = [
+  { id: "new",    label: "New",        color: "#94a3b8", bg: "#0f172a", border: "#1e293b" },
+  { id: "warm",   label: "Contacted",  color: "#fbbf24", bg: "#1c1000", border: "#291800" },
+  { id: "hot",    label: "Hot Lead",   color: "#f87171", bg: "#1a0000", border: "#2d0a0a" },
+  { id: "cold",   label: "Follow Up",  color: "#60a5fa", bg: "#0a1628", border: "#1a2d4a" },
+  { id: "closed", label: "Won",        color: "#4ade80", bg: "#031a0e", border: "#0a3018" },
 ];
+
+function getPresetTag(tags: string[] | null): string | null {
+  for (const t of tags ?? []) {
+    if (t.startsWith("preset-")) return t.replace("preset-", "");
+  }
+  return null;
+}
 
 export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] }) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -69,7 +78,7 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
   ];
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4">
+    <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1">
       {COLUMNS.map((col) => {
         const colLeads = leads.filter((l) => (l.status || "new") === col.id);
         const isOver = overCol === col.id;
@@ -80,17 +89,17 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
             onDragOver={(e) => onDragOver(e, col.id)}
             onDrop={(e) => onDrop(e, col.id)}
             onDragLeave={() => setOverCol(null)}
-            className={`flex-shrink-0 w-56 rounded-2xl border transition-colors ${
-              isOver
-                ? "border-blue-400 bg-blue-50"
-                : "border-slate-200 bg-slate-50"
-            }`}
+            className="flex-shrink-0 w-52 rounded-2xl transition-all"
+            style={{
+              background: isOver ? "#1e3a5f20" : col.bg,
+              border: `1px solid ${isOver ? "#1D4ED8" : col.border}`,
+            }}
           >
             {/* Column header */}
             <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-              <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-              <span className="text-xs font-bold text-slate-700">{col.label}</span>
-              <span className="ml-auto text-xs text-slate-400 font-semibold">{colLeads.length}</span>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col.color }} />
+              <span className="text-xs font-bold" style={{ color: col.color }}>{col.label}</span>
+              <span className="ml-auto text-xs font-bold text-gray-600">{colLeads.length}</span>
             </div>
 
             {/* Cards */}
@@ -98,49 +107,79 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
               {colLeads.map((lead) => {
                 const [abg, afg] = avatarColors[lead.name.charCodeAt(0) % avatarColors.length];
                 const isDragging = draggingId === lead.id;
+                const flowPaused = (lead.tags ?? []).includes("flow-paused");
+                const preset = getPresetTag(lead.tags);
+                const hasFlow = preset && !flowPaused;
+
                 return (
                   <div
                     key={lead.id}
                     draggable
                     onDragStart={(e) => onDragStart(e, lead.id)}
                     onDragEnd={onDragEnd}
-                    className={`bg-white border border-slate-200 rounded-xl p-3 cursor-grab active:cursor-grabbing shadow-sm transition-opacity select-none ${
-                      isDragging ? "opacity-40" : "hover:shadow-md"
-                    }`}
+                    className="rounded-xl p-3 cursor-grab active:cursor-grabbing select-none transition-all"
+                    style={{
+                      background: "#111827",
+                      border: "1px solid #1f2937",
+                      opacity: isDragging ? 0.4 : 1,
+                    }}
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                        style={{ background: abg, color: afg }}
-                      >
+                    {/* Avatar + name */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: abg, color: afg }}>
                         {lead.name[0]?.toUpperCase()}
                       </div>
-                      <p className="text-slate-900 text-xs font-semibold truncate">{lead.name}</p>
+                      <p className="text-white text-xs font-semibold truncate flex-1">{lead.name}</p>
                     </div>
-                    <p className="text-blue-600 text-[11px] truncate mb-1">{lead.email}</p>
-                    {lead.location && (
-                      <p className="text-slate-400 text-[11px] flex items-center gap-1">
-                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        {lead.location}
+
+                    <p className="text-blue-400 text-[10px] truncate mb-1">{lead.email}</p>
+                    {lead.phone && <p className="text-gray-600 text-[10px] mb-1">{lead.phone}</p>}
+
+                    {lead.notes && (
+                      <p className="text-gray-600 text-[10px] italic mt-1 line-clamp-2 leading-snug">&ldquo;{lead.notes}&rdquo;</p>
+                    )}
+
+                    {/* Mobile status select */}
+                    <select
+                      value={lead.status || "new"}
+                      onChange={(e) => moveToColumn(lead.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 w-full rounded-lg text-[10px] font-semibold px-2 py-1 border border-gray-700 bg-gray-900 text-gray-300 focus:outline-none md:hidden"
+                    >
+                      {COLUMNS.map((c) => (
+                        <option key={c.id} value={c.id}>{c.label}</option>
+                      ))}
+                    </select>
+
+                    {/* Follow-up badge (desktop) */}
+                    <div className="hidden md:flex items-center justify-between mt-2 pt-2 border-t border-gray-800">
+                      <p className="text-gray-700 text-[9px]">
+                        {new Date(lead.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </p>
-                    )}
-                    {lead.message && (
-                      <p className="text-slate-400 text-[11px] italic mt-1 line-clamp-2">&ldquo;{lead.message}&rdquo;</p>
-                    )}
-                    <p className="text-slate-300 text-[10px] mt-2">
-                      {new Date(lead.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
+                      {hasFlow ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/50">
+                          P{preset} ⚡
+                        </span>
+                      ) : flowPaused ? (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-600">
+                          ⏸ paused
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-600">
+                          no flow
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
+
               {colLeads.length === 0 && (
-                <div className={`border-2 border-dashed rounded-xl h-16 flex items-center justify-center transition-colors ${
-                  isOver ? "border-blue-300" : "border-slate-200"
-                }`}>
-                  <p className="text-slate-300 text-[11px]">Drop here</p>
+                <div
+                  className="border-2 border-dashed rounded-xl h-14 flex items-center justify-center transition-colors"
+                  style={{ borderColor: isOver ? "#1D4ED8" : "#1f2937" }}
+                >
+                  <p className="text-gray-700 text-[10px]">Drop here</p>
                 </div>
               )}
             </div>

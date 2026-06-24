@@ -30,11 +30,11 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 
 const TEMPLATES = [
-  { id: "classic-pro",     label: "Classic Pro",     Component: ClassicPro },
-  { id: "modern-bold",     label: "Modern Bold",     Component: ModernBold },
-  { id: "photo-first",     label: "Photo First",     Component: PhotoFirst },
-  { id: "local-business",  label: "Local Business",  Component: LocalBusiness },
-  { id: "luxury-minimal",  label: "Luxury Minimal",  Component: LuxuryMinimal },
+  { id: "classic-pro",     label: "Classic Pro",     Component: ClassicPro,    tags: ["QR", "Social", "Logo"] },
+  { id: "modern-bold",     label: "Modern Bold",     Component: ModernBold,    tags: ["QR", "Social", "Bold"] },
+  { id: "photo-first",     label: "Photo First",     Component: PhotoFirst,    tags: ["Photo", "QR", "Social"] },
+  { id: "local-business",  label: "Local Business",  Component: LocalBusiness, tags: ["Logo", "QR", "Map"] },
+  { id: "luxury-minimal",  label: "Luxury Minimal",  Component: LuxuryMinimal, tags: ["QR", "Minimal", "Gold"] },
 ];
 
 type Form = {
@@ -92,7 +92,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
 
   const SelectedTemplate = TEMPLATES.find((t) => t.id === form.template)?.Component ?? ClassicPro;
 
-  const inputCls = "w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm";
+  const inputCls = "w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors shadow-sm";
 
   return (
     <div className="w-full">
@@ -132,7 +132,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           <div>
             <label className="text-xs text-gray-500 font-medium block mb-1">Your card URL</label>
             <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm focus-within:border-blue-400 transition-colors">
-              <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0 whitespace-nowrap">kontact.app/card/</span>
+              <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0 whitespace-nowrap">swiftcard.app/card/</span>
               <input
                 name="username"
                 placeholder="yourname"
@@ -152,7 +152,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
 
           <button
             onClick={() => { if (!form.username || !form.name) { setError("Name and card URL are required."); return; } setError(""); setStep(2); }}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm mt-2"
+            className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 rounded-full transition-colors text-sm mt-2"
           >
             Next: Contact info →
           </button>
@@ -215,7 +215,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
             </button>
             <button
               onClick={() => setStep(3)}
-              className="flex-2 flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+              className="flex-2 flex-[2] bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 rounded-full transition-colors text-sm"
             >
               Next: Pick a design →
             </button>
@@ -238,26 +238,42 @@ export default function OnboardingForm({ userId }: { userId: string }) {
 
           {/* Template selector */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TEMPLATES.map(({ id, label, Component }) => (
+            {TEMPLATES.map(({ id, label, Component, tags }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setForm((prev) => ({ ...prev, template: id }))}
                 className="text-left rounded-xl overflow-hidden border-2 transition-all"
                 style={{
-                  borderColor: form.template === id ? "#2563eb" : "#e5e7eb",
-                  boxShadow: form.template === id ? "0 0 0 2px #2563eb40" : "none",
+                  borderColor: form.template === id ? "#1D4ED8" : "#e5e7eb",
+                  boxShadow: form.template === id ? "0 0 0 2px #1D4ED820" : "none",
                 }}
               >
                 <div className="w-full pointer-events-none scale-[0.85] origin-top-left" style={{ width: "117%", height: "auto" }}>
                   <Component data={SAMPLE_DATA} />
                 </div>
-                <p
-                  className="text-xs font-semibold text-center py-1.5 truncate"
-                  style={{ color: form.template === id ? "#2563eb" : "#6b7280" }}
-                >
-                  {label}
-                </p>
+                <div className="bg-white px-2 pt-1.5 pb-2">
+                  <p
+                    className="text-xs font-semibold text-center truncate"
+                    style={{ color: form.template === id ? "#1D4ED8" : "#6b7280", fontSize: 10 }}
+                  >
+                    {label}
+                  </p>
+                  <div className="flex flex-wrap gap-1 justify-center mt-1">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: form.template === id ? "#EBF0FF" : "#f1f5f9",
+                          color: form.template === id ? "#1D4ED8" : "#94a3b8",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </button>
             ))}
           </div>
@@ -274,7 +290,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
             <button
               onClick={handleSubmit}
               disabled={submitStatus === "loading"}
-              className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+              className="flex-[2] bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
             >
               {submitStatus === "loading" ? "Creating your card…" : "Go live now →"}
             </button>
