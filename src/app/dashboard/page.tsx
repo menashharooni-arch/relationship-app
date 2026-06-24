@@ -268,7 +268,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-white font-semibold text-sm">My Cards</p>
-                <p className="text-gray-600 text-xs mt-0.5">Select a card to make it the active dashboard card</p>
+                <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
               <div className="flex items-center gap-3">
                 {selectedCard && <DeselectCardButton />}
@@ -286,8 +286,15 @@ export default async function DashboardPage({
                 return (
                   <Link
                     href={`?card=${profile.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                    role="radio"
+                    aria-checked={isActive}
                     className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}
                   >
+                    <span className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isActive ? "bg-blue-600 border-blue-600" : "border-gray-600"}`}>
+                      {isActive && (
+                        <svg viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
+                      )}
+                    </span>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-blue-600/20 border border-blue-600/30 text-blue-400"}`}>
                       {initials(profile.name || "SC")}
                     </div>
@@ -295,12 +302,7 @@ export default async function DashboardPage({
                       <p className="text-white text-sm font-medium truncate">{profile.name}</p>
                       <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isActive
-                        ? <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Active</span>
-                        : <span className="text-[10px] text-gray-400 px-2 py-0.5 rounded-full font-medium border border-gray-700">Set active</span>}
-                      <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold">Primary</span>
-                    </div>
+                    <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold shrink-0">Primary</span>
                   </Link>
                 );
               })()}
@@ -311,8 +313,15 @@ export default async function DashboardPage({
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
                       href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                      role="radio"
+                      aria-checked={isActive}
                       className="flex items-center gap-3 flex-1 min-w-0"
                     >
+                      <span className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isActive ? "bg-blue-600 border-blue-600" : "border-gray-600"}`}>
+                        {isActive && (
+                          <svg viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
+                        )}
+                      </span>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
                         {(card.name || card.username)[0]?.toUpperCase()}
                       </div>
@@ -320,9 +329,6 @@ export default async function DashboardPage({
                         <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
                         <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
                       </div>
-                      {isActive
-                        ? <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Active</span>
-                        : <span className="text-[10px] text-gray-400 px-2 py-0.5 rounded-full font-medium border border-gray-700 shrink-0">Set active</span>}
                     </Link>
                     <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
                       <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
