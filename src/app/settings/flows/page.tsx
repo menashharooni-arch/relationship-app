@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import FlowSettingsForm from "@/components/FlowSettingsForm";
 import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
-import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -21,13 +19,6 @@ export default async function FlowSettingsPage() {
     .single();
   if (!profile) redirect("/onboarding");
 
-  const defaults = {
-    day1: { enabled: true, time: "13:00" },
-    day15: { enabled: true, time: "13:00" },
-    day30: { enabled: true, time: "13:00" },
-  };
-
-  const settings = (profile.flow_settings as typeof defaults) ?? defaults;
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
   const admin = getAdminSupabase();
@@ -38,12 +29,6 @@ export default async function FlowSettingsPage() {
 
   const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
-
-  const { data: emailPrefs } = await admin
-    .from("email_preferences")
-    .select("marketing_emails, receipt_emails")
-    .eq("user_id", user.id)
-    .single();
 
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
@@ -108,45 +93,17 @@ export default async function FlowSettingsPage() {
             </div>
           </div>
 
-          {/* Follow-up automation */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Follow-up Automation</p>
-            <FlowSettingsForm initialSettings={settings} isPro={isPro} />
-          </div>
-
-          {/* Email preferences */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Email Preferences</p>
-            <EmailPreferencesForm
-              initialMarketing={emailPrefs?.marketing_emails ?? true}
-              initialReceipts={emailPrefs?.receipt_emails ?? true}
-            />
-          </div>
-
-          {/* Account — link to profile */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Account</p>
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
-              <Link href="/profile" className="flex items-center justify-between group">
-                <div>
-                  <p className="text-white text-sm font-medium">Profile & Card</p>
-                  <p className="text-gray-500 text-xs mt-0.5">Edit your name, photo, and primary card</p>
-                </div>
-                <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-              <div className="border-t border-gray-800" />
-              <Link href="/pricing" className="flex items-center justify-between group">
-                <div>
-                  <p className="text-white text-sm font-medium">Plan & Billing</p>
-                  <p className="text-gray-500 text-xs mt-0.5">Upgrade or manage your subscription</p>
-                </div>
-                <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
+          {/* Link to profile */}
+          <div className="pt-4 border-t border-gray-800">
+            <Link href="/profile" className="flex items-center justify-between group bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div>
+                <p className="text-white text-sm font-medium">Profile & follow-up settings</p>
+                <p className="text-gray-500 text-xs mt-0.5">Edit your card info, follow-up automation, and email preferences</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
         </div>
       </div>

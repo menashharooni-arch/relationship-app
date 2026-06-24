@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import { SAMPLE_DATA } from "@/components/card-templates/types";
 
 const SCREENS = [
   {
@@ -47,7 +49,7 @@ function ShareScreen() {
 
         <div className="self-end max-w-[88%]">
           <div className="rounded-2xl rounded-tr-sm px-3 py-2.5" style={{ background: "#1D4ED8" }}>
-            <p className="text-[10px] text-blue-200 underline leading-snug">swiftcard.app/card/alexmorgan</p>
+            <p className="text-[10px] text-blue-200 underline leading-snug">swiftcard.me/card/alexmorgan</p>
           </div>
           <p className="text-[9px] text-slate-400 mt-1 text-right mr-1">2:14 PM · Delivered</p>
         </div>
@@ -56,7 +58,7 @@ function ShareScreen() {
         <div className="self-end w-full rounded-xl overflow-hidden shadow-sm" style={{ border: "1px solid #D4C8B8" }}>
           <div className="h-8 flex items-center px-3 gap-1.5" style={{ background: "#E8ECF5" }}>
             <div className="w-3.5 h-3.5 rounded-sm" style={{ background: "#1D4ED8" }} />
-            <p className="text-[9px] font-semibold text-slate-700 truncate">swiftcard.app/card/alexmorgan</p>
+            <p className="text-[9px] font-semibold text-slate-700 truncate">swiftcard.me/card/alexmorgan</p>
           </div>
           <div className="px-3 py-2" style={{ background: "#fff" }}>
             <p className="text-[10px] font-bold text-slate-900">Alex Morgan · Founder & CEO</p>
@@ -79,45 +81,16 @@ function CardScreen() {
           <div className="w-2 h-2 rounded-full" style={{ background: "#28CA41" }} />
         </div>
         <div className="flex-1 mx-1.5 bg-white rounded-md px-2 py-0.5" style={{ border: "1px solid #E4DDD4" }}>
-          <span className="text-[7.5px] text-slate-400">swiftcard.app/<strong className="text-slate-600">alexmorgan</strong></span>
+          <span className="text-[7.5px] text-slate-400">swiftcard.me/<strong className="text-slate-600">alexmorgan</strong></span>
         </div>
       </div>
 
       {/* Card content */}
-      <div className="flex-1 overflow-hidden px-3 pt-3 pb-2 flex flex-col gap-2">
-        {/* Profile card — clean portrait style */}
-        <div className="rounded-2xl overflow-hidden shadow-md shrink-0">
-          {/* Gradient header */}
-          <div className="px-4 pt-4 pb-3" style={{ background: "linear-gradient(145deg, #1D4ED8 0%, #1e3a8a 100%)" }}>
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0" style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)" }}>
-                AM
-              </div>
-              <div>
-                <p className="text-white font-bold text-[13px] leading-tight">Alex Morgan</p>
-                <p className="text-blue-200 text-[9px]">Founder &amp; CEO · Morgan &amp; Co.</p>
-              </div>
-            </div>
-            <div className="flex gap-1.5">
-              {["in", "x", "ig"].map(s => (
-                <div key={s} className="w-5 h-5 rounded flex items-center justify-center text-[7px] font-bold text-white/70" style={{ background: "rgba(255,255,255,0.12)" }}>{s}</div>
-              ))}
-            </div>
-          </div>
-          {/* Contact info */}
-          <div className="px-4 py-2.5 space-y-1.5" style={{ background: "#fff" }}>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-md flex items-center justify-center shrink-0" style={{ background: "#EEF2FF" }}>
-                <svg viewBox="0 0 16 16" fill="#1D4ED8" className="w-2.5 h-2.5"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm.92 11.5H7.08V7.08h1.84V11.5zm0-5.5H7.08V4.5h1.84V6z"/></svg>
-              </div>
-              <span className="text-slate-700 text-[9px]">(555) 123-4567</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-md flex items-center justify-center shrink-0" style={{ background: "#EEF2FF" }}>
-                <svg viewBox="0 0 16 16" fill="#1D4ED8" className="w-2.5 h-2.5"><path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v.5L8 8.5 2 3.5V3zm0 2.5V13a1 1 0 001 1h10a1 1 0 001-1V5.5l-6 4.5L2 5.5z"/></svg>
-              </div>
-              <span className="text-slate-600 text-[9px]">alex@morganandco.com</span>
-            </div>
+      <div className="flex-1 overflow-hidden px-3 pt-3 pb-2 flex flex-col gap-2.5">
+        {/* Actual ClassicPro template scaled to fit */}
+        <div className="shrink-0 rounded-xl overflow-hidden" style={{ height: "122px" }}>
+          <div style={{ width: "390px", transform: "scale(0.564)", transformOrigin: "top left" }}>
+            <ClassicPro data={SAMPLE_DATA} />
           </div>
         </div>
 

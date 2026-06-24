@@ -96,7 +96,7 @@ function FlowBadge({ tags }: { tags: string[] | null }) {
 }
 
 export default function ContactsClient({
-  leads,
+  leads: initialLeads,
   primaryUsername,
   userCards = [],
 }: {
@@ -125,6 +125,9 @@ export default function ContactsClient({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCopied, setAiCopied] = useState<number | null>(null);
   const [aiTone, setAiTone] = useState<"friendly" | "professional" | "direct">("friendly");
+  const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
 
   async function saveField(field: string, value: string) {
     if (!selected) return;
@@ -187,7 +190,17 @@ export default function ContactsClient({
         (l.company ?? "").toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      if (sortBy === "recent") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === "activity") {
+        const aDate = a.follow_up_date ?? a.created_at;
+        const bDate = b.follow_up_date ?? b.created_at;
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      }
+      return a.name.localeCompare(b.name);
+    });
 
   // Group alphabetically
   const grouped: Record<string, Lead[]> = {};
@@ -231,6 +244,13 @@ export default function ContactsClient({
     });
   }
 
+  async function deleteLead(id: string) {
+    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    if (selected?.id === id) setSelected(null);
+    setConfirmDeleteId(null);
+  }
+
   async function saveNotes() {
     if (!selected) return;
     setNotesSaving(true);
@@ -267,6 +287,40 @@ export default function ContactsClient({
     }
   }
 
+  const renderLeadItem = (lead: Lead) => {
+    const isOverdue = lead.follow_up_date && lead.follow_up_date.slice(0, 10) <= today;
+    return (
+      <button
+        key={lead.id}
+        onClick={() => selectLead(lead)}
+        className={`w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
+            {lead.name[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-gray-100 font-semibold text-sm truncate">{lead.name}</p>
+              <SourceBadge source={lead.source} />
+            </div>
+            {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
+            <p className="text-gray-500 text-xs truncate">{lead.email || lead.phone}</p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="text-gray-700 text-[10px]">{formatShort(lead.created_at)}</p>
+              {lead.card_owner && userCards.length > 1 && (
+                <span className="text-[10px] text-gray-600">/{lead.card_owner}</span>
+              )}
+              {isOverdue && (
+                <span className="text-[10px] font-semibold text-amber-400">📅 follow-up due</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <div className="flex gap-0 h-[calc(100vh-56px)]">
       {/* Left: contact list */}
@@ -285,6 +339,15 @@ export default function ContactsClient({
               className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="bg-gray-900 border border-gray-700 text-gray-300 rounded-xl px-3 py-2 text-xs focus:outline-none w-full"
+          >
+            <option value="alpha">Alphabetical</option>
+            <option value="recent">Recently Added</option>
+            <option value="activity">Recent Activity</option>
+          </select>
           {userCards.length > 1 && (
             <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
               <button
@@ -314,46 +377,18 @@ export default function ContactsClient({
               {search ? "No contacts match your search." : "No contacts yet."}
             </div>
           ) : (
-            letters.map((letter) => (
-              <div key={letter}>
-                <div className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0">
-                  {letter}
+            sortBy === "alpha" ? (
+              letters.map((letter) => (
+                <div key={letter}>
+                  <div className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0">
+                    {letter}
+                  </div>
+                  {grouped[letter].map((lead) => renderLeadItem(lead))}
                 </div>
-                {grouped[letter].map((lead) => {
-                  const isOverdue = lead.follow_up_date && lead.follow_up_date.slice(0, 10) <= today;
-                  return (
-                    <button
-                      key={lead.id}
-                      onClick={() => selectLead(lead)}
-                      className={`w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
-                          {lead.name[0]?.toUpperCase() ?? "?"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-gray-100 font-semibold text-sm truncate">{lead.name}</p>
-                            <SourceBadge source={lead.source} />
-                          </div>
-                          {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
-                          <p className="text-gray-500 text-xs truncate">{lead.email || lead.phone}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <p className="text-gray-700 text-[10px]">{formatShort(lead.created_at)}</p>
-                            {lead.card_owner && userCards.length > 1 && (
-                              <span className="text-[10px] text-gray-600">/{lead.card_owner}</span>
-                            )}
-                            {isOverdue && (
-                              <span className="text-[10px] font-semibold text-amber-400">📅 follow-up due</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ))
+              ))
+            ) : (
+              filtered.map((lead) => renderLeadItem(lead))
+            )
           )}
         </div>
       </div>
@@ -746,6 +781,29 @@ export default function ContactsClient({
                     </div>
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Delete contact */}
+            <div className="mt-6 pt-4 border-t border-gray-800">
+              {confirmDeleteId === selected.id ? (
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-gray-400 flex-1">Delete this contact permanently?</p>
+                  <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+                  <button
+                    onClick={() => deleteLead(selected.id)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-900/60 text-red-300 hover:bg-red-900 border border-red-800/60 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDeleteId(selected.id)}
+                  className="text-xs text-red-500/70 hover:text-red-400 transition-colors"
+                >
+                  Delete contact
+                </button>
               )}
             </div>
           </div>

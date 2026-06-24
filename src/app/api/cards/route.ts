@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization } = body;
+  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label } = body;
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       tiktok: tiktok || "",
       template: template || "classic-pro",
       customization: customization ?? {},
+      logo_url: logo_url || null,
+      label: label || null,
     })
     .select()
     .single();

@@ -49,12 +49,15 @@ const INITIAL: Form = {
   instagram: "", twitter: "", tiktok: "", template: "classic-pro",
 };
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
 export default function OnboardingForm({ userId }: { userId: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<Form>(INITIAL);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,7 +81,28 @@ export default function OnboardingForm({ userId }: { userId: string }) {
       return;
     }
     fetch("/api/welcome", { method: "POST" }).catch(() => {});
-    router.push("/dashboard");
+    setStep(4);
+  }
+
+  async function copyUrl() {
+    const cardUrl = `${APP_URL}/card/${form.username}`;
+    try {
+      await navigator.clipboard.writeText(cardUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard blocked */ }
+  }
+
+  async function shareCard() {
+    const cardUrl = `${APP_URL}/card/${form.username}`;
+    const firstName = form.name.split(" ")[0];
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({ title: `${firstName}'s SwiftCard`, url: cardUrl });
+        return;
+      } catch { /* share cancelled */ }
+    }
+    copyUrl();
   }
 
   const previewData = {
@@ -94,31 +118,37 @@ export default function OnboardingForm({ userId }: { userId: string }) {
 
   const inputCls = "w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors shadow-sm";
 
+  const firstName = form.name.split(" ")[0] || "there";
+  const cardUrl = `${APP_URL}/card/${form.username}`;
+  const cardUrlDisplay = `swiftcard.me/card/${form.username}`;
+
   return (
     <div className="w-full">
-      {/* Progress bar */}
-      <div className="flex items-center gap-2 mb-8">
-        {[1, 2, 3].map((n) => (
-          <div key={n} className="flex items-center gap-2 flex-1">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
-              style={{
-                background: step >= n ? "#2563eb" : "#e5e7eb",
-                color: step >= n ? "#fff" : "#9ca3af",
-              }}
-            >
-              {step > n ? (
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              ) : n}
+      {/* Progress bar — hidden on step 4 */}
+      {step < 4 && (
+        <div className="flex items-center gap-2 mb-8">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center gap-2 flex-1">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all"
+                style={{
+                  background: step >= n ? "#2563eb" : "#e5e7eb",
+                  color: step >= n ? "#fff" : "#9ca3af",
+                }}
+              >
+                {step > n ? (
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : n}
+              </div>
+              {n < 3 && (
+                <div className="flex-1 h-px transition-all" style={{ background: step > n ? "#2563eb" : "#e5e7eb" }} />
+              )}
             </div>
-            {n < 3 && (
-              <div className="flex-1 h-px transition-all" style={{ background: step > n ? "#2563eb" : "#e5e7eb" }} />
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Step 1: Identity */}
       {step === 1 && (
@@ -132,7 +162,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           <div>
             <label className="text-xs text-gray-500 font-medium block mb-1">Your card URL</label>
             <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm focus-within:border-blue-400 transition-colors">
-              <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0 whitespace-nowrap">swiftcard.app/card/</span>
+              <span className="text-gray-400 text-sm pl-4 pr-1 shrink-0 whitespace-nowrap">swiftcard.me/card/</span>
               <input
                 name="username"
                 placeholder="yourname"
@@ -297,6 +327,99 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           </div>
         </div>
       )}
+
+      {/* Step 4: You're live! */}
+      {step === 4 && (
+        <div className="flex flex-col items-center gap-5 animate-pop">
+          {/* Success icon */}
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #1D4ED8 0%, #6366f1 100%)" }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5} className="w-9 h-9">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900">You&apos;re live, {firstName}!</h2>
+            <p className="text-gray-500 text-sm mt-1">Your card is ready to share with the world.</p>
+          </div>
+
+          {/* Card URL pill */}
+          <div className="w-full rounded-2xl p-4" style={{ background: "#EBF0FF", border: "1px solid #C7D7FF" }}>
+            <p className="text-xs font-semibold text-blue-500 mb-1">Your card URL</p>
+            <p className="text-sm font-bold text-blue-900 break-all">{cardUrlDisplay}</p>
+          </div>
+
+          {/* Copy button */}
+          <button
+            onClick={copyUrl}
+            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-full font-semibold text-sm transition-all active:scale-[0.98]"
+            style={{
+              background: copied ? "#dcfce7" : "#fff",
+              border: copied ? "1.5px solid #86efac" : "1.5px solid #e5e7eb",
+              color: copied ? "#16a34a" : "#374151",
+            }}
+          >
+            {copied ? (
+              <>
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+                  <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                </svg>
+                Copy link
+              </>
+            )}
+          </button>
+
+          {/* Share button */}
+          <button
+            onClick={shareCard}
+            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-full font-semibold text-sm transition-all active:scale-[0.98] text-white"
+            style={{ background: "#1D4ED8" }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Share your card
+          </button>
+
+          {/* View card link */}
+          <a
+            href={cardUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-full font-semibold text-sm transition-all active:scale-[0.98]"
+            style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", color: "#475569" }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            View your card
+          </a>
+
+          {/* Dashboard link */}
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-4 mt-1"
+          >
+            Go to dashboard →
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pop {
+          from { transform: scale(0.92); opacity: 0; }
+          to   { transform: scale(1);    opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+      `}</style>
     </div>
   );
 }

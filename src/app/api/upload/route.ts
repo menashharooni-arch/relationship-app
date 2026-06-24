@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
 
   const file = formData.get("file") as File | null;
   const field = formData.get("field") as string | null; // "photo" or "logo"
+  const cardId = formData.get("card_id") as string | null;
 
   if (!file || !field) return NextResponse.json({ error: "Missing file or field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
@@ -36,6 +38,18 @@ export async function POST(req: Request) {
   const { data: { publicUrl } } = supabase.storage
     .from("card-uploads")
     .getPublicUrl(path);
+
+  // If field is "logo" and card_id is provided, save to cards table instead
+  if (field === "logo" && cardId) {
+    const admin = getAdminSupabase();
+    const { error: cardUpdateError } = await admin
+      .from("cards")
+      .update({ logo_url: publicUrl })
+      .eq("id", cardId)
+      .eq("user_id", user.id);
+    if (cardUpdateError) return NextResponse.json({ error: cardUpdateError.message }, { status: 500 });
+    return NextResponse.json({ url: publicUrl });
+  }
 
   // Save url directly to the correct profile column
   const column = field === "photo" ? "photo_url" : "logo_url";

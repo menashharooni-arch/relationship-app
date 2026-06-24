@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -62,7 +63,9 @@ const FIELDS = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
 
-export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?: string | null }) {
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null };
+
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }: Props) {
   const router = useRouter();
   const [form, setForm] = useState({
     name:      card.name || "",
@@ -85,6 +88,7 @@ export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?
   const [testimonials, setTestimonials] = useState<CardTestimonial[]>(card.customization?.testimonials ?? []);
   const [addingTestimonial, setAddingTestimonial] = useState(false);
   const [newTestimonial, setNewTestimonial] = useState<CardTestimonial>({ name: "", text: "" });
+  const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [tab, setTab] = useState<"info" | "design">("info");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -106,8 +110,8 @@ export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?
     tiktok:    form.tiktok,
     initials:  (form.name || card.username)[0]?.toUpperCase() ?? "?",
     photoUrl:  photoUrl ?? null,
-    logoUrl:   null,
-    cardUrl:   `swiftcard.app/card/${card.username}`,
+    logoUrl:   cardLogoUrl ?? null,
+    cardUrl:   `swiftcard.me/card/${card.username}`,
     customization: {},
   };
 
@@ -135,6 +139,7 @@ export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?
         ...coreForm,
         template,
         customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, testimonials },
+        logo_url: cardLogoUrl,
       }),
     });
     if (res.ok) {
@@ -173,6 +178,18 @@ export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?
       {/* Info tab */}
       {tab === "info" && (
         <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Card logo</label>
+            <ImageUpload
+              field="logo"
+              currentUrl={cardLogoUrl}
+              label="Company logo"
+              shape="square"
+              cardId={card.id}
+              onUploaded={(url) => setCardLogoUrl(url)}
+            />
+            <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>
+          </div>
           {FIELDS.map((f) => (
             <div key={f.key}>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>

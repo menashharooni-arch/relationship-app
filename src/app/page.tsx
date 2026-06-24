@@ -1,6 +1,8 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import LiveDemo from "@/components/LiveDemo";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import { SAMPLE_DATA } from "@/components/card-templates/types";
 
 const STEPS = [
   {
@@ -305,87 +307,37 @@ export default function HomePage() {
                     className="flex-1 rounded-md text-center"
                     style={{ background: "#fff", padding: "3px 8px", fontSize: "9px", color: "#94a3b8" }}
                   >
-                    swiftcard.app/alexmorgan
+                    swiftcard.me/alexmorgan
                   </div>
                 </div>
 
-                {/* Card page content */}
-                <div style={{ padding: "14px 14px 0" }}>
-
-                  {/* Profile card */}
-                  <div style={{ borderRadius: "16px", overflow: "hidden", boxShadow: "0 4px 24px rgba(29,78,216,0.18)", marginBottom: "12px" }}>
-                    {/* Blue header */}
-                    <div style={{ background: "linear-gradient(145deg, #1D4ED8 0%, #1e3a8a 100%)", padding: "18px 16px 14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                        {/* Avatar */}
-                        <div style={{
-                          width: "42px", height: "42px", borderRadius: "50%",
-                          background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.35)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontWeight: 800, fontSize: "15px", color: "#fff", flexShrink: 0,
-                        }}>AM</div>
-                        <div>
-                          <p style={{ color: "#fff", fontWeight: 700, fontSize: "16px", lineHeight: 1.2, margin: 0 }}>Alex Morgan</p>
-                          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "10px", margin: "3px 0 0" }}>Founder &amp; CEO · Morgan &amp; Co.</p>
-                        </div>
-                      </div>
-                      {/* Social links */}
-                      <div style={{ display: "flex", gap: "6px" }}>
-                        {["in", "x", "ig"].map((s) => (
-                          <div key={s} style={{
-                            width: "22px", height: "22px", borderRadius: "6px",
-                            background: "rgba(255,255,255,0.15)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "8px", fontWeight: 700, color: "rgba(255,255,255,0.8)",
-                          }}>{s}</div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Contact info */}
-                    <div style={{ background: "#fff", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "7px" }}>
-                      {[
-                        { icon: "📱", text: "(555) 123-4567" },
-                        { icon: "✉", text: "alex@morganandco.com" },
-                        { icon: "🌐", text: "morganandco.com" },
-                      ].map(({ icon, text }) => (
-                        <div key={text} style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-                          <div style={{
-                            width: "18px", height: "18px", borderRadius: "5px", background: "#EEF2FF",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "9px", flexShrink: 0,
-                          }}>{icon}</div>
-                          <span style={{ fontSize: "10px", color: "#374151", fontWeight: 500 }}>{text}</span>
-                        </div>
-                      ))}
+                {/* Card page content — actual ClassicPro template scaled to fit */}
+                <div style={{ padding: "12px 12px 0" }}>
+                  {/* Scaled card template */}
+                  <div style={{ height: "136px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
+                    <div style={{ width: "390px", transform: "scale(0.615)", transformOrigin: "top left" }}>
+                      <ClassicPro data={SAMPLE_DATA} />
                     </div>
                   </div>
 
-                  {/* CTA buttons */}
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-                    <div style={{
-                      flex: 1, background: "#1D4ED8", color: "#fff", borderRadius: "99px",
-                      padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700,
-                    }}>
-                      💾 Save Contact
-                    </div>
-                    <div style={{
-                      background: "#fff", border: "1px solid #E4DDD4", color: "#64748b",
-                      borderRadius: "99px", padding: "9px 14px", fontSize: "11px", fontWeight: 600,
-                    }}>
-                      Share
-                    </div>
+                  {/* Save contact button */}
+                  <div style={{
+                    background: "#1D4ED8", color: "#fff", borderRadius: "99px",
+                    padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700,
+                    marginBottom: "8px",
+                  }}>
+                    💾 Save Alex&apos;s contact
                   </div>
 
                   {/* Share your info form */}
-                  <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "12px", border: "1px solid #D4C8B8" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Share your info back
+                  <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "10px", border: "1px solid #D4C8B8" }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "7px", margin: "0 0 7px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Share your info with Alex →
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <div style={{ height: "26px", background: "#fff", borderRadius: "8px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "26px", background: "#fff", borderRadius: "8px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "26px", background: "#1D4ED8", borderRadius: "8px" }} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
+                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
+                      <div style={{ height: "24px", background: "#1D4ED8", borderRadius: "7px" }} />
                     </div>
                   </div>
                 </div>
