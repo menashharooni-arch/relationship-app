@@ -241,7 +241,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/login?mode=signup"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
             >
               Create your free card
             </Link>
