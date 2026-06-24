@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+
+// Pages that should never show the back button.
+const HIDDEN_PATHS = ["/", "/dashboard"];
 
 export default function BackButton() {
   const router = useRouter();
-  const [show, setShow] = useState(false);
+  const pathname = usePathname();
+  const [hasHistory, setHasHistory] = useState(false);
 
   useEffect(() => {
     // Only show when this tab actually has a previous page to go back to.
     if (typeof window !== "undefined" && window.history.length > 1) {
-      setShow(true);
+      setHasHistory(true);
     }
   }, []);
 
-  if (!show) return null;
+  if (!hasHistory) return null;
+  if (HIDDEN_PATHS.includes(pathname)) return null;
 
   return (
     <button
