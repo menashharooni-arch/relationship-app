@@ -21,7 +21,6 @@ import MobileNav from "@/components/MobileNav";
 import PushSetup from "@/components/PushSetup";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
-import DeselectCardButton from "@/components/DeselectCardButton";
 import { Suspense } from "react";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
@@ -56,7 +55,8 @@ export default async function DashboardPage({
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
   // Every extra card the user has created (the profile itself is the "primary" card).
-  const { data: extraCards } = await supabase
+  // Use the admin client (like Settings) so this isn't affected by row-level security.
+  const { data: extraCards } = await getAdminSupabase()
     .from("cards")
     .select("*")
     .eq("user_id", user.id)
@@ -271,7 +271,6 @@ export default async function DashboardPage({
                 <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
               <div className="flex items-center gap-3">
-                {selectedCard && <DeselectCardButton />}
                 {(isPro || (extraCards?.length ?? 0) < 2) && (
                   <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
