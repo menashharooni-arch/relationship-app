@@ -44,7 +44,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; about?: string; links?: CardLink[]; testimonials?: CardTestimonial[] };
+  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[]; testimonials?: CardTestimonial[] };
 };
 
 const FIELDS = [
@@ -59,9 +59,10 @@ const FIELDS = [
   { key: "twitter",   label: "Twitter / X", placeholder: "@john",                required: false },
   { key: "tiktok",    label: "TikTok",      placeholder: "@john",                required: false },
   { key: "snapchat",  label: "Snapchat",    placeholder: "@john",                required: false },
+  { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
 
-export default function CardEditForm({ card }: { card: Card }) {
+export default function CardEditForm({ card, photoUrl }: { card: Card; photoUrl?: string | null }) {
   const router = useRouter();
   const [form, setForm] = useState({
     name:      card.name || "",
@@ -75,6 +76,7 @@ export default function CardEditForm({ card }: { card: Card }) {
     twitter:   card.twitter || "",
     tiktok:    card.tiktok || "",
     snapchat:  card.customization?.snapchat || "",
+    youtube:   card.customization?.youtube || "",
   });
   const [about, setAbout] = useState(card.customization?.about || "");
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
@@ -103,7 +105,7 @@ export default function CardEditForm({ card }: { card: Card }) {
     twitter:   form.twitter,
     tiktok:    form.tiktok,
     initials:  (form.name || card.username)[0]?.toUpperCase() ?? "?",
-    photoUrl:  null,
+    photoUrl:  photoUrl ?? null,
     logoUrl:   null,
     cardUrl:   `swiftcard.app/card/${card.username}`,
     customization: {},
@@ -125,14 +127,14 @@ export default function CardEditForm({ card }: { card: Card }) {
 
   async function handleSave() {
     setStatus("saving");
-    const { snapchat: _snap, ...coreForm } = form;
+    const { snapchat: _snap, youtube: _yt, ...coreForm } = form;
     const res = await fetch(`/api/cards/${card.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...coreForm,
         template,
-        customization: { snapchat: form.snapchat, about, links, testimonials },
+        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, testimonials },
       }),
     });
     if (res.ok) {

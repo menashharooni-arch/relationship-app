@@ -10,6 +10,7 @@ async function getOwnerUsername(userId: string) {
 
 const ALLOWED_PATCH_FIELDS = new Set([
   "status", "notes", "tags", "follow_up_date", "name", "email", "phone", "company", "message",
+  "where_met", "convo_details",
 ]);
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

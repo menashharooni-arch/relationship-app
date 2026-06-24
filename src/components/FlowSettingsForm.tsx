@@ -17,9 +17,9 @@ type FlowSettings = {
 };
 
 const DEFAULT_PRESETS = {
-  "1": { name: "Warm Touch", days: [1, 7] },
-  "2": { name: "Standard", days: [1, 15, 30] },
-  "3": { name: "Long-term", days: [7, 30, 60] },
+  "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
+  "2": { name: "Standard", days: [1, 4, 10, 21, 45] },
+  "3": { name: "Long-term", days: [1, 30, 90, 180, 365] },
 };
 
 const GLOBAL_DAYS: { key: keyof Omit<FlowSettings, "presets" | "customNote">; label: string; desc: string }[] = [

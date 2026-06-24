@@ -27,13 +27,28 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template } = body;
+  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization } = body;
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
   const { data, error } = await admin
     .from("cards")
-    .insert({ user_id: user.id, username, name: name || "", title: title || "", company: company || "", phone: phone || "", email: email || "", website: website || "", linkedin: linkedin || "", instagram: instagram || "", twitter: twitter || "", tiktok: tiktok || "", template: template || "classic-pro" })
+    .insert({
+      user_id: user.id,
+      username,
+      name: name || "",
+      title: title || "",
+      company: company || "",
+      phone: phone || "",
+      email: email || "",
+      website: website || "",
+      linkedin: linkedin || "",
+      instagram: instagram || "",
+      twitter: twitter || "",
+      tiktok: tiktok || "",
+      template: template || "classic-pro",
+      customization: customization ?? {},
+    })
     .select()
     .single();
 

@@ -24,7 +24,7 @@ const FREE_LIMIT = 25;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -33,6 +33,7 @@ export default async function DashboardPage({
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
   const chartRange = params.range ?? "30d";
+  const selectedCard = params.card ?? null;
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -59,14 +60,17 @@ export default async function DashboardPage({
     { data: locationViews },
     { count: contactSaves },
   ] = await Promise.all([
-    supabase
-      .from("leads")
-      .select("id, name, email, phone, company, message, location, notes, status, tags, follow_up_date, created_at")
-      .eq("card_owner", profile.username)
-      .order(
-        sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
-        { ascending: sortBy === "name-asc" || sortBy === "oldest" }
-      ),
+    (() => {
+      const cardOwner = selectedCard ?? profile.username;
+      return supabase
+        .from("leads")
+        .select("id, name, email, phone, company, message, location, notes, status, tags, follow_up_date, created_at, card_owner")
+        .eq("card_owner", cardOwner)
+        .order(
+          sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
+          { ascending: sortBy === "name-asc" || sortBy === "oldest" }
+        );
+    })(),
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username),
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", profile.username)
       .gte("viewed_at", sevenDaysAgo),
@@ -109,7 +113,7 @@ export default async function DashboardPage({
     : null;
 
   const filteredLeads = allLeads.filter((l) => {
-    if (filterStatus !== "all" && (l.status || "new") !== filterStatus) return false;
+    if (filterStatus !== "all" && (l.status || "new_contact") !== filterStatus) return false;
     if (dateThreshold && l.created_at < dateThreshold) return false;
     return true;
   });
@@ -119,9 +123,9 @@ export default async function DashboardPage({
 
   const rawFlowSettings = (profile.flow_settings ?? {}) as Record<string, unknown>;
   const defaultPresets: FlowPresets = {
-    "1": { name: "Warm Touch", days: [1, 7] },
-    "2": { name: "Standard",   days: [1, 15, 30] },
-    "3": { name: "Long-term",  days: [7, 30, 60] },
+    "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
+    "2": { name: "Standard",   days: [1, 4, 10, 21, 45] },
+    "3": { name: "Long-term",  days: [1, 30, 90, 180, 365] },
   };
   const flowPresets: FlowPresets = (rawFlowSettings.presets as FlowPresets) ?? defaultPresets;
 
@@ -188,8 +192,7 @@ export default async function DashboardPage({
           <div className="hidden md:flex items-center gap-0.5">
             {[
               { href: "/dashboard", label: "Dashboard", active: true },
-              { href: "/profile", label: "Edit card", active: false },
-              { href: "/templates", label: "Card design", active: false },
+              { href: "/contacts", label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
@@ -314,7 +317,7 @@ export default async function DashboardPage({
                   </div>
                   <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
                     {(["7d", "30d"] as const).map((r) => (
-                      <Link key={r} href={`?range=${r}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                      <Link key={r} href={`?range=${r}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${chartRange === r ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {r}
                       </Link>
@@ -364,7 +367,10 @@ export default async function DashboardPage({
               {/* My Cards */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-white font-semibold text-sm">My Cards</p>
+                  <div>
+                    <p className="text-white font-semibold text-sm">My Cards</p>
+                    <p className="text-gray-600 text-xs mt-0.5">Select a card to view its leads</p>
+                  </div>
                   {(isPro || (extraCards?.length ?? 0) < 2) && (
                     <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                       + Add card
@@ -373,38 +379,51 @@ export default async function DashboardPage({
                 </div>
                 <div className="space-y-2">
                   {/* Primary card */}
-                  <div className="flex items-center gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-600/30 flex items-center justify-center text-blue-400 text-xs font-bold shrink-0">
-                      {initials(profile.name || "SC")}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-medium truncate">{profile.name}</p>
-                      <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Primary</span>
-                      <Link href="/profile" className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
-                    </div>
-                  </div>
+                  {(() => {
+                    const isActive = !selectedCard || selectedCard === profile.username;
+                    return (
+                      <Link
+                        href={`?card=${profile.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-blue-600/20 border border-blue-600/30 text-blue-400"}`}>
+                          {initials(profile.name || "SC")}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white text-sm font-medium truncate">{profile.name}</p>
+                          <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Viewing</span>}
+                          <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold">Primary</span>
+                        </div>
+                      </Link>
+                    );
+                  })()}
                   {/* Extra cards */}
-                  {(extraCards ?? []).map((card) => (
-                    <div key={card.id} className="flex items-center gap-3 bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3">
-                      <div className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center text-gray-400 text-xs font-bold shrink-0">
-                        {(card.name || card.username)[0]?.toUpperCase()}
+                  {(extraCards ?? []).map((card) => {
+                    const isActive = selectedCard === card.username;
+                    return (
+                      <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
+                        <Link
+                          href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                          className="flex items-center gap-3 flex-1 min-w-0"
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
+                            {(card.name || card.username)[0]?.toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
+                            <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
+                          </div>
+                          {isActive && <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold shrink-0">Viewing</span>}
+                        </Link>
+                        <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
+                          <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
-                        <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
-                        <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                          View →
-                        </a>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {!isPro && (extraCards?.length ?? 0) >= 2 && (
                     <div className="flex items-center justify-between border border-dashed border-gray-800 rounded-xl px-4 py-3">
                       <p className="text-gray-600 text-xs">Upgrade for unlimited cards</p>
@@ -446,7 +465,7 @@ export default async function DashboardPage({
                       { id: "list", label: "List" },
                       { id: "pipeline", label: "Pipeline" },
                     ].map((v) => (
-                      <Link key={v.id} href={`?view=${v.id}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                      <Link key={v.id} href={`?view=${v.id}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${view === v.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {v.label}
                       </Link>
@@ -456,14 +475,12 @@ export default async function DashboardPage({
                   {/* Status filters */}
                   <div className="flex items-center gap-1 flex-wrap">
                     {[
-                      { id: "all", label: "All" },
-                      { id: "new", label: "New" },
-                      { id: "hot", label: "Hot" },
-                      { id: "warm", label: "Contacted" },
-                      { id: "cold", label: "Follow up" },
-                      { id: "closed", label: "Won" },
+                      { id: "all",         label: "All" },
+                      { id: "new_contact", label: "New Contact" },
+                      { id: "touch",       label: "Touch" },
+                      { id: "dissolved",   label: "Dissolved" },
                     ].map((s) => (
-                      <Link key={s.id} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}`}
+                      <Link key={s.id} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs px-2.5 py-1 rounded-full transition-colors ${filterStatus === s.id ? "bg-blue-600 text-white font-medium" : "text-gray-500 hover:text-gray-300 bg-gray-800/60"}`}>
                         {s.label}
                       </Link>
@@ -478,7 +495,7 @@ export default async function DashboardPage({
                       { id: "week", label: "7d" },
                       { id: "today", label: "Today" },
                     ].map((d) => (
-                      <Link key={d.id} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}`}
+                      <Link key={d.id} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${filterDate === d.id ? "bg-gray-700 text-white" : "text-gray-600 hover:text-gray-300"}`}>
                         {d.label}
                       </Link>

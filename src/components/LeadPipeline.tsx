@@ -16,11 +16,9 @@ type Lead = {
 };
 
 const COLUMNS: { id: string; label: string; color: string; bg: string; border: string }[] = [
-  { id: "new",    label: "New",        color: "#94a3b8", bg: "#0f172a", border: "#1e293b" },
-  { id: "warm",   label: "Contacted",  color: "#fbbf24", bg: "#1c1000", border: "#291800" },
-  { id: "hot",    label: "Hot Lead",   color: "#f87171", bg: "#1a0000", border: "#2d0a0a" },
-  { id: "cold",   label: "Follow Up",  color: "#60a5fa", bg: "#0a1628", border: "#1a2d4a" },
-  { id: "closed", label: "Won",        color: "#4ade80", bg: "#031a0e", border: "#0a3018" },
+  { id: "new_contact", label: "New Contact", color: "#94a3b8", bg: "#0f172a", border: "#1e293b" },
+  { id: "touch",       label: "Touch",       color: "#60a5fa", bg: "#0a1628", border: "#1a2d4a" },
+  { id: "dissolved",   label: "Dissolved",   color: "#6b7280", bg: "#111827", border: "#1f2937" },
 ];
 
 function getPresetTag(tags: string[] | null): string | null {
@@ -80,7 +78,7 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1">
       {COLUMNS.map((col) => {
-        const colLeads = leads.filter((l) => (l.status || "new") === col.id);
+        const colLeads = leads.filter((l) => (l.status || "new_contact") === col.id);
         const isOver = overCol === col.id;
 
         return (
@@ -141,7 +139,7 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
 
                     {/* Mobile status select */}
                     <select
-                      value={lead.status || "new"}
+                      value={lead.status || "new_contact"}
                       onChange={(e) => moveToColumn(lead.id, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       className="mt-2 w-full rounded-lg text-[10px] font-semibold px-2 py-1 border border-gray-700 bg-gray-900 text-gray-300 focus:outline-none md:hidden"
