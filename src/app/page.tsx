@@ -264,7 +264,7 @@ export default function HomePage() {
             style={{ background: "radial-gradient(circle, #1D4ED8 0%, transparent 70%)" }}
           />
 
-          <div className="relative" style={{ width: "270px" }}>
+          <div className="relative" style={{ width: "320px" }}>
             {/* Phone shell */}
             <div
               className="relative rounded-[3rem] shadow-2xl"
@@ -289,7 +289,7 @@ export default function HomePage() {
                 className="overflow-hidden"
                 style={{
                   borderRadius: "2.5rem",
-                  height: "520px",
+                  height: "600px",
                   background: "#FAF7F2",
                 }}
               >
@@ -303,19 +303,13 @@ export default function HomePage() {
                     <div className="w-2 h-2 rounded-full bg-yellow-400" />
                     <div className="w-2 h-2 rounded-full bg-green-400" />
                   </div>
-                  <div
-                    className="flex-1 rounded-md text-center"
-                    style={{ background: "#fff", padding: "3px 8px", fontSize: "9px", color: "#94a3b8" }}
-                  >
-                    swiftcard.me/alexmorgan
-                  </div>
                 </div>
 
                 {/* Card page content — actual ClassicPro template scaled to fit */}
                 <div style={{ padding: "12px 12px 0" }}>
                   {/* Scaled card template */}
-                  <div style={{ height: "136px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
-                    <div style={{ width: "390px", transform: "scale(0.615)", transformOrigin: "top left" }}>
+                  <div style={{ height: "156px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
+                    <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
                       <ClassicPro data={SAMPLE_DATA} />
                     </div>
                   </div>
@@ -347,7 +341,7 @@ export default function HomePage() {
             {/* Reflection/shadow */}
             <div
               className="absolute -bottom-6 left-1/2 -translate-x-1/2 rounded-full blur-xl opacity-30"
-              style={{ width: "200px", height: "30px", background: "#1D4ED8" }}
+              style={{ width: "240px", height: "30px", background: "#1D4ED8" }}
             />
           </div>
         </div>
