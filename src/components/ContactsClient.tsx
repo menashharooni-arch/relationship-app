@@ -9,6 +9,7 @@ type Lead = {
   email: string;
   phone: string | null;
   company: string | null;
+  company_description: string | null;
   location: string | null;
   notes: string | null;
   source: string | null;
@@ -120,6 +121,10 @@ export default function ContactsClient({
   const [editingConvo, setEditingConvo] = useState(false);
   const [convoText, setConvoText] = useState("");
   const [fieldSaving, setFieldSaving] = useState<string | null>(null);
+  const [aiMessages, setAiMessages] = useState<string[] | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiCopied, setAiCopied] = useState<number | null>(null);
+  const [aiTone, setAiTone] = useState<"friendly" | "professional" | "direct">("friendly");
 
   async function saveField(field: string, value: string) {
     if (!selected) return;
@@ -127,6 +132,37 @@ export default function ContactsClient({
     await updateField(selected.id, field, value);
     setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
     setFieldSaving(null);
+  }
+
+  async function generateAiMessages() {
+    if (!selected) return;
+    setAiLoading(true);
+    setAiMessages(null);
+    try {
+      const res = await fetch("/api/ai/suggest-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: selected.id,
+          meetContext: selected.where_met ?? "",
+          tone: aiTone,
+        }),
+      });
+      const data = await res.json();
+      setAiMessages(Array.isArray(data.messages) ? data.messages : []);
+    } catch {
+      setAiMessages([]);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function copyAiMessage(i: number, msg: string) {
+    try {
+      await navigator.clipboard.writeText(msg);
+      setAiCopied(i);
+      setTimeout(() => setAiCopied(null), 2000);
+    } catch {/* ignore */}
   }
 
   async function changeStatus(newStatus: string) {
@@ -170,6 +206,8 @@ export default function ContactsClient({
     setEditingConvo(false);
     setWhereMetText(lead.where_met ?? "");
     setConvoText(lead.convo_details ?? "");
+    setAiMessages(null);
+    setAiCopied(null);
     if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
@@ -367,11 +405,16 @@ export default function ContactsClient({
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 space-y-3">
               <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-3">Contact Info</p>
               {selected.company && (
-                <div className="flex items-center gap-3">
-                  <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                  </svg>
-                  <span className="text-gray-300 text-sm">{selected.company}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                    </svg>
+                    <span className="text-gray-300 text-sm font-medium">{selected.company}</span>
+                  </div>
+                  {selected.company_description ? (
+                    <p className="text-gray-500 text-xs pl-7">{selected.company_description}</p>
+                  ) : null}
                 </div>
               )}
               {selected.email && (
@@ -576,6 +619,76 @@ export default function ContactsClient({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* AI follow-up preview */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">AI Follow-up Preview</p>
+                  <p className="text-gray-600 text-xs mt-0.5">Generate message ideas for this contact</p>
+                </div>
+                <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
+                  {(["friendly", "professional", "direct"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => { setAiTone(t); setAiMessages(null); }}
+                      className={`text-[10px] font-semibold px-2 py-1 rounded-md transition-colors capitalize ${aiTone === t ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {aiMessages === null && !aiLoading && (
+                <button
+                  onClick={generateAiMessages}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: "#1D4ED8", color: "#fff" }}
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                  </svg>
+                  Generate message ideas
+                </button>
+              )}
+
+              {aiLoading && (
+                <div className="flex items-center justify-center gap-2 py-4 text-gray-500 text-sm">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  Writing messages…
+                </div>
+              )}
+
+              {aiMessages !== null && aiMessages.length > 0 && (
+                <div className="space-y-3">
+                  {aiMessages.map((msg, i) => (
+                    <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3.5">
+                      <p className="text-gray-200 text-sm leading-relaxed mb-2">{msg}</p>
+                      <button
+                        onClick={() => copyAiMessage(i, msg)}
+                        className="text-[10px] font-semibold text-gray-500 hover:text-blue-400 transition-colors"
+                      >
+                        {aiCopied === i ? "✓ Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={generateAiMessages}
+                    className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors py-1.5"
+                  >
+                    Regenerate ↺
+                  </button>
+                </div>
+              )}
+
+              {aiMessages !== null && aiMessages.length === 0 && (
+                <p className="text-gray-600 text-sm text-center py-2">Could not generate messages. Try adding context above.</p>
+              )}
             </div>
 
             {/* Activity timeline */}
