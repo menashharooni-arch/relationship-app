@@ -18,9 +18,15 @@ export default async function ContactsPage() {
 
   const { data: leads } = await supabase
     .from("leads")
-    .select("id, name, email, phone, company, location, notes, status, tags, follow_up_date, source, visitor_id, created_at")
+    .select("id, name, email, phone, company, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, created_at")
     .eq("card_owner", profile.username)
     .order("name", { ascending: true });
+
+  const { data: extraCards } = await supabase
+    .from("cards")
+    .select("id, username, name")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
@@ -49,9 +55,6 @@ export default async function ContactsPage() {
             </Link>
             <Link href="/contacts" className="text-sm text-white font-medium px-3 py-1.5 rounded-lg bg-gray-800">
               Contacts
-            </Link>
-            <Link href="/profile" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
-              Edit card
             </Link>
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Settings
@@ -89,7 +92,14 @@ export default async function ContactsPage() {
 
       {/* Main content */}
       <div className="flex-1 pt-0 max-w-6xl mx-auto w-full">
-        <ContactsClient leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]} />
+        <ContactsClient
+          leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]}
+          primaryUsername={profile.username}
+          userCards={[
+            { username: profile.username, name: profile.username },
+            ...(extraCards ?? []).map((c) => ({ username: c.username, name: c.name || c.username })),
+          ]}
+        />
       </div>
     </div>
   );

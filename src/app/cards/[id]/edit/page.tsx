@@ -11,12 +11,10 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
   if (!user) redirect("/login");
 
   const admin = getAdminSupabase();
-  const { data: card } = await admin
-    .from("cards")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
+  const [{ data: card }, { data: profile }] = await Promise.all([
+    admin.from("cards").select("*").eq("id", id).eq("user_id", user.id).single(),
+    admin.from("profiles").select("photo_url").eq("id", user.id).single(),
+  ]);
 
   if (!card) notFound();
 
@@ -48,7 +46,7 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>
 
-        <CardEditForm card={card} />
+        <CardEditForm card={card} photoUrl={profile?.photo_url ?? null} />
       </div>
     </main>
   );

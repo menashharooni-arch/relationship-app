@@ -26,17 +26,15 @@ type Lead = {
   created_at: string;
 };
 
-type Status = "new" | "hot" | "warm" | "cold" | "closed";
+type Status = "new_contact" | "touch" | "dissolved";
 
 const STATUS_CONFIG: Record<Status, { label: string; bg: string; color: string }> = {
-  new:    { label: "New",       bg: "#1e293b", color: "#94a3b8" },
-  hot:    { label: "Hot",       bg: "#450a0a", color: "#f87171" },
-  warm:   { label: "Contacted", bg: "#451a03", color: "#fbbf24" },
-  cold:   { label: "Follow Up", bg: "#172554", color: "#60a5fa" },
-  closed: { label: "Won",       bg: "#052e16", color: "#4ade80" },
+  new_contact: { label: "New Contact", bg: "#1e293b", color: "#94a3b8" },
+  touch:       { label: "Touch",       bg: "#172554", color: "#60a5fa" },
+  dissolved:   { label: "Dissolved",   bg: "#111827", color: "#6b7280" },
 };
 
-const STATUS_ORDER: Status[] = ["new", "hot", "warm", "cold", "closed"];
+const STATUS_ORDER: Status[] = ["new_contact", "touch", "dissolved"];
 
 function nextStatus(current: string): Status {
   const idx = STATUS_ORDER.indexOf(current as Status);
@@ -58,9 +56,9 @@ function sendDate(createdAt: string, dayOffset: number): string {
 }
 
 const DEFAULT_PRESETS: FlowPresets = {
-  "1": { name: "Warm Touch", days: [1, 7] },
-  "2": { name: "Standard", days: [1, 15, 30] },
-  "3": { name: "Long-term", days: [7, 30, 60] },
+  "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
+  "2": { name: "Standard", days: [1, 4, 10, 21, 45] },
+  "3": { name: "Long-term", days: [1, 30, 90, 180, 365] },
 };
 
 const TAG_COLORS = [
@@ -103,7 +101,7 @@ export default function LeadCard({
   const [tags, setTags] = useState<string[]>(initialTags);
   const [tagInput, setTagInput] = useState("");
 
-  const [status, setStatus] = useState<Status>((lead.status as Status) || "new");
+  const [status, setStatus] = useState<Status>((lead.status as Status) || "new_contact");
   const [notes, setNotes] = useState(lead.notes || "");
   const [notesDirty, setNotesDirty] = useState(false);
   const [notesSaving, setNotesSaving] = useState(false);

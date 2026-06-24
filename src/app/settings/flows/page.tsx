@@ -39,7 +39,6 @@ export default async function FlowSettingsPage() {
   const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
 
-  // Email preferences
   const { data: emailPrefs } = await admin
     .from("email_preferences")
     .select("marketing_emails, receipt_emails")
@@ -47,36 +46,56 @@ export default async function FlowSettingsPage() {
     .single();
 
   return (
-    <main className="min-h-screen bg-cream px-5 py-10 pb-24 md:pb-10">
+    <main className="min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
       <MobileNav />
-      <div className="max-w-sm mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-1">SwiftCard</p>
-            <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-            <p className="text-slate-500 text-sm mt-1">Follow-up flows & integrations</p>
+
+      {/* Top accent stripe */}
+      <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
+
+      {/* Sticky nav */}
+      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 shrink-0">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="font-bold text-white text-sm tracking-tight hidden sm:block">SwiftCard</span>
+            </Link>
           </div>
-          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+
+          <div className="hidden md:flex items-center gap-0.5">
+            {[
+              { href: "/dashboard", label: "Dashboard" },
+              { href: "/contacts",  label: "Contacts" },
+              { href: "/settings/flows", label: "Settings", active: true },
+            ].map(({ href, label, active }) => (
+              <Link key={href} href={href}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-white transition-colors">
             ← Dashboard
           </Link>
         </div>
+      </nav>
 
-        <div className="space-y-6">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Follow-up Emails</p>
-            <FlowSettingsForm initialSettings={settings} isPro={isPro} />
-          </div>
+      <div className="max-w-sm mx-auto pt-20">
+        <div className="mb-8">
+          <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+          <h1 className="text-2xl font-bold text-white">Settings</h1>
+        </div>
 
+        <div className="space-y-8">
+          {/* Integrations */}
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Email Preferences</p>
-            <EmailPreferencesForm
-              initialMarketing={emailPrefs?.marketing_emails ?? true}
-              initialReceipts={emailPrefs?.receipt_emails ?? true}
-            />
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Integrations</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Integrations</p>
             <div className="space-y-3">
               <ZapierSettings initialUrl={profile.zapier_webhook_url ?? null} isPro={isPro} />
               <Suspense>
@@ -86,6 +105,47 @@ export default async function FlowSettingsPage() {
                   isPro={isPro}
                 />
               </Suspense>
+            </div>
+          </div>
+
+          {/* Follow-up automation */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Follow-up Automation</p>
+            <FlowSettingsForm initialSettings={settings} isPro={isPro} />
+          </div>
+
+          {/* Email preferences */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Email Preferences</p>
+            <EmailPreferencesForm
+              initialMarketing={emailPrefs?.marketing_emails ?? true}
+              initialReceipts={emailPrefs?.receipt_emails ?? true}
+            />
+          </div>
+
+          {/* Account — link to profile */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Account</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-3">
+              <Link href="/profile" className="flex items-center justify-between group">
+                <div>
+                  <p className="text-white text-sm font-medium">Profile & Card</p>
+                  <p className="text-gray-500 text-xs mt-0.5">Edit your name, photo, and primary card</p>
+                </div>
+                <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+              <div className="border-t border-gray-800" />
+              <Link href="/pricing" className="flex items-center justify-between group">
+                <div>
+                  <p className="text-white text-sm font-medium">Plan & Billing</p>
+                  <p className="text-gray-500 text-xs mt-0.5">Upgrade or manage your subscription</p>
+                </div>
+                <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
           </div>
         </div>
