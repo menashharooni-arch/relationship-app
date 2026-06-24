@@ -41,10 +41,10 @@ export default function ViewsChart({ data }: { data: DayData[] }) {
                 rx={2}
                 fill={
                   d.views === 0
-                    ? "#e2e8f0"
+                    ? "#1f2937"
                     : isHov || isToday
                     ? "#2563eb"
-                    : "#93c5fd"
+                    : "#3b82f6"
                 }
                 style={{ transition: "fill 0.1s", cursor: "default" }}
                 onMouseEnter={() => setHovered(i)}

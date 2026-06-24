@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Notification = {
   id: string;
@@ -28,8 +28,30 @@ export default function NotificationBell({
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   const unread = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    const poll = async () => {
+      if (openRef.current) return;
+      try {
+        const res = await fetch("/api/notifications");
+        if (!res.ok) return;
+        const fresh: Notification[] = await res.json();
+        setNotifications((prev) => {
+          const prevIds = new Set(prev.map((n) => n.id));
+          const hasNew = fresh.some((n) => !prevIds.has(n.id) && !n.read);
+          if (!hasNew && fresh.length === prev.length) return prev;
+          return fresh;
+        });
+      } catch { /* ignore */ }
+    };
+
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
@@ -45,7 +67,7 @@ export default function NotificationBell({
     <div className="relative">
       <button
         onClick={handleOpen}
-        className="relative p-1.5 text-slate-400 hover:text-slate-700 transition-colors"
+        className="relative p-1.5 text-gray-400 hover:text-white transition-colors"
         aria-label="Notifications"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
@@ -64,31 +86,31 @@ export default function NotificationBell({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
 
           {/* Dropdown */}
-          <div className="absolute right-0 top-9 z-20 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-              <p className="text-sm font-bold text-slate-900">Notifications</p>
+          <div className="absolute right-0 top-9 z-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+              <p className="text-sm font-bold text-white">Notifications</p>
               {notifications.some((n) => !n.read) && (
-                <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-700 transition-colors">
+                <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
                   Mark all read
                 </button>
               )}
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+            <div className="max-h-80 overflow-y-auto divide-y divide-gray-800">
               {notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-slate-400 text-sm">No notifications yet</p>
-                  <p className="text-slate-300 text-xs mt-1">You&apos;ll see new leads here</p>
+                  <p className="text-gray-400 text-sm">No notifications yet</p>
+                  <p className="text-gray-600 text-xs mt-1">You&apos;ll see new leads here</p>
                 </div>
               ) : (
                 notifications.map((n) => (
-                  <div key={n.id} className={`px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-50"}`}>
+                  <div key={n.id} className={`px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
                     <div className="flex items-start gap-3">
-                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-slate-200" : "bg-blue-500"}`} />
+                      <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-slate-900 text-xs font-semibold">{n.title}</p>
-                        {n.body && <p className="text-slate-500 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
-                        <p className="text-slate-400 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
+                        <p className="text-white text-xs font-semibold">{n.title}</p>
+                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+                        <p className="text-gray-500 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
                       </div>
                     </div>
                   </div>

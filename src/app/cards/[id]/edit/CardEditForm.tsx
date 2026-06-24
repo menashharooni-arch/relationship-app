@@ -1,0 +1,389 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import ModernBold from "@/components/card-templates/ModernBold";
+import PhotoFirst from "@/components/card-templates/PhotoFirst";
+import LocalBusiness from "@/components/card-templates/LocalBusiness";
+import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import type { CardData, CardLink } from "@/components/card-templates/types";
+
+const LINK_PRESETS: { emoji: string; label: string }[] = [
+  { emoji: "📅", label: "Book a call" },
+  { emoji: "🌐", label: "Visit website" },
+  { emoji: "💼", label: "View portfolio" },
+  { emoji: "⭐", label: "Leave a review" },
+  { emoji: "💸", label: "Pay me" },
+  { emoji: "📋", label: "View menu" },
+  { emoji: "📄", label: "Download" },
+  { emoji: "🎥", label: "Watch video" },
+];
+
+const TEMPLATES = [
+  { id: "classic-pro",     name: "Classic Professional", Component: ClassicPro },
+  { id: "modern-bold",     name: "Modern Bold",          Component: ModernBold },
+  { id: "photo-first",     name: "Photo First",          Component: PhotoFirst },
+  { id: "local-business",  name: "Local Business",       Component: LocalBusiness },
+  { id: "luxury-minimal",  name: "Luxury Minimal",       Component: LuxuryMinimal },
+] as const;
+
+type CardTestimonial = { name: string; text: string };
+
+type Card = {
+  id: string;
+  username: string;
+  name: string;
+  title: string;
+  company: string;
+  phone: string;
+  email: string;
+  website: string;
+  linkedin: string;
+  instagram: string;
+  twitter: string;
+  tiktok: string;
+  template: string;
+  customization?: { snapchat?: string; about?: string; links?: CardLink[]; testimonials?: CardTestimonial[] };
+};
+
+const FIELDS = [
+  { key: "name",      label: "Full name",   placeholder: "John Smith",           required: true },
+  { key: "title",     label: "Job title",   placeholder: "Sales Director",       required: false },
+  { key: "company",   label: "Company",     placeholder: "Acme Corp",            required: false },
+  { key: "phone",     label: "Phone",       placeholder: "+1 (555) 000-0000",    required: false },
+  { key: "email",     label: "Email",       placeholder: "john@company.com",     required: false },
+  { key: "website",   label: "Website",     placeholder: "www.company.com",      required: false },
+  { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/john", required: false },
+  { key: "instagram", label: "Instagram",   placeholder: "@john",                required: false },
+  { key: "twitter",   label: "Twitter / X", placeholder: "@john",                required: false },
+  { key: "tiktok",    label: "TikTok",      placeholder: "@john",                required: false },
+  { key: "snapchat",  label: "Snapchat",    placeholder: "@john",                required: false },
+];
+
+export default function CardEditForm({ card }: { card: Card }) {
+  const router = useRouter();
+  const [form, setForm] = useState({
+    name:      card.name || "",
+    title:     card.title || "",
+    company:   card.company || "",
+    phone:     card.phone || "",
+    email:     card.email || "",
+    website:   card.website || "",
+    linkedin:  card.linkedin || "",
+    instagram: card.instagram || "",
+    twitter:   card.twitter || "",
+    tiktok:    card.tiktok || "",
+    snapchat:  card.customization?.snapchat || "",
+  });
+  const [about, setAbout] = useState(card.customization?.about || "");
+  const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
+  const [addingLink, setAddingLink] = useState(false);
+  const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
+  const [testimonials, setTestimonials] = useState<CardTestimonial[]>(card.customization?.testimonials ?? []);
+  const [addingTestimonial, setAddingTestimonial] = useState(false);
+  const [newTestimonial, setNewTestimonial] = useState<CardTestimonial>({ name: "", text: "" });
+  const [template, setTemplate] = useState(card.template || "classic-pro");
+  const [tab, setTab] = useState<"info" | "design">("info");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  function set(field: string, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  const previewData: CardData = {
+    name:      form.name || card.username,
+    title:     form.title,
+    company:   form.company,
+    phone:     form.phone,
+    email:     form.email,
+    website:   form.website,
+    linkedin:  form.linkedin,
+    instagram: form.instagram,
+    twitter:   form.twitter,
+    tiktok:    form.tiktok,
+    initials:  (form.name || card.username)[0]?.toUpperCase() ?? "?",
+    photoUrl:  null,
+    logoUrl:   null,
+    cardUrl:   `swiftcard.app/card/${card.username}`,
+    customization: {},
+  };
+
+  const ActiveTemplate = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
+
+  function addLink() {
+    if (!newLink.label.trim() || !newLink.url.trim()) return;
+    const url = newLink.url.startsWith("http") ? newLink.url : `https://${newLink.url}`;
+    setLinks((prev) => [...prev, { ...newLink, url }]);
+    setNewLink({ emoji: "🌐", label: "", url: "" });
+    setAddingLink(false);
+  }
+
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  async function handleSave() {
+    setStatus("saving");
+    const { snapchat: _snap, ...coreForm } = form;
+    const res = await fetch(`/api/cards/${card.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...coreForm,
+        template,
+        customization: { snapchat: form.snapchat, about, links, testimonials },
+      }),
+    });
+    if (res.ok) {
+      setStatus("saved");
+      setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
+    } else {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 2500);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Live preview */}
+      <div className="rounded-2xl overflow-hidden border border-gray-800">
+        <ActiveTemplate data={previewData} />
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex bg-gray-900 rounded-xl p-1 gap-1">
+        {(["info", "design"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
+            style={{
+              background: tab === t ? "#1D4ED8" : "transparent",
+              color: tab === t ? "#fff" : "#6b7280",
+            }}
+          >
+            {t === "info" ? "Card info" : "Design"}
+          </button>
+        ))}
+      </div>
+
+      {/* Info tab */}
+      {tab === "info" && (
+        <div className="space-y-4">
+          {FIELDS.map((f) => (
+            <div key={f.key}>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
+              <input
+                type="text"
+                placeholder={f.placeholder}
+                required={f.required}
+                value={form[f.key as keyof typeof form]}
+                onChange={(e) => set(f.key, e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">About (optional)</label>
+            <textarea
+              placeholder="A short bio, what you do, or your services. Shows on your public card."
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              rows={3}
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+            />
+          </div>
+
+          {/* Testimonials */}
+          <div className="pt-1">
+            <p className="text-xs font-medium text-gray-400 mb-2">Testimonials</p>
+            {testimonials.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {testimonials.map((t, i) => (
+                  <div key={i} className="flex items-start gap-2 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-yellow-400 text-xs">★★★★★</p>
+                      <p className="text-gray-300 text-xs mt-0.5 line-clamp-2">&ldquo;{t.text}&rdquo;</p>
+                      <p className="text-gray-500 text-[10px] mt-1">— {t.name}</p>
+                    </div>
+                    <button type="button" onClick={() => setTestimonials((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {addingTestimonial ? (
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+                <input
+                  type="text"
+                  placeholder="Reviewer name"
+                  value={newTestimonial.name}
+                  onChange={(e) => setNewTestimonial((n) => ({ ...n, name: e.target.value }))}
+                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+                <textarea
+                  placeholder="What did they say about you?"
+                  value={newTestimonial.text}
+                  onChange={(e) => setNewTestimonial((n) => ({ ...n, text: e.target.value }))}
+                  rows={3}
+                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={!newTestimonial.name.trim() || !newTestimonial.text.trim()}
+                    onClick={() => {
+                      if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) return;
+                      setTestimonials((prev) => [...prev, { ...newTestimonial }]);
+                      setNewTestimonial({ name: "", text: "" });
+                      setAddingTestimonial(false);
+                    }}
+                    className="flex-1 bg-blue-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg"
+                  >
+                    Add testimonial
+                  </button>
+                  <button type="button" onClick={() => { setAddingTestimonial(false); setNewTestimonial({ name: "", text: "" }); }} className="px-3 text-xs text-gray-500 hover:text-gray-300">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAddingTestimonial(true)}
+                className="w-full border border-dashed border-gray-700 text-gray-600 hover:border-blue-500 hover:text-blue-400 text-xs font-medium py-2.5 rounded-xl transition-colors">
+                + Add testimonial
+              </button>
+            )}
+          </div>
+
+          {/* Action links */}
+          <div className="pt-1">
+            <p className="text-xs font-medium text-gray-400 mb-2">Action links</p>
+            {links.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {links.map((link, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5">
+                    <span className="text-base shrink-0">{link.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-200 text-xs font-semibold truncate">{link.label}</p>
+                      <p className="text-gray-500 text-[10px] truncate">{link.url}</p>
+                    </div>
+                    <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {addingLink ? (
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {LINK_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setNewLink((n) => ({ ...n, emoji: p.emoji, label: p.label }))}
+                      className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors"
+                      style={{
+                        background: newLink.label === p.label ? "#1e3a5f" : "#1f2937",
+                        borderColor: newLink.label === p.label ? "#3b82f6" : "#374151",
+                        color: newLink.label === p.label ? "#60a5fa" : "#6b7280",
+                      }}
+                    >
+                      {p.emoji} {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="📅"
+                    value={newLink.emoji}
+                    onChange={(e) => setNewLink((n) => ({ ...n, emoji: e.target.value }))}
+                    className="w-12 bg-gray-900 border border-gray-600 text-white rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:border-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Button label"
+                    value={newLink.label}
+                    onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
+                    className="flex-1 bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="https://calendly.com/yourname"
+                  value={newLink.url}
+                  onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
+                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+                <div className="flex gap-2">
+                  <button type="button" onClick={addLink} disabled={!newLink.label.trim() || !newLink.url.trim()}
+                    className="flex-1 bg-blue-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg">
+                    Add link
+                  </button>
+                  <button type="button" onClick={() => { setAddingLink(false); setNewLink({ emoji: "🌐", label: "", url: "" }); }}
+                    className="px-3 text-xs text-gray-500 hover:text-gray-300">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAddingLink(true)}
+                className="w-full border border-dashed border-gray-700 text-gray-600 hover:border-blue-500 hover:text-blue-400 text-xs font-medium py-2.5 rounded-xl transition-colors">
+                + Add link
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Design tab */}
+      {tab === "design" && (
+        <div className="space-y-4">
+          {TEMPLATES.map(({ id, name, Component }) => (
+            <button
+              key={id}
+              onClick={() => setTemplate(id)}
+              className="w-full text-left outline-none"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-300">{name}</span>
+                <span
+                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                  style={{
+                    background: template === id ? "#1D4ED8" : "#1f2937",
+                    color: template === id ? "#fff" : "#6b7280",
+                  }}
+                >
+                  {template === id ? "Selected" : "Select"}
+                </span>
+              </div>
+              <div
+                className="rounded-2xl transition-all"
+                style={{
+                  outline: template === id ? "3px solid #3b82f6" : "2px solid transparent",
+                  outlineOffset: 3,
+                  boxShadow: template === id ? "0 0 0 5px rgba(59,130,246,0.12)" : undefined,
+                }}
+              >
+                <Component data={previewData} />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        disabled={status === "saving"}
+        className="w-full py-3 rounded-full text-sm font-bold transition-all"
+        style={{
+          background: status === "saved" ? "#16a34a" : "#1D4ED8",
+          color: "#fff",
+          opacity: status === "saving" ? 0.6 : 1,
+        }}
+      >
+        {status === "saving" ? "Saving…" : status === "saved" ? "Saved!" : status === "error" ? "Error — try again" : "Save changes"}
+      </button>
+    </div>
+  );
+}

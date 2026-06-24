@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data: profile } = await supabase
+  const admin = getAdminSupabase();
+
+  const { data: profile } = await admin
     .from("profiles")
     .select("plan")
     .eq("id", user.id)
     .single();
 
-  if (profile?.plan !== "pro") {
-    return NextResponse.json({ error: "upgrade", message: "Multiple cards require a Pro plan." }, { status: 402 });
-  }
+  const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
 
-  const { count } = await supabase
+  const { count } = await admin
     .from("cards")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
 
-  if ((count ?? 0) >= 2) {
-    return NextResponse.json({ error: "limit", message: "Pro plan includes up to 3 cards total." }, { status: 402 });
+  if (!isPro && (count ?? 0) >= 2) {
+    return NextResponse.json({ error: "limit", message: "Free plan includes up to 3 cards total. Upgrade to Pro for unlimited cards." }, { status: 402 });
   }
 
   const body = await req.json();
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("cards")
     .insert({ user_id: user.id, username, name: name || "", title: title || "", company: company || "", phone: phone || "", email: email || "", website: website || "", linkedin: linkedin || "", instagram: instagram || "", twitter: twitter || "", tiktok: tiktok || "", template: template || "classic-pro" })
     .select()
@@ -49,7 +50,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data: cards } = await supabase
+  const admin = getAdminSupabase();
+  const { data: cards } = await admin
     .from("cards")
     .select("*")
     .eq("user_id", user.id)

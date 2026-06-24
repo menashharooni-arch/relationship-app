@@ -8,10 +8,10 @@ import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
-const BLUE = "#2563eb";
-const BLUE_MID = "#1d4ed8";
+const BLUE_DEFAULT = "#2563eb";
 
 export default function ClassicPro({ data }: { data: CardData }) {
+  const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
     data.instagram && { icon: <IcoInsta />,    handle: data.instagram, color: "#c084fc" },
@@ -25,7 +25,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       style={{
         aspectRatio: "1.75 / 1",
         background: "#fff",
-        boxShadow: "0 4px 24px rgba(14,27,53,0.14), 0 1px 4px rgba(0,0,0,0.08)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
       {/* ── Left navy branding panel ─────────────────────── */}
@@ -144,19 +144,12 @@ export default function ClassicPro({ data }: { data: CardData }) {
         )}
 
         {/* QR + scan label */}
-        <div className="flex items-end justify-between">
-          <div>
-            {data.cardUrl && (
-              <p style={{ fontSize: 7.5, color: "#94a3b8", letterSpacing: "0.04em" }}>
-                {data.cardUrl}
-              </p>
-            )}
-          </div>
+        <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
             <p style={{ fontSize: 6.5, color: "#94a3b8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Scan to save contact
             </p>
-            <QR size={42} bg="#f0f5ff" fg={NAVY} />
+            <QR size={92} bg="#f0f5ff" fg={NAVY} />
           </div>
         </div>
       </div>
@@ -164,7 +157,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       {/* Bottom gradient accent */}
       <div
         className="absolute bottom-0 left-0 right-0"
-        style={{ height: 4, background: `linear-gradient(90deg, ${BLUE_MID}, #7c3aed)` }}
+        style={{ height: 4, background: `linear-gradient(90deg, ${BLUE}, #7c3aed)` }}
       />
     </div>
   );

@@ -1,3 +1,23 @@
+export type CardLink = {
+  emoji: string;
+  label: string;
+  url: string;
+};
+
+export type CardTestimonial = {
+  name: string;
+  text: string;
+};
+
+export type CardCustomization = {
+  accentColor?: string;
+  font?: string;
+  snapchat?: string;
+  about?: string;
+  links?: CardLink[];
+  testimonials?: CardTestimonial[];
+};
+
 export type CardData = {
   name: string;
   title: string;
@@ -10,10 +30,13 @@ export type CardData = {
   linkedin?: string;
   twitter?: string;
   tiktok?: string;
+  snapchat?: string;
+  about?: string;
   initials?: string;
   photoUrl?: string | null;
   logoUrl?: string | null;
   cardUrl?: string;
+  customization?: CardCustomization;
 };
 
 export const SAMPLE_DATA: CardData = {
@@ -31,7 +54,7 @@ export const SAMPLE_DATA: CardData = {
   initials: "AM",
   photoUrl: null,
   logoUrl: null,
-  cardUrl: "kontact.app/card/alexmorgan",
+  cardUrl: "swiftcard.app/card/alexmorgan",
 };
 
 export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827" }: { size?: number; bg?: string; fg?: string }) {

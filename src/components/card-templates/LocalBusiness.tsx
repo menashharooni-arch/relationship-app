@@ -8,12 +8,14 @@ import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
-const AMBER  = "#b45309";
-const AMBER2 = "#d97706";
+const AMBER_DEFAULT  = "#b45309";
+const AMBER2_DEFAULT = "#d97706";
 const CREAM  = "#fffbf0";
 const WARM   = "#92400e";
 
 export default function LocalBusiness({ data }: { data: CardData }) {
+  const AMBER  = data.customization?.accentColor ?? AMBER_DEFAULT;
+  const AMBER2 = data.customization?.accentColor ?? AMBER2_DEFAULT;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
   return (
@@ -22,7 +24,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       style={{
         aspectRatio: "1.75 / 1",
         background: CREAM,
-        boxShadow: "0 4px 24px rgba(180,83,9,0.13), 0 1px 4px rgba(0,0,0,0.07)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
       {/* ── Amber top stripe ───────────────────────────── */}
@@ -130,7 +132,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           <p style={{ fontSize: 6.5, color: "#d97706", letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Scan to save contact
           </p>
-          <QR size={44} bg="#fff8e6" fg={AMBER} />
+          <QR size={92} bg="#fff8e6" fg={AMBER} />
         </div>
       </div>
 
