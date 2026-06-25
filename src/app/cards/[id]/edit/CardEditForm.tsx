@@ -36,6 +36,7 @@ const TEMPLATES = [
 type Card = {
   id: string;
   username: string;
+  label?: string;
   name: string;
   title: string;
   company: string;
@@ -85,6 +86,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     snapchat:  card.customization?.snapchat || "",
     youtube:   card.customization?.youtube || "",
   });
+  const [label, setLabel] = useState(card.label || "");
   const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [addingLink, setAddingLink] = useState(false);
@@ -140,6 +142,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...coreForm,
+        ...(isPrimary ? {} : { label }),
         template,
         customization: { snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
         logo_url: cardLogoUrl,
@@ -204,6 +207,19 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             />
             <p className="text-[11px] text-gray-600 mt-1">Shared across all your cards.</p>
           </div>
+          {!isPrimary && (
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
+              <input
+                type="text"
+                placeholder="e.g. Sales Card"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+              />
+              <p className="text-[11px] text-gray-600 mt-1">Shown on your dashboard to identify this card.</p>
+            </div>
+          )}
           {FIELDS.map((f) => (
             <div key={f.key}>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
