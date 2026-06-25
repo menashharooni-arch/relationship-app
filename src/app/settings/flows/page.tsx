@@ -5,6 +5,7 @@ import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import ManageBillingButton from "@/components/ManageBillingButton";
+import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
@@ -131,6 +132,12 @@ export default async function FlowSettingsPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Help */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Help</p>
+            <HelpWidget />
           </div>
 
           {/* Your cards */}
