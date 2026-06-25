@@ -160,13 +160,6 @@ export default function ManageCards({
       <p className="text-gray-600 text-[11px] leading-relaxed">
         Your primary card is your main account card. To delete it, set another card as primary first.
       </p>
-
-      <Link
-        href="/cards/new"
-        className="block text-center text-xs text-blue-400 hover:text-blue-300 font-medium border border-dashed border-gray-800 hover:border-gray-700 rounded-2xl px-4 py-3 transition-colors"
-      >
-        + New card
-      </Link>
     </div>
   );
 }
