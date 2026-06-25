@@ -5,10 +5,16 @@ import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
 
-export default async function ContactsPage() {
+export default async function ContactsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ card?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const { card: selectedCardParam } = await searchParams;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -99,6 +105,7 @@ export default async function ContactsPage() {
         <ContactsClient
           leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]}
           primaryUsername={profile.username}
+          initialCardFilter={selectedCardParam ?? null}
           userCards={[
             { username: profile.username, name: profile.username },
             ...(extraCards ?? []).map((c) => ({ username: c.username, name: c.name || c.username })),

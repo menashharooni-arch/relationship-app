@@ -101,16 +101,20 @@ export default function ContactsClient({
   leads: initialLeads,
   primaryUsername,
   userCards = [],
+  initialCardFilter = null,
 }: {
   leads: Lead[];
   primaryUsername?: string;
   userCards?: { username: string; name: string }[];
+  initialCardFilter?: string | null;
 }) {
   const [search, setSearch] = useState("");
   // Default to the card currently selected on the dashboard so only its contacts show.
-  const [cardFilter, setCardFilter] = useState<string>(primaryUsername ?? "all");
+  // Priority: ?card= from the dashboard link → primary card (overridden by saved selection below).
+  const [cardFilter, setCardFilter] = useState<string>(initialCardFilter || primaryUsername || "all");
 
   useEffect(() => {
+    if (initialCardFilter) return; // the URL param already set the card
     try {
       const saved = localStorage.getItem(ACTIVE_CARD_KEY);
       if (saved && userCards.some((c) => c.username === saved)) {
