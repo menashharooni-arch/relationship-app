@@ -10,6 +10,7 @@ const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBo
 const PhotoFirst    = dynamic(() => import("@/components/card-templates/PhotoFirst"),    { ssr: false });
 const LocalBusiness = dynamic(() => import("@/components/card-templates/LocalBusiness"), { ssr: false });
 const LuxuryMinimal = dynamic(() => import("@/components/card-templates/LuxuryMinimal"), { ssr: false });
+const CustomCard    = dynamic(() => import("@/components/card-templates/CustomCard"),    { ssr: false });
 
 const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro":    ClassicPro,
@@ -17,6 +18,7 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "photo-first":    PhotoFirst,
   "local-business": LocalBusiness,
   "luxury-minimal": LuxuryMinimal,
+  "custom":         CustomCard,
 };
 
 interface Props {
