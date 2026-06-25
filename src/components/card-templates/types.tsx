@@ -72,6 +72,12 @@ export type CardData = {
   customization?: CardCustomization;
 };
 
+// Socials are shown in the "Swift Links" section, not on the card design itself.
+// Strip them from the data given to the standard templates.
+export function withoutSocials(data: CardData): CardData {
+  return { ...data, instagram: "", twitter: "", tiktok: "", linkedin: "", snapchat: "" };
+}
+
 export const SAMPLE_DATA: CardData = {
   name: "Alex Morgan",
   title: "Founder & CEO",

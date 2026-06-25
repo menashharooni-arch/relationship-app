@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 const SCREENS = [
   {
@@ -90,7 +90,7 @@ function CardScreen() {
         {/* Actual ClassicPro template scaled to fit */}
         <div className="shrink-0 rounded-xl overflow-hidden" style={{ height: "122px" }}>
           <div style={{ width: "390px", transform: "scale(0.564)", transformOrigin: "top left" }}>
-            <ClassicPro data={SAMPLE_DATA} />
+            <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CardData } from "@/components/card-templates/types";
+import { withoutSocials } from "@/components/card-templates/types";
 import DownloadCardButton from "@/components/DownloadCardButton";
 
 const ClassicPro    = dynamic(() => import("@/components/card-templates/ClassicPro"),    { ssr: false });
@@ -71,7 +72,7 @@ export default function CardPreviewDownload({ data, template, username, previewU
             opacity: scale ? 1 : 0,
           }}
         >
-          <Template data={data} />
+          <Template data={template === "custom" ? data : withoutSocials(data)} />
         </div>
       </div>
 

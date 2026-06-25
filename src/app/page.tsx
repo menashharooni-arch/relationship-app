@@ -2,7 +2,7 @@ import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import LiveDemo from "@/components/LiveDemo";
 import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 const STEPS = [
   {
@@ -310,7 +310,7 @@ export default function HomePage() {
                   {/* Scaled card template */}
                   <div style={{ height: "156px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
                     <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
-                      <ClassicPro data={SAMPLE_DATA} />
+                      <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
                     </div>
                   </div>
 

@@ -13,6 +13,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard from "@/components/card-templates/CustomCard";
+import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -240,9 +241,9 @@ export default async function CardPage({
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       <CardEventTracker username={profile.username} source={source} />
 
-      {/* Business card */}
+      {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
-        <TemplateComponent data={cardData} />
+        <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
       </div>
 
       {/* Address section */}
@@ -313,7 +314,7 @@ export default async function CardPage({
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
           <div className="flex items-center gap-3 mb-4">
             <SectionNumber n={3} />
-            <p className="text-slate-900 font-semibold text-sm">Other ways to connect with {firstName}</p>
+            <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
           </div>
           {/* Social links with intercept modal */}
           {connectLinks.length > 0 && (
