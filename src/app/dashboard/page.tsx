@@ -645,86 +645,36 @@ export default async function DashboardPage({
               {/* Your card */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
-
-                {/* Card preview */}
                 <CardPreviewDownload
                   data={cardData}
                   template={activeSource.template ?? "classic-pro"}
                   username={activeUsername}
+                  previewUrl={cardUrl}
+                />
+              </div>
+
+              {/* Share + QR */}
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-3">
+                {/* Share */}
+                <ShareButton
+                  url={cardUrl}
+                  title="My SwiftCard"
+                  text="Save my contact and connect with me instantly."
+                  label="Share"
                 />
 
-                {/* Card URL */}
-                <div className="mt-4 flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+                {/* Copy link */}
+                <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
                   <svg viewBox="0 0 16 16" fill="#3b82f6" className="w-3.5 h-3.5 shrink-0"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8S12.42 0 8 0zm1 11.93V13H7v-1.07A6.003 6.003 0 012.07 7H4v-.5h-.93A6.003 6.003 0 017 1.07V2h2v1.07A6.003 6.003 0 0113.93 6.5H12V7h1.93A6.003 6.003 0 019 11.93z"/></svg>
                   <span className="text-blue-400 text-xs truncate flex-1">{cardUrl.replace("https://", "")}</span>
                   <CopyButton text={cardUrl} />
                 </div>
 
-                {/* Actions */}
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <ShareButton
-                    url={cardUrl}
-                    title="My SwiftCard"
-                    text="Save my contact and connect with me instantly."
-                    label="Share"
-                  />
-                  <a href={cardUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl py-2 transition-colors">
-                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M6.75 1a.75.75 0 01.75.75V3h1V1.75a.75.75 0 011.5 0V3H11a2 2 0 012 2v7.5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h1.25V1.75A.75.75 0 016.75 1zM5 4.5a.5.5 0 00-.5.5v7.5a.5.5 0 00.5.5h6a.5.5 0 00.5-.5V5a.5.5 0 00-.5-.5H5z"/></svg>
-                    Preview
-                  </a>
-                </div>
-              </div>
-
-              {/* QR Code */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">QR Code</p>
+                {/* QR code */}
                 <QRCard url={cardUrl} />
-                <div className="mt-3">
-                  <QRDownloadButton url={cardUrl} />
-                </div>
-              </div>
 
-              {/* Quick links */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Quick links</p>
-                <div className="space-y-1">
-                  {[
-                    { href: "/profile", icon: "✏️", label: "Edit card info" },
-                    { href: "/templates", icon: "🎨", label: "Change card design" },
-                    { href: "/settings/flows", icon: "⚡", label: "Follow-up settings" },
-                    { href: "/contacts", icon: "👥", label: "Contact book" },
-                    ...(!isPro ? [{ href: "/pricing", icon: "⭐", label: "Upgrade to Pro" }] : []),
-                  ].map(({ href, icon, label }) => (
-                    <Link key={href} href={href}
-                      className="flex items-center gap-2.5 text-sm text-gray-400 hover:text-white px-2 py-2 rounded-lg hover:bg-gray-800/60 transition-colors">
-                      <span className="text-base leading-none">{icon}</span>
-                      {label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              {/* Share links by platform */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1">Share links</p>
-                <p className="text-gray-600 text-xs mb-4 leading-relaxed">Copy a link for each platform — each tracks exactly where your leads come from.</p>
-                <div className="space-y-2">
-                  {[
-                    { label: "Instagram bio",   source: "instagram_bio",   emoji: "📸" },
-                    { label: "TikTok bio",      source: "tiktok",          emoji: "🎵" },
-                    { label: "LinkedIn",        source: "linkedin",        emoji: "💼" },
-                    { label: "Snapchat",        source: "snapchat",        emoji: "👻" },
-                    { label: "Email signature", source: "email_signature", emoji: "✉️" },
-                    { label: "QR code / print", source: "qr_code",        emoji: "⬛" },
-                  ].map(({ label, source, emoji }) => (
-                    <div key={source} className="flex items-center gap-2 bg-gray-800/50 border border-gray-700/50 rounded-xl px-3 py-2">
-                      <span className="text-sm shrink-0">{emoji}</span>
-                      <p className="text-gray-400 text-[11px] flex-1 truncate font-medium">{label}</p>
-                      <CopyButton text={`${cardUrl}?source=${source}`} />
-                    </div>
-                  ))}
-                </div>
+                {/* Download QR */}
+                <QRDownloadButton url={cardUrl} compact />
               </div>
 
               {/* Refer a friend */}
