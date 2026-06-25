@@ -49,7 +49,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
 };
 
 const FIELDS = [
@@ -61,8 +61,9 @@ const FIELDS = [
   { key: "website",   label: "Website",     placeholder: "www.company.com",      required: false },
   { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/john", required: false },
   { key: "instagram", label: "Instagram",   placeholder: "@john",                required: false },
-  { key: "twitter",   label: "Twitter / X", placeholder: "@john",                required: false },
   { key: "tiktok",    label: "TikTok",      placeholder: "@john",                required: false },
+  { key: "facebook",  label: "Facebook",    placeholder: "facebook.com/john",    required: false },
+  { key: "twitter",   label: "X (Twitter)", placeholder: "@john",                required: false },
   { key: "snapchat",  label: "Snapchat",    placeholder: "@john",                required: false },
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
@@ -84,6 +85,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     instagram: card.instagram || "",
     twitter:   card.twitter || "",
     tiktok:    card.tiktok || "",
+    facebook:  card.customization?.facebook || "",
     snapchat:  card.customization?.snapchat || "",
     youtube:   card.customization?.youtube || "",
   });
@@ -138,7 +140,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   async function handleSave() {
     setStatus("saving");
-    const { snapchat: _snap, youtube: _yt, ...coreForm } = form;
+    const { snapchat: _snap, youtube: _yt, facebook: _fb, ...coreForm } = form;
     const res = await fetch(saveUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -146,7 +148,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         ...coreForm,
         ...(isPrimary ? {} : { label }),
         template,
-        customization: { bio, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
+        customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
         logo_url: cardLogoUrl,
       }),
     });

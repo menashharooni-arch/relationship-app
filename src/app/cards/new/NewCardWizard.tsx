@@ -29,13 +29,14 @@ function slugify(str: string): string {
 function normalizeSocial(raw: string, key: SocialKey): string {
   const v = raw.trim();
   if (!v) return "";
-  const urlLike = key === "linkedin" || key === "youtube";
+  const urlLike = key === "linkedin" || key === "youtube" || key === "facebook";
   try {
     if (v.includes("://") || v.includes(".")) {
       const url = new URL(v.includes("://") ? v : `https://${v}`);
       const parts = url.pathname.split("/").filter(Boolean);
       if (key === "linkedin") return parts.length ? `linkedin.com/${parts.join("/")}` : v;
       if (key === "youtube") return parts.length ? `youtube.com/${parts.join("/")}` : v;
+      if (key === "facebook") return parts.length ? `facebook.com/${parts.join("/")}` : v;
       const handle = parts[parts.length - 1]?.replace(/^@/, "");
       if (handle) return `@${handle}`;
     }
@@ -46,20 +47,21 @@ function normalizeSocial(raw: string, key: SocialKey): string {
   return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
 }
 
-type SocialKey = "linkedin" | "youtube" | "instagram" | "tiktok" | "snapchat" | "twitter";
+type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
 const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
   { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/you" },
-  { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
   { key: "instagram", label: "Instagram",   placeholder: "@username or profile URL" },
   { key: "tiktok",    label: "TikTok",      placeholder: "@username" },
-  { key: "snapchat",  label: "Snapchat",    placeholder: "@username" },
+  { key: "facebook",  label: "Facebook",    placeholder: "facebook.com/you" },
   { key: "twitter",   label: "X (Twitter)", placeholder: "@username" },
+  { key: "snapchat",  label: "Snapchat",    placeholder: "@username" },
+  { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
 ];
 
 type Socials = Record<SocialKey, string>;
 const EMPTY_SOCIALS: Socials = {
-  linkedin: "", youtube: "", instagram: "", tiktok: "", snapchat: "", twitter: "",
+  linkedin: "", instagram: "", tiktok: "", facebook: "", twitter: "", snapchat: "", youtube: "",
 };
 
 const LINK_EMOJIS = ["🔗", "🌐", "📅", "⭐", "🎥", "🏠", "💼", "📋", "📸", "🎵", "💸", "📄"];
@@ -191,6 +193,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
         logo_url: logoUrl,
         customization: {
           bio: bio.trim(),
+          facebook: socials.facebook.trim(),
           snapchat: socials.snapchat.trim(),
           youtube: socials.youtube.trim(),
           links,
