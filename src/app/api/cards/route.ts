@@ -22,8 +22,9 @@ export async function POST(req: NextRequest) {
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
 
-  if (!isPro && (count ?? 0) >= 2) {
-    return NextResponse.json({ error: "limit", message: "Free plan includes up to 3 cards total. Upgrade to Pro for unlimited cards." }, { status: 402 });
+  const FREE_EXTRA_CARD_LIMIT = 25;
+  if (!isPro && (count ?? 0) >= FREE_EXTRA_CARD_LIMIT) {
+    return NextResponse.json({ error: "limit", message: `Free plan includes up to ${FREE_EXTRA_CARD_LIMIT + 1} cards total. Upgrade to Pro for unlimited cards.` }, { status: 402 });
   }
 
   const body = await req.json();
