@@ -94,7 +94,10 @@ export default function NewCardPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
 
-  const username = slugify(nickname);
+  // Card URL auto-fills from full name + company (e.g. "john-smith-acme-corp"),
+  // or just the full name when there's no company.
+  const username = slugify(company.trim() ? `${name} ${company}` : name);
+  const cardLabel = nickname.trim() || name.trim();
 
   function setSocial(key: SocialKey, value: string) {
     setSocials((prev) => ({ ...prev, [key]: value }));
@@ -116,12 +119,12 @@ export default function NewCardPage() {
   }
 
   function goNextFrom1() {
-    if (!nickname.trim() || !name.trim()) {
-      setError("Card nickname and full name are required.");
+    if (!name.trim()) {
+      setError("Full name is required.");
       return;
     }
     if (!username) {
-      setError("Please use letters or numbers in the nickname so we can build a URL.");
+      setError("Please enter a name we can turn into a URL.");
       return;
     }
     setError("");
@@ -149,9 +152,9 @@ export default function NewCardPage() {
   const SelectedTemplate = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
 
   async function handleCreate() {
-    if (!nickname.trim() || !name.trim() || !username) {
+    if (!name.trim() || !username) {
       setStep(1);
-      setError("Card nickname and full name are required.");
+      setError("Full name is required.");
       return;
     }
     setStatus("loading");
@@ -162,7 +165,7 @@ export default function NewCardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username,
-        label: nickname.trim(),
+        label: cardLabel,
         name: name.trim(),
         company: company.trim(),
         title: title.trim(),
@@ -230,9 +233,9 @@ export default function NewCardPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
               <input type="text" placeholder="e.g. Sales Card" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputCls} />
-              <p className="text-gray-600 text-xs mt-1">Card URL: /card/{username || "your-card"}</p>
+              <p className="text-gray-600 text-xs mt-1">A label shown on your dashboard so you can tell your cards apart.</p>
             </div>
 
             <div>
@@ -242,6 +245,7 @@ export default function NewCardPage() {
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
               <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
+              <p className="text-gray-600 text-xs mt-1">Card URL: /card/{username || "your-name"}</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Job title</label>
