@@ -368,25 +368,6 @@ export default function ContactsClient({
             <option value="recent">Recently Added</option>
             <option value="activity">Recent Activity</option>
           </select>
-          {userCards.length > 1 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-              <button
-                onClick={() => setCardFilter("all")}
-                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 ${cardFilter === "all" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
-              >
-                All cards
-              </button>
-              {userCards.map((c) => (
-                <button
-                  key={c.username}
-                  onClick={() => setCardFilter(c.username)}
-                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 ${cardFilter === c.username ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
-                >
-                  /{c.username}
-                </button>
-              ))}
-            </div>
-          )}
           <p className="text-gray-600 text-xs pl-1">{filtered.length} contact{filtered.length !== 1 ? "s" : ""}</p>
         </div>
 

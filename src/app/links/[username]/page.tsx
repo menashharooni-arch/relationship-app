@@ -16,13 +16,16 @@ async function resolve(username: string) {
   const admin = getAdminSupabase();
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
   const { data: cardOwner } = cardRow
-    ? await admin.from("profiles").select("photo_url").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
   const { data: profileRow } = !cardRow
     ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
     : { data: null };
   const legacyOk = !!profileRow && !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) && !!profileRow.name;
-  const profile = cardRow ?? (legacyOk ? profileRow : null);
+  const ownerDeleted = cardRow
+    ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
+    : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
+  const profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
   const photoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyOk ? (profileRow?.photo_url ?? null) : null);
   return { profile, photoUrl };
 }

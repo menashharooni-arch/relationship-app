@@ -101,7 +101,7 @@ export default async function CardPage({
   const admin = getAdminSupabase();
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
   const { data: cardOwner } = cardRow
-    ? await admin.from("profiles").select("plan, photo_url").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("plan, photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
 
   const { data: profileRow } = !cardRow
@@ -115,11 +115,16 @@ export default async function CardPage({
     !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) &&
     !!profileRow.name;
 
+  // Hide cards whose owner account has been deleted.
+  const ownerDeleted = cardRow
+    ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
+    : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
+
   const profile = cardRow
     ? { ...cardRow, plan: cardOwner?.plan ?? "free" }
     : (legacyCardOk ? profileRow : null);
 
-  if (!profile) notFound();
+  if (!profile || ownerDeleted) notFound();
 
   // One profile picture is shared across all of an account's cards.
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);

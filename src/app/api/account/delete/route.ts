@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
-    .select("username, plan, stripe_subscription_id, customization")
+    .select("plan, stripe_subscription_id, customization")
     .eq("id", user.id)
     .single();
   if (!profile) return NextResponse.json({ error: "No account" }, { status: 404 });
@@ -29,34 +29,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Every card username owned by this account (cards table + legacy profile card).
-  const { data: cards } = await admin.from("cards").select("username").eq("user_id", user.id);
-  const usernames = Array.from(
-    new Set(
-      [...(cards ?? []).map((c) => c.username as string), profile.username as string].filter(Boolean)
-    )
-  );
-
-  // Remove the account's data (best-effort — ignore tables that may not exist).
-  await admin.from("cards").delete().eq("user_id", user.id);
-  if (usernames.length) {
-    await admin.from("leads").delete().in("card_owner", usernames);
-    await admin.from("card_views").delete().in("username", usernames);
-    await admin.from("analytics_events").delete().in("username", usernames);
-    await admin.from("card_events").delete().in("card_owner_username", usernames);
-  }
-  await admin.from("notifications").delete().eq("user_id", user.id);
-
-  // Soft-delete the account: keep the profile row + auth user so this email can NEVER
-  // be used to sign up again (whether the account is live or deleted). Record the
-  // exit-survey answer so we can learn why people leave.
+  // Soft-delete: the account and its cards/contacts are hidden immediately, but kept
+  // for a 1-month reopen window. The auth user + profile row stay so the email can
+  // never be reused. After the grace period it's permanently gone (reopen denied).
+  const customization = (profile.customization as Record<string, unknown> | null) ?? {};
   await admin
     .from("profiles")
     .update({
       plan: "free",
-      name: "", title: "", company: "", phone: "", website: "",
-      linkedin: "", instagram: "", twitter: "", tiktok: "", logo_url: null,
       customization: {
+        ...customization,
         _deleted: true,
         _deletion: { reason, comment, plan: profile.plan, at: new Date().toISOString() },
       },
