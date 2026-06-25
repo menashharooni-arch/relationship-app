@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
+
+const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
 type Lead = {
   id: string;
@@ -105,7 +107,20 @@ export default function ContactsClient({
   userCards?: { username: string; name: string }[];
 }) {
   const [search, setSearch] = useState("");
-  const [cardFilter, setCardFilter] = useState<string>("all");
+  // Default to the card currently selected on the dashboard so only its contacts show.
+  const [cardFilter, setCardFilter] = useState<string>(primaryUsername ?? "all");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVE_CARD_KEY);
+      if (saved && userCards.some((c) => c.username === saved)) {
+        setCardFilter(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [events, setEvents] = useState<CardEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
