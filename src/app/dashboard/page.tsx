@@ -47,6 +47,7 @@ export default async function DashboardPage({
   const { data: profile } = await supabase
     .from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
   const chartDays = chartRange === "7d" ? 7 : 30;
   const chartCutoff = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000).toISOString();

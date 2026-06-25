@@ -36,9 +36,13 @@ export async function GET(request: NextRequest) {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, customization")
         .eq("id", user.id)
         .single();
+      if (profile && (profile.customization as { _deleted?: boolean } | null)?._deleted) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/account-deleted", origin));
+      }
       if (!profile) {
         return NextResponse.redirect(new URL("/onboarding", origin));
       }
