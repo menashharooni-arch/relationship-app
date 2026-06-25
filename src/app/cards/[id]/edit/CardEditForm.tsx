@@ -64,9 +64,11 @@ const FIELDS = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean };
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false }: Props) {
+  const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
+  const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
   const [form, setForm] = useState({
     name:      card.name || "",
@@ -132,7 +134,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   async function handleSave() {
     setStatus("saving");
     const { snapchat: _snap, youtube: _yt, ...coreForm } = form;
-    const res = await fetch(`/api/cards/${card.id}`, {
+    const res = await fetch(saveUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -185,7 +187,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               currentUrl={cardLogoUrl}
               label="Company logo"
               shape="square"
-              cardId={card.id}
+              cardId={logoCardId}
               onUploaded={(url) => setCardLogoUrl(url || null)}
             />
             <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>
