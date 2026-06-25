@@ -214,16 +214,19 @@ export default async function CardPage({
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
 
+  // Show a short, readable handle under each social button.
+  const handleLabel = (raw?: string | null) => (raw || "").trim().replace(/^https?:\/\//i, "");
+
   // Build serializable social link data (no ReactNode icons — SocialLinkIntercept renders icons by label)
   const connectLinks = [
-    { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   color: "#0A66C2" },
-    { label: "Instagram",   href: socialUrl("instagram", profile.instagram), color: "#E1306C" },
-    { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     color: "#000000" },
-    { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           color: "#FFCA28", textColor: "#1a1a00" },
-    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       color: "#010101" },
-    { label: "YouTube",     href: socialUrl("youtube", youtube),             color: "#FF0000" },
-    { label: "Website",     href: socialUrl("website", profile.website),     color: "#1D4ED8" },
-  ].filter((l) => l.href) as { label: string; href: string; color: string; textColor?: string }[];
+    { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   sub: handleLabel(profile.linkedin),  color: "#0A66C2" },
+    { label: "Instagram",   href: socialUrl("instagram", profile.instagram), sub: handleLabel(profile.instagram), color: "#E1306C" },
+    { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     sub: handleLabel(profile.twitter),   color: "#000000" },
+    { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           sub: handleLabel(snapchat),          color: "#FFCA28", textColor: "#1a1a00" },
+    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       sub: handleLabel(profile.tiktok),    color: "#010101" },
+    { label: "YouTube",     href: socialUrl("youtube", youtube),             sub: handleLabel(youtube),           color: "#FF0000" },
+    { label: "Website",     href: socialUrl("website", profile.website),     sub: handleLabel(profile.website),   color: "#1D4ED8" },
+  ].filter((l) => l.href) as { label: string; href: string; sub?: string; color: string; textColor?: string }[];
 
   // Total connect items = social links + action links
   const hasConnectSection = connectLinks.length > 0 || actionLinks.length > 0;

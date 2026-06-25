@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export type SocialLinkData = {
   label: string;
   href: string;
+  sub?: string;
   color: string;
   textColor?: string;
 };
@@ -158,7 +159,10 @@ export default function SocialLinkIntercept({
             }}
           >
             <PlatformIcon label={s.label} />
-            {s.label}
+            <span className="flex flex-col leading-tight min-w-0 flex-1">
+              <span>{s.label}</span>
+              {s.sub && <span className="text-[11px] font-normal opacity-70 truncate">{s.sub}</span>}
+            </span>
             {arrowIcon}
           </a>
         ))}
