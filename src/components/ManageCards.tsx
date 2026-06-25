@@ -109,7 +109,7 @@ export default function ManageCards({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Primary</span>
-          <Link href="/profile" className="text-xs text-gray-500 hover:text-white transition-colors">
+          <Link href="/profile/card" className="text-xs text-gray-500 hover:text-white transition-colors">
             Edit
           </Link>
         </div>
