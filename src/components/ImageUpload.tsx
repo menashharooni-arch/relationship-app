@@ -12,6 +12,7 @@ type Props = {
   shape?: "circle" | "square";
   cardId?: string;
   defer?: boolean;
+  large?: boolean;
   onUploaded: (url: string) => void;
 };
 
@@ -50,7 +51,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   });
 }
 
-export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, defer, onUploaded }: Props) {
+export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, defer, large, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -113,7 +114,26 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
     setUploadStatus("idle");
   }
 
+  async function handleRemove() {
+    // Persisted images (account photo/logo, or a saved card logo) are cleared server-side.
+    if (!defer) {
+      try {
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field, card_id: cardId }),
+        });
+      } catch {
+        /* ignore — still clear locally */
+      }
+    }
+    setPreview(null);
+    setUploadStatus("idle");
+    onUploaded("");
+  }
+
   const isCircle = shape === "circle";
+  const boxSize = large ? "w-24 h-24" : "w-20 h-20";
 
   return (
     <>
@@ -200,7 +220,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-20 h-20 overflow-hidden border-2 border-dashed flex items-center justify-center shrink-0 transition-all hover:border-blue-500"
+            className={`${boxSize} overflow-hidden border-2 border-dashed flex items-center justify-center shrink-0 transition-all hover:border-blue-500`}
             style={{
               borderRadius: isCircle ? "9999px" : "12px",
               borderColor: "#374151",
@@ -224,14 +244,25 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
           </button>
 
           <div>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploadStatus === "uploading"}
-              className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 block mb-1"
-            >
-              {uploadStatus === "uploading" ? "Uploading…" : preview ? "Change photo" : "Upload photo"}
-            </button>
+            <div className="flex items-center gap-3 mb-1">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploadStatus === "uploading"}
+                className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+              >
+                {uploadStatus === "uploading" ? "Uploading…" : preview ? "Change" : "Upload"}
+              </button>
+              {preview && uploadStatus !== "uploading" && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
             <p className="text-[11px] text-gray-600">JPG, PNG · max 5 MB</p>
             <p className="text-[11px] text-gray-500 mt-0.5">Tap to select · then drag &amp; zoom to fit</p>
             {uploadStatus === "error" && (

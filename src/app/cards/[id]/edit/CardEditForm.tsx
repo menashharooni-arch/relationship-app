@@ -84,6 +84,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [tab, setTab] = useState<"info" | "design">("info");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -104,7 +105,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
     twitter:   form.twitter,
     tiktok:    form.tiktok,
     initials:  (form.name || card.username)[0]?.toUpperCase() ?? "?",
-    photoUrl:  photoUrl ?? null,
+    photoUrl:  photoState ?? null,
     logoUrl:   cardLogoUrl ?? null,
     cardUrl:   `swiftcard.me/card/${card.username}`,
     customization: {},
@@ -181,9 +182,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
               label="Company logo"
               shape="square"
               cardId={card.id}
-              onUploaded={(url) => setCardLogoUrl(url)}
+              large
+              onUploaded={(url) => setCardLogoUrl(url || null)}
             />
             <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
+            <ImageUpload
+              field="photo"
+              currentUrl={photoState}
+              label="Your headshot"
+              shape="circle"
+              onUploaded={(url) => setPhotoState(url || null)}
+            />
+            <p className="text-[11px] text-gray-600 mt-1">Shared across all your cards.</p>
           </div>
           {FIELDS.map((f) => (
             <div key={f.key}>

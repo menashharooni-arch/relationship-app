@@ -97,6 +97,11 @@ export default function SocialLinkIntercept({
     setPendingHref(null);
   }
 
+  // Just dismiss the popup without visiting the link.
+  function close() {
+    setPendingHref(null);
+  }
+
   async function shareAndVisit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.phone.trim()) return;
@@ -163,7 +168,7 @@ export default function SocialLinkIntercept({
         <div
           className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => e.target === e.currentTarget && skip()}
+          onClick={(e) => e.target === e.currentTarget && close()}
         >
           <div
             className="w-full max-w-sm rounded-t-3xl p-6 animate-slide-up"
@@ -190,7 +195,7 @@ export default function SocialLinkIntercept({
                     </p>
                   </div>
                   <button
-                    onClick={skip}
+                    onClick={close}
                     className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
                     aria-label="Close"
                   >
