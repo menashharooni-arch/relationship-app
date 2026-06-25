@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
+import ManageBillingButton from "@/components/ManageBillingButton";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -83,6 +84,56 @@ export default async function FlowSettingsPage() {
         </div>
 
         <div className="space-y-8">
+          {/* General settings */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+              {/* Account info */}
+              <div>
+                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Account</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-500 text-xs shrink-0">Name</span>
+                    <span className="text-white text-xs font-medium truncate">{profile.name || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-500 text-xs shrink-0">Email</span>
+                    <span className="text-white text-xs font-medium truncate">{user.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-500 text-xs shrink-0">Card URL</span>
+                    <span className="text-blue-400 text-xs font-medium truncate">swiftcard.me/card/{profile.username}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-800" />
+
+              {/* Subscription & payment */}
+              <div>
+                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Subscription</p>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <span className="text-gray-500 text-xs">Current plan</span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${profile.plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+                    {profile.plan === "enterprise" ? "Office" : isPro ? "Pro" : "Free"}
+                  </span>
+                </div>
+                {isPro ? (
+                  <ManageBillingButton />
+                ) : (
+                  <Link href="/pricing" className="block text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">
+                    Upgrade to Pro →
+                  </Link>
+                )}
+                <p className="text-gray-600 text-[11px] mt-2 leading-relaxed">
+                  {isPro
+                    ? "Update your payment method, view invoices, or cancel anytime in the billing portal."
+                    : "Pro unlocks unlimited cards, analytics, custom card design, and removes SwiftCard branding."}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Your cards */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
@@ -107,18 +158,6 @@ export default async function FlowSettingsPage() {
             </div>
           </div>
 
-          {/* Link to profile */}
-          <div className="pt-4 border-t border-gray-800">
-            <Link href="/profile" className="flex items-center justify-between group bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div>
-                <p className="text-white text-sm font-medium">Profile & follow-up settings</p>
-                <p className="text-gray-500 text-xs mt-0.5">Edit your card info, follow-up automation, and email preferences</p>
-              </div>
-              <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
         </div>
       </div>
     </main>
