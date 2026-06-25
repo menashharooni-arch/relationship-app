@@ -144,12 +144,21 @@ export default async function CardPage({
     ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
     : { data: null };
 
-  const profile = cardRow ? { ...cardRow, plan: cardOwner?.plan ?? "free" } : profileRow;
+  // Only treat a profile as a card if it's a legacy, not-yet-migrated card (so a
+  // deleted/migrated card doesn't keep resolving from the account profile).
+  const legacyCardOk =
+    !!profileRow &&
+    !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) &&
+    !!profileRow.name;
+
+  const profile = cardRow
+    ? { ...cardRow, plan: cardOwner?.plan ?? "free" }
+    : (legacyCardOk ? profileRow : null);
 
   if (!profile) notFound();
 
   // One profile picture is shared across all of an account's cards.
-  const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (profileRow?.photo_url ?? null);
+  const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 

@@ -13,8 +13,9 @@ const CARD_FIELDS = [
  *
  * Older accounts stored their first card directly in the profiles row (the
  * "primary card"). This copies that card into the cards table so every card lives
- * in one place. It is purely additive — it never deletes profile data, and it runs
- * at most once per account (skips if a card with the same username already exists).
+ * in one place, then marks the profile as migrated so it never runs again — which
+ * also means a card the user later deletes is NOT re-created. Purely additive: it
+ * never deletes profile data.
  */
 export async function ensureUserCards(userId: string): Promise<void> {
   const admin = getAdminSupabase();
@@ -23,10 +24,15 @@ export async function ensureUserCards(userId: string): Promise<void> {
   if (!profile) return;
 
   const p = profile as Record<string, unknown>;
+  const customization = (p.customization as Record<string, unknown> | null) ?? {};
+
+  // Already handled — never re-create a card the user has since deleted.
+  if (customization._migrated) return;
+
   const username = (p.username as string) || "";
   const name = (p.name as string) || "";
 
-  // Only legacy profiles that were actually set up as a card (have a username + name).
+  // Account-only profile (new signup) — nothing to migrate.
   if (!username || !name) return;
 
   const { data: existing } = await admin
@@ -35,11 +41,16 @@ export async function ensureUserCards(userId: string): Promise<void> {
     .eq("user_id", userId)
     .eq("username", username)
     .maybeSingle();
-  if (existing) return; // already migrated
 
-  const row: Record<string, unknown> = { user_id: userId, label: name };
-  for (const f of CARD_FIELDS) row[f] = p[f] ?? null;
+  if (!existing) {
+    const row: Record<string, unknown> = { user_id: userId, label: name };
+    for (const f of CARD_FIELDS) row[f] = p[f] ?? null;
+    await admin.from("cards").insert(row);
+  }
 
-  // Best-effort: a unique-username clash just means it's effectively already there.
-  await admin.from("cards").insert(row);
+  // Mark migrated so this runs at most once per account.
+  await admin
+    .from("profiles")
+    .update({ customization: { ...customization, _migrated: true } })
+    .eq("id", userId);
 }
