@@ -11,6 +11,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
 import Link from "next/link";
 
@@ -161,7 +162,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     <div className="space-y-6">
       {/* Live preview */}
       <div className="rounded-2xl overflow-hidden border border-gray-800">
-        <ActiveTemplate data={previewData} />
+        <ActiveTemplate data={template === "custom" ? previewData : withoutSocials(previewData)} />
       </div>
 
       {/* Tab bar */}
@@ -384,7 +385,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   boxShadow: template === id ? "0 0 0 5px rgba(59,130,246,0.12)" : undefined,
                 }}
               >
-                <Component data={previewData} />
+                <Component data={withoutSocials(previewData)} />
               </div>
             </button>
           ))}

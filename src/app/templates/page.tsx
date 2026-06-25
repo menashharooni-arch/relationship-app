@@ -8,7 +8,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 const TEMPLATES = [
   {
@@ -136,7 +136,7 @@ export default function TemplatesPage() {
                     boxShadow: isSelected ? "0 0 0 5px rgba(59,130,246,0.15)" : undefined,
                   }}
                 >
-                  <Component data={SAMPLE_DATA} />
+                  <Component data={withoutSocials(SAMPLE_DATA)} />
                 </div>
               </button>
 

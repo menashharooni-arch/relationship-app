@@ -12,6 +12,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
 
 function slugify(str: string): string {
@@ -402,7 +403,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               ) : (
                 <div className="rounded-2xl overflow-hidden border border-gray-800 mb-3">
-                  <PreviewTemplate data={previewData} />
+                  <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
                 </div>
               )}
 
