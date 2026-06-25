@@ -96,16 +96,12 @@ export default async function FlowSettingsPage() {
                 <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Account</p>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-gray-500 text-xs shrink-0">Name</span>
-                    <span className="text-white text-xs font-medium truncate">{profile.name || "—"}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
                     <span className="text-gray-500 text-xs shrink-0">Email</span>
                     <span className="text-white text-xs font-medium truncate">{user.email}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-gray-500 text-xs shrink-0">Card URL</span>
-                    <span className="text-blue-400 text-xs font-medium truncate">swiftcard.me/card/{profile.username}</span>
+                    <span className="text-gray-500 text-xs shrink-0">Cards</span>
+                    <span className="text-white text-xs font-medium truncate">{(cards?.length ?? 0)} card{(cards?.length ?? 0) === 1 ? "" : "s"}</span>
                   </div>
                 </div>
               </div>
