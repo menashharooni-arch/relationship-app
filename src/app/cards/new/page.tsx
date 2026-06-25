@@ -372,7 +372,7 @@ export default function NewCardPage() {
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer large onUploaded={(url) => setLogoUrl(url || null)} />
+              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer onUploaded={(url) => setLogoUrl(url || null)} />
             </div>
 
             <div>
