@@ -182,7 +182,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
               label="Company logo"
               shape="square"
               cardId={card.id}
-              large
               onUploaded={(url) => setCardLogoUrl(url || null)}
             />
             <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>
