@@ -1,28 +1,39 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import OnboardingForm from "@/components/OnboardingForm";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
+function accountHandle(email: string | undefined, userId: string): string {
+  const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
+  return `${base}-${userId.slice(0, 6)}`;
+}
+
+// Account provisioning: create an account-only profile (no card). Cards are created
+// from the dashboard, where a "Create your card" empty state guides new users.
 export default async function OnboardingPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single();
-  if (profile) redirect("/dashboard");
+  const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
 
-  return (
-    <main className="min-h-screen bg-cream flex items-center justify-center px-5 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-5">
-            <SwiftCardLogo size={28} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Set up your card</h1>
-          <p className="text-gray-500 text-sm mt-2">60 seconds. Live instantly.</p>
-        </div>
-        <OnboardingForm userId={user.id} />
-      </div>
-    </main>
-  );
+  if (!profile) {
+    const admin = getAdminSupabase();
+    await admin.from("profiles").insert({
+      id: user.id,
+      username: accountHandle(user.email ?? undefined, user.id),
+      name: "",
+      title: "",
+      company: "",
+      email: user.email ?? "",
+      phone: "",
+      website: "",
+      linkedin: "",
+      instagram: "",
+      twitter: "",
+      tiktok: "",
+      template: "classic-pro",
+    });
+  }
+
+  redirect("/dashboard");
 }

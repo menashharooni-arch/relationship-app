@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { ensureUserCards } from "@/lib/ensure-cards";
 import { getSourceLabel } from "@/lib/source-labels";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
@@ -54,22 +55,63 @@ export default async function DashboardPage({
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Every extra card the user has created (the profile itself is the "primary" card).
-  // Use the admin client (like Settings) so this isn't affected by row-level security.
-  const { data: extraCards } = await getAdminSupabase()
+  // Migrate any legacy "primary card" (stored on the profile) into the cards table,
+  // then treat the cards table as the single source of truth — no primary card.
+  await ensureUserCards(user.id);
+
+  const { data: cards } = await getAdminSupabase()
     .from("cards")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
-  // Resolve the active dashboard card: the selected extra card, else the primary (profile) by default.
-  const activeExtraCard =
-    selectedCard && selectedCard !== profile.username
-      ? (extraCards ?? []).find((c) => c.username === selectedCard) ?? null
-      : null;
-  const activeSource = activeExtraCard ?? profile;
-  const activeUsername = activeSource.username as string;
+  const allCards = cards ?? [];
+  const hasCards = allCards.length > 0;
+
+  // Active card: the selected one, else the first card.
+  const activeCard = allCards.find((c) => c.username === selectedCard) ?? allCards[0] ?? null;
+  const activeSource = activeCard ?? profile;
+  const activeUsername = (activeCard?.username ?? "") as string;
   const analyticsUsername = activeUsername;
+
+  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isEnterprise = profile.plan === "enterprise";
+
+  // No cards yet → show the "create your card" empty state.
+  if (!hasCards) {
+    return (
+      <>
+        <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
+        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+          <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="font-bold text-white text-sm tracking-tight">SwiftCard</span>
+            </div>
+            <SignOutButton />
+          </div>
+        </nav>
+        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mb-6">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.5} className="w-8 h-8">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path strokeLinecap="round" d="M3 9.5h18" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Let&apos;s create your first card</h1>
+          <p className="text-gray-400 text-sm mb-8 max-w-sm">Your digital business card — add your info, socials, and design in about a minute.</p>
+          <Link href="/cards/new" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
+            Create your card →
+          </Link>
+        </main>
+      </>
+    );
+  }
 
   const [
     { data: leads },
@@ -167,8 +209,6 @@ export default async function DashboardPage({
   };
   const flowPresets: FlowPresets = (rawFlowSettings.presets as FlowPresets) ?? defaultPresets;
 
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
-  const isEnterprise = profile.plan === "enterprise";
   const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
   const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
 
@@ -272,7 +312,7 @@ export default async function DashboardPage({
                 <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
               <div className="flex items-center gap-3">
-                {(isPro || (extraCards?.length ?? 0) < 2) && (
+                {(isPro || allCards.length < 3) && (
                   <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
                   </Link>
@@ -280,34 +320,7 @@ export default async function DashboardPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {/* Primary card */}
-              {(() => {
-                const isActive = activeUsername === profile.username;
-                return (
-                  <Link
-                    href={`?card=${profile.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
-                    role="radio"
-                    aria-checked={isActive}
-                    className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}
-                  >
-                    <span className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isActive ? "bg-blue-600 border-blue-600" : "border-gray-600"}`}>
-                      {isActive && (
-                        <svg viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
-                      )}
-                    </span>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-blue-600/20 border border-blue-600/30 text-blue-400"}`}>
-                      {initials(profile.name || "SC")}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-medium truncate">{profile.name}</p>
-                      <p className="text-gray-500 text-xs truncate">/{profile.username} {profile.title ? `· ${profile.title}` : ""}</p>
-                    </div>
-                    <span className="text-[10px] bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full font-bold shrink-0">Primary</span>
-                  </Link>
-                );
-              })()}
-              {/* Extra cards */}
-              {(extraCards ?? []).map((card) => {
+              {allCards.map((card) => {
                 const isActive = activeUsername === card.username;
                 return (
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
@@ -336,7 +349,7 @@ export default async function DashboardPage({
                   </div>
                 );
               })}
-              {!isPro && (extraCards?.length ?? 0) >= 2 && (
+              {!isPro && allCards.length >= 3 && (
                 <Link
                   href="/pricing"
                   className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-[200px] transition-colors"

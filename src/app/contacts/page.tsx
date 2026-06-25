@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
+import { ensureUserCards } from "@/lib/ensure-cards";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -23,14 +24,17 @@ export default async function ContactsPage({
     .single();
   if (!profile) redirect("/onboarding");
 
+  await ensureUserCards(user.id);
+
   const admin = getAdminSupabase();
-  const { data: extraCards } = await admin
+  const { data: cards } = await admin
     .from("cards")
-    .select("id, username, name")
+    .select("id, username, name, label")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
-  const allUsernames = [profile.username, ...(extraCards ?? []).map((c) => c.username)];
+  const cardList = cards ?? [];
+  const allUsernames = cardList.map((c) => c.username);
 
   const { data: leads } = await admin
     .from("leads")
@@ -104,12 +108,9 @@ export default async function ContactsPage({
       <div className="flex-1 pt-0 max-w-6xl mx-auto w-full">
         <ContactsClient
           leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]}
-          primaryUsername={profile.username}
+          primaryUsername={cardList[0]?.username}
           initialCardFilter={selectedCardParam ?? null}
-          userCards={[
-            { username: profile.username, name: profile.username },
-            ...(extraCards ?? []).map((c) => ({ username: c.username, name: c.name || c.username })),
-          ]}
+          userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}
         />
       </div>
     </div>

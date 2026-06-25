@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
@@ -132,32 +131,25 @@ export default async function CardPage({
   const { username } = await params;
   const { source: rawSource } = await searchParams;
   const source = rawSource ?? "direct_link";
-  const supabase = await createClient();
 
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("username", username)
-    .single();
-
-  // Resolve extra cards with the admin client so row-level security doesn't hide
-  // newly added cards. Fetch the owner profile separately rather than via a
-  // PostgREST embedded join (which needs a direct cards->profiles FK that may not exist).
+  // Cards table is the source of truth. Fall back to a legacy profile-card for any
+  // account not yet migrated. Admin client so row-level security doesn't hide cards.
   const admin = getAdminSupabase();
-  const { data: extraCard } = !profileData
-    ? await admin.from("cards").select("*").eq("username", username).single()
+  const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
+  const { data: cardOwner } = cardRow
+    ? await admin.from("profiles").select("plan, photo_url").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
 
-  const { data: ownerProfile } = extraCard
-    ? await admin.from("profiles").select("plan, photo_url").eq("id", extraCard.user_id).single()
+  const { data: profileRow } = !cardRow
+    ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
     : { data: null };
 
-  const profile = profileData ?? (extraCard ? { ...extraCard, plan: ownerProfile?.plan ?? "free" } : null);
+  const profile = cardRow ? { ...cardRow, plan: cardOwner?.plan ?? "free" } : profileRow;
 
   if (!profile) notFound();
 
   // One profile picture is shared across all of an account's cards.
-  const accountPhotoUrl = profileData ? (profileData.photo_url ?? null) : (ownerProfile?.photo_url ?? null);
+  const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (profileRow?.photo_url ?? null);
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
