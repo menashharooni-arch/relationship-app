@@ -323,11 +323,11 @@ export default async function DashboardPage({
                         )}
                       </span>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
-                        {(card.name || card.username)[0]?.toUpperCase()}
+                        {(card.label || card.name || card.username)[0]?.toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-sm font-medium truncate">{card.name || card.username}</p>
-                        <p className="text-gray-500 text-xs truncate">/{card.username}{card.title ? ` · ${card.title}` : ""}</p>
+                        <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+                        <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
                       </div>
                     </Link>
                     <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
