@@ -9,6 +9,29 @@ export type CardTestimonial = {
   text: string;
 };
 
+export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials";
+export type CustomField = "name" | "title" | "company" | "phone" | "email" | "website";
+
+export type CustomElement = {
+  id: string;
+  type: CustomElementType;
+  field?: CustomField;   // for type "field"
+  text?: string;         // for type "text"
+  x: number;             // left, % of card width (0-100)
+  y: number;             // top, % of card height (0-100)
+  fontSize?: number;     // px (text/field/socials)
+  color?: string;        // overrides layout text color
+  bold?: boolean;        // text/field
+  size?: number;         // px (logo/headshot)
+};
+
+export type CustomLayout = {
+  background: string;
+  fontFamily: string;
+  textColor: string;
+  elements: CustomElement[];
+};
+
 export type CardCustomization = {
   accentColor?: string;
   font?: string;
@@ -16,6 +39,7 @@ export type CardCustomization = {
   about?: string;
   links?: CardLink[];
   testimonials?: CardTestimonial[];
+  customLayout?: CustomLayout;
 };
 
 export type CardData = {

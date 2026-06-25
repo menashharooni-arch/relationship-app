@@ -8,7 +8,10 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import type { CardData, CardLink } from "@/components/card-templates/types";
+import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
+import CustomCardDesigner from "@/components/CustomCardDesigner";
+import type { CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import Link from "next/link";
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -43,7 +46,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[] };
+  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[]; customLayout?: CustomLayout };
 };
 
 const FIELDS = [
@@ -61,9 +64,9 @@ const FIELDS = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean };
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false }: Props) {
   const router = useRouter();
   const [form, setForm] = useState({
     name:      card.name || "",
@@ -86,6 +89,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
+  const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT);
   const [tab, setTab] = useState<"info" | "design">("info");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -108,10 +112,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
     photoUrl:  photoState ?? null,
     logoUrl:   cardLogoUrl ?? null,
     cardUrl:   `swiftcard.me/card/${card.username}`,
-    customization: {},
+    customization: { customLayout },
   };
 
-  const ActiveTemplate = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
+  const ActiveTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
 
   function addLink() {
     if (!newLink.label.trim() || !newLink.url.trim()) return;
@@ -134,7 +138,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
       body: JSON.stringify({
         ...coreForm,
         template,
-        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links },
+        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, customLayout },
         logo_url: cardLogoUrl,
       }),
     });
@@ -334,6 +338,46 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
               </div>
             </button>
           ))}
+
+          {/* Custom design — Pro */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-300">
+                Custom design
+                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => { if (isPro) setTemplate("custom"); }}
+                disabled={!isPro}
+                className="text-xs font-semibold px-2.5 py-0.5 rounded-full disabled:opacity-50"
+                style={{ background: template === "custom" ? "#1D4ED8" : "#1f2937", color: template === "custom" ? "#fff" : "#6b7280" }}
+              >
+                {template === "custom" ? "Selected" : "Select"}
+              </button>
+            </div>
+
+            {!isPro ? (
+              <div className="rounded-2xl border border-dashed border-gray-700 p-5 text-center">
+                <p className="text-gray-300 text-sm font-medium mb-1">Design your own card</p>
+                <p className="text-gray-600 text-xs mb-3">Place your logo, headshot, text and socials anywhere. Choose fonts and colors.</p>
+                <Link href="/pricing" className="inline-block text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</Link>
+              </div>
+            ) : template === "custom" ? (
+              <div
+                className="rounded-2xl"
+                style={{ outline: "3px solid #3b82f6", outlineOffset: 3, boxShadow: "0 0 0 5px rgba(59,130,246,0.12)" }}
+              >
+                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
+              </div>
+            ) : (
+              <button type="button" onClick={() => setTemplate("custom")} className="w-full text-left">
+                <div className="rounded-2xl overflow-hidden border border-gray-800">
+                  <CustomCard data={previewData} />
+                </div>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -13,6 +13,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import CustomCard from "@/components/card-templates/CustomCard";
 import type { CardData } from "@/components/card-templates/types";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -21,6 +22,7 @@ const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "photo-first": PhotoFirst,
   "local-business": LocalBusiness,
   "luxury-minimal": LuxuryMinimal,
+  "custom": CustomCard,
 };
 
 function initials(name: string) {
