@@ -29,8 +29,6 @@ const TEMPLATES = [
   { id: "luxury-minimal",  name: "Luxury Minimal",       Component: LuxuryMinimal },
 ] as const;
 
-type CardTestimonial = { name: string; text: string };
-
 type Card = {
   id: string;
   username: string;
@@ -45,7 +43,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[]; testimonials?: CardTestimonial[] };
+  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[] };
 };
 
 const FIELDS = [
@@ -85,9 +83,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
-  const [testimonials, setTestimonials] = useState<CardTestimonial[]>(card.customization?.testimonials ?? []);
-  const [addingTestimonial, setAddingTestimonial] = useState(false);
-  const [newTestimonial, setNewTestimonial] = useState<CardTestimonial>({ name: "", text: "" });
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [tab, setTab] = useState<"info" | "design">("info");
@@ -138,7 +133,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
       body: JSON.stringify({
         ...coreForm,
         template,
-        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, testimonials },
+        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links },
         logo_url: cardLogoUrl,
       }),
     });
@@ -212,66 +207,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
               rows={3}
               className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
             />
-          </div>
-
-          {/* Testimonials */}
-          <div className="pt-1">
-            <p className="text-xs font-medium text-gray-400 mb-2">Testimonials</p>
-            {testimonials.length > 0 && (
-              <div className="space-y-2 mb-2">
-                {testimonials.map((t, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-yellow-400 text-xs">★★★★★</p>
-                      <p className="text-gray-300 text-xs mt-0.5 line-clamp-2">&ldquo;{t.text}&rdquo;</p>
-                      <p className="text-gray-500 text-[10px] mt-1">— {t.name}</p>
-                    </div>
-                    <button type="button" onClick={() => setTestimonials((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {addingTestimonial ? (
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Reviewer name"
-                  value={newTestimonial.name}
-                  onChange={(e) => setNewTestimonial((n) => ({ ...n, name: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                <textarea
-                  placeholder="What did they say about you?"
-                  value={newTestimonial.text}
-                  onChange={(e) => setNewTestimonial((n) => ({ ...n, text: e.target.value }))}
-                  rows={3}
-                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={!newTestimonial.name.trim() || !newTestimonial.text.trim()}
-                    onClick={() => {
-                      if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) return;
-                      setTestimonials((prev) => [...prev, { ...newTestimonial }]);
-                      setNewTestimonial({ name: "", text: "" });
-                      setAddingTestimonial(false);
-                    }}
-                    className="flex-1 bg-blue-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg"
-                  >
-                    Add testimonial
-                  </button>
-                  <button type="button" onClick={() => { setAddingTestimonial(false); setNewTestimonial({ name: "", text: "" }); }} className="px-3 text-xs text-gray-500 hover:text-gray-300">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setAddingTestimonial(true)}
-                className="w-full border border-dashed border-gray-700 text-gray-600 hover:border-blue-500 hover:text-blue-400 text-xs font-medium py-2.5 rounded-xl transition-colors">
-                + Add testimonial
-              </button>
-            )}
           </div>
 
           {/* Action links */}
