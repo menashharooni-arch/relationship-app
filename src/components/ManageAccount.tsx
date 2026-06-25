@@ -161,9 +161,9 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
 
             {step === "confirm" && (
               <>
-                <p className="text-white font-bold text-base mb-1">Delete account permanently?</p>
+                <p className="text-white font-bold text-base mb-1">Delete account?</p>
                 <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                  This deletes your cards and contacts and cancels any subscription. It can&apos;t be undone, and <span className="text-white font-semibold">your email can&apos;t be used to sign up again.</span>
+                  This deletes your account, your cards, and <span className="text-white font-semibold">all of your contacts</span>, and cancels any subscription. You&apos;ll have <span className="text-white font-semibold">one month to reopen your account</span> — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again.
                 </p>
                 <label className="block text-xs text-gray-500 mb-1.5">Type DELETE to confirm</label>
                 <input

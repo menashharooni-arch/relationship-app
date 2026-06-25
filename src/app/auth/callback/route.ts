@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         .eq("id", user.id)
         .single();
       if (profile && (profile.customization as { _deleted?: boolean } | null)?._deleted) {
-        await supabase.auth.signOut();
+        // Keep the session so they can reopen within the grace window.
         return NextResponse.redirect(new URL("/account-deleted", origin));
       }
       if (!profile) {
