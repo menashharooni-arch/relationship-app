@@ -43,6 +43,7 @@ function socialUrl(platform: string, raw?: string | null): string | null {
     instagram: "instagram.com",
     twitter: "x.com",
     tiktok: "tiktok.com",
+    facebook: "facebook.com",
     snapchat: "snapchat.com",
     youtube: "youtube.com",
   };
@@ -61,6 +62,7 @@ function socialUrl(platform: string, raw?: string | null): string | null {
     case "instagram": return `https://instagram.com/${handle}`;
     case "twitter":   return `https://x.com/${handle}`;
     case "tiktok":    return `https://tiktok.com/@${handle}`;
+    case "facebook":  return `https://facebook.com/${handle}`;
     case "snapchat":  return `https://snapchat.com/add/${handle}`;
     case "youtube":   return `https://youtube.com/@${handle}`;
     case "website":   return /\.[a-z]{2,}/i.test(handle) ? `https://${handle.replace(/^\/+/, "")}` : null;
@@ -165,6 +167,7 @@ export default async function CardPage({
 
   const customization = (profile.customization ?? {}) as {
     bio?: string;
+    facebook?: string;
     snapchat?: string;
     youtube?: string;
     address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string };
@@ -174,6 +177,7 @@ export default async function CardPage({
     testimonials?: { name: string; text: string }[];
   };
   const bio = customization.bio || "";
+  const facebook = customization.facebook || "";
   const snapchat = customization.snapchat || "";
   const youtube = customization.youtube || "";
   const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
@@ -231,6 +235,7 @@ export default async function CardPage({
     { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   sub: handleLabel(profile.linkedin),  color: "#0A66C2" },
     { label: "Instagram",   href: socialUrl("instagram", profile.instagram), sub: handleLabel(profile.instagram), color: "#E1306C" },
     { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       sub: handleLabel(profile.tiktok),    color: "#010101" },
+    { label: "Facebook",    href: socialUrl("facebook", facebook),           sub: handleLabel(facebook),          color: "#1877F2" },
     { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     sub: handleLabel(profile.twitter),   color: "#000000" },
     { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           sub: handleLabel(snapchat),          color: "#FFCA28", textColor: "#1a1a00" },
     { label: "YouTube",     href: socialUrl("youtube", youtube),             sub: handleLabel(youtube),           color: "#FF0000" },
