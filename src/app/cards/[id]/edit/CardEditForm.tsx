@@ -10,7 +10,8 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
-import type { CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
 import Link from "next/link";
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
@@ -46,7 +47,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[]; customLayout?: CustomLayout };
+  customization?: { snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
 };
 
 const FIELDS = [
@@ -84,7 +85,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     snapchat:  card.customization?.snapchat || "",
     youtube:   card.customization?.youtube || "",
   });
-  const [about, setAbout] = useState(card.customization?.about || "");
+  const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
@@ -140,7 +141,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       body: JSON.stringify({
         ...coreForm,
         template,
-        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, customLayout },
+        customization: { snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
         logo_url: cardLogoUrl,
       }),
     });
@@ -216,16 +217,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               />
             </div>
           ))}
-          <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">About (optional)</label>
-            <textarea
-              placeholder="A short bio, what you do, or your services. Shows on your public card."
-              value={about}
-              onChange={(e) => setAbout(e.target.value)}
-              rows={3}
-              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
-            />
-          </div>
+          <AddressInput value={address} onChange={setAddress} />
 
           {/* Action links */}
           <div className="pt-1">

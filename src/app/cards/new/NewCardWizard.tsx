@@ -11,7 +11,8 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
-import type { CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
 
 function slugify(str: string): string {
   return str
@@ -82,6 +83,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [title, setTitle] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState<Required<CardAddress>>(EMPTY_ADDRESS);
 
   // Step 2 — action links + socials
   const [links, setLinks] = useState<CardLink[]>([]);
@@ -185,6 +187,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           snapchat: socials.snapchat.trim(),
           youtube: socials.youtube.trim(),
           links,
+          address,
           ...(template === "custom" ? { customLayout } : {}),
         },
       }),
@@ -264,6 +267,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
               <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
+
+            <AddressInput value={address} onChange={setAddress} />
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 

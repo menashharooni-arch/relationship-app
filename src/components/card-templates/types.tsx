@@ -32,11 +32,20 @@ export type CustomLayout = {
   elements: CustomElement[];
 };
 
+export type CardAddress = {
+  street?: string;
+  unit?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+};
+
 export type CardCustomization = {
   accentColor?: string;
   font?: string;
   snapchat?: string;
   about?: string;
+  address?: CardAddress;
   links?: CardLink[];
   testimonials?: CardTestimonial[];
   customLayout?: CustomLayout;

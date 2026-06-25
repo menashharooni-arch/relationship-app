@@ -164,7 +164,7 @@ export default async function CardPage({
   const customization = (profile.customization ?? {}) as {
     snapchat?: string;
     youtube?: string;
-    about?: string;
+    address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string };
     accentColor?: string;
     font?: string;
     links?: { emoji: string; label: string; url: string }[];
@@ -172,9 +172,14 @@ export default async function CardPage({
   };
   const snapchat = customization.snapchat || "";
   const youtube = customization.youtube || "";
-  const about = customization.about || "";
   const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
   const testimonials = (customization.testimonials ?? []).filter((t) => t.name && t.text);
+
+  const addr = customization.address;
+  const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
+  const addressLine2 = [addr?.city, addr?.state, addr?.zip].filter(Boolean).join(", ");
+  const hasAddress = Boolean(addressLine1 || addressLine2);
+  const mapsQuery = encodeURIComponent([addressLine1, addressLine2].filter(Boolean).join(", "));
 
   const cardData: CardData = {
     name: profile.name || "",
@@ -188,7 +193,6 @@ export default async function CardPage({
     tiktok: profile.tiktok || "",
     linkedin: profile.linkedin || "",
     snapchat,
-    about,
     initials: profile.name ? initials(profile.name) : "SC",
     photoUrl: accountPhotoUrl,
     logoUrl: profile.logo_url || null,
@@ -240,12 +244,25 @@ export default async function CardPage({
         <TemplateComponent data={cardData} />
       </div>
 
-      {/* About section */}
-      {about && (
-        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">About</p>
-          <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{about}</p>
-        </div>
+      {/* Address section */}
+      {hasAddress && (
+        <a
+          href={`https://maps.google.com/?q=${mapsQuery}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full max-w-sm rounded-2xl p-5 shadow-sm flex items-center gap-3 transition-transform active:scale-[0.99]"
+          style={{ background: "#fff", border: "1px solid #E4DDD4" }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth={1.8} className="w-5 h-5 shrink-0">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+          </svg>
+          <div className="min-w-0">
+            <p className="text-slate-500 text-[11px] font-semibold uppercase tracking-wider mb-0.5">Address</p>
+            {addressLine1 && <p className="text-slate-800 text-sm leading-snug">{addressLine1}</p>}
+            {addressLine2 && <p className="text-slate-600 text-sm leading-snug">{addressLine2}</p>}
+          </div>
+        </a>
       )}
 
       {/* Testimonials */}
