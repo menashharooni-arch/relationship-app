@@ -5,6 +5,30 @@ import { NextResponse } from "next/server";
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
+export async function DELETE(req: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const field = body.field as string | undefined; // "photo" or "logo"
+  const cardId = body.card_id as string | undefined;
+
+  // Clear a per-card logo.
+  if (field === "logo" && cardId) {
+    const admin = getAdminSupabase();
+    const { error } = await admin.from("cards").update({ logo_url: null }).eq("id", cardId).eq("user_id", user.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Clear the account-level photo or logo.
+  const column = field === "photo" ? "photo_url" : "logo_url";
+  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -372,12 +372,12 @@ export default function NewCardPage() {
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer onUploaded={(url) => setLogoUrl(url)} />
+              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer large onUploaded={(url) => setLogoUrl(url || null)} />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" onUploaded={(url) => setHeadshotUrl(url)} />
+              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" onUploaded={(url) => setHeadshotUrl(url || null)} />
               <p className="text-[11px] text-gray-600 mt-1">Your headshot is shared across all your cards.</p>
             </div>
 
