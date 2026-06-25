@@ -308,38 +308,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       {/* Design tab */}
       {tab === "design" && (
         <div className="space-y-4">
-          {TEMPLATES.map(({ id, name, Component }) => (
-            <button
-              key={id}
-              onClick={() => setTemplate(id)}
-              className="w-full text-left outline-none"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-300">{name}</span>
-                <span
-                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                  style={{
-                    background: template === id ? "#1D4ED8" : "#1f2937",
-                    color: template === id ? "#fff" : "#6b7280",
-                  }}
-                >
-                  {template === id ? "Selected" : "Select"}
-                </span>
-              </div>
-              <div
-                className="rounded-2xl transition-all"
-                style={{
-                  outline: template === id ? "3px solid #3b82f6" : "2px solid transparent",
-                  outlineOffset: 3,
-                  boxShadow: template === id ? "0 0 0 5px rgba(59,130,246,0.12)" : undefined,
-                }}
-              >
-                <Component data={previewData} />
-              </div>
-            </button>
-          ))}
-
-          {/* Custom design — Pro */}
+          {/* Custom design — Pro (first option) */}
           <div>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium text-gray-300">
@@ -378,6 +347,37 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </button>
             )}
           </div>
+
+          {TEMPLATES.map(({ id, name, Component }) => (
+            <button
+              key={id}
+              onClick={() => setTemplate(id)}
+              className="w-full text-left outline-none"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-300">{name}</span>
+                <span
+                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                  style={{
+                    background: template === id ? "#1D4ED8" : "#1f2937",
+                    color: template === id ? "#fff" : "#6b7280",
+                  }}
+                >
+                  {template === id ? "Selected" : "Select"}
+                </span>
+              </div>
+              <div
+                className="rounded-2xl transition-all"
+                style={{
+                  outline: template === id ? "3px solid #3b82f6" : "2px solid transparent",
+                  outlineOffset: 3,
+                  boxShadow: template === id ? "0 0 0 5px rgba(59,130,246,0.12)" : undefined,
+                }}
+              >
+                <Component data={previewData} />
+              </div>
+            </button>
+          ))}
         </div>
       )}
 
