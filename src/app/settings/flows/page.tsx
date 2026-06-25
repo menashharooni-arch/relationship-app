@@ -5,6 +5,7 @@ import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import ManageBillingButton from "@/components/ManageBillingButton";
+import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -23,12 +24,14 @@ export default async function FlowSettingsPage() {
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
+  await ensureUserCards(user.id);
+
   const admin = getAdminSupabase();
   const [{ data: integrations }, { data: cards }] = await Promise.all([
     admin.from("integrations").select("provider").eq("user_id", user.id),
     admin
       .from("cards")
-      .select("id, username, name, title")
+      .select("id, username, name, title, label")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
   ]);
@@ -137,10 +140,7 @@ export default async function FlowSettingsPage() {
           {/* Your cards */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
-            <ManageCards
-              primary={{ name: profile.name ?? null, username: profile.username }}
-              cards={cards ?? []}
-            />
+            <ManageCards cards={cards ?? []} />
           </div>
 
           {/* Integrations */}

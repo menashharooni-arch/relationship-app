@@ -204,7 +204,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
       return;
     }
 
-    router.push(`/cards/${data.card.id}/edit`);
+    router.push("/dashboard");
   }
 
   return (
