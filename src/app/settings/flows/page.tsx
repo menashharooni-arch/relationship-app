@@ -5,6 +5,7 @@ import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import ManageBillingButton from "@/components/ManageBillingButton";
+import ManageAccount from "@/components/ManageAccount";
 import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
@@ -138,6 +139,12 @@ export default async function FlowSettingsPage() {
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Help</p>
             <HelpWidget />
+          </div>
+
+          {/* Manage account */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Account</p>
+            <ManageAccount isPro={isPro} />
           </div>
 
           {/* Your cards */}
