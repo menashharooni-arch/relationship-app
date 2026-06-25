@@ -745,6 +745,19 @@ export default function ContactsClient({
               )}
             </div>
 
+            {/* Conversation — automated follow-ups sent to this contact */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
+              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-3">Conversation</p>
+              <div className="flex items-start gap-3 text-gray-500">
+                <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p className="text-sm leading-relaxed">
+                  No messages yet. Automated texts and emails sent to {selected.name.split(" ")[0]} will appear here once you set up follow-up automation.
+                </p>
+              </div>
+            </div>
+
             {/* Activity timeline */}
             <div>
               <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">Activity</p>

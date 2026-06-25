@@ -164,6 +164,7 @@ export default async function CardPage({
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
   const customization = (profile.customization ?? {}) as {
+    bio?: string;
     snapchat?: string;
     youtube?: string;
     address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string };
@@ -172,6 +173,7 @@ export default async function CardPage({
     links?: { emoji: string; label: string; url: string }[];
     testimonials?: { name: string; text: string }[];
   };
+  const bio = customization.bio || "";
   const snapchat = customization.snapchat || "";
   const youtube = customization.youtube || "";
   const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
@@ -225,17 +227,17 @@ export default async function CardPage({
 
   // Build serializable social link data (no ReactNode icons — SocialLinkIntercept renders icons by label)
   const connectLinks = [
+    { label: "Website",     href: socialUrl("website", profile.website),     sub: handleLabel(profile.website),   color: "#1D4ED8" },
     { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   sub: handleLabel(profile.linkedin),  color: "#0A66C2" },
     { label: "Instagram",   href: socialUrl("instagram", profile.instagram), sub: handleLabel(profile.instagram), color: "#E1306C" },
+    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       sub: handleLabel(profile.tiktok),    color: "#010101" },
     { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     sub: handleLabel(profile.twitter),   color: "#000000" },
     { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           sub: handleLabel(snapchat),          color: "#FFCA28", textColor: "#1a1a00" },
-    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       sub: handleLabel(profile.tiktok),    color: "#010101" },
     { label: "YouTube",     href: socialUrl("youtube", youtube),             sub: handleLabel(youtube),           color: "#FF0000" },
-    { label: "Website",     href: socialUrl("website", profile.website),     sub: handleLabel(profile.website),   color: "#1D4ED8" },
   ].filter((l) => l.href) as { label: string; href: string; sub?: string; color: string; textColor?: string }[];
 
-  // Total connect items = social links + action links
-  const hasConnectSection = connectLinks.length > 0 || actionLinks.length > 0;
+  // Swift Links shows a bio, social links, and additional links
+  const hasConnectSection = !!bio || connectLinks.length > 0 || actionLinks.length > 0;
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
@@ -312,10 +314,13 @@ export default async function CardPage({
       {/* ── Section 3: Other Ways to Connect ── */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-3">
             <SectionNumber n={3} />
             <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
           </div>
+          {bio && (
+            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap mb-4 ml-9">{bio}</p>
+          )}
           {/* Social links with intercept modal */}
           {connectLinks.length > 0 && (
             <SocialLinkIntercept
