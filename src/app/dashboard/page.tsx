@@ -218,7 +218,7 @@ export default async function DashboardPage({
     : { data: null };
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
-  const swiftUrl = `${APP_URL}/swift/${activeUsername}`;
+  const swiftUrl = `${APP_URL}/links/${activeUsername}`;
 
   function initials(name: string) {
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
