@@ -337,10 +337,13 @@ export default async function DashboardPage({
                 );
               })}
               {!isPro && (extraCards?.length ?? 0) >= 2 && (
-                <div className="flex items-center justify-between border border-dashed border-gray-800 rounded-xl px-4 py-3 flex-1 min-w-[200px]">
-                  <p className="text-gray-600 text-xs">Upgrade for unlimited cards</p>
-                  <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
-                </div>
+                <Link
+                  href="/pricing"
+                  className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-[200px] transition-colors"
+                >
+                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">You&apos;ve used all 3 free cards — upgrade for unlimited</p>
+                  <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
+                </Link>
               )}
             </div>
           </div>
