@@ -49,7 +49,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
+  customization?: { bio?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
 };
 
 const FIELDS = [
@@ -88,6 +88,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     youtube:   card.customization?.youtube || "",
   });
   const [label, setLabel] = useState(card.label || "");
+  const [bio, setBio] = useState(card.customization?.bio || "");
   const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [addingLink, setAddingLink] = useState(false);
@@ -145,7 +146,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         ...coreForm,
         ...(isPrimary ? {} : { label }),
         template,
-        customization: { snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
+        customization: { bio, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
         logo_url: cardLogoUrl,
       }),
     });
@@ -236,9 +237,23 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           ))}
           <AddressInput value={address} onChange={setAddress} />
 
-          {/* Action links */}
+          {/* Swiftlinks bio */}
           <div className="pt-1">
-            <p className="text-xs font-medium text-gray-400 mb-2">Action links</p>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              placeholder="A little about yourself or what you do…"
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+            />
+            <p className="text-[11px] text-gray-600 mt-1">Shows at the top of your Swift Links.</p>
+          </div>
+
+          {/* Additional links */}
+          <div className="pt-1">
+            <p className="text-xs font-medium text-gray-400 mb-0.5">Additional links</p>
+            <p className="text-gray-600 text-[11px] mb-2">Add your links — a review page, recent video, listing, etc.</p>
             {links.length > 0 && (
               <div className="space-y-2 mb-2">
                 {links.map((link, i) => (

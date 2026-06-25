@@ -62,6 +62,8 @@ const EMPTY_SOCIALS: Socials = {
   linkedin: "", youtube: "", instagram: "", tiktok: "", snapchat: "", twitter: "",
 };
 
+const LINK_EMOJIS = ["🔗", "🌐", "📅", "⭐", "🎥", "🏠", "💼", "📋", "📸", "🎵", "💸", "📄"];
+
 const TEMPLATES = [
   { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
   { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
@@ -86,9 +88,11 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<Required<CardAddress>>(EMPTY_ADDRESS);
 
-  // Step 2 — action links + socials
+  // Step 2 — bio, social links, additional links
+  const [bio, setBio] = useState("");
+  const [website, setWebsite] = useState("");
   const [links, setLinks] = useState<CardLink[]>([]);
-  const [newLink, setNewLink] = useState({ label: "", url: "" });
+  const [newLink, setNewLink] = useState({ label: "", url: "", emoji: "🔗" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
   // Step 3 — media + design
@@ -117,8 +121,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     let url = newLink.url.trim();
     if (!label || !url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((prev) => [...prev, { emoji: "🔗", label, url }]);
-    setNewLink({ label: "", url: "" });
+    setLinks((prev) => [...prev, { emoji: newLink.emoji || "🔗", label, url }]);
+    setNewLink({ label: "", url: "", emoji: "🔗" });
   }
   function removeLink(i: number) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i));
@@ -178,6 +182,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
         title: title.trim(),
         phone: phone.trim(),
         email: email.trim(),
+        website: website.trim(),
         linkedin: socials.linkedin.trim(),
         instagram: socials.instagram.trim(),
         tiktok: socials.tiktok.trim(),
@@ -185,6 +190,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
         template,
         logo_url: logoUrl,
         customization: {
+          bio: bio.trim(),
           snapchat: socials.snapchat.trim(),
           youtube: socials.youtube.trim(),
           links,
@@ -279,18 +285,75 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           </div>
         )}
 
-        {/* Step 2 — action links + socials */}
+        {/* Step 2 — bio, social links, additional links */}
         {step === 2 && (
           <div className="space-y-5">
             <div className="mb-1">
-              <h1 className="text-2xl font-bold text-white">Links</h1>
-              <p className="text-gray-400 text-sm mt-1">Add action links and social profiles. All optional.</p>
+              <h1 className="text-2xl font-bold text-white">Swift Links</h1>
+              <p className="text-gray-400 text-sm mt-1">Your bio, social profiles, and extra links. All optional.</p>
             </div>
 
-            {/* Action links */}
+            {/* Swiftlinks bio */}
             <div>
-              <p className="text-xs font-medium text-gray-400 mb-1">Action links</p>
-              <p className="text-gray-600 text-[11px] mb-3">Add buttons to your card (e.g. &ldquo;Book a call&rdquo;) and name them.</p>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                placeholder="A little about yourself or what you do…"
+                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+              />
+              <p className="text-gray-600 text-[11px] mt-1">Shows at the top of your Swift Links — add a bit about yourself or what you do.</p>
+            </div>
+
+            {/* Social links — website first */}
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
+              <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Website</label>
+                  <input
+                    type="text"
+                    placeholder="yoursite.com"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                {SOCIALS.map(({ key, label, placeholder }) => {
+                  const linked = socials[key].trim().length > 0;
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs text-gray-500">{label}</label>
+                        {linked && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400">
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
+                            Linked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder={placeholder}
+                        value={socials[key]}
+                        onChange={(e) => setSocial(key, e.target.value)}
+                        onBlur={() => normalizeOnBlur(key)}
+                        className={inputCls}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-800" />
+
+            {/* Additional links */}
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1">Additional links</p>
+              <p className="text-gray-600 text-[11px] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) => (
@@ -306,16 +369,29 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               )}
               <div className="space-y-2">
+                {/* Emoji picker */}
+                <div className="flex flex-wrap gap-1.5">
+                  {LINK_EMOJIS.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setNewLink((n) => ({ ...n, emoji: em }))}
+                      className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition-colors ${newLink.emoji === em ? "border-blue-500 bg-blue-600/20" : "border-gray-700 bg-gray-900 hover:border-gray-600"}`}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
-                  placeholder="Link name (e.g. Book a call)"
+                  placeholder="Link name (e.g. Leave a review)"
                   value={newLink.label}
                   onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
                   className={inputCls}
                 />
                 <input
                   type="text"
-                  placeholder="https://calendly.com/yourname"
+                  placeholder="https://…"
                   value={newLink.url}
                   onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
                   className={inputCls}
@@ -329,37 +405,6 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                   + Add link
                 </button>
               </div>
-            </div>
-
-            <div className="h-px bg-gray-800" />
-
-            {/* Social links */}
-            <p className="text-xs font-medium text-gray-400 -mb-1">Social links — paste a profile URL or type an @handle</p>
-            <div className="space-y-3">
-              {SOCIALS.map(({ key, label, placeholder }) => {
-                const linked = socials[key].trim().length > 0;
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-xs text-gray-500">{label}</label>
-                      {linked && (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400">
-                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
-                          Linked
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      placeholder={placeholder}
-                      value={socials[key]}
-                      onChange={(e) => setSocial(key, e.target.value)}
-                      onBlur={() => normalizeOnBlur(key)}
-                      className={inputCls}
-                    />
-                  </div>
-                );
-              })}
             </div>
 
             <div className="flex gap-3 mt-2">
