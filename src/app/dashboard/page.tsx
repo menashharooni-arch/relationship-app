@@ -235,7 +235,7 @@ export default async function DashboardPage({
           <div className="hidden md:flex items-center gap-0.5">
             {[
               { href: "/dashboard", label: "Dashboard", active: true },
-              { href: "/contacts", label: "Contacts", active: false },
+              { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
