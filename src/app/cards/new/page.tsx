@@ -9,7 +9,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import type { CardData } from "@/components/card-templates/types";
+import type { CardData, CardLink } from "@/components/card-templates/types";
 
 function slugify(str: string): string {
   return str
@@ -81,7 +81,9 @@ export default function NewCardPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  // Step 2 — socials
+  // Step 2 — action links + socials
+  const [links, setLinks] = useState<CardLink[]>([]);
+  const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
   // Step 3 — media + design
@@ -99,6 +101,18 @@ export default function NewCardPage() {
   }
   function normalizeOnBlur(key: SocialKey) {
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
+  }
+
+  function addLink() {
+    const label = newLink.label.trim();
+    let url = newLink.url.trim();
+    if (!label || !url) return;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    setLinks((prev) => [...prev, { emoji: "🔗", label, url }]);
+    setNewLink({ label: "", url: "" });
+  }
+  function removeLink(i: number) {
+    setLinks((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   function goNextFrom1() {
@@ -163,6 +177,7 @@ export default function NewCardPage() {
         customization: {
           snapchat: socials.snapchat.trim(),
           youtube: socials.youtube.trim(),
+          links,
         },
       }),
     });
@@ -249,14 +264,62 @@ export default function NewCardPage() {
           </div>
         )}
 
-        {/* Step 2 — socials */}
+        {/* Step 2 — action links + socials */}
         {step === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="mb-1">
-              <h1 className="text-2xl font-bold text-white">Social links</h1>
-              <p className="text-gray-400 text-sm mt-1">Optional. Paste a profile URL or type an @handle — we link it automatically.</p>
+              <h1 className="text-2xl font-bold text-white">Links</h1>
+              <p className="text-gray-400 text-sm mt-1">Add action links and social profiles. All optional.</p>
             </div>
 
+            {/* Action links */}
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1">Action links</p>
+              <p className="text-gray-600 text-[11px] mb-3">Add buttons to your card (e.g. &ldquo;Book a call&rdquo;) and name them.</p>
+              {links.length > 0 && (
+                <div className="space-y-2 mb-2">
+                  {links.map((l, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                      <span className="text-base shrink-0">{l.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
+                        <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
+                      </div>
+                      <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Link name (e.g. Book a call)"
+                  value={newLink.label}
+                  onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
+                  className={inputCls}
+                />
+                <input
+                  type="text"
+                  placeholder="https://calendly.com/yourname"
+                  value={newLink.url}
+                  onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
+                  className={inputCls}
+                />
+                <button
+                  type="button"
+                  onClick={addLink}
+                  disabled={!newLink.label.trim() || !newLink.url.trim()}
+                  className="w-full border border-dashed border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-40 text-xs font-medium py-2.5 rounded-xl transition-colors"
+                >
+                  + Add link
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-800" />
+
+            {/* Social links */}
+            <p className="text-xs font-medium text-gray-400 -mb-1">Social links — paste a profile URL or type an @handle</p>
             <div className="space-y-3">
               {SOCIALS.map(({ key, label, placeholder }) => {
                 const linked = socials[key].trim().length > 0;
