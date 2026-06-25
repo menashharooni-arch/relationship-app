@@ -15,6 +15,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
+import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro,
@@ -29,46 +30,6 @@ function initials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-// Build a valid profile URL from whatever was stored: a full URL, a platform URL
-// (e.g. "instagram.com/x"), an "@handle", or a bare handle.
-function socialUrl(platform: string, raw?: string | null): string | null {
-  if (!raw) return null;
-  const v = raw.trim();
-  if (!v) return null;
-  if (/^https?:\/\//i.test(v)) return v;
-
-  const lower = v.toLowerCase();
-  const domain: Record<string, string> = {
-    linkedin: "linkedin.com",
-    instagram: "instagram.com",
-    twitter: "x.com",
-    tiktok: "tiktok.com",
-    facebook: "facebook.com",
-    snapchat: "snapchat.com",
-    youtube: "youtube.com",
-  };
-  // Already references the platform's own domain → just make it absolute.
-  if ((domain[platform] && lower.includes(domain[platform])) || (platform === "twitter" && lower.includes("twitter.com"))) {
-    return `https://${v.replace(/^\/+/, "")}`;
-  }
-
-  const handle = v.replace(/^@+/, "").trim();
-  if (!handle) return null;
-
-  switch (platform) {
-    case "linkedin":
-      if (/^(in|company|pub|school)\//i.test(handle)) return `https://linkedin.com/${handle}`;
-      return `https://linkedin.com/in/${handle}`;
-    case "instagram": return `https://instagram.com/${handle}`;
-    case "twitter":   return `https://x.com/${handle}`;
-    case "tiktok":    return `https://tiktok.com/@${handle}`;
-    case "facebook":  return `https://facebook.com/${handle}`;
-    case "snapchat":  return `https://snapchat.com/add/${handle}`;
-    case "youtube":   return `https://youtube.com/@${handle}`;
-    case "website":   return /\.[a-z]{2,}/i.test(handle) ? `https://${handle.replace(/^\/+/, "")}` : null;
-    default:          return `https://${handle}`;
-  }
-}
 
 function SectionNumber({ n }: { n: number }) {
   return (
@@ -226,20 +187,17 @@ export default async function CardPage({
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
 
-  // Show a short, readable handle under each social button.
-  const handleLabel = (raw?: string | null) => (raw || "").trim().replace(/^https?:\/\//i, "");
-
-  // Build serializable social link data (no ReactNode icons — SocialLinkIntercept renders icons by label)
-  const connectLinks = [
-    { label: "Website",     href: socialUrl("website", profile.website),     sub: handleLabel(profile.website),   color: "#1D4ED8" },
-    { label: "LinkedIn",    href: socialUrl("linkedin", profile.linkedin),   sub: handleLabel(profile.linkedin),  color: "#0A66C2" },
-    { label: "Instagram",   href: socialUrl("instagram", profile.instagram), sub: handleLabel(profile.instagram), color: "#E1306C" },
-    { label: "TikTok",      href: socialUrl("tiktok", profile.tiktok),       sub: handleLabel(profile.tiktok),    color: "#010101" },
-    { label: "Facebook",    href: socialUrl("facebook", facebook),           sub: handleLabel(facebook),          color: "#1877F2" },
-    { label: "X / Twitter", href: socialUrl("twitter", profile.twitter),     sub: handleLabel(profile.twitter),   color: "#000000" },
-    { label: "Snapchat",    href: socialUrl("snapchat", snapchat),           sub: handleLabel(snapchat),          color: "#FFCA28", textColor: "#1a1a00" },
-    { label: "YouTube",     href: socialUrl("youtube", youtube),             sub: handleLabel(youtube),           color: "#FF0000" },
-  ].filter((l) => l.href) as { label: string; href: string; sub?: string; color: string; textColor?: string }[];
+  // Swift Links — socials in canonical order (Website first)
+  const connectLinks = buildConnectLinks({
+    website: profile.website,
+    linkedin: profile.linkedin,
+    instagram: profile.instagram,
+    tiktok: profile.tiktok,
+    facebook,
+    twitter: profile.twitter,
+    snapchat,
+    youtube,
+  });
 
   // Swift Links shows a bio, social links, and additional links
   const hasConnectSection = !!bio || connectLinks.length > 0 || actionLinks.length > 0;

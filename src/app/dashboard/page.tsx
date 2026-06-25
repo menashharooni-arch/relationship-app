@@ -218,6 +218,7 @@ export default async function DashboardPage({
     : { data: null };
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
+  const swiftUrl = `${APP_URL}/swift/${activeUsername}`;
 
   function initials(name: string) {
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -655,6 +656,24 @@ export default async function DashboardPage({
 
             {/* ── RIGHT COLUMN — sticky card panel ── */}
             <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+
+              {/* Swift Links — a separate link from the business card */}
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+                <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
+                  Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, email signature, anywhere.
+                </p>
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
+                <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
+                  <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
+                  <CopyButton text={swiftUrl} />
+                </div>
+                <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+                  Open Swift Links →
+                </a>
+              </div>
 
               {/* Your card */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
