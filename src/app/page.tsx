@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import Reveal from "@/components/Reveal";
 import LiveDemo from "@/components/LiveDemo";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
@@ -238,16 +239,16 @@ export default function HomePage() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
+          <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
 
-          <h1 className="text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
+          <h1 className="sc-rise sc-rise-2 text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
             The digital business card that captures every lead.
           </h1>
 
-          <p className="text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
+          <p className="sc-rise sc-rise-3 text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
             Share your card by link, QR code, or NFC tap. Leads save your contact in one touch. Automated follow-ups do the rest.
           </p>
 
@@ -269,7 +270,7 @@ export default function HomePage() {
             <span className="text-xs text-slate-500">Used in 40+ countries</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="sc-rise sc-rise-4 flex flex-col sm:flex-row gap-3">
             <Link
               href="/login?mode=signup"
               className="bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
@@ -295,7 +296,7 @@ export default function HomePage() {
             style={{ background: "radial-gradient(circle, #1D4ED8 0%, transparent 70%)" }}
           />
 
-          <div className="relative" style={{ width: "320px" }}>
+          <div className="sc-hero-phone relative" style={{ width: "320px" }}>
             {/* Phone shell */}
             <div
               className="relative rounded-[3rem] shadow-2xl"
@@ -461,14 +462,16 @@ export default function HomePage() {
             <h2 className="text-3xl font-bold text-slate-900">Everything you need to network smarter</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow">
-                <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
-                  {f.icon}
+            {FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={(i % 3) * 80}>
+                <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow h-full">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                    {f.icon}
+                  </div>
+                  <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
+                  <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
                 </div>
-                <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
-                <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
