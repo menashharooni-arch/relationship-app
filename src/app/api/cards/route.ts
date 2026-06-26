@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { getOfficeBrandForUser } from "@/lib/office-brand";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -47,7 +48,22 @@ export async function POST(req: NextRequest) {
     cust = { ...cust, links: (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
   }
   // Custom designer is Pro-only — Free can't save a "custom" template.
-  const safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
+  let safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
+
+  // Office uniform branding: if the user is under an office with a brand,
+  // force the logo, company, website and design — individuals keep only their
+  // personal details (name/title/phone/email).
+  let finalCompany = company || "";
+  let finalWebsite = website || "";
+  let finalLogo = logo_url || null;
+  const brand = await getOfficeBrandForUser(user.id);
+  if (brand) {
+    if (brand.logoUrl) finalLogo = brand.logoUrl;
+    if (brand.company) finalCompany = brand.company;
+    if (brand.website) finalWebsite = brand.website;
+    if (brand.template) safeTemplate = brand.template;
+    if (brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
+  }
 
   const { data, error } = await admin
     .from("cards")
@@ -56,17 +72,17 @@ export async function POST(req: NextRequest) {
       username,
       name: name || "",
       title: title || "",
-      company: company || "",
+      company: finalCompany,
       phone: phone || "",
       email: email || "",
-      website: website || "",
+      website: finalWebsite,
       linkedin: linkedin || "",
       instagram: instagram || "",
       twitter: twitter || "",
       tiktok: tiktok || "",
       template: safeTemplate,
       customization: cust,
-      logo_url: logo_url || null,
+      logo_url: finalLogo,
       label: label || null,
     })
     .select()
