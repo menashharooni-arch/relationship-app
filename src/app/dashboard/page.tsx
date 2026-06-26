@@ -417,7 +417,7 @@ export default async function DashboardPage({
               {allCards.map((card) => {
                 const isActive = activeUsername === card.username;
                 return (
-                  <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
+                  <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
                       href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
                       role="radio"
@@ -446,7 +446,7 @@ export default async function DashboardPage({
               {!isPro && allCards.length >= 3 && (
                 <Link
                   href="/pricing"
-                  className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-[200px] transition-colors"
+                  className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
                 >
                   <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">You&apos;ve used all 3 free cards — upgrade for unlimited</p>
                   <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>

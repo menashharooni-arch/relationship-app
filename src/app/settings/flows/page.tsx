@@ -19,10 +19,11 @@ export default async function FlowSettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("flow_settings, plan, zapier_webhook_url, name, username")
+    .select("flow_settings, plan, zapier_webhook_url, name, username, customization")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
