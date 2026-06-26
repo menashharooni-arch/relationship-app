@@ -1,10 +1,35 @@
 // Shared design tokens, icons, and utilities for all card templates
 
+import type { CardData } from "./types";
+
 export function formatPhone(raw: string): string {
   const d = raw.replace(/\D/g, "");
   if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   if (d.length === 11 && d[0] === "1") return `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
   return raw;
+}
+
+export type ShownPhone = { number: string; label: string };
+
+// Phone numbers to display on the card: the ones flagged showOnCard, falling
+// back to the legacy single `phone` field for cards saved before multi-phone.
+export function cardPhones(data: CardData): ShownPhone[] {
+  const phones = data.customization?.phones;
+  if (Array.isArray(phones) && phones.length) {
+    return phones
+      .filter((p) => p?.showOnCard && p.number?.trim())
+      .map((p) => ({ number: p.number, label: p.label || "" }));
+  }
+  return data.phone ? [{ number: data.phone, label: "" }] : [];
+}
+
+// Fax number (card-only).
+export function cardFax(data: CardData): string {
+  return data.customization?.fax?.trim() || "";
+}
+
+export function capLabel(label: string): string {
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : "";
 }
 
 // ─── Contact Icons (stroke style) ────────────────────────────────────────────

@@ -23,7 +23,10 @@ function fieldValue(data: CardData, field?: string): string {
     case "name": return data.name || "";
     case "title": return data.title || "";
     case "company": return data.company || "";
-    case "phone": return data.phone || "";
+    case "phone": {
+      const shown = data.customization?.phones?.filter((p) => p?.showOnCard && p.number?.trim());
+      return shown && shown.length ? shown[0].number : (data.phone || "");
+    }
     case "email": return data.email || "";
     case "website": return data.website || "";
     default: return "";

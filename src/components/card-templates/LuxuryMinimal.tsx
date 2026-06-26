@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -121,10 +121,22 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
         {/* Contact rows with gold icon accents */}
         <div className="flex flex-col gap-[8px]">
-          {data.phone && (
+          {cardPhones(data).map((p, i) => (
+            <div key={`ph${i}`} className="flex items-center gap-2">
+              <span style={{ color: GOLD }}><IcoPhone /></span>
+              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
+                {formatPhone(p.number)}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+              </span>
+            </div>
+          ))}
+          {cardFax(data) && (
             <div className="flex items-center gap-2">
               <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>{formatPhone(data.phone)}</span>
+              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
           {data.email && (

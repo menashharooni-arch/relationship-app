@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -101,10 +101,22 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
           {/* Contacts: phone is HERO */}
           <div className="flex flex-col gap-[6px]">
-            {data.phone && (
+            {cardPhones(data).map((p, i) => (
+              <div key={`ph${i}`} className="flex items-center gap-2">
+                <span style={{ color: AMBER }}><IcoPhone /></span>
+                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>
+                  {formatPhone(p.number)}
+                  {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                </span>
+              </div>
+            ))}
+            {cardFax(data) && (
               <div className="flex items-center gap-2">
                 <span style={{ color: AMBER }}><IcoPhone /></span>
-                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>{formatPhone(data.phone)}</span>
+                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>
+                  {formatPhone(cardFax(data))}
+                  <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+                </span>
               </div>
             )}
             {data.email && (

@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -112,10 +112,22 @@ export default function ModernBold({ data }: { data: CardData }) {
         style={{ padding: "16px 18px 14px", color: "#94a3b8" }}
       >
         <div className="flex flex-col gap-[8px] mt-1">
-          {data.phone && (
+          {cardPhones(data).map((p, i) => (
+            <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
+              <span style={{ color: BLUE }}><IcoPhone /></span>
+              <span className="font-bold" style={{ fontSize: 13 }}>
+                {formatPhone(p.number)}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+              </span>
+            </div>
+          ))}
+          {cardFax(data) && (
             <div className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
               <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 13 }}>{formatPhone(data.phone)}</span>
+              <span className="font-bold" style={{ fontSize: 13 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
           {data.email && (

@@ -40,6 +40,14 @@ export type CardAddress = {
   zip?: string;
 };
 
+export type PhoneLabel = "mobile" | "office";
+
+export type CardPhone = {
+  number: string;
+  label: PhoneLabel;
+  showOnCard: boolean;
+};
+
 export type CardCustomization = {
   accentColor?: string;
   font?: string;
@@ -49,6 +57,8 @@ export type CardCustomization = {
   links?: CardLink[];
   testimonials?: CardTestimonial[];
   customLayout?: CustomLayout;
+  phones?: CardPhone[];
+  fax?: string;
 };
 
 export type CardData = {

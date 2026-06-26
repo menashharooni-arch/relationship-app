@@ -13,7 +13,7 @@ import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { withoutSocials } from "@/components/card-templates/types";
-import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import Link from "next/link";
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
@@ -50,7 +50,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string };
 };
 
 const FIELDS = [
@@ -79,7 +79,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     name:      card.name || "",
     title:     card.title || "",
     company:   card.company || "",
-    phone:     card.phone || "",
     email:     card.email || "",
     website:   card.website || "",
     linkedin:  card.linkedin || "",
@@ -94,6 +93,14 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [bio, setBio] = useState(card.customization?.bio || "");
   const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
+  const [phones, setPhones] = useState<CardPhone[]>(
+    card.customization?.phones?.length
+      ? card.customization.phones
+      : card.phone
+      ? [{ number: card.phone, label: "mobile", showOnCard: true }]
+      : [{ number: "", label: "mobile", showOnCard: true }]
+  );
+  const [fax, setFax] = useState(card.customization?.fax || "");
   const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
@@ -108,11 +115,26 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Phone management (multiple numbers, each labeled + toggleable on the card).
+  function updatePhone(i: number, patch: Partial<CardPhone>) {
+    setPhones((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function addPhone() {
+    setPhones((prev) => [...prev, { number: "", label: "office", showOnCard: true }]);
+  }
+  function removePhone(i: number) {
+    setPhones((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+  }
+  const cleanPhones: CardPhone[] = phones
+    .filter((p) => p.number.trim())
+    .map((p) => ({ number: p.number.trim(), label: p.label, showOnCard: p.showOnCard }));
+  const primaryPhone = (cleanPhones.find((p) => p.showOnCard) ?? cleanPhones[0])?.number ?? "";
+
   const previewData: CardData = {
     name:      form.name || card.username,
     title:     form.title,
     company:   form.company,
-    phone:     form.phone,
+    phone:     primaryPhone,
     email:     form.email,
     website:   form.website,
     linkedin:  form.linkedin,
@@ -128,7 +150,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { customLayout },
+    customization: { customLayout, phones: cleanPhones, fax: fax.trim() },
   };
 
   const ActiveTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
@@ -155,9 +177,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...coreForm,
+          phone: primaryPhone,
           ...(isPrimary ? {} : { label }),
           template,
-          customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
+          customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout, phones: cleanPhones, fax: fax.trim() },
           logo_url: cardLogoUrl,
         }),
       });
@@ -238,20 +261,78 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <p className="text-[11px] text-gray-600 mt-1">Shown on your dashboard to identify this card.</p>
             </div>
           )}
-          {FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
-              <input
-                type="text"
-                placeholder={f.placeholder}
-                required={f.required}
-                value={form[f.key as keyof typeof form]}
-                onChange={(e) => set(f.key, e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-              />
-            </div>
-          ))}
+          {FIELDS.map((f) => {
+            if (f.key === "phone") {
+              return (
+                <div key="phone">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-400">Phone numbers</label>
+                    <button type="button" onClick={addPhone} className="text-xs font-semibold text-blue-400 hover:text-blue-300">+ Add number</button>
+                  </div>
+                  <div className="space-y-2">
+                    {phones.map((p, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <select
+                          value={p.label}
+                          onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
+                          className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
+                        >
+                          <option value="mobile">Mobile</option>
+                          <option value="office">Office</option>
+                        </select>
+                        <input
+                          type="tel"
+                          placeholder="+1 (555) 000-0000"
+                          value={p.number}
+                          onChange={(e) => updatePhone(i, { number: e.target.value })}
+                          className="flex-1 min-w-0 bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updatePhone(i, { showOnCard: !p.showOnCard })}
+                          title={p.showOnCard ? "Showing on card" : "Hidden from card"}
+                          className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-500"}`}
+                        >
+                          {p.showOnCard ? "On card ✓" : "Off card"}
+                        </button>
+                        {phones.length > 1 && (
+                          <button type="button" onClick={() => removePhone(i)} className="shrink-0 text-gray-600 hover:text-red-400 px-1 text-lg leading-none" aria-label="Remove number">×</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which appear on your card (you can show more than one).</p>
+                </div>
+              );
+            }
+            return (
+              <div key={f.key}>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
+                <input
+                  type="text"
+                  placeholder={f.placeholder}
+                  required={f.required}
+                  value={form[f.key as keyof typeof form] ?? ""}
+                  onChange={(e) => set(f.key, e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+            );
+          })}
           <AddressInput value={address} onChange={setAddress} />
+
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
+            </label>
+            <input
+              type="tel"
+              placeholder="+1 (555) 000-0000"
+              value={fax}
+              onChange={(e) => setFax(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            />
+          </div>
 
           {/* Swiftlinks bio */}
           <div className="pt-1">
