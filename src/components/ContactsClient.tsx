@@ -166,6 +166,10 @@ export default function ContactsClient({
   const [seqItems, setSeqItems] = useState<{ day: number; time: string; message: string; sent_at?: string | null }[] | null>(null);
   const [seqLoading, setSeqLoading] = useState(false);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
+  // Independent channel toggles for the automated follow-up flow (email and/or text).
+  const [emailOn, setEmailOn] = useState(false);
+  const [textOn, setTextOn] = useState(false);
+  const [seqSubmitted, setSeqSubmitted] = useState(false);
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -234,33 +238,15 @@ export default function ContactsClient({
     setFieldSaving(null);
   }
 
-  // Persist the (possibly edited) sequence to the lead so the cron auto-sends it.
-  async function persistSequence(items: { day: number; time: string; message: string; sent_at?: string | null }[]) {
-    if (!selected) return;
-    const payload = items.map((it) => ({
-      day: it.day,
-      time: it.time,
-      message: it.message,
-      channel: channel === "text" ? "sms" : "email",
-      sent_at: it.sent_at ?? null,
-    }));
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ follow_up_sequence: payload }),
-    });
-    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
-    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
-  }
-
-  // Pick a preset → AI-generate a message per scheduled day → auto-save (auto-send).
+  // Pick a preset → AI-generate one message per scheduled day. The result is a
+  // DRAFT — nothing schedules until the user hits Submit.
   async function selectPreset(preset: "light" | "medium" | "aggressive") {
-    if (!selected) return;
+    if (!selected || (!emailOn && !textOn)) return;
     setSeqPreset(preset);
     setSeqLoading(true);
     setSeqItems(null);
     setAiUpgrade(null);
-    setSeqSaving("idle");
+    setSeqSubmitted(false);
     try {
       const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
         method: "POST",
@@ -269,7 +255,8 @@ export default function ContactsClient({
           presetKey: preset,
           whereMet: selected.where_met ?? "",
           notes: selected.notes ?? "",
-          channel: channel === "text" ? "sms" : "email",
+          // Generate SMS-safe copy if text is enabled (works for both channels).
+          channel: textOn ? "sms" : "email",
         }),
       });
       const data = await res.json();
@@ -279,9 +266,7 @@ export default function ContactsClient({
         setSeqPreset(null);
         return;
       }
-      const items = Array.isArray(data.sequence) ? data.sequence : [];
-      setSeqItems(items);
-      await persistSequence(items);
+      setSeqItems(Array.isArray(data.sequence) ? data.sequence : []);
     } catch {
       setSeqItems(null);
     } finally {
@@ -289,15 +274,38 @@ export default function ContactsClient({
     }
   }
 
+  // Editing or changing channels makes the flow a draft again until re-submitted.
   function updateSeqItem(i: number, message: string) {
     setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, message } : it)) : prev));
-    setSeqSaving("idle");
+    setSeqSubmitted(false);
+  }
+  function toggleSeqChannel(which: "email" | "text", on: boolean) {
+    if (which === "email") setEmailOn(on); else setTextOn(on);
+    setSeqSubmitted(false);
   }
 
-  async function saveSequence() {
-    if (!selected || !seqItems) return;
+  // Submit = activate. Expand each step into one scheduled send per enabled
+  // channel (preserving already-sent steps), and save so the cron sends it.
+  async function submitSequence() {
+    if (!selected || !seqItems?.length) return;
+    const channels = [emailOn ? "email" : null, textOn ? "sms" : null].filter(Boolean) as string[];
+    if (!channels.length) return;
     setSeqSaving("saving");
-    await persistSequence(seqItems);
+    const old = (selected.follow_up_sequence ?? []) as { day: number; channel?: string; sent_at?: string | null }[];
+    const payload = seqItems.flatMap((it) =>
+      channels.map((ch) => {
+        const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === ch);
+        return { day: it.day, time: it.time, message: it.message, channel: ch, sent_at: prior?.sent_at ?? null };
+      }),
+    );
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ follow_up_sequence: payload }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
+    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
+    setSeqSubmitted(true);
     setSeqSaving("saved");
     setTimeout(() => setSeqSaving("idle"), 2000);
   }
@@ -354,12 +362,28 @@ export default function ContactsClient({
     setWhereMetText(lead.where_met ?? "");
     setChannel(lead.email ? "email" : "text");
     setAiUpgrade(null);
-    // Load any existing scheduled sequence for this contact.
+    // Load any existing scheduled sequence — collapse per-channel rows back to
+    // one editable step per day, and infer which channels are enabled.
     {
-      const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; sent_at?: string | null }[] | null;
-      const items = existing?.length ? existing.map((s) => ({ day: s.day, time: s.time ?? "13:00", message: s.message, sent_at: s.sent_at ?? null })) : null;
-      setSeqItems(items);
-      setSeqPreset(items ? (items.length === 2 ? "light" : items.length >= 4 ? "aggressive" : "medium") : null);
+      const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; channel?: string; sent_at?: string | null }[] | null;
+      if (existing?.length) {
+        const byDay = new Map<number, { day: number; time: string; message: string; sent_at?: string | null }>();
+        for (const s of existing) {
+          if (!byDay.has(s.day)) byDay.set(s.day, { day: s.day, time: s.time ?? "13:00", message: s.message, sent_at: s.sent_at ?? null });
+        }
+        const steps = [...byDay.values()].sort((a, b) => a.day - b.day);
+        setSeqItems(steps);
+        setSeqPreset(steps.length === 2 ? "light" : steps.length >= 4 ? "aggressive" : "medium");
+        setEmailOn(existing.some((s) => (s.channel ?? "email") === "email"));
+        setTextOn(existing.some((s) => s.channel === "sms"));
+        setSeqSubmitted(true);
+      } else {
+        setSeqItems(null);
+        setSeqPreset(null);
+        setEmailOn(false);
+        setTextOn(false);
+        setSeqSubmitted(false);
+      }
       setSeqLoading(false);
       setSeqSaving("idle");
     }
@@ -879,97 +903,120 @@ export default function ContactsClient({
 
             </div>
 
-            {/* Follow-up Sequence — presets that auto-send */}
+            {/* Follow-up Sequence — turn on a channel, then submit to activate */}
+            {(() => {
+              const anyOn = emailOn || textOn;
+              const seqWord = emailOn && textOn ? "emails & texts" : textOn ? "texts" : "emails";
+              return (
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div>
+              <div className="flex items-start justify-between mb-3 gap-3">
+                <div className="min-w-0">
                   <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Sequence</p>
-                  <p className="text-gray-600 text-xs mt-0.5">AI-written {channel === "text" ? "texts" : "emails"} that auto-send on schedule · edit any message</p>
+                  <p className="text-gray-600 text-xs mt-0.5">Turn on a channel to schedule an auto-sending flow.</p>
                 </div>
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   {([
-                    { id: "email", label: "Email", on: !!selected.email },
-                    { id: "text", label: "Text", on: !!selected.phone },
-                  ] as const).map((c) => (
+                    { id: "email", label: "Email", icon: "✉", on: emailOn, can: !!selected.email },
+                    { id: "text",  label: "Text",  icon: "💬", on: textOn,  can: !!selected.phone },
+                  ] as const).map((t) => (
                     <button
-                      key={c.id}
-                      onClick={() => { if (c.on) setChannel(c.id); }}
-                      disabled={!c.on}
-                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${channel === c.id ? "bg-blue-600 text-white" : c.on ? "text-gray-400 hover:text-gray-200" : "text-gray-700 cursor-not-allowed"}`}
+                      key={t.id}
+                      onClick={() => t.can && toggleSeqChannel(t.id, !t.on)}
+                      disabled={!t.can}
+                      title={t.can ? `Toggle ${t.label.toLowerCase()} flow` : `No ${t.id === "email" ? "email" : "phone"} on file`}
+                      className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition-colors ${
+                        t.on ? "bg-blue-600 border-blue-600 text-white" : t.can ? "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200" : "bg-gray-900 border-gray-800 text-gray-700 cursor-not-allowed"
+                      }`}
                     >
-                      {c.id === "email" ? "✉" : "💬"} {c.label}
+                      <span className={`w-1.5 h-1.5 rounded-full ${t.on ? "bg-white" : "bg-gray-600"}`} />
+                      {t.icon} {t.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Preset chooser — each shows what it does before generating */}
-              <div className="space-y-2 mb-4">
-                {(["light", "medium", "aggressive"] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => selectPreset(p)}
-                    disabled={seqLoading}
-                    className={`w-full text-left rounded-xl px-3.5 py-2.5 border transition-colors disabled:opacity-60 ${seqPreset === p ? "border-blue-500 bg-blue-950/30" : "border-gray-700 bg-gray-800/40 hover:border-gray-600"}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
-                      {seqPreset === p && <span className="text-[10px] text-blue-400 font-semibold">Selected</span>}
-                    </div>
-                    <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
-                  </button>
-                ))}
-              </div>
-
-              {seqLoading && (
-                <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Writing your {channel === "text" ? "texts" : "emails"}…
+              {!anyOn ? (
+                <div className="border border-dashed border-gray-700 rounded-xl py-5 px-4 text-center">
+                  <p className="text-gray-400 text-sm">Turn on <strong>Email</strong> or <strong>Text</strong> to set up an automated follow-up flow.</p>
+                  <p className="text-gray-600 text-xs mt-1">You can run one or both.</p>
                 </div>
-              )}
-
-              {/* Editable per-day messages — write your own instead of the AI suggestion */}
-              {!seqLoading && seqItems && seqItems.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-gray-500 text-[11px]">These send automatically on schedule. Edit any message to write your own.</p>
-                  {seqItems.map((it, i) => (
-                    <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-semibold text-blue-300">{stepLabel(it.day, it.time)}</span>
-                        {it.sent_at && <span className="text-[10px] text-emerald-400">Sent ✓</span>}
-                      </div>
-                      <textarea
-                        value={it.message}
-                        onChange={(e) => updateSeqItem(i, e.target.value)}
-                        rows={2}
-                        disabled={!!it.sent_at}
-                        className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                      />
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between">
-                    <button onClick={() => seqPreset && selectPreset(seqPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
-                    <button
-                      onClick={saveSequence}
-                      disabled={seqSaving === "saving"}
-                      className="text-xs font-semibold text-white px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
-                    >
-                      {seqSaving === "saving" ? "Saving…" : seqSaving === "saved" ? "Saved ✓" : "Save edits"}
-                    </button>
+              ) : (
+                <>
+                  {/* Preset chooser — each shows what it does before generating */}
+                  <div className="space-y-2 mb-4">
+                    {(["light", "medium", "aggressive"] as const).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => selectPreset(p)}
+                        disabled={seqLoading}
+                        className={`w-full text-left rounded-xl px-3.5 py-2.5 border transition-colors disabled:opacity-60 ${seqPreset === p ? "border-blue-500 bg-blue-950/30" : "border-gray-700 bg-gray-800/40 hover:border-gray-600"}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
+                          {seqPreset === p && <span className="text-[10px] text-blue-400 font-semibold">Selected</span>}
+                        </div>
+                        <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
+                      </button>
+                    ))}
                   </div>
-                </div>
+
+                  {seqLoading && (
+                    <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                      </svg>
+                      Writing your {seqWord}…
+                    </div>
+                  )}
+
+                  {/* Editable per-day messages — write your own instead of the AI suggestion */}
+                  {!seqLoading && seqItems && seqItems.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[11px]">
+                        {seqSubmitted
+                          ? <span className="text-emerald-400">● Active — auto-sending via {seqWord}.</span>
+                          : <span className="text-amber-400">● Draft — edit any message, then Submit to activate.</span>}
+                      </p>
+                      {seqItems.map((it, i) => (
+                        <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[11px] font-semibold text-blue-300">{stepLabel(it.day, it.time)}</span>
+                            {it.sent_at && <span className="text-[10px] text-emerald-400">Sent ✓</span>}
+                          </div>
+                          <textarea
+                            value={it.message}
+                            onChange={(e) => updateSeqItem(i, e.target.value)}
+                            rows={2}
+                            disabled={!!it.sent_at}
+                            className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                          />
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between">
+                        <button onClick={() => seqPreset && selectPreset(seqPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
+                        <button
+                          onClick={submitSequence}
+                          disabled={seqSaving === "saving" || seqSubmitted}
+                          className="text-xs font-semibold text-white px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
+                        >
+                          {seqSaving === "saving" ? "Submitting…" : seqSubmitted ? "Active ✓" : "Submit & activate"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {aiUpgrade && (
-                <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center">
+                <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
                   <p className="text-blue-200 text-sm">{aiUpgrade}</p>
                   <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
                 </div>
               )}
             </div>
+              );
+            })()}
 
             {/* Follow-up automation toggle */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
