@@ -2,64 +2,168 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-const SYSTEM_PROMPT = `You are the in-app help assistant for SwiftCard (swiftcard.me), a digital business card app. You help logged-in users find features and learn how to do things. Be friendly, concise, and practical. Give step-by-step directions ("Go to … → click …"). If you're not sure or it's outside SwiftCard, say so honestly and suggest contacting support — never invent features.
+const SYSTEM_PROMPT = `You are the in-app help assistant for SwiftCard (swiftcard.me), a digital business card app. You help logged-in users find features and how to do things. Be friendly, concise, and practical with step-by-step directions ("Go to … → click …"). If unsure or it's outside SwiftCard, say so and suggest the Contact page — never invent features.
 
 WHAT SWIFTCARD IS
-- A digital business card. Each user has one account that can hold multiple cards. The account (email, billing) is separate from the cards. There is no "primary" card.
-- Every card has two public pages: the card itself (swiftcard.me/card/<url>) and "Swift Links" (swiftcard.me/links/<url>) — a modern, full-screen link-in-bio page with your photo, bio, a Connect button, social icons, and extra links.
-- Free plan: up to 3 cards and 25 captured contacts. Pro: unlimited cards, analytics (view locations, traffic sources, card vs link views), custom card design, no SwiftCard branding, unlimited action links. Office/Enterprise: team features.
+- A digital business card. One account can hold multiple cards. Each card has a card page (swiftcard.me/card/<url>) and a Swift Links page (swiftcard.me/links/<url>) — a link-in-bio with photo, bio, social icons, video previews, and custom buttons.
+- Free: up to 3 cards and 25 contacts. Pro: unlimited cards/contacts, custom card designer, full analytics (card vs link views, locations, sources), integrations, no SwiftCard branding.
 
-DASHBOARD (/dashboard)
-- After you log in, if you have more than one card you'll see a "Select a card" screen — pick one to open its dashboard. With exactly one card it opens automatically. With no cards, a big "Create your card" button shows.
-- "My Cards" lists your cards; check one to make it the active card (the whole dashboard then reflects that card). "+ Add card" creates a new card.
-- Stats row: total Leads, Views, This week, Conversion.
-- Analytics widget: a chart with a "Card views / Link views" toggle (Card views by default). Link views are visits to your Swift Link page, tracked the same way as card views. Includes a 7d/30d range, Today, Best day, and Top locations (Pro).
-- Bottom section toggles between Notifications (the default), List, and Pipeline. Notifications show new contacts and activity, and each one can be marked read or unread individually (or "Mark all read").
-- Right side: "Your Card" preview with Download (image) and Preview buttons; a Share button and, under it, "Other ways to share" which opens a popup with your card link, QR code, and Download QR; plus your Swift Links link and "Refer a friend".
+KEY PLACES
+- Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
+- Create a card: dashboard "+ Add card" → 3 steps (details + address → Swift Links bio/socials/links → logo, headshot, design).
+- Edit a card: My Cards → Edit, or Settings → Your cards → Edit. Tabs: Card info, Design (templates + Pro custom designer).
+- Contacts: everyone who saved your card or messaged you; read/unread, conversation, notes, status, AI follow-up, SMS, export.
+- Settings: Your cards, Need help, Integrations, Manage account (delete + 1-month reopen), General (account/plan/billing).
 
-SWIFT LINKS (swiftcard.me/links/<your-url>)
-- A separate full-screen page: your photo, name, a bio ("Swift Links bio"), a Connect button (people send you their name/phone/email + a message), social icons, and additional links. If a link points to a YouTube or Vimeo video, it shows the actual video thumbnail.
-- You set the bio, socials, and additional links when creating or editing a card (Step 2). Your card design itself no longer shows social icons — socials live on the Swift Links page.
+Keep answers short. Use plain language.`;
 
-CREATING A CARD (+ Add card → a 3-step wizard)
-- Step 1: Card nickname (a label to tell your cards apart), Full name, Company, Job title, Phone, Email, optional Address. The card URL auto-fills from your name + company.
-- Step 2: Swift Links bio, a Website field, social links (Website, LinkedIn, Instagram, TikTok, Facebook, X, Snapchat, YouTube — paste a URL or type your @handle and it links automatically), and "Additional links" (name your own buttons, with an emoji).
-- Step 3: Upload your company logo (choose Square, Wide, or Banner crop to fit your logo's shape) and headshot, then choose a design. 5 templates plus "Custom design" (Pro).
+// ── Built-in knowledge base (works with no API / no credits) ────────────────
+type KbEntry = { triggers: string[]; answer: string };
 
-EDITING A CARD
-- Dashboard → My Cards → "Edit", or Settings → "Your cards" → "Edit".
-- Two tabs: "Card info" (nickname, name, contact details, Swift Links bio, socials, logo, headshot, address, action links) and "Design" (pick a template; "Custom design" (Pro) is a drag-and-drop designer for fonts, colors, and placement).
+const KB: KbEntry[] = [
+  {
+    triggers: ["hello", "hi", "hey", "what can you do", "what can you help", "help me"],
+    answer:
+      "Hi! I can help you find features and learn how to do things in SwiftCard. Try asking things like \"How do I create a card?\", \"How do I share my card?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\"",
+  },
+  {
+    triggers: ["create a card", "make a card", "new card", "add card", "add a card", "create my card", "get started", "first card", "set up a card"],
+    answer:
+      "From your dashboard, click \"+ Add card\" (or the big \"Create your card\" button if you don't have one yet). It's a quick 3-step wizard: 1) your details + address, 2) Swift Links bio, social links & extra buttons, 3) upload your logo/headshot and choose a design.",
+  },
+  {
+    triggers: ["edit a card", "edit card", "edit my card", "update my card", "change my info", "change my name", "change my phone", "change my email", "change my number"],
+    answer:
+      "Open the card from your dashboard (My Cards → Edit) or go to Settings → Your cards → Edit. The editor has two tabs: \"Card info\" (name, contact details, bio, socials, logo, headshot, address) and \"Design\".",
+  },
+  {
+    triggers: ["design", "template", "change design", "change template", "change my design", "theme", "fonts", "colors", "custom design", "customize my card", "card look"],
+    answer:
+      "Edit your card and open the \"Design\" tab to pick a template. Pro users also get \"Custom design\" — a drag-and-drop designer where you place your logo, headshot, text and choose fonts, text color, and background.",
+  },
+  {
+    triggers: ["share", "share my card", "qr", "qr code", "nfc", "send my card", "other ways to share", "link in bio", "share link", "how do people get my card"],
+    answer:
+      "On the dashboard \"Your Card\" panel: tap Share, or \"Other ways to share\" to copy your card link and show/download the QR code (you can put that link in your bio). Your card link is also NFC-ready — write it to any blank NFC tag.",
+  },
+  {
+    triggers: ["swift link", "swift links", "links page", "bio page", "linktree", "link tree", "bio link"],
+    answer:
+      "Every card has a Swift Links page at swiftcard.me/links/<yourname> — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Set the bio, socials and extra links in Step 2 when creating or editing a card.",
+  },
+  {
+    triggers: ["contacts", "leads", "my leads", "see contacts", "where are my contacts", "who saved my card", "view contacts"],
+    answer:
+      "Open \"Contacts\" in the top nav. Everyone who saved your card or sent you their info appears there (defaulting to your selected card; switch cards or pick \"All cards\"). Click a contact for their conversation, notes, status, and follow-up options. Export to CSV from the top.",
+  },
+  {
+    triggers: ["read", "unread", "mark read", "mark as read", "mark unread", "mark as unread", "blue dot"],
+    answer:
+      "New contacts arrive unread (a blue dot). Toggle read/unread with the envelope button on the contact row, or the \"Mark as read/unread\" button inside the contact. Dashboard notifications also have read/unread, a dismiss (✕), and \"Clear read\".",
+  },
+  {
+    triggers: ["conversation", "message", "they sent", "what they wrote", "their message"],
+    answer:
+      "Open a contact and use the \"Conversation\" tab to see the message they sent when they reached out, plus their activity (like when they viewed your card). Automated follow-ups will show here too.",
+  },
+  {
+    triggers: ["notification", "notifications", "alerts", "dismiss", "clear read"],
+    answer:
+      "The bottom of your dashboard shows Notifications by default. Each one can be marked read/unread or dismissed with the ✕, and \"Clear read\" removes the read ones. Use the toggle to switch to List or Pipeline.",
+  },
+  {
+    triggers: ["analytics", "views", "card views", "link views", "stats", "who viewed", "conversion", "top locations", "traffic", "sources"],
+    answer:
+      "The dashboard analytics widget shows your views with a \"Card views / Link views\" toggle, weekly trends, conversion rate, Today/Best day, and (on Pro) top locations and traffic sources.",
+  },
+  {
+    triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
+    answer:
+      "Free includes up to 3 cards and 25 contacts. Pro adds unlimited cards & contacts, the custom card designer, full analytics, integrations, and removes SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
+  },
+  {
+    triggers: ["upgrade", "go pro", "buy pro", "subscribe"],
+    answer:
+      "Go to Settings → General (click to expand) and choose \"Upgrade to Pro\", or use the Pricing page. Pro unlocks unlimited cards & contacts, the custom designer, analytics, integrations, and removes branding.",
+  },
+  {
+    triggers: ["billing", "manage subscription", "cancel", "cancel subscription", "invoice", "payment", "change card", "update payment", "refund"],
+    answer:
+      "Go to Settings → General (click to expand) → \"Manage subscription & payment\". That opens the billing portal where you can update your payment method, view invoices, or cancel anytime.",
+  },
+  {
+    triggers: ["settings", "where is settings", "account settings", "where are settings"],
+    answer:
+      "Settings is in the top navigation. Its sections, top to bottom: Your cards, Need help, Integrations, Manage account, and General (your email, plan, and billing).",
+  },
+  {
+    triggers: ["delete account", "close account", "delete my account", "remove account", "reopen", "reopen account", "undo delete", "restore account"],
+    answer:
+      "Go to Settings → Manage account → Delete account (you'll answer a couple of quick questions). After deleting you have 1 month to reopen by logging back in; after that it's permanent.",
+  },
+  {
+    triggers: ["integration", "integrations", "zapier", "google contacts", "hubspot", "crm", "sync", "connect crm"],
+    answer:
+      "Go to Settings → Integrations to connect Zapier, Google Contacts, or HubSpot, so new leads sync into your tools automatically (Pro).",
+  },
+  {
+    triggers: ["address", "my address", "location on card", "put my address"],
+    answer:
+      "Add your address in Step 1 of the card wizard (or the Edit card form). It appears inside your card design and on your card page.",
+  },
+  {
+    triggers: ["logo", "headshot", "photo", "profile picture", "upload image", "upload photo", "company logo"],
+    answer:
+      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Your profile photo is shared across all your cards.",
+  },
+  {
+    triggers: ["multiple cards", "more than one card", "switch card", "select a card", "select card", "my cards", "active card", "second card"],
+    answer:
+      "You can have multiple cards. After logging in you'll pick one on the \"Select a card\" screen (it auto-opens if you only have one). On the dashboard, the \"My Cards\" section lets you switch which card is active.",
+  },
+  {
+    triggers: ["refer", "referral", "refer a friend", "invite", "referral link"],
+    answer:
+      "Grab your referral link from the dashboard — look for \"Refer a friend\".",
+  },
+  {
+    triggers: ["ai follow up", "ai followup", "generate message", "follow up message", "write a message", "ai message", "follow up", "followup"],
+    answer:
+      "Open a contact → \"Contact info / Presets\" tab → fill in the notes/context, then use the AI Follow-up generator to draft message ideas you can copy, text, or email.",
+  },
+  {
+    triggers: ["social", "socials", "instagram", "linkedin", "tiktok", "facebook", "youtube", "twitter", "snapchat", "add socials"],
+    answer:
+      "Add your social links in Step 2 when creating or editing a card — paste a profile URL or type your @handle and it links automatically. They appear on your Swift Links page. For LinkedIn, Facebook, and YouTube, copy the exact format shown under each field.",
+  },
+  {
+    triggers: ["contact support", "email you", "talk to someone", "talk to a human", "support", "contact you", "get help from a person"],
+    answer:
+      "You can reach the team through the Contact page — there's a link in the footer of the site.",
+  },
+];
 
-SETTINGS (Settings in the top nav, or /settings/flows) — sections, top to bottom:
-- Your cards: every card with Edit and Delete.
-- Need help: this assistant ("Need help? Ask the assistant").
-- Integrations: Zapier, Google, HubSpot.
-- Manage account: delete your account (you answer a couple of questions first; Pro users get a retention offer). A deleted account can be reopened within 1 month by logging back in; after that it's permanent and the email can't be reused.
-- General: a button you click to expand — shows your account email, number of cards, your plan, and billing. Free users see "Upgrade to Pro"; Pro users see "Manage subscription & payment" (opens the Stripe billing portal to change card, view invoices, or cancel).
+const FALLBACK =
+  "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, billing, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\" — or reach the team via the Contact page in the footer.";
 
-CONTACTS (/contacts)
-- Everyone who shared their info with you, for the card selected on your dashboard (you can switch cards or pick "All cards"). New reach-outs arrive unread (a blue dot); mark them read/unread with the button on the contact row or in the contact.
-- Open a contact for two tabs: "Conversation" (the message they sent plus activity, like when they viewed your card) and "Contact info / Presets" (edit the whole contact, a merged Notes & Context section, an AI follow-up message generator that only works once you've filled in notes/context, and a toggle to turn follow-up automation on/off for that contact). Set status (New Contact / Touch / Dissolved). Export CSV from the top.
+function normalize(s: string): string {
+  return ` ${s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim()} `;
+}
 
-YOUR PUBLIC CARD (swiftcard.me/card/<your-url>)
-- Your card design with a "Save contact" button, a "share your info" form (this is how you capture contacts/leads), a QR code, and your address. Social links and your bio live on your Swift Links page, not the card.
-
-SHARING
-- Dashboard "Your Card" panel: Share button, then "Other ways to share" → a popup with your card link, the QR code, and Download QR. Each card also has its Swift Links page you can share.
-
-COMMON HOW-TOs
-- Create a card: dashboard → "+ Add card" (or the big "Create your card" button if you have none).
-- Change your design: edit the card → "Design" tab.
-- Custom-design your card (Pro): edit the card → Design → "Custom design".
-- Add socials or your bio: when creating/editing a card (Step 2) — they show on your Swift Links page.
-- See Link (Swift Link) views: dashboard analytics widget → switch to "Link views".
-- Mark a contact or notification read/unread: use its read/unread button (on the contact row, in the contact, or on the notification).
-- Delete a card: Settings → Your cards → Delete (or from the editor).
-- Upgrade to Pro / manage billing: Settings → General (click to expand).
-- Reopen a deleted account: within 1 month, log back in and choose to reopen.
-- Refer a friend: copy your referral link on the dashboard.
-
-Keep answers short (a few sentences or a short numbered list). Use plain language.`;
+// Score each KB entry by matching triggers; multi-word phrases weigh more.
+function localAnswer(question: string): string | null {
+  const q = normalize(question);
+  let best = { score: 0, answer: "" };
+  for (const entry of KB) {
+    let score = 0;
+    for (const t of entry.triggers) {
+      const words = t.split(" ").length;
+      if (q.includes(` ${t} `) || (words > 1 && q.includes(t))) score += words;
+    }
+    if (score > best.score) best = { score, answer: entry.answer };
+  }
+  return best.score >= 1 ? best.answer : null;
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -67,10 +171,6 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ reply: "The help assistant isn't set up yet. Please contact support for help." });
-  }
 
   const body = await req.json().catch(() => ({}));
   const raw = Array.isArray(body.messages) ? body.messages : [];
@@ -82,29 +182,32 @@ export async function POST(req: NextRequest) {
     .slice(-12)
     .map((m: ChatMessage) => ({ role: m.role, content: m.content.slice(0, 2000) }));
 
-  if (!messages.length || messages[messages.length - 1].role !== "user") {
-    return NextResponse.json({ error: "No question provided." }, { status: 400 });
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUser) return NextResponse.json({ error: "No question provided." }, { status: 400 });
+
+  // 1) Answer instantly from the built-in knowledge base (free, always works).
+  const local = localAnswer(lastUser.content);
+  if (local) return NextResponse.json({ reply: local });
+
+  // 2) For anything the KB can't confidently answer, use the LLM IF API credits
+  //    are available. If not (or it errors), fall back to the helpful default.
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const response = await client.messages.create({
+        model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
+        max_tokens: 700,
+        system: SYSTEM_PROMPT,
+        messages,
+      });
+      const reply = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
+      if (reply) return NextResponse.json({ reply });
+    } catch (err) {
+      const e = err as { status?: number; message?: string; error?: { error?: { message?: string } } };
+      console.error("[ai/help] Anthropic error", e?.status, e?.error?.error?.message || e?.message);
+      // fall through to the knowledge-base fallback
+    }
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  try {
-    const response = await client.messages.create({
-      // Overridable via env so the model can be swapped without a redeploy.
-      model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
-      max_tokens: 700,
-      system: SYSTEM_PROMPT,
-      messages,
-    });
-    const reply = response.content[0]?.type === "text"
-      ? response.content[0].text.trim()
-      : "Sorry, I couldn't come up with an answer. Try rephrasing?";
-    return NextResponse.json({ reply });
-  } catch (err) {
-    const e = err as { status?: number; message?: string; error?: { error?: { message?: string; type?: string } } };
-    const detail = e?.error?.error?.message || e?.message || "Unknown error";
-    // Logged server-side for debugging; users see a clean message.
-    console.error("[ai/help] Anthropic error", e?.status, detail);
-    return NextResponse.json({ reply: "The assistant is temporarily unavailable. Please try again in a little while." });
-  }
+  return NextResponse.json({ reply: FALLBACK });
 }
