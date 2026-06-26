@@ -53,19 +53,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     : null;
 
   const leadFirst = (lead.name as string).split(" ")[0];
-  const sequence: { day: number; time: string; message: string }[] = [];
+  const sequence: { day: number; time: string; message: string; subject?: string }[] = [];
   const total = preset.steps.length;
 
   for (let i = 0; i < total; i++) {
     const { day, time } = preset.steps[i];
     let message = "";
+    let subject = "";
 
     if (anthropic) {
       try {
         const tone = i === 0 ? "warm and immediate" : i === total - 1 ? "graceful close" : "brief check-in";
         const resp = await anthropic.messages.create({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 200,
+          max_tokens: 220,
           messages: [{
             role: "user",
             content: `Write a short personal follow-up ${isText ? "TEXT MESSAGE (SMS, under 160 characters, plain text)" : "EMAIL body (2-3 sentences)"} for Day ${day} of a ${preset.name} follow-up sequence.
@@ -79,10 +80,21 @@ ${notes ? `Notes about them: ${notes}` : ""}
 ${lead.message ? `Their note: "${lead.message}"` : ""}
 
 Tone: ${tone}. Day ${day} of ${total}-part sequence.
-Rules: ${isText ? "Under 160 characters, plain text, no greeting/signature, no links unless essential." : "2-3 sentences max, no subject line or sign-off."} First person. No "Hey" opener. No mention of "digital business card". Return only the message text.`,
+Rules: ${isText ? "Under 160 characters, plain text, no greeting/signature, no links unless essential." : "2-3 sentences max, no greeting line, no sign-off/signature (a signature is added automatically)."} First person. No "Hey" opener. No mention of "digital business card".
+${isText ? "Return only the message text." : `Also write a short subject line (under 6 words). Return ONLY JSON: {"subject":"...","message":"..."}`}`,
           }],
         });
-        message = resp.content[0].type === "text" ? (resp.content[0].text as string).trim() : "";
+        const raw = resp.content[0].type === "text" ? (resp.content[0].text as string).trim() : "";
+        if (isText) {
+          message = raw;
+        } else {
+          const m = raw.match(/\{[\s\S]*\}/);
+          try {
+            const p = JSON.parse(m?.[0] ?? "{}");
+            message = (p.message || "").trim();
+            subject = (p.subject || "").trim();
+          } catch { message = raw; }
+        }
       } catch { /* fall through */ }
     }
 
@@ -91,8 +103,9 @@ Rules: ${isText ? "Under 160 characters, plain text, no greeting/signature, no l
         ? `It was great connecting with you! I wanted to make sure you have my details — feel free to reach out anytime.`
         : `Just checking in — hope things have been going well. Let me know if there's anything I can help with.`;
     }
+    if (!isText && !subject) subject = day === 1 ? "Great connecting" : "Checking in";
 
-    sequence.push({ day, time, message });
+    sequence.push({ day, time, message, subject: subject || undefined });
   }
 
   return NextResponse.json({ sequence });

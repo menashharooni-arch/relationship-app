@@ -80,20 +80,19 @@ export function toGsm7(input: string): string {
     .replace(/[–—]/g, "-")
     .replace(/…/g, "...")
     .replace(/\p{Extended_Pictographic}/gu, "") // strip emoji
-    .replace(/[^\x00-\x7F]/g, "")               // strip remaining non-ASCII
-    .replace(/\s+/g, " ")
+    .replace(/[^\x00-\x7F\n]/g, "")             // strip non-ASCII but keep newlines
+    .replace(/[^\S\n]+/g, " ")                  // collapse spaces/tabs, keep newlines
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-// Branded, segment-safe SMS body. The recipient sees one shared SwiftCard
-// sender; the content makes clear who it's really from + how to reach them.
-export function buildSmsBody(opts: { senderName: string; company?: string | null; text: string; replyContact?: string | null }): string {
-  const first = opts.senderName.split(" ")[0] || opts.senderName;
-  const who = opts.company ? `${opts.senderName} from ${opts.company}` : opts.senderName;
-  let body = `${who} messaged you via SwiftCard: "${opts.text}"`;
-  if (opts.replyContact) body += ` Reach ${first} at ${opts.replyContact}.`;
+// Plain-text SMS with a clean signature (name, company) + the sender's card link.
+export function buildSmsBody(opts: { senderName: string; company?: string | null; text: string; cardUrl?: string | null }): string {
+  let body = opts.text.trim();
+  body += `\n\n— ${opts.senderName}${opts.company ? `, ${opts.company}` : ""}`;
+  if (opts.cardUrl) body += `\n${opts.cardUrl}`;
   body = toGsm7(body);
-  if (body.length > 300) body = body.slice(0, 297) + "...";
+  if (body.length > 480) body = body.slice(0, 477) + "...";
   return body;
 }
 
@@ -150,9 +149,10 @@ export async function deliverToLead(opts: {
   leadId: string;
   cardOwner?: string | null;
   lead: { email?: string | null; phone?: string | null; name?: string | null };
-  sender: { name?: string | null; company?: string | null; phone?: string | null; email?: string | null; website?: string | null };
+  sender: { name?: string | null; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null };
   text: string;                               // plain body (SMS + thread log + fallback email)
-  email?: { subject: string; html: string };  // custom email template (automations); omit → branded notification
+  subject?: string | null;                    // email subject (personal email path)
+  email?: { subject: string; html: string };  // custom email template (automations); omit → personal email
   cardUsername?: string | null;
   log?: boolean;                              // append to conversation thread (default true)
   channel?: "email" | "sms";                  // explicit channel choice; else email-first auto
@@ -173,14 +173,15 @@ export async function deliverToLead(opts: {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
       ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null })
-      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, text: opts.text, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
+      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
   }
 
   if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
-    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, replyContact: sender.phone || sender.email || null }));
+    const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
+    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl }));
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status });
     return { channel: "sms", status };
   }
@@ -188,12 +189,37 @@ export async function deliverToLead(opts: {
   return { channel: "none", status: "no_contact" };
 }
 
-// ── Branded email "message" (free; default channel when the contact has email) ─
+// Build the shared HTML signature block (name/company/contacts + card link).
+// Used so emails look like a real personal email, not a notification.
+export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null }): string {
+  const lines: string[] = [];
+  lines.push(`<p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">${esc(opts.senderName)}</p>`);
+  if (opts.title || opts.company) lines.push(`<p style="margin:0 0 6px;font-size:13px;color:#6b7280;">${[esc(opts.title), esc(opts.company)].filter(Boolean).join(" · ")}</p>`);
+  if (opts.phone) lines.push(`<a href="tel:${esc(opts.phone)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.phone)}</a>`);
+  if (opts.email) lines.push(`<a href="mailto:${esc(opts.email)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.email)}</a>`);
+  if (opts.website) lines.push(`<a href="${opts.website.startsWith("http") ? esc(opts.website) : "https://" + esc(opts.website)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.website)}</a>`);
+  if (opts.cardUrl) lines.push(`<a href="${opts.cardUrl}" style="display:inline-block;margin-top:8px;font-size:13px;color:#2563eb;text-decoration:none;font-weight:600;">View my card → ${esc(opts.cardUrl.replace(/^https?:\/\//, ""))}</a>`);
+  return `<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e5e7eb;">${lines.join("")}</div>`;
+}
+
+// Wrap a plain message body in a clean personal-email shell + signature.
+export function personalEmailHtml(text: string, signature: string): string {
+  const body = esc(text).replace(/\n/g, "<br>");
+  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.6;max-width:560px;margin:0 auto;padding:24px 16px;">
+  <div>${body}</div>
+  ${signature}
+  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent via SwiftCard</p>
+</div>`;
+}
+
+// A proper personal email: subject + message body + signature (name/company + card link).
 export async function sendBrandedEmail(opts: {
   to: string;
   senderName: string;
   company?: string | null;
+  title?: string | null;
   text: string;
+  subject?: string | null;
   replyTo?: string | null;
   phone?: string | null;
   website?: string | null;
@@ -201,34 +227,25 @@ export async function sendBrandedEmail(opts: {
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const first = opts.senderName.split(" ")[0] || opts.senderName;
   const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
+  const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
+  const signature = emailSignatureHtml({
+    senderName: opts.senderName,
+    company: opts.company,
+    title: opts.title,
+    phone: opts.phone,
+    email: opts.replyTo,
+    website: opts.website,
+    cardUrl,
+  });
 
   try {
     await resend.emails.send({
       from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
-      subject: `${first} sent you a message`,
-      html: `<!DOCTYPE html><html><body style="margin:0;background:#0b1020;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 16px;">
-<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-<table width="100%" style="max-width:480px;">
-  <tr><td style="padding-bottom:18px;"><span style="font-size:11px;font-weight:800;letter-spacing:0.2em;color:#64748b;text-transform:uppercase;">SwiftCard</span></td></tr>
-  <tr><td style="background:#111827;border:1px solid #1f2937;border-radius:16px;padding:24px;">
-    <p style="margin:0 0 10px;font-size:13px;color:#94a3b8;">${esc(opts.senderName)}${opts.company ? ` · ${esc(opts.company)}` : ""} messaged you through SwiftCard:</p>
-    <div style="background:#1e293b;border-radius:12px;padding:14px 16px;color:#f1f5f9;font-size:15px;line-height:1.5;">${esc(opts.text)}</div>
-    <div style="margin-top:20px;border-top:1px solid #1f2937;padding-top:16px;">
-      <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#ffffff;">${esc(opts.senderName)}</p>
-      ${opts.company ? `<p style="margin:0 0 6px;font-size:12px;color:#94a3b8;">${esc(opts.company)}</p>` : ""}
-      ${opts.phone ? `<a href="tel:${esc(opts.phone)}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${esc(opts.phone)}</a>` : ""}
-      ${opts.replyTo ? `<a href="mailto:${esc(opts.replyTo)}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${esc(opts.replyTo)}</a>` : ""}
-      ${opts.website ? `<a href="${opts.website.startsWith("http") ? esc(opts.website) : "https://" + esc(opts.website)}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${esc(opts.website)}</a>` : ""}
-    </div>
-    ${cardUrl ? `<a href="${cardUrl}" style="display:inline-block;margin-top:18px;background:#2563eb;color:#fff;text-decoration:none;padding:11px 22px;border-radius:99px;font-size:13px;font-weight:700;">Save ${esc(first)}'s contact →</a>` : ""}
-  </td></tr>
-  <tr><td style="padding-top:16px;"><p style="color:#475569;font-size:11px;text-align:center;margin:0;">Reply to this email to respond to ${esc(first)} directly.</p></td></tr>
-</table>
-</td></tr></table></body></html>`,
+      subject,
+      html: personalEmailHtml(opts.text, signature),
     });
     return "sent";
   } catch {

@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
 ${isText
   ? "Format: SMS. Each under 160 characters, plain text, no greeting line, no signature, no links unless essential."
-  : "Format: short email body. 2-3 sentences each, no subject line, no signature."}
+  : "Format: short email body. 2-3 sentences each, no subject line and NO signature/sign-off (a signature is added automatically)."}
 
 Context (use it to speak about the RIGHT things — naturally reference what ${ownerName} does/offers and the contact's situation):
 ${contextLines.length > 0 ? contextLines.join("\n") : "No additional context provided."}
@@ -89,16 +89,18 @@ Requirements:
 - No emoji unless tone is friendly and it fits naturally
 - Vary the openers — don't start with "Hi" or "Hey ${leadName}" on all three
 - Do NOT mention "digital business card" or "networking"
+${isText ? "" : `- Also write ONE short, specific email subject line (under 6 words, not salesy).`}
 
-Return ONLY valid JSON array of exactly 3 strings: ["msg1","msg2","msg3"]`,
+Return ONLY valid JSON: ${isText ? `{"messages":["m1","m2","m3"]}` : `{"subject":"...","messages":["m1","m2","m3"]}`}`,
       }],
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "[]";
-    const match = text.match(/\[[\s\S]*?\]/);
-
-    const messages: string[] = JSON.parse(match?.[0] ?? "[]");
-    const out = messages.slice(0, 3);
+    const text = response.content[0].type === "text" ? response.content[0].text.trim() : "{}";
+    const match = text.match(/\{[\s\S]*\}/);
+    let parsed: { subject?: string; messages?: string[] } = {};
+    try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { parsed = {}; }
+    const out = Array.isArray(parsed.messages) ? parsed.messages.slice(0, 3) : [];
+    const subject = isText ? null : (typeof parsed.subject === "string" ? parsed.subject.trim() : null);
 
     // Count this draft against the Free taste limit.
     if (!paid && out.length > 0) {
@@ -110,6 +112,7 @@ Return ONLY valid JSON array of exactly 3 strings: ["msg1","msg2","msg3"]`,
 
     return NextResponse.json({
       messages: out,
+      subject,
       aiDraftsRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_AI_DRAFT_LIMIT - (usedDrafts + 1)),
     });
   } catch {
