@@ -103,8 +103,8 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const e = err as { status?: number; message?: string; error?: { error?: { message?: string; type?: string } } };
     const detail = e?.error?.error?.message || e?.message || "Unknown error";
+    // Logged server-side for debugging; users see a clean message.
     console.error("[ai/help] Anthropic error", e?.status, detail);
-    // Surface the real reason so it can be fixed (model access, API key, or credits).
-    return NextResponse.json({ reply: `Assistant error (${e?.status ?? "?"}): ${detail}` });
+    return NextResponse.json({ reply: "The assistant is temporarily unavailable. Please try again in a little while." });
   }
 }
