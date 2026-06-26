@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
-import { sendSms, sendBrandedEmail, buildSmsBody } from "@/lib/messaging";
+import { deliverToLead } from "@/lib/messaging";
 
 // GET — the conversation thread (outbound messages you've sent this contact).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -62,45 +62,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .maybeSingle();
     sender = prof;
   }
-  const senderName = sender?.name || "A SwiftCard user";
-  const company = sender?.company || null;
-
-  // Email first (free); SMS only when there's no email.
-  let channel: "email" | "sms";
-  let status: "sent" | "not_configured" | "failed";
-
-  if (lead.email) {
-    channel = "email";
-    status = await sendBrandedEmail({
-      to: lead.email,
-      senderName,
-      company,
-      text: body,
-      replyTo: sender?.email || null,
+  const result = await deliverToLead({
+    leadId: id,
+    cardOwner: lead.card_owner,
+    lead: { email: lead.email, phone: lead.phone, name: lead.name },
+    sender: {
+      name: sender?.name || null,
+      company: sender?.company || null,
       phone: sender?.phone || null,
+      email: sender?.email || null,
       website: sender?.website || null,
-      cardUsername: lead.card_owner,
-    });
-  } else if (lead.phone) {
-    channel = "sms";
-    status = await sendSms(lead.phone, buildSmsBody({
-      senderName,
-      company,
-      text: body,
-      replyContact: sender?.phone || sender?.email || null,
-    }));
-  } else {
+    },
+    text: body,
+    cardUsername: lead.card_owner,
+  });
+  const { channel, status } = result;
+
+  if (status === "no_contact") {
     return NextResponse.json({ error: "This contact has no email or phone on file." }, { status: 400 });
   }
-
-  // Log to the thread (best-effort; skipped silently if table is missing).
-  const createdAt = new Date().toISOString();
-  const { data: inserted } = await admin
-    .from("lead_messages")
-    .insert({ lead_id: id, card_owner: lead.card_owner, direction: "out", channel, body, status })
-    .select("id, direction, channel, body, status, created_at")
-    .maybeSingle();
-
+  if (status === "opted_out") {
+    return NextResponse.json({ error: "opted_out", channel, message: `This contact opted out of ${channel === "sms" ? "texts" : "emails"}.` }, { status: 409 });
+  }
   if (status === "not_configured") {
     return NextResponse.json(
       {
@@ -117,9 +100,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "failed", channel, message: "Couldn't deliver the message. Please try again." }, { status: 502 });
   }
 
+  const createdAt = new Date().toISOString();
   return NextResponse.json({
     ok: true,
     channel,
-    message: inserted ?? { id: createdAt, direction: "out", channel, body, status, created_at: createdAt },
+    message: { id: createdAt, direction: "out", channel, body, status: "sent", created_at: createdAt },
   });
 }

@@ -179,6 +179,9 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
+      <p className="text-slate-600 text-[10px] text-center leading-relaxed">
+        By sharing your info you agree to receive follow-up messages by email or text. Reply STOP to a text anytime to opt out.
+      </p>
     </form>
   );
 }
