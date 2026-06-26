@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isPaidPlan } from "@/lib/plan";
 
 // PATCH — save webhook URL
 export async function PATCH(request: NextRequest) {
@@ -8,9 +9,16 @@ export async function PATCH(request: NextRequest) {
   const { data: { user } } = await userSupabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  const admin = getAdminSupabase();
+
+  // Zapier integration is a Pro/Office feature.
+  const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
+  if (!isPaidPlan(planRow?.plan)) {
+    return NextResponse.json({ error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+  }
+
   const { zapier_webhook_url } = await request.json() as { zapier_webhook_url?: string };
 
-  const admin = getAdminSupabase();
   const { error } = await admin
     .from("profiles")
     .update({ zapier_webhook_url: zapier_webhook_url || null })
