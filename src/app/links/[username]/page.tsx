@@ -138,7 +138,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
         </a>
       ) : (
         <a href={`${APP_URL}/card/${username}`} className="relative mt-10 text-white/40 text-[11px] hover:text-white/70 transition-colors">
-          View full card
+          View Swift Card
         </a>
       )}
     </main>
