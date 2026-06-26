@@ -68,9 +68,10 @@ export default async function DashboardPage({
   const allCards = cards ?? [];
   const hasCards = allCards.length > 0;
 
-  // Active card: ONLY the explicitly-selected one. No default — after login you start
-  // with no card selected and must pick one.
-  const activeCard = allCards.find((c) => c.username === selectedCard) ?? null;
+  // Active card: the explicitly-selected one. With exactly one card we auto-open it;
+  // with 2+ cards and none selected (e.g. right after login) the user must pick one.
+  const activeCard =
+    allCards.find((c) => c.username === selectedCard) ?? (allCards.length === 1 ? allCards[0] : null);
   const activeSource = activeCard ?? profile;
   const activeUsername = (activeCard?.username ?? "") as string;
   const analyticsUsername = activeUsername;
