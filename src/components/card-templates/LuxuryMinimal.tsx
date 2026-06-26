@@ -4,6 +4,7 @@
 // Best for: Luxury real estate, wealth management, executives, high-end services, attorneys
 
 import React from "react";
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
@@ -139,6 +140,13 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           )}
         </div>
 
+        {/* QR */}
+        <div className="flex flex-col items-end gap-1">
+          <p style={{ fontSize: 6, color: GOLD2, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+            Scan to save contact
+          </p>
+          <QR size={84} bg="#f5f0e8" fg={GOLD} />
+        </div>
       </div>
     </div>
   );

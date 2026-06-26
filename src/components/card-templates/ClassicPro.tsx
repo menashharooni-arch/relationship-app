@@ -3,6 +3,7 @@
 // Includes: Logo, name, title, phone, email, website, social row, QR
 // Best for: Finance, consulting, legal, corporate, healthcare
 
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
@@ -142,6 +143,15 @@ export default function ClassicPro({ data }: { data: CardData }) {
           </div>
         )}
 
+        {/* QR + scan label */}
+        <div className="flex items-end justify-end">
+          <div className="flex flex-col items-end gap-1">
+            <p style={{ fontSize: 6.5, color: "#94a3b8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Scan to save contact
+            </p>
+            <QR size={84} bg="#f0f5ff" fg={NAVY} />
+          </div>
+        </div>
       </div>
 
       {/* Bottom gradient accent */}
