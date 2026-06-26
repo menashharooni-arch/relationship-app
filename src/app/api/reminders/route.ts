@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
 
     const { data: candidates } = await supabase
       .from("leads")
-      .select("id, name, email, phone, message, notes, card_owner, tags")
+      .select("id, name, email, phone, message, notes, card_owner, tags, follow_up_sequence")
       .gte("created_at", windowStart)
       .lt("created_at", windowEnd);
 
@@ -111,7 +111,14 @@ export async function GET(req: NextRequest) {
       .eq("day_trigger", step.day);
 
     const sentSet = new Set(alreadySent?.map((r) => r.lead_id) ?? []);
-    const pending = candidates.filter((l) => !sentSet.has(l.id) && !(l.tags ?? []).includes("flow-paused"));
+    // Skip the default Day-1/15/30 flow for leads that have a custom follow-up
+    // sequence — that sequence takes over, so we never double-send.
+    const pending = candidates.filter((l) => {
+      if (sentSet.has(l.id) || (l.tags ?? []).includes("flow-paused")) return false;
+      const seq = (l as { follow_up_sequence?: unknown[] }).follow_up_sequence;
+      if (Array.isArray(seq) && seq.length > 0) return false;
+      return true;
+    });
     if (!pending.length) continue;
 
     // Group by card_owner

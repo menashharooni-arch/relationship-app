@@ -150,10 +150,6 @@ export default function ContactsClient({
   const [selected, setSelected] = useState<Lead | null>(null);
   const [events, setEvents] = useState<CardEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [smsOpen, setSmsOpen] = useState(false);
-  const [smsText, setSmsText] = useState("");
-  const [smsSending, setSmsSending] = useState(false);
-  const [smsSent, setSmsSent] = useState<"idle" | "sent" | "error" | "no_twilio">("idle");
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
@@ -310,6 +306,23 @@ export default function ContactsClient({
     setTimeout(() => setSeqSaving("idle"), 2000);
   }
 
+  // Stop & clear the active flow entirely (both channels off).
+  async function clearSequence() {
+    if (!selected) return;
+    setSeqSaving("saving");
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ follow_up_sequence: [] }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: [] } : l)));
+    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: [] } : prev));
+    setSeqItems(null);
+    setSeqPreset(null);
+    setSeqSubmitted(false);
+    setSeqSaving("idle");
+  }
+
   async function changeStatus(newStatus: string) {
     if (!selected) return;
     await updateField(selected.id, "status", newStatus);
@@ -455,33 +468,6 @@ export default function ContactsClient({
     setSelected((prev) => prev ? { ...prev, notes: notesText } : prev);
     setNotesSaving(false);
     setEditingNotes(false);
-  }
-
-  async function sendSms() {
-    if (!selected || !smsText.trim()) return;
-    setSmsSending(true);
-    setSmsSent("idle");
-    try {
-      const res = await fetch("/api/sms/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: selected.id, message: smsText.trim() }),
-      });
-      const data = await res.json();
-      if (res.status === 503 || data.error === "twilio_not_configured") {
-        setSmsSent("no_twilio");
-      } else if (res.ok) {
-        setSmsSent("sent");
-        setSmsText("");
-        setTimeout(() => { setSmsOpen(false); setSmsSent("idle"); }, 2000);
-      } else {
-        setSmsSent("error");
-      }
-    } catch {
-      setSmsSent("error");
-    } finally {
-      setSmsSending(false);
-    }
   }
 
   const renderLeadItem = (lead: Lead) => {
@@ -752,40 +738,6 @@ export default function ContactsClient({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                   </svg>
                   <a href={`tel:${selected.phone}`} className="text-gray-300 text-sm hover:text-white flex-1">{selected.phone}</a>
-                  <button
-                    onClick={() => { setSmsOpen(true); setSmsText(""); setSmsSent("idle"); }}
-                    className="text-xs text-blue-400 hover:text-blue-300 border border-blue-800 hover:border-blue-600 px-2 py-0.5 rounded-full transition-colors shrink-0"
-                  >
-                    Send SMS
-                  </button>
-                </div>
-              )}
-              {smsOpen && selected.phone && (
-                <div className="mt-2 border border-gray-700 rounded-xl p-3 bg-gray-950 space-y-2">
-                  <textarea
-                    value={smsText}
-                    onChange={(e) => setSmsText(e.target.value)}
-                    placeholder="Type your SMS message…"
-                    rows={3}
-                    maxLength={160}
-                    className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-gray-600">{smsText.length}/160</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setSmsOpen(false)} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-1.5 rounded-lg transition-colors">Cancel</button>
-                      <button
-                        onClick={sendSms}
-                        disabled={smsSending || !smsText.trim()}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        {smsSending ? "Sending…" : "Send"}
-                      </button>
-                    </div>
-                  </div>
-                  {smsSent === "sent" && <p className="text-xs text-green-400">SMS sent!</p>}
-                  {smsSent === "error" && <p className="text-xs text-red-400">Failed to send. Try again.</p>}
-                  {smsSent === "no_twilio" && <p className="text-xs text-amber-400">Add Twilio env vars to enable SMS sending.</p>}
                 </div>
               )}
               {selected.location && (
@@ -936,10 +888,23 @@ export default function ContactsClient({
               </div>
 
               {!anyOn ? (
-                <div className="border border-dashed border-gray-700 rounded-xl py-5 px-4 text-center">
-                  <p className="text-gray-400 text-sm">Turn on <strong>Email</strong> or <strong>Text</strong> to set up an automated follow-up flow.</p>
-                  <p className="text-gray-600 text-xs mt-1">You can run one or both.</p>
-                </div>
+                (selected.follow_up_sequence && selected.follow_up_sequence.length > 0) ? (
+                  <div className="border border-amber-800/40 bg-amber-950/20 rounded-xl py-4 px-4 text-center">
+                    <p className="text-amber-200 text-sm">Both channels are off, but a follow-up flow is still scheduled.</p>
+                    <button
+                      onClick={clearSequence}
+                      disabled={seqSaving === "saving"}
+                      className="inline-block mt-2 text-xs font-semibold text-white px-4 py-2 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 transition-colors"
+                    >
+                      {seqSaving === "saving" ? "Turning off…" : "Turn off this flow"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-gray-700 rounded-xl py-5 px-4 text-center">
+                    <p className="text-gray-400 text-sm">Turn on <strong>Email</strong> or <strong>Text</strong> to set up an automated follow-up flow.</p>
+                    <p className="text-gray-600 text-xs mt-1">You can run one or both.</p>
+                  </div>
+                )
               ) : (
                 <>
                   {/* Preset chooser — each shows what it does before generating */}
@@ -1018,11 +983,11 @@ export default function ContactsClient({
               );
             })()}
 
-            {/* Follow-up automation toggle */}
+            {/* Master pause — stops ALL automated follow-ups for this contact */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-gray-200 text-sm font-medium">Follow-up automation</p>
-                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "This contact receives your automated follow-ups." : "Automated follow-ups are paused for this contact."}</p>
+                <p className="text-gray-200 text-sm font-medium">Automated follow-ups</p>
+                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — sends this contact's sequence above (or the default Day 1/15/30 emails if no sequence is set)." : "Off — all automated emails & texts to this contact are paused."}</p>
               </div>
               <button
                 type="button"

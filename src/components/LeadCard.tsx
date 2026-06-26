@@ -145,7 +145,6 @@ export default function LeadCard({
 
   const [showSeqGenerator, setShowSeqGenerator] = useState(false);
   const [seqWhereMet, setSeqWhereMet] = useState(lead.where_met || "");
-  const [seqConvoDetails, setSeqConvoDetails] = useState(lead.convo_details || "");
   const [generatingSeq, setGeneratingSeq] = useState(false);
   const [pendingSequence, setPendingSequence] = useState<{ day: number; message: string }[] | null>(null);
   const [savedSequence, setSavedSequence] = useState<{ day: number; message: string; sent_at: string | null }[]>(
@@ -712,16 +711,6 @@ export default function LeadCard({
                             className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-blue-500 transition-colors"
                           />
                         </div>
-                        <div>
-                          <label className="block text-[11px] text-gray-400 mb-1">Conversation details</label>
-                          <textarea
-                            value={seqConvoDetails}
-                            onChange={(e) => setSeqConvoDetails(e.target.value)}
-                            placeholder="What did you talk about? Their interests, pain points, context..."
-                            rows={2}
-                            className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-[11px] focus:outline-none focus:border-blue-500 transition-colors resize-none"
-                          />
-                        </div>
                         {!pendingSequence && (
                           <button
                             onClick={async () => {
@@ -731,7 +720,7 @@ export default function LeadCard({
                                 const r = await fetch(`/api/leads/${lead.id}/generate-sequence`, {
                                   method: "POST",
                                   headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ presetKey: activePreset, whereMet: seqWhereMet, convoDetails: seqConvoDetails }),
+                                  body: JSON.stringify({ presetKey: activePreset, whereMet: seqWhereMet, notes: lead.notes ?? "" }),
                                 });
                                 const d = await r.json();
                                 if (d.sequence) setPendingSequence(d.sequence);
