@@ -19,10 +19,11 @@ export default async function ContactsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, plan")
+    .select("username, plan, customization")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
   await ensureUserCards(user.id);
 

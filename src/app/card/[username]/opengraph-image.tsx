@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { getAdminSupabase } from "@/lib/supabase-admin";
+import { resolveCardMeta } from "@/lib/resolve-card";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -10,27 +10,12 @@ export default async function Image({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const admin = getAdminSupabase();
 
-  const { data: profileData } = await admin
-    .from("profiles")
-    .select("name, title, company, photo_url")
-    .eq("username", username)
-    .single();
-
-  const { data: cardData } = !profileData
-    ? await admin
-        .from("cards")
-        .select("name, title, company, photo_url")
-        .eq("username", username)
-        .single()
-    : { data: null };
-
-  const p = profileData ?? cardData;
-  const name = p?.name ?? username;
+  const p = await resolveCardMeta(username);
+  const name = p?.name ?? "SwiftCard";
   const title = p?.title ?? "";
   const company = p?.company ?? "";
-  const photoUrl = p?.photo_url ?? null;
+  const photoUrl = p?.photoUrl ?? null;
   const initials = name
     .split(" ")
     .map((n: string) => n[0] ?? "")

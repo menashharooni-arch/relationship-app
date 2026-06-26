@@ -15,6 +15,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
+import { resolveCardMeta } from "@/lib/resolve-card";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -45,20 +46,9 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const admin = getAdminSupabase();
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("name, title, company, photo_url")
-    .eq("username", username)
-    .single();
-
-  const { data: card } = !profile
-    ? await admin.from("cards").select("name, title, company").eq("username", username).single()
-    : { data: null };
-
-  const p = profile ?? card;
+  const p = await resolveCardMeta(username);
   if (!p) return { title: "SwiftCard" };
 
   const name = p.name ?? username;
