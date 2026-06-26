@@ -308,7 +308,8 @@ export default async function DashboardPage({
   const activeAddress = _addr
     ? [
         [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
-        [_addr.city, _addr.state, _addr.zip].filter(Boolean).join(", "),
+        _addr.city ?? "",
+        [_addr.state, _addr.zip].filter(Boolean).join(" "),
       ].filter(Boolean).join("\n")
     : "";
 

@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 
 // Pages that should never show the back button.
 const HIDDEN_PATHS = ["/", "/dashboard"];
+// Public-facing surfaces (card + Swift Links) never show it either.
+const HIDDEN_PREFIXES = ["/card/", "/links/"];
 
 export default function BackButton() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function BackButton() {
 
   if (!hasHistory) return null;
   if (HIDDEN_PATHS.includes(pathname)) return null;
+  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p))) return null;
 
   return (
     <button

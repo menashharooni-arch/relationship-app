@@ -140,7 +140,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         {/* QR + label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={84} bg={DIM} fg={BLUE} />
+            <QR size={76} bg={DIM} fg={BLUE} />
           </div>
         </div>
       </div>

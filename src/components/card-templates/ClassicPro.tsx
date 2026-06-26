@@ -152,7 +152,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         {/* QR + scan label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={84} bg="#f0f5ff" fg={NAVY} />
+            <QR size={76} bg="#f0f5ff" fg={NAVY} />
           </div>
         </div>
       </div>
