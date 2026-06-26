@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { buildConnectLinks } from "@/lib/social-url";
 import { videoThumbnail } from "@/lib/video";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import PlatformIcon from "@/components/PlatformIcon";
 import ConnectButton from "@/components/ConnectButton";
 import CardEventTracker from "@/components/CardEventTracker";
@@ -17,7 +18,7 @@ async function resolve(username: string) {
   const admin = getAdminSupabase();
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
   const { data: cardOwner } = cardRow
-    ? await admin.from("profiles").select("photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("photo_url, customization, plan").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
   const { data: profileRow } = !cardRow
     ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
@@ -28,7 +29,8 @@ async function resolve(username: string) {
     : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
   const profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
   const photoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyOk ? (profileRow?.photo_url ?? null) : null);
-  return { profile, photoUrl };
+  const ownerPlan = (cardRow ? cardOwner?.plan : profileRow?.plan) as string | null | undefined;
+  return { profile, photoUrl, ownerPlan };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
@@ -41,9 +43,10 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function SwiftLinksPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const { profile, photoUrl } = await resolve(username);
+  const { profile, photoUrl, ownerPlan } = await resolve(username);
   if (!profile) notFound();
 
+  const ownerPaid = isPaidPlan(ownerPlan);
   const customization = (profile.customization ?? {}) as {
     bio?: string;
     facebook?: string;
@@ -52,7 +55,9 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
     links?: { emoji: string; label: string; url: string }[];
   };
   const bio = customization.bio || "";
-  const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
+  // Free shows up to FREE_SWIFTLINK_BUTTONS buttons; Pro/Office unlimited.
+  const allLinks = (customization.links ?? []).filter((l) => l.label && l.url);
+  const actionLinks = ownerPaid ? allLinks : allLinks.slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS);
 
   const socials = buildConnectLinks({
     website: profile.website,
@@ -123,7 +128,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
         {/* Additional links */}
         {actionLinks.length > 0 && (
           <div className="w-full flex flex-col gap-2 mt-5">
-            {actionLinks.slice(0, 5).map((link, i) => {
+            {actionLinks.map((link, i) => {
               const href = link.url.startsWith("http") ? link.url : `https://${link.url}`;
               const thumb = videoThumbnail(link.url);
               if (thumb) {
@@ -167,10 +172,17 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
         )}
       </div>
 
-      {/* Footer */}
-      <a href={`${APP_URL}/card/${username}`} className="relative mt-10 text-white/40 text-[11px] hover:text-white/70 transition-colors">
-        View full card · swiftcard.me
-      </a>
+      {/* Footer — "Made with SwiftCard" badge on Free, removed on Pro/Office */}
+      {!ownerPaid ? (
+        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="relative mt-10 flex items-center gap-1.5 text-white/45 text-[11px] hover:text-white/80 transition-colors">
+          <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
+          Made with SwiftCard.me
+        </a>
+      ) : (
+        <a href={`${APP_URL}/card/${username}`} className="relative mt-10 text-white/40 text-[11px] hover:text-white/70 transition-colors">
+          View full card
+        </a>
+      )}
     </main>
   );
 }

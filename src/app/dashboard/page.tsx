@@ -24,9 +24,10 @@ import PushSetup from "@/components/PushSetup";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
-const FREE_LIMIT = 25;
+const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 
 export default async function DashboardPage({
   searchParams,
@@ -399,7 +400,7 @@ export default async function DashboardPage({
                 <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
               <div className="flex items-center gap-3">
-                {(isPro || allCards.length < 3) && (
+                {(isPro || allCards.length < PLAN_LIMITS.FREE_CARD_LIMIT) && (
                   <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
                   </Link>
@@ -436,12 +437,12 @@ export default async function DashboardPage({
                   </div>
                 );
               })}
-              {!isPro && allCards.length >= 3 && (
+              {!isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT && (
                 <Link
                   href="/pricing"
                   className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
                 >
-                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">You&apos;ve used all 3 free cards — upgrade for unlimited</p>
+                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Free includes {PLAN_LIMITS.FREE_CARD_LIMIT} card — upgrade to Pro for unlimited cards</p>
                   <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
                 </Link>
               )}
@@ -605,8 +606,14 @@ export default async function DashboardPage({
                   </div>
                 )}
 
-                {/* Traffic sources */}
-                {sourceBreakdown.length > 0 && (
+                {/* Traffic sources — Pro */}
+                {!isPro && sourceBreakdown.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-800/80 flex items-center justify-between">
+                    <p className="text-gray-600 text-xs">Traffic sources — Pro only</p>
+                    <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
+                  </div>
+                )}
+                {isPro && sourceBreakdown.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-800/80">
                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Traffic sources · 30d</p>
                     <div className="space-y-3">
@@ -650,10 +657,17 @@ export default async function DashboardPage({
                     )}
                     <AddContactModal />
                     {allLeads.length > 0 && (
-                      <a href={`/api/leads/export?username=${activeUsername}`}
-                        className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
-                        Export
-                      </a>
+                      isPro ? (
+                        <a href={`/api/leads/export?username=${activeUsername}`}
+                          className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
+                          Export
+                        </a>
+                      ) : (
+                        <Link href="/pricing" title="CSV export is a Pro feature"
+                          className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
+                          Export · Pro
+                        </Link>
+                      )
                     )}
                   </div>
                 </div>

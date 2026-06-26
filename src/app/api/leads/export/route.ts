@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isPaidPlan } from "@/lib/plan";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -10,10 +11,18 @@ export async function GET(req: NextRequest) {
 
   const admin = getAdminSupabase();
   const [{ data: profile }, { data: cards }] = await Promise.all([
-    admin.from("profiles").select("username").eq("id", user.id).single(),
+    admin.from("profiles").select("username, plan").eq("id", user.id).single(),
     admin.from("cards").select("username").eq("user_id", user.id),
   ]);
   if (!profile) return NextResponse.json({ error: "No profile" }, { status: 404 });
+
+  // CSV export is a Pro/Office feature.
+  if (!isPaidPlan(profile.plan)) {
+    return NextResponse.json(
+      { error: "upgrade", message: "CSV export is a Pro feature. Upgrade to export your contacts.", upgrade: "/pricing" },
+      { status: 402 }
+    );
+  }
 
   // Every username this user owns (legacy profile + each card).
   const ownedUsernames = [profile.username, ...(cards ?? []).map((c) => c.username)].filter(Boolean) as string[];

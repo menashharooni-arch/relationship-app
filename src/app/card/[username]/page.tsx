@@ -17,6 +17,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import CardScaler from "@/components/CardScaler";
+import { isPaidPlan } from "@/lib/plan";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -309,6 +310,19 @@ export default async function CardPage({
         />
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
       </div>
+
+      {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
+      {!isPaidPlan(profile.plan) && (
+        <a
+          href={APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
+        >
+          <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
+          Made with SwiftCard.me
+        </a>
+      )}
     </main>
   );
 }
