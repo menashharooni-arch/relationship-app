@@ -5,6 +5,7 @@ import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import { isPaidPlan } from "@/lib/plan";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -93,13 +94,14 @@ export default async function ContactsPage({
           </div>
           {(leads?.length ?? 0) > 0 && (
             <a
-              href={`/api/leads/export`}
+              href={isPaidPlan(profile.plan) ? `/api/leads/export` : `/pricing`}
+              title={isPaidPlan(profile.plan) ? "Export your contacts as CSV" : "CSV export is a Pro feature"}
               className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
             >
               <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
                 <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
               </svg>
-              Export CSV
+              {isPaidPlan(profile.plan) ? "Export CSV" : "Export CSV · Pro"}
             </a>
           )}
         </div>

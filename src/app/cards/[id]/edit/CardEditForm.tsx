@@ -11,6 +11,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import { PLAN_LIMITS } from "@/lib/plan";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
 import Link from "next/link";
@@ -93,6 +94,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [bio, setBio] = useState(card.customization?.bio || "");
   const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
@@ -132,6 +134,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const ActiveTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
 
   function addLink() {
+    if (atLinkCap) return;
     if (!newLink.label.trim() || !newLink.url.trim()) return;
     const url = newLink.url.startsWith("http") ? newLink.url : `https://${newLink.url}`;
     setLinks((prev) => [...prev, { ...newLink, url }]);
@@ -333,6 +336,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     Cancel
                   </button>
                 </div>
+              </div>
+            ) : atLinkCap ? (
+              <div className="border border-dashed border-blue-800/50 bg-blue-950/30 rounded-xl py-3 px-4 text-center">
+                <p className="text-blue-200 text-xs">Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} Swift Links buttons.</p>
+                <a href="/pricing" className="inline-block mt-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro for unlimited →</a>
               </div>
             ) : (
               <button type="button" onClick={() => setAddingLink(true)}

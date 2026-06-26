@@ -14,6 +14,7 @@ import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 function slugify(str: string): string {
   return str
@@ -125,7 +126,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
   }
 
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
   function addLink() {
+    if (atLinkCap) return;
     const label = newLink.label.trim();
     let url = newLink.url.trim();
     if (!label || !url) return;
@@ -428,11 +431,16 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 <button
                   type="button"
                   onClick={addLink}
-                  disabled={!newLink.label.trim() || !newLink.url.trim()}
+                  disabled={atLinkCap || !newLink.label.trim() || !newLink.url.trim()}
                   className="w-full border border-dashed border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-40 text-xs font-medium py-2.5 rounded-xl transition-colors"
                 >
                   + Add link
                 </button>
+                {atLinkCap && (
+                  <p className="text-[11px] text-blue-400 text-center">
+                    Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} buttons — <Link href="/pricing" className="underline hover:text-blue-300">upgrade to Pro</Link> for unlimited.
+                  </p>
+                )}
               </div>
             </div>
 
