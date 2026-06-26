@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data } = await supabase
+  // Scope to the selected card (plus legacy un-tagged notifications) when given.
+  const card = (req.nextUrl.searchParams.get("card") || "").replace(/[^a-zA-Z0-9_-]/g, "");
+
+  let q = supabase
     .from("notifications")
     .select("id, type, title, body, read, created_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .eq("user_id", user.id);
+  if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
+
+  const { data } = await q.order("created_at", { ascending: false }).limit(20);
 
   return NextResponse.json(data ?? []);
 }

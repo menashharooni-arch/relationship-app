@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
       admin.from("notifications").insert({
         user_id: ownerProfile.id,
+        card_owner,
         type: "new_lead",
         title: `New contact: ${name}`,
         body: `${name} shared their info with you${sourceStr}.`,

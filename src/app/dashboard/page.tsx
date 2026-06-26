@@ -192,7 +192,7 @@ export default async function DashboardPage({
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername)
       .gte("viewed_at", fourteenDaysAgo).lt("viewed_at", sevenDaysAgo),
     supabase.from("card_views").select("viewed_at").eq("username", analyticsUsername).gte("viewed_at", chartCutoff),
-    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
     supabase.from("card_views").select("location").eq("username", analyticsUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
     supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).eq("event_type", "contact_save"),
     getAdminSupabase().from("card_events").select("source, event_type").eq("card_owner_username", activeUsername).gte("created_at", thirtyDaysAgo),
@@ -381,7 +381,7 @@ export default async function DashboardPage({
           <div className="flex items-center gap-2 shrink-0">
             {isPro && <CardScanner cardOwner={activeUsername} />}
             {isEnterprise && <CSVImport />}
-            <NotificationBell initialNotifications={notifications ?? []} />
+            <NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} />
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
           </div>

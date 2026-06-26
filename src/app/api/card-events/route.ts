@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
         await admin.from("notifications").insert({
           user_id: owner.id,
+          card_owner: card_owner_username,
           type: "contact_saved",
           title: "Contact saved",
           body: `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`,
