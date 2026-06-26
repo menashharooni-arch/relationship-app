@@ -23,8 +23,10 @@ function timeAgo(iso: string) {
 
 export default function NotificationBell({
   initialNotifications,
+  activeCard,
 }: {
   initialNotifications: Notification[];
+  activeCard?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -37,7 +39,7 @@ export default function NotificationBell({
     const poll = async () => {
       if (openRef.current) return;
       try {
-        const res = await fetch("/api/notifications");
+        const res = await fetch(`/api/notifications${activeCard ? `?card=${encodeURIComponent(activeCard)}` : ""}`);
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setNotifications((prev) => {
@@ -51,7 +53,8 @@ export default function NotificationBell({
 
     const id = setInterval(poll, 30000);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCard]);
 
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
