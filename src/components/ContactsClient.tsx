@@ -145,6 +145,8 @@ export default function ContactsClient({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiCopied, setAiCopied] = useState<number | null>(null);
   const [aiTone, setAiTone] = useState<"friendly" | "professional" | "direct">("friendly");
+  const [aiUpgrade, setAiUpgrade] = useState<string | null>(null);
+  const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -187,6 +189,7 @@ export default function ContactsClient({
     if (!selected) return;
     setAiLoading(true);
     setAiMessages(null);
+    setAiUpgrade(null);
     try {
       const res = await fetch("/api/ai/suggest-messages", {
         method: "POST",
@@ -198,7 +201,14 @@ export default function ContactsClient({
         }),
       });
       const data = await res.json();
-      setAiMessages(Array.isArray(data.messages) ? data.messages : []);
+      // Free AI draft limit reached → show upgrade instead of messages.
+      if (res.status === 402 || data.error === "upgrade") {
+        setAiUpgrade(data.message || "Upgrade to Pro for unlimited AI follow-ups.");
+        setAiMessages([]);
+      } else {
+        setAiMessages(Array.isArray(data.messages) ? data.messages : []);
+        if (typeof data.aiDraftsRemaining === "number") setAiRemaining(data.aiDraftsRemaining);
+      }
     } catch {
       setAiMessages([]);
     } finally {
@@ -268,6 +278,7 @@ export default function ContactsClient({
     setConvoText(lead.convo_details ?? "");
     setAiMessages(null);
     setAiCopied(null);
+    setAiUpgrade(null);
     if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
@@ -868,10 +879,20 @@ export default function ContactsClient({
                   >
                     Regenerate ↺
                   </button>
+                  {aiRemaining !== null && (
+                    <p className="text-gray-600 text-[11px] text-center">{aiRemaining} free AI draft{aiRemaining === 1 ? "" : "s"} left · <a href="/pricing" className="text-blue-400 hover:text-blue-300">go unlimited with Pro</a></p>
+                  )}
                 </div>
               )}
 
-              {aiMessages !== null && aiMessages.length === 0 && (
+              {aiUpgrade && (
+                <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center">
+                  <p className="text-blue-200 text-sm">{aiUpgrade}</p>
+                  <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
+                </div>
+              )}
+
+              {!aiUpgrade && aiMessages !== null && aiMessages.length === 0 && (
                 <p className="text-gray-600 text-sm text-center py-2">Could not generate messages. Try adding context above.</p>
               )}
             </div>

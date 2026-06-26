@@ -19,34 +19,39 @@ const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits
 
 const features = {
   free: [
-    "Up to 3 digital business cards",
-    "25 leads",
-    "Day 1, 15, and 30 follow-up reminders",
-    "QR code and shareable link",
-    "Save to contacts (vCard)",
-    "Social links",
-    "5 card templates",
-    "SwiftCard branding on card",
+    "1 digital business card",
+    "Up to 25 contacts",
+    "All 5 card templates",
+    "QR code, shareable link & NFC",
+    "Swift Links page (up to 2 buttons)",
+    "Save to contacts (vCard), socials, bio, address",
+    "Contacts CRM: statuses, notes, read/unread",
+    "Basic analytics (views, today, best day)",
+    "Day-1 follow-up email",
+    "3 AI follow-up drafts to try",
+    "“Made with SwiftCard” badge",
   ],
   pro: [
-    "Everything in Free",
-    "Unlimited leads",
+    "Everything in Free, plus:",
     "Unlimited cards",
-    "Analytics dashboard",
-    "Lead status tags",
-    "Automated emails to leads",
+    "Unlimited contacts",
+    "Custom card designer",
     "No SwiftCard branding",
+    "Unlimited Swift Links buttons",
+    "Unlimited AI drafts + automated Day 1/15/30 sequences",
+    "Full analytics: traffic sources, locations & conversion",
     "CSV export",
+    "Integrations: Zapier, Google, HubSpot",
+    "AI business-card scanner",
   ],
   enterprise: [
-    "Everything in Pro",
-    "Unlimited team members",
-    "Shared office dashboard",
+    "Everything in Pro, for every seat",
+    "Shared office/team dashboard",
     "Individual card per member",
-    "Admin seat controls",
+    "Admin seat controls & invites",
+    "Unlimited seats (minimum 2)",
+    "Bulk CSV import of contacts",
     "Priority support",
-    "Custom onboarding",
-    "NFC cards (coming soon)",
   ],
 };
 
@@ -350,6 +355,18 @@ export default function PricingPage() {
                   {n} users
                 </button>
               ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-slate-500">Custom:</span>
+              <input
+                type="number"
+                min={OFFICE_MIN_SEATS}
+                value={seats}
+                onChange={(e) => setSeats(Math.max(OFFICE_MIN_SEATS, Math.floor(Number(e.target.value) || OFFICE_MIN_SEATS)))}
+                className="w-20 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                style={{ background: "#FAF7F2", border: "1px solid #D4C8B8", color: "#0f172a" }}
+              />
+              <span className="text-xs text-slate-500">users · no upper limit</span>
             </div>
           </div>
 
