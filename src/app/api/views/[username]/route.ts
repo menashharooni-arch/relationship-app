@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 export async function POST(
   req: NextRequest,
@@ -17,7 +17,7 @@ export async function POST(
     ? `${decodeURIComponent(city)}, ${country}`
     : country || null;
 
-  const supabase = getSupabase();
+  const supabase = getAdminSupabase();
   await supabase.from("card_views").insert({ username, ip, location });
 
   return NextResponse.json({ ok: true });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getOwnerUsernames } from "@/lib/owner-usernames";
 import Anthropic from "@anthropic-ai/sdk";
 
 const PRESET_CADENCES: Record<string, { name: string; days: number[] }> = {
@@ -20,12 +21,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!preset) return NextResponse.json({ error: "Invalid preset" }, { status: 400 });
 
   const admin = getAdminSupabase();
-  const [{ data: lead }, { data: profile }] = await Promise.all([
-    admin.from("leads").select("name, email, company, company_description, message").eq("id", id).single(),
+  const [{ data: lead }, { data: profile }, usernames] = await Promise.all([
+    admin.from("leads").select("name, email, company, company_description, message, card_owner").eq("id", id).single(),
     admin.from("profiles").select("name, title, company").eq("id", user.id).single(),
+    getOwnerUsernames(user.id),
   ]);
 
-  if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

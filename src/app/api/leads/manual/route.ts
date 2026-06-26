@@ -14,6 +14,20 @@ export async function POST(req: NextRequest) {
   const { name, email, phone, company, notes, where_met } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name is required." }, { status: 400 });
 
+  // Enforce the same free-plan contact limit as the public capture route.
+  if (profile.plan !== "pro" && profile.plan !== "enterprise") {
+    const { count } = await admin
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("card_owner", profile.username);
+    if ((count ?? 0) >= 25) {
+      return NextResponse.json(
+        { error: "limit", message: "You've reached the free plan's 25-contact limit. Upgrade to Pro for unlimited contacts." },
+        { status: 402 }
+      );
+    }
+  }
+
   const fullNotes = [
     notes?.trim(),
     where_met?.trim() ? `Met at: ${where_met.trim()}` : null,
@@ -29,7 +43,7 @@ export async function POST(req: NextRequest) {
       notes: fullNotes || null,
       card_owner: profile.username,
       source: "manual",
-      status: "new",
+      status: "new_contact",
     })
     .select()
     .single();

@@ -414,9 +414,9 @@ export default function ContactsClient({
   };
 
   return (
-    <div className="flex gap-0 h-[calc(100vh-56px)]">
-      {/* Left: contact list */}
-      <div className="w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex flex-col overflow-hidden">
+    <div className="flex gap-0 lg:h-[calc(100vh-56px)]">
+      {/* Left: contact list — full width on mobile, hidden once a contact is opened */}
+      <div className={`${selected ? "hidden lg:flex" : "flex"} w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex-col lg:overflow-hidden`}>
         {/* Search */}
         <div className="p-4 border-b border-gray-800 space-y-3">
           <div className="relative">
@@ -444,7 +444,7 @@ export default function ContactsClient({
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 lg:overflow-y-auto pb-20 lg:pb-0">
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-gray-600 text-sm">
               {search ? "No contacts match your search." : "No contacts yet."}
@@ -466,8 +466,8 @@ export default function ContactsClient({
         </div>
       </div>
 
-      {/* Right: detail panel */}
-      <div className="flex-1 overflow-y-auto hidden lg:block">
+      {/* Right: detail panel — full-screen overlay on mobile, side pane on desktop */}
+      <div className={`${selected ? "fixed inset-0 z-40 bg-gray-950 overflow-y-auto" : "hidden"} lg:static lg:z-auto lg:block lg:flex-1 lg:overflow-y-auto`}>
         {!selected ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-gray-600 gap-3">
             <svg className="w-10 h-10 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -476,7 +476,15 @@ export default function ContactsClient({
             <p className="text-sm">Select a contact to view details</p>
           </div>
         ) : (
-          <div className="max-w-xl mx-auto p-8">
+          <>
+            {/* Mobile back bar */}
+            <div className="lg:hidden sticky top-0 z-10 flex items-center gap-2 px-4 h-12 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+              <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Contacts
+              </button>
+            </div>
+          <div className="max-w-xl mx-auto p-6 sm:p-8 pb-24 lg:pb-8">
             {/* Header */}
             <div className="flex items-start gap-5 mb-8">
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
@@ -998,6 +1006,7 @@ export default function ContactsClient({
               )}
             </div>
           </div>
+          </>
         )}
       </div>
     </div>
