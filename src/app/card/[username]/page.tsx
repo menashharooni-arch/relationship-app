@@ -133,6 +133,8 @@ export default async function CardPage({
     font?: string;
     links?: { emoji: string; label: string; url: string }[];
     testimonials?: { name: string; text: string }[];
+    phones?: { number: string; label: "mobile" | "office"; showOnCard: boolean }[];
+    fax?: string;
   };
   const bio = customization.bio || "";
   const facebook = customization.facebook || "";
@@ -172,7 +174,16 @@ export default async function CardPage({
     company: profile.company || "",
     email: profile.email || "",
     phone: profile.phone || "",
+    phones: (customization.phones ?? []).filter((p) => p?.number?.trim()),
+    fax: customization.fax || "",
     website: profile.website || "",
+    address: {
+      street: addr?.street || "",
+      unit: addr?.unit || "",
+      city: addr?.city || "",
+      state: addr?.state || "",
+      zip: addr?.zip || "",
+    },
     linkedin: profile.linkedin || "",
     instagram: profile.instagram || "",
     twitter: profile.twitter || "",

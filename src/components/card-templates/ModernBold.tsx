@@ -62,7 +62,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           )}
           <p
             className="truncate"
-            style={{ fontSize: 10.5, letterSpacing: "0.2em", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}
+            style={{ fontSize: 12, letterSpacing: "0.16em", color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase" }}
           >
             {data.company}
           </p>
@@ -111,41 +111,41 @@ export default function ModernBold({ data }: { data: CardData }) {
         className="flex-1 flex flex-col justify-between"
         style={{ padding: "16px 18px 14px", color: "#94a3b8" }}
       >
-        <div className="flex flex-col gap-[8px] mt-1">
+        <div className="flex flex-col gap-[5px] mt-1">
           {cardPhones(data).map((p, i) => (
             <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
               <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 13 }}>
+              <span className="font-bold" style={{ fontSize: 14.5 }}>
                 {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
             </div>
           ))}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
-              <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 13 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
           {data.email && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#cbd5e1" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#e2e8f0" }}>
               <span style={{ color: BLUE }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
+              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#cbd5e1" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#94a3b8" }}>
               <span style={{ color: BLUE }}><IcoGlobe /></span>
-              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2" style={{ color: "#94a3b8" }}>
               <span style={{ color: BLUE, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
+            </div>
+          )}
+          {cardFax(data) && (
+            <div className="flex items-center gap-2" style={{ color: "#94a3b8" }}>
+              <span style={{ color: BLUE }}><IcoPhone /></span>
+              <span style={{ fontSize: 10 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
         </div>
@@ -153,7 +153,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         {/* QR + label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={76} bg={DIM} fg={BLUE} />
+            <QR size={66} bg={DIM} fg={BLUE} />
           </div>
         </div>
       </div>

@@ -120,48 +120,48 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         </p>
 
         {/* Contact rows with gold icon accents */}
-        <div className="flex flex-col gap-[8px]">
+        <div className="flex flex-col gap-[5px]">
           {cardPhones(data).map((p, i) => (
             <div key={`ph${i}`} className="flex items-center gap-2">
               <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
+              <span style={{ fontSize: 14.5, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
                 {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
             </div>
           ))}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2">
-              <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0">
               <span style={{ color: GOLD }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 11.5, color: MUTED }}>{data.email}</span>
+              <span className="truncate" style={{ fontSize: 13, color: TEXT, fontWeight: 500 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
             <div className="flex items-center gap-2 min-w-0">
               <span style={{ color: GOLD }}><IcoGlobe /></span>
-              <span className="truncate" style={{ fontSize: 11.5, color: MUTED }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2">
               <span style={{ color: GOLD, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 10, color: MUTED, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 9, color: MUTED, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
+            </div>
+          )}
+          {cardFax(data) && (
+            <div className="flex items-center gap-2">
+              <span style={{ color: GOLD }}><IcoPhone /></span>
+              <span style={{ fontSize: 10, color: MUTED }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
         </div>
 
         {/* QR */}
         <div className="flex flex-col items-end gap-1">
-          <QR size={76} bg="#f5f0e8" fg={GOLD} />
+          <QR size={66} bg="#f5f0e8" fg={GOLD} />
         </div>
       </div>
     </div>

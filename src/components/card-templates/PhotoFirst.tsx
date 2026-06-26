@@ -111,41 +111,41 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         </div>
 
         {/* Contact rows */}
-        <div className="flex flex-col gap-[7px]">
+        <div className="flex flex-col gap-[5px]">
           {cardPhones(data).map((p, i) => (
             <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: "#1e1b4b" }}>
               <span style={{ color: ACCENT }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 13 }}>
+              <span className="font-bold" style={{ fontSize: 14.5 }}>
                 {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
             </div>
           ))}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: "#1e1b4b" }}>
-              <span style={{ color: ACCENT }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 13 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0" style={{ color: "#374151" }}>
               <span style={{ color: ACCENT }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
+              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#374151" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#4b5563" }}>
               <span style={{ color: ACCENT }}><IcoGlobe /></span>
-              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
-            <div className="flex items-start gap-2" style={{ color: "#4b5563" }}>
+            <div className="flex items-start gap-2" style={{ color: "#6b7280" }}>
               <span style={{ color: ACCENT, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
+            </div>
+          )}
+          {cardFax(data) && (
+            <div className="flex items-center gap-2" style={{ color: "#6b7280" }}>
+              <span style={{ color: ACCENT }}><IcoPhone /></span>
+              <span style={{ fontSize: 10 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
           {socials.length > 0 && (
@@ -158,7 +158,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         {/* QR + scan label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={76} bg="#f5f0ff" fg={ACCENT} />
+            <QR size={66} bg="#f5f0ff" fg={ACCENT} />
           </div>
         </div>
       </div>
