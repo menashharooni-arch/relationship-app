@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
+import { deliverToLead } from "@/lib/messaging";
 import Anthropic from "@anthropic-ai/sdk";
 
 type FlowDay = { enabled: boolean; time: string };
@@ -191,7 +192,6 @@ export async function GET(req: NextRequest) {
           : null;
 
         for (const lead of leads) {
-          if (!lead.email) continue;
           const leadFirst = lead.name.split(" ")[0];
 
           let aiBody = "";
@@ -221,12 +221,18 @@ export async function GET(req: NextRequest) {
           const customNote = flow.customNote?.trim();
           const fullBody = customNote ? `${emailBody}\n\n${customNote}` : emailBody;
 
-          await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-            replyTo: profile.email,
-            to: lead.email,
-            subject: step.leadSubject(ownerFirst),
-            html: `
+          // Deliver via email (free) or SMS fallback (one shared number),
+          // respecting opt-out and logging into the contact's conversation thread.
+          await deliverToLead({
+            leadId: lead.id,
+            cardOwner: username,
+            lead: { email: lead.email, phone: lead.phone, name: lead.name },
+            sender: { name: profile.name, company: profile.company, phone: profile.phone, email: profile.email, website: null },
+            text: fullBody,
+            cardUsername: username,
+            email: {
+              subject: step.leadSubject(ownerFirst),
+              html: `
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
                   <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
@@ -242,7 +248,8 @@ export async function GET(req: NextRequest) {
                   </div>
                 </div>
               </div>`,
-          }).catch(() => {});
+            },
+          });
         }
       }
 
@@ -261,7 +268,7 @@ export async function GET(req: NextRequest) {
 
   const { data: seqLeads } = await supabase
     .from("leads")
-    .select("id, name, email, card_owner, created_at, follow_up_sequence, tags, status")
+    .select("id, name, email, phone, card_owner, created_at, follow_up_sequence, tags, status")
     .neq("status", "dissolved")
     .not("follow_up_sequence", "is", null);
 
@@ -276,11 +283,10 @@ export async function GET(req: NextRequest) {
       if (item.sent_at) continue;
       const dueMs = createdAt + item.day * 86400000;
       if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
-      if (!seqLead.email) continue;
 
       const { data: ownerProfile } = await supabase
         .from("profiles")
-        .select("name, email, title, company")
+        .select("name, email, phone, title, company")
         .eq("username", seqLead.card_owner)
         .single();
 
@@ -289,21 +295,27 @@ export async function GET(req: NextRequest) {
       const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
-      try {
-        await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-          replyTo: ownerProfile.email ?? undefined,
-          to: seqLead.email as string,
+      const r = await deliverToLead({
+        leadId: seqLead.id,
+        cardOwner: seqLead.card_owner,
+        lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
+        sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
+        text: item.message,
+        cardUsername: seqLead.card_owner,
+        email: {
           subject: `${ownerFirst} following up`,
-          html: `<div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;"><p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;"><p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>${ownerProfile.title ? `<p style="margin:0;color:#6b7280;font-size:12px;">${ownerProfile.title}</p>` : ""}${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="color:#2563eb;font-size:13px;">${ownerProfile.email}</a>` : ""}</div><p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard · <a href="{{unsubscribe_url}}" style="color:#d1d5db;">Unsubscribe</a></p></div></div>`,
-        });
+          html: `<div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;"><p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;"><p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>${ownerProfile.title ? `<p style="margin:0;color:#6b7280;font-size:12px;">${ownerProfile.title}</p>` : ""}${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="color:#2563eb;font-size:13px;">${ownerProfile.email}</a>` : ""}</div><p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p></div></div>`,
+        },
+      });
 
+      // Mark this step done unless it failed transiently (those retry next run).
+      if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
         const updatedSeq = seq.map((s) =>
           s.day === item.day ? { ...s, sent_at: new Date().toISOString() } : s
         );
         await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
-        totalSent++;
-      } catch { /* fail silently */ }
+        if (r.status === "sent") totalSent++;
+      }
     }
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===

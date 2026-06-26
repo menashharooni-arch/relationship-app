@@ -1,9 +1,75 @@
 import { Resend } from "resend";
 import twilio from "twilio";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export type SendResult = "sent" | "not_configured" | "failed";
+
+// ── Opt-out / suppression (STOP compliance + email unsubscribe) ─────────────
+// SMS STOP must suppress that phone platform-wide (carrier requirement), so the
+// suppression list is keyed by normalized contact, not by user.
+export function normalizePhone(p: string): string {
+  const d = (p || "").replace(/\D/g, "");
+  return d.length > 10 ? d.slice(-10) : d; // match on the last 10 digits
+}
+function normContact(channel: "sms" | "email", contact: string): string {
+  return channel === "sms" ? normalizePhone(contact) : contact.trim().toLowerCase();
+}
+
+export async function isOptedOut(channel: "sms" | "email", contact: string | null | undefined): Promise<boolean> {
+  if (!contact) return false;
+  try {
+    const { data } = await getAdminSupabase()
+      .from("message_opt_outs")
+      .select("id")
+      .eq("channel", channel)
+      .eq("contact", normContact(channel, contact))
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false; // table missing before migration → don't block sends
+  }
+}
+
+export async function addOptOut(channel: "sms" | "email", contact: string): Promise<void> {
+  try {
+    await getAdminSupabase()
+      .from("message_opt_outs")
+      .upsert({ channel, contact: normContact(channel, contact) }, { onConflict: "channel,contact" });
+  } catch { /* ignore */ }
+}
+
+export async function removeOptOut(channel: "sms" | "email", contact: string): Promise<void> {
+  try {
+    await getAdminSupabase()
+      .from("message_opt_outs")
+      .delete()
+      .eq("channel", channel)
+      .eq("contact", normContact(channel, contact));
+  } catch { /* ignore */ }
+}
+
+// Append a message to a contact's conversation thread (best-effort).
+export async function logMessage(opts: {
+  leadId: string;
+  cardOwner?: string | null;
+  direction: "out" | "in";
+  channel: "sms" | "email";
+  body: string;
+  status?: string | null;
+}): Promise<void> {
+  try {
+    await getAdminSupabase().from("lead_messages").insert({
+      lead_id: opts.leadId,
+      card_owner: opts.cardOwner ?? null,
+      direction: opts.direction,
+      channel: opts.channel,
+      body: opts.body,
+      status: opts.status ?? null,
+    });
+  } catch { /* table may not exist yet */ }
+}
 
 // Keep SMS bodies in plain GSM-7 so each message is 1 segment (cheapest).
 // One emoji forces UCS-2 encoding → 70 chars/segment → 2-3x the cost.
@@ -56,6 +122,61 @@ export async function sendSms(to: string, body: string): Promise<SendResult> {
 
 function esc(v: string | null | undefined) {
   return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Send pre-built HTML (used by automations that have their own templates).
+export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null }): Promise<SendResult> {
+  if (!process.env.RESEND_API_KEY) return "not_configured";
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  try {
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+      to: opts.to,
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      subject: opts.subject,
+      html: opts.html,
+    });
+    return "sent";
+  } catch {
+    return "failed";
+  }
+}
+
+export type DeliverResult = { channel: "email" | "sms" | "none"; status: SendResult | "opted_out" | "no_contact" };
+
+// One delivery path for BOTH conversations and automations:
+// email first (free) → SMS fallback (one shared number) → respect opt-out → log to thread.
+export async function deliverToLead(opts: {
+  leadId: string;
+  cardOwner?: string | null;
+  lead: { email?: string | null; phone?: string | null; name?: string | null };
+  sender: { name?: string | null; company?: string | null; phone?: string | null; email?: string | null; website?: string | null };
+  text: string;                               // plain body (SMS + thread log + fallback email)
+  email?: { subject: string; html: string };  // custom email template (automations); omit → branded notification
+  cardUsername?: string | null;
+  log?: boolean;                              // append to conversation thread (default true)
+}): Promise<DeliverResult> {
+  const { lead, sender } = opts;
+  const senderName = sender.name || "A SwiftCard user";
+  const doLog = opts.log !== false;
+
+  if (lead.email) {
+    if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
+    const status = opts.email
+      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null })
+      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, text: opts.text, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
+    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
+    return { channel: "email", status };
+  }
+
+  if (lead.phone) {
+    if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
+    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, replyContact: sender.phone || sender.email || null }));
+    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status });
+    return { channel: "sms", status };
+  }
+
+  return { channel: "none", status: "no_contact" };
 }
 
 // ── Branded email "message" (free; default channel when the contact has email) ─
