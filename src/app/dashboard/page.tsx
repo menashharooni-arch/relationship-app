@@ -655,7 +655,7 @@ export default async function DashboardPage({
                     {!isPro && (
                       <p className="text-gray-600 text-xs hidden sm:block">{allLeads.length}/{FREE_LIMIT} free</p>
                     )}
-                    <AddContactModal />
+                    <AddContactModal cardOwner={activeUsername} />
                     {allLeads.length > 0 && (
                       isPro ? (
                         <a href={`/api/leads/export?username=${activeUsername}`}
