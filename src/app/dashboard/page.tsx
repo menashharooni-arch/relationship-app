@@ -68,8 +68,9 @@ export default async function DashboardPage({
   const allCards = cards ?? [];
   const hasCards = allCards.length > 0;
 
-  // Active card: the selected one, else the first card.
-  const activeCard = allCards.find((c) => c.username === selectedCard) ?? allCards[0] ?? null;
+  // Active card: ONLY the explicitly-selected one. No default — after login you start
+  // with no card selected and must pick one.
+  const activeCard = allCards.find((c) => c.username === selectedCard) ?? null;
   const activeSource = activeCard ?? profile;
   const activeUsername = (activeCard?.username ?? "") as string;
   const analyticsUsername = activeUsername;
@@ -108,6 +109,60 @@ export default async function DashboardPage({
           <Link href="/cards/new" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
             Create your card →
           </Link>
+        </main>
+      </>
+    );
+  }
+
+  // Has cards but none selected (e.g. right after login) → pick a card first.
+  if (!activeCard) {
+    return (
+      <>
+        <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
+        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+          <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="font-bold text-white text-sm tracking-tight">SwiftCard</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {(isPro || allCards.length < 3) && (
+                <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">+ Add card</Link>
+              )}
+              <SignOutButton />
+            </div>
+          </div>
+        </nav>
+        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
+          <div className="w-full max-w-sm">
+            <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
+            <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>
+            <div className="space-y-2">
+              {allCards.map((card) => (
+                <Link
+                  key={card.id}
+                  href={`/dashboard?card=${card.username}`}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3.5 border border-gray-800 bg-gray-900 hover:border-blue-600/50 hover:bg-gray-900/60 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 bg-gray-700 text-gray-300">
+                    {(card.label || card.name || card.username)[0]?.toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+                    <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
+                  </div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-gray-600 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              ))}
+            </div>
+          </div>
         </main>
       </>
     );
