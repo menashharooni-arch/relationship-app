@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -15,22 +16,38 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
+  const paid = isPaidPlan(profile?.plan);
 
   const { count } = await admin
     .from("cards")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
 
-  const FREE_CARD_LIMIT = 3; // total cards on Free (no separate primary card)
-  if (!isPro && (count ?? 0) >= FREE_CARD_LIMIT) {
-    return NextResponse.json({ error: "limit", message: `Free plan includes up to ${FREE_CARD_LIMIT} cards. Upgrade to Pro for unlimited cards.` }, { status: 402 });
+  // Free is capped at FREE_CARD_LIMIT cards. Existing cards are never deleted —
+  // we only block creating new ones beyond the cap.
+  if (!paid && (count ?? 0) >= PLAN_LIMITS.FREE_CARD_LIMIT) {
+    return NextResponse.json(
+      {
+        error: "limit",
+        message: `Free includes ${PLAN_LIMITS.FREE_CARD_LIMIT} card. Upgrade to Pro for unlimited cards.`,
+        upgrade: "/pricing",
+      },
+      { status: 402 }
+    );
   }
 
   const body = await req.json();
   const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label } = body;
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
+
+  // Cap Swift Links buttons on Free (backend-enforced, not just UI).
+  let cust = (customization ?? {}) as Record<string, unknown>;
+  if (!paid && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
+    cust = { ...cust, links: (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
+  }
+  // Custom designer is Pro-only — Free can't save a "custom" template.
+  const safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 
   const { data, error } = await admin
     .from("cards")
@@ -47,8 +64,8 @@ export async function POST(req: NextRequest) {
       instagram: instagram || "",
       twitter: twitter || "",
       tiktok: tiktok || "",
-      template: template || "classic-pro",
-      customization: customization ?? {},
+      template: safeTemplate,
+      customization: cust,
       logo_url: logo_url || null,
       label: label || null,
     })

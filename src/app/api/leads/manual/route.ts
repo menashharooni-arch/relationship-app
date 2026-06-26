@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -15,14 +16,19 @@ export async function POST(req: NextRequest) {
   if (!name?.trim()) return NextResponse.json({ error: "Name is required." }, { status: 400 });
 
   // Enforce the same free-plan contact limit as the public capture route.
-  if (profile.plan !== "pro" && profile.plan !== "enterprise") {
+  // Only blocks NEW adds — existing contacts are never removed.
+  if (!isPaidPlan(profile.plan)) {
     const { count } = await admin
       .from("leads")
       .select("*", { count: "exact", head: true })
       .eq("card_owner", profile.username);
-    if ((count ?? 0) >= 25) {
+    if ((count ?? 0) >= PLAN_LIMITS.FREE_CONTACT_LIMIT) {
       return NextResponse.json(
-        { error: "limit", message: "You've reached the free plan's 25-contact limit. Upgrade to Pro for unlimited contacts." },
+        {
+          error: "limit",
+          message: `You've reached the free plan's ${PLAN_LIMITS.FREE_CONTACT_LIMIT}-contact limit. Upgrade to Pro for unlimited contacts.`,
+          upgrade: "/pricing",
+        },
         { status: 402 }
       );
     }

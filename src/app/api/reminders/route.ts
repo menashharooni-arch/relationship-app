@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isPaidPlan } from "@/lib/plan";
 import Anthropic from "@anthropic-ai/sdk";
 
 type FlowDay = { enabled: boolean; time: string };
@@ -122,11 +123,14 @@ export async function GET(req: NextRequest) {
     for (const [username, leads] of Object.entries(byOwner)) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, email, phone, company, title, flow_settings")
+        .select("name, email, phone, company, title, flow_settings, plan")
         .eq("username", username)
         .single();
 
       if (!profile?.email) continue;
+
+      // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
+      if (step.key !== "day1" && !isPaidPlan(profile.plan)) continue;
 
       // Respect the user's flow settings
       const flow: FlowSettings = (profile.flow_settings as FlowSettings) ?? DEFAULT_FLOW;

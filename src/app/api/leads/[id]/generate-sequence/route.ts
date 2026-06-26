@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { isPaidPlan } from "@/lib/plan";
 import Anthropic from "@anthropic-ai/sdk";
 
 const PRESET_CADENCES: Record<string, { name: string; days: number[] }> = {
@@ -23,11 +24,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin = getAdminSupabase();
   const [{ data: lead }, { data: profile }, usernames] = await Promise.all([
     admin.from("leads").select("name, email, company, company_description, message, card_owner").eq("id", id).single(),
-    admin.from("profiles").select("name, title, company").eq("id", user.id).single(),
+    admin.from("profiles").select("name, title, company, plan").eq("id", user.id).single(),
     getOwnerUsernames(user.id),
   ]);
 
   if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Multi-day AI follow-up sequences are a Pro/Office feature.
+  if (!isPaidPlan(profile?.plan)) {
+    return NextResponse.json(
+      { error: "upgrade", message: "Automated follow-up sequences are a Pro feature. Upgrade to unlock them.", upgrade: "/pricing" },
+      { status: 402 }
+    );
+  }
 
   const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
