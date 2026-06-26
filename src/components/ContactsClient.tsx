@@ -25,7 +25,7 @@ type Lead = {
   where_met: string | null;
   convo_details: string | null;
   message: string | null;
-  follow_up_sequence?: { day: number; time?: string; message: string; channel?: string; sent_at?: string | null }[] | null;
+  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
 };
 
 type CardEvent = {
@@ -159,7 +159,7 @@ export default function ContactsClient({
   const [aiUpgrade, setAiUpgrade] = useState<string | null>(null);
   // Follow-up sequence builder — Light/Medium/Aggressive presets that auto-send.
   const [seqPreset, setSeqPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
-  const [seqItems, setSeqItems] = useState<{ day: number; time: string; message: string; sent_at?: string | null }[] | null>(null);
+  const [seqItems, setSeqItems] = useState<{ day: number; time: string; message: string; subject?: string; sent_at?: string | null }[] | null>(null);
   const [seqLoading, setSeqLoading] = useState(false);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   // Independent channel toggles for the automated follow-up flow (email and/or text).
@@ -174,25 +174,33 @@ export default function ContactsClient({
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
   const [msgText, setMsgText] = useState("");
+  const [msgSubject, setMsgSubject] = useState("");
   const [msgSending, setMsgSending] = useState(false);
   const [msgError, setMsgError] = useState<string | null>(null);
-  // Chosen send channel — drives the composer AND the AI follow-up preset style.
+  const [msgAiLoading, setMsgAiLoading] = useState(false);
+  // Chosen send channel for the one-off composer (email or text).
   const [channel, setChannel] = useState<"email" | "text">("email");
 
   async function sendMessage() {
     if (!selected || !msgText.trim() || msgSending) return;
+    if (channel === "email" && !msgSubject.trim()) { setMsgError("Add a subject for your email."); return; }
     setMsgSending(true);
     setMsgError(null);
     try {
       const res = await fetch(`/api/leads/${selected.id}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: msgText.trim(), channel: channel === "text" ? "sms" : "email" }),
+        body: JSON.stringify({
+          text: msgText.trim(),
+          channel: channel === "text" ? "sms" : "email",
+          subject: channel === "email" ? msgSubject.trim() : undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.message) {
         setConvoMessages((prev) => [...prev, data.message]);
         setMsgText("");
+        setMsgSubject("");
       } else {
         setMsgError(data.message || data.error || "Couldn't send. Try again.");
       }
@@ -200,6 +208,33 @@ export default function ContactsClient({
       setMsgError("Couldn't send. Try again.");
     } finally {
       setMsgSending(false);
+    }
+  }
+
+  // AI-draft the one-off message (and a subject for email). Click again to regenerate.
+  async function draftMessage() {
+    if (!selected || msgAiLoading) return;
+    setMsgAiLoading(true);
+    setMsgError(null);
+    try {
+      const res = await fetch("/api/ai/suggest-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: selected.id, meetContext: selected.where_met ?? "", channel: channel === "text" ? "sms" : "email" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402 || data.error === "upgrade") {
+        setMsgError(data.message || "Upgrade to Pro for unlimited AI drafts.");
+        return;
+      }
+      const first = Array.isArray(data.messages) && data.messages.length ? data.messages[0] : "";
+      if (first) setMsgText(first);
+      if (channel === "email" && data.subject) setMsgSubject(data.subject);
+      if (!first) setMsgError("Couldn't draft a message. Add notes or where you met above.");
+    } catch {
+      setMsgError("Couldn't draft a message. Try again.");
+    } finally {
+      setMsgAiLoading(false);
     }
   }
 
@@ -291,7 +326,7 @@ export default function ContactsClient({
     const payload = seqItems.flatMap((it) =>
       channels.map((ch) => {
         const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === ch);
-        return { day: it.day, time: it.time, message: it.message, channel: ch, sent_at: prior?.sent_at ?? null };
+        return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: ch, sent_at: prior?.sent_at ?? null };
       }),
     );
     await fetch(`/api/leads/${selected.id}`, {
@@ -378,11 +413,11 @@ export default function ContactsClient({
     // Load any existing scheduled sequence — collapse per-channel rows back to
     // one editable step per day, and infer which channels are enabled.
     {
-      const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; channel?: string; sent_at?: string | null }[] | null;
+      const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
       if (existing?.length) {
-        const byDay = new Map<number, { day: number; time: string; message: string; sent_at?: string | null }>();
+        const byDay = new Map<number, { day: number; time: string; message: string; subject?: string; sent_at?: string | null }>();
         for (const s of existing) {
-          if (!byDay.has(s.day)) byDay.set(s.day, { day: s.day, time: s.time ?? "13:00", message: s.message, sent_at: s.sent_at ?? null });
+          if (!byDay.has(s.day)) byDay.set(s.day, { day: s.day, time: s.time ?? "13:00", message: s.message, subject: s.subject, sent_at: s.sent_at ?? null });
         }
         const steps = [...byDay.values()].sort((a, b) => a.day - b.day);
         setSeqItems(steps);
@@ -401,6 +436,7 @@ export default function ContactsClient({
       setSeqSaving("idle");
     }
     setMsgText("");
+    setMsgSubject("");
     setMsgError(null);
     setConvoMessages([]);
     // Load the message thread (degrades to empty if not yet migrated).
@@ -1065,18 +1101,32 @@ export default function ContactsClient({
 
               {/* Composer */}
               {selected.email || selected.phone ? (
-                <div>
+                <div className="space-y-2">
+                  {channel === "email" && (
+                    <input
+                      type="text"
+                      value={msgSubject}
+                      onChange={(e) => { setMsgSubject(e.target.value); setMsgError(null); }}
+                      placeholder="Subject"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    />
+                  )}
                   <textarea
                     value={msgText}
                     onChange={(e) => { setMsgText(e.target.value); setMsgError(null); }}
-                    placeholder={`Message ${selected.name.split(" ")[0]}…`}
-                    rows={2}
+                    placeholder={channel === "email" ? `Write your email to ${selected.name.split(" ")[0]}…` : `Text ${selected.name.split(" ")[0]}…`}
+                    rows={3}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500"
                   />
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-gray-600">
-                      {msgError ? <span className="text-red-400">{msgError}</span> : `Sent as “${(selected.name.split(" ")[0])}, this is via SwiftCard”`}
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      onClick={draftMessage}
+                      disabled={msgAiLoading}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-40 transition-colors"
+                    >
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
+                      {msgAiLoading ? "Drafting…" : msgText.trim() ? "Regenerate" : "AI draft"}
+                    </button>
                     <button
                       onClick={sendMessage}
                       disabled={!msgText.trim() || msgSending}
@@ -1085,6 +1135,9 @@ export default function ContactsClient({
                       {msgSending ? "Sending…" : `Send ${channel}`}
                     </button>
                   </div>
+                  <p className="text-[10px] text-gray-600">
+                    {msgError ? <span className="text-red-400">{msgError}</span> : "Your name, company & SwiftCard link are added as a signature."}
+                  </p>
                 </div>
               ) : (
                 <p className="text-gray-600 text-xs">Add an email or phone number for this contact to message them.</p>

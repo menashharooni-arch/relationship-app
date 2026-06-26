@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { text, channel: reqChannel } = await req.json();
+  const { text, channel: reqChannel, subject } = await req.json();
   const body = typeof text === "string" ? text.trim() : "";
   if (!body) return NextResponse.json({ error: "Message is empty." }, { status: 400 });
   const preferChannel = reqChannel === "sms" || reqChannel === "email" ? reqChannel : undefined;
@@ -51,14 +51,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Sender identity = the card that captured this lead (fall back to profile).
   const { data: card } = await admin
     .from("cards")
-    .select("name, company, phone, email, website")
+    .select("name, title, company, phone, email, website")
     .eq("username", lead.card_owner)
     .maybeSingle();
-  let sender = card as { name?: string; company?: string; phone?: string; email?: string; website?: string } | null;
+  let sender = card as { name?: string; title?: string; company?: string; phone?: string; email?: string; website?: string } | null;
   if (!sender) {
     const { data: prof } = await admin
       .from("profiles")
-      .select("name, company, phone, email, website")
+      .select("name, title, company, phone, email, website")
       .eq("username", lead.card_owner)
       .maybeSingle();
     sender = prof;
@@ -69,12 +69,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     lead: { email: lead.email, phone: lead.phone, name: lead.name },
     sender: {
       name: sender?.name || null,
+      title: sender?.title || null,
       company: sender?.company || null,
       phone: sender?.phone || null,
       email: sender?.email || null,
       website: sender?.website || null,
     },
     text: body,
+    subject: typeof subject === "string" ? subject : null,
     cardUsername: lead.card_owner,
     channel: preferChannel,
   });
