@@ -125,9 +125,6 @@ export default async function DashboardPage({
               <span className="font-bold text-white text-sm tracking-tight">SwiftCard</span>
             </div>
             <div className="flex items-center gap-2">
-              {(isPro || allCards.length < 3) && (
-                <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">+ Add card</Link>
-              )}
               <SignOutButton />
             </div>
           </div>
