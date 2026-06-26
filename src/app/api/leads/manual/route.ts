@@ -44,11 +44,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const fullNotes = [
-    notes?.trim(),
-    where_met?.trim() ? `Met at: ${where_met.trim()}` : null,
-  ].filter(Boolean).join("\n");
-
   const { data, error } = await admin
     .from("leads")
     .insert({
@@ -56,7 +51,8 @@ export async function POST(req: NextRequest) {
       email: email?.trim() || null,
       phone: phone?.trim() || null,
       company: company?.trim() || null,
-      notes: fullNotes || null,
+      notes: notes?.trim() || null,
+      where_met: where_met?.trim() || null,
       card_owner: finalOwner,
       source: "manual",
       status: "new_contact",

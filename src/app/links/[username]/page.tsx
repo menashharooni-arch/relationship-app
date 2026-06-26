@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { buildConnectLinks } from "@/lib/social-url";
-import { videoThumbnail } from "@/lib/video";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import PlatformIcon from "@/components/PlatformIcon";
 import ConnectButton from "@/components/ConnectButton";
 import CardEventTracker from "@/components/CardEventTracker";
+import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -109,7 +109,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
 
         {/* Social icons */}
         {socials.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
             {socials.map((s) => (
               <a
                 key={s.label}
@@ -117,59 +117,17 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={s.label}
-                className="w-11 h-11 rounded-full flex items-center justify-center text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur"
+                className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur"
               >
-                <PlatformIcon label={s.label} className="w-[18px] h-[18px]" />
+                <PlatformIcon label={s.label} className="w-[22px] h-[22px]" />
               </a>
             ))}
           </div>
         )}
 
-        {/* Additional links */}
-        {actionLinks.length > 0 && (
-          <div className="w-full flex flex-col gap-2 mt-5">
-            {actionLinks.map((link, i) => {
-              const href = link.url.startsWith("http") ? link.url : `https://${link.url}`;
-              const thumb = videoThumbnail(link.url);
-              if (thumb) {
-                return (
-                  <a
-                    key={i}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full p-2 pr-4 rounded-2xl text-sm text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur flex items-center gap-3"
-                  >
-                    <div className="relative w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-black/40">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={thumb} alt={link.label} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-7 h-7 rounded-full bg-black/55 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" fill="#fff" className="w-3.5 h-3.5 ml-0.5"><path d="M8 5v14l11-7z" /></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <span className="font-semibold truncate flex-1 text-left">{link.label}</span>
-                  </a>
-                );
-              }
-              return (
-                <a
-                  key={i}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 px-5 rounded-2xl font-semibold text-sm text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur flex items-center justify-between"
-                >
-                  <span className="truncate">{link.label}</span>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 opacity-50 shrink-0 ml-2">
-                    <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
-                  </svg>
-                </a>
-              );
-            })}
-          </div>
-        )}
+        {/* Additional links — preview thumbnails ("the face of the page") for
+            video links and any link with an Open Graph image (Zillow, etc.). */}
+        <SwiftLinkButtons links={actionLinks} />
       </div>
 
       {/* Footer — "Made with SwiftCard" badge on Free, removed on Pro/Office */}
