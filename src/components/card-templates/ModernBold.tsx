@@ -4,7 +4,6 @@
 // Best for: Tech, agencies, startups, creatives, personal brands
 
 import React from "react";
-import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
@@ -131,15 +130,6 @@ export default function ModernBold({ data }: { data: CardData }) {
           )}
         </div>
 
-        {/* QR + label */}
-        <div className="flex items-end justify-end">
-          <div className="flex flex-col items-end gap-1">
-            <p style={{ fontSize: 6.5, color: "#334155", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-              Scan to save contact
-            </p>
-            <QR size={92} bg={DIM} fg={BLUE} />
-          </div>
-        </div>
       </div>
     </div>
   );
