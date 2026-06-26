@@ -24,6 +24,7 @@ function timeAgo(iso: string) {
 export default function NotificationsPanel({ initial }: { initial: Notification[] }) {
   const [items, setItems] = useState<Notification[]>(initial);
   const unread = items.filter((n) => !n.read).length;
+  const readCount = items.filter((n) => n.read).length;
 
   async function setRead(id: string, read: boolean) {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
@@ -37,6 +38,24 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
   async function markAllRead() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     await fetch("/api/notifications", { method: "PATCH" }).catch(() => {});
+  }
+
+  async function dismiss(id: string) {
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  }
+
+  async function clearRead() {
+    setItems((prev) => prev.filter((n) => !n.read));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read: true }),
+    }).catch(() => {});
   }
 
   if (items.length === 0) {
@@ -57,11 +76,18 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
     <div className="border border-gray-800 rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 bg-gray-900/40">
         <p className="text-xs text-gray-500">{unread} unread</p>
-        {unread > 0 && (
-          <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-            Mark all read
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {unread > 0 && (
+            <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              Mark all read
+            </button>
+          )}
+          {readCount > 0 && (
+            <button onClick={clearRead} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Clear read
+            </button>
+          )}
+        </div>
       </div>
       <div className="divide-y divide-gray-800">
         {items.map((n) => (
@@ -83,6 +109,16 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
               }`}
             >
               {n.read ? "Unread" : "Read"}
+            </button>
+            <button
+              onClick={() => dismiss(n.id)}
+              title="Dismiss"
+              aria-label="Dismiss notification"
+              className="shrink-0 p-1 text-gray-600 hover:text-gray-300 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
         ))}

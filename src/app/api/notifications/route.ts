@@ -41,3 +41,21 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ success: true });
 }
+
+// Dismiss notifications: { id } removes one, { read: true } clears all read ones.
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let body: { id?: string; read?: boolean } = {};
+  try { body = await req.json(); } catch { /* ignore */ }
+
+  if (body.id) {
+    await supabase.from("notifications").delete().eq("user_id", user.id).eq("id", body.id);
+  } else if (body.read) {
+    await supabase.from("notifications").delete().eq("user_id", user.id).eq("read", true);
+  }
+
+  return NextResponse.json({ success: true });
+}
