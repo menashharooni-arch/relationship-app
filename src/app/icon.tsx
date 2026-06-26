@@ -3,8 +3,8 @@ import { ImageResponse } from "next/og";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-// Matches the SwiftCard logo used across the website: a blue rounded square
-// with the white card icon.
+// The official SwiftCard mark: a blue-gradient rounded square with a white
+// lightning bolt (matches <SwiftCardIcon> used in the site/portal header).
 export default function Icon() {
   return new ImageResponse(
     (
@@ -13,19 +13,13 @@ export default function Icon() {
           width: 32,
           height: 32,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 8,
-          background: "#2563eb",
+          borderRadius: 7,
+          background: "linear-gradient(135deg, #2563EB, #0C1F7A)",
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 20 20" fill="white">
-          <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
-          />
+        <svg width="32" height="32" viewBox="0 0 100 100">
+          <rect x="11" y="27" width="78" height="52" rx="9" fill="none" stroke="white" strokeOpacity="0.18" strokeWidth="2" />
+          <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="white" />
         </svg>
       </div>
     ),

@@ -30,7 +30,10 @@ export default function MoreShareOptions({ url }: { url: string }) {
             </div>
 
             {/* Copy link */}
-            <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-1.5">Card link</p>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <p className="text-gray-500 text-[11px] uppercase tracking-wide">Card link</p>
+              <span className="text-gray-600 text-[11px] normal-case tracking-normal">· you can put this link in your bio</span>
+            </div>
             <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-5">
               <svg viewBox="0 0 16 16" fill="#3b82f6" className="w-3.5 h-3.5 shrink-0"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8S12.42 0 8 0zm1 11.93V13H7v-1.07A6.003 6.003 0 012.07 7H4v-.5h-.93A6.003 6.003 0 017 1.07V2h2v1.07A6.003 6.003 0 0113.93 6.5H12V7h1.93A6.003 6.003 0 019 11.93z" /></svg>
               <span className="text-blue-400 text-xs truncate flex-1">{url.replace("https://", "")}</span>
