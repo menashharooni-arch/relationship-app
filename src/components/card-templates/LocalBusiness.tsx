@@ -129,9 +129,6 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
         {/* Right: QR */}
         <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
-          <p style={{ fontSize: 6.5, color: "#d97706", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            Scan to save contact
-          </p>
           <QR size={84} bg="#fff8e6" fg={AMBER} />
         </div>
       </div>
