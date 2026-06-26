@@ -33,7 +33,7 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white font-semibold text-sm">Unlock unlimited leads</p>
-            <p className="text-blue-300 text-xs mt-0.5 leading-relaxed">You&apos;ve hit the free limit. Go Pro for $8/mo — unlimited leads, analytics, no branding.</p>
+            <p className="text-blue-300 text-xs mt-0.5 leading-relaxed">You&apos;ve hit the free limit. Go Pro for $5/mo — unlimited leads, analytics, no branding.</p>
           </div>
         </div>
         <button
@@ -41,7 +41,7 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
           disabled={loading}
           className="mt-4 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-sm transition-colors"
         >
-          {loading ? "Loading…" : "Upgrade to Pro · $8/mo →"}
+          {loading ? "Loading…" : "Upgrade to Pro · $5/mo →"}
         </button>
         <p className="text-center text-blue-400/60 text-[10px] mt-2">Cancel anytime · No contracts</p>
       </div>
@@ -54,7 +54,7 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
       disabled={loading}
       className="bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
     >
-      {loading ? "…" : "Upgrade · $8/mo →"}
+      {loading ? "…" : "Upgrade · $5/mo →"}
     </button>
   );
 }

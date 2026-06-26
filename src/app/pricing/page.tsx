@@ -7,6 +7,15 @@ import SwiftCardLogo from "@/components/SwiftCardLogo";
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
+const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
+
+// Display prices (USD). Must match the amounts on your Stripe Price objects.
+const PRO_MONTHLY = 5;                 // $/month
+const PRO_ANNUAL = 54;                 // $/year — $5/mo × 12, 10% off
+const OFFICE_PER_USER = 4;             // $/user/month
+const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // $43.20/user/year, 10% off
+const OFFICE_MIN_SEATS = 2;
+const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 const features = {
   free: [
@@ -58,7 +67,7 @@ type PromoState = { code: string; status: "idle" | "checking" | "valid" | "inval
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
-  const [seats, setSeats] = useState(5);
+  const [seats, setSeats] = useState(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
 
@@ -98,7 +107,7 @@ export default function PricingPage() {
     setLoading(plan);
     try {
       const priceId = plan === "enterprise"
-        ? ENTERPRISE_PRICE_ID
+        ? (annual ? (ENTERPRISE_ANNUAL_PRICE_ID ?? ENTERPRISE_PRICE_ID) : ENTERPRISE_PRICE_ID)
         : annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
       const res = await fetch("/api/stripe/checkout", {
@@ -171,7 +180,7 @@ export default function PricingPage() {
           </button>
           <span className={`text-sm font-medium transition-colors ${annual ? "text-slate-900" : "text-slate-400"}`}>
             Annual
-            <span className="ml-1.5 text-[10px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">SAVE 20%</span>
+            <span className="ml-1.5 text-[10px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
           </span>
         </div>
       </section>
@@ -258,14 +267,14 @@ export default function PricingPage() {
           {annual ? (
             <div className="mb-1">
               <div className="flex items-end gap-1">
-                <span className="text-4xl font-bold text-white">$77</span>
+                <span className="text-4xl font-bold text-white">${PRO_ANNUAL}</span>
                 <span className="text-blue-200 text-sm mb-1.5">/ year</span>
               </div>
-              <p className="text-green-300 text-xs font-semibold mt-1">~$6.42/mo · Save $19 vs monthly</p>
+              <p className="text-green-300 text-xs font-semibold mt-1">~$4.50/mo · Save 10%</p>
             </div>
           ) : (
             <div className="flex items-end gap-1 mb-1">
-              <span className="text-4xl font-bold text-white">$8</span>
+              <span className="text-4xl font-bold text-white">${PRO_MONTHLY}</span>
               <span className="text-blue-200 text-sm mb-1.5">/ month</span>
             </div>
           )}
@@ -289,7 +298,7 @@ export default function PricingPage() {
               ? "Loading…"
               : promo.status === "valid"
               ? `Upgrade to Pro · ${promo.discountLabel} →`
-              : `Upgrade to Pro${annual ? " · $77/yr" : " · $8/mo"} →`}
+              : `Upgrade to Pro${annual ? ` · $${PRO_ANNUAL}/yr` : ` · $${PRO_MONTHLY}/mo`} →`}
           </button>
         </div>
 
@@ -304,11 +313,23 @@ export default function PricingPage() {
             <p className="text-[11px] font-bold tracking-[0.2em] text-purple-700 uppercase">Office Plan</p>
           </div>
           <div className="mb-1">
-            <div className="flex items-end gap-1">
-              <span className="text-4xl font-bold text-slate-900">${(seats * 5).toLocaleString()}</span>
-              <span className="text-slate-400 text-sm mb-1.5">/ month</span>
-            </div>
-            <p className="text-purple-700 text-xs font-semibold mt-1">$5 × {seats} users</p>
+            {annual ? (
+              <>
+                <div className="flex items-end gap-1">
+                  <span className="text-4xl font-bold text-slate-900">${money(seats * OFFICE_PER_USER_YEAR)}</span>
+                  <span className="text-slate-400 text-sm mb-1.5">/ year</span>
+                </div>
+                <p className="text-purple-700 text-xs font-semibold mt-1">$3.60/user/mo · {seats} users · Save 10%</p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-end gap-1">
+                  <span className="text-4xl font-bold text-slate-900">${(seats * OFFICE_PER_USER).toLocaleString()}</span>
+                  <span className="text-slate-400 text-sm mb-1.5">/ month</span>
+                </div>
+                <p className="text-purple-700 text-xs font-semibold mt-1">${OFFICE_PER_USER} × {seats} users</p>
+              </>
+            )}
           </div>
 
           {/* Seat selector */}
@@ -349,9 +370,13 @@ export default function PricingPage() {
               boxShadow: "0 4px 20px rgba(124,58,237,0.25)",
             }}
           >
-            {loading === "enterprise" ? "Loading…" : `Get Office Plan · $${seats * 5}/mo →`}
+            {loading === "enterprise"
+              ? "Loading…"
+              : `Get Office Plan · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
           </button>
-          <p className="text-center text-slate-400 text-xs mt-3">Billed monthly per seat. Cancel anytime.</p>
+          <p className="text-center text-slate-400 text-xs mt-3">
+            {annual ? "Billed annually per seat (10% off)." : "Billed monthly per seat."} Minimum {OFFICE_MIN_SEATS} users · cancel anytime.
+          </p>
         </div>
       </section>
 
