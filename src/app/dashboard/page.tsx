@@ -7,6 +7,7 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadPipeline from "@/components/LeadPipeline";
 import NotificationBell from "@/components/NotificationBell";
+import NotificationsPanel from "@/components/NotificationsPanel";
 import CardScanner from "@/components/CardScanner";
 import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
@@ -29,16 +30,17 @@ const FREE_LIMIT = 25;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
   const sortBy = params.sort ?? "newest";
-  const view = params.view ?? "list";
+  const view = params.view ?? "notifications";
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
   const chartRange = params.range ?? "30d";
   const selectedCard = params.card ?? null;
+  const surface = params.surface === "link" ? "link" : "card";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -169,6 +171,10 @@ export default async function DashboardPage({
     );
   }
 
+  // Swift Link views are tracked in card_views under a "<username>__links" key,
+  // exactly the same way card views are tracked under the plain username.
+  const linkUsername = `${analyticsUsername}__links`;
+
   const [
     { data: leads },
     { count: totalViews },
@@ -179,6 +185,9 @@ export default async function DashboardPage({
     { data: locationViews },
     { count: contactSaves },
     { data: sourceEvents },
+    { count: totalLinkViews },
+    { data: recentLinkViews },
+    { data: linkLocationViews },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -198,6 +207,9 @@ export default async function DashboardPage({
     supabase.from("card_views").select("location").eq("username", analyticsUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
     supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).eq("event_type", "contact_save"),
     getAdminSupabase().from("card_events").select("source, event_type").eq("card_owner_username", activeUsername).gte("created_at", thirtyDaysAgo),
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername),
+    supabase.from("card_views").select("viewed_at").eq("username", linkUsername).gte("viewed_at", chartCutoff),
+    supabase.from("card_views").select("location").eq("username", linkUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
   ]);
 
   const viewsByDate: Record<string, number> = {};
@@ -220,6 +232,31 @@ export default async function DashboardPage({
   const peakViews = Math.max(...chartData.map((d) => d.views), 0);
   const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
+
+  // Link views — same computations as card views, just from the "__links" key.
+  const linkViewsByDate: Record<string, number> = {};
+  for (const v of recentLinkViews ?? []) {
+    const date = new Date(v.viewed_at).toISOString().split("T")[0];
+    linkViewsByDate[date] = (linkViewsByDate[date] ?? 0) + 1;
+  }
+  const linkChartData = Array.from({ length: chartDays }, (_, i) => {
+    const date = new Date(Date.now() - (chartDays - 1 - i) * 86400000).toISOString().split("T")[0];
+    return { date, views: linkViewsByDate[date] ?? 0 };
+  });
+  const linkTotalLast30 = linkChartData.reduce((s, d) => s + d.views, 0);
+  const linkLocationCounts: Record<string, number> = {};
+  for (const v of linkLocationViews ?? []) {
+    if (v.location) linkLocationCounts[v.location] = (linkLocationCounts[v.location] ?? 0) + 1;
+  }
+  const linkTopLocations = Object.entries(linkLocationCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const linkPeakViews = Math.max(...linkChartData.map((d) => d.views), 0);
+  const linkViewsToday = linkChartData[linkChartData.length - 1].views;
+
+  // The "Card views" widget can switch between the card and the Swift Link.
+  const viewsPanel = surface === "link"
+    ? { label: "Link views", chartData: linkChartData, total: linkTotalLast30, today: linkViewsToday, peak: linkPeakViews, topLocations: linkTopLocations, allTime: totalLinkViews ?? 0 }
+    : { label: "Card views", chartData, total: totalViewsLast30, today: viewsToday, peak: peakViews, topLocations, allTime: totalViews ?? 0 };
+  const surfaceQS = `&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}&range=${chartRange}${selectedCard ? `&card=${selectedCard}` : ""}`;
 
   // Source breakdown: views and leads per source (last 30d)
   const viewsBySource: Record<string, number> = {};
@@ -510,26 +547,38 @@ export default async function DashboardPage({
 
               {/* Analytics chart */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+                {/* Card views / Link views toggle */}
+                <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5 mb-4 w-fit">
+                  {([
+                    { id: "card", label: "Card views" },
+                    { id: "link", label: "Link views" },
+                  ] as const).map((sf) => (
+                    <Link key={sf.id} href={`?surface=${sf.id}${surfaceQS}`}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${surface === sf.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+                      {sf.label}
+                    </Link>
+                  ))}
+                </div>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-white font-semibold text-sm">Card views</p>
-                    <p className="text-gray-500 text-xs mt-0.5">{totalViewsLast30} views in the last {chartDays} days</p>
+                    <p className="text-white font-semibold text-sm">{viewsPanel.label}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{viewsPanel.total} {surface === "link" ? "link" : "card"} views in the last {chartDays} days</p>
                   </div>
                   <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
                     {(["7d", "30d"] as const).map((r) => (
-                      <Link key={r} href={`?range=${r}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={r} href={`?range=${r}&surface=${surface}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${chartRange === r ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {r}
                       </Link>
                     ))}
                   </div>
                 </div>
-                <ViewsChart data={chartData} />
+                <ViewsChart data={viewsPanel.chartData} />
                 <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-800/80">
                   {[
-                    { label: "Today", value: viewsToday },
-                    { label: "Best day", value: peakViews },
-                    { label: "Contact saves", value: contactSaves ?? 0 },
+                    { label: "Today", value: viewsPanel.today },
+                    { label: "Best day", value: viewsPanel.peak },
+                    { label: surface === "link" ? "All time" : "Contact saves", value: surface === "link" ? viewsPanel.allTime : (contactSaves ?? 0) },
                   ].map((s) => (
                     <div key={s.label}>
                       <p className="text-white font-bold text-base">{s.value}</p>
@@ -538,16 +587,16 @@ export default async function DashboardPage({
                   ))}
                 </div>
 
-                {isPro && topLocations.length > 0 && (
+                {isPro && viewsPanel.topLocations.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-800/80">
                     <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Top locations · 30d</p>
                     <div className="space-y-2">
-                      {topLocations.map(([loc, count]) => (
+                      {viewsPanel.topLocations.map(([loc, count]) => (
                         <div key={loc} className="flex items-center gap-3">
                           <p className="text-gray-300 text-xs flex-1 truncate">{loc}</p>
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1 bg-gray-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(count / topLocations[0][1]) * 100}%` }} />
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(count / viewsPanel.topLocations[0][1]) * 100}%` }} />
                             </div>
                             <span className="text-gray-500 text-xs w-5 text-right">{count}</span>
                           </div>
@@ -621,6 +670,7 @@ export default async function DashboardPage({
                   {/* View toggle */}
                   <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
                     {[
+                      { id: "notifications", label: "Notifications" },
                       { id: "list", label: "List" },
                       { id: "pipeline", label: "Pipeline" },
                     ].map((v) => (
@@ -663,7 +713,9 @@ export default async function DashboardPage({
                 </div>
 
                 {/* Lead list */}
-                {allLeads.length === 0 ? (
+                {view === "notifications" ? (
+                  <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} />
+                ) : allLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">
                       <div className="w-10 h-10 bg-gray-800/60 rounded-full flex items-center justify-center mx-auto mb-3">
