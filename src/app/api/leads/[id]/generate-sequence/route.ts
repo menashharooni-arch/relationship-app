@@ -24,11 +24,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin = getAdminSupabase();
   const [{ data: lead }, { data: profile }, usernames] = await Promise.all([
     admin.from("leads").select("name, email, company, company_description, message, card_owner").eq("id", id).single(),
-    admin.from("profiles").select("name, title, company, plan").eq("id", user.id).single(),
+    admin.from("profiles").select("name, title, company, plan, customization").eq("id", user.id).single(),
     getOwnerUsernames(user.id),
   ]);
 
   if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const about = ((profile?.customization as { about?: string } | null)?.about ?? "").trim();
 
   // Multi-day AI follow-up sequences are a Pro/Office feature.
   if (!isPaidPlan(profile?.plan)) {
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             content: `Write a short personal follow-up email body (2-3 sentences) for Day ${day} of a ${preset.name} follow-up sequence.
 
 Sender: ${profile?.name ?? ""}${profile?.title ? `, ${profile.title}` : ""}${profile?.company ? ` at ${profile.company}` : ""}
+${about ? `What the sender does/offers (their About — speak to the right things): ${about}` : ""}
 ${(lead as { company_description?: string }).company_description ? `Business context: ${(lead as { company_description?: string }).company_description}` : ""}
 Recipient first name: ${(lead.name as string).split(" ")[0]}${lead.company ? ` (${lead.company})` : ""}
 ${whereMet ? `Where met: ${whereMet}` : ""}

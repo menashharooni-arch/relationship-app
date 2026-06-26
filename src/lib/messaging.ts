@@ -155,12 +155,21 @@ export async function deliverToLead(opts: {
   email?: { subject: string; html: string };  // custom email template (automations); omit → branded notification
   cardUsername?: string | null;
   log?: boolean;                              // append to conversation thread (default true)
+  channel?: "email" | "sms";                  // explicit channel choice; else email-first auto
 }): Promise<DeliverResult> {
   const { lead, sender } = opts;
   const senderName = sender.name || "A SwiftCard user";
   const doLog = opts.log !== false;
 
-  if (lead.email) {
+  // Honor an explicit channel choice when that channel is available, otherwise
+  // fall back to email-first auto-routing.
+  let use: "email" | "sms" | "none" = "none";
+  if (opts.channel === "email" && lead.email) use = "email";
+  else if (opts.channel === "sms" && lead.phone) use = "sms";
+  else if (lead.email) use = "email";
+  else if (lead.phone) use = "sms";
+
+  if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
       ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null })
@@ -169,7 +178,7 @@ export async function deliverToLead(opts: {
     return { channel: "email", status };
   }
 
-  if (lead.phone) {
+  if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
     const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, replyContact: sender.phone || sender.email || null }));
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status });
