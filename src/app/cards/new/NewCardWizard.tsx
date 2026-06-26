@@ -59,6 +59,13 @@ const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
 ];
 
+// For these URL-style networks, show the exact format to copy so the link works.
+const SOCIAL_FORMATS: Partial<Record<SocialKey, string>> = {
+  linkedin: "linkedin.com/in/yourfullname",
+  facebook: "facebook.com/yourfullname",
+  youtube: "youtube.com/@yourchannel",
+};
+
 type Socials = Record<SocialKey, string>;
 const EMPTY_SOCIALS: Socials = {
   linkedin: "", instagram: "", tiktok: "", facebook: "", twitter: "", snapchat: "", youtube: "",
@@ -354,6 +361,11 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                         onBlur={() => normalizeOnBlur(key)}
                         className={inputCls}
                       />
+                      {SOCIAL_FORMATS[key] && (
+                        <p className="text-gray-600 text-[11px] mt-1">
+                          Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[key]}</span>
+                        </p>
+                      )}
                     </div>
                   );
                 })}
