@@ -2,8 +2,7 @@ import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import Reveal from "@/components/Reveal";
 import LiveDemo from "@/components/LiveDemo";
-import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
+import HeroPhone from "@/components/HeroPhone";
 
 const STEPS = [
   {
@@ -289,94 +288,7 @@ export default function HomePage() {
         </div>
 
         {/* Phone mockup */}
-        <div className="relative hidden lg:flex items-center justify-center">
-          {/* Glow behind phone */}
-          <div
-            className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
-            style={{ background: "radial-gradient(circle, #1D4ED8 0%, transparent 70%)" }}
-          />
-
-          <div className="sc-hero-phone relative" style={{ width: "320px" }}>
-            {/* Phone shell */}
-            <div
-              className="relative rounded-[3rem] shadow-2xl"
-              style={{
-                background: "#0f172a",
-                padding: "12px",
-                border: "2px solid #1e293b",
-              }}
-            >
-              {/* Dynamic island */}
-              <div
-                className="absolute top-[14px] left-1/2 -translate-x-1/2 rounded-full z-20"
-                style={{ width: "80px", height: "22px", background: "#0f172a" }}
-              />
-              {/* Side buttons */}
-              <div className="absolute -right-[3px] top-28 w-[3px] h-10 rounded-r-full" style={{ background: "#1e293b" }} />
-              <div className="absolute -left-[3px] top-20 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
-              <div className="absolute -left-[3px] top-32 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
-
-              {/* Screen */}
-              <div
-                className="overflow-hidden"
-                style={{
-                  borderRadius: "2.5rem",
-                  height: "600px",
-                  background: "#FAF7F2",
-                }}
-              >
-                {/* Browser bar */}
-                <div
-                  className="flex items-center gap-2 px-3 py-2.5 border-b"
-                  style={{ background: "#F0EBE1", borderColor: "#E4DDD4" }}
-                >
-                  <div className="flex gap-1 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-red-400" />
-                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                    <div className="w-2 h-2 rounded-full bg-green-400" />
-                  </div>
-                </div>
-
-                {/* Card page content — actual ClassicPro template scaled to fit */}
-                <div style={{ padding: "12px 12px 0" }}>
-                  {/* Scaled card template */}
-                  <div style={{ height: "156px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
-                    <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
-                      <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
-                    </div>
-                  </div>
-
-                  {/* Save contact button */}
-                  <div style={{
-                    background: "#1D4ED8", color: "#fff", borderRadius: "99px",
-                    padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700,
-                    marginBottom: "8px",
-                  }}>
-                    💾 Save Alex&apos;s contact
-                  </div>
-
-                  {/* Share your info form */}
-                  <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "10px", border: "1px solid #D4C8B8" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "7px", margin: "0 0 7px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Share your info with Alex →
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "24px", background: "#1D4ED8", borderRadius: "7px" }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Reflection/shadow */}
-            <div
-              className="absolute -bottom-6 left-1/2 -translate-x-1/2 rounded-full blur-xl opacity-30"
-              style={{ width: "240px", height: "30px", background: "#1D4ED8" }}
-            />
-          </div>
-        </div>
+        <HeroPhone />
       </section>
 
       {/* Trust logo marquee */}
