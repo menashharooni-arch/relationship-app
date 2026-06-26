@@ -26,7 +26,7 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
 // the container so nothing (text, QR) gets clipped in narrow columns. Kept a touch
 // wider than the public card (max-w-sm ≈ 384px) so the fixed-height card has enough
 // vertical room for the QR + all contact rows.
-const NATURAL = 440;
+const NATURAL = 460;
 
 interface Props {
   data: CardData;

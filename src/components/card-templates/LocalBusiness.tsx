@@ -52,15 +52,15 @@ export default function LocalBusiness({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-xl object-contain"
-              style={{ width: 46, height: 46, background: "rgba(255,255,255,0.15)", padding: 4 }}
+              style={{ width: 58, height: 58, background: "rgba(255,255,255,0.15)", padding: 5 }}
             />
           ) : (
             <div
               className="rounded-xl flex items-center justify-center font-black text-amber-800"
               style={{
-                width: 46, height: 46,
+                width: 58, height: 58,
                 background: "rgba(255,255,255,0.92)",
-                fontSize: "clamp(15px, 3.5vw, 20px)",
+                fontSize: "clamp(18px, 4vw, 24px)",
               }}
             >
               {initials}
@@ -92,8 +92,8 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         {/* Left: company + contact info */}
         <div className="flex-1 flex flex-col justify-between">
           {/* Company name */}
-          <div>
-            <p className="font-black" style={{ fontSize: 10.5, color: WARM, letterSpacing: "0.04em" }}>
+          <div className="min-w-0">
+            <p className="font-black truncate" style={{ fontSize: 13, color: WARM, letterSpacing: "0.02em" }}>
               {data.company}
             </p>
             <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
@@ -104,26 +104,26 @@ export default function LocalBusiness({ data }: { data: CardData }) {
             {data.phone && (
               <div className="flex items-center gap-2">
                 <span style={{ color: AMBER }}><IcoPhone /></span>
-                <span className="font-bold" style={{ fontSize: 12, color: WARM }}>{formatPhone(data.phone)}</span>
+                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>{formatPhone(data.phone)}</span>
               </div>
             )}
             {data.email && (
               <div className="flex items-center gap-2 min-w-0">
                 <span style={{ color: AMBER }}><IcoMail /></span>
-                <span className="truncate" style={{ fontSize: 10, color: "#78350f" }}>{data.email}</span>
+                <span className="truncate" style={{ fontSize: 12, color: "#78350f" }}>{data.email}</span>
               </div>
             )}
             {data.website && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span style={{ color: AMBER }}><IcoGlobe /></span>
-                <span style={{ fontSize: 10, color: "#78350f" }}>{data.website}</span>
+                <span className="truncate font-medium" style={{ fontSize: 12, color: "#78350f" }}>{data.website}</span>
               </div>
             )}
           </div>
 
           {/* Address if set */}
           {data.address && (
-            <p style={{ fontSize: 8.5, color: "#a16207", lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</p>
+            <p style={{ fontSize: 10.5, color: "#a16207", lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</p>
           )}
         </div>
 

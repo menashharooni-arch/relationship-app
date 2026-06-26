@@ -55,13 +55,14 @@ export default function ModernBold({ data }: { data: CardData }) {
         style={{ width: "44%", padding: "18px 16px 16px" }}
       >
         {/* Company */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="w-5 h-5 rounded object-contain shrink-0" />
+            <img src={data.logoUrl} alt="logo" className="w-8 h-8 rounded-md object-contain shrink-0" />
           )}
           <p
-            style={{ fontSize: 8.5, letterSpacing: "0.28em", color: "#475569", fontWeight: 700, textTransform: "uppercase" }}
+            className="truncate"
+            style={{ fontSize: 10.5, letterSpacing: "0.2em", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase" }}
           >
             {data.company}
           </p>
@@ -72,12 +73,12 @@ export default function ModernBold({ data }: { data: CardData }) {
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: "clamp(17px, 4vw, 26px)", lineHeight: 1.1, letterSpacing: "-0.01em" }}
+            style={{ fontSize: "clamp(19px, 4.2vw, 28px)", lineHeight: 1.08, letterSpacing: "-0.01em" }}
           >
             {data.name}
           </h2>
           <p
-            style={{ fontSize: 8.5, color: BLUE, letterSpacing: "0.2em", fontWeight: 700, marginTop: 6, textTransform: "uppercase" }}
+            style={{ fontSize: 9.5, color: BLUE, letterSpacing: "0.18em", fontWeight: 700, marginTop: 6, textTransform: "uppercase" }}
           >
             {data.title}
           </p>
@@ -112,27 +113,27 @@ export default function ModernBold({ data }: { data: CardData }) {
       >
         <div className="flex flex-col gap-[8px] mt-1">
           {data.phone && (
-            <div className="flex items-center gap-2" style={{ color: "#e2e8f0" }}>
+            <div className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
               <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span className="font-medium" style={{ fontSize: 11 }}>{formatPhone(data.phone)}</span>
+              <span className="font-bold" style={{ fontSize: 13 }}>{formatPhone(data.phone)}</span>
             </div>
           )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0" style={{ color: "#cbd5e1" }}>
               <span style={{ color: BLUE }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 10.5 }}>{data.email}</span>
+              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2" style={{ color: "#cbd5e1" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#cbd5e1" }}>
               <span style={{ color: BLUE }}><IcoGlobe /></span>
-              <span style={{ fontSize: 10.5 }}>{data.website}</span>
+              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2" style={{ color: "#94a3b8" }}>
               <span style={{ color: BLUE, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>

@@ -98,12 +98,12 @@ export default function PhotoFirst({ data }: { data: CardData }) {
       >
         {/* Company header */}
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="w-6 h-6 rounded object-contain shrink-0" />
+              <img src={data.logoUrl} alt="logo" className="w-9 h-9 rounded-md object-contain shrink-0" />
             )}
-            <p className="font-extrabold text-gray-900 truncate" style={{ fontSize: 11 }}>
+            <p className="font-extrabold text-gray-900 truncate" style={{ fontSize: 13.5 }}>
               {data.company}
             </p>
           </div>
@@ -115,25 +115,25 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           {data.phone && (
             <div className="flex items-center gap-2" style={{ color: "#1e1b4b" }}>
               <span style={{ color: ACCENT }}><IcoPhone /></span>
-              <span className="font-semibold" style={{ fontSize: 11 }}>{formatPhone(data.phone)}</span>
+              <span className="font-bold" style={{ fontSize: 13 }}>{formatPhone(data.phone)}</span>
             </div>
           )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0" style={{ color: "#374151" }}>
               <span style={{ color: ACCENT }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 10.5 }}>{data.email}</span>
+              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2" style={{ color: "#374151" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#374151" }}>
               <span style={{ color: ACCENT }}><IcoGlobe /></span>
-              <span style={{ fontSize: 10.5 }}>{data.website}</span>
+              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2" style={{ color: "#4b5563" }}>
               <span style={{ color: ACCENT, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
           {socials.length > 0 && (
