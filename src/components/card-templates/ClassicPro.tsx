@@ -54,24 +54,24 @@ export default function ClassicPro({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-lg object-contain shrink-0"
-              style={{ width: 28, height: 28, background: "rgba(255,255,255,0.1)" }}
+              style={{ width: 40, height: 40, background: "rgba(255,255,255,0.1)" }}
             />
           ) : (
             <div
               className="rounded-lg flex items-center justify-center shrink-0 font-black"
               style={{
-                width: 28, height: 28,
+                width: 40, height: 40,
                 background: BLUE,
                 color: "#bfdbfe",
-                fontSize: 12,
+                fontSize: 18,
               }}
             >
               {(data.company || data.name || "K")[0].toUpperCase()}
             </div>
           )}
           <span
-            className="text-white/60 font-semibold truncate leading-tight"
-            style={{ fontSize: 9.5, letterSpacing: "0.05em" }}
+            className="text-white/70 font-bold truncate leading-tight"
+            style={{ fontSize: 12, letterSpacing: "0.04em" }}
           >
             {data.company}
           </span>
@@ -82,13 +82,13 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: "clamp(15px, 3.5vw, 22px)", lineHeight: 1.15 }}
+            style={{ fontSize: "clamp(17px, 3.8vw, 24px)", lineHeight: 1.12 }}
           >
             {data.name}
           </h2>
           <p
             className="text-blue-300 font-semibold mt-1.5"
-            style={{ fontSize: 8.5, letterSpacing: "0.18em", textTransform: "uppercase" }}
+            style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase" }}
           >
             {data.title}
           </p>
@@ -114,25 +114,25 @@ export default function ClassicPro({ data }: { data: CardData }) {
           {data.phone && (
             <div className="flex items-center gap-2" style={{ color: NAVY }}>
               <IcoPhone />
-              <span className="font-semibold" style={{ fontSize: 11 }}>{formatPhone(data.phone)}</span>
+              <span className="font-bold" style={{ fontSize: 13 }}>{formatPhone(data.phone)}</span>
             </div>
           )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0" style={{ color: "#334155" }}>
               <IcoMail />
-              <span className="truncate" style={{ fontSize: 10.5 }}>{data.email}</span>
+              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2" style={{ color: "#334155" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#334155" }}>
               <IcoGlobe />
-              <span style={{ fontSize: 10.5 }}>{data.website}</span>
+              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2" style={{ color: "#475569" }}>
               <span style={{ marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>

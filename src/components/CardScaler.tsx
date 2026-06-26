@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 // Renders a card template at a fixed design width where all its content fits,
 // then scales it down to the container width. This stops the QR / bottom rows
 // from being clipped on narrow screens (the card has a fixed aspect ratio).
-const NATURAL = 440;
+const NATURAL = 460;
 
 export default function CardScaler({ children }: { children: React.ReactNode }) {
   const outerRef = useRef<HTMLDivElement>(null);

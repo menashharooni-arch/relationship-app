@@ -62,13 +62,14 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         style={{ width: "44%", padding: "18px 16px 17px 16px" }}
       >
         {/* Company + optional logo */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="w-5 h-5 object-contain shrink-0 rounded" />
+            <img src={data.logoUrl} alt="logo" className="w-8 h-8 object-contain shrink-0 rounded" />
           ) : null}
           <p
-            style={{ fontSize: 8, letterSpacing: "0.28em", color: GOLD, fontWeight: 700, textTransform: "uppercase" }}
+            className="truncate"
+            style={{ fontSize: 10.5, letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase" }}
           >
             {data.company}
           </p>
@@ -79,11 +80,11 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: "clamp(14px, 3.2vw, 21px)",
-              fontWeight: 300,
+              fontSize: "clamp(16px, 3.5vw, 23px)",
+              fontWeight: 400,
               letterSpacing: "0.01em",
               color: TEXT,
-              lineHeight: 1.2,
+              lineHeight: 1.18,
             }}
           >
             {data.name}
@@ -91,7 +92,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <div className="flex items-center gap-1.5 mt-2">
             <div className="h-px flex-1" style={{ maxWidth: 20, background: GOLD }} />
             <p
-              style={{ fontSize: 7.5, letterSpacing: "0.22em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
+              style={{ fontSize: 8.5, letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
             >
               {data.title}
             </p>
@@ -123,25 +124,25 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           {data.phone && (
             <div className="flex items-center gap-2">
               <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 11, color: TEXT, fontWeight: 400, letterSpacing: "0.03em" }}>{formatPhone(data.phone)}</span>
+              <span style={{ fontSize: 13, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>{formatPhone(data.phone)}</span>
             </div>
           )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0">
               <span style={{ color: GOLD }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 10, color: MUTED }}>{data.email}</span>
+              <span className="truncate" style={{ fontSize: 11.5, color: MUTED }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span style={{ color: GOLD }}><IcoGlobe /></span>
-              <span style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 11.5, color: MUTED }}>{data.website}</span>
             </div>
           )}
           {data.address && (
             <div className="flex items-start gap-2">
               <span style={{ color: GOLD, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 10, color: MUTED, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>
