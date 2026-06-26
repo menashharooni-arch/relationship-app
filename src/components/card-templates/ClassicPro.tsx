@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -127,6 +127,12 @@ export default function ClassicPro({ data }: { data: CardData }) {
             <div className="flex items-center gap-2" style={{ color: "#334155" }}>
               <IcoGlobe />
               <span style={{ fontSize: 10.5 }}>{data.website}</span>
+            </div>
+          )}
+          {data.address && (
+            <div className="flex items-start gap-2" style={{ color: "#475569" }}>
+              <span style={{ marginTop: 1 }}><IcoPin /></span>
+              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>

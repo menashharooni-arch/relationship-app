@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 
@@ -128,6 +128,12 @@ export default function PhotoFirst({ data }: { data: CardData }) {
             <div className="flex items-center gap-2" style={{ color: "#374151" }}>
               <span style={{ color: ACCENT }}><IcoGlobe /></span>
               <span style={{ fontSize: 10.5 }}>{data.website}</span>
+            </div>
+          )}
+          {data.address && (
+            <div className="flex items-start gap-2" style={{ color: "#4b5563" }}>
+              <span style={{ color: ACCENT, marginTop: 1 }}><IcoPin /></span>
+              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
           {socials.length > 0 && (

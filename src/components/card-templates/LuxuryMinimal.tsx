@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -136,6 +136,12 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
             <div className="flex items-center gap-2">
               <span style={{ color: GOLD }}><IcoGlobe /></span>
               <span style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
+            </div>
+          )}
+          {data.address && (
+            <div className="flex items-start gap-2">
+              <span style={{ color: GOLD, marginTop: 1 }}><IcoPin /></span>
+              <span style={{ fontSize: 8.5, color: MUTED, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>
