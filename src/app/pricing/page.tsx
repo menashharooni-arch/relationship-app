@@ -325,7 +325,7 @@ export default function PricingPage() {
             <p className="text-purple-700 text-xs font-semibold mt-1">
               Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}
             </p>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p className="text-slate-900 font-bold text-[13px] mt-0.5">
               {seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}
             </p>
           </div>
