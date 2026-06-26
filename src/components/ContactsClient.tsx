@@ -148,6 +148,34 @@ export default function ContactsClient({
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
+
+  async function saveContact() {
+    if (!selected) return;
+    setFieldSaving("contact");
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contactDraft),
+    });
+    const patch = { ...contactDraft };
+    setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+    setFieldSaving(null);
+    setEditingContact(false);
+  }
+
+  const automationOn = !((selected?.tags ?? []).includes("flow-paused"));
+  async function toggleAutomation() {
+    if (!selected) return;
+    const tags = selected.tags ?? [];
+    const newTags = automationOn ? [...tags, "flow-paused"] : tags.filter((t) => t !== "flow-paused");
+    await updateField(selected.id, "tags", JSON.stringify(newTags));
+    setSelected((prev) => (prev ? { ...prev, tags: newTags } : prev));
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, tags: newTags } : l)));
+  }
 
   async function saveField(field: string, value: string) {
     if (!selected) return;
@@ -234,6 +262,8 @@ export default function ContactsClient({
   async function selectLead(lead: Lead) {
     setSelected(lead);
     setEvents([]);
+    setDetailTab("conversation");
+    setEditingContact(false);
     setEditingNotes(false);
     setEditingWhereMet(false);
     setEditingConvo(false);
@@ -437,9 +467,51 @@ export default function ContactsClient({
               </div>
             </div>
 
+            {/* Tab switcher */}
+            <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-6">
+              {([
+                { id: "conversation", label: "Conversation" },
+                { id: "info", label: "Contact info / Presets" },
+              ] as const).map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setDetailTab(t.id)}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: detailTab === t.id ? "#1D4ED8" : "transparent", color: detailTab === t.id ? "#fff" : "#6b7280" }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── CONTACT INFO / PRESETS TAB ── */}
+            <div className={detailTab === "info" ? "" : "hidden"}>
+
             {/* Contact info */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 space-y-3">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-3">Contact Info</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Contact Info</p>
+                {!editingContact && (
+                  <button
+                    onClick={() => { setContactDraft({ name: selected.name ?? "", company: selected.company ?? "", email: selected.email ?? "", phone: selected.phone ?? "" }); setEditingContact(true); }}
+                    className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+              {editingContact && (
+                <div className="space-y-2 mb-2">
+                  <input type="text" value={contactDraft.name} onChange={(e) => setContactDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Name" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="text" value={contactDraft.company} onChange={(e) => setContactDraft((d) => ({ ...d, company: e.target.value }))} placeholder="Company" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="email" value={contactDraft.email} onChange={(e) => setContactDraft((d) => ({ ...d, email: e.target.value }))} placeholder="Email" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="tel" value={contactDraft.phone} onChange={(e) => setContactDraft((d) => ({ ...d, phone: e.target.value }))} placeholder="Phone" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingContact(false)} className="text-xs text-gray-500 hover:text-gray-300">Cancel</button>
+                    <button onClick={saveContact} disabled={fieldSaving === "contact"} className="text-xs text-blue-400 hover:text-blue-300 font-medium disabled:opacity-40">{fieldSaving === "contact" ? "Saving…" : "Save"}</button>
+                  </div>
+                </div>
+              )}
               {selected.company && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
@@ -528,11 +600,19 @@ export default function ContactsClient({
                   </span>
                 </div>
               )}
-              <div className="flex gap-3 pt-2 border-t border-gray-800">
+            </div>
+
+            {/* Notes & Context */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Notes &amp; Context</p>
+
+              {/* Notes */}
+              <div className="flex gap-3">
                 <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
                 <div className="flex-1">
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Notes</p>
                   {editingNotes ? (
                     <div className="space-y-2">
                       <textarea
@@ -564,14 +644,9 @@ export default function ContactsClient({
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Where did you meet */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Context</p>
 
               {/* Where met */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-3 border-t border-gray-800">
                 <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                 </svg>
@@ -678,16 +753,23 @@ export default function ContactsClient({
               </div>
 
               {aiMessages === null && !aiLoading && (
-                <button
-                  onClick={generateAiMessages}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: "#1D4ED8", color: "#fff" }}
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-                  </svg>
-                  Generate message ideas
-                </button>
+                (selected.notes || selected.where_met || selected.convo_details) ? (
+                  <button
+                    onClick={generateAiMessages}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                    style={{ background: "#1D4ED8", color: "#fff" }}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                    </svg>
+                    Generate message ideas
+                  </button>
+                ) : (
+                  <div className="border border-dashed border-gray-700 rounded-xl py-4 px-4 text-center">
+                    <p className="text-gray-500 text-sm">Add notes or context above first.</p>
+                    <p className="text-gray-600 text-xs mt-1">The AI needs something to work from before it can suggest follow-ups.</p>
+                  </div>
+                )
               )}
 
               {aiLoading && (
@@ -726,6 +808,29 @@ export default function ContactsClient({
                 <p className="text-gray-600 text-sm text-center py-2">Could not generate messages. Try adding context above.</p>
               )}
             </div>
+
+            {/* Follow-up automation toggle */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-gray-200 text-sm font-medium">Follow-up automation</p>
+                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "This contact receives your automated follow-ups." : "Automated follow-ups are paused for this contact."}</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAutomation}
+                role="switch"
+                aria-checked={automationOn}
+                className="relative w-11 h-6 rounded-full transition-colors shrink-0"
+                style={{ background: automationOn ? "#2563eb" : "#374151" }}
+              >
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: automationOn ? "22px" : "2px" }} />
+              </button>
+            </div>
+
+            </div>{/* end Contact info / Presets tab */}
+
+            {/* ── CONVERSATION TAB ── */}
+            <div className={detailTab === "conversation" ? "" : "hidden"}>
 
             {/* Conversation — messages with this contact */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
@@ -808,6 +913,8 @@ export default function ContactsClient({
                 </div>
               )}
             </div>
+
+            </div>{/* end Conversation tab */}
 
             {/* Delete contact */}
             <div className="mt-6 pt-4 border-t border-gray-800">
