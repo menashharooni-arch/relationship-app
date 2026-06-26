@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { getOfficeBrandForUser } from "@/lib/office-brand";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 
@@ -27,6 +28,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (cust && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
       updates.customization = { ...cust, links: cust.links.slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
     }
+  }
+
+  // Office uniform branding: force brand fields so members can't override them.
+  const brand = await getOfficeBrandForUser(user.id);
+  if (brand) {
+    if (brand.logoUrl) updates.logo_url = brand.logoUrl;
+    if (brand.company) updates.company = brand.company;
+    if (brand.website) updates.website = brand.website;
+    if (brand.template) updates.template = brand.template;
   }
 
   const { error } = await admin

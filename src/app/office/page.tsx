@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import OfficeDashboard from "@/components/OfficeDashboard";
+import OfficeBranding from "@/components/OfficeBranding";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
 import Link from "next/link";
 
@@ -112,6 +113,8 @@ export default async function OfficePage() {
               members={(office.office_members ?? []) as Member[]}
               appUrl={APP_URL}
             />
+
+            <OfficeBranding office={office} />
 
             {/* Unified team leads */}
             <div>
