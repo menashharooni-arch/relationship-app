@@ -318,23 +318,16 @@ export default function PricingPage() {
             <p className="text-[11px] font-bold tracking-[0.2em] text-purple-700 uppercase">Office Plan</p>
           </div>
           <div className="mb-1">
-            {annual ? (
-              <>
-                <div className="flex items-end gap-1">
-                  <span className="text-4xl font-bold text-slate-900">${money(seats * OFFICE_PER_USER_YEAR)}</span>
-                  <span className="text-slate-400 text-sm mb-1.5">/ year</span>
-                </div>
-                <p className="text-purple-700 text-xs font-semibold mt-1">$3.60/user/mo · {seats} users · Save 10%</p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-end gap-1">
-                  <span className="text-4xl font-bold text-slate-900">${(seats * OFFICE_PER_USER).toLocaleString()}</span>
-                  <span className="text-slate-400 text-sm mb-1.5">/ month</span>
-                </div>
-                <p className="text-purple-700 text-xs font-semibold mt-1">${OFFICE_PER_USER} × {seats} users</p>
-              </>
-            )}
+            <div className="flex items-end gap-1">
+              <span className="text-4xl font-bold text-slate-900">${annual ? "3.60" : OFFICE_PER_USER}</span>
+              <span className="text-slate-400 text-sm mb-1.5">/ month per user</span>
+            </div>
+            <p className="text-purple-700 text-xs font-semibold mt-1">
+              Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}
+            </p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              {seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}
+            </p>
           </div>
 
           {/* Seat selector */}
