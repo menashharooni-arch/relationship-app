@@ -36,9 +36,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { text } = await req.json();
+  const { text, channel: reqChannel } = await req.json();
   const body = typeof text === "string" ? text.trim() : "";
   if (!body) return NextResponse.json({ error: "Message is empty." }, { status: 400 });
+  const preferChannel = reqChannel === "sms" || reqChannel === "email" ? reqChannel : undefined;
 
   const admin = getAdminSupabase();
   const [{ data: lead }, usernames] = await Promise.all([
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
     text: body,
     cardUsername: lead.card_owner,
+    channel: preferChannel,
   });
   const { channel, status } = result;
 

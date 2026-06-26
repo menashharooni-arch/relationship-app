@@ -124,11 +124,12 @@ export async function GET(req: NextRequest) {
     for (const [username, leads] of Object.entries(byOwner)) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, email, phone, company, title, flow_settings, plan")
+        .select("name, email, phone, company, title, flow_settings, plan, customization")
         .eq("username", username)
         .single();
 
       if (!profile?.email) continue;
+      const ownerAbout = ((profile.customization as { about?: string } | null)?.about ?? "").trim();
 
       // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
       if (step.key !== "day1" && !isPaidPlan(profile.plan)) continue;
@@ -202,13 +203,13 @@ export async function GET(req: NextRequest) {
                 max_tokens: 200,
                 messages: [{
                   role: "user",
-                  content: step.leadPrompt(
+                  content: `${step.leadPrompt(
                     profile.name ?? ownerFirst,
                     profile.title ?? "",
                     profile.company ?? "",
                     leadFirst,
                     lead.message ?? ""
-                  ),
+                  )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`,
                 }],
               });
               aiBody = resp.content[0].type === "text" ? resp.content[0].text.trim() : "";

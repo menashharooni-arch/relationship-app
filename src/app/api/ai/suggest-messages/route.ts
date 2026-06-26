@@ -14,8 +14,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ messages: [] });
   }
 
-  const { leadId, meetContext, tone = "friendly" } = await req.json();
+  const { leadId, meetContext, tone = "friendly", channel = "email" } = await req.json();
   if (!leadId) return NextResponse.json({ error: "leadId required" }, { status: 400 });
+  const isText = channel === "sms";
 
   const adminSupabase = getAdminSupabase();
   const [{ data: profile }, { data: lead }, usernames] = await Promise.all([
@@ -45,14 +46,16 @@ export async function POST(req: NextRequest) {
   const ownerName = profile?.name ?? "I";
   const title = profile?.title ?? "";
   const company = profile?.company ?? "";
+  const about = ((profile?.customization as { about?: string } | null)?.about ?? "").trim();
   const leadName = lead.name.split(" ")[0];
 
   const contextLines = [
     title && `${ownerName} works as a ${title}${company ? ` at ${company}` : ""}`,
+    about && `What ${ownerName} does / offers (their About): ${about}`,
     lead.company && `${leadName} works at ${lead.company}`,
     meetContext && `They met at: ${meetContext}`,
     lead.message && `${leadName} mentioned: "${lead.message}"`,
-    lead.notes && `Notes: ${lead.notes}`,
+    lead.notes && `Notes about ${leadName}: ${lead.notes}`,
   ].filter(Boolean);
 
   const toneGuide =
@@ -68,17 +71,21 @@ export async function POST(req: NextRequest) {
       max_tokens: 600,
       messages: [{
         role: "user",
-        content: `Write 3 short follow-up messages from ${ownerName} to ${leadName}, who they recently connected with.
+        content: `Write 3 short follow-up ${isText ? "TEXT MESSAGES (SMS)" : "EMAILS"} from ${ownerName} to ${leadName}, who they recently connected with.
 
-Context:
+${isText
+  ? "Format: SMS. Each under 160 characters, plain text, no greeting line, no signature, no links unless essential."
+  : "Format: short email body. 2-3 sentences each, no subject line, no signature."}
+
+Context (use it to speak about the RIGHT things — naturally reference what ${ownerName} does/offers and the contact's situation):
 ${contextLines.length > 0 ? contextLines.join("\n") : "No additional context provided."}
 
 Tone: ${toneGuide}
 
 Requirements:
-- Each message max 2 sentences
+- ${isText ? "Each text 1-2 short sentences, under 160 characters" : "Each email max 2-3 sentences"}
 - First person, natural — sounds like a real human wrote it, not a template
-- Three different angles: (1) personal/casual check-in, (2) value or insight offer, (3) direct next step or question
+- Three different angles: (1) personal/casual check-in, (2) value or insight tied to what ${ownerName} does, (3) direct next step or question
 - No emoji unless tone is friendly and it fits naturally
 - Vary the openers — don't start with "Hi" or "Hey ${leadName}" on all three
 - Do NOT mention "digital business card" or "networking"

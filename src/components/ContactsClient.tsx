@@ -139,8 +139,6 @@ export default function ContactsClient({
   const [notesSaving, setNotesSaving] = useState(false);
   const [editingWhereMet, setEditingWhereMet] = useState(false);
   const [whereMetText, setWhereMetText] = useState("");
-  const [editingConvo, setEditingConvo] = useState(false);
-  const [convoText, setConvoText] = useState("");
   const [fieldSaving, setFieldSaving] = useState<string | null>(null);
   const [aiMessages, setAiMessages] = useState<string[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -158,6 +156,8 @@ export default function ContactsClient({
   const [msgText, setMsgText] = useState("");
   const [msgSending, setMsgSending] = useState(false);
   const [msgError, setMsgError] = useState<string | null>(null);
+  // Chosen send channel — drives the composer AND the AI follow-up preset style.
+  const [channel, setChannel] = useState<"email" | "text">("email");
 
   async function sendMessage() {
     if (!selected || !msgText.trim() || msgSending) return;
@@ -167,7 +167,7 @@ export default function ContactsClient({
       const res = await fetch(`/api/leads/${selected.id}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: msgText.trim() }),
+        body: JSON.stringify({ text: msgText.trim(), channel: channel === "text" ? "sms" : "email" }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.message) {
@@ -227,6 +227,7 @@ export default function ContactsClient({
           leadId: selected.id,
           meetContext: selected.where_met ?? "",
           tone: aiTone,
+          channel: channel === "text" ? "sms" : "email",
         }),
       });
       const data = await res.json();
@@ -302,9 +303,8 @@ export default function ContactsClient({
     setEditingContact(false);
     setEditingNotes(false);
     setEditingWhereMet(false);
-    setEditingConvo(false);
     setWhereMetText(lead.where_met ?? "");
-    setConvoText(lead.convo_details ?? "");
+    setChannel(lead.email ? "email" : "text");
     setAiMessages(null);
     setAiCopied(null);
     setAiUpgrade(null);
@@ -822,56 +822,14 @@ export default function ContactsClient({
                 </div>
               </div>
 
-              {/* Conversation details */}
-              <div className="flex gap-3 pt-3 border-t border-gray-800">
-                <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Conversation details</p>
-                  {editingConvo ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={convoText}
-                        onChange={(e) => setConvoText(e.target.value)}
-                        rows={3}
-                        placeholder="What did you discuss? What are their needs?"
-                        className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                      />
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingConvo(false)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
-                        <button
-                          onClick={async () => { await saveField("convo_details", convoText); setEditingConvo(false); }}
-                          disabled={fieldSaving === "convo_details"}
-                          className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-40"
-                        >
-                          {fieldSaving === "convo_details" ? "Saving…" : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2">
-                      <p className="text-gray-400 text-sm whitespace-pre-wrap flex-1">
-                        {selected.convo_details || <span className="text-gray-600 italic">No details yet</span>}
-                      </p>
-                      <button
-                        onClick={() => { setConvoText(selected.convo_details ?? ""); setEditingConvo(true); }}
-                        className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
             {/* AI follow-up preview */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">AI Follow-up Preview</p>
-                  <p className="text-gray-600 text-xs mt-0.5">Generate message ideas for this contact</p>
+                  <p className="text-gray-600 text-xs mt-0.5">{channel === "text" ? "Text" : "Email"} drafts from your notes, where you met &amp; your About</p>
                 </div>
                 <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
                   {(["friendly", "professional", "direct"] as const).map((t) => (
@@ -885,9 +843,28 @@ export default function ContactsClient({
                   ))}
                 </div>
               </div>
+              {/* Preset style follows the chosen channel (email vs text) */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] text-gray-600 uppercase tracking-wide">Preset</span>
+                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                  {([
+                    { id: "email", label: "Email", on: !!selected.email },
+                    { id: "text", label: "Text", on: !!selected.phone },
+                  ] as const).map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => { if (c.on) { setChannel(c.id); setAiMessages(null); } }}
+                      disabled={!c.on}
+                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${channel === c.id ? "bg-blue-600 text-white" : c.on ? "text-gray-400 hover:text-gray-200" : "text-gray-700 cursor-not-allowed"}`}
+                    >
+                      {c.id === "email" ? "✉" : "💬"} {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {aiMessages === null && !aiLoading && (
-                (selected.notes || selected.where_met || selected.convo_details) ? (
+                (selected.notes || selected.where_met) ? (
                   <button
                     onClick={generateAiMessages}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
@@ -980,12 +957,25 @@ export default function ContactsClient({
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Conversation</p>
-                {(() => {
-                  const ch = selected.email ? "email" : selected.phone ? "text" : null;
-                  return ch ? (
-                    <span className="text-[10px] text-gray-500">delivers via {ch}</span>
-                  ) : null;
-                })()}
+                {/* Send-channel toggle — also drives the AI follow-up preset style */}
+                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                  {([
+                    { id: "email", label: "Email", on: !!selected.email },
+                    { id: "text", label: "Text", on: !!selected.phone },
+                  ] as const).map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => c.on && setChannel(c.id)}
+                      disabled={!c.on}
+                      title={c.on ? `Send as ${c.label.toLowerCase()}` : `No ${c.id === "email" ? "email" : "phone"} on file`}
+                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${
+                        channel === c.id ? "bg-blue-600 text-white" : c.on ? "text-gray-400 hover:text-gray-200" : "text-gray-700 cursor-not-allowed"
+                      }`}
+                    >
+                      {c.id === "email" ? "✉" : "💬"} {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Thread */}
@@ -999,13 +989,17 @@ export default function ContactsClient({
                 )}
                 {convoMessages.map((m) => (
                   <div key={m.id} className="flex flex-col items-end">
-                    <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${m.channel === "sms" ? "bg-emerald-600" : "bg-blue-600"}`}>
                       {m.body}
                     </div>
-                    <span className="text-gray-600 text-[10px] mt-1 pr-1">
-                      {m.status === "sent" ? "Sent" : m.status === "not_configured" ? "Not sent — channel off" : m.status === "failed" ? "Failed" : "Sent"}
-                      {m.channel ? ` · ${m.channel === "sms" ? "text" : "email"}` : ""}
-                      {m.created_at ? ` · ${formatShort(m.created_at)}` : ""}
+                    <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
+                      <span className={`px-1.5 py-px rounded font-semibold ${m.channel === "sms" ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
+                        {m.channel === "sms" ? "💬 Text" : "✉ Email"}
+                      </span>
+                      <span>
+                        {m.status === "sent" ? "Sent" : m.status === "not_configured" ? "Not sent" : m.status === "failed" ? "Failed" : "Sent"}
+                        {m.created_at ? ` · ${formatShort(m.created_at)}` : ""}
+                      </span>
                     </span>
                   </div>
                 ))}
@@ -1033,9 +1027,9 @@ export default function ContactsClient({
                     <button
                       onClick={sendMessage}
                       disabled={!msgText.trim() || msgSending}
-                      className="text-xs font-semibold text-white px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
+                      className={`text-xs font-semibold text-white px-4 py-2 rounded-full disabled:opacity-40 transition-colors ${channel === "text" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-blue-600 hover:bg-blue-500"}`}
                     >
-                      {msgSending ? "Sending…" : `Send ${selected.email ? "email" : "text"}`}
+                      {msgSending ? "Sending…" : `Send ${channel}`}
                     </button>
                   </div>
                 </div>
