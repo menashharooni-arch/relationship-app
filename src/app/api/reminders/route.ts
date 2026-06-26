@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
-import Anthropic from "@anthropic-ai/sdk";
+import { aiComplete } from "@/lib/ai";
 
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
@@ -195,35 +195,17 @@ export async function GET(req: NextRequest) {
 
       // Send personalized AI follow-up to each lead that has an email
       {
-        const anthropic = process.env.ANTHROPIC_API_KEY
-          ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-          : null;
-
         for (const lead of leads) {
           const leadFirst = lead.name.split(" ")[0];
 
-          let aiBody = "";
-          if (anthropic) {
-            try {
-              const resp = await anthropic.messages.create({
-                model: "claude-haiku-4-5-20251001",
-                max_tokens: 200,
-                messages: [{
-                  role: "user",
-                  content: `${step.leadPrompt(
-                    profile.name ?? ownerFirst,
-                    profile.title ?? "",
-                    profile.company ?? "",
-                    leadFirst,
-                    lead.message ?? ""
-                  )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`,
-                }],
-              });
-              aiBody = resp.content[0].type === "text" ? resp.content[0].text.trim() : "";
-            } catch {
-              aiBody = "";
-            }
-          }
+          const aiPrompt = `${step.leadPrompt(
+            profile.name ?? ownerFirst,
+            profile.title ?? "",
+            profile.company ?? "",
+            leadFirst,
+            lead.message ?? ""
+          )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`;
+          const aiBody = (await aiComplete(aiPrompt, { maxTokens: 200 })) ?? "";
 
           const emailBody = aiBody || step.leadFallback(ownerFirst);
           const customNote = flow.customNote?.trim();

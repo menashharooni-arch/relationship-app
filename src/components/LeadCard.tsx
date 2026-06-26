@@ -937,7 +937,7 @@ export default function LeadCard({
                 )}
 
                 {aiMessages !== null && aiMessages.length === 0 && (
-                  <p className="text-gray-600 text-xs py-2">Could not generate messages. Make sure ANTHROPIC_API_KEY is set.</p>
+                  <p className="text-gray-600 text-xs py-2">Could not generate messages. Make sure an AI key (OpenAI or Gemini) is set.</p>
                 )}
               </div>
             )}

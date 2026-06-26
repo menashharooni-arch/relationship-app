@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
@@ -191,24 +191,13 @@ export async function POST(req: NextRequest) {
   const local = localAnswer(lastUser.content);
   if (local) return NextResponse.json({ reply: local });
 
-  // 2) For anything the KB can't confidently answer, use the LLM IF API credits
-  //    are available. If not (or it errors), fall back to the helpful default.
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
-        max_tokens: 700,
-        system: SYSTEM_PROMPT,
-        messages,
-      });
-      const reply = response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
-      if (reply) return NextResponse.json({ reply });
-    } catch (err) {
-      const e = err as { status?: number; message?: string; error?: { error?: { message?: string } } };
-      console.error("[ai/help] Anthropic error", e?.status, e?.error?.error?.message || e?.message);
-      // fall through to the knowledge-base fallback
-    }
+  // 2) For anything the KB can't confidently answer, use the LLM IF a provider
+  //    is configured. If not (or it errors), fall back to the helpful default.
+  if (hasAiProvider()) {
+    const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
+    const prompt = `${SYSTEM_PROMPT}\n\nConversation so far:\n${convo}\n\nReply as the assistant to the user's last message.`;
+    const reply = await aiComplete(prompt, { maxTokens: 700 });
+    if (reply) return NextResponse.json({ reply });
   }
 
   return NextResponse.json({ reply: FALLBACK });
