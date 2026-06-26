@@ -13,7 +13,9 @@ export default function SignOutButton() {
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    router.push("/login");
+    // Send users to the marketing front page after signing out.
+    router.replace("/");
+    router.refresh();
   }
 
   return (
