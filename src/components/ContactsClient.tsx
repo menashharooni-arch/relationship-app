@@ -153,6 +153,34 @@ export default function ContactsClient({
   const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
+  const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
+  const [msgText, setMsgText] = useState("");
+  const [msgSending, setMsgSending] = useState(false);
+  const [msgError, setMsgError] = useState<string | null>(null);
+
+  async function sendMessage() {
+    if (!selected || !msgText.trim() || msgSending) return;
+    setMsgSending(true);
+    setMsgError(null);
+    try {
+      const res = await fetch(`/api/leads/${selected.id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: msgText.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.message) {
+        setConvoMessages((prev) => [...prev, data.message]);
+        setMsgText("");
+      } else {
+        setMsgError(data.message || data.error || "Couldn't send. Try again.");
+      }
+    } catch {
+      setMsgError("Couldn't send. Try again.");
+    } finally {
+      setMsgSending(false);
+    }
+  }
 
   async function saveContact() {
     if (!selected) return;
@@ -279,6 +307,14 @@ export default function ContactsClient({
     setAiMessages(null);
     setAiCopied(null);
     setAiUpgrade(null);
+    setMsgText("");
+    setMsgError(null);
+    setConvoMessages([]);
+    // Load the message thread (degrades to empty if not yet migrated).
+    fetch(`/api/leads/${lead.id}/message`)
+      .then((r) => r.json())
+      .then((d) => setConvoMessages(Array.isArray(d.messages) ? d.messages : []))
+      .catch(() => setConvoMessages([]));
     if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
@@ -922,25 +958,69 @@ export default function ContactsClient({
 
             {/* Conversation — messages with this contact */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-3">Conversation</p>
-              {selected.message ? (
-                <div className="space-y-2">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Conversation</p>
+                {(() => {
+                  const ch = selected.email ? "email" : selected.phone ? "text" : null;
+                  return ch ? (
+                    <span className="text-[10px] text-gray-500">delivers via {ch}</span>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Thread */}
+              <div className="space-y-2.5 mb-4">
+                {selected.message && (
                   <div className="flex justify-start">
-                    <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
                       {selected.message}
                     </div>
                   </div>
-                  <p className="text-gray-600 text-[11px] pl-1">{selected.name.split(" ")[0]} sent this when they reached out. Your automated follow-ups will appear here too.</p>
+                )}
+                {convoMessages.map((m) => (
+                  <div key={m.id} className="flex flex-col items-end">
+                    <div className="max-w-[85%] bg-blue-600 text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                      {m.body}
+                    </div>
+                    <span className="text-gray-600 text-[10px] mt-1 pr-1">
+                      {m.status === "sent" ? "Sent" : m.status === "not_configured" ? "Not sent — channel off" : m.status === "failed" ? "Failed" : "Sent"}
+                      {m.channel ? ` · ${m.channel === "sms" ? "text" : "email"}` : ""}
+                      {m.created_at ? ` · ${formatShort(m.created_at)}` : ""}
+                    </span>
+                  </div>
+                ))}
+                {!selected.message && convoMessages.length === 0 && (
+                  <p className="text-gray-500 text-sm leading-relaxed">
+                    No messages yet. Send {selected.name.split(" ")[0]} a message below — it arrives as a branded SwiftCard {selected.email ? "email" : "text"}.
+                  </p>
+                )}
+              </div>
+
+              {/* Composer */}
+              {selected.email || selected.phone ? (
+                <div>
+                  <textarea
+                    value={msgText}
+                    onChange={(e) => { setMsgText(e.target.value); setMsgError(null); }}
+                    placeholder={`Message ${selected.name.split(" ")[0]}…`}
+                    rows={2}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-gray-600">
+                      {msgError ? <span className="text-red-400">{msgError}</span> : `Sent as “${(selected.name.split(" ")[0])}, this is via SwiftCard”`}
+                    </span>
+                    <button
+                      onClick={sendMessage}
+                      disabled={!msgText.trim() || msgSending}
+                      className="text-xs font-semibold text-white px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
+                    >
+                      {msgSending ? "Sending…" : `Send ${selected.email ? "email" : "text"}`}
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex items-start gap-3 text-gray-500">
-                  <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <p className="text-sm leading-relaxed">
-                    No messages yet. Automated texts and emails sent to {selected.name.split(" ")[0]} will appear here once you set up follow-up automation.
-                  </p>
-                </div>
+                <p className="text-gray-600 text-xs">Add an email or phone number for this contact to message them.</p>
               )}
             </div>
 
