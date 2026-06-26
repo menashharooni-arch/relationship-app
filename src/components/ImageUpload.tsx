@@ -24,10 +24,19 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
     image.onerror = reject;
   });
 
+  // Preserve the crop's aspect ratio (so wide/rectangular logos aren't squished
+  // into a square), capping the longest edge at 800px.
+  const MAX = 800;
+  let w = pixelCrop.width;
+  let h = pixelCrop.height;
+  if (Math.max(w, h) > MAX) {
+    if (w >= h) { h = Math.round((h / w) * MAX); w = MAX; }
+    else { w = Math.round((w / h) * MAX); h = MAX; }
+  }
+
   const canvas = document.createElement("canvas");
-  const size = Math.min(pixelCrop.width, pixelCrop.height, 800);
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
   ctx.drawImage(
@@ -38,8 +47,8 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
     pixelCrop.height,
     0,
     0,
-    size,
-    size
+    w,
+    h
   );
 
   return new Promise((resolve, reject) => {
@@ -62,6 +71,13 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  // Logos can be square or rectangular — let the user pick the frame that fits.
+  const [logoAspect, setLogoAspect] = useState(1);
+  const LOGO_ASPECTS = [
+    { label: "Square", value: 1 },
+    { label: "Wide", value: 16 / 9 },
+    { label: "Banner", value: 3 },
+  ];
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -133,7 +149,9 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   }
 
   const isCircle = shape === "circle";
-  const boxSize = large ? "w-24 h-24" : "w-20 h-20";
+  const isLogo = field === "logo";
+  // Logos get a wider box so rectangular marks fit; photos stay square.
+  const boxSize = isLogo ? "w-36 h-24" : large ? "w-24 h-24" : "w-20 h-20";
 
   return (
     <>
@@ -169,8 +187,9 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
               image={rawSrc}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={field === "logo" ? logoAspect : 1}
               cropShape={isCircle ? "round" : "rect"}
+              objectFit="contain"
               showGrid={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
@@ -187,6 +206,25 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
 
           {/* Bottom controls */}
           <div className="px-8 shrink-0" style={{ paddingTop: 20, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}>
+            {/* Logo shape presets — square or rectangular */}
+            {field === "logo" && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {LOGO_ASPECTS.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => setLogoAspect(a.value)}
+                    className="text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors"
+                    style={{
+                      background: Math.abs(logoAspect - a.value) < 0.01 ? "#2563eb" : "rgba(255,255,255,0.1)",
+                      color: "#fff",
+                    }}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Zoom slider */}
             <div className="flex items-center gap-4 mb-3">
               <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -232,8 +270,8 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
               <img
                 src={preview}
                 alt={label}
-                className="w-full h-full object-cover"
-                style={{ borderRadius: isCircle ? "9999px" : "10px" }}
+                className="w-full h-full"
+                style={{ objectFit: isLogo ? "contain" : "cover", padding: isLogo ? 6 : 0, borderRadius: isCircle ? "9999px" : "10px" }}
               />
             ) : (
               <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
