@@ -26,12 +26,9 @@ export async function GET(request: NextRequest) {
 
     await supabase.auth.exchangeCodeForSession(code);
 
-    // If a specific redirect was requested (e.g. invite flow), honour it
-    if (next) {
-      return NextResponse.redirect(new URL(next, origin));
-    }
+    // Only honour a same-origin relative redirect (no open-redirect to other sites).
+    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
 
-    // Check if user has completed onboarding
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
@@ -39,6 +36,7 @@ export async function GET(request: NextRequest) {
         .select("username, customization")
         .eq("id", user.id)
         .single();
+      // A deleted account is always sent to the reopen screen, even with a ?next.
       if (profile && (profile.customization as { _deleted?: boolean } | null)?._deleted) {
         // Keep the session so they can reopen within the grace window.
         return NextResponse.redirect(new URL("/account-deleted", origin));
@@ -46,6 +44,10 @@ export async function GET(request: NextRequest) {
       if (!profile) {
         return NextResponse.redirect(new URL("/onboarding", origin));
       }
+    }
+
+    if (safeNext) {
+      return NextResponse.redirect(new URL(safeNext, origin));
     }
   }
 

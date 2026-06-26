@@ -70,7 +70,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
 
   return (
     <main
-      className="h-[100dvh] w-full overflow-hidden relative flex flex-col items-center justify-center px-6"
+      className="min-h-[100dvh] w-full overflow-y-auto relative flex flex-col items-center justify-center px-6 py-12"
       style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
     >
       <CardEventTracker username={username} source="swift_links" viewSurface="links" />
@@ -168,7 +168,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
       </div>
 
       {/* Footer */}
-      <a href={`${APP_URL}/card/${username}`} className="absolute bottom-5 text-white/40 text-[11px] hover:text-white/70 transition-colors">
+      <a href={`${APP_URL}/card/${username}`} className="relative mt-10 text-white/40 text-[11px] hover:text-white/70 transition-colors">
         View full card · swiftcard.me
       </a>
     </main>

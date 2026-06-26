@@ -141,21 +141,27 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   async function handleSave() {
     setStatus("saving");
     const { snapchat: _snap, youtube: _yt, facebook: _fb, ...coreForm } = form;
-    const res = await fetch(saveUrl, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...coreForm,
-        ...(isPrimary ? {} : { label }),
-        template,
-        customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
-        logo_url: cardLogoUrl,
-      }),
-    });
-    if (res.ok) {
-      setStatus("saved");
-      setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
-    } else {
+    try {
+      const res = await fetch(saveUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...coreForm,
+          ...(isPrimary ? {} : { label }),
+          template,
+          customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout },
+          logo_url: cardLogoUrl,
+        }),
+      });
+      if (res.ok) {
+        setStatus("saved");
+        setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
+      } else {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 2500);
+      }
+    } catch {
+      // Network failure — don't leave the button stuck on "Saving…".
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2500);
     }

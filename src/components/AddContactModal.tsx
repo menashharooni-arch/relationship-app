@@ -60,7 +60,7 @@ export default function AddContactModal() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setOpen(false); reset(); }} />
 
           {/* Modal */}
-          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <div>
@@ -78,7 +78,7 @@ export default function AddContactModal() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+            <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3 overflow-y-auto">
               <div>
                 <label className="text-xs text-gray-400 font-medium block mb-1">Full name *</label>
                 <input
