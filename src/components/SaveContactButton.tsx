@@ -187,7 +187,7 @@ export default function SaveContactButton({
                       Let {ownerFirstName ?? "them"} have yours too
                     </p>
                     <p className="text-slate-500 text-sm mt-1">
-                      You saved their contact — share yours so they can follow up.
+                      Share your information!
                     </p>
                   </div>
                   <button
