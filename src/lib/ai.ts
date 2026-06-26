@@ -32,7 +32,7 @@ export async function aiComplete(prompt: string, opts?: { maxTokens?: number; js
   // ── Google Gemini (gemini-2.0-flash by default) ──
   if (process.env.GEMINI_API_KEY) {
     try {
-      const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +95,7 @@ export async function aiVision(opts: { imageBase64: string; mediaType: string; p
 
   if (process.env.GEMINI_API_KEY) {
     try {
-      const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+      const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
