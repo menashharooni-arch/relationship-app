@@ -42,6 +42,10 @@ export default async function ContactsPage({
     .in("card_owner", allUsernames)
     .order("name", { ascending: true });
 
+  // Carry the selected card back to the dashboard so it doesn't flip to the first card.
+  const dashCard = selectedCardParam ?? cardList[0]?.username;
+  const dashHref = dashCard ? `/dashboard?card=${dashCard}` : "/dashboard";
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNav />
@@ -52,7 +56,7 @@ export default async function ContactsPage({
       <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
           <div className="flex items-center gap-3 shrink-0">
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href={dashHref} className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
                   <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
@@ -64,7 +68,7 @@ export default async function ContactsPage({
           </div>
 
           <div className="hidden sm:flex items-center gap-1">
-            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
+            <Link href={dashHref} className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Dashboard
             </Link>
             <Link href="/contacts" className="text-sm text-white font-medium px-3 py-1.5 rounded-lg bg-gray-800">
@@ -76,7 +80,7 @@ export default async function ContactsPage({
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <Link href={dashHref} className="text-sm text-gray-400 hover:text-white transition-colors">
               ← Dashboard
             </Link>
           </div>
