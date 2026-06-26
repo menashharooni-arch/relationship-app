@@ -142,8 +142,6 @@ export default async function CardPage({
   const addr = customization.address;
   const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
   const addressLine2 = [addr?.city, addr?.state, addr?.zip].filter(Boolean).join(", ");
-  const hasAddress = Boolean(addressLine1 || addressLine2);
-  const mapsQuery = encodeURIComponent([addressLine1, addressLine2].filter(Boolean).join(", "));
 
   const cardData: CardData = {
     name: profile.name || "",
@@ -161,6 +159,7 @@ export default async function CardPage({
     photoUrl: accountPhotoUrl,
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
+    address: [addressLine1, addressLine2].filter(Boolean).join("\n"),
     customization: profile.customization ?? {},
   };
 
@@ -206,26 +205,7 @@ export default async function CardPage({
         <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
       </div>
 
-      {/* Address section */}
-      {hasAddress && (
-        <a
-          href={`https://maps.google.com/?q=${mapsQuery}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full max-w-sm rounded-2xl p-5 shadow-sm flex items-center gap-3 transition-transform active:scale-[0.99]"
-          style={{ background: "#fff", border: "1px solid #E4DDD4" }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth={1.8} className="w-5 h-5 shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-          </svg>
-          <div className="min-w-0">
-            <p className="text-slate-500 text-[11px] font-semibold uppercase tracking-wider mb-0.5">Address</p>
-            {addressLine1 && <p className="text-slate-800 text-sm leading-snug">{addressLine1}</p>}
-            {addressLine2 && <p className="text-slate-600 text-sm leading-snug">{addressLine2}</p>}
-          </div>
-        </a>
-      )}
+      {/* Address now lives inside the card design above (no separate section). */}
 
       {/* Testimonials */}
       {testimonials.length > 0 && (

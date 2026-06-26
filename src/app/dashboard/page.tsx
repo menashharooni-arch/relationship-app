@@ -304,6 +304,14 @@ export default async function DashboardPage({
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   }
 
+  const _addr = (activeSource.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
+  const activeAddress = _addr
+    ? [
+        [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
+        [_addr.city, _addr.state, _addr.zip].filter(Boolean).join(", "),
+      ].filter(Boolean).join("\n")
+    : "";
+
   const cardData = {
     name: activeSource.name || "",
     title: activeSource.title || "",
@@ -320,6 +328,7 @@ export default async function DashboardPage({
     photoUrl: profile.photo_url || null,
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
+    address: activeAddress,
     customization: activeSource.customization ?? {},
   };
 

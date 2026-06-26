@@ -166,6 +166,10 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     photoUrl: headshotUrl,
     logoUrl,
     cardUrl: `swiftcard.me/card/${username || "your-card"}`,
+    address: [
+      [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
+      [address.city, address.state, address.zip].filter(Boolean).join(", "),
+    ].filter(Boolean).join("\n"),
     customization: { snapchat: socials.snapchat, customLayout },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);

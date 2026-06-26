@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -127,6 +127,12 @@ export default function ModernBold({ data }: { data: CardData }) {
             <div className="flex items-center gap-2" style={{ color: "#cbd5e1" }}>
               <span style={{ color: BLUE }}><IcoGlobe /></span>
               <span style={{ fontSize: 10.5 }}>{data.website}</span>
+            </div>
+          )}
+          {data.address && (
+            <div className="flex items-start gap-2" style={{ color: "#94a3b8" }}>
+              <span style={{ color: BLUE, marginTop: 1 }}><IcoPin /></span>
+              <span style={{ fontSize: 9, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
             </div>
           )}
         </div>

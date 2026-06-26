@@ -123,7 +123,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
           {/* Address if set */}
           {data.address && (
-            <p style={{ fontSize: 8.5, color: "#a16207" }}>{data.address}</p>
+            <p style={{ fontSize: 8.5, color: "#a16207", lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</p>
           )}
         </div>
 
