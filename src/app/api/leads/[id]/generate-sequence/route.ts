@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isPaidPlan } from "@/lib/plan";
-import Anthropic from "@anthropic-ai/sdk";
+import { aiComplete } from "@/lib/ai";
 
 type Step = { day: number; time: string };
 
@@ -48,10 +48,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const anthropic = process.env.ANTHROPIC_API_KEY
-    ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    : null;
-
   const leadFirst = (lead.name as string).split(" ")[0];
   const sequence: { day: number; time: string; message: string; subject?: string }[] = [];
   const total = preset.steps.length;
@@ -61,15 +57,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let message = "";
     let subject = "";
 
-    if (anthropic) {
-      try {
-        const tone = i === 0 ? "warm and immediate" : i === total - 1 ? "graceful close" : "brief check-in";
-        const resp = await anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 220,
-          messages: [{
-            role: "user",
-            content: `Write a short personal follow-up ${isText ? "TEXT MESSAGE (SMS, under 160 characters, plain text)" : "EMAIL body (2-3 sentences)"} for Day ${day} of a ${preset.name} follow-up sequence.
+    const tone = i === 0 ? "warm and immediate" : i === total - 1 ? "graceful close" : "brief check-in";
+    const prompt = `Write a short personal follow-up ${isText ? "TEXT MESSAGE (SMS, under 160 characters, plain text)" : "EMAIL body (2-3 sentences)"} for Day ${day} of a ${preset.name} follow-up sequence.
 
 Sender: ${profile?.name ?? ""}${profile?.title ? `, ${profile.title}` : ""}${profile?.company ? ` at ${profile.company}` : ""}
 ${about ? `What the sender does/offers (their About — speak to the right things): ${about}` : ""}
@@ -81,21 +70,20 @@ ${lead.message ? `Their note: "${lead.message}"` : ""}
 
 Tone: ${tone}. Day ${day} of ${total}-part sequence.
 Rules: ${isText ? "Under 160 characters, plain text, no greeting/signature, no links unless essential." : "2-3 sentences max, no greeting line, no sign-off/signature (a signature is added automatically)."} First person. No "Hey" opener. No mention of "digital business card".
-${isText ? "Return only the message text." : `Also write a short subject line (under 6 words). Return ONLY JSON: {"subject":"...","message":"..."}`}`,
-          }],
-        });
-        const raw = resp.content[0].type === "text" ? (resp.content[0].text as string).trim() : "";
-        if (isText) {
-          message = raw;
-        } else {
-          const m = raw.match(/\{[\s\S]*\}/);
-          try {
-            const p = JSON.parse(m?.[0] ?? "{}");
-            message = (p.message || "").trim();
-            subject = (p.subject || "").trim();
-          } catch { message = raw; }
-        }
-      } catch { /* fall through */ }
+${isText ? "Return only the message text." : `Also write a short subject line (under 6 words). Return ONLY JSON: {"subject":"...","message":"..."}`}`;
+
+    const raw = (await aiComplete(prompt, { maxTokens: 220, json: !isText })) ?? "";
+    if (raw) {
+      if (isText) {
+        message = raw;
+      } else {
+        const m = raw.match(/\{[\s\S]*\}/);
+        try {
+          const p = JSON.parse(m?.[0] ?? "{}");
+          message = (p.message || "").trim();
+          subject = (p.subject || "").trim();
+        } catch { message = raw; }
+      }
     }
 
     if (!message) {
