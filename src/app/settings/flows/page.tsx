@@ -4,7 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
-import ManageBillingButton from "@/components/ManageBillingButton";
+import GeneralSettings from "@/components/GeneralSettings";
 import ManageAccount from "@/components/ManageAccount";
 import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
@@ -89,68 +89,16 @@ export default async function FlowSettingsPage() {
         </div>
 
         <div className="space-y-8">
-          {/* General settings */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-              {/* Account info */}
-              <div>
-                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Account</p>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-gray-500 text-xs shrink-0">Email</span>
-                    <span className="text-white text-xs font-medium truncate">{user.email}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-gray-500 text-xs shrink-0">Cards</span>
-                    <span className="text-white text-xs font-medium truncate">{(cards?.length ?? 0)} card{(cards?.length ?? 0) === 1 ? "" : "s"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-gray-800" />
-
-              {/* Subscription & payment */}
-              <div>
-                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Subscription</p>
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <span className="text-gray-500 text-xs">Current plan</span>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${profile.plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-                    {profile.plan === "enterprise" ? "Office" : isPro ? "Pro" : "Free"}
-                  </span>
-                </div>
-                {isPro ? (
-                  <ManageBillingButton />
-                ) : (
-                  <Link href="/pricing" className="block text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">
-                    Upgrade to Pro →
-                  </Link>
-                )}
-                <p className="text-gray-600 text-[11px] mt-2 leading-relaxed">
-                  {isPro
-                    ? "Update your payment method, view invoices, or cancel anytime in the billing portal."
-                    : "Pro unlocks unlimited cards, analytics, custom card design, and removes SwiftCard branding."}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Help */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Help</p>
-            <HelpWidget />
-          </div>
-
-          {/* Manage account */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Account</p>
-            <ManageAccount isPro={isPro} />
-          </div>
-
           {/* Your cards */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
             <ManageCards cards={cards ?? []} />
+          </div>
+
+          {/* Help */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Need help</p>
+            <HelpWidget />
           </div>
 
           {/* Integrations */}
@@ -166,6 +114,23 @@ export default async function FlowSettingsPage() {
                 />
               </Suspense>
             </div>
+          </div>
+
+          {/* Manage account */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
+            <ManageAccount isPro={isPro} />
+          </div>
+
+          {/* General */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
+            <GeneralSettings
+              email={user.email ?? ""}
+              cardCount={cards?.length ?? 0}
+              plan={profile.plan ?? "free"}
+              isPro={isPro}
+            />
           </div>
 
         </div>
