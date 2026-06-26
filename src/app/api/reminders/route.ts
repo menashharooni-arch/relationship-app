@@ -274,7 +274,7 @@ export async function GET(req: NextRequest) {
     .not("follow_up_sequence", "is", null);
 
   for (const seqLead of seqLeads ?? []) {
-    const seq = seqLead.follow_up_sequence as { day: number; message: string; sent_at: string | null }[] | null;
+    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; channel?: string; sent_at: string | null }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
@@ -284,6 +284,11 @@ export async function GET(req: NextRequest) {
       if (item.sent_at) continue;
       const dueMs = createdAt + item.day * 86400000;
       if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
+      // Honor the step's scheduled time-of-day (cron runs hourly; send at/after the hour).
+      if (item.time) {
+        const stepHour = parseInt(item.time.split(":")[0], 10);
+        if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
+      }
 
       const { data: ownerProfile } = await supabase
         .from("profiles")
@@ -303,6 +308,7 @@ export async function GET(req: NextRequest) {
         sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
         text: item.message,
         cardUsername: seqLead.card_owner,
+        channel: item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined,
         email: {
           subject: `${ownerFirst} following up`,
           html: `<div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;"><p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;"><p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>${ownerProfile.title ? `<p style="margin:0;color:#6b7280;font-size:12px;">${ownerProfile.title}</p>` : ""}${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="color:#2563eb;font-size:13px;">${ownerProfile.email}</a>` : ""}</div><p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p></div></div>`,
