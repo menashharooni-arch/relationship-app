@@ -172,9 +172,7 @@ export default function ContactsClient({
     if (!selected) return;
     const tags = selected.tags ?? [];
     const newTags = automationOn ? [...tags, "flow-paused"] : tags.filter((t) => t !== "flow-paused");
-    await updateField(selected.id, "tags", JSON.stringify(newTags));
-    setSelected((prev) => (prev ? { ...prev, tags: newTags } : prev));
-    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, tags: newTags } : l)));
+    await updateTags(selected.id, newTags);
   }
 
   async function saveField(field: string, value: string) {
@@ -222,8 +220,7 @@ export default function ContactsClient({
     setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
     if (newStatus === "dissolved") {
       const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
-      await updateField(selected.id, "tags", JSON.stringify(newTags));
-      setSelected((prev) => prev ? { ...prev, tags: newTags } : prev);
+      await updateTags(selected.id, newTags);
     }
   }
 
@@ -294,6 +291,29 @@ export default function ContactsClient({
     });
   }
 
+  // tags is a Postgres text[] — send the real array, not a stringified one.
+  async function updateTags(leadId: string, tags: string[]) {
+    await fetch(`/api/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags } : l)));
+    setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags } : prev));
+  }
+
+  function isUnread(lead: Lead) {
+    return (lead.tags ?? []).includes("unread");
+  }
+
+  async function toggleRead(lead: Lead) {
+    const tags = lead.tags ?? [];
+    const newTags = tags.includes("unread")
+      ? tags.filter((t) => t !== "unread")
+      : [...tags, "unread"];
+    await updateTags(lead.id, newTags);
+  }
+
   async function deleteLead(id: string) {
     await fetch(`/api/leads/${id}`, { method: "DELETE" });
     setLeads((prev) => prev.filter((l) => l.id !== id));
@@ -339,19 +359,26 @@ export default function ContactsClient({
 
   const renderLeadItem = (lead: Lead) => {
     const isOverdue = lead.follow_up_date && lead.follow_up_date.slice(0, 10) <= today;
+    const unread = isUnread(lead);
     return (
-      <button
+      <div
         key={lead.id}
+        role="button"
+        tabIndex={0}
         onClick={() => selectLead(lead)}
-        className={`w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectLead(lead); } }}
+        className={`group w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 cursor-pointer ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
       >
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
-            {lead.name[0]?.toUpperCase() ?? "?"}
+          <div className="relative shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+              {lead.name[0]?.toUpperCase() ?? "?"}
+            </div>
+            {unread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-gray-950" title="Unread" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-gray-100 font-semibold text-sm truncate">{lead.name}</p>
+              <p className={`text-sm truncate ${unread ? "text-white font-bold" : "text-gray-100 font-semibold"}`}>{lead.name}</p>
               <SourceBadge source={lead.source} />
             </div>
             {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
@@ -366,8 +393,23 @@ export default function ContactsClient({
               )}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleRead(lead); }}
+            title={unread ? "Mark as read" : "Mark as unread"}
+            aria-label={unread ? "Mark as read" : "Mark as unread"}
+            className={`shrink-0 self-center p-1.5 rounded-lg transition-colors ${unread ? "text-blue-400 hover:bg-blue-500/10" : "text-gray-600 hover:text-gray-300 hover:bg-gray-800"}`}
+          >
+            {unread ? (
+              // filled envelope = unread
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" /><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" /></svg>
+            ) : (
+              // open envelope = read
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
+            )}
+          </button>
         </div>
-      </button>
+      </div>
     );
   };
 
@@ -465,6 +507,23 @@ export default function ContactsClient({
                   <FlowBadge tags={selected.tags} />
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => toggleRead(selected)}
+                className={`ml-auto shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${isUnread(selected) ? "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"}`}
+              >
+                {isUnread(selected) ? (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" /><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" /></svg>
+                    Mark as read
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
+                    Mark as unread
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Tab switcher */}

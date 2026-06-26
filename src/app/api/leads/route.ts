@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
         message: message || null,
         location: location || null,
         card_owner,
-        tags: tags ?? null,
+        // New reach-outs arrive unread so the owner can track what they've seen.
+        tags: [...(Array.isArray(tags) ? tags : []), "unread"],
         source: source || null,
         visitor_id: visitor_id || null,
       })
