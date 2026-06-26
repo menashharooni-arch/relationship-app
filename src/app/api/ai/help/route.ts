@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      // Overridable via env so the model can be swapped without a redeploy.
+      model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
       max_tokens: 700,
       system: SYSTEM_PROMPT,
       messages,
@@ -99,7 +100,11 @@ export async function POST(req: NextRequest) {
       ? response.content[0].text.trim()
       : "Sorry, I couldn't come up with an answer. Try rephrasing?";
     return NextResponse.json({ reply });
-  } catch {
-    return NextResponse.json({ reply: "Sorry — something went wrong. Please try again in a moment." });
+  } catch (err) {
+    const e = err as { status?: number; message?: string; error?: { error?: { message?: string; type?: string } } };
+    const detail = e?.error?.error?.message || e?.message || "Unknown error";
+    console.error("[ai/help] Anthropic error", e?.status, detail);
+    // Surface the real reason so it can be fixed (model access, API key, or credits).
+    return NextResponse.json({ reply: `Assistant error (${e?.status ?? "?"}): ${detail}` });
   }
 }
