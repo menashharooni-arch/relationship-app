@@ -123,7 +123,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     cardUrl:   `swiftcard.me/card/${card.username}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
-      [address.city, address.state, address.zip].filter(Boolean).join(", "),
+      address.city,
+      [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
     customization: { customLayout },
   };

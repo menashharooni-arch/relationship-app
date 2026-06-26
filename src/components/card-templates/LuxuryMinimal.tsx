@@ -148,7 +148,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
         {/* QR */}
         <div className="flex flex-col items-end gap-1">
-          <QR size={84} bg="#f5f0e8" fg={GOLD} />
+          <QR size={76} bg="#f5f0e8" fg={GOLD} />
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
+import CardScaler from "@/components/CardScaler";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -141,7 +142,8 @@ export default async function CardPage({
 
   const addr = customization.address;
   const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
-  const addressLine2 = [addr?.city, addr?.state, addr?.zip].filter(Boolean).join(", ");
+  const addressLine2 = addr?.city ?? "";
+  const addressLine3 = [addr?.state, addr?.zip].filter(Boolean).join(" ");
 
   const cardData: CardData = {
     name: profile.name || "",
@@ -159,7 +161,7 @@ export default async function CardPage({
     photoUrl: accountPhotoUrl,
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
-    address: [addressLine1, addressLine2].filter(Boolean).join("\n"),
+    address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
     customization: profile.customization ?? {},
   };
 
@@ -202,7 +204,9 @@ export default async function CardPage({
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
-        <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+        <CardScaler>
+          <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+        </CardScaler>
       </div>
 
       {/* Address now lives inside the card design above (no separate section). */}

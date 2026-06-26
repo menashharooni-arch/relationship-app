@@ -146,7 +146,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         {/* QR + scan label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={84} bg="#f5f0ff" fg={ACCENT} />
+            <QR size={76} bg="#f5f0ff" fg={ACCENT} />
           </div>
         </div>
       </div>

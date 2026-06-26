@@ -168,7 +168,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     cardUrl: `swiftcard.me/card/${username || "your-card"}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
-      [address.city, address.state, address.zip].filter(Boolean).join(", "),
+      address.city,
+      [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
     customization: { snapchat: socials.snapchat, customLayout },
   };
