@@ -13,7 +13,7 @@ import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/C
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
-import type { CardAddress, CardData, CardLink, CustomLayout } from "@/components/card-templates/types";
+import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { PLAN_LIMITS } from "@/lib/plan";
 
 function slugify(str: string): string {
@@ -94,7 +94,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phones, setPhones] = useState<CardPhone[]>([{ number: "", label: "mobile", showOnCard: true }]);
+  const [fax, setFax] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<Required<CardAddress>>(EMPTY_ADDRESS);
 
@@ -118,6 +119,22 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   // or just the full name when there's no company.
   const username = slugify(company.trim() ? `${name} ${company}` : name);
   const cardLabel = nickname.trim() || name.trim();
+
+  // Phone management (multiple numbers, each labeled + toggleable on the card).
+  function updatePhone(i: number, patch: Partial<CardPhone>) {
+    setPhones((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function addPhone() {
+    setPhones((prev) => [...prev, { number: "", label: "office", showOnCard: true }]);
+  }
+  function removePhone(i: number) {
+    setPhones((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+  }
+  const cleanPhones: CardPhone[] = phones
+    .filter((p) => p.number.trim())
+    .map((p) => ({ number: p.number.trim(), label: p.label, showOnCard: p.showOnCard }));
+  const primaryPhone =
+    (cleanPhones.find((p) => p.showOnCard) ?? cleanPhones[0])?.number ?? "";
 
   function setSocial(key: SocialKey, value: string) {
     setSocials((prev) => ({ ...prev, [key]: value }));
@@ -157,7 +174,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     name: name || "Your name",
     title,
     company,
-    phone,
+    phone: primaryPhone,
     email,
     website: "",
     linkedin: socials.linkedin,
@@ -174,7 +191,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { snapchat: socials.snapchat, customLayout },
+    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim() },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
@@ -197,7 +214,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
         name: name.trim(),
         company: company.trim(),
         title: title.trim(),
-        phone: phone.trim(),
+        phone: primaryPhone,
         email: email.trim(),
         website: website.trim(),
         linkedin: socials.linkedin.trim(),
@@ -213,6 +230,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           youtube: socials.youtube.trim(),
           links,
           address,
+          phones: cleanPhones,
+          fax: fax.trim(),
           ...(template === "custom" ? { customLayout } : {}),
         },
       }),
@@ -294,8 +313,43 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               <input type="text" placeholder="Sales Director" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Phone number</label>
-              <input type="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-400">Phone numbers</label>
+                <button type="button" onClick={addPhone} className="text-xs font-semibold text-blue-400 hover:text-blue-300">+ Add number</button>
+              </div>
+              <div className="space-y-2">
+                {phones.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <select
+                      value={p.label}
+                      onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
+                      className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
+                    >
+                      <option value="mobile">Mobile</option>
+                      <option value="office">Office</option>
+                    </select>
+                    <input
+                      type="tel"
+                      placeholder="+1 (555) 000-0000"
+                      value={p.number}
+                      onChange={(e) => updatePhone(i, { number: e.target.value })}
+                      className={`${inputCls} flex-1 min-w-0`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updatePhone(i, { showOnCard: !p.showOnCard })}
+                      title={p.showOnCard ? "Showing on card" : "Hidden from card"}
+                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-500"}`}
+                    >
+                      {p.showOnCard ? "On card ✓" : "Off card"}
+                    </button>
+                    {phones.length > 1 && (
+                      <button type="button" onClick={() => removePhone(i)} className="shrink-0 text-gray-600 hover:text-red-400 px-1 text-lg leading-none" aria-label="Remove number">×</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which ones appear on your card (you can show more than one).</p>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
@@ -303,6 +357,13 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
             </div>
 
             <AddressInput value={address} onChange={setAddress} />
+
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
+              </label>
+              <input type="tel" placeholder="+1 (555) 000-0000" value={fax} onChange={(e) => setFax(e.target.value)} className={inputCls} />
+            </div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 

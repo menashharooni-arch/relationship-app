@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -111,10 +111,22 @@ export default function ClassicPro({ data }: { data: CardData }) {
       >
         {/* Contact rows */}
         <div className="flex flex-col gap-[7px] mt-0.5">
-          {data.phone && (
+          {cardPhones(data).map((p, i) => (
+            <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: NAVY }}>
+              <IcoPhone />
+              <span className="font-bold" style={{ fontSize: 13 }}>
+                {formatPhone(p.number)}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+              </span>
+            </div>
+          ))}
+          {cardFax(data) && (
             <div className="flex items-center gap-2" style={{ color: NAVY }}>
               <IcoPhone />
-              <span className="font-bold" style={{ fontSize: 13 }}>{formatPhone(data.phone)}</span>
+              <span className="font-bold" style={{ fontSize: 13 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
           {data.email && (
