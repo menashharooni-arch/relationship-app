@@ -73,7 +73,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
       className="h-[100dvh] w-full overflow-hidden relative flex flex-col items-center justify-center px-6"
       style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
     >
-      <CardEventTracker username={username} source="swift_links" />
+      <CardEventTracker username={username} source="swift_links" viewSurface="links" />
 
       {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #6366f1, transparent 70%)" }} />
