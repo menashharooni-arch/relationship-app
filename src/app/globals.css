@@ -49,20 +49,22 @@ body {
 .sc-rise-3 { animation-delay: .24s; }
 .sc-rise-4 { animation-delay: .36s; }
 
-/* Hero phone: 3D entrance, then a gentle ambient float at a slight tilt */
-@keyframes sc-phone-in {
-  0%   { opacity: 0; transform: perspective(1400px) rotateY(-20deg) rotateX(8deg) translateY(30px) scale(.94); }
-  100% { opacity: 1; transform: perspective(1400px) rotateY(-8deg)  rotateX(2deg) translateY(0)   scale(1);  }
+/* Hero phone: crisp & front-facing, with a gentle vertical float + soft fade-in.
+   (The 3D tilt is interactive — handled in HeroPhone.tsx — so it stays sharp at rest.) */
+@keyframes sc-fade { from { opacity: 0; } to { opacity: 1; } }
+.sc-fade-in { animation: sc-fade .9s ease both; }
+
+@keyframes sc-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
 }
-@keyframes sc-phone-float {
-  0%,100% { transform: perspective(1400px) rotateY(-8deg) rotateX(2deg) translateY(0); }
-  50%     { transform: perspective(1400px) rotateY(-8deg) rotateX(2deg) translateY(-12px); }
+.sc-phone-bob { animation: sc-bob 6s ease-in-out infinite; }
+
+@keyframes sc-glow-pulse {
+  0%, 100% { opacity: .75; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.07); }
 }
-.sc-hero-phone {
-  animation: sc-phone-in 1.1s cubic-bezier(.2,.7,.2,1) both,
-             sc-phone-float 6s ease-in-out 1.1s infinite;
-  will-change: transform;
-}
+.sc-phone-glow { animation: sc-glow-pulse 7s ease-in-out infinite; }
 
 /* Scroll-reveal: starts tilted/down, settles flat when in view */
 .reveal3d {
@@ -78,6 +80,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sc-rise, .sc-hero-phone { animation: none !important; opacity: 1 !important; }
+  .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
   .reveal3d { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
