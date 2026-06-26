@@ -41,7 +41,7 @@ export default async function ContactsPage({
 
   const { data: leads } = await admin
     .from("leads")
-    .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, created_at")
+    .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
     .in("card_owner", allUsernames)
     .order("name", { ascending: true });
 
