@@ -94,7 +94,7 @@ export default async function ContactsPage({
           </div>
           {(leads?.length ?? 0) > 0 && (
             <a
-              href={isPaidPlan(profile.plan) ? `/api/leads/export` : `/pricing`}
+              href={isPaidPlan(profile.plan) ? `/api/leads/export?username=${dashCard}` : `/pricing`}
               title={isPaidPlan(profile.plan) ? "Export your contacts as CSV" : "CSV export is a Pro feature"}
               className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
             >
