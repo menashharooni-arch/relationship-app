@@ -4,6 +4,7 @@
 // Best for: Real estate, beauty, fitness, coaches, personal brand, healthcare
 
 import React from "react";
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
@@ -136,6 +137,15 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           )}
         </div>
 
+        {/* QR + scan label */}
+        <div className="flex items-end justify-end">
+          <div className="flex flex-col items-end gap-1">
+            <p style={{ fontSize: 6.5, color: "#a78bfa", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Scan to save contact
+            </p>
+            <QR size={84} bg="#f5f0ff" fg={ACCENT} />
+          </div>
+        </div>
       </div>
     </div>
   );

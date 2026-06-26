@@ -4,6 +4,7 @@
 // Best for: Restaurants, retail, contractors, salons, home services, local shops
 
 import React from "react";
+import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
 import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
 
@@ -126,6 +127,13 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           )}
         </div>
 
+        {/* Right: QR */}
+        <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
+          <p style={{ fontSize: 6.5, color: "#d97706", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            Scan to save contact
+          </p>
+          <QR size={84} bg="#fff8e6" fg={AMBER} />
+        </div>
       </div>
 
       {/* Bottom gold accent bar */}
