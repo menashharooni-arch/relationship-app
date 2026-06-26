@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
+import AddContactModal from "@/components/AddContactModal";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
@@ -466,6 +467,25 @@ export default function ContactsClient({
       <div className={`${selected ? "hidden lg:flex" : "flex"} w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex-col lg:overflow-hidden`}>
         {/* Search */}
         <div className="p-4 border-b border-gray-800 space-y-3">
+          {/* Add contact — attaches to the currently-selected card */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-gray-500 text-xs">
+              {cardFilter !== "all" && userCards.length > 1
+                ? `Showing /${cardFilter}`
+                : "All contacts"}
+            </p>
+            <AddContactModal
+              cardOwner={cardFilter !== "all" ? cardFilter : (primaryUsername || userCards[0]?.username)}
+              onAdded={(lead) => {
+                const l = lead as Lead;
+                setLeads((prev) => [l, ...prev]);
+                // Make sure it's visible under the active filter.
+                if (cardFilter !== "all" && l.card_owner && l.card_owner !== cardFilter) {
+                  setCardFilter(l.card_owner);
+                }
+              }}
+            />
+          </div>
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

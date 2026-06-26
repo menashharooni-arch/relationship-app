@@ -12,8 +12,18 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin.from("profiles").select("username, plan").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
-  const { name, email, phone, company, notes, where_met } = await req.json();
+  const { name, email, phone, company, notes, where_met, card_owner: requestedOwner } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name is required." }, { status: 400 });
+
+  // Attach the contact to the card the user currently has selected (validated to
+  // belong to them), so it shows up in that card's scoped view. Falls back to the
+  // profile's primary card if no/invalid card was passed.
+  const { data: ownCards } = await admin.from("cards").select("username").eq("user_id", user.id);
+  const ownUsernames = (ownCards ?? []).map((c) => c.username);
+  const finalOwner =
+    typeof requestedOwner === "string" && ownUsernames.includes(requestedOwner)
+      ? requestedOwner
+      : profile.username;
 
   // Enforce the same free-plan contact limit as the public capture route.
   // Only blocks NEW adds — existing contacts are never removed.
@@ -21,7 +31,7 @@ export async function POST(req: NextRequest) {
     const { count } = await admin
       .from("leads")
       .select("*", { count: "exact", head: true })
-      .eq("card_owner", profile.username);
+      .eq("card_owner", finalOwner);
     if ((count ?? 0) >= PLAN_LIMITS.FREE_CONTACT_LIMIT) {
       return NextResponse.json(
         {
@@ -47,7 +57,7 @@ export async function POST(req: NextRequest) {
       phone: phone?.trim() || null,
       company: company?.trim() || null,
       notes: fullNotes || null,
-      card_owner: profile.username,
+      card_owner: finalOwner,
       source: "manual",
       status: "new_contact",
     })

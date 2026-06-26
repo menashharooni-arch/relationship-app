@@ -4,7 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export default function AddContactModal() {
+export default function AddContactModal({
+  cardOwner,
+  onAdded,
+}: {
+  /** Username of the card the contact should be attached to (the selected card). */
+  cardOwner?: string;
+  /** Called with the new lead so a client list can insert it instantly (contacts page). */
+  onAdded?: (lead: unknown) => void;
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", company: "", notes: "", where_met: "" });
@@ -32,7 +40,7 @@ export default function AddContactModal() {
       const res = await fetch("/api/leads/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, card_owner: cardOwner }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -44,7 +52,10 @@ export default function AddContactModal() {
       }
       setOpen(false);
       reset();
-      router.refresh();
+      // On the contacts page, insert into the client list instantly; on the
+      // dashboard (no callback), refresh the server data.
+      if (onAdded) onAdded(data.lead);
+      else router.refresh();
     } catch {
       setError("Network error. Please try again.");
     }
