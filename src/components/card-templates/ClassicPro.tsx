@@ -70,8 +70,8 @@ export default function ClassicPro({ data }: { data: CardData }) {
             </div>
           )}
           <span
-            className="text-white/70 font-bold truncate leading-tight"
-            style={{ fontSize: 12, letterSpacing: "0.04em" }}
+            className="text-white/80 font-bold truncate leading-tight"
+            style={{ fontSize: 13.5, letterSpacing: "0.03em" }}
           >
             {data.company}
           </span>
@@ -110,41 +110,41 @@ export default function ClassicPro({ data }: { data: CardData }) {
         style={{ padding: "16px 18px 14px", borderLeft: "1px solid #e8eef8" }}
       >
         {/* Contact rows */}
-        <div className="flex flex-col gap-[7px] mt-0.5">
+        <div className="flex flex-col gap-[5px] mt-0.5">
           {cardPhones(data).map((p, i) => (
             <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: NAVY }}>
               <IcoPhone />
-              <span className="font-bold" style={{ fontSize: 13 }}>
+              <span className="font-bold" style={{ fontSize: 14.5 }}>
                 {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
             </div>
           ))}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: NAVY }}>
-              <IcoPhone />
-              <span className="font-bold" style={{ fontSize: 13 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
           {data.email && (
             <div className="flex items-center gap-2 min-w-0" style={{ color: "#334155" }}>
               <IcoMail />
-              <span className="truncate" style={{ fontSize: 12 }}>{data.email}</span>
+              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
             </div>
           )}
           {data.website && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#334155" }}>
+            <div className="flex items-center gap-2 min-w-0" style={{ color: "#475569" }}>
               <IcoGlobe />
-              <span className="truncate font-medium" style={{ fontSize: 12 }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
             </div>
           )}
           {data.address && (
-            <div className="flex items-start gap-2" style={{ color: "#475569" }}>
+            <div className="flex items-start gap-2" style={{ color: "#64748b" }}>
               <span style={{ marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 10.5, lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</span>
+              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
+            </div>
+          )}
+          {cardFax(data) && (
+            <div className="flex items-center gap-2" style={{ color: "#64748b" }}>
+              <IcoPhone />
+              <span style={{ fontSize: 10 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
         </div>
@@ -164,7 +164,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         {/* QR + scan label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={76} bg="#f0f5ff" fg={NAVY} />
+            <QR size={66} bg="#f0f5ff" fg={NAVY} />
           </div>
         </div>
       </div>

@@ -100,48 +100,48 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           </div>
 
           {/* Contacts: phone is HERO */}
-          <div className="flex flex-col gap-[6px]">
+          <div className="flex flex-col gap-[5px]">
             {cardPhones(data).map((p, i) => (
               <div key={`ph${i}`} className="flex items-center gap-2">
                 <span style={{ color: AMBER }}><IcoPhone /></span>
-                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>
+                <span className="font-bold" style={{ fontSize: 15, color: WARM }}>
                   {formatPhone(p.number)}
-                  {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                  {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
                 </span>
               </div>
             ))}
-            {cardFax(data) && (
-              <div className="flex items-center gap-2">
-                <span style={{ color: AMBER }}><IcoPhone /></span>
-                <span className="font-bold" style={{ fontSize: 14, color: WARM }}>
-                  {formatPhone(cardFax(data))}
-                  <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-                </span>
-              </div>
-            )}
             {data.email && (
               <div className="flex items-center gap-2 min-w-0">
                 <span style={{ color: AMBER }}><IcoMail /></span>
-                <span className="truncate" style={{ fontSize: 12, color: "#78350f" }}>{data.email}</span>
+                <span className="truncate font-semibold" style={{ fontSize: 13, color: "#78350f" }}>{data.email}</span>
               </div>
             )}
             {data.website && (
               <div className="flex items-center gap-2 min-w-0">
                 <span style={{ color: AMBER }}><IcoGlobe /></span>
-                <span className="truncate font-medium" style={{ fontSize: 12, color: "#78350f" }}>{data.website}</span>
+                <span className="truncate" style={{ fontSize: 10, color: "#92400e" }}>{data.website}</span>
+              </div>
+            )}
+            {cardFax(data) && (
+              <div className="flex items-center gap-2">
+                <span style={{ color: AMBER }}><IcoPhone /></span>
+                <span style={{ fontSize: 10, color: "#92400e" }}>
+                  {formatPhone(cardFax(data))}
+                  <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+                </span>
               </div>
             )}
           </div>
 
           {/* Address if set */}
           {data.address && (
-            <p style={{ fontSize: 10.5, color: "#a16207", lineHeight: 1.25, whiteSpace: "pre-line" }}>{data.address}</p>
+            <p style={{ fontSize: 9, color: "#a16207", lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</p>
           )}
         </div>
 
         {/* Right: QR */}
         <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
-          <QR size={76} bg="#fff8e6" fg={AMBER} />
+          <QR size={66} bg="#fff8e6" fg={AMBER} />
         </div>
       </div>
 
