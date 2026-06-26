@@ -250,6 +250,15 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               <p className="text-gray-400 text-sm mt-1">Start with the basics.</p>
             </div>
 
+            <div className="flex items-start gap-2.5 rounded-xl border border-blue-800/40 bg-blue-950/30 px-3.5 py-3">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8} className="w-4 h-4 shrink-0 mt-0.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              </svg>
+              <p className="text-blue-200/90 text-xs leading-relaxed">
+                You only need to fill out the fields marked with a red asterisk <span className="text-red-500 font-semibold">*</span> — but for the best results, fill out everything you can.
+              </p>
+            </div>
+
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
               <input type="text" placeholder="e.g. Sales Card" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputCls} />
