@@ -298,8 +298,18 @@ export default function ContactsClient({
     setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, subject } : it)) : prev));
     setSeqSubmitted(false);
   }
+  // A follow-up sequence is ONE channel — email OR text, never both at once.
+  // Turning one on turns the other off; the channel-specific draft resets.
   function toggleSeqChannel(which: "email" | "text", on: boolean) {
-    if (which === "email") setEmailOn(on); else setTextOn(on);
+    if (which === "email") {
+      setEmailOn(on);
+      if (on) setTextOn(false);
+    } else {
+      setTextOn(on);
+      if (on) setEmailOn(false);
+    }
+    setSeqItems(null);
+    setSeqPreset(null);
     setSeqSubmitted(false);
   }
 
@@ -951,13 +961,13 @@ export default function ContactsClient({
                 ) : (
                   <div className="border border-dashed border-gray-700 rounded-xl py-5 px-4 text-center">
                     <p className="text-gray-400 text-sm">Turn on <strong>Email</strong> or <strong>Text</strong> to set up an automated follow-up flow.</p>
-                    <p className="text-gray-600 text-xs mt-1">You can run one or both.</p>
+                    <p className="text-gray-600 text-xs mt-1">Pick one — a sequence runs on email or text, not both.</p>
                   </div>
                 )
               ) : (
                 <>
                   <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                    💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive. Email &amp; text are separate flows, each generated and edited on its own.
+                    💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive. Email and text are separate flows — a sequence runs on one channel, not both.
                   </p>
                   {/* Preset chooser — each shows what it does before generating */}
                   <div className="space-y-2 mb-4">
