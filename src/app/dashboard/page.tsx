@@ -280,9 +280,6 @@ export default async function DashboardPage({
     return true;
   });
 
-  const conversionRate =
-    totalViewsLast30 > 0 ? ((allLeads.length / totalViewsLast30) * 100).toFixed(1) : "—";
-
   const rawFlowSettings = (profile.flow_settings ?? {}) as Record<string, unknown>;
   const defaultPresets: FlowPresets = {
     "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
@@ -499,46 +496,6 @@ export default async function DashboardPage({
             {/* ── LEFT COLUMN ── */}
             <div className="space-y-5">
 
-              {/* Stats row */}
-              {(() => {
-                const ww = weekViews ?? 0;
-                const pw = prevWeekViews ?? 0;
-                const weekDelta = pw > 0 ? Math.round(((ww - pw) / pw) * 100) : null;
-                const leadsThisWeek = allLeads.filter((l) => l.created_at >= sevenDaysAgo).length;
-                const leadsLastWeek = allLeads.filter((l) => l.created_at >= fourteenDaysAgo && l.created_at < sevenDaysAgo).length;
-                const leadsDelta = leadsLastWeek > 0 ? Math.round(((leadsThisWeek - leadsLastWeek) / leadsLastWeek) * 100) : null;
-
-                function Trend({ delta }: { delta: number | null }) {
-                  if (delta === null || delta === 0) return null;
-                  const up = delta > 0;
-                  return (
-                    <span className={`text-[10px] font-semibold ${up ? "text-emerald-400" : "text-red-400"}`}>
-                      {up ? "↑" : "↓"} {Math.abs(delta)}%
-                    </span>
-                  );
-                }
-
-                return (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { label: "Leads", value: allLeads.length, sub: "total", trend: leadsDelta },
-                      { label: "Views", value: totalViews ?? 0, sub: "all time", trend: null },
-                      { label: "This week", value: ww, sub: "views", trend: weekDelta },
-                      { label: "Conversion", value: conversionRate !== "—" ? `${conversionRate}%` : "—", sub: "last 30d", trend: null },
-                    ].map((s) => (
-                      <div key={s.label} className="bg-gray-900 border border-gray-800/80 rounded-2xl px-4 py-4">
-                        <p className="text-2xl font-bold text-white tabular-nums">{s.value}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-gray-400 text-xs font-medium">{s.label}</p>
-                          {s.trend !== null && <Trend delta={s.trend} />}
-                        </div>
-                        <p className="text-gray-600 text-[10px] mt-0.5">{s.sub}</p>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-
               {/* Analytics chart */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
                 {/* Card views / Link views toggle */}
@@ -568,10 +525,9 @@ export default async function DashboardPage({
                   </div>
                 </div>
                 <ViewsChart data={viewsPanel.chartData} />
-                <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-800/80">
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-800/80">
                   {[
                     { label: "Today", value: viewsPanel.today },
-                    { label: "Best day", value: viewsPanel.peak },
                     { label: surface === "link" ? "All time" : "Contact saves", value: surface === "link" ? viewsPanel.allTime : (contactSaves ?? 0) },
                   ].map((s) => (
                     <div key={s.label}>
@@ -645,11 +601,10 @@ export default async function DashboardPage({
               <div>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-baseline gap-2.5">
                     <h2 className="text-white font-semibold text-sm">Contacts</h2>
-                    <span className="bg-gray-800 text-gray-400 text-xs font-bold px-2 py-0.5 rounded-full">
-                      {allLeads.length}
-                    </span>
+                    <span className="text-white font-bold text-lg tabular-nums">{allLeads.length}</span>
+                    <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {!isPro && (
