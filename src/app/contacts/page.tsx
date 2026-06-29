@@ -48,6 +48,7 @@ export default async function ContactsPage({
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
   const dashHref = dashCard ? `/dashboard?card=${dashCard}` : "/dashboard";
+  const contactCount = (leads ?? []).filter((l) => l.card_owner === dashCard).length;
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
@@ -89,7 +90,11 @@ export default async function ContactsPage({
       <div className="pt-[57px] border-b border-gray-800 px-6 py-5 bg-gray-950">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-white">Contacts</h1>
+            <div className="flex items-baseline gap-2.5">
+              <h1 className="text-xl font-bold text-white">Contacts</h1>
+              <span className="text-white font-bold text-lg tabular-nums">{contactCount}</span>
+              <span className="text-gray-500 text-[11px] font-medium">Total contacts</span>
+            </div>
             <p className="text-gray-500 text-sm mt-0.5">Everyone who shared their info with you, with full activity history.</p>
           </div>
           {(leads?.length ?? 0) > 0 && (
