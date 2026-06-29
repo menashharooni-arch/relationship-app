@@ -6,6 +6,7 @@ import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
 import ManageAccount from "@/components/ManageAccount";
+import ReferAFriend from "@/components/ReferAFriend";
 import HelpWidget from "@/components/HelpWidget";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { ensureUserCards } from "@/lib/ensure-cards";
@@ -110,6 +111,7 @@ export default async function FlowSettingsPage() {
                   isPro={isPro}
                 />
               </Suspense>
+              <ReferAFriend username={profile.username} />
             </div>
           </div>
 

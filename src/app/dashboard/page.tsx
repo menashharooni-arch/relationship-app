@@ -575,11 +575,11 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            {/* ── RIGHT COLUMN — sticky card panel ── */}
-            <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+            {/* ── RIGHT COLUMN — sticky card panel (mobile: shows first, reordered) ── */}
+            <div className="flex flex-col gap-4 order-first lg:order-none lg:sticky lg:top-20 lg:self-start">
 
               {/* Swift Links — a separate link from the business card */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 order-3 lg:order-1">
                 <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
                   Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, email signature, anywhere.
                 </p>
@@ -597,7 +597,7 @@ export default async function DashboardPage({
               </div>
 
               {/* Your card */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 order-1 lg:order-2">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
                 <CardPreviewDownload
                   data={cardData}
@@ -608,7 +608,7 @@ export default async function DashboardPage({
               </div>
 
               {/* Share */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2 order-2 lg:order-3">
                 <ShareButton
                   url={cardUrl}
                   title="My SwiftCard"
@@ -616,16 +616,6 @@ export default async function DashboardPage({
                   label="Share"
                 />
                 <MoreShareOptions url={cardUrl} />
-              </div>
-
-              {/* Refer a friend */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">Refer a friend</p>
-                <p className="text-gray-600 text-xs mb-3 leading-relaxed">Know someone who networks a lot? Share SwiftCard — if they sign up, you&apos;re helping a friend level up their game.</p>
-                <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
-                  <p className="text-gray-400 text-[11px] font-mono break-all truncate">{`${APP_URL}/login?mode=signup&ref=${profile.username}`}</p>
-                </div>
-                <CopyButton text={`${APP_URL}/login?mode=signup&ref=${profile.username}`} />
               </div>
             </div>
 
