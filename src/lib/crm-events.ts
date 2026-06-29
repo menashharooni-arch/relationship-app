@@ -15,11 +15,16 @@ export async function dispatchCrmEvent(ownerUsername: string | null | undefined,
   const base = ownerUsername.replace(/__links$/, "");
   try {
     const admin = getAdminSupabase();
-    // Resolve the OWNER profile — works for primary and secondary card usernames.
-    const { data: card } = await admin.from("cards").select("user_id").eq("username", base).maybeSingle();
-    const { data: p } = card?.user_id
-      ? await admin.from("profiles").select("zapier_webhook_url, customization, plan").eq("id", card.user_id).maybeSingle()
-      : await admin.from("profiles").select("zapier_webhook_url, customization, plan").eq("username", base).maybeSingle();
+    const cols = "zapier_webhook_url, customization, plan";
+    // Common case (primary card / legacy): the username IS a profile username —
+    // a single query. Only fall back to a card lookup for secondary cards.
+    let { data: p } = await admin.from("profiles").select(cols).eq("username", base).maybeSingle();
+    if (!p) {
+      const { data: card } = await admin.from("cards").select("user_id").eq("username", base).maybeSingle();
+      if (card?.user_id) {
+        ({ data: p } = await admin.from("profiles").select(cols).eq("id", card.user_id).maybeSingle());
+      }
+    }
 
     if (!p?.zapier_webhook_url || !isPaidPlan(p.plan)) return;
 
