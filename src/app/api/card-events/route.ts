@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { getSourceLabel } from "@/lib/source-labels";
+import { dispatchCrmEvent } from "@/lib/crm-events";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -48,12 +49,22 @@ export async function POST(req: NextRequest) {
       if (owner?.id) {
         const sourceLabel = getSourceLabel(source);
         const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
+        const body = `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`;
         await admin.from("notifications").insert({
           user_id: owner.id,
           card_owner: card_owner_username,
           type: "contact_saved",
           title: "Contact saved",
-          body: `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`,
+          body,
+        });
+        // Mirror this conversation notification to the owner's CRM.
+        await dispatchCrmEvent(card_owner_username, {
+          type: "conversation.notification",
+          event: "contact_saved",
+          title: "Contact saved",
+          body,
+          contact: { name: visitor_name || null, email: visitor_email || null, phone: visitor_phone || null },
+          source: source || "direct_link",
         });
       }
     }
