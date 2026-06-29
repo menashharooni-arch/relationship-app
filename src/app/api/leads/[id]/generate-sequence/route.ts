@@ -38,7 +38,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const about = ((profile?.customization as { about?: string } | null)?.about ?? "").trim();
+  // The contact belongs to a specific card — prefer THAT card's About (what the
+  // user does for this audience), falling back to the profile-level About so the
+  // AI always knows what the sender actually does.
+  const { data: card } = await admin
+    .from("cards")
+    .select("customization")
+    .eq("username", lead.card_owner)
+    .maybeSingle();
+  const about = (
+    ((card?.customization as { about?: string } | null)?.about ?? "").trim() ||
+    ((profile?.customization as { about?: string } | null)?.about ?? "").trim()
+  );
 
   // Multi-day AI follow-up sequences that auto-send are a Pro/Office feature.
   if (!isPaidPlan(profile?.plan)) {

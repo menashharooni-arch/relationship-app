@@ -29,7 +29,7 @@ export async function aiComplete(prompt: string, opts?: { maxTokens?: number; js
     return null;
   }
 
-  // ── Google Gemini (gemini-2.0-flash by default) ──
+  // ── Google Gemini (gemini-2.5-flash by default) ──
   if (process.env.GEMINI_API_KEY) {
     try {
       const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -38,11 +38,23 @@ export async function aiComplete(prompt: string, opts?: { maxTokens?: number; js
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: maxTokens, ...(opts?.json ? { responseMimeType: "application/json" } : {}) },
+          generationConfig: {
+            // Gemini 2.5 Flash "thinks" by default, and that thinking consumes the
+            // output-token budget — at low limits it can return ZERO visible text,
+            // which would silently fall back to a generic template. Disable thinking
+            // so the whole budget produces the actual message.
+            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: maxTokens,
+            temperature: 0.9,
+            ...(opts?.json ? { responseMimeType: "application/json" } : {}),
+          },
         }),
       });
       const d = await r.json();
-      if (r.ok) return (d.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim() || null;
+      if (r.ok) {
+        const text = (d.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p?.text ?? "").join("").trim();
+        return text || null;
+      }
     } catch { /* fall through */ }
     return null;
   }
@@ -104,11 +116,18 @@ export async function aiVision(opts: { imageBase64: string; mediaType: string; p
             { text: opts.prompt },
             { inline_data: { mime_type: opts.mediaType, data: opts.imageBase64 } },
           ] }],
-          generationConfig: { maxOutputTokens: maxTokens, ...(opts.json ? { responseMimeType: "application/json" } : {}) },
+          generationConfig: {
+            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: maxTokens,
+            ...(opts.json ? { responseMimeType: "application/json" } : {}),
+          },
         }),
       });
       const d = await r.json();
-      if (r.ok) return (d.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim() || null;
+      if (r.ok) {
+        const text = (d.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p?.text ?? "").join("").trim();
+        return text || null;
+      }
     } catch { /* fall through */ }
     return null;
   }
