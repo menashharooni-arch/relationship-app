@@ -290,24 +290,32 @@ export async function GET(req: NextRequest) {
       const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
+      // Resolve the channel for this item. Email items get a greeting + the
+      // shared personal-email format (subject + spacing + name/company over the
+      // SwiftCard link signature); text items go out as a short SMS with the
+      // same default signature.
+      const itemChannel = item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined;
+      const asEmail = itemChannel === "email" || (itemChannel === undefined && !!seqLead.email);
+
       const r = await deliverToLead({
         leadId: seqLead.id,
         cardOwner: seqLead.card_owner,
         lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
         sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
-        text: item.message,
+        text: asEmail ? `Hi ${leadFirst},\n\n${item.message}` : item.message,
+        subject: item.subject?.trim() || `${ownerFirst} following up`,
         cardUsername: seqLead.card_owner,
-        channel: item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined,
-        email: {
-          subject: item.subject?.trim() || `${ownerFirst} following up`,
-          html: `<div style="background:#ffffff;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:520px;margin:0 auto;color:#1f2937;font-size:15px;line-height:1.6;"><p style="margin:0 0 22px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="margin-top:22px;padding-top:14px;border-top:1px solid #e5e7eb;"><p style="margin:0 0 2px;font-weight:700;color:#111827;font-size:14px;">${ownerProfile.name}</p>${ownerProfile.title || ownerProfile.company ? `<p style="margin:0 0 6px;color:#6b7280;font-size:13px;">${[ownerProfile.title, ownerProfile.company].filter(Boolean).join(" · ")}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="display:block;color:#2563eb;font-size:13px;text-decoration:none;">${ownerProfile.email}</a>` : ""}<a href="${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/card/${seqLead.card_owner}" style="display:inline-block;margin-top:8px;color:#2563eb;font-size:13px;font-weight:600;text-decoration:none;">View my card →</a></div><p style="color:#9ca3af;font-size:11px;margin-top:16px;">Sent via SwiftCard</p></div></div>`,
-        },
+        channel: itemChannel,
       });
 
-      // Mark this step done unless it failed transiently (those retry next run).
+      // Mark THIS step (matched by day AND channel) done unless it failed
+      // transiently — so the email and text flows for the same day don't cancel
+      // each other.
       if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
         const updatedSeq = seq.map((s) =>
-          s.day === item.day ? { ...s, sent_at: new Date().toISOString() } : s
+          s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email")
+            ? { ...s, sent_at: new Date().toISOString() }
+            : s
         );
         await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
         if (r.status === "sent") totalSent++;

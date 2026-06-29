@@ -191,22 +191,27 @@ export async function deliverToLead(opts: {
 
 // Build the shared HTML signature block (name/company/contacts + card link).
 // Used so emails look like a real personal email, not a notification.
+// Default signature: the sender's name + business name stacked ON TOP of their
+// SwiftCard link. Kept deliberately simple so every email signs off the same way.
 export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null }): string {
   const lines: string[] = [];
-  lines.push(`<p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">${esc(opts.senderName)}</p>`);
-  if (opts.title || opts.company) lines.push(`<p style="margin:0 0 6px;font-size:13px;color:#6b7280;">${[esc(opts.title), esc(opts.company)].filter(Boolean).join(" · ")}</p>`);
-  if (opts.phone) lines.push(`<a href="tel:${esc(opts.phone)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.phone)}</a>`);
-  if (opts.email) lines.push(`<a href="mailto:${esc(opts.email)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.email)}</a>`);
-  if (opts.website) lines.push(`<a href="${opts.website.startsWith("http") ? esc(opts.website) : "https://" + esc(opts.website)}" style="display:block;font-size:13px;color:#2563eb;text-decoration:none;">${esc(opts.website)}</a>`);
-  if (opts.cardUrl) lines.push(`<a href="${opts.cardUrl}" style="display:inline-block;margin-top:8px;font-size:13px;color:#2563eb;text-decoration:none;font-weight:600;">View my card → ${esc(opts.cardUrl.replace(/^https?:\/\//, ""))}</a>`);
-  return `<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e5e7eb;">${lines.join("")}</div>`;
+  lines.push(`<p style="margin:0;font-size:14px;font-weight:700;color:#111827;">${esc(opts.senderName)}</p>`);
+  if (opts.company) lines.push(`<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${esc(opts.company)}</p>`);
+  if (opts.cardUrl) lines.push(`<a href="${opts.cardUrl}" style="display:inline-block;margin-top:10px;font-size:13px;color:#2563eb;text-decoration:none;font-weight:600;">View my SwiftCard → ${esc(opts.cardUrl.replace(/^https?:\/\//, ""))}</a>`);
+  return `<div style="margin-top:24px;padding-top:14px;border-top:1px solid #e5e7eb;">${lines.join("")}</div>`;
 }
 
 // Wrap a plain message body in a clean personal-email shell + signature.
+// Blank lines become real paragraph spacing so the email "breathes" like a
+// message a person actually typed; single newlines become line breaks.
 export function personalEmailHtml(text: string, signature: string): string {
-  const body = esc(text).replace(/\n/g, "<br>");
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.6;max-width:560px;margin:0 auto;padding:24px 16px;">
-  <div>${body}</div>
+  const paragraphs = esc(text.trim())
+    .split(/\n{2,}/)
+    .filter((p) => p.length > 0)
+    .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
+  <div>${paragraphs}</div>
   ${signature}
   <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent via SwiftCard</p>
 </div>`;
