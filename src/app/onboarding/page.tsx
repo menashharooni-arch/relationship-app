@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { applyReferralOnSignup } from "@/lib/referral-server";
+import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
 function accountHandle(email: string | undefined, userId: string): string {
   const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
@@ -33,6 +36,22 @@ export default async function OnboardingPage() {
       tiktok: "",
       template: "classic-pro",
     });
+
+    // First-time signup: apply any referral/promo (free month, attribution,
+    // fraud checks, referral row, own referral code). Runs once — only on
+    // profile creation — so it can't be replayed.
+    try {
+      const c = await cookies();
+      const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+      await applyReferralOnSignup(user.id, {
+        code: c.get(REF_COOKIE)?.value ?? null,
+        source: c.get(SRC_COOKIE)?.value ?? null,
+        ip,
+        email: user.email ?? null,
+      });
+    } catch (e) {
+      console.error("[onboarding] referral apply failed:", e);
+    }
   }
 
   redirect("/dashboard");

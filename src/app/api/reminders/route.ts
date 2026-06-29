@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
+import { expireFreeMonths } from "@/lib/referral-server";
 import { aiComplete } from "@/lib/ai";
 
 type FlowDay = { enabled: boolean; time: string };
@@ -89,6 +90,15 @@ export async function GET(req: NextRequest) {
   const supabase = getAdminSupabase();
   const currentUTCHour = new Date().getUTCHours();
   let totalSent = 0;
+
+  // Expire finished free-month grants (referral / promo) → back to Free, unless
+  // the user converted to a paid subscription in the meantime.
+  let downgraded = 0;
+  try {
+    downgraded = await expireFreeMonths();
+  } catch (e) {
+    console.error("[reminders] expireFreeMonths failed:", e);
+  }
 
   for (const step of SEQUENCE) {
     const now = Date.now();
@@ -324,5 +334,5 @@ export async function GET(req: NextRequest) {
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===
 
-  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour });
+  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded });
 }
