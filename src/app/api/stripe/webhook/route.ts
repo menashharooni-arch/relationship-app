@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { getStripe } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail } from "@/lib/email-templates";
+import { rewardReferrerIfEligible } from "@/lib/referral-server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
@@ -88,7 +89,16 @@ export async function POST(req: NextRequest) {
         plan,
         stripe_customer_id: session.customer as string,
         stripe_subscription_id: session.subscription as string,
+        plan_expires_at: null, // now a real paying customer — no free-month downgrade
       }).eq("id", userId);
+
+      // Referral: the friend just became a PAYING customer — grant the referrer
+      // their one-time reward (verified Stripe event, never from the browser).
+      try {
+        await rewardReferrerIfEligible(userId);
+      } catch (e) {
+        console.error("Referral reward error:", e);
+      }
 
       // Send receipt
       try {
