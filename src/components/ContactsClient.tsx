@@ -168,7 +168,7 @@ export default function ContactsClient({
   const [aiUpgrade, setAiUpgrade] = useState<string | null>(null);
   // Follow-up sequence builder — Light/Medium/Aggressive presets that auto-send.
   const [seqPreset, setSeqPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
-  const [seqItems, setSeqItems] = useState<{ day: number; time: string; message: string; subject?: string; sent_at?: string | null }[] | null>(null);
+  const [seqItems, setSeqItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string; sent_at?: string | null }[] | null>(null);
   const [seqLoading, setSeqLoading] = useState(false);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   // Independent channel toggles for the automated follow-up flow (email and/or text).
@@ -254,25 +254,34 @@ export default function ContactsClient({
     setAiUpgrade(null);
     setSeqSubmitted(false);
     try {
-      const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          presetKey: preset,
-          whereMet: selected.where_met ?? "",
-          notes: selected.notes ?? "",
-          // Generate SMS-safe copy if text is enabled (works for both channels).
-          channel: textOn ? "sms" : "email",
-        }),
-      });
-      const data = await res.json();
-      if (res.status === 402 || data.error === "upgrade") {
-        setAiUpgrade(data.message || "Automated follow-up sequences are a Pro feature.");
+      // Email and text are separate flows — generate channel-appropriate copy
+      // for each one that's turned on (email gets a subject + email-length body,
+      // text gets a short SMS-safe line).
+      const channels = [emailOn ? "email" : null, textOn ? "sms" : null].filter(Boolean) as ("email" | "sms")[];
+      const results = await Promise.all(channels.map(async (ch) => {
+        const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ presetKey: preset, whereMet: selected.where_met ?? "", notes: selected.notes ?? "", channel: ch }),
+        });
+        const data = await res.json();
+        return { ch, status: res.status, data };
+      }));
+      const up = results.find((r) => r.status === 402 || r.data?.error === "upgrade");
+      if (up) {
+        setAiUpgrade(up.data.message || "Automated follow-up sequences are a Pro feature.");
         setSeqItems(null);
         setSeqPreset(null);
         return;
       }
-      setSeqItems(Array.isArray(data.sequence) ? data.sequence : []);
+      const built: { day: number; time: string; channel: "email" | "sms"; message: string; subject?: string; sent_at?: string | null }[] = [];
+      for (const { ch, data } of results) {
+        for (const s of (Array.isArray(data.sequence) ? data.sequence : [])) {
+          built.push({ day: s.day, time: s.time, channel: ch, message: s.message, subject: s.subject, sent_at: null });
+        }
+      }
+      built.sort((a, b) => a.day - b.day || (a.channel === b.channel ? 0 : a.channel === "email" ? -1 : 1));
+      setSeqItems(built);
     } catch {
       setSeqItems(null);
     } finally {
@@ -280,9 +289,13 @@ export default function ContactsClient({
     }
   }
 
-  // Editing or changing channels makes the flow a draft again until re-submitted.
+  // Editing makes the flow a draft again until re-submitted.
   function updateSeqItem(i: number, message: string) {
     setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, message } : it)) : prev));
+    setSeqSubmitted(false);
+  }
+  function updateSeqSubject(i: number, subject: string) {
+    setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, subject } : it)) : prev));
     setSeqSubmitted(false);
   }
   function toggleSeqChannel(which: "email" | "text", on: boolean) {
@@ -290,20 +303,16 @@ export default function ContactsClient({
     setSeqSubmitted(false);
   }
 
-  // Submit = activate. Expand each step into one scheduled send per enabled
-  // channel (preserving already-sent steps), and save so the cron sends it.
+  // Submit = activate. Each item already carries its own channel + content, so
+  // save them directly (preserving any already-sent steps) for the cron.
   async function submitSequence() {
     if (!selected || !seqItems?.length) return;
-    const channels = [emailOn ? "email" : null, textOn ? "sms" : null].filter(Boolean) as string[];
-    if (!channels.length) return;
     setSeqSaving("saving");
     const old = (selected.follow_up_sequence ?? []) as { day: number; channel?: string; sent_at?: string | null }[];
-    const payload = seqItems.flatMap((it) =>
-      channels.map((ch) => {
-        const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === ch);
-        return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: ch, sent_at: prior?.sent_at ?? null };
-      }),
-    );
+    const payload = seqItems.map((it) => {
+      const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === it.channel);
+      return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: it.channel, sent_at: it.sent_at ?? prior?.sent_at ?? null };
+    });
     await fetch(`/api/leads/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -384,20 +393,27 @@ export default function ContactsClient({
     setEditingWhereMet(false);
     setWhereMetText(lead.where_met ?? "");
     setAiUpgrade(null);
-    // Load any existing scheduled sequence — collapse per-channel rows back to
-    // one editable step per day, and infer which channels are enabled.
+    // Load any existing scheduled sequence — keep each channel's own rows so
+    // email and text stay independently editable.
     {
       const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
       if (existing?.length) {
-        const byDay = new Map<number, { day: number; time: string; message: string; subject?: string; sent_at?: string | null }>();
-        for (const s of existing) {
-          if (!byDay.has(s.day)) byDay.set(s.day, { day: s.day, time: s.time ?? "13:00", message: s.message, subject: s.subject, sent_at: s.sent_at ?? null });
-        }
-        const steps = [...byDay.values()].sort((a, b) => a.day - b.day);
-        setSeqItems(steps);
-        setSeqPreset(steps.length === 2 ? "light" : steps.length >= 4 ? "aggressive" : "medium");
-        setEmailOn(existing.some((s) => (s.channel ?? "email") === "email"));
-        setTextOn(existing.some((s) => s.channel === "sms"));
+        const items = existing.map((s) => ({
+          day: s.day,
+          time: s.time ?? "13:00",
+          channel: (s.channel === "sms" ? "sms" : "email") as "email" | "sms",
+          message: s.message,
+          subject: s.subject,
+          sent_at: s.sent_at ?? null,
+        }));
+        items.sort((a, b) => a.day - b.day || (a.channel === b.channel ? 0 : a.channel === "email" ? -1 : 1));
+        const emailCount = items.filter((s) => s.channel === "email").length;
+        const smsCount = items.filter((s) => s.channel === "sms").length;
+        const perChannel = Math.max(emailCount, smsCount);
+        setSeqItems(items);
+        setSeqPreset(perChannel === 2 ? "light" : perChannel >= 4 ? "aggressive" : "medium");
+        setEmailOn(emailCount > 0);
+        setTextOn(smsCount > 0);
         setSeqSubmitted(true);
       } else {
         setSeqItems(null);
@@ -940,6 +956,9 @@ export default function ContactsClient({
                 )
               ) : (
                 <>
+                  <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                    💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive. Email &amp; text are separate flows, each generated and edited on its own.
+                  </p>
                   {/* Preset chooser — each shows what it does before generating */}
                   <div className="space-y-2 mb-4">
                     {(["light", "medium", "aggressive"] as const).map((p) => (
@@ -978,10 +997,23 @@ export default function ContactsClient({
                       </p>
                       {seqItems.map((it, i) => (
                         <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[11px] font-semibold text-blue-300">{stepLabel(it.day, it.time)}</span>
-                            {it.sent_at && <span className="text-[10px] text-emerald-400">Sent ✓</span>}
+                          <div className="flex items-center justify-between mb-1.5 gap-2">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className={`text-[10px] font-semibold px-1.5 py-px rounded shrink-0 ${it.channel === "sms" ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>{it.channel === "sms" ? "💬 Text" : "✉ Email"}</span>
+                              <span className="text-[11px] font-semibold text-blue-300 truncate">{stepLabel(it.day, it.time)}</span>
+                            </span>
+                            {it.sent_at && <span className="text-[10px] text-emerald-400 shrink-0">Sent ✓</span>}
                           </div>
+                          {it.channel === "email" && (
+                            <input
+                              type="text"
+                              value={it.subject ?? ""}
+                              onChange={(e) => updateSeqSubject(i, e.target.value)}
+                              disabled={!!it.sent_at}
+                              placeholder="Email subject"
+                              className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-1.5 text-xs mb-1.5 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                            />
+                          )}
                           <textarea
                             value={it.message}
                             onChange={(e) => updateSeqItem(i, e.target.value)}

@@ -49,11 +49,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const leadFirst = (lead.name as string).split(" ")[0];
-  const sequence: { day: number; time: string; message: string; subject?: string }[] = [];
   const total = preset.steps.length;
 
-  for (let i = 0; i < total; i++) {
-    const { day, time } = preset.steps[i];
+  // Generate every step's copy in parallel so even the 4-touch Aggressive preset
+  // (and email+text together) returns fast and never times out.
+  const sequence = await Promise.all(preset.steps.map(async ({ day, time }, i) => {
     let message = "";
     let subject = "";
 
@@ -108,8 +108,8 @@ ${isText
     }
     if (!isText && !subject) subject = day === 1 ? "Great connecting" : "Checking in";
 
-    sequence.push({ day, time, message, subject: subject || undefined });
-  }
+    return { day, time, message, subject: subject || undefined };
+  }));
 
   return NextResponse.json({ sequence });
 }
