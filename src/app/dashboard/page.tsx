@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
-import { getSourceLabel } from "@/lib/source-labels";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import LeadPipeline from "@/components/LeadPipeline";
@@ -14,7 +13,6 @@ import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
-import ViewsChart from "@/components/ViewsChart";
 import ShareButton from "@/components/ShareButton";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
@@ -40,9 +38,7 @@ export default async function DashboardPage({
   const view = params.view ?? "notifications";
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
-  const chartRange = params.range ?? "30d";
   const selectedCard = params.card ?? null;
-  const surface = params.surface === "link" ? "link" : "card";
   const viewsRange: "today" | "week" | "month" =
     params.vrange === "week" || params.vrange === "month" ? params.vrange : "today";
 
@@ -53,13 +49,6 @@ export default async function DashboardPage({
     .from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
-
-  const chartDays = chartRange === "7d" ? 7 : 30;
-  const chartCutoff = new Date(Date.now() - chartDays * 24 * 60 * 60 * 1000).toISOString();
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
   // Migrate any legacy "primary card" (stored on the profile) into the cards table,
   // then treat the cards table as the single source of truth — no primary card.
@@ -182,17 +171,7 @@ export default async function DashboardPage({
 
   const [
     { data: leads },
-    { count: totalViews },
-    { count: weekViews },
-    { count: prevWeekViews },
-    { data: recentViews },
     { data: notifications },
-    { data: locationViews },
-    { count: contactSaves },
-    { data: sourceEvents },
-    { count: totalLinkViews },
-    { data: recentLinkViews },
-    { data: linkLocationViews },
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -202,85 +181,10 @@ export default async function DashboardPage({
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
         { ascending: sortBy === "name-asc" || sortBy === "oldest" }
       ),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername)
-      .gte("viewed_at", sevenDaysAgo),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername)
-      .gte("viewed_at", fourteenDaysAgo).lt("viewed_at", sevenDaysAgo),
-    supabase.from("card_views").select("viewed_at").eq("username", analyticsUsername).gte("viewed_at", chartCutoff),
     supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
-    supabase.from("card_views").select("location").eq("username", analyticsUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
-    supabase.from("analytics_events").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).eq("event_type", "contact_save"),
-    getAdminSupabase().from("card_events").select("source, event_type").eq("card_owner_username", activeUsername).gte("created_at", thirtyDaysAgo),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername),
-    supabase.from("card_views").select("viewed_at").eq("username", linkUsername).gte("viewed_at", chartCutoff),
-    supabase.from("card_views").select("location").eq("username", linkUsername).not("location", "is", null).gte("viewed_at", thirtyDaysAgo),
   ]);
 
-  const viewsByDate: Record<string, number> = {};
-  for (const v of recentViews ?? []) {
-    const date = new Date(v.viewed_at).toISOString().split("T")[0];
-    viewsByDate[date] = (viewsByDate[date] ?? 0) + 1;
-  }
-  const chartData = Array.from({ length: chartDays }, (_, i) => {
-    const date = new Date(Date.now() - (chartDays - 1 - i) * 86400000).toISOString().split("T")[0];
-    return { date, views: viewsByDate[date] ?? 0 };
-  });
-
-  const totalViewsLast30 = chartData.reduce((s, d) => s + d.views, 0);
-
-  const locationCounts: Record<string, number> = {};
-  for (const v of locationViews ?? []) {
-    if (v.location) locationCounts[v.location] = (locationCounts[v.location] ?? 0) + 1;
-  }
-  const topLocations = Object.entries(locationCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const peakViews = Math.max(...chartData.map((d) => d.views), 0);
-  const viewsToday = chartData[chartData.length - 1].views;
   const allLeads = leads ?? [];
-
-  // Link views — same computations as card views, just from the "__links" key.
-  const linkViewsByDate: Record<string, number> = {};
-  for (const v of recentLinkViews ?? []) {
-    const date = new Date(v.viewed_at).toISOString().split("T")[0];
-    linkViewsByDate[date] = (linkViewsByDate[date] ?? 0) + 1;
-  }
-  const linkChartData = Array.from({ length: chartDays }, (_, i) => {
-    const date = new Date(Date.now() - (chartDays - 1 - i) * 86400000).toISOString().split("T")[0];
-    return { date, views: linkViewsByDate[date] ?? 0 };
-  });
-  const linkTotalLast30 = linkChartData.reduce((s, d) => s + d.views, 0);
-  const linkLocationCounts: Record<string, number> = {};
-  for (const v of linkLocationViews ?? []) {
-    if (v.location) linkLocationCounts[v.location] = (linkLocationCounts[v.location] ?? 0) + 1;
-  }
-  const linkTopLocations = Object.entries(linkLocationCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const linkPeakViews = Math.max(...linkChartData.map((d) => d.views), 0);
-  const linkViewsToday = linkChartData[linkChartData.length - 1].views;
-
-  // The "Card views" widget can switch between the card and the Swift Link.
-  const viewsPanel = surface === "link"
-    ? { label: "Link views", chartData: linkChartData, total: linkTotalLast30, today: linkViewsToday, peak: linkPeakViews, topLocations: linkTopLocations, allTime: totalLinkViews ?? 0 }
-    : { label: "Card views", chartData, total: totalViewsLast30, today: viewsToday, peak: peakViews, topLocations, allTime: totalViews ?? 0 };
-  const surfaceQS = `&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}&range=${chartRange}${selectedCard ? `&card=${selectedCard}` : ""}`;
-
-  // Source breakdown: views and leads per source (last 30d)
-  const viewsBySource: Record<string, number> = {};
-  for (const e of sourceEvents ?? []) {
-    if (e.event_type === "viewed_card" && e.source) {
-      viewsBySource[e.source] = (viewsBySource[e.source] ?? 0) + 1;
-    }
-  }
-  const leadsBySource: Record<string, number> = {};
-  for (const l of allLeads) {
-    const s = (l as { source?: string }).source ?? "direct_link";
-    leadsBySource[s] = (leadsBySource[s] ?? 0) + 1;
-  }
-  const allSources = Array.from(new Set([...Object.keys(viewsBySource), ...Object.keys(leadsBySource)]));
-  const sourceBreakdown = allSources
-    .map((src) => ({ source: src, label: getSourceLabel(src), views: viewsBySource[src] ?? 0, leads: leadsBySource[src] ?? 0 }))
-    .sort((a, b) => b.views - a.views || b.leads - a.leads)
-    .slice(0, 8);
-  const maxSourceViews = Math.max(...sourceBreakdown.map((s) => s.views), 1);
 
   const dateThreshold = filterDate === "today"
     ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
