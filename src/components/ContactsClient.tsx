@@ -92,6 +92,17 @@ function stepLabel(day: number, time: string): string {
   return `${when} · ${to12h(time)}`;
 }
 
+// Actual calendar date/time a step will send: contact-created + N days, at the
+// step's time-of-day. Used in the post-submit "when they send" summary.
+function sendWhen(createdAt: string, day: number, time: string): string {
+  const d = new Date(new Date(createdAt).getTime() + day * 86400000);
+  const [h, m] = (time || "13:00").split(":").map(Number);
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+const PRESET_FROM_COUNT = (n: number): string => (n >= 4 ? "Aggressive" : n === 2 ? "Light" : "Medium");
+
 function formatDateOnly(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -166,15 +177,15 @@ export default function ContactsClient({
   const [whereMetText, setWhereMetText] = useState("");
   const [fieldSaving, setFieldSaving] = useState<string | null>(null);
   const [aiUpgrade, setAiUpgrade] = useState<string | null>(null);
-  // Follow-up sequence builder — Light/Medium/Aggressive presets that auto-send.
-  const [seqPreset, setSeqPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
-  const [seqItems, setSeqItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string; sent_at?: string | null }[] | null>(null);
-  const [seqLoading, setSeqLoading] = useState(false);
+  // Per-channel follow-up automations. Email and text are INDEPENDENT — each has
+  // its own toggle, preset, format and on/off, and both can be active at once —
+  // but you set them up one at a time. The active flow for each channel lives in
+  // the lead's follow_up_sequence; `draft*` is the channel currently being set up.
+  const [draftCh, setDraftCh] = useState<"email" | "sms" | null>(null);
+  const [draftPreset, setDraftPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
+  const [draftItems, setDraftItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string }[] | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
-  // Independent channel toggles for the automated follow-up flow (email and/or text).
-  const [emailOn, setEmailOn] = useState(false);
-  const [textOn, setTextOn] = useState(false);
-  const [seqSubmitted, setSeqSubmitted] = useState(false);
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
@@ -244,85 +255,71 @@ export default function ContactsClient({
     setFieldSaving(null);
   }
 
-  // Pick a preset → AI-generate one message per scheduled day. The result is a
-  // DRAFT — nothing schedules until the user hits Submit.
-  async function selectPreset(preset: "light" | "medium" | "aggressive") {
-    if (!selected || (!emailOn && !textOn)) return;
-    setSeqPreset(preset);
-    setSeqLoading(true);
-    setSeqItems(null);
+  // Turn a channel ON to configure it — one channel at a time.
+  function startDraft(ch: "email" | "sms") {
+    setDraftCh(ch);
+    setDraftPreset(null);
+    setDraftItems(null);
     setAiUpgrade(null);
-    setSeqSubmitted(false);
+  }
+  function cancelDraft() {
+    setDraftCh(null);
+    setDraftPreset(null);
+    setDraftItems(null);
+    setAiUpgrade(null);
+  }
+
+  // Pick a preset → AI-generate the draft for the ONE channel being set up.
+  // Nothing schedules until Submit.
+  async function selectPreset(preset: "light" | "medium" | "aggressive") {
+    if (!selected || !draftCh) return;
+    setDraftPreset(preset);
+    setDraftLoading(true);
+    setDraftItems(null);
+    setAiUpgrade(null);
     try {
-      // Email and text are separate flows — generate channel-appropriate copy
-      // for each one that's turned on (email gets a subject + email-length body,
-      // text gets a short SMS-safe line).
-      const channels = [emailOn ? "email" : null, textOn ? "sms" : null].filter(Boolean) as ("email" | "sms")[];
-      const results = await Promise.all(channels.map(async (ch) => {
-        const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ presetKey: preset, whereMet: selected.where_met ?? "", notes: selected.notes ?? "", channel: ch }),
-        });
-        const data = await res.json();
-        return { ch, status: res.status, data };
-      }));
-      const up = results.find((r) => r.status === 402 || r.data?.error === "upgrade");
-      if (up) {
-        setAiUpgrade(up.data.message || "Automated follow-up sequences are a Pro feature.");
-        setSeqItems(null);
-        setSeqPreset(null);
+      const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presetKey: preset, whereMet: selected.where_met ?? "", notes: selected.notes ?? "", channel: draftCh }),
+      });
+      const data = await res.json();
+      if (res.status === 402 || data.error === "upgrade") {
+        setAiUpgrade(data.message || "Automated follow-up sequences are a Pro feature.");
+        setDraftItems(null);
+        setDraftPreset(null);
         return;
       }
-      const built: { day: number; time: string; channel: "email" | "sms"; message: string; subject?: string; sent_at?: string | null }[] = [];
-      for (const { ch, data } of results) {
-        for (const s of (Array.isArray(data.sequence) ? data.sequence : [])) {
-          built.push({ day: s.day, time: s.time, channel: ch, message: s.message, subject: s.subject, sent_at: null });
-        }
-      }
-      built.sort((a, b) => a.day - b.day || (a.channel === b.channel ? 0 : a.channel === "email" ? -1 : 1));
-      setSeqItems(built);
+      const items = (Array.isArray(data.sequence) ? data.sequence : []).map((s: { day: number; time: string; message: string; subject?: string }) => ({
+        day: s.day, time: s.time, channel: draftCh, message: s.message, subject: s.subject,
+      }));
+      setDraftItems(items);
     } catch {
-      setSeqItems(null);
+      setDraftItems(null);
     } finally {
-      setSeqLoading(false);
+      setDraftLoading(false);
     }
   }
 
-  // Editing makes the flow a draft again until re-submitted.
-  function updateSeqItem(i: number, message: string) {
-    setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, message } : it)) : prev));
-    setSeqSubmitted(false);
+  function updateDraftItem(i: number, message: string) {
+    setDraftItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, message } : it)) : prev));
   }
-  function updateSeqSubject(i: number, subject: string) {
-    setSeqItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, subject } : it)) : prev));
-    setSeqSubmitted(false);
-  }
-  // A follow-up sequence is ONE channel — email OR text, never both at once.
-  // Turning one on turns the other off; the channel-specific draft resets.
-  function toggleSeqChannel(which: "email" | "text", on: boolean) {
-    if (which === "email") {
-      setEmailOn(on);
-      if (on) setTextOn(false);
-    } else {
-      setTextOn(on);
-      if (on) setEmailOn(false);
-    }
-    setSeqItems(null);
-    setSeqPreset(null);
-    setSeqSubmitted(false);
+  function updateDraftSubject(i: number, subject: string) {
+    setDraftItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, subject } : it)) : prev));
   }
 
-  // Submit = activate. Each item already carries its own channel + content, so
-  // save them directly (preserving any already-sent steps) for the cron.
-  async function submitSequence() {
-    if (!selected || !seqItems?.length) return;
+  // Submit the draft → activate THIS channel. Merge into follow_up_sequence,
+  // keeping the OTHER channel's items (so both can run), preserving sent steps.
+  async function submitDraft() {
+    if (!selected || !draftCh || !draftItems?.length) return;
     setSeqSaving("saving");
-    const old = (selected.follow_up_sequence ?? []) as { day: number; channel?: string; sent_at?: string | null }[];
-    const payload = seqItems.map((it) => {
-      const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === it.channel);
-      return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: it.channel, sent_at: it.sent_at ?? prior?.sent_at ?? null };
+    const old = (selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[];
+    const otherChannel = old.filter((o) => (o.channel ?? "email") !== draftCh);
+    const mine = draftItems.map((it) => {
+      const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === draftCh);
+      return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: draftCh, sent_at: prior?.sent_at ?? null };
     });
+    const payload = [...otherChannel, ...mine];
     await fetch(`/api/leads/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -330,26 +327,9 @@ export default function ContactsClient({
     });
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
-    setSeqSubmitted(true);
+    cancelDraft();
     setSeqSaving("saved");
     setTimeout(() => setSeqSaving("idle"), 2000);
-  }
-
-  // Stop & clear the active flow entirely (both channels off).
-  async function clearSequence() {
-    if (!selected) return;
-    setSeqSaving("saving");
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ follow_up_sequence: [] }),
-    });
-    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: [] } : l)));
-    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: [] } : prev));
-    setSeqItems(null);
-    setSeqPreset(null);
-    setSeqSubmitted(false);
-    setSeqSaving("idle");
   }
 
   async function changeStatus(newStatus: string) {
@@ -403,38 +383,13 @@ export default function ContactsClient({
     setEditingWhereMet(false);
     setWhereMetText(lead.where_met ?? "");
     setAiUpgrade(null);
-    // Load any existing scheduled sequence — keep each channel's own rows so
-    // email and text stay independently editable.
-    {
-      const existing = (lead.follow_up_sequence ?? null) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
-      if (existing?.length) {
-        const items = existing.map((s) => ({
-          day: s.day,
-          time: s.time ?? "13:00",
-          channel: (s.channel === "sms" ? "sms" : "email") as "email" | "sms",
-          message: s.message,
-          subject: s.subject,
-          sent_at: s.sent_at ?? null,
-        }));
-        items.sort((a, b) => a.day - b.day || (a.channel === b.channel ? 0 : a.channel === "email" ? -1 : 1));
-        const emailCount = items.filter((s) => s.channel === "email").length;
-        const smsCount = items.filter((s) => s.channel === "sms").length;
-        const perChannel = Math.max(emailCount, smsCount);
-        setSeqItems(items);
-        setSeqPreset(perChannel === 2 ? "light" : perChannel >= 4 ? "aggressive" : "medium");
-        setEmailOn(emailCount > 0);
-        setTextOn(smsCount > 0);
-        setSeqSubmitted(true);
-      } else {
-        setSeqItems(null);
-        setSeqPreset(null);
-        setEmailOn(false);
-        setTextOn(false);
-        setSeqSubmitted(false);
-      }
-      setSeqLoading(false);
-      setSeqSaving("idle");
-    }
+    // The active automations render directly from the lead's follow_up_sequence;
+    // just clear any in-progress draft when switching contacts.
+    setDraftCh(null);
+    setDraftPreset(null);
+    setDraftItems(null);
+    setDraftLoading(false);
+    setSeqSaving("idle");
     setConvoMessages([]);
     // Load the message thread (degrades to empty if not yet migrated).
     fetch(`/api/leads/${lead.id}/message`)
@@ -914,139 +869,174 @@ export default function ContactsClient({
 
             </div>
 
-            {/* Follow-up Sequence — turn on a channel, then submit to activate */}
-            {(() => {
-              const anyOn = emailOn || textOn;
-              const seqWord = emailOn && textOn ? "emails & texts" : textOn ? "texts" : "emails";
-              return (
+            {/* Follow-up automations — Email and Text are independent. Each has its
+                own toggle, preset and format; set them up one at a time, run either
+                or both. Once active, a channel only stops when it finishes or when
+                Automated follow-ups (below) is turned off. */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-start justify-between mb-3 gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Sequence</p>
-                  <p className="text-gray-600 text-xs mt-0.5">Turn on a channel to schedule an auto-sending flow.</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {([
-                    { id: "email", label: "Email", icon: "✉", on: emailOn, can: !!selected.email },
-                    { id: "text",  label: "Text",  icon: "💬", on: textOn,  can: !!selected.phone },
-                  ] as const).map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => t.can && toggleSeqChannel(t.id, !t.on)}
-                      disabled={!t.can}
-                      title={t.can ? `Toggle ${t.label.toLowerCase()} flow` : `No ${t.id === "email" ? "email" : "phone"} on file`}
-                      className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition-colors ${
-                        t.on ? "bg-blue-600 border-blue-600 text-white" : t.can ? "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200" : "bg-gray-900 border-gray-800 text-gray-700 cursor-not-allowed"
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${t.on ? "bg-white" : "bg-gray-600"}`} />
-                      {t.icon} {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
+              <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
 
-              {!anyOn ? (
-                (selected.follow_up_sequence && selected.follow_up_sequence.length > 0) ? (
-                  <div className="border border-amber-800/40 bg-amber-950/20 rounded-xl py-4 px-4 text-center">
-                    <p className="text-amber-200 text-sm">Both channels are off, but a follow-up flow is still scheduled.</p>
-                    <button
-                      onClick={clearSequence}
-                      disabled={seqSaving === "saving"}
-                      className="inline-block mt-2 text-xs font-semibold text-white px-4 py-2 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 transition-colors"
-                    >
-                      {seqSaving === "saving" ? "Turning off…" : "Turn off this flow"}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-gray-700 rounded-xl py-5 px-4 text-center">
-                    <p className="text-gray-400 text-sm">Turn on <strong>Email</strong> or <strong>Text</strong> to set up an automated follow-up flow.</p>
-                    <p className="text-gray-600 text-xs mt-1">Pick one — a sequence runs on email or text, not both.</p>
-                  </div>
-                )
-              ) : (
-                <>
-                  <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                    💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive. Email and text are separate flows — a sequence runs on one channel, not both.
-                  </p>
-                  {/* Preset chooser — each shows what it does before generating */}
-                  <div className="space-y-2 mb-4">
-                    {(["light", "medium", "aggressive"] as const).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => selectPreset(p)}
-                        disabled={seqLoading}
-                        className={`w-full text-left rounded-xl px-3.5 py-2.5 border transition-colors disabled:opacity-60 ${seqPreset === p ? "border-blue-500 bg-blue-950/30" : "border-gray-700 bg-gray-800/40 hover:border-gray-600"}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
-                          {seqPreset === p && <span className="text-[10px] text-blue-400 font-semibold">Selected</span>}
+              <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-4 leading-relaxed">
+                💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive.
+              </p>
+
+              <div className="space-y-3">
+                {([
+                  { ch: "email" as const, label: "Email", icon: "✉", can: !!selected.email, word: "email", noun: "emails" },
+                  { ch: "sms" as const,   label: "Text",  icon: "💬", can: !!selected.phone, word: "text",  noun: "texts" },
+                ]).map(({ ch, label, icon, can, word, noun }) => {
+                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[])
+                    .filter((i) => (i.channel ?? "email") === ch)
+                    .sort((a, b) => a.day - b.day);
+                  const isDrafting = draftCh === ch;
+                  const hasActive = activeItems.length > 0;
+                  const allSent = hasActive && activeItems.every((i) => i.sent_at);
+                  const running = hasActive && !allSent;
+                  const presetName = PRESET_FROM_COUNT(activeItems.length);
+                  const switchOn = isDrafting || running;
+
+                  return (
+                    <div key={ch} className={`border rounded-xl p-4 ${switchOn ? (ch === "sms" ? "border-emerald-800/50 bg-emerald-950/10" : "border-blue-800/50 bg-blue-950/10") : "border-gray-800 bg-gray-800/20"}`}>
+                      {/* Header + on/off toggle */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-100">{icon} {label} automation</p>
+                          <p className="text-gray-600 text-[11px] mt-0.5">
+                            {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
+                              : running ? (automationOn ? `Active · ${presetName} · auto-sending ${noun}` : `Paused · ${presetName}`)
+                              : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
+                              : isDrafting ? "Choose a cadence, then submit to activate"
+                              : `Off — set up a ${word} follow-up`}
+                          </p>
                         </div>
-                        <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
-                      </button>
-                    ))}
-                  </div>
-
-                  {seqLoading && (
-                    <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                      Writing your {seqWord}…
-                    </div>
-                  )}
-
-                  {/* Editable per-day messages — write your own instead of the AI suggestion */}
-                  {!seqLoading && seqItems && seqItems.length > 0 && (
-                    <div className="space-y-3">
-                      <p className="text-[11px]">
-                        {seqSubmitted
-                          ? <span className="text-emerald-400">● Active — auto-sending via {seqWord}.</span>
-                          : <span className="text-amber-400">● Draft — edit any message, then Submit to activate.</span>}
-                      </p>
-                      {seqItems.map((it, i) => (
-                        <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                          <div className="flex items-center justify-between mb-1.5 gap-2">
-                            <span className="flex items-center gap-1.5 min-w-0">
-                              <span className={`text-[10px] font-semibold px-1.5 py-px rounded shrink-0 ${it.channel === "sms" ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>{it.channel === "sms" ? "💬 Text" : "✉ Email"}</span>
-                              <span className="text-[11px] font-semibold text-blue-300 truncate">{stepLabel(it.day, it.time)}</span>
-                            </span>
-                            {it.sent_at && <span className="text-[10px] text-emerald-400 shrink-0">Sent ✓</span>}
-                          </div>
-                          {it.channel === "email" && (
-                            <input
-                              type="text"
-                              value={it.subject ?? ""}
-                              onChange={(e) => updateSeqSubject(i, e.target.value)}
-                              disabled={!!it.sent_at}
-                              placeholder="Email subject"
-                              className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-1.5 text-xs mb-1.5 focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                            />
-                          )}
-                          <textarea
-                            value={it.message}
-                            onChange={(e) => updateSeqItem(i, e.target.value)}
-                            rows={2}
-                            disabled={!!it.sent_at}
-                            className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                          />
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between">
-                        <button onClick={() => seqPreset && selectPreset(seqPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
                         <button
-                          onClick={submitSequence}
-                          disabled={seqSaving === "saving" || seqSubmitted}
-                          className="text-xs font-semibold text-white px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 transition-colors"
+                          type="button"
+                          role="switch"
+                          aria-checked={switchOn}
+                          disabled={!can || running}
+                          title={running ? "Active — turn off Automated follow-ups below to stop it" : !can ? "No contact info" : `Set up a ${word} follow-up`}
+                          onClick={() => { if (!can || running) return; if (isDrafting) cancelDraft(); else startDraft(ch); }}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${(!can || running) ? "opacity-60 cursor-not-allowed" : ""}`}
+                          style={{ background: switchOn ? (ch === "sms" ? "#059669" : "#2563eb") : "#374151" }}
                         >
-                          {seqSaving === "saving" ? "Submitting…" : seqSubmitted ? "Active ✓" : "Submit & activate"}
+                          <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: switchOn ? "22px" : "2px" }} />
                         </button>
                       </div>
+
+                      {/* DRAFTING — pick a preset, edit, submit */}
+                      {isDrafting && (
+                        <div className="mt-3 pt-3 border-t border-gray-800">
+                          <div className="space-y-2 mb-3">
+                            {(["light", "medium", "aggressive"] as const).map((p) => (
+                              <button
+                                key={p}
+                                onClick={() => selectPreset(p)}
+                                disabled={draftLoading}
+                                className={`w-full text-left rounded-xl px-3.5 py-2.5 border transition-colors disabled:opacity-60 ${draftPreset === p ? (ch === "sms" ? "border-emerald-500 bg-emerald-950/30" : "border-blue-500 bg-blue-950/30") : "border-gray-700 bg-gray-800/40 hover:border-gray-600"}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
+                                  {draftPreset === p && <span className="text-[10px] text-gray-400 font-semibold">Selected</span>}
+                                </div>
+                                <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
+                              </button>
+                            ))}
+                          </div>
+
+                          {draftLoading && (
+                            <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                              </svg>
+                              Writing your {noun}…
+                            </div>
+                          )}
+
+                          {!draftLoading && draftItems && draftItems.length > 0 && (
+                            <div className="space-y-3">
+                              <p className="text-[11px] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
+                              {draftItems.map((it, i) => (
+                                <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                                  <p className="text-[11px] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
+                                  {ch === "email" && (
+                                    <input
+                                      type="text"
+                                      value={it.subject ?? ""}
+                                      onChange={(e) => updateDraftSubject(i, e.target.value)}
+                                      placeholder="Email subject"
+                                      className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-1.5 text-xs mb-1.5 focus:outline-none focus:border-blue-500"
+                                    />
+                                  )}
+                                  <textarea
+                                    value={it.message}
+                                    onChange={(e) => updateDraftItem(i, e.target.value)}
+                                    rows={2}
+                                    className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between">
+                                <button onClick={() => draftPreset && selectPreset(draftPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={cancelDraft} className="text-xs font-semibold text-gray-400 hover:text-gray-200 px-3 py-2 transition-colors">Cancel</button>
+                                  <button
+                                    onClick={submitDraft}
+                                    disabled={seqSaving === "saving"}
+                                    className={`text-xs font-semibold text-white px-5 py-2 rounded-full disabled:opacity-40 transition-colors ${ch === "sms" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-blue-600 hover:bg-blue-500"}`}
+                                  >
+                                    {seqSaving === "saving" ? "Submitting…" : "Submit & activate"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ACTIVE / PAUSED — submitted summary: preset + messages + when they send */}
+                      {!isDrafting && running && (
+                        <div className="mt-3 pt-3 border-t border-gray-800">
+                          <p className={`text-[11px] font-semibold mb-2 ${automationOn ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
+                            {automationOn ? `● Active — ${presetName}` : `⏸ Paused — ${presetName}`} · {activeItems.length} {noun}
+                          </p>
+                          <div className="space-y-2">
+                            {activeItems.map((it, i) => (
+                              <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="text-[10px] font-semibold text-gray-500">
+                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(selected.created_at, it.day, it.time ?? "13:00")}`}
+                                  </span>
+                                  {it.sent_at ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span> : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
+                                </div>
+                                {ch === "email" && it.subject && <p className="text-[11px] text-gray-400 font-medium truncate">Subject: {it.subject}</p>}
+                                <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">{it.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {automationOn ? (
+                            <p className="text-gray-600 text-[10px] mt-2">To stop this, turn off <strong className="text-gray-500">Automated follow-ups</strong> below.</p>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 mt-2">
+                              <p className="text-gray-600 text-[10px]">Paused — turn Automated follow-ups on to resume.</p>
+                              <button onClick={() => startDraft(ch)} disabled={!can} className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 shrink-0">Set up again</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* COMPLETED — all sent; allow setting up a fresh one */}
+                      {!isDrafting && allSent && (
+                        <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
+                          <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>
+                          <button onClick={() => startDraft(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Set up again</button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </>
-              )}
+                  );
+                })}
+              </div>
 
               {aiUpgrade && (
                 <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
@@ -1055,14 +1045,12 @@ export default function ContactsClient({
                 </div>
               )}
             </div>
-              );
-            })()}
 
             {/* Master pause — stops ALL automated follow-ups for this contact */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-gray-200 text-sm font-medium">Automated follow-ups</p>
-                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — sends this contact's sequence above (or the default Day 1/15/30 emails if no sequence is set)." : "Off — all automated emails & texts to this contact are paused."}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — runs the Email and Text automations above. Turn off to stop them and choose again." : "Off — your Email & Text automations are stopped. Turn on to run them, or set up new ones above."}</p>
               </div>
               <button
                 type="button"
