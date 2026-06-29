@@ -57,22 +57,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let message = "";
     let subject = "";
 
-    const tone = i === 0 ? "warm and immediate" : i === total - 1 ? "graceful close" : "brief check-in";
-    const prompt = `Write a short personal follow-up ${isText ? "TEXT MESSAGE (SMS, under 160 characters, plain text)" : "EMAIL body (2-3 sentences)"} for Day ${day} of a ${preset.name} follow-up sequence.
+    const stepGoal =
+      i === 0
+        ? "This is the FIRST touch, right after meeting. Reference where/how you met and why it was genuinely good to connect. Warm and specific — no pitch."
+        : i === total - 1
+        ? "This is the LAST touch. Gracefully leave the door open without pressure. Keep it short and human."
+        : "A light, genuine check-in that keeps the relationship warm and offers a little value. Not salesy.";
 
-Sender: ${profile?.name ?? ""}${profile?.title ? `, ${profile.title}` : ""}${profile?.company ? ` at ${profile.company}` : ""}
-${about ? `What the sender does/offers (their About — speak to the right things): ${about}` : ""}
-${(lead as { company_description?: string }).company_description ? `Business context: ${(lead as { company_description?: string }).company_description}` : ""}
-Recipient first name: ${leadFirst}${lead.company ? ` (${lead.company})` : ""}
-${whereMet ? `Where met: ${whereMet}` : ""}
-${notes ? `Notes about them: ${notes}` : ""}
-${lead.message ? `Their note: "${lead.message}"` : ""}
+    const prompt = `You are ${profile?.name ?? "the sender"}${profile?.title ? `, a ${profile.title}` : ""}${profile?.company ? ` at ${profile.company}` : ""}. You are personally writing a follow-up ${isText ? "TEXT MESSAGE" : "EMAIL"} to someone you recently met. Write it exactly the way a thoughtful real person would — natural, warm, specific. It must never read like a template or a marketing blast.
 
-Tone: ${tone}. Day ${day} of ${total}-part sequence.
-Rules: ${isText ? "Under 160 characters, plain text, no greeting/signature, no links unless essential." : "2-3 sentences max, no greeting line, no sign-off/signature (a signature is added automatically)."} First person. No "Hey" opener. No mention of "digital business card".
-${isText ? "Return only the message text." : `Also write a short subject line (under 6 words). Return ONLY JSON: {"subject":"...","message":"..."}`}`;
+WHAT YOU DO (so you know what you can genuinely help them with — do NOT paste this in verbatim):
+${about || "(not provided — keep it human and general, don't invent specifics about your work)"}
 
-    const raw = (await aiComplete(prompt, { maxTokens: 220, json: !isText })) ?? "";
+WHO YOU ARE WRITING TO:
+- Name: ${leadFirst}${lead.company ? `, who is at ${lead.company}` : ""}
+- Where/how you met: ${whereMet || "(not noted)"}
+- Your private notes about them: ${notes || "(none provided)"}
+${(lead as { company_description?: string }).company_description ? `- About their business: ${(lead as { company_description?: string }).company_description}` : ""}
+${lead.message ? `- Something they told you: "${lead.message}"` : ""}
+
+THIS MESSAGE: Day ${day} of a ${total}-message ${preset.name} sequence. ${stepGoal}
+
+HARD RULES:
+- Pull in a real, specific detail from "where you met" or your notes whenever you have one — that is what makes it feel human. If notes are sparse, stay natural and DO NOT invent facts about them.
+- No "Hey there", no "I hope this email finds you well", no buzzwords, no corporate filler, and never say "digital business card".
+- First person, from you to ${leadFirst}. Do not put their name on its own greeting line, and do NOT add any sign-off or signature — your name, company and SwiftCard link are attached automatically below.
+${isText
+        ? `- Under 160 characters, plain conversational text. Return ONLY the message text — nothing else.`
+        : `- 2 to 4 short sentences. A real email: you may use a blank line between thoughts so it breathes. Write a natural, low-key subject line (max 6 words, no clickbait, no ALL CAPS).
+- Return ONLY JSON: {"subject":"...","message":"..."}`}`;
+
+    const raw = (await aiComplete(prompt, { maxTokens: 300, json: !isText })) ?? "";
     if (raw) {
       if (isText) {
         message = raw;

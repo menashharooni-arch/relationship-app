@@ -44,6 +44,15 @@ const EVENT_LABELS: Record<string, { label: string; icon: string }> = {
   shared_info:           { label: "Shared their info",       icon: "✅" },
 };
 
+// Natural-language phrases for the read-only conversation/activity log,
+// prefixed with the contact's first name ("Aaron saved your contact").
+const ACTIVITY_PHRASES: Record<string, string> = {
+  viewed_card:           "viewed your card",
+  clicked_save_contact:  "tapped Save Contact",
+  downloaded_vcard:      "saved your contact",
+  shared_info:           "shared their info with you",
+};
+
 const STATUS_STYLES: Record<string, string> = {
   new_contact: "bg-gray-800 text-gray-400",
   touch:       "bg-blue-950 text-blue-400",
@@ -173,70 +182,6 @@ export default function ContactsClient({
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
-  const [msgText, setMsgText] = useState("");
-  const [msgSubject, setMsgSubject] = useState("");
-  const [msgSending, setMsgSending] = useState(false);
-  const [msgError, setMsgError] = useState<string | null>(null);
-  const [msgAiLoading, setMsgAiLoading] = useState(false);
-  // Chosen send channel for the one-off composer (email or text).
-  const [channel, setChannel] = useState<"email" | "text">("email");
-
-  async function sendMessage() {
-    if (!selected || !msgText.trim() || msgSending) return;
-    if (channel === "email" && !msgSubject.trim()) { setMsgError("Add a subject for your email."); return; }
-    setMsgSending(true);
-    setMsgError(null);
-    try {
-      const res = await fetch(`/api/leads/${selected.id}/message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: msgText.trim(),
-          channel: channel === "text" ? "sms" : "email",
-          subject: channel === "email" ? msgSubject.trim() : undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.message) {
-        setConvoMessages((prev) => [...prev, data.message]);
-        setMsgText("");
-        setMsgSubject("");
-      } else {
-        setMsgError(data.message || data.error || "Couldn't send. Try again.");
-      }
-    } catch {
-      setMsgError("Couldn't send. Try again.");
-    } finally {
-      setMsgSending(false);
-    }
-  }
-
-  // AI-draft the one-off message (and a subject for email). Click again to regenerate.
-  async function draftMessage() {
-    if (!selected || msgAiLoading) return;
-    setMsgAiLoading(true);
-    setMsgError(null);
-    try {
-      const res = await fetch("/api/ai/suggest-messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: selected.id, meetContext: selected.where_met ?? "", channel: channel === "text" ? "sms" : "email" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 402 || data.error === "upgrade") {
-        setMsgError(data.message || "Upgrade to Pro for unlimited AI drafts.");
-        return;
-      }
-      const first = Array.isArray(data.messages) && data.messages.length ? data.messages[0] : "";
-      if (first) setMsgText(first);
-      if (channel === "email" && data.subject) setMsgSubject(data.subject);
-      if (!first) setMsgError("Couldn't draft a message. Add notes or where you met above.");
-    } catch {
-      setMsgError("Couldn't draft a message. Try again.");
-    } finally {
-      setMsgAiLoading(false);
-    }
-  }
 
   async function saveContact() {
     if (!selected) return;
@@ -438,7 +383,6 @@ export default function ContactsClient({
     setEditingNotes(false);
     setEditingWhereMet(false);
     setWhereMetText(lead.where_met ?? "");
-    setChannel(lead.email ? "email" : "text");
     setAiUpgrade(null);
     // Load any existing scheduled sequence — collapse per-channel rows back to
     // one editable step per day, and infer which channels are enabled.
@@ -465,9 +409,6 @@ export default function ContactsClient({
       setSeqLoading(false);
       setSeqSaving("idle");
     }
-    setMsgText("");
-    setMsgSubject("");
-    setMsgError(null);
     setConvoMessages([]);
     // Load the message thread (degrades to empty if not yet migrated).
     fetch(`/api/leads/${lead.id}/message`)
@@ -1098,164 +1039,72 @@ export default function ContactsClient({
             {/* ── CONVERSATION TAB ── */}
             <div className={detailTab === "conversation" ? "" : "hidden"}>
 
-            {/* Conversation — messages with this contact */}
+            {/* Activity & messages — read-only log of what this contact did and what was auto-sent */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Conversation</p>
-                {/* Send-channel toggle — also drives the AI follow-up preset style */}
-                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-                  {([
-                    { id: "email", label: "Email", on: !!selected.email },
-                    { id: "text", label: "Text", on: !!selected.phone },
-                  ] as const).map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => c.on && setChannel(c.id)}
-                      disabled={!c.on}
-                      title={c.on ? `Send as ${c.label.toLowerCase()}` : `No ${c.id === "email" ? "email" : "phone"} on file`}
-                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${
-                        channel === c.id ? "bg-blue-600 text-white" : c.on ? "text-gray-400 hover:text-gray-200" : "text-gray-700 cursor-not-allowed"
-                      }`}
-                    >
-                      {c.id === "email" ? "✉" : "💬"} {c.label}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Activity &amp; Messages</p>
+                <span className="text-[10px] text-gray-600">Auto-tracked · read-only</span>
               </div>
-
-              {/* Thread */}
-              <div className="space-y-2.5 mb-4">
-                {selected.message && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
-                      {selected.message}
-                    </div>
-                  </div>
-                )}
-                {convoMessages.map((m) => (
-                  <div key={m.id} className="flex flex-col items-end">
-                    <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${m.channel === "sms" ? "bg-emerald-600" : "bg-blue-600"}`}>
-                      {m.body}
-                    </div>
-                    <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
-                      <span className={`px-1.5 py-px rounded font-semibold ${m.channel === "sms" ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
-                        {m.channel === "sms" ? "💬 Text" : "✉ Email"}
-                      </span>
-                      <span>
-                        {m.status === "sent" ? "Sent" : m.status === "not_configured" ? "Not sent" : m.status === "failed" ? "Failed" : "Sent"}
-                        {m.created_at ? ` · ${formatShort(m.created_at)}` : ""}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-                {!selected.message && convoMessages.length === 0 && (
-                  <p className="text-gray-500 text-sm leading-relaxed">
-                    No messages yet. Send {selected.name.split(" ")[0]} a message below — it arrives as a branded SwiftCard {selected.email ? "email" : "text"}.
-                  </p>
-                )}
-              </div>
-
-              {/* Composer */}
-              {selected.email || selected.phone ? (
-                <div className="space-y-2">
-                  {channel === "email" && (
-                    <input
-                      type="text"
-                      value={msgSubject}
-                      onChange={(e) => { setMsgSubject(e.target.value); setMsgError(null); }}
-                      placeholder="Subject"
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                    />
-                  )}
-                  <textarea
-                    value={msgText}
-                    onChange={(e) => { setMsgText(e.target.value); setMsgError(null); }}
-                    placeholder={channel === "email" ? `Write your email to ${selected.name.split(" ")[0]}…` : `Text ${selected.name.split(" ")[0]}…`}
-                    rows={3}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 resize-none focus:outline-none focus:border-blue-500"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={draftMessage}
-                      disabled={msgAiLoading}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-40 transition-colors"
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
-                      {msgAiLoading ? "Drafting…" : msgText.trim() ? "Regenerate" : "AI draft"}
-                    </button>
-                    <button
-                      onClick={sendMessage}
-                      disabled={!msgText.trim() || msgSending}
-                      className={`text-xs font-semibold text-white px-4 py-2 rounded-full disabled:opacity-40 transition-colors ${channel === "text" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-blue-600 hover:bg-blue-500"}`}
-                    >
-                      {msgSending ? "Sending…" : `Send ${channel}`}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-gray-600">
-                    {msgError ? <span className="text-red-400">{msgError}</span> : "Your name, company & SwiftCard link are added as a signature."}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-gray-600 text-xs">Add an email or phone number for this contact to message them.</p>
-              )}
-            </div>
-
-            {/* Activity timeline */}
-            <div>
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">Activity</p>
 
               {loadingEvents ? (
                 <p className="text-gray-600 text-sm">Loading activity…</p>
-              ) : events.length > 0 ? (
-                <div className="relative">
-                  <div className="absolute left-[18px] top-0 bottom-0 w-px bg-gray-800" />
-                  <div className="space-y-4">
-                    {events.map((ev) => {
-                      const meta = EVENT_LABELS[ev.event_type] ?? { label: ev.event_type.replace(/_/g, " "), icon: "·" };
-                      return (
-                        <div key={ev.id} className="flex items-start gap-4 relative">
-                          <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">
-                            {meta.icon}
-                          </div>
-                          <div className="pt-1.5">
-                            <p className="text-gray-200 text-sm font-medium">{meta.label}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {ev.source && ev.source !== "direct_link" && (
-                                <span className="text-[10px] text-blue-400">via {getSourceLabel(ev.source)}</span>
-                              )}
-                              <span className="text-gray-600 text-[11px]">{formatShort(ev.created_at)}</span>
+              ) : (() => {
+                const fname = selected.name.split(" ")[0] || "They";
+                const items: { at: string; key: string; kind: "event" | "in" | "out"; icon?: string; text?: string; source?: string | null; body?: string; channel?: string | null; status?: string | null }[] = [];
+                for (const ev of events) {
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                }
+                items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });
+                if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
+                for (const m of convoMessages) {
+                  items.push(m.direction === "in"
+                    ? { at: m.created_at, key: `m-${m.id}`, kind: "in", body: m.body }
+                    : { at: m.created_at, key: `m-${m.id}`, kind: "out", body: m.body, channel: m.channel, status: m.status });
+                }
+                items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+                return (
+                  <div className="space-y-3">
+                    {items.map((it) => {
+                      if (it.kind === "out") {
+                        const isSms = it.channel === "sms";
+                        return (
+                          <div key={it.key} className="flex flex-col items-end">
+                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
+                              {it.body}
                             </div>
+                            <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
+                              <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
+                                {isSms ? "💬 Text" : "✉ Email"}
+                              </span>
+                              <span>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
+                            </span>
                           </div>
+                        );
+                      }
+                      if (it.kind === "in") {
+                        return (
+                          <div key={it.key} className="flex flex-col items-start">
+                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                              {it.body}
+                            </div>
+                            <span className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={it.key} className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs shrink-0">{it.icon}</div>
+                          <p className="text-gray-300 text-[13px]">{it.text}</p>
+                          {it.source && it.source !== "direct_link" && (
+                            <span className="text-[10px] text-blue-400">via {getSourceLabel(it.source)}</span>
+                          )}
+                          <span className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
                         </div>
                       );
                     })}
-                    {/* Final event: shared info */}
-                    <div className="flex items-start gap-4 relative">
-                      <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">
-                        ✅
-                      </div>
-                      <div className="pt-1.5">
-                        <p className="text-gray-200 text-sm font-medium">Shared their info with you</p>
-                        <p className="text-gray-600 text-[11px] mt-0.5">{formatShort(selected.created_at)}</p>
-                      </div>
-                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-[18px] top-0 bottom-0 w-px bg-gray-800" />
-                  <div className="flex items-start gap-4 relative">
-                    <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">✅</div>
-                    <div className="pt-1.5">
-                      <p className="text-gray-200 text-sm font-medium">Shared their info with you</p>
-                      {selected.source && selected.source !== "direct_link" && (
-                        <span className="text-[10px] text-blue-400">via {getSourceLabel(selected.source)}</span>
-                      )}
-                      <p className="text-gray-600 text-[11px] mt-0.5">{formatShort(selected.created_at)}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             </div>{/* end Conversation tab */}
