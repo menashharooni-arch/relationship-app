@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -44,15 +44,21 @@ export async function GET(request: NextRequest) {
     expires_in: number;
   };
 
-  const admin = getAdminSupabase();
-  await admin.from("integrations").upsert({
-    user_id: userId,
-    provider: "google",
-    access_token: encryptToken(tokens.access_token),
-    refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
-    expires_at: Date.now() + tokens.expires_in * 1000,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,provider" });
+  try {
+    const admin = getAdminSupabase();
+    const { error } = await admin.from("integrations").upsert({
+      user_id: userId,
+      provider: "google",
+      access_token: encryptToken(tokens.access_token),
+      refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
+      expires_at: Date.now() + tokens.expires_in * 1000,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,provider" });
+    if (error) throw error;
+  } catch (e) {
+    console.error("[google/callback] save failed:", e);
+    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+  }
 
   return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=connected`);
 }

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { isPaidPlan } from "@/lib/plan";
 
 const SCOPES = "https://www.googleapis.com/auth/contacts";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET() {
   const supabase = await createClient();

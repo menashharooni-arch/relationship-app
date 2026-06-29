@@ -69,9 +69,14 @@ export async function syncLeadToHubSpot(lead: LeadData, userId: string): Promise
   if (lead.phone) properties.phone = lead.phone;
   if (lead.company) properties.company = lead.company;
 
-  await fetch(HUBSPOT_CONTACTS_URL, {
+  const res = await fetch(HUBSPOT_CONTACTS_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ properties }),
   });
+  // 409 = a contact with this email already exists in HubSpot — that's fine, not
+  // a failure. Log anything else so sync problems are diagnosable.
+  if (!res.ok && res.status !== 409) {
+    console.warn("[sync-hubspot] createContact failed:", res.status, await res.text().catch(() => ""));
+  }
 }

@@ -70,9 +70,12 @@ export async function syncLeadToGoogle(lead: LeadData, userId: string): Promise<
   if (lead.phone) body.phoneNumbers = [{ value: lead.phone }];
   if (lead.company) body.organizations = [{ name: lead.company }];
 
-  await fetch(GOOGLE_PEOPLE_URL, {
+  const res = await fetch(GOOGLE_PEOPLE_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    console.warn("[sync-google] createContact failed:", res.status, await res.text().catch(() => ""));
+  }
 }
