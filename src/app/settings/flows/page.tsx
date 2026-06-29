@@ -7,6 +7,7 @@ import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
+import CrmEventSettings from "@/components/CrmEventSettings";
 import HelpWidget from "@/components/HelpWidget";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { ensureUserCards } from "@/lib/ensure-cards";
@@ -111,6 +112,12 @@ export default async function FlowSettingsPage() {
                   isPro={isPro}
                 />
               </Suspense>
+              <CrmEventSettings
+                initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
+                initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
+                zapierConnected={!!profile.zapier_webhook_url}
+                isPro={isPro}
+              />
               <ReferAFriend username={profile.username} />
             </div>
           </div>

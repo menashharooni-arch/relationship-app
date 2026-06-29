@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { dispatchCrmEvent } from "@/lib/crm-events";
 
 export async function POST(
   req: NextRequest,
@@ -19,6 +20,15 @@ export async function POST(
 
   const supabase = getAdminSupabase();
   await supabase.from("card_views").insert({ username, ip, location });
+
+  // Mirror the view to the owner's CRM (SwiftCard vs SwiftLink). Gated by their
+  // "card & link views" CRM preference; no-op for everyone else.
+  const isLinks = username.endsWith("__links");
+  await dispatchCrmEvent(username, {
+    type: isLinks ? "view.swiftlink" : "view.card",
+    surface: isLinks ? "links" : "card",
+    location: location ?? undefined,
+  });
 
   return NextResponse.json({ ok: true });
 }

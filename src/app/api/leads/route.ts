@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       fetch(ownerProfile.zapier_webhook_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone: phone || null, message: message || null, location, card_owner, tags: tags ?? null, created_at: new Date().toISOString() }),
+        body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: tags ?? null, created_at: new Date().toISOString() }),
       }).catch(() => {});
     }
 
