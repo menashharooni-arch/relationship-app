@@ -32,7 +32,7 @@ const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -43,6 +43,8 @@ export default async function DashboardPage({
   const chartRange = params.range ?? "30d";
   const selectedCard = params.card ?? null;
   const surface = params.surface === "link" ? "link" : "card";
+  const viewsRange: "today" | "week" | "month" =
+    params.vrange === "week" || params.vrange === "month" ? params.vrange : "today";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -163,6 +165,20 @@ export default async function DashboardPage({
   // Swift Link views are tracked in card_views under a "<username>__links" key,
   // exactly the same way card views are tracked under the plain username.
   const linkUsername = `${analyticsUsername}__links`;
+
+  // Traffic box: SwiftCard (card link) + SwiftLink (links page) views for the
+  // chosen window (today / week / month).
+  const viewsCutoff = (() => {
+    if (viewsRange === "month") return new Date(Date.now() - 30 * 86400000).toISOString();
+    if (viewsRange === "week") return new Date(Date.now() - 7 * 86400000).toISOString();
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const [{ count: swiftCardViews }, { count: swiftLinkViews }] = await Promise.all([
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
+    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+  ]);
 
   const [
     { data: leads },
@@ -496,105 +512,37 @@ export default async function DashboardPage({
             {/* ── LEFT COLUMN ── */}
             <div className="space-y-5">
 
-              {/* Analytics chart */}
+              {/* Traffic — SwiftCard & SwiftLink views */}
               <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                {/* Card views / Link views toggle */}
-                <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5 mb-4 w-fit">
-                  {([
-                    { id: "card", label: "Card views" },
-                    { id: "link", label: "Link views" },
-                  ] as const).map((sf) => (
-                    <Link key={sf.id} href={`?surface=${sf.id}${surfaceQS}`}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${surface === sf.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                      {sf.label}
-                    </Link>
-                  ))}
-                </div>
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-white font-semibold text-sm">{viewsPanel.label}</p>
-                    <p className="text-gray-500 text-xs mt-0.5">{viewsPanel.total} {surface === "link" ? "link" : "card"} views in the last {chartDays} days</p>
-                  </div>
+                  <p className="text-white font-semibold text-sm">Traffic</p>
                   <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-                    {(["7d", "30d"] as const).map((r) => (
-                      <Link key={r} href={`?range=${r}&surface=${surface}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
-                        className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${chartRange === r ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                        {r}
+                    {([
+                      { id: "today", label: "Today" },
+                      { id: "week", label: "Week" },
+                      { id: "month", label: "Month" },
+                    ] as const).map((r) => (
+                      <Link key={r.id} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                        className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+                        {r.label}
                       </Link>
                     ))}
                   </div>
                 </div>
-                <ViewsChart data={viewsPanel.chartData} />
-                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-800/80">
+                <div className="space-y-3">
                   {[
-                    { label: "Today", value: viewsPanel.today },
-                    { label: surface === "link" ? "All time" : "Contact saves", value: surface === "link" ? viewsPanel.allTime : (contactSaves ?? 0) },
-                  ].map((s) => (
-                    <div key={s.label}>
-                      <p className="text-white font-bold text-base">{s.value}</p>
-                      <p className="text-gray-500 text-xs mt-0.5">{s.label}</p>
+                    { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
+                    { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
+                  ].map((m) => (
+                    <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
+                        <p className="text-gray-600 text-[11px]">{m.sub}</p>
+                      </div>
+                      <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
                     </div>
                   ))}
                 </div>
-
-                {isPro && viewsPanel.topLocations.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-800/80">
-                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Top locations · 30d</p>
-                    <div className="space-y-2">
-                      {viewsPanel.topLocations.map(([loc, count]) => (
-                        <div key={loc} className="flex items-center gap-3">
-                          <p className="text-gray-300 text-xs flex-1 truncate">{loc}</p>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1 bg-gray-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(count / viewsPanel.topLocations[0][1]) * 100}%` }} />
-                            </div>
-                            <span className="text-gray-500 text-xs w-5 text-right">{count}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!isPro && (
-                  <div className="mt-4 pt-4 border-t border-gray-800/80 flex items-center justify-between">
-                    <p className="text-gray-600 text-xs">Location breakdown — Pro only</p>
-                    <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
-                  </div>
-                )}
-
-                {/* Traffic sources — Pro */}
-                {!isPro && sourceBreakdown.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-800/80 flex items-center justify-between">
-                    <p className="text-gray-600 text-xs">Traffic sources — Pro only</p>
-                    <Link href="/pricing" className="text-xs text-blue-400 hover:text-blue-300 font-medium">Upgrade →</Link>
-                  </div>
-                )}
-                {isPro && sourceBreakdown.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-800/80">
-                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Traffic sources · 30d</p>
-                    <div className="space-y-3">
-                      {sourceBreakdown.map(({ source: src, label, views, leads }) => (
-                        <div key={src}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-gray-300 text-xs truncate max-w-[60%]">{label}</span>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-gray-500 text-xs">{views} view{views !== 1 ? "s" : ""}</span>
-                              {leads > 0 && (
-                                <span className="text-emerald-400 text-xs font-semibold">{leads} lead{leads !== 1 ? "s" : ""}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-blue-500"
-                              style={{ width: `${Math.max((views / maxSourceViews) * 100, 3)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Contacts section */}
