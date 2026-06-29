@@ -330,6 +330,7 @@ export default async function DashboardPage({
                 return (
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
+                      scroll={false}
                       href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
                       role="radio"
                       aria-checked={isActive}
@@ -392,7 +393,7 @@ export default async function DashboardPage({
                     {due.length === 1 ? `Follow up with ${due[0].name} today` : `${due.length} follow-ups due today`}
                   </p>
                 </div>
-                <Link href="?status=all&date=all&sort=newest" className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
+                <Link scroll={false} href="?status=all&date=all&sort=newest" className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
               </div>
             );
           })()}
@@ -426,7 +427,7 @@ export default async function DashboardPage({
                       { id: "week", label: "Week" },
                       { id: "month", label: "Month" },
                     ] as const).map((r) => (
-                      <Link key={r.id} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {r.label}
                       </Link>
@@ -488,7 +489,7 @@ export default async function DashboardPage({
                       { id: "list", label: "List" },
                       { id: "pipeline", label: "Pipeline" },
                     ].map((v) => (
-                      <Link key={v.id} href={`?view=${v.id}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={v.id} scroll={false} href={`?view=${v.id}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${view === v.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {v.label}
                       </Link>
@@ -503,7 +504,7 @@ export default async function DashboardPage({
                       { id: "touch",       label: "Touch" },
                       { id: "dissolved",   label: "Dissolved" },
                     ].map((s) => (
-                      <Link key={s.id} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={s.id} scroll={false} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs px-2.5 py-1 rounded-full transition-colors ${filterStatus === s.id ? "bg-blue-600 text-white font-medium" : "text-gray-500 hover:text-gray-300 bg-gray-800/60"}`}>
                         {s.label}
                       </Link>
@@ -518,7 +519,7 @@ export default async function DashboardPage({
                       { id: "week", label: "7d" },
                       { id: "today", label: "Today" },
                     ].map((d) => (
-                      <Link key={d.id} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={d.id} scroll={false} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${filterDate === d.id ? "bg-gray-700 text-white" : "text-gray-600 hover:text-gray-300"}`}>
                         {d.label}
                       </Link>
