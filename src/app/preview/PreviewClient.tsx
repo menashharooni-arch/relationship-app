@@ -118,7 +118,7 @@ function IframePhone({ src }: { src: string }) {
 const RANGES: { id: Range; label: string }[] = [{ id: "today", label: "Today" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
 const VIEWS = ["Notifications", "List", "Pipeline"] as const;
 
-export default function PreviewClient() {
+export default function PreviewClient({ embedded = false }: { embedded?: boolean }) {
   const [activeKey, setActiveKey] = useState<DemoCard["key"]>("realestate");
   const [range, setRange] = useState<Range>("week");
   const [view, setView] = useState<(typeof VIEWS)[number]>("Notifications");
@@ -142,24 +142,29 @@ export default function PreviewClient() {
     setTimeout(() => setCopied(false), 2200);
   }
 
+  const Wrapper = embedded ? "div" : "main";
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
-      <header className="sticky top-0 z-30 bg-gray-950/90 backdrop-blur border-b border-gray-800">
-        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <SwiftCardLogo size={26} wordmark={false} onDark />
-            <span className="font-bold text-sm">SwiftCard</span>
-            <span className="text-gray-600 text-xs hidden sm:inline">· See it live</span>
-          </Link>
-          <Link href="/join" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors">Start free →</Link>
-        </div>
-      </header>
+    <Wrapper className={embedded ? "text-white" : "min-h-screen bg-gray-950 text-white"}>
+      {!embedded && (
+        <header className="sticky top-0 z-30 bg-gray-950/90 backdrop-blur border-b border-gray-800">
+          <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <SwiftCardLogo size={26} wordmark={false} onDark />
+              <span className="font-bold text-sm">SwiftCard</span>
+              <span className="text-gray-600 text-xs hidden sm:inline">· See it live</span>
+            </Link>
+            <Link href="/join" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors">Start free →</Link>
+          </div>
+        </header>
+      )}
 
       <div className="max-w-5xl mx-auto px-5 py-7">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">See how we work — and how it all looks, live</h1>
-          <p className="text-gray-500 text-sm mt-1.5">Switch between cards and tap any preview. This is the real interface with sample data — nothing to install.</p>
-        </div>
+        {!embedded && (
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold">See how we work — and how it all looks, live</h1>
+            <p className="text-gray-500 text-sm mt-1.5">Switch between cards and tap any preview. This is the real interface with sample data — nothing to install.</p>
+          </div>
+        )}
 
         {/* My Cards */}
         <Box className="mb-5">
@@ -389,6 +394,6 @@ export default function PreviewClient() {
           </div>
         </FullScreen>
       )}
-    </main>
+    </Wrapper>
   );
 }

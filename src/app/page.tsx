@@ -3,6 +3,7 @@ import SwiftCardLogo from "@/components/SwiftCardLogo";
 import Reveal from "@/components/Reveal";
 import LiveDemo from "@/components/LiveDemo";
 import HeroPhone from "@/components/HeroPhone";
+import PreviewClient from "@/app/preview/PreviewClient";
 
 const STEPS = [
   {
@@ -238,7 +239,7 @@ export default function HomePage() {
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
           <SwiftCardLogo size={30} />
           <div className="flex items-center gap-8">
-            <Link href="/preview" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+            <Link href="#demo" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               See it live
             </Link>
             <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
@@ -302,10 +303,10 @@ export default function HomePage() {
               Create your free card
             </Link>
             <Link
-              href="/preview"
+              href="/pricing"
               className="border border-warm-card-border hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center bg-warm-card"
             >
-              See it live →
+              View pricing
             </Link>
           </div>
 
@@ -354,6 +355,18 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* Interactive live demo — the real dashboard, embedded */}
+      <section id="demo" className="bg-gray-950 py-20 px-4 scroll-mt-16">
+        <div className="max-w-5xl mx-auto text-center mb-8">
+          <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mb-3">See it live</p>
+          <h2 className="text-3xl font-bold text-white">Click around a real dashboard</h2>
+          <p className="text-gray-400 mt-3 max-w-lg mx-auto text-sm">
+            Switch cards, open your live SwiftCard and Swift Links, preview the email signature, and try sharing — it all works right here, with sample data.
+          </p>
+        </div>
+        <PreviewClient embedded />
+      </section>
 
       {/* How it works */}
       <section className="border-t border-warm-border py-28 px-6 bg-cream-dark">
@@ -500,7 +513,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
-            <Link href="/preview" className="hover:text-slate-900 transition-colors">See it live</Link>
+            <Link href="#demo" className="hover:text-slate-900 transition-colors">See it live</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
