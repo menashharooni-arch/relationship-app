@@ -400,15 +400,20 @@ export default async function DashboardPage({
           })()}
 
           {/* Free plan limit banner */}
-          {!isPro && nearLimit && !atLimit && (
-            <div className="flex items-center justify-between gap-4 rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
-              <div className="flex items-center gap-2.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <p className="text-sm font-medium text-amber-400">
-                  {allLeads.length}/{FREE_LIMIT} leads used — running low
-                </p>
+          {!isPro && nearLimit && (
+            <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <p className="text-sm font-medium text-amber-400">
+                    {atLimit ? `You've hit the ${FREE_LIMIT}-contact free limit` : `${allLeads.length}/${FREE_LIMIT} leads used — running low`}
+                  </p>
+                </div>
+                <UpgradeButton />
               </div>
-              <UpgradeButton />
+              <p className="text-amber-200/60 text-xs mt-2">
+                Not ready to upgrade? <strong className="text-amber-200">Refer a friend</strong> — when one upgrades to Pro, you get a free month too.
+              </p>
             </div>
           )}
 
