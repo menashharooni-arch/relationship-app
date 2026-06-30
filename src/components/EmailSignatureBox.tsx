@@ -7,25 +7,22 @@ type Props = {
   title: string;
   company: string;
   cardUrl: string;
-  ogImageUrl: string; // the generated card preview image (used as the signature graphic)
+  ogImageUrl: string; // the generated card image (used as the signature graphic)
 };
 
-// Builds the rich-HTML signature the user pastes into Gmail/Outlook/Apple Mail.
-function buildSignatureHtml({ name, title, company, cardUrl, ogImageUrl }: Props): string {
-  const line2 = [title, company].filter(Boolean).join(" · ");
+// The rich-HTML signature the user pastes into Gmail/Outlook/Apple Mail: the card
+// image (everything's already on it) linked to the card, plus a "Contact me" link.
+function buildSignatureHtml({ name, cardUrl, ogImageUrl }: Props): string {
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
-<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${ogImageUrl}" alt="${name} — digital business card" width="260" style="display:block;border:0;border-radius:10px;" /></a>
-<div style="margin-top:8px;font-size:13px;line-height:1.45;color:#1f2937;">
-<span style="font-weight:bold;color:#111827;">${name}</span>${line2 ? `<br/><span style="color:#6b7280;">${line2}</span>` : ""}
-<br/><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Save my contact →</a>
-</div></td></tr></table>`;
+<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${ogImageUrl}" alt="${name} — business card" width="360" style="display:block;border:0;border-radius:12px;" /></a>
+<div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me →</a></div>
+</td></tr></table>`;
 }
 
 export default function EmailSignatureBox(props: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const sigHtml = buildSignatureHtml(props);
-  const line2 = [props.title, props.company].filter(Boolean).join(" · ");
 
   async function copy() {
     try {
@@ -44,7 +41,7 @@ export default function EmailSignatureBox(props: Props) {
 
   return (
     <>
-      {/* The dashboard card */}
+      {/* Dashboard card */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -57,10 +54,9 @@ export default function EmailSignatureBox(props: Props) {
           Copy this and use it as your email signature — your card in every email you send.
         </p>
 
-        {/* Small preview card */}
-        <div className="mt-3 rounded-xl overflow-hidden border border-gray-700/60 bg-gray-800/40">
+        <div className="mt-3 rounded-xl overflow-hidden border border-gray-700/60 bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={props.ogImageUrl} alt="Your card preview" className="w-full block" />
+          <img src={props.ogImageUrl} alt="Your card" className="w-full block" />
         </div>
 
         <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 group-hover:text-blue-300">
@@ -93,17 +89,15 @@ export default function EmailSignatureBox(props: Props) {
                   <p>Hi Sarah,</p>
                   <p className="mt-2">Really enjoyed chatting earlier — here&apos;s my card so you have everything in one place.</p>
                   <p className="mt-2">Talk soon,</p>
-                  {/* The signature */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  {/* Signature: the card image (clickable) + Contact me link */}
+                  <div className="mt-3">
                     <a href={props.cardUrl} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={props.ogImageUrl} alt="card" width={260} className="block rounded-[10px]" />
+                      <img src={props.ogImageUrl} alt="card" width={300} className="block rounded-[12px]" />
                     </a>
-                    <div className="mt-2 text-[13px] leading-snug">
-                      <span className="font-bold text-gray-900">{props.name || "Your name"}</span>
-                      {line2 && <><br /><span className="text-gray-500">{line2}</span></>}
-                      <br /><span className="text-blue-600 font-bold">Save my contact →</span>
-                    </div>
+                    <a href={props.cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">
+                      Contact me →
+                    </a>
                   </div>
                 </div>
               </div>
@@ -115,7 +109,7 @@ export default function EmailSignatureBox(props: Props) {
                 {copied ? "Copied ✓ — now paste it into your email signature" : "Copy signature"}
               </button>
               <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong> (or Outlook / Apple Mail).
+                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong> (or Outlook / Apple Mail). The card image links straight to your SwiftCard.
               </p>
             </div>
           </div>
