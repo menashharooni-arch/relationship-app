@@ -22,6 +22,17 @@ function normEmail(e: string | null | undefined): string {
   return `${l}@${domain}`;
 }
 
+// A coarse device fingerprint from headers (user-agent + language). Weak on its
+// own, but combined with IP it's a useful "same person referring themselves"
+// signal. Stored at signup and compared to the referrer's device.
+export function hashDevice(ua: string | null, lang: string | null): string | null {
+  const s = `${ua || ""}|${lang || ""}`.trim();
+  if (!s) return null;
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 // Ensure a user has a referral code; generate a unique one if missing.
 export async function ensureReferralCode(userId: string): Promise<string | null> {
   const admin = getAdminSupabase();
@@ -91,19 +102,19 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
 // the new user's free month, runs basic fraud checks, and records a referrals row.
 export async function applyReferralOnSignup(
   userId: string,
-  opts: { code: string | null; source: string | null; ip: string | null; email: string | null },
+  opts: { code: string | null; source: string | null; ip: string | null; email: string | null; device?: string | null },
 ): Promise<void> {
   const admin = getAdminSupabase();
   const code = (opts.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "") || null;
   let source = isSignupSource(opts.source) ? opts.source : (code ? "referral" : "direct");
 
   // Resolve referrer from code.
-  type Referrer = { id: string; email: string | null; signup_ip: string | null };
+  type Referrer = { id: string; email: string | null; signup_ip: string | null; signup_device: string | null };
   let referrer: Referrer | null = null;
   if (code) {
     const { data } = await admin
       .from("profiles")
-      .select("id, email, signup_ip")
+      .select("id, email, signup_ip, signup_device")
       .eq("referral_code", code)
       .maybeSingle();
     if (data) referrer = data as Referrer;
@@ -121,6 +132,9 @@ export async function applyReferralOnSignup(
     } else if (opts.ip && referrer.signup_ip && opts.ip === referrer.signup_ip) {
       status = "flagged";
       flaggedReason = "same_ip_as_referrer";
+    } else if (opts.device && referrer.signup_device && opts.device === referrer.signup_device) {
+      status = "flagged";
+      flaggedReason = "same_device_as_referrer";
     } else if (opts.ip) {
       const { count } = await admin
         .from("profiles")
@@ -146,6 +160,7 @@ export async function applyReferralOnSignup(
       referred_by: referrer?.id ?? null,
       signup_source: source,
       signup_ip: opts.ip,
+      signup_device: opts.device ?? null,
     })
     .eq("id", userId);
   if (attrErr) console.error("[referral] attribution update failed:", attrErr);
@@ -166,6 +181,7 @@ export async function applyReferralOnSignup(
         code,
         status,
         signup_ip: opts.ip,
+        signup_device: opts.device ?? null,
         flagged_reason: flaggedReason,
       },
       { onConflict: "referred_id" },
@@ -186,6 +202,15 @@ export async function rewardReferrerIfEligible(referredUserId: string): Promise<
   if (ref.status === "self_referral" || ref.status === "flagged") return; // never reward fraud
   if (ref.reward_granted) return; // this friend already earned the referrer a reward
   const nowIso = new Date().toISOString();
+
+  // Payment-method self-referral: if the friend paid with the SAME card the
+  // referrer pays with, it's the same person on two accounts — flag, don't reward.
+  const { data: friendPm } = await admin.from("profiles").select("payment_fingerprint").eq("id", referredUserId).maybeSingle();
+  const { data: referrerPm } = await admin.from("profiles").select("payment_fingerprint").eq("id", ref.referrer_id).maybeSingle();
+  if (friendPm?.payment_fingerprint && referrerPm?.payment_fingerprint && friendPm.payment_fingerprint === referrerPm.payment_fingerprint) {
+    await admin.from("referrals").update({ status: "flagged", flagged_reason: "same_payment_method", paid_at: nowIso }).eq("id", ref.id);
+    return;
+  }
 
   // Mark the friend as converted to paid.
   if (ref.status !== "paid" && ref.status !== "rewarded") {

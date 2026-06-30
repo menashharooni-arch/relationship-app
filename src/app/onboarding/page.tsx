@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { applyReferralOnSignup } from "@/lib/referral-server";
+import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
 function accountHandle(email: string | undefined, userId: string): string {
@@ -42,12 +42,14 @@ export default async function OnboardingPage() {
     // profile creation — so it can't be replayed.
     try {
       const c = await cookies();
-      const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+      const h = await headers();
+      const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
       await applyReferralOnSignup(user.id, {
         code: c.get(REF_COOKIE)?.value ?? null,
         source: c.get(SRC_COOKIE)?.value ?? null,
         ip,
         email: user.email ?? null,
+        device: hashDevice(h.get("user-agent"), h.get("accept-language")),
       });
     } catch (e) {
       console.error("[onboarding] referral apply failed:", e);
