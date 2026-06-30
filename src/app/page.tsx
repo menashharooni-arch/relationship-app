@@ -302,10 +302,10 @@ export default function HomePage() {
               Create your free card
             </Link>
             <Link
-              href="/pricing"
+              href="/preview"
               className="border border-warm-card-border hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center bg-warm-card"
             >
-              View pricing
+              See it live →
             </Link>
           </div>
 
@@ -500,6 +500,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
+            <Link href="/preview" className="hover:text-slate-900 transition-colors">See it live</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
