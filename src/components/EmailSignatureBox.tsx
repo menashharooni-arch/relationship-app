@@ -50,6 +50,15 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   const atKey = `sc_sigat_${cardUrl}`;
 
+  // Route the card's external images (photo/logo) through our same-origin proxy so
+  // html2canvas can read them without tainting the canvas (the usual capture failure).
+  const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
+  const captureData = {
+    ...cardData,
+    photoUrl: proxy(cardData.photoUrl),
+    logoUrl: proxy((cardData as { logoUrl?: string | null }).logoUrl),
+  } as CardData;
+
   // Capture the hidden card pixel-perfect from the CURRENT card data and host it.
   // Returns the fresh cache-busted URL on success (so the copied signature can't
   // be served a stale image), or null on failure.
@@ -59,6 +68,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     if (!el) return null;
     capturingRef.current = true;
     try {
+      // Wait for the card's images (photo/logo) to finish loading first.
+      const imgs = Array.from(el.querySelectorAll("img"));
+      await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
+        ? Promise.resolve()
+        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 4000); })));
+      await new Promise((r) => setTimeout(r, 150)); // small buffer for the QR + layout
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
       const dataUrl = canvas.toDataURL("image/png");
@@ -126,7 +141,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       {mounted && (
         <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
           <div ref={cardRef}>
-            <Template data={template === "custom" ? cardData : withoutSocials(cardData)} />
+            <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
         </div>
       )}
