@@ -18,7 +18,6 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
 };
 const NATURAL = 460;
-const FONT_SCALE = 1.3; // "make all writing much larger"
 
 type Props = {
   cardData: CardData;
@@ -38,26 +37,6 @@ ${header}
 <a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="340" style="display:block;border:0;border-radius:12px;" /></a>
 <div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me →</a></div>
 </td></tr></table>`;
-}
-
-// Enlarge every font in the captured card and release truncation/clipping so the
-// bigger writing fills the card and nothing gets cut off — the EXACT template,
-// just with the two requested changes (QR is hidden via HideQRContext).
-function enlargeForSignature(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((node) => {
-    const cs = getComputedStyle(node);
-    const fs = parseFloat(cs.fontSize);
-    if (fs) node.style.fontSize = `${(fs * FONT_SCALE).toFixed(2)}px`;
-    if (cs.whiteSpace === "nowrap") {
-      node.style.whiteSpace = "normal";
-      node.style.overflow = "visible";
-      node.style.textOverflow = "clip";
-      node.style.maxWidth = "none";
-      node.style.minWidth = "0";
-    }
-  });
-  root.style.height = "auto";
-  root.style.overflow = "visible";
 }
 
 export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, username, storageUrl, ogUrl }: Props) {
@@ -90,8 +69,6 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
         ? Promise.resolve()
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 4000); })));
-      enlargeForSignature(el);
-      await new Promise((r) => setTimeout(r, 120)); // let the reflow settle
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
       const dataUrl = canvas.toDataURL("image/png");
