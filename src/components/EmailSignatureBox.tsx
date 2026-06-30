@@ -25,9 +25,25 @@ type Props = {
   company: string;
   cardUrl: string;
   username: string;
-  storageUrl: string; // stable hosted URL of the captured card (per username)
-  ogUrl: string;      // instant server-rendered fallback while the capture uploads
+  storageUrl: string;
+  ogUrl: string;
 };
+
+function CardPreview({ src, ready, status, onLoad, onError }: {
+  src: string; ready: boolean; status: "idle" | "working" | "error"; onLoad: () => void; onError: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden relative min-h-[120px] flex items-center justify-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} onLoad={onLoad} onError={onError} alt="Your card" className={`w-full block ${ready ? "" : "hidden"}`} />
+      {!ready && (
+        <span className="text-gray-400 text-xs py-10">
+          {status === "error" ? "Couldn't generate — reopen to retry" : "Generating your card…"}
+        </span>
+      )}
+    </div>
+  );
+}
 
 function buildSignatureHtml(name: string, company: string, cardUrl: string, imgUrl: string): string {
   const header = `<div style="font-size:14px;color:#111827;margin-bottom:6px;"><strong>${name}</strong>${company ? ` | ${company}` : ""}</div>`;
@@ -38,12 +54,12 @@ ${header}
 </td></tr></table>`;
 }
 
-export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, username, storageUrl, ogUrl }: Props) {
+export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, username, storageUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copying, setCopying] = useState(false);
+  const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const [displaySrc, setDisplaySrc] = useState(storageUrl);
-  const [hasCaptured, setHasCaptured] = useState(true);
+  const [ready, setReady] = useState(false);
   const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const capturingRef = useRef(false);
@@ -51,6 +67,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   const atKey = `sc_sigat_${username}`;
 
+  // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
   const captureData = {
     ...cardData,
@@ -60,56 +77,63 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   async function captureAndUpload(): Promise<string | null> {
     if (capturingRef.current) return null;
-    const el = cardRef.current;
-    if (!el) return null;
     capturingRef.current = true;
+    setStatus("working");
     try {
+      const el = cardRef.current;
+      if (!el) return null;
+      // Wait for the lazy-loaded template to actually render…
+      for (let i = 0; i < 80 && el.offsetHeight < 150; i++) await new Promise((r) => setTimeout(r, 100));
+      // …and for its images (photo/logo) to load.
       const imgs = Array.from(el.querySelectorAll("img"));
       await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
         ? Promise.resolve()
-        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 4000); })));
+        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
+      await new Promise((r) => setTimeout(r, 150));
+
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
+      if (canvas.width < 60 || canvas.height < 60) { setStatus("error"); return null; } // blank guard
+
       const dataUrl = canvas.toDataURL("image/png");
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) { setStatus("error"); return null; }
+
       const url = `${storageUrl}?t=${Date.now()}`;
       lastUrlRef.current = url;
-      setHasCaptured(true);
       setDisplaySrc(url);
+      setStatus("idle");
       try { localStorage.setItem(atKey, String(Date.now())); } catch { /* ignore */ }
       return url;
     } catch {
+      setStatus("error");
       return null;
     } finally {
       capturingRef.current = false;
     }
   }
 
+  // On load: try the hosted image; (re)generate from the real card if missing/stale.
   useEffect(() => {
     setMounted(true);
     let stale = true;
-    try { stale = Date.now() - Number(localStorage.getItem(atKey) || 0) > 6 * 3600 * 1000; } catch { /* ignore */ }
-    if (stale) {
-      const t = setTimeout(() => { captureAndUpload(); }, 900);
-      return () => clearTimeout(t);
-    }
+    try { stale = Date.now() - Number(localStorage.getItem(atKey) || 0) > 30 * 60 * 1000; } catch { /* ignore */ }
+    if (stale) { const t = setTimeout(() => { captureAndUpload(); }, 500); return () => clearTimeout(t); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
+  // Hosted image 404s (never captured) → generate from the real card. No wrong fallback image.
   function onImgError() {
-    if (displaySrc.startsWith(ogUrl)) return;
-    setHasCaptured(false);
-    setDisplaySrc(ogUrl);
-    setTimeout(() => { captureAndUpload(); }, 900);
+    setReady(false);
+    if (!capturingRef.current) captureAndUpload();
   }
 
   async function copy() {
-    setCopying(true);
-    const fresh = await captureAndUpload();
-    const img = fresh ?? lastUrlRef.current ?? (hasCaptured ? storageUrl : ogUrl);
+    let img = lastUrlRef.current;
+    if (!img) img = await captureAndUpload();
+    if (!img) { setStatus("error"); return; }
     const html = buildSignatureHtml(name, company, cardUrl, img);
     try {
       await navigator.clipboard.write([
@@ -121,17 +145,19 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     } catch {
       try { await navigator.clipboard.writeText(html); } catch { /* ignore */ }
     }
-    setCopying(false);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
 
+  const onLoad = () => { setReady(true); setStatus("idle"); };
+
   return (
     <>
-      {/* Hidden full-size render of the EXACT selected card — a carbon copy, QR and all */}
+      {/* Hidden render of the EXACT selected card. Clipped 0×0 wrapper (no layout impact),
+          but the card inside keeps its full size so html2canvas can capture it reliably. */}
       {mounted && (
-        <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
-          <div ref={cardRef}>
+        <div aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", left: 0, top: 0 }}>
+          <div ref={cardRef} style={{ width: NATURAL }}>
             <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
         </div>
@@ -139,17 +165,14 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => { if (status === "error" && !ready) captureAndUpload(); setOpen(true); }}
         className="w-full text-left bg-gray-900 border border-gray-800/80 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
       >
         <p className="text-white font-semibold text-sm flex items-center gap-1.5"><span>✉️</span> Email signature</p>
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-          Copy this and use it as your email signature — your real card in every email you send.
+          Copy this and use it as your email signature — an exact copy of your selected card.
         </p>
-        <div className="mt-3 rounded-xl border border-gray-700/60 bg-white flex items-center justify-center overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={displaySrc} onError={onImgError} alt="Your card" className="w-full block" />
-        </div>
+        <div className="mt-3"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></div>
         <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 group-hover:text-blue-300">Preview &amp; copy →</span>
       </button>
 
@@ -161,10 +184,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               <p className="text-white font-semibold text-sm">Your email signature</p>
               <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors">✕</button>
             </div>
-
             <div className="p-5">
               <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
-
               <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
                   <p><span className="text-gray-400">To:</span> sarah@acme.com</p>
@@ -172,25 +193,21 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 </div>
                 <div className="px-4 py-3 text-[13px] text-gray-800 leading-relaxed">
                   <p>Hi Sarah,</p>
-                  <p className="mt-2">Really enjoyed chatting earlier — here&apos;s my card so you have everything in one place.</p>
+                  <p className="mt-2">Really enjoyed chatting earlier — here&apos;s my card.</p>
                   <p className="mt-2">Talk soon,</p>
                   <div className="mt-3">
                     <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
-                    <a href={cardUrl} target="_blank" rel="noopener noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={displaySrc} onError={onImgError} alt="card" className="block rounded-[12px] w-[300px] max-w-full" />
-                    </a>
+                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me →</a>
                   </div>
                 </div>
               </div>
-
-              <button onClick={copy} disabled={copying}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {copying ? "Updating from your card…" : copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
+              <button onClick={copy} disabled={!ready || status === "working"}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
+                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
               </button>
               <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. The image + link always point to your current card.
+                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.
               </p>
             </div>
           </div>
