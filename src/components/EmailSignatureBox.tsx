@@ -87,7 +87,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const capturingRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const atKey = `sc_sigat_${username}`;
+  const atKey = `sc_sigat3_${username}`; // bump to force re-capture after a render change (QR off, bigger text)
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -101,7 +101,6 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     if (capturingRef.current) return null;
     capturingRef.current = true;
     setStatus("working");
-    let holder: HTMLDivElement | null = null;
     try {
       const el = cardRef.current;
       if (!el) return null;
@@ -113,22 +112,18 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         ? Promise.resolve()
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
 
-      // Clone the (QR-less) card off-screen and enlarge the clone's text, so the live
-      // card is never mutated and repeat captures don't compound the scaling.
-      const clone = el.cloneNode(true) as HTMLElement;
-      clone.style.width = `${NATURAL}px`;
-      holder = document.createElement("div");
-      holder.setAttribute("aria-hidden", "true");
-      holder.style.cssText = `position:absolute;left:-10000px;top:0;width:${NATURAL}px;background:#fff;`;
-      holder.appendChild(clone);
-      document.body.appendChild(holder);
-      enlargeForSignature(clone);
-      await new Promise((r) => setTimeout(r, 200)); // let the reflow + cached images settle
+      // Enlarge the wording once, in place. The hidden card is off-screen so this is
+      // invisible; the flag stops repeat captures from compounding the scale.
+      if (!el.dataset.enlarged) {
+        enlargeForSignature(el);
+        el.dataset.enlarged = "1";
+        await new Promise((r) => setTimeout(r, 200)); // let the reflow settle
+      }
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(clone, { pixelRatio: 4, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
+      const dataUrl = await toPng(el, { pixelRatio: 4, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
@@ -145,7 +140,6 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       setStatus("error");
       return null;
     } finally {
-      if (holder) { try { document.body.removeChild(holder); } catch { /* ignore */ } }
       capturingRef.current = false;
     }
   }
