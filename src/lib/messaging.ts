@@ -6,6 +6,16 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export type SendResult = "sent" | "not_configured" | "failed";
 
+// Build the From header: the per-sender display name on the ONE verified address
+// (RESEND_FROM_EMAIL), so recipients see the person who messaged them — not a
+// generic "SwiftCard" — while every user still sends from the same verified domain.
+function senderFrom(displayName: string | null | undefined): string {
+  const configured = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
+  const addr = configured.match(/<([^>]+)>/)?.[1] ?? configured.trim();
+  const name = (displayName || "SwiftCard").replace(/[<>"\r\n]/g, "").trim() || "SwiftCard";
+  return `${name} <${addr}>`;
+}
+
 // ── Opt-out / suppression (STOP compliance + email unsubscribe) ─────────────
 // SMS STOP must suppress that phone platform-wide (carrier requirement), so the
 // suppression list is keyed by normalized contact, not by user.
@@ -247,7 +257,8 @@ export async function sendBrandedEmail(opts: {
 
   try {
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+      // Recipient sees the person's name; replies go to the user's own inbox.
+      from: senderFrom(opts.senderName),
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject,
