@@ -210,18 +210,19 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => { if (status === "error" && !ready) captureAndUpload(); setOpen(true); }}
-        className="w-full text-left bg-gray-900 border border-gray-800/80 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
-      >
-        <p className="text-white font-semibold text-sm flex items-center gap-1.5"><span>✉️</span> Email signature</p>
+      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+        <p className="text-white font-semibold text-sm">Email signature</p>
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-          Copy this and use it as your email signature — an exact copy of your selected card.
+          Copy and use this as your email signature — a clickable link to your card, right in your signature. A new way to do things.
         </p>
-        <div className="mt-3"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></div>
-        <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 group-hover:text-blue-300">Preview &amp; copy →</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => { if (status === "error" && !ready) captureAndUpload(); setOpen(true); }}
+          className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors"
+        >
+          Preview &amp; copy
+        </button>
+      </div>
 
       {open && (
         <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
@@ -240,8 +241,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 </div>
                 <div className="px-4 py-3 text-[13px] text-gray-800 leading-relaxed">
                   <p>Hi Sarah,</p>
-                  <p className="mt-2">Really enjoyed chatting earlier — here&apos;s my card.</p>
-                  <p className="mt-2">Talk soon,</p>
+                  <p className="mt-2">Really enjoyed chatting earlier. My contact info is below in my signature. Let&apos;s keep in touch!</p>
+                  <p className="mt-2">Best,</p>
                   <div className="mt-3">
                     <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
