@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CardData } from "@/components/card-templates/types";
 import { withoutSocials } from "@/components/card-templates/types";
-import { HideQRContext } from "@/components/card-templates/qr-context";
 
 const ClassicPro    = dynamic(() => import("@/components/card-templates/ClassicPro"),    { ssr: false });
 const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBold"),    { ssr: false });
@@ -129,15 +128,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size render of the EXACT card template (QR hidden) used for capture */}
+      {/* Hidden full-size render of the EXACT selected card — a carbon copy, QR and all */}
       {mounted && (
-        <HideQRContext.Provider value={true}>
-          <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
-            <div ref={cardRef}>
-              <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
-            </div>
+        <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
+          <div ref={cardRef}>
+            <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
-        </HideQRContext.Provider>
+        </div>
       )}
 
       <button
