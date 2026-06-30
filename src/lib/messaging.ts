@@ -91,6 +91,7 @@ export function buildSmsBody(opts: { senderName: string; company?: string | null
   let body = opts.text.trim();
   body += `\n\n— ${opts.senderName}${opts.company ? `, ${opts.company}` : ""}`;
   if (opts.cardUrl) body += `\n${opts.cardUrl}`;
+  body += `\nvia SwiftCard ${APP_URL}/join?src=follow_up`;
   body = toGsm7(body);
   if (body.length > 480) body = body.slice(0, 477) + "...";
   return body;

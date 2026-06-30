@@ -35,6 +35,13 @@ create unique index if not exists referrals_referred_id_key on public.referrals 
 create index if not exists referrals_referrer_id_idx on public.referrals (referrer_id);
 create index if not exists referrals_status_idx on public.referrals (status);
 
+-- 2b) Fraud-signal columns: device fingerprint (signup) + card fingerprint (Stripe)
+alter table public.profiles  add column if not exists signup_device text;
+alter table public.profiles  add column if not exists payment_fingerprint text;
+alter table public.referrals add column if not exists signup_device text;
+create index if not exists profiles_payment_fingerprint_idx on public.profiles (payment_fingerprint) where payment_fingerprint is not null;
+create index if not exists profiles_signup_device_idx on public.profiles (signup_device) where signup_device is not null;
+
 -- 3) Backfill: give every EXISTING user a referral code -----------------------
 -- 8 hex chars from gen_random_uuid() (core Postgres 13+ — no pgcrypto needed, so
 -- this can't abort on a project where pgcrypto isn't enabled). Fills NULLs only.

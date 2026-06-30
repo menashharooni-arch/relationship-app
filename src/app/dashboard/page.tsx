@@ -15,6 +15,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import ReferAFriend from "@/components/ReferAFriend";
+import FirstLeadNudge from "@/components/FirstLeadNudge";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -400,6 +401,8 @@ export default async function DashboardPage({
           })()}
 
           {/* Free plan limit banner */}
+          <FirstLeadNudge leadCount={allLeads.length} isPro={isPro} />
+
           {!isPro && nearLimit && (
             <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
               <div className="flex items-center justify-between gap-4">
