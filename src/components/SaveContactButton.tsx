@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getVisitorId } from "@/lib/visitor";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 interface Person {
   name: string;
@@ -123,9 +124,12 @@ export default function SaveContactButton({
       }).catch(() => {});
     }
 
-    // Show conversion sheet after short delay (let the download dialog appear first)
+    // Show the "share your info back" lead-capture sheet (card owner's). If it
+    // won't show, invite the visitor to make their OWN card instead (signup nudge).
     if (cardOwner && !alreadyShared) {
       setTimeout(() => setShowSheet(true), 900);
+    } else {
+      setTimeout(() => triggerSignupNudge("vcard"), 900);
     }
   }
 
@@ -154,7 +158,8 @@ export default function SaveContactButton({
 
     setAlreadyShared(true);
     setStatus("done");
-    setTimeout(() => setShowSheet(false), 1500);
+    // After they share back, close the sheet and invite them to make their own card.
+    setTimeout(() => { setShowSheet(false); triggerSignupNudge("vcard"); }, 1500);
   }
 
   return (
