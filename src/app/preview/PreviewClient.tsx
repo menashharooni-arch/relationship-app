@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import ShareButton from "@/components/ShareButton";
+import MoreShareOptions from "@/components/MoreShareOptions";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -131,6 +133,7 @@ export default function PreviewClient() {
   const card = CARDS.find((c) => c.key === activeKey)!;
   const firstName = card.data.name.split(" ")[0];
   const traffic = card.traffic[range];
+  const cardUrl = `https://swiftcard.me/card/${card.handle}`;
   const toggleRead = (id: string) => setRead((p) => ({ ...p, [id]: !p[id] }));
 
   function copySig() {
@@ -336,8 +339,8 @@ export default function PreviewClient() {
               <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
             </Box>
             <Box className="space-y-2">
-              <div className="w-full bg-blue-600 text-white font-semibold text-sm py-2.5 rounded-full text-center">Share</div>
-              <div className="w-full text-gray-400 text-xs py-2 rounded-full text-center border border-gray-800">More ways to share</div>
+              <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
+              <MoreShareOptions url={cardUrl} />
             </Box>
           </div>
         </div>
