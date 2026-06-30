@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CardData } from "@/components/card-templates/types";
 import { withoutSocials } from "@/components/card-templates/types";
-import { HideQRContext } from "@/components/card-templates/qr-context";
 
 const ClassicPro    = dynamic(() => import("@/components/card-templates/ClassicPro"),    { ssr: false });
 const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBold"),    { ssr: false });
@@ -113,6 +112,10 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         ? Promise.resolve()
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
 
+      // Hide the QR for the signature (done in the DOM, not via context, so the
+      // templates stay server-renderable on the public card page).
+      el.querySelectorAll<HTMLElement>("[data-qr]").forEach((q) => { q.style.display = "none"; });
+
       // Enlarge the wording once, in place. The hidden card is off-screen so this is
       // invisible; the flag stops repeat captures from compounding the scale. Skip the
       // user-designed "custom" template (absolute-positioned elements would overlap).
@@ -184,16 +187,14 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size render of the selected card with the QR hidden. Cloned + enlarged
-          off-screen at capture time; html-to-image reads it via the browser engine. */}
+      {/* Hidden full-size render of the selected card. The QR is removed at capture time
+          (DOM), then the wording is enlarged; html-to-image reads it via the browser engine. */}
       {mounted && (
-        <HideQRContext.Provider value={true}>
-          <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
-            <div ref={cardRef} style={{ width: NATURAL }}>
-              <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
-            </div>
+        <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
+          <div ref={cardRef} style={{ width: NATURAL }}>
+            <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
-        </HideQRContext.Provider>
+        </div>
       )}
 
       <button
