@@ -18,10 +18,11 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
 };
 const NATURAL = 460;
-const FONT_SCALE = 1.42; // enlarge the writing to fill the space freed by the removed QR
+const FONT_SCALE = 1.22; // gentle: bigger wording that still sits comfortably in each template
 
-// Scale every font up and release truncation so the wording fills the card without
-// anything getting cut off. Applied to a throwaway clone, never the live card.
+// Scale the wording up uniformly (so each template keeps its own hierarchy and looks
+// organized) and release truncation so nothing gets cut off. The card grows in height
+// to absorb the bigger text instead of clipping it.
 function enlargeForSignature(root: HTMLElement) {
   root.querySelectorAll<HTMLElement>("*").forEach((node) => {
     const cs = getComputedStyle(node);
@@ -87,7 +88,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const capturingRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const atKey = `sc_sigat3_${username}`; // bump to force re-capture after a render change (QR off, bigger text)
+  const atKey = `sc_sigat4_${username}`; // bump to force re-capture after a render change (gentler scale)
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -113,8 +114,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
 
       // Enlarge the wording once, in place. The hidden card is off-screen so this is
-      // invisible; the flag stops repeat captures from compounding the scale.
-      if (!el.dataset.enlarged) {
+      // invisible; the flag stops repeat captures from compounding the scale. Skip the
+      // user-designed "custom" template (absolute-positioned elements would overlap).
+      if (template !== "custom" && !el.dataset.enlarged) {
         enlargeForSignature(el);
         el.dataset.enlarged = "1";
         await new Promise((r) => setTimeout(r, 200)); // let the reflow settle
