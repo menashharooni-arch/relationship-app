@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
+import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import QRCodeModal from "@/components/QRCodeModal";
@@ -213,6 +214,7 @@ export default async function CardPage({
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       <CardEventTracker username={profile.username} source={source} />
+      <SignupNudgeHost />
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
@@ -325,9 +327,7 @@ export default async function CardPage({
       {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
       {!isPaidPlan(profile.plan) && (
         <a
-          href={APP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`${APP_URL}/join?src=badge`}
           className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
         >
           <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>

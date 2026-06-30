@@ -213,7 +213,7 @@ export function personalEmailHtml(text: string, signature: string): string {
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <div>${paragraphs}</div>
   ${signature}
-  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent via SwiftCard</p>
+  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — get 1 month of Pro free.</p>
 </div>`;
 }
 

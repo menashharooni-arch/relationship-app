@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 export default function ConnectButton({
   cardOwner,
@@ -46,6 +47,7 @@ export default function ConnectButton({
         return;
       }
       setStatus("done");
+      triggerSignupNudge("share_info");
     } catch {
       setError("Couldn't send your message. Try again.");
       setStatus("error");
