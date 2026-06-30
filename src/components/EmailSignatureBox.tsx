@@ -87,7 +87,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const capturingRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const atKey = `sc_sigat5_${username}`; // bump to force re-capture after a render change (higher resolution)
+  const atKey = `sc_sigat6_${username}`; // bump to force re-capture after a render change (native-scale sharpness)
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -127,8 +127,21 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
+      // Render the card NATIVELY larger (transform scale) rather than bumping pixelRatio:
+      // foreignObject HTML rasterizes at 1x and pixelRatio only upscales it (blurry), so
+      // scaling the node up makes the text crisp at full resolution.
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(el, { pixelRatio: 6, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
+      const w = el.offsetWidth || NATURAL;
+      const h = el.offsetHeight || NATURAL;
+      const SCALE = 4;
+      const dataUrl = await toPng(el, {
+        width: w * SCALE,
+        height: h * SCALE,
+        pixelRatio: 1,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
+      });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
