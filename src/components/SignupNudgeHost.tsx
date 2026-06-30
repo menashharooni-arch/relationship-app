@@ -6,7 +6,9 @@ import { nudgeCopy } from "@/lib/referral";
 // True if a SwiftCard session cookie is present — we never nudge logged-in users.
 function isLoggedIn(): boolean {
   if (typeof document === "undefined") return false;
-  return /(?:^|;\s*)sb-[^=]*-auth-token=/.test(document.cookie);
+  // Match the Supabase auth cookie, including chunked variants (…-auth-token.0).
+  // The trailing "=" is intentionally omitted so the ".0" suffix doesn't break it.
+  return /(?:^|;\s*)sb-[^=;]*-auth-token/.test(document.cookie);
 }
 
 // Mounted once on public pages. Listens for `triggerSignupNudge(source)` events
