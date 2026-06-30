@@ -14,7 +14,10 @@ import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
+import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 import Link from "next/link";
+
+const SOCIAL_KEYS = new Set(["linkedin", "instagram", "tiktok", "facebook", "twitter", "snapchat", "youtube"]);
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -171,16 +174,22 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   async function handleSave() {
     setStatus("saving");
     const { snapchat: _snap, youtube: _yt, facebook: _fb, ...coreForm } = form;
+    // Normalize every social to a clean, linkable value so the saved links resolve.
+    const n = (k: string, v: string) => normalizeSocial(v, k);
     try {
       const res = await fetch(saveUrl, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...coreForm,
+          linkedin: n("linkedin", form.linkedin),
+          instagram: n("instagram", form.instagram),
+          twitter: n("twitter", form.twitter),
+          tiktok: n("tiktok", form.tiktok),
           phone: primaryPhone,
           ...(isPrimary ? {} : { label }),
           template,
-          customization: { bio, facebook: form.facebook, snapchat: form.snapchat, youtube: form.youtube, address, links, customLayout, phones: cleanPhones, fax: fax.trim() },
+          customization: { bio, facebook: n("facebook", form.facebook), snapchat: n("snapchat", form.snapchat), youtube: n("youtube", form.youtube), address, links, customLayout, phones: cleanPhones, fax: fax.trim() },
           logo_url: cardLogoUrl,
         }),
       });
@@ -305,17 +314,40 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
               );
             }
+            const isSocial = SOCIAL_KEYS.has(f.key);
+            const val = (form[f.key as keyof typeof form] ?? "") as string;
+            const linkHref = (isSocial || f.key === "website") ? socialUrl(f.key, val) : null;
             return (
               <div key={f.key}>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
+                {f.key === "linkedin" && (
+                  <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
+                    Paste a profile URL or type an @handle — we link it automatically. Tap <span className="text-blue-400 font-medium">Open</span> to test that a link goes to the right place.
+                  </p>
+                )}
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-400">{f.label}</label>
+                  {linkHref && (
+                    <a href={linkHref} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" /></svg>
+                      Open
+                    </a>
+                  )}
+                </div>
                 <input
                   type="text"
                   placeholder={f.placeholder}
                   required={f.required}
-                  value={form[f.key as keyof typeof form] ?? ""}
+                  value={val}
                   onChange={(e) => set(f.key, e.target.value)}
+                  onBlur={isSocial ? (e) => set(f.key, normalizeSocial(e.target.value, f.key)) : undefined}
                   className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                 />
+                {isSocial && SOCIAL_FORMATS[f.key] && (
+                  <p className="text-gray-600 text-[11px] mt-1">
+                    Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[f.key]}</span>
+                  </p>
+                )}
               </div>
             );
           })}
