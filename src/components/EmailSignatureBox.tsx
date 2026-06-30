@@ -51,6 +51,14 @@ type Props = {
   ogUrl: string;
 };
 
+// Short stable hash of a string (djb2). Used to detect when the SELECTED card's
+// content changes so the signature re-captures — and only ever for that card.
+function hashStr(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 function CardPreview({ src, ready, status, onLoad, onError }: {
   src: string; ready: boolean; status: "idle" | "working" | "error"; onLoad: () => void; onError: () => void;
 }) {
@@ -86,8 +94,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const cardRef = useRef<HTMLDivElement>(null);
   const capturingRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
+  const lastSigRef = useRef<string | null>(null); // content hash of the last successful capture
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const atKey = `sc_sigat6_${username}`; // bump to force re-capture after a render change (native-scale sharpness)
+  // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
+  // version). Re-captures exactly when the selected card changes; never reuses another
+  // card's image. "v7" bump = render-logic change.
+  const contentSig = "v7|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  const hashKey = `sc_sighash_${username}`;
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -98,6 +111,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   } as CardData;
 
   async function captureAndUpload(): Promise<string | null> {
+    // Never capture/upload without a real card identity (defensive: the dashboard
+    // only renders this with a selected card, but guard against any path collision).
+    if (!username || !/^[a-z0-9-]{1,40}$/i.test(username)) return null;
     if (capturingRef.current) return null;
     capturingRef.current = true;
     setStatus("working");
@@ -150,9 +166,10 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
       const url = `${storageUrl}?t=${Date.now()}`;
       lastUrlRef.current = url;
+      lastSigRef.current = contentSig;
       setDisplaySrc(url);
       setStatus("idle");
-      try { localStorage.setItem(atKey, String(Date.now())); } catch { /* ignore */ }
+      try { localStorage.setItem(hashKey, contentSig); } catch { /* ignore */ }
       return url;
     } catch {
       setStatus("error");
@@ -162,14 +179,19 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     }
   }
 
-  // On load: try the hosted image; (re)generate from the real card if missing/stale.
+  // On load / whenever THIS card's content changes: regenerate from the real card so the
+  // image always matches the currently-selected card. Keyed to username+content hash, so
+  // it never reuses or is triggered by a different card.
   useEffect(() => {
     setMounted(true);
-    let stale = true;
-    try { stale = Date.now() - Number(localStorage.getItem(atKey) || 0) > 30 * 60 * 1000; } catch { /* ignore */ }
-    if (stale) { const t = setTimeout(() => { captureAndUpload(); }, 500); return () => clearTimeout(t); }
+    let prev = "";
+    try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
+    if (prev !== contentSig) {
+      const t = setTimeout(() => { captureAndUpload(); }, 500);
+      return () => clearTimeout(t);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]);
+  }, [username, contentSig]);
 
   // Hosted image 404s (never captured) → generate from the real card. No wrong fallback image.
   function onImgError() {
@@ -178,8 +200,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   }
 
   async function copy() {
-    let img = lastUrlRef.current;
-    if (!img) img = await captureAndUpload();
+    setStatus("working");
+    // Wait out any in-flight capture, then ensure the image we copy was captured from
+    // THIS card's current content (re-capture if the card changed since last capture).
+    for (let i = 0; i < 80 && capturingRef.current; i++) await new Promise((r) => setTimeout(r, 100));
+    if (lastSigRef.current !== contentSig || !lastUrlRef.current) await captureAndUpload();
+    const img = lastUrlRef.current;
     if (!img) { setStatus("error"); return; }
     const html = buildSignatureHtml(name, company, cardUrl, img);
     try {
@@ -192,6 +218,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     } catch {
       try { await navigator.clipboard.writeText(html); } catch { /* ignore */ }
     }
+    setStatus("idle");
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
