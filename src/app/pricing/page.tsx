@@ -10,10 +10,10 @@ const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
 const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
 
 // Display prices (USD). Must match the amounts on your Stripe Price objects.
-const PRO_MONTHLY = 5;                 // $/month
-const PRO_ANNUAL = 54;                 // $/year — $5/mo × 12, 10% off
-const OFFICE_PER_USER = 4;             // $/user/month
-const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // $43.20/user/year, 10% off
+const PRO_MONTHLY = 4.99;              // $/month
+const PRO_ANNUAL = 54;                 // $/year — ~$4.50/mo, ~10% off $4.99
+const OFFICE_PER_USER = 3.99;          // $/user/month
+const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // ~$43.09/user/year, 10% off
 const OFFICE_MIN_SEATS = 2;
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
@@ -319,7 +319,7 @@ export default function PricingPage() {
           </div>
           <div className="mb-1">
             <div className="flex items-end gap-1">
-              <span className="text-4xl font-bold text-slate-900">${annual ? "3.60" : OFFICE_PER_USER}</span>
+              <span className="text-4xl font-bold text-slate-900">${annual ? "3.59" : OFFICE_PER_USER}</span>
               <span className="text-slate-400 text-sm mb-1.5">/ month per user</span>
             </div>
             <p className="text-purple-700 text-xs font-semibold mt-1">

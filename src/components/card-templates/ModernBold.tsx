@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, cardPhones, cardFax, webHref, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -113,25 +113,25 @@ export default function ModernBold({ data }: { data: CardData }) {
       >
         <div className="flex flex-col gap-[5px] mt-1">
           {cardPhones(data).map((p, i) => (
-            <div key={`ph${i}`} className="flex items-center gap-2" style={{ color: "#f1f5f9" }}>
+            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: "#f1f5f9", textDecoration: "none" }}>
               <span style={{ color: BLUE }}><IcoPhone /></span>
               <span className="font-bold" style={{ fontSize: 14.5 }}>
                 {formatPhone(p.number)}
                 {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
-            </div>
+            </a>
           ))}
           {data.email && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#e2e8f0" }}>
+            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: "#e2e8f0", textDecoration: "none" }}>
               <span style={{ color: BLUE }}><IcoMail /></span>
               <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
-            </div>
+            </a>
           )}
           {data.website && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#94a3b8" }}>
+            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: "#94a3b8", textDecoration: "none" }}>
               <span style={{ color: BLUE }}><IcoGlobe /></span>
               <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
-            </div>
+            </a>
           )}
           {data.address && (
             <div className="flex items-start gap-2" style={{ color: "#94a3b8" }}>
