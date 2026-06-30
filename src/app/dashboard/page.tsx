@@ -14,7 +14,7 @@ import CardPreviewDownload from "@/components/CardPreviewDownload";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
-import ReferAFriend from "@/components/ReferAFriend";
+import EmailSignatureBox from "@/components/EmailSignatureBox";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
@@ -420,44 +420,75 @@ export default async function DashboardPage({
             </div>
           )}
 
-          {/* Two-column layout: left=main, right=card panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+          {/* Top row: Traffic (thinner) + Swift Links + Email signature */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
 
-            {/* ── LEFT COLUMN ── */}
-            <div className="space-y-5">
-
-              {/* Traffic — SwiftCard & SwiftLink views */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-white font-semibold text-sm">Traffic</p>
-                  <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-                    {([
-                      { id: "today", label: "Today" },
-                      { id: "week", label: "Week" },
-                      { id: "month", label: "Month" },
-                    ] as const).map((r) => (
-                      <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
-                        className={`text-xs font-semibold px-3 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-                        {r.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
-                    { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
-                  ].map((m) => (
-                    <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
-                      <div className="min-w-0">
-                        <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
-                        <p className="text-gray-600 text-[11px]">{m.sub}</p>
-                      </div>
-                      <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
-                    </div>
+            {/* Traffic — SwiftCard & SwiftLink views */}
+            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white font-semibold text-sm">Traffic</p>
+                <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+                  {([
+                    { id: "today", label: "Today" },
+                    { id: "week", label: "Week" },
+                    { id: "month", label: "Month" },
+                  ] as const).map((r) => (
+                    <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+                      {r.label}
+                    </Link>
                   ))}
                 </div>
               </div>
+              <div className="space-y-3">
+                {[
+                  { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
+                  { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
+                ].map((m) => (
+                  <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
+                      <p className="text-gray-600 text-[11px]">{m.sub}</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Swift Links — a separate link from the business card */}
+            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+              <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
+                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, anywhere.
+              </p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
+              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+                <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
+                <CopyButton text={swiftUrl} />
+              </div>
+              <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+                Open Swift Links →
+              </a>
+            </div>
+
+            {/* Email signature generator */}
+            <EmailSignatureBox
+              name={(activeSource as { name?: string }).name ?? ""}
+              title={(activeSource as { title?: string }).title ?? ""}
+              company={(activeSource as { company?: string }).company ?? ""}
+              cardUrl={cardUrl}
+              ogImageUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
+            />
+          </div>
+
+          {/* Main: contacts + card panel */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+
+            {/* ── LEFT COLUMN ── */}
+            <div className="space-y-5 order-2 lg:order-none">
 
               {/* Contacts section */}
               <div>
@@ -585,29 +616,11 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            {/* ── RIGHT COLUMN — sticky card panel (mobile: shows first, reordered) ── */}
-            <div className="flex flex-col gap-4 order-first lg:order-none lg:sticky lg:top-20 lg:self-start">
-
-              {/* Swift Links — a separate link from the business card */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 order-3 lg:order-1">
-                <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
-                  Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, email signature, anywhere.
-                </p>
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
-                <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                  </svg>
-                  <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
-                  <CopyButton text={swiftUrl} />
-                </div>
-                <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
-                  Open Swift Links →
-                </a>
-              </div>
+            {/* ── RIGHT COLUMN — card panel (Your Card + Share, kept together) ── */}
+            <div className="flex flex-col gap-4 order-1 lg:order-none lg:sticky lg:top-20 lg:self-start">
 
               {/* Your card */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 order-1 lg:order-2">
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
                 <CardPreviewDownload
                   data={cardData}
@@ -618,7 +631,7 @@ export default async function DashboardPage({
               </div>
 
               {/* Share */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2 order-2 lg:order-3">
+              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
                 <ShareButton
                   url={cardUrl}
                   title="My SwiftCard"
@@ -626,14 +639,6 @@ export default async function DashboardPage({
                   label="Share"
                 />
                 <MoreShareOptions url={cardUrl} />
-              </div>
-
-              {/* Refer a friend */}
-              <div className="order-4 lg:order-4">
-                <ReferAFriend
-                  code={(profile as { referral_code?: string | null }).referral_code ?? null}
-                  rewardEarned={!!(profile as { referral_reward_earned?: boolean }).referral_reward_earned}
-                />
               </div>
             </div>
 
