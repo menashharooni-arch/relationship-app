@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CardData } from "@/components/card-templates/types";
 import { withoutSocials } from "@/components/card-templates/types";
+import { HideQRContext } from "@/components/card-templates/qr-context";
 
 const ClassicPro    = dynamic(() => import("@/components/card-templates/ClassicPro"),    { ssr: false });
 const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBold"),    { ssr: false });
@@ -17,6 +18,27 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
 };
 const NATURAL = 460;
+const FONT_SCALE = 1.42; // enlarge the writing to fill the space freed by the removed QR
+
+// Scale every font up and release truncation so the wording fills the card without
+// anything getting cut off. Applied to a throwaway clone, never the live card.
+function enlargeForSignature(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>("*").forEach((node) => {
+    const cs = getComputedStyle(node);
+    const fs = parseFloat(cs.fontSize);
+    if (fs) node.style.fontSize = `${(fs * FONT_SCALE).toFixed(2)}px`;
+    if (cs.whiteSpace === "nowrap") {
+      node.style.whiteSpace = "normal";
+      node.style.maxWidth = "none";
+      node.style.minWidth = "0";
+      node.style.textOverflow = "clip";
+      node.style.overflow = "visible";
+    }
+  });
+  root.style.height = "auto";
+  root.style.minHeight = "0";
+  root.style.overflow = "visible";
+}
 
 type Props = {
   cardData: CardData;
@@ -50,7 +72,7 @@ function buildSignatureHtml(name: string, company: string, cardUrl: string, imgU
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
 ${header}
 <a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="340" style="display:block;border:0;border-radius:12px;" /></a>
-<div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me →</a></div>
+<div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me</a></div>
 </td></tr></table>`;
 }
 
@@ -79,6 +101,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     if (capturingRef.current) return null;
     capturingRef.current = true;
     setStatus("working");
+    let holder: HTMLDivElement | null = null;
     try {
       const el = cardRef.current;
       if (!el) return null;
@@ -89,12 +112,23 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
         ? Promise.resolve()
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
-      await new Promise((r) => setTimeout(r, 150));
+
+      // Clone the (QR-less) card off-screen and enlarge the clone's text, so the live
+      // card is never mutated and repeat captures don't compound the scaling.
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.style.width = `${NATURAL}px`;
+      holder = document.createElement("div");
+      holder.setAttribute("aria-hidden", "true");
+      holder.style.cssText = `position:absolute;left:-10000px;top:0;width:${NATURAL}px;background:#fff;`;
+      holder.appendChild(clone);
+      document.body.appendChild(holder);
+      enlargeForSignature(clone);
+      await new Promise((r) => setTimeout(r, 200)); // let the reflow + cached images settle
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(el, { pixelRatio: 3, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
+      const dataUrl = await toPng(clone, { pixelRatio: 4, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
@@ -111,6 +145,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       setStatus("error");
       return null;
     } finally {
+      if (holder) { try { document.body.removeChild(holder); } catch { /* ignore */ } }
       capturingRef.current = false;
     }
   }
@@ -153,14 +188,16 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden render of the EXACT selected card. Clipped 0×0 wrapper (no layout impact),
-          but the card inside keeps its full size so html2canvas can capture it reliably. */}
+      {/* Hidden full-size render of the selected card with the QR hidden. Cloned + enlarged
+          off-screen at capture time; html-to-image reads it via the browser engine. */}
       {mounted && (
-        <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
-          <div ref={cardRef} style={{ width: NATURAL }}>
-            <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
+        <HideQRContext.Provider value={true}>
+          <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
+            <div ref={cardRef} style={{ width: NATURAL }}>
+              <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
+            </div>
           </div>
-        </div>
+        </HideQRContext.Provider>
       )}
 
       <button
@@ -198,7 +235,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                   <div className="mt-3">
                     <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
-                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me →</a>
+                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me</a>
                   </div>
                 </div>
               </div>

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!owned.includes(username)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const buffer = Buffer.from(dataUrl.split(",")[1], "base64");
-  if (buffer.length > 6_000_000) return NextResponse.json({ error: "too large" }, { status: 413 });
+  if (buffer.length > 12_000_000) return NextResponse.json({ error: "too large" }, { status: 413 });
 
   const admin = getAdminSupabase();
   await admin.storage.createBucket(BUCKET, { public: true }).catch(() => {}); // idempotent
