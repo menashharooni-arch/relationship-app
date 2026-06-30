@@ -39,8 +39,8 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: "No app required",
-    body: "Your card opens in any browser on any device. One tap saves your contact directly to their phone.",
+    title: "Our app is best to use, but not required",
+    body: "SwiftCard works right in any browser — nothing to download for you or the people you share with. Our app just makes building cards and managing your leads and follow-ups even smoother on the go.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3" />
@@ -48,8 +48,26 @@ const FEATURES = [
     ),
   },
   {
+    title: "One-click email signature",
+    body: "Add your live business card to your email signature in one click — the card image plus tap-to-call, email, and website links. It always reflects your latest card, so every email you send shares it.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+      </svg>
+    ),
+  },
+  {
+    title: "Tap to call, email & visit",
+    body: "On your card, your phone, email, and website are live — one tap starts a call, opens an email, or visits your site. Sharing your socials on mobile opens the app, not just the browser.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
+      </svg>
+    ),
+  },
+  {
     title: "Swift Links page",
-    body: "Every card gets a modern link-in-bio page — your photo, bio, social icons, video previews, and custom buttons — at your own swiftcard.me/links address.",
+    body: "Every card gets a modern link-in-bio page — your photo, bio, social icons, rich link & video previews, and custom buttons — at your own swiftcard.me/links address.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
@@ -180,12 +198,16 @@ const FAQS = [
     a: "Every card comes with its own Swift Links page — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Share it anywhere you'd drop a link, like your Instagram or TikTok bio.",
   },
   {
+    q: "Can I put my card in my email signature?",
+    a: "Yes — copy your live business card straight into your email signature in one click. It includes your card image with tap-to-call, email, and website links, and it always reflects your latest card, so every email you send shares it.",
+  },
+  {
     q: "Can I use SwiftCard with NFC cards?",
     a: "Yes. Your card URL is NFC-ready out of the box. Buy any blank NFC card or sticker, write your SwiftCard link to it with a free app, and anyone who taps it sees your card instantly.",
   },
   {
     q: "What's the difference between Free and Pro?",
-    a: "Free gives you up to 3 cards and 25 leads — plenty to get started. Pro removes the lead limit, gives you unlimited cards, the custom card designer, full analytics, integrations, and removes the SwiftCard branding from your card.",
+    a: "Free gives you 1 card and up to 25 leads — plenty to get started. Pro removes the lead limit, gives you unlimited cards, the custom card designer, full analytics, integrations, and removes the SwiftCard branding from your card.",
   },
   {
     q: "Can I cancel anytime?",
