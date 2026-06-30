@@ -69,8 +69,10 @@ function PlanBadge({ plan, userId, onUpdated }: { plan: string; userId: string; 
 }
 
 export default function AdminPanel() {
-  const [tab, setTab] = useState<"users" | "promos" | "broadcast">("users");
+  const [tab, setTab] = useState<"users" | "promos" | "broadcast" | "referrals">("users");
   const [users, setUsers] = useState<User[]>([]);
+  const [refStats, setRefStats] = useState<{ ready: boolean; message?: string; bySource?: Record<string, number>; totalReferrals?: number; paid?: number; rewarded?: number; flagged?: number; selfReferral?: number; activeFreeMonths?: number; conversionRate?: number; flaggedList?: { code: string | null; reason: string; created_at: string }[] } | null>(null);
+  const [refLoading, setRefLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -110,8 +112,16 @@ export default function AdminPanel() {
     setPromosLoading(false);
   }, []);
 
+  const loadRefs = useCallback(async () => {
+    setRefLoading(true);
+    const res = await fetch("/api/admin/referrals");
+    if (res.ok) setRefStats(await res.json());
+    setRefLoading(false);
+  }, []);
+
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === "promos") loadPromos(); }, [tab, loadPromos]);
+  useEffect(() => { if (tab === "referrals") loadRefs(); }, [tab, loadRefs]);
 
   async function sendBroadcast(e: React.FormEvent) {
     e.preventDefault();
@@ -217,16 +227,82 @@ export default function AdminPanel() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 bg-gray-900 border border-gray-800 rounded-xl p-1 w-fit">
-          {(["users", "promos", "broadcast"] as const).map((t) => (
+          {(["users", "promos", "broadcast", "referrals"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
             >
-              {t === "users" ? "Users" : t === "promos" ? "Promo Codes" : "Broadcast"}
+              {t === "users" ? "Users" : t === "promos" ? "Promo Codes" : t === "broadcast" ? "Broadcast" : "Referrals"}
             </button>
           ))}
         </div>
+
+        {tab === "referrals" && (
+          <div>
+            {refLoading ? (
+              <div className="px-5 py-10 text-center text-gray-500 text-sm">Loading…</div>
+            ) : !refStats?.ready ? (
+              <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl px-5 py-4 text-amber-200 text-sm max-w-xl">
+                {refStats?.message || "Referral analytics aren't available yet — run REFERRAL_SETUP.sql in Supabase."}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Referred signups", value: refStats.totalReferrals ?? 0 },
+                    { label: "Signup → paid", value: `${refStats.conversionRate ?? 0}%` },
+                    { label: "Rewards granted", value: refStats.rewarded ?? 0 },
+                    { label: "Active free months", value: refStats.activeFreeMonths ?? 0 },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
+                      <p className="text-2xl font-bold tabular-nums">{typeof s.value === "number" ? s.value.toLocaleString() : s.value}</p>
+                      <p className="text-gray-400 text-xs mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                  <p className="text-white font-semibold text-sm mb-3">Signups by source</p>
+                  <div className="space-y-2">
+                    {Object.entries(refStats.bySource ?? {}).sort((a, b) => b[1] - a[1]).map(([src, n]) => {
+                      const max = Math.max(...Object.values(refStats.bySource ?? { x: 1 }), 1);
+                      return (
+                        <div key={src} className="flex items-center gap-3">
+                          <span className="text-gray-300 text-xs w-32 shrink-0">{src.replace(/_/g, " ")}</span>
+                          <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(n / max) * 100}%` }} />
+                          </div>
+                          <span className="text-gray-400 text-xs w-10 text-right tabular-nums">{n}</span>
+                        </div>
+                      );
+                    })}
+                    {Object.keys(refStats.bySource ?? {}).length === 0 && <p className="text-gray-500 text-xs">No signups yet.</p>}
+                  </div>
+                </div>
+
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                  <p className="text-white font-semibold text-sm mb-1">
+                    Suspicious <span className="text-gray-500 font-normal">({refStats.flagged ?? 0} flagged · {refStats.selfReferral ?? 0} self-referrals)</span>
+                  </p>
+                  {(refStats.flaggedList ?? []).length === 0 ? (
+                    <p className="text-gray-500 text-xs mt-2">Nothing suspicious so far.</p>
+                  ) : (
+                    <div className="mt-2 divide-y divide-gray-800/60">
+                      {(refStats.flaggedList ?? []).map((f, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs py-1.5">
+                          <span className="font-mono text-gray-400">{f.code || "—"}</span>
+                          <span className="text-amber-400">{f.reason.replace(/_/g, " ")}</span>
+                          <span className="text-gray-600">{new Date(f.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === "broadcast" && (
           <div className="max-w-xl">
