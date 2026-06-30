@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { buildConnectLinks } from "@/lib/social-url";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import PlatformIcon from "@/components/PlatformIcon";
+import SocialIcons from "@/components/SocialIcons";
 import ConnectButton from "@/components/ConnectButton";
 import CardEventTracker from "@/components/CardEventTracker";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
@@ -109,23 +109,8 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
           <ConnectButton cardOwner={username} ownerFirstName={firstName} />
         </div>
 
-        {/* Social icons */}
-        {socials.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
-            {socials.map((s) => (
-              <a
-                key={s.label}
-                href={s.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={s.label}
-                className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur"
-              >
-                <PlatformIcon label={s.label} className="w-[22px] h-[22px]" />
-              </a>
-            ))}
-          </div>
-        )}
+        {/* Social icons — on mobile these open the native app if installed */}
+        <SocialIcons socials={socials.map((s) => ({ label: s.label, href: s.href }))} />
 
         {/* Additional links — preview thumbnails ("the face of the page") for
             video links and any link with an Open Graph image (Zillow, etc.). */}

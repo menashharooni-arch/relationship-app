@@ -5,14 +5,15 @@ import { videoThumbnail } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 type Link = { emoji: string; label: string; url: string };
+type Preview = { image: string | null; favicon: string | null; title: string | null };
 
 function fullHref(url: string) {
   return url.startsWith("http") ? url : `https://${url}`;
 }
 
 export default function SwiftLinkButtons({ links }: { links: Link[] }) {
-  // Fetched Open Graph images for non-video links (index → image url | null).
-  const [previews, setPreviews] = useState<Record<number, string | null>>({});
+  // Fetched preview (og:image + favicon fallback) for non-video links, by index.
+  const [previews, setPreviews] = useState<Record<number, Preview>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -20,8 +21,8 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
       if (videoThumbnail(link.url)) return; // video handled instantly below
       fetch(`/api/link-preview?url=${encodeURIComponent(fullHref(link.url))}`)
         .then((r) => r.json())
-        .then((d) => { if (!cancelled) setPreviews((p) => ({ ...p, [i]: d.image || null })); })
-        .catch(() => { if (!cancelled) setPreviews((p) => ({ ...p, [i]: null })); });
+        .then((d: Preview) => { if (!cancelled) setPreviews((p) => ({ ...p, [i]: d })); })
+        .catch(() => { if (!cancelled) setPreviews((p) => ({ ...p, [i]: { image: null, favicon: null, title: null } })); });
     });
     return () => { cancelled = true; };
   }, [links]);
@@ -33,9 +34,13 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
       {links.map((link, i) => {
         const href = fullHref(link.url);
         const videoThumb = videoThumbnail(link.url);
-        const thumb = videoThumb || previews[i];
+        const pv = previews[i];
+        const bigImg = videoThumb || pv?.image || null;
+        const favicon = pv?.favicon || null;
+        const showThumb = bigImg || favicon;
 
-        if (thumb) {
+        if (showThumb) {
+          const faviconOnly = !bigImg && !!favicon;
           return (
             <a
               key={i}
@@ -45,9 +50,13 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
               onClick={() => triggerSignupNudge("link_button")}
               className="w-full p-2 pr-4 rounded-2xl text-sm text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur flex items-center gap-3"
             >
-              <div className="relative w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-black/40">
+              <div className="relative w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={thumb} alt={link.label} className="w-full h-full object-cover" />
+                <img
+                  src={(bigImg || favicon) as string}
+                  alt={link.label}
+                  className={faviconOnly ? "w-7 h-7 object-contain" : "w-full h-full object-cover"}
+                />
                 {videoThumb && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-7 h-7 rounded-full bg-black/55 flex items-center justify-center">
@@ -56,7 +65,12 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
                   </div>
                 )}
               </div>
-              <span className="font-semibold truncate flex-1 text-left">{link.label}</span>
+              <span className="flex flex-col min-w-0 flex-1 text-left">
+                <span className="font-semibold truncate">{link.label}</span>
+                {faviconOnly && pv?.title && (
+                  <span className="text-[11px] font-normal text-white/55 truncate">{pv.title}</span>
+                )}
+              </span>
             </a>
           );
         }
