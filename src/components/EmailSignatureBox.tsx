@@ -24,6 +24,8 @@ type Props = {
   name: string;
   company: string;
   cardUrl: string;
+  storageUrl: string; // stable hosted URL of the captured card (may not exist yet)
+  ogUrl: string;      // instant server-rendered fallback card image
 };
 
 function buildSignatureHtml(name: string, company: string, cardUrl: string, imgUrl: string): string {
@@ -35,34 +37,36 @@ ${header}
 </td></tr></table>`;
 }
 
-export default function EmailSignatureBox({ cardData, template, name, company, cardUrl }: Props) {
+export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, storageUrl, ogUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [displaySrc, setDisplaySrc] = useState(storageUrl); // optimistic: hosted capture
+  const [hasCaptured, setHasCaptured] = useState(true);
   const [regen, setRegen] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const cacheKey = `sc_sig_${cardUrl}`;
+  const atKey = `sc_sigat_${cardUrl}`;
 
-  // On load: show a cached image instantly, and (re)generate it automatically if
-  // it's missing or stale — no click needed.
+  // On load: only (re)capture in the background if the hosted image is stale.
   useEffect(() => {
-    let fresh = false;
-    try {
-      const raw = localStorage.getItem(cacheKey);
-      if (raw) {
-        const c = JSON.parse(raw);
-        if (c.url) setImgUrl(c.url);
-        fresh = Date.now() - (c.at || 0) < 6 * 3600 * 1000;
-      }
-    } catch { /* ignore */ }
     setMounted(true);
-    if (!fresh) setRegen((n) => n + 1);
+    let stale = true;
+    try { stale = Date.now() - Number(localStorage.getItem(atKey) || 0) > 6 * 3600 * 1000; } catch { /* ignore */ }
+    if (stale) setRegen((n) => n + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardUrl]);
 
-  // Capture the hidden card pixel-perfect and host it whenever a regen is requested.
+  // The hosted image 404s before the first capture → fall back to the instant
+  // server image AND trigger a capture so next time it's the real card.
+  function onImgError() {
+    if (displaySrc.startsWith(ogUrl)) return;
+    setHasCaptured(false);
+    setDisplaySrc(ogUrl);
+    setRegen((n) => n + 1);
+  }
+
+  // Capture the hidden card pixel-perfect and host it.
   useEffect(() => {
     if (!mounted || regen === 0) return;
     let cancelled = false;
@@ -74,26 +78,24 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
         const dataUrl = canvas.toDataURL("image/png");
         const res = await fetch("/api/card-signature", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dataUrl }),
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl }),
         });
-        const d = await res.json().catch(() => ({}));
-        if (!cancelled && d.url) {
-          setImgUrl(d.url);
-          try { localStorage.setItem(cacheKey, JSON.stringify({ url: d.url, at: Date.now() })); } catch { /* ignore */ }
+        if (!res.ok) return;
+        if (!cancelled) {
+          setHasCaptured(true);
+          setDisplaySrc(`${storageUrl}?t=${Date.now()}`);
+          try { localStorage.setItem(atKey, String(Date.now())); } catch { /* ignore */ }
         }
       } catch { /* ignore */ }
-    }, 800); // let the card's photo + QR finish rendering
+    }, 800);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, regen]);
 
-  function openBox() { setOpen(true); }
+  const signatureImg = hasCaptured ? storageUrl : ogUrl;
 
   async function copy() {
-    if (!imgUrl) return;
-    const html = buildSignatureHtml(name, company, cardUrl, imgUrl);
+    const html = buildSignatureHtml(name, company, cardUrl, signatureImg);
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -110,8 +112,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size card render used only for the capture */}
-      {mounted && (
+      {/* Hidden full-size card render — only mounted while capturing */}
+      {regen > 0 && (
         <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
           <div ref={cardRef}>
             <Template data={template === "custom" ? cardData : withoutSocials(cardData)} />
@@ -119,21 +121,19 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         </div>
       )}
 
-      {/* Dashboard card */}
+      {/* Dashboard card — image is always there */}
       <button
         type="button"
-        onClick={openBox}
+        onClick={() => setOpen(true)}
         className="w-full text-left bg-gray-900 border border-gray-800/80 rounded-2xl p-5 hover:border-gray-700 transition-colors group"
       >
         <p className="text-white font-semibold text-sm flex items-center gap-1.5"><span>✉️</span> Email signature</p>
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
           Copy this and use it as your email signature — your real card in every email you send.
         </p>
-        <div className="mt-3 rounded-xl border border-gray-700/60 bg-gray-800/40 h-28 flex items-center justify-center text-gray-500 text-xs">
-          {imgUrl
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={imgUrl} alt="Your card" className="h-full w-auto object-contain py-2" />
-            : "Generating from your card…"}
+        <div className="mt-3 rounded-xl border border-gray-700/60 bg-white h-28 flex items-center justify-center overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={displaySrc} onError={onImgError} alt="Your card" className="h-full w-auto object-contain py-2" />
         </div>
         <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 group-hover:text-blue-300">Preview &amp; copy →</span>
       </button>
@@ -162,28 +162,22 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                   <p className="mt-2">Talk soon,</p>
                   <div className="mt-3">
                     <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
-                    {imgUrl ? (
-                      <a href={cardUrl} target="_blank" rel="noopener noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imgUrl} alt="card" width={200} className="block rounded-[12px]" />
-                      </a>
-                    ) : (
-                      <div className="h-40 w-[200px] rounded-[12px] bg-gray-100 flex items-center justify-center text-gray-400 text-xs">Generating your card…</div>
-                    )}
+                    <a href={cardUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={displaySrc} onError={onImgError} alt="card" width={200} className="block rounded-[12px]" />
+                    </a>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me →</a>
                   </div>
                 </div>
               </div>
 
-              <button onClick={copy} disabled={!imgUrl}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {!imgUrl ? "Generating your card…" : copied ? "Copied ✓ — now paste it into your email signature" : "Copy signature"}
+              <button onClick={copy}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
+                {copied ? "Copied ✓ — now paste it into your email signature" : "Copy signature"}
               </button>
-              <div className="flex items-center justify-center gap-1.5 mt-2">
-                <p className="text-gray-600 text-[11px] text-center">
-                  Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. Links straight to your SwiftCard.
-                </p>
-              </div>
+              <p className="text-gray-600 text-[11px] mt-2 text-center">
+                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. Links straight to your SwiftCard.
+              </p>
               <button onClick={() => setRegen((n) => n + 1)} className="w-full mt-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors">
                 Edited your card? Update the image ↻
               </button>
