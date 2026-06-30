@@ -7,6 +7,7 @@ import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
+import { getReferralStatus } from "@/lib/referral-server";
 import CrmEventSettings from "@/components/CrmEventSettings";
 import HelpWidget from "@/components/HelpWidget";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
@@ -42,6 +43,7 @@ export default async function FlowSettingsPage() {
       .order("created_at", { ascending: true }),
   ]);
 
+  const referral = await getReferralStatus(user.id);
   const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
 
@@ -118,7 +120,7 @@ export default async function FlowSettingsPage() {
                 zapierConnected={!!profile.zapier_webhook_url}
                 isPro={isPro}
               />
-              <ReferAFriend username={profile.username} />
+              <ReferAFriend code={referral?.code ?? null} rewardEarned={!!referral?.rewardEarned} />
             </div>
           </div>
 

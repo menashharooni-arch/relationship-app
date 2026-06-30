@@ -7,6 +7,7 @@ import PlatformIcon from "@/components/PlatformIcon";
 import ConnectButton from "@/components/ConnectButton";
 import CardEventTracker from "@/components/CardEventTracker";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
+import SignupNudgeHost from "@/components/SignupNudgeHost";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -79,6 +80,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
       style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
     >
       <CardEventTracker username={username} source="swift_links" viewSurface="links" />
+      <SignupNudgeHost />
 
       {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #6366f1, transparent 70%)" }} />
@@ -132,7 +134,7 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
 
       {/* Footer — "Made with SwiftCard" badge on Free, removed on Pro/Office */}
       {!ownerPaid ? (
-        <a href={APP_URL} target="_blank" rel="noopener noreferrer" className="relative mt-10 flex items-center gap-1.5 text-white/45 text-[11px] hover:text-white/80 transition-colors">
+        <a href={`${APP_URL}/join?src=badge`} className="relative mt-10 flex items-center gap-1.5 text-white/45 text-[11px] hover:text-white/80 transition-colors">
           <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
           Made with SwiftCard.me
         </a>

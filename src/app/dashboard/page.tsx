@@ -14,6 +14,7 @@ import CardPreviewDownload from "@/components/CardPreviewDownload";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
+import ReferAFriend from "@/components/ReferAFriend";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -617,6 +618,14 @@ export default async function DashboardPage({
                   label="Share"
                 />
                 <MoreShareOptions url={cardUrl} />
+              </div>
+
+              {/* Refer a friend */}
+              <div className="order-4 lg:order-4">
+                <ReferAFriend
+                  code={(profile as { referral_code?: string | null }).referral_code ?? null}
+                  rewardEarned={!!(profile as { referral_reward_earned?: boolean }).referral_reward_earned}
+                />
               </div>
             </div>
 

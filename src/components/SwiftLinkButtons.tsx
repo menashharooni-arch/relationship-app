@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { videoThumbnail } from "@/lib/video";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 type Link = { emoji: string; label: string; url: string };
 
@@ -41,6 +42,7 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => triggerSignupNudge("link_button")}
               className="w-full p-2 pr-4 rounded-2xl text-sm text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur flex items-center gap-3"
             >
               <div className="relative w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-black/40">
@@ -65,6 +67,7 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => triggerSignupNudge("link_button")}
             className="w-full py-3 px-5 rounded-2xl font-semibold text-sm text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur flex items-center justify-between"
           >
             <span className="truncate">{link.label}</span>
