@@ -39,19 +39,32 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [regen, setRegen] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
+  const cacheKey = `sc_sig_${cardUrl}`;
 
-  function openBox() {
-    setOpen(true);
-    if (!imgUrl && !busy) { setBusy(true); setMounted(true); }
-  }
-
-  // Once the hidden card has mounted, capture it pixel-perfect and host it.
+  // On load: show a cached image instantly, and (re)generate it automatically if
+  // it's missing or stale — no click needed.
   useEffect(() => {
-    if (!mounted || imgUrl) return;
+    let fresh = false;
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const c = JSON.parse(raw);
+        if (c.url) setImgUrl(c.url);
+        fresh = Date.now() - (c.at || 0) < 6 * 3600 * 1000;
+      }
+    } catch { /* ignore */ }
+    setMounted(true);
+    if (!fresh) setRegen((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardUrl]);
+
+  // Capture the hidden card pixel-perfect and host it whenever a regen is requested.
+  useEffect(() => {
+    if (!mounted || regen === 0) return;
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
@@ -66,13 +79,17 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
           body: JSON.stringify({ dataUrl }),
         });
         const d = await res.json().catch(() => ({}));
-        if (!cancelled && d.url) setImgUrl(d.url);
-      } catch { /* keep busy=false below */ } finally {
-        if (!cancelled) setBusy(false);
-      }
+        if (!cancelled && d.url) {
+          setImgUrl(d.url);
+          try { localStorage.setItem(cacheKey, JSON.stringify({ url: d.url, at: Date.now() })); } catch { /* ignore */ }
+        }
+      } catch { /* ignore */ }
     }, 800); // let the card's photo + QR finish rendering
     return () => { cancelled = true; clearTimeout(t); };
-  }, [mounted, imgUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, regen]);
+
+  function openBox() { setOpen(true); }
 
   async function copy() {
     if (!imgUrl) return;
@@ -116,7 +133,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
           {imgUrl
             // eslint-disable-next-line @next/next/no-img-element
             ? <img src={imgUrl} alt="Your card" className="h-full w-auto object-contain py-2" />
-            : "Click to generate from your card"}
+            : "Generating from your card…"}
         </div>
         <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 group-hover:text-blue-300">Preview &amp; copy →</span>
       </button>
@@ -162,9 +179,14 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
                 {!imgUrl ? "Generating your card…" : copied ? "Copied ✓ — now paste it into your email signature" : "Copy signature"}
               </button>
-              <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong> (or Outlook / Apple Mail). The card image links straight to your SwiftCard.
-              </p>
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                <p className="text-gray-600 text-[11px] text-center">
+                  Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. Links straight to your SwiftCard.
+                </p>
+              </div>
+              <button onClick={() => setRegen((n) => n + 1)} className="w-full mt-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors">
+                Edited your card? Update the image ↻
+              </button>
             </div>
           </div>
         </div>
