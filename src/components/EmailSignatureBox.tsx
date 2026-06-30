@@ -88,7 +88,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const capturingRef = useRef(false);
   const lastUrlRef = useRef<string | null>(null);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
-  const atKey = `sc_sigat4_${username}`; // bump to force re-capture after a render change (gentler scale)
+  const atKey = `sc_sigat5_${username}`; // bump to force re-capture after a render change (higher resolution)
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -125,7 +125,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(el, { pixelRatio: 4, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
+      const dataUrl = await toPng(el, { pixelRatio: 6, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
