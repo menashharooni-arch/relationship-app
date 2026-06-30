@@ -76,26 +76,50 @@ export default function HeroPhone() {
                 </div>
               </div>
 
-              {/* Card page content */}
+              {/* Card page content — mirrors the real public card page */}
               <div style={{ padding: "12px 12px 0" }}>
-                <div style={{ height: "156px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
+                {/* The live business card */}
+                <div style={{ height: "150px", overflow: "hidden", marginBottom: "9px", borderRadius: "12px" }}>
                   <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
                     <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
                   </div>
                 </div>
 
-                <div style={{ background: "#1D4ED8", color: "#fff", borderRadius: "99px", padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700, marginBottom: "8px" }}>
-                  💾 Save Alex&apos;s contact
+                {/* Save contact */}
+                <div style={{ background: "#1D4ED8", color: "#fff", borderRadius: "99px", padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700, marginBottom: "7px", display: "flex", alignItems: "center", justifyContent: "center", gap: "5px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: "12px", height: "12px" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21v-8H5v8M5 3h11l3 3v3M9 3v4h6" />
+                  </svg>
+                  Save Alex&apos;s contact
                 </div>
 
+                {/* Connect row */}
+                <div style={{ display: "flex", gap: "5px", marginBottom: "7px" }}>
+                  {[
+                    { label: "LinkedIn", color: "#0A66C2" },
+                    { label: "Instagram", color: "#E1306C" },
+                    { label: "Website", color: "#1D4ED8" },
+                  ].map((c) => (
+                    <div key={c.label} style={{ flex: 1, height: "26px", borderRadius: "8px", background: c.color + "14", border: `1px solid ${c.color}33`, color: c.color, fontSize: "8.5px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {c.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Share your info form */}
                 <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "10px", border: "1px solid #D4C8B8" }}>
                   <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", margin: "0 0 7px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Share your info with Alex →
+                    Share your info with Alex
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                    <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                    <div style={{ height: "24px", background: "#1D4ED8", borderRadius: "7px" }} />
+                    {["Full name", "Email address", "Phone number"].map((ph) => (
+                      <div key={ph} style={{ height: "26px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8", display: "flex", alignItems: "center", padding: "0 9px", fontSize: "9px", color: "#9ca3af" }}>
+                        {ph}
+                      </div>
+                    ))}
+                    <div style={{ height: "28px", background: "#1D4ED8", color: "#fff", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9.5px", fontWeight: 700 }}>
+                      Share my info →
+                    </div>
                   </div>
                 </div>
               </div>
