@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
-import PlatformIcon from "@/components/PlatformIcon";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -36,7 +35,7 @@ const CARDS: DemoCard[] = [
   {
     key: "sales",
     label: "Sales Card",
-    handle: "alex-sales",
+    handle: "demo-sales",
     template: "modern-bold",
     accent: "#2563eb",
     bio: "Helping revenue teams close faster with Northwind. Always happy to talk shop ☕",
@@ -65,7 +64,7 @@ const CARDS: DemoCard[] = [
   {
     key: "realestate",
     label: "Real Estate Card",
-    handle: "alex-realty",
+    handle: "demo-realty",
     template: "local-business",
     accent: "#d97706",
     bio: "Coastal & city homes across the Bay Area. Tap below to browse listings or book a tour 🏡",
@@ -115,26 +114,28 @@ function CardRender({ card, zoom = 0.8 }: { card: DemoCard; zoom?: number }) {
   );
 }
 
-function PhoneFrame({ children, bg = "#FAF7F2" }: { children: React.ReactNode; bg?: string }) {
+// Full-page takeover with a top bar (title, open-in-new-tab, ✕).
+function FullScreen({ title, href, onClose, children }: { title: string; href?: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="mx-auto rounded-[2.2rem] p-2.5" style={{ width: 300, background: "#0f172a", border: "2px solid #1e293b", boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)" }}>
-      <div className="relative overflow-hidden" style={{ borderRadius: "1.7rem", height: 540, background: bg }}>
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full z-20" style={{ width: 64, height: 16, background: "#0f172a" }} />
-        <div className="h-full overflow-y-auto">{children}</div>
+    <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
+      <div className="shrink-0 h-14 px-4 sm:px-6 flex items-center justify-between border-b border-gray-800">
+        <p className="text-white font-semibold text-sm truncate">{title}</p>
+        <div className="flex items-center gap-4 shrink-0">
+          {href && <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 font-medium hidden sm:inline">Open in new tab ↗</a>}
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white flex items-center justify-center text-lg leading-none">✕</button>
+        </div>
       </div>
+      <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-8">{children}</div>
     </div>
   );
 }
 
-function Overlay({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+// A real public page shown inside a phone frame via iframe (exactly how it looks live).
+function IframePhone({ src }: { src: string }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-white font-semibold text-sm">{title}</p>
-          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
-        </div>
-        {children}
+    <div className="rounded-[2.4rem] p-2.5 shrink-0" style={{ width: 384, maxWidth: "100%", background: "#0f172a", border: "2px solid #1e293b", boxShadow: "0 40px 90px -30px rgba(0,0,0,0.7)" }}>
+      <div className="relative overflow-hidden bg-white" style={{ borderRadius: "1.9rem", height: "min(720px, 74vh)" }}>
+        <iframe src={src} title="SwiftCard live preview" className="w-full h-full" style={{ border: 0 }} />
       </div>
     </div>
   );
@@ -321,65 +322,22 @@ export default function PreviewClient() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
+      {/* ── Full-page live previews (real pages in an iframe) ── */}
       {modal === "card" && (
-        <Overlay title={`${card.label} — public card`} onClose={() => setModal(null)}>
-          <PhoneFrame>
-            <div className="px-3 pt-7 pb-4">
-              <div className="rounded-xl overflow-hidden mb-2.5"><CardRender card={card} zoom={0.74} /></div>
-              <div className="bg-blue-600 text-white rounded-full py-2 text-center text-xs font-bold mb-2 flex items-center justify-center gap-1.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21v-8H5v8M5 3h11l3 3v3M9 3v4h6" /></svg>
-                Save {firstName}&apos;s contact
-              </div>
-              <div className="flex gap-1.5 mb-2">
-                {card.socials.map((s) => (
-                  <div key={s.label} className="flex-1 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold" style={{ background: "#1D4ED814", border: "1px solid #1D4ED833", color: "#1D4ED8" }}>{s.label}</div>
-                ))}
-              </div>
-              <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-xl p-2.5">
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Share your info with {firstName}</p>
-                {["Full name", "Email", "Phone"].map((p) => (
-                  <div key={p} className="h-6 bg-white border border-[#D4C8B8] rounded-md mb-1.5 flex items-center px-2 text-[9px] text-gray-400">{p}</div>
-                ))}
-                <div className="h-7 bg-blue-600 rounded-md flex items-center justify-center text-white text-[9px] font-bold">Share my info →</div>
-              </div>
-            </div>
-          </PhoneFrame>
-        </Overlay>
+        <FullScreen title={`${card.label} — your live SwiftCard`} href={`/card/${card.handle}`} onClose={() => setModal(null)}>
+          <IframePhone src={`/card/${card.handle}`} />
+        </FullScreen>
       )}
 
       {modal === "links" && (
-        <Overlay title="Swift Links page" onClose={() => setModal(null)}>
-          <PhoneFrame bg="linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)">
-            <div className="px-5 pt-9 pb-6 flex flex-col items-center text-center">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white mb-3" style={{ background: "linear-gradient(135deg,#818cf8,#ec4899)" }}>{card.data.initials}</div>
-              <p className="text-white font-bold text-lg">{card.data.name}</p>
-              <p className="text-indigo-200/70 text-xs mt-0.5">{card.data.title} · {card.data.company}</p>
-              <p className="text-white/70 text-[11px] mt-2 leading-relaxed">{card.bio}</p>
-              <div className="w-full bg-white text-[#1D4ED8] font-bold text-xs rounded-full py-2.5 mt-4">Connect with {firstName}</div>
-              <div className="flex gap-2.5 mt-4">
-                {card.socials.map((s) => (
-                  <div key={s.label} className="w-10 h-10 rounded-full flex items-center justify-center text-white border border-white/15 bg-white/10">
-                    <PlatformIcon label={s.label} className="w-[18px] h-[18px]" />
-                  </div>
-                ))}
-              </div>
-              <div className="w-full flex flex-col gap-2 mt-5">
-                {card.links.map((l) => (
-                  <div key={l.label} className="w-full bg-white/10 border border-white/15 rounded-2xl px-4 py-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-base shrink-0">{l.emoji}</div>
-                    <span className="text-white text-xs font-semibold flex-1 text-left truncate">{l.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </PhoneFrame>
-        </Overlay>
+        <FullScreen title="Swift Links — your live link-in-bio page" href={`/links/${card.handle}`} onClose={() => setModal(null)}>
+          <IframePhone src={`/links/${card.handle}`} />
+        </FullScreen>
       )}
 
       {modal === "signature" && (
-        <Overlay title="Your email signature" onClose={() => setModal(null)}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+        <FullScreen title="Email signature" onClose={() => setModal(null)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-md">
             <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
             <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
               <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
@@ -402,7 +360,7 @@ export default function PreviewClient() {
             </button>
             <p className="text-gray-600 text-[11px] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
           </div>
-        </Overlay>
+        </FullScreen>
       )}
     </main>
   );
