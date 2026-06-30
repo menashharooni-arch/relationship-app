@@ -15,6 +15,7 @@ import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { socialUrl } from "@/lib/social-url";
 
 function slugify(str: string): string {
   return str
@@ -415,11 +416,12 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-xs text-gray-500">{label}</label>
-                        {linked && (
-                          <span className="flex items-center gap-1 text-[10px] font-semibold text-green-400">
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
-                            Linked
-                          </span>
+                        {linked && socialUrl(key, socials[key]) && (
+                          <a href={socialUrl(key, socials[key])!} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300">
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" /></svg>
+                            Open link
+                          </a>
                         )}
                       </div>
                       <input

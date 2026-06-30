@@ -42,6 +42,37 @@ export function handleLabel(raw?: string | null): string {
   return (raw || "").trim().replace(/^https?:\/\//i, "");
 }
 
+// Turn whatever the user types (a URL, an @handle, or a bare handle) into a clean,
+// linkable value so the card connects to the right account. Shared by the new-card
+// wizard and the edit form so both behave identically.
+export function normalizeSocial(raw: string, platform: string): string {
+  const v = raw.trim();
+  if (!v) return "";
+  const urlLike = platform === "linkedin" || platform === "youtube" || platform === "facebook";
+  try {
+    if (v.includes("://") || v.includes(".")) {
+      const url = new URL(v.includes("://") ? v : `https://${v}`);
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (platform === "linkedin") return parts.length ? `linkedin.com/${parts.join("/")}` : v;
+      if (platform === "youtube") return parts.length ? `youtube.com/${parts.join("/")}` : v;
+      if (platform === "facebook") return parts.length ? `facebook.com/${parts.join("/")}` : v;
+      const handle = parts[parts.length - 1]?.replace(/^@/, "");
+      if (handle) return `@${handle}`;
+    }
+  } catch {
+    /* not a URL — fall through */
+  }
+  if (urlLike) return v;
+  return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
+}
+
+// For these URL-style networks, show the exact format to copy so the link works.
+export const SOCIAL_FORMATS: Record<string, string> = {
+  linkedin: "linkedin.com/in/yourfullname",
+  facebook: "facebook.com/yourfullname",
+  youtube: "youtube.com/@yourchannel",
+};
+
 export type ConnectLink = { label: string; href: string; sub?: string; color: string; textColor?: string };
 
 // Socials in the canonical order: Website, LinkedIn, Instagram, TikTok, Facebook, X, Snapchat, YouTube.
