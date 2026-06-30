@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin, webHref } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -122,25 +122,25 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         {/* Contact rows with gold icon accents */}
         <div className="flex flex-col gap-[5px]">
           {cardPhones(data).map((p, i) => (
-            <div key={`ph${i}`} className="flex items-center gap-2">
+            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ textDecoration: "none" }}>
               <span style={{ color: GOLD }}><IcoPhone /></span>
               <span style={{ fontSize: 14.5, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
                 {formatPhone(p.number)}
                 {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
               </span>
-            </div>
+            </a>
           ))}
           {data.email && (
-            <div className="flex items-center gap-2 min-w-0">
+            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
               <span style={{ color: GOLD }}><IcoMail /></span>
               <span className="truncate" style={{ fontSize: 13, color: TEXT, fontWeight: 500 }}>{data.email}</span>
-            </div>
+            </a>
           )}
           {data.website && (
-            <div className="flex items-center gap-2 min-w-0">
+            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
               <span style={{ color: GOLD }}><IcoGlobe /></span>
               <span className="truncate" style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
-            </div>
+            </a>
           )}
           {data.address && (
             <div className="flex items-start gap-2">

@@ -32,6 +32,12 @@ export function capLabel(label: string): string {
   return label ? label.charAt(0).toUpperCase() + label.slice(1) : "";
 }
 
+// Absolute URL for the card's website value (handles bare domains like "swiftcard.me").
+export function webHref(site: string): string {
+  const s = (site || "").trim();
+  return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
+}
+
 // ─── Contact Icons (stroke style) ────────────────────────────────────────────
 
 export const IcoPhone = () => (

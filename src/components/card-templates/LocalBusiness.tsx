@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, webHref } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -102,25 +102,25 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           {/* Contacts: phone is HERO */}
           <div className="flex flex-col gap-[5px]">
             {cardPhones(data).map((p, i) => (
-              <div key={`ph${i}`} className="flex items-center gap-2">
+              <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoPhone /></span>
                 <span className="font-bold" style={{ fontSize: 15, color: WARM }}>
                   {formatPhone(p.number)}
                   {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
                 </span>
-              </div>
+              </a>
             ))}
             {data.email && (
-              <div className="flex items-center gap-2 min-w-0">
+              <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoMail /></span>
                 <span className="truncate font-semibold" style={{ fontSize: 13, color: "#78350f" }}>{data.email}</span>
-              </div>
+              </a>
             )}
             {data.website && (
-              <div className="flex items-center gap-2 min-w-0">
+              <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoGlobe /></span>
                 <span className="truncate" style={{ fontSize: 10, color: "#92400e" }}>{data.website}</span>
-              </div>
+              </a>
             )}
             {cardFax(data) && (
               <div className="flex items-center gap-2">
