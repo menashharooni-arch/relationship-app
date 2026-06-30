@@ -124,12 +124,6 @@ export default async function FlowSettingsPage() {
             </div>
           </div>
 
-          {/* Manage account */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
-            <ManageAccount isPro={isPro} />
-          </div>
-
           {/* General */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
@@ -139,6 +133,12 @@ export default async function FlowSettingsPage() {
               plan={profile.plan ?? "free"}
               isPro={isPro}
             />
+          </div>
+
+          {/* Manage account */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
+            <ManageAccount isPro={isPro} />
           </div>
 
         </div>

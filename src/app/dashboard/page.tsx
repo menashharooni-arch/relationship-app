@@ -20,7 +20,6 @@ import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
-import PushSetup from "@/components/PushSetup";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
@@ -253,6 +252,34 @@ export default async function DashboardPage({
     customization: activeSource.customization ?? {},
   };
 
+  // Your Card + Share + other ways to share — rendered under My Cards on mobile,
+  // and in the sticky right column on desktop.
+  const cardSharePanel = (
+    <>
+      {/* Your card */}
+      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
+        <CardPreviewDownload
+          data={cardData}
+          template={activeSource.template ?? "classic-pro"}
+          username={activeUsername}
+          previewUrl={cardUrl}
+        />
+      </div>
+
+      {/* Share */}
+      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
+        <ShareButton
+          url={cardUrl}
+          title="My SwiftCard"
+          text="Save my contact and connect with me instantly."
+          label="Share"
+        />
+        <MoreShareOptions url={cardUrl} />
+      </div>
+    </>
+  );
+
   return (
     <>
       <Suspense>
@@ -369,8 +396,10 @@ export default async function DashboardPage({
             </div>
           </div>
 
-          {/* Push notification opt-in */}
-          <PushSetup />
+          {/* Mobile only: Your Card + Share + other ways to share, right under My Cards */}
+          <div className="flex flex-col gap-4 mb-5 lg:hidden">
+            {cardSharePanel}
+          </div>
 
           {/* Upgrade success banner */}
           {params.upgraded && (
@@ -621,30 +650,9 @@ export default async function DashboardPage({
               </div>
             </div>
 
-            {/* ── RIGHT COLUMN — card panel (Your Card + Share, kept together) ── */}
-            <div className="flex flex-col gap-4 order-1 lg:order-none lg:sticky lg:top-20 lg:self-start">
-
-              {/* Your card */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
-                <CardPreviewDownload
-                  data={cardData}
-                  template={activeSource.template ?? "classic-pro"}
-                  username={activeUsername}
-                  previewUrl={cardUrl}
-                />
-              </div>
-
-              {/* Share */}
-              <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
-                <ShareButton
-                  url={cardUrl}
-                  title="My SwiftCard"
-                  text="Save my contact and connect with me instantly."
-                  label="Share"
-                />
-                <MoreShareOptions url={cardUrl} />
-              </div>
+            {/* ── RIGHT COLUMN — card panel (desktop; on mobile it's shown under My Cards) ── */}
+            <div className="hidden lg:flex lg:flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+              {cardSharePanel}
             </div>
 
           </div>
