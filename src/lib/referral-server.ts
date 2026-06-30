@@ -11,6 +11,17 @@ function randomCode(len = 7): string {
   return s;
 }
 
+// Normalize an email for self-referral detection: lowercase, strip +tags, and
+// collapse Gmail dots — so name+1@gmail.com / n.a.m.e@gmail.com can't bypass it.
+function normEmail(e: string | null | undefined): string {
+  const raw = (e || "").toLowerCase().trim();
+  const [local, domain] = raw.split("@");
+  if (!domain) return raw;
+  let l = local.split("+")[0];
+  if (domain === "gmail.com" || domain === "googlemail.com") l = l.replace(/\./g, "");
+  return `${l}@${domain}`;
+}
+
 // Ensure a user has a referral code; generate a unique one if missing.
 export async function ensureReferralCode(userId: string): Promise<string | null> {
   const admin = getAdminSupabase();
@@ -103,7 +114,7 @@ export async function applyReferralOnSignup(
   let flaggedReason: string | null = null;
   if (referrer) {
     const sameAccount = referrer.id === userId;
-    const sameEmail = !!opts.email && !!referrer.email && opts.email.toLowerCase() === referrer.email.toLowerCase();
+    const sameEmail = !!opts.email && !!referrer.email && normEmail(opts.email) === normEmail(referrer.email);
     if (sameAccount || sameEmail) {
       status = "self_referral";
       flaggedReason = "self_referral";
@@ -126,20 +137,20 @@ export async function applyReferralOnSignup(
     }
   }
 
-  // Update the new user's profile: attribution + their own referral code + the
-  // free month (every promo source, and any genuine referral, grants it).
-  const ownCode = randomCode();
+  // Attribution update — kept SEPARATE from referral-code assignment so a (rare)
+  // code collision can never abort it and silently drop referred_by/source/ip.
   const grantsFreeMonth = sourceGrantsFreeMonth(source) || !!referrer;
-  await admin
+  const { error: attrErr } = await admin
     .from("profiles")
     .update({
       referred_by: referrer?.id ?? null,
       signup_source: source,
       signup_ip: opts.ip,
-      ...(ownCode ? { referral_code: ownCode } : {}),
     })
     .eq("id", userId);
-  // referral_code may collide (rare) — ensure one exists regardless.
+  if (attrErr) console.error("[referral] attribution update failed:", attrErr);
+
+  // Generate the new user's own referral code (retries on collision).
   await ensureReferralCode(userId);
 
   if (grantsFreeMonth) {
@@ -173,39 +184,46 @@ export async function rewardReferrerIfEligible(referredUserId: string): Promise<
     .maybeSingle();
   if (!ref || !ref.referrer_id) return;
   if (ref.status === "self_referral" || ref.status === "flagged") return; // never reward fraud
-  if (ref.reward_granted) return;
+  if (ref.reward_granted) return; // this friend already earned the referrer a reward
+  const nowIso = new Date().toISOString();
 
   // Mark the friend as converted to paid.
   if (ref.status !== "paid" && ref.status !== "rewarded") {
-    await admin.from("referrals").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", ref.id);
+    await admin.from("referrals").update({ status: "paid", paid_at: nowIso }).eq("id", ref.id);
   }
 
-  // One reward per referrer, ever.
-  const { data: referrer } = await admin
-    .from("profiles")
-    .select("referral_reward_earned")
-    .eq("id", ref.referrer_id)
-    .maybeSingle();
-  if (REFERRAL.REFERRER_REWARD_ONCE && referrer?.referral_reward_earned) {
-    // Friend still counts as paid; the referrer just doesn't earn again.
-    return;
-  }
-
-  // Grant it (idempotent: mark earned first so concurrent webhooks don't double-grant).
-  const { data: claimed } = await admin
-    .from("profiles")
-    .update({ referral_reward_earned: true })
-    .eq("id", ref.referrer_id)
-    .eq("referral_reward_earned", false)
+  // Idempotency is on the PER-REFERRAL row (not the referrer's once-cap flag), so
+  // duplicate webhooks for the SAME friend can't double-grant, while a different
+  // friend can still earn a reward when the cap allows it.
+  const { data: claimedRef } = await admin
+    .from("referrals")
+    .update({ reward_granted: true, status: "rewarded", rewarded_at: nowIso })
+    .eq("id", ref.id)
+    .eq("reward_granted", false)
     .select("id")
     .maybeSingle();
-  if (!claimed) return; // someone else already claimed it for this referrer
+  if (!claimedRef) return; // a concurrent/duplicate webhook for this friend already granted
+
+  // Enforce the once-only cap atomically on the referrer. If they've already
+  // earned (or a concurrent friend just claimed it), roll this referral back to
+  // "paid" — the friend still counts as converted, the referrer earns nothing more.
+  if (REFERRAL.REFERRER_REWARD_ONCE) {
+    const { data: capClaimed } = await admin
+      .from("profiles")
+      .update({ referral_reward_earned: true })
+      .eq("id", ref.referrer_id)
+      .eq("referral_reward_earned", false)
+      .select("id")
+      .maybeSingle();
+    if (!capClaimed) {
+      await admin.from("referrals").update({ reward_granted: false, status: "paid", rewarded_at: null }).eq("id", ref.id);
+      return;
+    }
+  } else {
+    await admin.from("profiles").update({ referral_reward_earned: true }).eq("id", ref.referrer_id);
+  }
 
   await grantReferrerReward(ref.referrer_id, REFERRAL.REFERRER_FREE_MONTHS);
-  await admin
-    .from("referrals")
-    .update({ reward_granted: true, status: "rewarded", rewarded_at: new Date().toISOString() })
-    .eq("id", ref.id);
 }
 
 // For the dashboard / settings referral area. Resilient: returns null if the

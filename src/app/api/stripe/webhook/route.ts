@@ -163,7 +163,9 @@ export async function POST(req: NextRequest) {
     const sub = event.data.object as Stripe.Subscription;
     const admin2 = getAdminSupabase();
     const { data: profile } = await admin2.from("profiles")
-      .update({ plan: "free" })
+      // Clear the subscription id + any free-month expiry so the row can't later
+      // be mistaken for an active subscriber (which would leak Pro forever).
+      .update({ plan: "free", plan_expires_at: null, stripe_subscription_id: null })
       .eq("stripe_subscription_id", sub.id)
       .select("id")
       .single();
@@ -181,7 +183,7 @@ export async function POST(req: NextRequest) {
 
         for (const m of activeMembers ?? []) {
           if (m.user_id) {
-            await admin.from("profiles").update({ plan: "free", office_id: null }).eq("id", m.user_id);
+            await admin.from("profiles").update({ plan: "free", office_id: null, plan_expires_at: null }).eq("id", m.user_id);
           }
         }
       }

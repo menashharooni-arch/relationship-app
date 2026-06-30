@@ -13,10 +13,15 @@ export async function GET() {
 
   try {
     const admin = getAdminSupabase();
-    const [{ data: profs }, { data: refs }] = await Promise.all([
+    const [{ data: profs, error: pErr }, { data: refs, error: rErr }] = await Promise.all([
       admin.from("profiles").select("signup_source, referral_reward_earned, plan_expires_at"),
       admin.from("referrals").select("status, reward_granted, flagged_reason, code, referred_id, created_at"),
     ]);
+    // Supabase resolves (not throws) on a missing table/column, so the try/catch
+    // alone wouldn't catch a pre-migration state — check the errors explicitly.
+    if (pErr || rErr) {
+      return NextResponse.json({ ready: false, message: "Run REFERRAL_SETUP.sql in Supabase to enable referral analytics." });
+    }
 
     // Signups by source.
     const bySource: Record<string, number> = {};

@@ -36,9 +36,10 @@ create index if not exists referrals_referrer_id_idx on public.referrals (referr
 create index if not exists referrals_status_idx on public.referrals (status);
 
 -- 3) Backfill: give every EXISTING user a referral code -----------------------
--- 7-char codes from an unambiguous alphabet. Re-run-safe (only fills NULLs).
+-- 8 hex chars from gen_random_uuid() (core Postgres 13+ — no pgcrypto needed, so
+-- this can't abort on a project where pgcrypto isn't enabled). Fills NULLs only.
 update public.profiles p
-set referral_code = upper(substr(replace(replace(encode(gen_random_bytes(8), 'base64'), '/', ''), '+', ''), 1, 7))
+set referral_code = upper(left(replace(gen_random_uuid()::text, '-', ''), 8))
 where p.referral_code is null;
 
 -- (If any duplicate codes slipped in on backfill, re-run this until 0 rows:)
