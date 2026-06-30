@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CardData } from "@/components/card-templates/types";
 import { withoutSocials } from "@/components/card-templates/types";
+import { HideQRContext } from "@/components/card-templates/qr-context";
 
 const ClassicPro    = dynamic(() => import("@/components/card-templates/ClassicPro"),    { ssr: false });
 const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBold"),    { ssr: false });
@@ -24,6 +25,7 @@ type Props = {
   name: string;
   company: string;
   cardUrl: string;
+  username: string;   // the selected card — signature is per-card
   storageUrl: string; // stable hosted URL of the captured card (may not exist yet)
   ogUrl: string;      // instant server-rendered fallback card image
 };
@@ -32,12 +34,12 @@ function buildSignatureHtml(name: string, company: string, cardUrl: string, imgU
   const header = `<div style="font-size:14px;color:#111827;margin-bottom:6px;"><strong>${name}</strong>${company ? ` | ${company}` : ""}</div>`;
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
 ${header}
-<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="220" style="display:block;border:0;border-radius:12px;" /></a>
+<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="340" style="display:block;border:0;border-radius:12px;" /></a>
 <div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me →</a></div>
 </td></tr></table>`;
 }
 
-export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, storageUrl, ogUrl }: Props) {
+export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, username, storageUrl, ogUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copying, setCopying] = useState(false);
@@ -78,7 +80,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
       const dataUrl = canvas.toDataURL("image/png");
       const res = await fetch("/api/card-signature", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
       });
       if (!res.ok) return null;
       const url = `${storageUrl}?t=${Date.now()}`;
@@ -137,13 +139,15 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size card render used for the capture */}
+      {/* Hidden full-size card render used for the capture (QR removed, bigger via scale) */}
       {mounted && (
-        <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
-          <div ref={cardRef}>
-            <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
+        <HideQRContext.Provider value={true}>
+          <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
+            <div ref={cardRef}>
+              <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
+            </div>
           </div>
-        </div>
+        </HideQRContext.Provider>
       )}
 
       {/* Dashboard card — image is always there */}
@@ -189,7 +193,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                     <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={displaySrc} onError={onImgError} alt="card" width={200} className="block rounded-[12px]" />
+                      <img src={displaySrc} onError={onImgError} alt="card" width={300} className="block rounded-[12px]" />
                     </a>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me →</a>
                   </div>

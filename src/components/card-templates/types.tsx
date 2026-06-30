@@ -1,3 +1,6 @@
+import { useContext } from "react";
+import { HideQRContext } from "./qr-context";
+
 export type CardLink = {
   emoji: string;
   label: string;
@@ -107,6 +110,8 @@ export const SAMPLE_DATA: CardData = {
 };
 
 export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827" }: { size?: number; bg?: string; fg?: string }) {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  if (useContext(HideQRContext)) return null;
   const p = size * 0.055;
   return (
     <div style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
