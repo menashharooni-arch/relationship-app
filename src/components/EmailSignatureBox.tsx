@@ -91,11 +91,11 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
       await new Promise((r) => setTimeout(r, 150));
 
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
-      if (canvas.width < 60 || canvas.height < 60) { setStatus("error"); return null; } // blank guard
-
-      const dataUrl = canvas.toDataURL("image/png");
+      // html-to-image renders via the browser engine (SVG foreignObject), so it
+      // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(el, { pixelRatio: 3, cacheBust: true, backgroundColor: "#ffffff", width: NATURAL });
+      if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
       });
@@ -156,7 +156,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       {/* Hidden render of the EXACT selected card. Clipped 0×0 wrapper (no layout impact),
           but the card inside keeps its full size so html2canvas can capture it reliably. */}
       {mounted && (
-        <div aria-hidden style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", left: 0, top: 0 }}>
+        <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
           <div ref={cardRef} style={{ width: NATURAL }}>
             <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
