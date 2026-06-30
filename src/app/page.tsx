@@ -239,7 +239,7 @@ export default function HomePage() {
           <SwiftCardLogo size={30} />
           <div className="flex items-center gap-8">
             <Link href="/preview" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
-              See the dashboard
+              See it live
             </Link>
             <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Pricing
