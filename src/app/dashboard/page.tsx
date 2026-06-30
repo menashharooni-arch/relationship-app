@@ -420,8 +420,8 @@ export default async function DashboardPage({
             </div>
           )}
 
-          {/* Top row: Traffic (thinner) + Swift Links + Email signature */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+          {/* Top row: Traffic (wider) + Swift Links + Email signature (skinnier) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_0.7fr] gap-4 mb-5">
 
             {/* Traffic — SwiftCard & SwiftLink views */}
             <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
