@@ -474,13 +474,13 @@ export default async function DashboardPage({
               </a>
             </div>
 
-            {/* Email signature generator */}
+            {/* Email signature generator — captures the real card, pixel-perfect */}
             <EmailSignatureBox
+              cardData={cardData}
+              template={activeSource.template ?? "classic-pro"}
               name={(activeSource as { name?: string }).name ?? ""}
-              title={(activeSource as { title?: string }).title ?? ""}
               company={(activeSource as { company?: string }).company ?? ""}
               cardUrl={cardUrl}
-              ogImageUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
             />
           </div>
 
