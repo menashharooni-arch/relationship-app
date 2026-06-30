@@ -40,62 +40,71 @@ ${header}
 export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, storageUrl, ogUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [displaySrc, setDisplaySrc] = useState(storageUrl); // optimistic: hosted capture
   const [hasCaptured, setHasCaptured] = useState(true);
-  const [regen, setRegen] = useState(0);
   const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const capturingRef = useRef(false);
+  const lastUrlRef = useRef<string | null>(null); // freshest cache-busted hosted URL
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   const atKey = `sc_sigat_${cardUrl}`;
 
-  // On load: only (re)capture in the background if the hosted image is stale.
+  // Capture the hidden card pixel-perfect from the CURRENT card data and host it.
+  // Returns the fresh cache-busted URL on success (so the copied signature can't
+  // be served a stale image), or null on failure.
+  async function captureAndUpload(): Promise<string | null> {
+    if (capturingRef.current) return null;
+    const el = cardRef.current;
+    if (!el) return null;
+    capturingRef.current = true;
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
+      const dataUrl = canvas.toDataURL("image/png");
+      const res = await fetch("/api/card-signature", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl }),
+      });
+      if (!res.ok) return null;
+      const url = `${storageUrl}?t=${Date.now()}`;
+      lastUrlRef.current = url;
+      setHasCaptured(true);
+      setDisplaySrc(url);
+      try { localStorage.setItem(atKey, String(Date.now())); } catch { /* ignore */ }
+      return url;
+    } catch {
+      return null;
+    } finally {
+      capturingRef.current = false;
+    }
+  }
+
+  // Mount the hidden card on load; refresh the hosted image in the background if stale.
   useEffect(() => {
     setMounted(true);
     let stale = true;
     try { stale = Date.now() - Number(localStorage.getItem(atKey) || 0) > 6 * 3600 * 1000; } catch { /* ignore */ }
-    if (stale) setRegen((n) => n + 1);
+    if (stale) {
+      const t = setTimeout(() => { captureAndUpload(); }, 900); // let the photo + QR render
+      return () => clearTimeout(t);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardUrl]);
 
-  // The hosted image 404s before the first capture → fall back to the instant
-  // server image AND trigger a capture so next time it's the real card.
+  // Hosted image 404s before the first capture → show the instant server image and capture now.
   function onImgError() {
     if (displaySrc.startsWith(ogUrl)) return;
     setHasCaptured(false);
     setDisplaySrc(ogUrl);
-    setRegen((n) => n + 1);
+    setTimeout(() => { captureAndUpload(); }, 900);
   }
 
-  // Capture the hidden card pixel-perfect and host it.
-  useEffect(() => {
-    if (!mounted || regen === 0) return;
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      try {
-        const el = cardRef.current;
-        if (!el) return;
-        const html2canvas = (await import("html2canvas")).default;
-        const canvas = await html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null, logging: false });
-        const dataUrl = canvas.toDataURL("image/png");
-        const res = await fetch("/api/card-signature", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl }),
-        });
-        if (!res.ok) return;
-        if (!cancelled) {
-          setHasCaptured(true);
-          setDisplaySrc(`${storageUrl}?t=${Date.now()}`);
-          try { localStorage.setItem(atKey, String(Date.now())); } catch { /* ignore */ }
-        }
-      } catch { /* ignore */ }
-    }, 800);
-    return () => { cancelled = true; clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, regen]);
-
-  const signatureImg = hasCaptured ? storageUrl : ogUrl;
-
   async function copy() {
-    const html = buildSignatureHtml(name, company, cardUrl, signatureImg);
+    setCopying(true);
+    // Refresh from the CURRENT card so the pasted signature image + links are up to date.
+    const fresh = await captureAndUpload();
+    const img = fresh ?? lastUrlRef.current ?? (hasCaptured ? storageUrl : ogUrl);
+    const html = buildSignatureHtml(name, company, cardUrl, img);
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -106,14 +115,15 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     } catch {
       try { await navigator.clipboard.writeText(html); } catch { /* ignore */ }
     }
+    setCopying(false);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
 
   return (
     <>
-      {/* Hidden full-size card render — only mounted while capturing */}
-      {regen > 0 && (
+      {/* Hidden full-size card render used for the capture */}
+      {mounted && (
         <div aria-hidden style={{ position: "fixed", left: -99999, top: 0, width: NATURAL, pointerEvents: "none" }}>
           <div ref={cardRef}>
             <Template data={template === "custom" ? cardData : withoutSocials(cardData)} />
@@ -171,16 +181,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 </div>
               </div>
 
-              <button onClick={copy}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {copied ? "Copied ✓ — now paste it into your email signature" : "Copy signature"}
+              <button onClick={copy} disabled={copying}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
+                {copying ? "Updating from your card…" : copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
               </button>
               <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. Links straight to your SwiftCard.
+                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>. The image + link always point to your current card.
               </p>
-              <button onClick={() => setRegen((n) => n + 1)} className="w-full mt-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors">
-                Edited your card? Update the image ↻
-              </button>
             </div>
           </div>
         </div>
