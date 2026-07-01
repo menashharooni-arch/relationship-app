@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import SocialIcons from "@/components/SocialIcons";
@@ -49,6 +50,11 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const { profile, photoUrl, ownerPlan } = await resolve(username);
   if (!profile) notFound();
 
+  // Don't count the owner viewing their own Swift Links page as a view.
+  const ownerId = (profile as { user_id?: string; id?: string }).user_id ?? (profile as { id?: string }).id;
+  const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+  const isOwnerView = !!viewer && viewer.id === ownerId;
+
   const ownerPaid = isPaidPlan(ownerPlan);
   const customization = (profile.customization ?? {}) as {
     bio?: string;
@@ -81,7 +87,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
       className="min-h-[100dvh] w-full overflow-y-auto relative flex flex-col items-center justify-center px-6 py-12"
       style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
     >
-      {!isEmbed && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
+      {!isEmbed && !isOwnerView && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
       {!isEmbed && <SignupNudgeHost />}
 
       {/* Ambient glow */}

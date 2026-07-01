@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
@@ -120,6 +121,11 @@ export default async function CardPage({
 
   if (!profile || ownerDeleted) notFound();
 
+  // Don't count the owner viewing their own card as a view.
+  const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);
+  const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+  const isOwnerView = !!viewer && viewer.id === ownerId;
+
   // One profile picture is shared across all of an account's cards.
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
@@ -225,7 +231,7 @@ export default async function CardPage({
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
-      {!isEmbed && <CardEventTracker username={profile.username} source={source} />}
+      {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
       {!isEmbed && <SignupNudgeHost />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
