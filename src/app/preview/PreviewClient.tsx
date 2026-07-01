@@ -10,7 +10,6 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import CardScaler from "@/components/CardScaler";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 
@@ -80,12 +79,6 @@ function Box({ children, className = "" }: { children: React.ReactNode; classNam
 function CardRender({ card, zoom = 0.8 }: { card: DemoCard; zoom?: number }) {
   const T = TEMPLATE_MAP[card.template] ?? ClassicPro;
   return <div style={{ zoom }}><div style={{ width: 360 }}><T data={withoutSocials(card.data)} /></div></div>;
-}
-
-// The card exactly as it renders on the real card page — scaled to fit the box.
-function InlineCard({ card }: { card: DemoCard }) {
-  const T = TEMPLATE_MAP[card.template] ?? ClassicPro;
-  return <CardScaler><T data={withoutSocials(card.data)} /></CardScaler>;
 }
 
 function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
@@ -349,8 +342,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 </svg>
                 <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
               </div>
-              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all">
-                <InlineCard card={card} />
+              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
+                <div className="w-full" style={{ aspectRatio: "1.55 / 1" }}>
+                  <iframe key={card.handle} src={`/card/${card.handle}?embed=card`} title="Your SwiftCard preview" scrolling="no" className="w-full h-full pointer-events-none block" style={{ border: 0 }} />
+                </div>
               </button>
               <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
             </Box>
