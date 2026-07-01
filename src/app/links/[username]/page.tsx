@@ -42,8 +42,10 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   return { title: `${name} — Swift Links`, description: `Connect with ${name}.` };
 }
 
-export default async function SwiftLinksPage({ params }: { params: Promise<{ username: string }> }) {
+export default async function SwiftLinksPage({ params, searchParams }: { params: Promise<{ username: string }>; searchParams: Promise<{ embed?: string }> }) {
   const { username } = await params;
+  const { embed } = await searchParams;
+  const isEmbed = embed === "1"; // rendered inside the /preview demo — don't log a view or nudge
   const { profile, photoUrl, ownerPlan } = await resolve(username);
   if (!profile) notFound();
 
@@ -79,8 +81,8 @@ export default async function SwiftLinksPage({ params }: { params: Promise<{ use
       className="min-h-[100dvh] w-full overflow-y-auto relative flex flex-col items-center justify-center px-6 py-12"
       style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
     >
-      <CardEventTracker username={username} source="swift_links" viewSurface="links" />
-      <SignupNudgeHost />
+      {!isEmbed && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
+      {!isEmbed && <SignupNudgeHost />}
 
       {/* Ambient glow */}
       <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #6366f1, transparent 70%)" }} />
