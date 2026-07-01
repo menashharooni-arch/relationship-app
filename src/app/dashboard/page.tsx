@@ -26,6 +26,7 @@ import { Suspense } from "react";
 import { PLAN_LIMITS } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 
 export default async function DashboardPage({
@@ -74,6 +75,7 @@ export default async function DashboardPage({
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
   const isEnterprise = profile.plan === "enterprise";
+  const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "");
 
   // No cards yet → show the "create your card" empty state.
   if (!hasCards) {
@@ -320,6 +322,11 @@ export default async function DashboardPage({
             {ownedOffice && (
               <Link href="/office" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors">
                 Team
+              </Link>
+            )}
+            {isAdmin && (
+              <Link href="/admin" className="text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                Admin
               </Link>
             )}
           </div>
