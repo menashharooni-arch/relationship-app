@@ -397,7 +397,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
       )}
       {modal === "links" && (
         <FullScreen title="Swift Links — your live link-in-bio page" href={`/links/${card.handle}`} onClose={() => setModal(null)}>
-          <IframePhone src={`/links/${card.handle}`} />
+          <IframePhone src={`/links/${card.handle}?embed=1`} />
         </FullScreen>
       )}
       {modal === "signature" && (
