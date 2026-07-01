@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ShareButton from "@/components/ShareButton";
@@ -79,6 +79,38 @@ function Box({ children, className = "" }: { children: React.ReactNode; classNam
 function CardRender({ card, zoom = 0.8 }: { card: DemoCard; zoom?: number }) {
   const T = TEMPLATE_MAP[card.template] ?? ClassicPro;
   return <div style={{ zoom }}><div style={{ width: 360 }}><T data={withoutSocials(card.data)} /></div></div>;
+}
+
+// Renders the real card page (card-only mode) and auto-sizes the iframe to the card's
+// exact height — no blank space below, nothing clipped. Same-origin, so we can read it.
+function CardOnlyPreview({ src }: { src: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const [h, setH] = useState(170);
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    let ro: ResizeObserver | null = null;
+    const measure = () => {
+      try {
+        const el = iframe.contentDocument?.getElementById("sc-card-only");
+        const height = el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+        if (height) setH(height);
+      } catch { /* ignore */ }
+    };
+    const onLoad = () => {
+      measure();
+      try {
+        const el = iframe.contentDocument?.getElementById("sc-card-only");
+        if (el && "ResizeObserver" in window) { ro = new ResizeObserver(measure); ro.observe(el); }
+      } catch { /* ignore */ }
+      setTimeout(measure, 250);
+      setTimeout(measure, 750);
+    };
+    iframe.addEventListener("load", onLoad);
+    window.addEventListener("resize", measure);
+    return () => { iframe.removeEventListener("load", onLoad); window.removeEventListener("resize", measure); ro?.disconnect(); };
+  }, [src]);
+  return <iframe ref={ref} src={src} scrolling="no" title="Your SwiftCard preview" className="w-full block pointer-events-none" style={{ border: 0, height: h }} />;
 }
 
 function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
@@ -343,9 +375,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
               </div>
               <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
-                <div className="w-full" style={{ aspectRatio: "1.55 / 1" }}>
-                  <iframe key={card.handle} src={`/card/${card.handle}?embed=card`} title="Your SwiftCard preview" scrolling="no" className="w-full h-full pointer-events-none block" style={{ border: 0 }} />
-                </div>
+                <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
               </button>
               <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
             </Box>

@@ -215,12 +215,10 @@ export default async function CardPage({
   // Card-only mode (?embed=card): render just the card, used as the /preview inline preview.
   if (embed === "card") {
     return (
-      <div className="w-full overflow-hidden" style={{ background: "#FAF7F2" }}>
-        <div className="w-full">
-          <CardScaler>
-            <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
-          </CardScaler>
-        </div>
+      <div id="sc-card-only" className="w-full overflow-hidden" style={{ background: "#FAF7F2" }}>
+        <CardScaler>
+          <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+        </CardScaler>
       </div>
     );
   }
