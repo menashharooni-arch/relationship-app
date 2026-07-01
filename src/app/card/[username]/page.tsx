@@ -212,6 +212,19 @@ export default async function CardPage({
   // Swift Links shows a bio, social links, and additional links
   const hasConnectSection = !!bio || connectLinks.length > 0 || actionLinks.length > 0;
 
+  // Card-only mode (?embed=card): render just the card, used as the /preview inline preview.
+  if (embed === "card") {
+    return (
+      <div className="w-full overflow-hidden" style={{ background: "#FAF7F2" }}>
+        <div className="w-full">
+          <CardScaler>
+            <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+          </CardScaler>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       {!isEmbed && <CardEventTracker username={profile.username} source={source} />}
