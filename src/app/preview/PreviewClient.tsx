@@ -93,11 +93,15 @@ function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
 function FullScreen({ title, href, onClose, children }: { title: string; href?: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
-      <div className="shrink-0 h-14 px-4 sm:px-6 flex items-center justify-between border-b border-gray-800">
+      <div className="shrink-0 h-16 px-6 sm:px-10 flex items-center justify-between">
         <p className="text-white font-semibold text-sm truncate">{title}</p>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-6 shrink-0">
           {href && <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 font-medium hidden sm:inline">Open in new tab ↗</a>}
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white flex items-center justify-center text-lg leading-none">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-white transition-colors">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-8">{children}</div>
