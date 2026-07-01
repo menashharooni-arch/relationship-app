@@ -61,7 +61,7 @@ const CARDS: DemoCard[] = [
     data: {
       name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty",
       phone: "(415) 555-0188", email: "alex@coastlinerealty.com", website: "coastlinehomes.com",
-      address: "1200 Ocean Ave\nSan Francisco, CA 94122", initials: "AM", photoUrl: null, logoUrl: null, customization: { accentColor: "#d97706" },
+      address: "1200 Ocean Ave\nSan Francisco\nCA 94122", initials: "AM", photoUrl: null, logoUrl: null, customization: { accentColor: "#d97706" },
     },
   },
 ];
@@ -342,10 +342,8 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 </svg>
                 <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
               </div>
-              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]" style={{ height: 216 }}>
-                <iframe key={card.handle} src={`/card/${card.handle}?embed=1`} title="Your SwiftCard preview" scrolling="no"
-                  className="pointer-events-none block"
-                  style={{ width: 390, height: 520, border: 0, transform: "scale(0.667)", transformOrigin: "top left" }} />
+              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all">
+                <CardRender card={card} zoom={0.72} />
               </button>
               <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
             </Box>
