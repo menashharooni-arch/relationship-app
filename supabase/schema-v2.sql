@@ -4,3 +4,6 @@ ALTER TABLE cards ADD COLUMN IF NOT EXISTS label text;
 
 -- Add follow_up_sequence to leads (if not exists)
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS follow_up_sequence jsonb DEFAULT '[]'::jsonb;
+
+-- Allow email to be null (some contacts share only phone)
+ALTER TABLE leads ALTER COLUMN email DROP NOT NULL;

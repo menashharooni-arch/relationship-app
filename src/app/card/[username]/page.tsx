@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
@@ -97,7 +96,7 @@ export default async function CardPage({
   const { username } = await params;
   const { source: rawSource } = await searchParams;
   const source = rawSource ?? "direct_link";
-  const supabase = await createClient();
+  const supabase = getAdminSupabase();
 
   const { data: profileData } = await supabase
     .from("profiles")
