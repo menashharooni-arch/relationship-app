@@ -178,6 +178,29 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
     setTimeout(() => setCopied(false), 2200);
   }
 
+  // Your Card + Share + other ways to share — shown under My Cards on mobile and in the
+  // sticky right column on desktop, matching the real dashboard's phone layout.
+  const cardSharePanel = (
+    <>
+      <Box>
+        <div className="flex items-center gap-1.5 mb-3 text-blue-400">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-4 h-4 shrink-0">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+          <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
+        </div>
+        <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
+          <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
+        </button>
+        <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
+      </Box>
+      <Box className="space-y-2">
+        <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
+        <MoreShareOptions url={cardUrl} />
+      </Box>
+    </>
+  );
+
   const Wrapper = embedded ? "div" : "main";
   return (
     <Wrapper className={embedded ? "text-white" : "min-h-screen bg-gray-950 text-white"}>
@@ -230,6 +253,11 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             })}
           </div>
         </Box>
+
+        {/* Mobile only: Your Card + Share right under My Cards (matches the real dashboard) */}
+        <div className="flex flex-col gap-4 mb-5 lg:hidden">
+          {cardSharePanel}
+        </div>
 
         {/* Top row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.85fr_0.72fr_0.7fr] gap-4 mb-5">
@@ -365,24 +393,9 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             )}
           </div>
 
-          {/* Right: Your Card (with arrow) + Share */}
-          <div className="flex flex-col gap-4">
-            <Box>
-              <div className="flex items-center gap-1.5 mb-3 text-blue-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-4 h-4 shrink-0">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-                <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
-              </div>
-              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
-                <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
-              </button>
-              <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
-            </Box>
-            <Box className="space-y-2">
-              <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
-              <MoreShareOptions url={cardUrl} />
-            </Box>
+          {/* Right column (desktop): Your Card + Share — on mobile it's shown under My Cards */}
+          <div className="hidden lg:flex lg:flex-col gap-4">
+            {cardSharePanel}
           </div>
         </div>
 
