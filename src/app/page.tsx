@@ -513,7 +513,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
-            <Link href="#demo" className="hover:text-slate-900 transition-colors">See it live</Link>
+            <Link href="/preview" className="hover:text-slate-900 transition-colors">See it live</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
