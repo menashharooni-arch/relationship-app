@@ -342,8 +342,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 </svg>
                 <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
               </div>
-              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all" style={{ maxHeight: 230 }}>
-                <CardRender card={card} zoom={0.72} />
+              <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]" style={{ height: 216 }}>
+                <iframe key={card.handle} src={`/card/${card.handle}?embed=1`} title="Your SwiftCard preview" scrolling="no"
+                  className="pointer-events-none block"
+                  style={{ width: 390, height: 520, border: 0, transform: "scale(0.667)", transformOrigin: "top left" }} />
               </button>
               <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
             </Box>
@@ -363,7 +365,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
       {/* Full-page live previews */}
       {modal === "card" && (
         <FullScreen title={`${card.label} — your live SwiftCard`} href={`/card/${card.handle}`} onClose={() => setModal(null)}>
-          <IframePhone src={`/card/${card.handle}`} />
+          <IframePhone src={`/card/${card.handle}?embed=1`} />
         </FullScreen>
       )}
       {modal === "links" && (

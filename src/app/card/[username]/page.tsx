@@ -83,11 +83,12 @@ export default async function CardPage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ source?: string }>;
+  searchParams: Promise<{ source?: string; embed?: string }>;
 }) {
   const { username } = await params;
-  const { source: rawSource } = await searchParams;
+  const { source: rawSource, embed } = await searchParams;
   const source = rawSource ?? "direct_link";
+  const isEmbed = embed === "1"; // rendered inside the /preview demo — skip tracking + nudge
 
   // Cards table is the source of truth. Fall back to a legacy profile-card for any
   // account not yet migrated. Admin client so row-level security doesn't hide cards.
@@ -213,8 +214,8 @@ export default async function CardPage({
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
-      <CardEventTracker username={profile.username} source={source} />
-      <SignupNudgeHost />
+      {!isEmbed && <CardEventTracker username={profile.username} source={source} />}
+      {!isEmbed && <SignupNudgeHost />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
