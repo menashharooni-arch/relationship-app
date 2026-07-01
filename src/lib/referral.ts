@@ -35,24 +35,25 @@ export function isSignupSource(s: string | null | undefined): s is SignupSource 
   return !!s && (SIGNUP_SOURCES as readonly string[]).includes(s);
 }
 
-// Every promo source grants the new user a free month; only plain "direct" doesn't.
+// Only a real referral (a friend sharing their /r/CODE link) grants a free month.
+// All other prompts — save_contact, share_info, badge, follow_up, etc. — are plain
+// "create a free account" CTAs with no free month.
 export function sourceGrantsFreeMonth(src: string | null | undefined): boolean {
-  return isSignupSource(src) && src !== "direct";
+  return src === "referral";
 }
 
 // ── Shared nudge copy ───────────────────────────────────────────────────────
 // One place for all the "create your own SwiftCard" wording. Keyed by source.
 type NudgeCopy = { title: string; sub: string; cta: string };
-const FREE = "Get 1 month of Pro free";
 
 export const NUDGE_COPY: Record<string, NudgeCopy> = {
-  default:      { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  save_contact: { title: "Create your own SwiftCard", sub: `${FREE} — your card, your way.`, cta: "Get 1 month free" },
-  share_info:   { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  vcard:        { title: "Saved ✓ Now make your own", sub: `${FREE} on your own SwiftCard.`, cta: "Make my card free" },
-  link_button:  { title: "Get a page like this, free", sub: `Your own Swift Links + card. ${FREE}.`, cta: "Get started free" },
-  badge:        { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  follow_up:    { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
+  default:      { title: "Create your own SwiftCard", sub: "It's free to start — your card, your way.", cta: "Create a free account" },
+  save_contact: { title: "Create your own SwiftCard", sub: "Make your own digital card in a minute — free to start.", cta: "Create a free account" },
+  share_info:   { title: "Create your own SwiftCard", sub: "Make your own digital card in a minute — free to start.", cta: "Create a free account" },
+  vcard:        { title: "Saved ✓ Now make your own", sub: "Create your own SwiftCard — free to start.", cta: "Create a free account" },
+  link_button:  { title: "Get a page like this, free", sub: "Your own Swift Links + card — free to start.", cta: "Create a free account" },
+  badge:        { title: "Create your own SwiftCard", sub: "It's free to start — your card, your way.", cta: "Create a free account" },
+  follow_up:    { title: "Create your own SwiftCard", sub: "It's free to start — your card, your way.", cta: "Create a free account" },
 };
 
 export function nudgeCopy(source: string | null | undefined): NudgeCopy {

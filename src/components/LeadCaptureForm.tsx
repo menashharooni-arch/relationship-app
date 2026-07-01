@@ -5,8 +5,6 @@ import { getVisitorId } from "@/lib/visitor";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
 
-const PROMO_CODE = "FREE1MONTH";
-
 export default function LeadCaptureForm({
   cardOwner,
   source = "direct_link",
@@ -16,7 +14,6 @@ export default function LeadCaptureForm({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
-  const [codeCopied, setCodeCopied] = useState(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -44,19 +41,11 @@ export default function LeadCaptureForm({
     }
   }
 
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(PROMO_CODE);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {
-      setCodeCopied(false);
-    }
-  }
-
   if (status === "done") {
     const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
-    const signupUrl = `${APP_URL}/login?mode=signup&ref=${encodeURIComponent(cardOwner)}&promo=${PROMO_CODE}`;
+    // Plain signup — no referrer, no free month. Only a real /r/CODE referral
+    // (a friend sharing their link who then upgrades to Pro) grants a free month.
+    const signupUrl = `${APP_URL}/join?src=share_info`;
 
     return (
       <div className="space-y-4">
@@ -77,20 +66,8 @@ export default function LeadCaptureForm({
             <p className="text-white font-bold text-sm mb-1">Want your own smart card like this?</p>
             <p className="text-slate-400 text-xs leading-relaxed mb-4">
               Share your contact in one tap, capture leads automatically, and send follow-ups on autopilot.
-              Get <span className="text-white font-semibold">1 exclusive month free</span> with code:
+              It&apos;s free to start — your card, your way.
             </p>
-
-            {/* Promo code pill */}
-            <button
-              onClick={copyCode}
-              className="flex items-center gap-2 w-full justify-between px-4 py-2.5 rounded-xl mb-4 transition-all active:scale-[0.98]"
-              style={{ background: "#1e293b", border: "1px solid #334155" }}
-            >
-              <span className="font-mono font-bold text-blue-300 text-sm tracking-widest">{PROMO_CODE}</span>
-              <span className="text-slate-500 text-[10px] font-medium shrink-0">
-                {codeCopied ? "✓ Copied!" : "Tap to copy"}
-              </span>
-            </button>
 
             {/* Primary CTA */}
             <a
@@ -98,7 +75,7 @@ export default function LeadCaptureForm({
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90 mb-2"
               style={{ background: "#1D4ED8", color: "#fff" }}
             >
-              Try 1 Month Free →
+              Create a free account →
             </a>
 
             {/* Download placeholder */}
