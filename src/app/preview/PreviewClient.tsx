@@ -5,18 +5,7 @@ import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ShareButton from "@/components/ShareButton";
 import MoreShareOptions from "@/components/MoreShareOptions";
-import ClassicPro from "@/components/card-templates/ClassicPro";
-import ModernBold from "@/components/card-templates/ModernBold";
-import PhotoFirst from "@/components/card-templates/PhotoFirst";
-import LocalBusiness from "@/components/card-templates/LocalBusiness";
-import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-
-const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
-  "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst,
-  "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal,
-};
 
 type Range = "today" | "week" | "month";
 type Status = "New Contact" | "Touch" | "Dissolved";
@@ -74,11 +63,6 @@ const STATUS_STYLE: Record<Status, { bg: string; text: string }> = {
 
 function Box({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`bg-gray-900 border border-gray-800/80 rounded-2xl p-5 ${className}`}>{children}</div>;
-}
-
-function CardRender({ card, zoom = 0.8 }: { card: DemoCard; zoom?: number }) {
-  const T = TEMPLATE_MAP[card.template] ?? ClassicPro;
-  return <div style={{ zoom }}><div style={{ width: 360 }}><T data={withoutSocials(card.data)} /></div></div>;
 }
 
 // Renders the real card page (card-only mode) and auto-sizes the iframe to the card's
@@ -431,7 +415,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 <p className="mt-2">Best,</p>
                 <div className="mt-3">
                   <p className="text-[14px] text-gray-900 mb-1.5"><strong>{card.data.name}</strong> | {card.data.company}</p>
-                  <div className="rounded-[10px] overflow-hidden border border-gray-200 w-[230px] max-w-full"><CardRender card={card} zoom={0.5} /></div>
+                  <div className="rounded-[10px] overflow-hidden border border-gray-200 w-[240px] max-w-full bg-[#FAF7F2]"><CardOnlyPreview key={`sig-${card.handle}`} src={`/card/${card.handle}?embed=card`} /></div>
                   <span className="inline-block mt-2 text-[14px] font-bold text-blue-600">Contact me</span>
                 </div>
               </div>
