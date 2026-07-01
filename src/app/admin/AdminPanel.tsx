@@ -221,6 +221,8 @@ export default function AdminPanel() {
             >
               + Create card for business
             </button>
+            <a href="/admin/analytics" className="text-sm text-gray-400 hover:text-white transition-colors">Analytics</a>
+            <a href="/admin/plans" className="text-sm text-gray-400 hover:text-white transition-colors">Plan tester</a>
             <a href="/dashboard" className="text-sm text-gray-400 hover:text-white transition-colors">← Dashboard</a>
           </div>
         </div>
