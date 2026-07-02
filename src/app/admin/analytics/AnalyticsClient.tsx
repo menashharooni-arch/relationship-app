@@ -6,6 +6,7 @@ import Link from "next/link";
 type Analytics = {
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string; email: string; username: string; plan: string; created_at: string }[] };
   plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number };
+  acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
   cards: { total: number; perAccount: number };
   leads: { total: number; today: number; d7: number; series: { date: string; count: number }[]; bySource: [string, number][]; perAccount: number };
   views: { total: number; d7: number; cardViews30: number; linkViews30: number };
@@ -76,18 +77,10 @@ export default function AnalyticsClient() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400 z-50" />
-      <div className="max-w-6xl mx-auto px-5 pt-8 pb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-slate-500 uppercase mb-1">SwiftCard</p>
-            <h1 className="text-2xl font-bold text-white">Company analytics</h1>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/admin/plans" className="text-gray-400 hover:text-white transition-colors">Plan tester</Link>
-            <Link href="/admin" className="text-gray-400 hover:text-white transition-colors">← Admin</Link>
-          </div>
+    <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Company analytics</h1>
+          <p className="text-gray-500 text-sm mt-1">Growth, revenue, engagement, and where users come from.</p>
         </div>
 
         {loading ? (
@@ -196,10 +189,43 @@ export default function AnalyticsClient() {
               </div>
             </div>
 
-            <p className="text-gray-600 text-[11px] text-center">Referral & fraud analytics live in the <Link href="/admin" className="text-blue-400 hover:text-blue-300">Admin → Referrals</Link> tab. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
+            {/* Acquisition — where signups come from and which sources convert to paid */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <p className="text-white font-semibold text-sm mb-1">Acquisition — where signups come from</p>
+              <p className="text-gray-600 text-[11px] mb-4">Use the paid-conversion column to decide where marketing money works hardest.</p>
+              {a.acquisition.length === 0 ? (
+                <p className="text-gray-600 text-xs">No signups yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-800 text-gray-500 text-xs">
+                        <th className="text-left py-2 font-medium">Source</th>
+                        <th className="text-right py-2 font-medium">Signups</th>
+                        <th className="text-right py-2 font-medium">Last 30d</th>
+                        <th className="text-right py-2 font-medium">Went paid</th>
+                        <th className="text-right py-2 font-medium">Paid rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/60">
+                      {a.acquisition.map((row) => (
+                        <tr key={row.source}>
+                          <td className="py-2 text-gray-300 text-xs capitalize">{row.source.replace(/_/g, " ")}</td>
+                          <td className="py-2 text-right text-white font-semibold tabular-nums">{row.signups.toLocaleString()}</td>
+                          <td className="py-2 text-right text-gray-400 tabular-nums">{row.d30.toLocaleString()}</td>
+                          <td className="py-2 text-right text-gray-400 tabular-nums">{row.paid.toLocaleString()}</td>
+                          <td className="py-2 text-right tabular-nums font-semibold" style={{ color: row.paidRate > 0 ? "#4ade80" : "#6b7280" }}>{row.paidRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <p className="text-gray-600 text-[11px] text-center">Referral & fraud analytics live in <Link href="/admin/referrals" className="text-blue-400 hover:text-blue-300">Referrals</Link>. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
           </div>
         )}
-      </div>
     </div>
   );
 }
