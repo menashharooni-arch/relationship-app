@@ -1,48 +1,73 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/admin";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-
+// Full user directory for the admin Users page: identity, plan (+expiry),
+// signup source, cards owned (count), leads, views.
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const admin = getAdminSupabase();
 
   const { data: profiles } = await admin
     .from("profiles")
-    .select("id, username, name, email, plan, created_at, company, title")
+    .select("id, username, name, email, plan, created_at, company, title, customization, signup_source, plan_expires_at, referral_code")
     .order("created_at", { ascending: false });
 
   if (!profiles) return NextResponse.json({ users: [] });
 
-  const { data: leadCounts } = await admin
-    .from("leads")
-    .select("card_owner");
+  const [{ data: cardRows }, { data: leadRows }, { data: viewRows }] = await Promise.all([
+    admin.from("cards").select("user_id, username"),
+    admin.from("leads").select("card_owner"),
+    admin.from("card_views").select("username"),
+  ]);
 
-  const countByOwner: Record<string, number> = {};
-  for (const l of leadCounts ?? []) {
-    countByOwner[l.card_owner] = (countByOwner[l.card_owner] ?? 0) + 1;
+  // Cards per account (+ their usernames, so leads/views can roll up per user).
+  const cardsByUser: Record<string, string[]> = {};
+  for (const c of cardRows ?? []) {
+    (cardsByUser[c.user_id as string] ??= []).push(c.username as string);
   }
 
-  const { data: viewCounts } = await admin
-    .from("card_views")
-    .select("username");
-
-  const viewsByOwner: Record<string, number> = {};
-  for (const v of viewCounts ?? []) {
-    viewsByOwner[v.username] = (viewsByOwner[v.username] ?? 0) + 1;
+  const leadsByUsername: Record<string, number> = {};
+  for (const l of leadRows ?? []) {
+    const o = (l.card_owner as string) || "";
+    if (o) leadsByUsername[o] = (leadsByUsername[o] ?? 0) + 1;
   }
 
-  const users = profiles.map((p) => ({
-    ...p,
-    lead_count: countByOwner[p.username] ?? 0,
-    view_count: viewsByOwner[p.username] ?? 0,
-  }));
+  // card_views usernames: "<username>" for cards, "<username>__links" for Swift Links.
+  const viewsByUsername: Record<string, number> = {};
+  for (const v of viewRows ?? []) {
+    const u = ((v.username as string) || "").replace(/__links$/, "");
+    if (u) viewsByUsername[u] = (viewsByUsername[u] ?? 0) + 1;
+  }
+
+  const users = profiles
+    .filter((p) => !((p.customization as { _deleted?: boolean } | null)?._deleted))
+    .map((p) => {
+      // A user's usernames = their profile slug + all their cards' slugs.
+      const usernames = new Set<string>([p.username as string, ...(cardsByUser[p.id as string] ?? [])].filter(Boolean));
+      let lead_count = 0, view_count = 0;
+      for (const u of usernames) {
+        lead_count += leadsByUsername[u] ?? 0;
+        view_count += viewsByUsername[u] ?? 0;
+      }
+      return {
+        id: p.id,
+        username: p.username,
+        name: p.name,
+        email: p.email,
+        plan: p.plan,
+        plan_expires_at: p.plan_expires_at ?? null,
+        signup_source: p.signup_source ?? null,
+        referral_code: p.referral_code ?? null,
+        company: p.company,
+        title: p.title,
+        created_at: p.created_at,
+        card_count: (cardsByUser[p.id as string] ?? []).length,
+        lead_count,
+        view_count,
+      };
+    });
 
   return NextResponse.json({ users });
 }

@@ -27,7 +27,7 @@ export async function GET() {
   // ── Accounts ───────────────────────────────────────────────────────────────
   const { data: profRows } = await admin
     .from("profiles")
-    .select("id, email, name, username, plan, created_at, customization")
+    .select("id, email, name, username, plan, created_at, customization, signup_source")
     .order("created_at", { ascending: false })
     .limit(1000);
   const accounts = (profRows ?? []).filter(
@@ -54,6 +54,21 @@ export async function GET() {
   const paid = plans.pro + plans.enterprise;
   const conversion = totalAccounts ? Math.round((paid / totalAccounts) * 1000) / 10 : 0;
   const estMrr = Math.round((plans.pro * PRO_PRICE + plans.enterprise * OFFICE_PRICE) * 100) / 100;
+
+  // ── Acquisition: where signups come from + which sources convert to paid ──
+  // This is the marketing-spend view: signups, last-30-day signups, and the
+  // paid-conversion rate per signup source.
+  const acqMap: Record<string, { signups: number; d30: number; paid: number }> = {};
+  accounts.forEach((a) => {
+    const src = ((a as { signup_source?: string | null }).signup_source || "direct") as string;
+    const slot = (acqMap[src] ??= { signups: 0, d30: 0, paid: 0 });
+    slot.signups++;
+    if (new Date(a.created_at as string).getTime() >= now - 30 * DAY) slot.d30++;
+    if (a.plan === "pro" || a.plan === "enterprise") slot.paid++;
+  });
+  const acquisition = Object.entries(acqMap)
+    .map(([source, v]) => ({ source, ...v, paidRate: v.signups ? Math.round((v.paid / v.signups) * 1000) / 10 : 0 }))
+    .sort((a, b) => b.signups - a.signups);
 
   // ── Cards ────────────────────────────────────────────────────────────────
   const { count: cardTotal } = await admin.from("cards").select("*", { count: "exact", head: true });
@@ -103,6 +118,7 @@ export async function GET() {
       recent: accounts.slice(0, 10).map((a) => ({ name: a.name, email: a.email, username: a.username, plan: a.plan, created_at: a.created_at })),
     },
     plans: { free: plans.free, pro: plans.pro, office: plans.enterprise, paid, conversion, estMrr },
+    acquisition,
     cards: { total: cardTotal ?? 0, perAccount: totalAccounts ? Math.round(((cardTotal ?? 0) / totalAccounts) * 10) / 10 : 0 },
     leads: {
       total: leadTotal ?? 0, today: leadsToday, d7: leads7,
