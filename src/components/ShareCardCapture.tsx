@@ -59,38 +59,59 @@ export default function ShareCardCapture({
     logoUrl: proxy((cardData as { logoUrl?: string | null }).logoUrl),
   } as CardData;
 
+  // Rasterize the card once. Every image (photo/logo) must be loaded first so
+  // the capture shows the whole card. A timeout stops a rare html-to-image hang
+  // (font/resource embedding) from wedging the capture forever.
+  async function renderOnce(): Promise<string | null> {
+    const el = cardRef.current;
+    if (!el) return null;
+    // Wait for the lazy template to render…
+    for (let i = 0; i < 80 && el.offsetHeight < 120; i++) await new Promise((r) => setTimeout(r, 100));
+    // …and for its images (photo/logo) to load so they're in the capture.
+    const imgs = Array.from(el.querySelectorAll("img"));
+    await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
+      ? Promise.resolve()
+      : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 6000); })));
+    await new Promise((r) => setTimeout(r, 200)); // let fonts/reflow settle
+
+    // Render the node NATIVELY larger (transform scale) rather than bumping
+    // pixelRatio: foreignObject rasterizes at 1x and pixelRatio only upscales
+    // (blurry), so scaling the node up keeps text crisp at full resolution.
+    // No cacheBust: the node was just freshly rendered (nothing stale to bust),
+    // and appending cache-bust queries to every resource is a common hang cause.
+    const { toPng } = await import("html-to-image");
+    const w = el.offsetWidth || NATURAL;
+    const h = el.offsetHeight || NATURAL;
+    const SCALE = 4;
+    const png = toPng(el, {
+      width: w * SCALE,
+      height: h * SCALE,
+      pixelRatio: 1,
+      cacheBust: false,
+      backgroundColor: CARD_BG,
+      style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
+    });
+    const dataUrl = await Promise.race([
+      png,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
+    ]);
+    return dataUrl && dataUrl.length >= 5000 ? dataUrl : null; // null = blank/timed-out
+  }
+
   async function captureAndUpload() {
     if (!username || !/^[a-z0-9-]{1,40}$/i.test(username)) return;
     if (capturingRef.current) return;
     capturingRef.current = true;
     try {
-      const el = cardRef.current;
-      if (!el) return;
-      // Wait for the lazy template to render…
-      for (let i = 0; i < 80 && el.offsetHeight < 120; i++) await new Promise((r) => setTimeout(r, 100));
-      // …and for its images (photo/logo) to load.
-      const imgs = Array.from(el.querySelectorAll("img"));
-      await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
-        ? Promise.resolve()
-        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
-      await new Promise((r) => setTimeout(r, 150)); // let fonts settle
-
-      // Render the node NATIVELY larger (transform scale) rather than bumping
-      // pixelRatio: foreignObject rasterizes at 1x and pixelRatio only upscales
-      // (blurry), so scaling the node up keeps text crisp at full resolution.
-      const { toPng } = await import("html-to-image");
-      const w = el.offsetWidth || NATURAL;
-      const h = el.offsetHeight || NATURAL;
-      const SCALE = 4;
-      const dataUrl = await toPng(el, {
-        width: w * SCALE,
-        height: h * SCALE,
-        pixelRatio: 1,
-        cacheBust: true,
-        backgroundColor: CARD_BG,
-        style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
-      });
-      if (!dataUrl || dataUrl.length < 5000) return; // blank guard
+      // Retry a couple of times — a first attempt can time out while fonts/images
+      // warm up; a retry then succeeds. The OG route serves a rendered fallback
+      // until a real capture lands, so previews never break in the meantime.
+      let dataUrl: string | null = null;
+      for (let attempt = 0; attempt < 3 && !dataUrl; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 800));
+        dataUrl = await renderOnce().catch(() => null);
+      }
+      if (!dataUrl) return;
       const res = await fetch("/api/card-share-image", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
       });
