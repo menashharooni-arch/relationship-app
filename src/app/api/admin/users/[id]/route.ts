@@ -70,6 +70,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
+  // referred_by is the REFERRER'S user id — resolve it to a human identity.
+  let referredBy: { id: string; name: string | null; email: string | null } | null = null;
+  if (p.referred_by) {
+    const { data: ref } = await admin.from("profiles").select("id, name, email").eq("id", p.referred_by).maybeSingle();
+    if (ref) referredBy = { id: ref.id as string, name: ref.name as string | null, email: ref.email as string | null };
+  }
+
   const cardList = (cards ?? []).map((c) => ({
     ...c,
     leads: leadsByCard[c.username as string] ?? 0,
@@ -85,7 +92,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       plan_expires_at: p.plan_expires_at ?? null, created_at: p.created_at,
       company: p.company, title: p.title, phone: p.phone, website: p.website, photo_url: p.photo_url,
       signup_source: p.signup_source ?? "direct", referral_code: p.referral_code ?? null,
-      referred_by: p.referred_by ?? null, referral_reward_earned: p.referral_reward_earned ?? false,
+      referred_by: referredBy, referral_reward_earned: p.referral_reward_earned ?? false,
       deleted: !!((p.customization as { _deleted?: boolean } | null)?._deleted),
     },
     cards: cardList,
