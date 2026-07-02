@@ -4,17 +4,11 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import SocialIcons from "@/components/SocialIcons";
-import ConnectButton from "@/components/ConnectButton";
 import CardEventTracker from "@/components/CardEventTracker";
-import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
+import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
 
 async function resolve(username: string) {
   const admin = getAdminSupabase();
@@ -79,63 +73,24 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     youtube: customization.youtube,
   });
 
-  const firstName = profile.name?.split(" ")[0] || username;
   const subtitle = [profile.title, profile.company].filter(Boolean).join("  ·  ");
 
   return (
-    <main
-      className="min-h-[100dvh] w-full overflow-y-auto relative flex flex-col items-center justify-center px-6 py-12"
-      style={{ background: "linear-gradient(160deg, #0B1020 0%, #181538 55%, #2A2466 100%)" }}
-    >
+    <>
       {!isEmbed && !isOwnerView && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
       {!isEmbed && <SignupNudgeHost />}
-
-      {/* Ambient glow */}
-      <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full blur-3xl opacity-30" style={{ background: "radial-gradient(circle, #6366f1, transparent 70%)" }} />
-      <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full blur-3xl opacity-25" style={{ background: "radial-gradient(circle, #ec4899, transparent 70%)" }} />
-
-      <div className="relative w-full max-w-sm flex flex-col items-center text-center">
-        {/* Avatar */}
-        <div className="rounded-full p-[2px] mb-4" style={{ background: "linear-gradient(135deg, #818cf8, #ec4899)" }}>
-          {photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoUrl} alt={profile.name || ""} className="w-24 h-24 rounded-full object-cover block" />
-          ) : (
-            <div className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold text-white" style={{ background: "#1e1b4b" }}>
-              {profile.name ? initials(profile.name) : "SC"}
-            </div>
-          )}
-        </div>
-
-        <h1 className="text-2xl font-bold text-white tracking-tight">{profile.name || username}</h1>
-        {subtitle && <p className="text-indigo-200/70 text-sm mt-1">{subtitle}</p>}
-
-        {bio && <p className="text-white/70 text-sm leading-relaxed mt-3 max-w-xs whitespace-pre-wrap">{bio}</p>}
-
-        {/* Connect */}
-        <div className="w-full mt-5">
-          <ConnectButton cardOwner={username} ownerFirstName={firstName} />
-        </div>
-
-        {/* Social icons — on mobile these open the native app if installed */}
-        <SocialIcons socials={socials.map((s) => ({ label: s.label, href: s.href }))} />
-
-        {/* Additional links — preview thumbnails ("the face of the page") for
-            video links and any link with an Open Graph image (Zillow, etc.). */}
-        <SwiftLinkButtons links={actionLinks} />
-      </div>
-
-      {/* Footer — "Made with SwiftCard" badge on Free, removed on Pro/Office */}
-      {!ownerPaid ? (
-        <a href={`${APP_URL}/join?src=badge`} className="relative mt-10 flex items-center gap-1.5 text-white/45 text-[11px] hover:text-white/80 transition-colors">
-          <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-          Made with SwiftCard.me
-        </a>
-      ) : (
-        <a href={`${APP_URL}/card/${username}`} className="relative mt-10 text-white/40 text-[11px] hover:text-white/70 transition-colors">
-          View Swift Card
-        </a>
-      )}
-    </main>
+      <SwiftLinkProfile
+        name={profile.name || username}
+        username={username}
+        photoUrl={photoUrl}
+        subtitle={subtitle}
+        bio={bio}
+        verified={ownerPaid}
+        socials={socials.map((s) => ({ label: s.label, href: s.href, color: s.color, textColor: s.textColor }))}
+        links={actionLinks}
+        ownerPaid={ownerPaid}
+        appUrl={APP_URL}
+      />
+    </>
   );
 }
