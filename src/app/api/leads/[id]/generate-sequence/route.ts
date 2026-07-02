@@ -119,7 +119,9 @@ ${isText
     }
     if (!isText && !subject) subject = day === 1 ? "Great connecting" : "Checking in";
 
-    return { day, time, message, subject: subject || undefined };
+    // Stamp the channel on every step — the cron routes strictly by it, and the
+    // per-contact email/text toggles pause exactly their own channel.
+    return { day, time, message, subject: subject || undefined, channel: isText ? ("sms" as const) : ("email" as const) };
   }));
 
   return NextResponse.json({ sequence });
