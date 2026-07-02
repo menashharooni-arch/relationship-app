@@ -12,16 +12,20 @@ export async function GET(req: NextRequest) {
   const admin = getAdminSupabase();
   const out: Record<string, { ok: boolean; error?: string; rows?: number | null }> = {};
 
-  const checks: [string, PromiseLike<{ error: { message: string } | null; count?: number | null }>][] = [
+  const checks: [string, PromiseLike<{ error: object | null; count?: number | null; data?: unknown[] | null }>][] = [
     ["push_subscriptions", admin.from("push_subscriptions").select("endpoint, p256dh, auth, user_id", { count: "exact", head: true })],
     ["notifications", admin.from("notifications").select("*", { count: "exact", head: true })],
+    ["notifications_columns", admin.from("notifications").select("id, user_id, card_owner, type, title, body").limit(1)],
     ["milestone_count_query", admin.from("card_views").select("*", { count: "exact", head: true }).in("username", ["menash", "menash__links"])],
-    ["milestone_dedupe_query", admin.from("notifications").select("id", { count: "exact", head: true }).eq("card_owner", "menash").eq("type", "milestone_5")],
+    // The EXACT dedupe query milestones.ts runs:
+    ["milestone_dedupe_exact", admin.from("notifications").select("id").eq("card_owner", "menash").eq("type", "milestone_5").limit(1)],
   ];
   for (const [name, q] of checks) {
     try {
-      const { error, count } = await q;
-      out[name] = error ? { ok: false, error: error.message } : { ok: true, rows: count };
+      const { error, count, data } = await q;
+      out[name] = error
+        ? { ok: false, error: JSON.stringify(error) }
+        : { ok: true, rows: count ?? (Array.isArray(data) ? data.length : null) };
     } catch (e) {
       out[name] = { ok: false, error: String(e) };
     }
