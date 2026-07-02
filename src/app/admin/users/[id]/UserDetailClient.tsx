@@ -76,6 +76,9 @@ export default function UserDetailClient({ userId }: { userId: string }) {
 
   const { user, cards, profileCard, totals, series, recentLeads } = data;
   const maxDay = Math.max(...series.map((s) => s.views + s.leads), 1);
+  // The slug whose public pages actually exist: a real card first, then the
+  // legacy profile-slug card. Null → this account has no public page yet.
+  const primarySlug = cards[0]?.username ?? profileCard?.username ?? null;
   const allCards = [
     ...cards.map((c) => ({ key: c.id, username: c.username, label: c.label || c.name || c.username, template: c.template ?? "classic-pro", leads: c.leads, cardViews: c.cardViews, linkViews: c.linkViews })),
     ...(profileCard ? [{ key: "profile", username: profileCard.username, label: `${user.name || user.username} (primary)`, template: "primary", leads: profileCard.leads, cardViews: profileCard.cardViews, linkViews: profileCard.linkViews }] : []),
@@ -114,14 +117,20 @@ export default function UserDetailClient({ userId }: { userId: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <a href={`/card/${user.username}`} target="_blank" rel="noopener noreferrer"
-            className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-3 py-1.5 transition-colors">
-            View card ↗
-          </a>
-          <a href={`/links/${user.username}`} target="_blank" rel="noopener noreferrer"
-            className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-3 py-1.5 transition-colors">
-            Swift Links ↗
-          </a>
+          {primarySlug ? (
+            <>
+              <a href={`/card/${primarySlug}`} target="_blank" rel="noopener noreferrer"
+                className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-3 py-1.5 transition-colors">
+                View card ↗
+              </a>
+              <a href={`/links/${primarySlug}`} target="_blank" rel="noopener noreferrer"
+                className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-3 py-1.5 transition-colors">
+                Swift Links ↗
+              </a>
+            </>
+          ) : (
+            <span className="text-xs text-gray-600">No public card yet</span>
+          )}
         </div>
       </div>
 
