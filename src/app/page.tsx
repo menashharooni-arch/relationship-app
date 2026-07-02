@@ -40,29 +40,11 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: "Our app is best to use, but not required",
-    body: "SwiftCard works right in any browser — nothing to download for you or the people you share with. Our app just makes building cards and managing your leads and follow-ups even smoother on the go.",
+    title: "A realistic digital business card",
+    body: "The star of the show. A polished card people open in one tap — your photo, logo, colors, and every way to reach you. They save it to their phone instantly, and it looks every bit as real as a printed card.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3" />
-      </svg>
-    ),
-  },
-  {
-    title: "One-click email signature",
-    body: "Add your live business card to your email signature in one click — the card image plus tap-to-call, email, and website links. It always reflects your latest card, so every email you send shares it.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-      </svg>
-    ),
-  },
-  {
-    title: "Tap to call, email & visit",
-    body: "On your card, your phone, email, and website are live — one tap starts a call, opens an email, or visits your site. Sharing your socials on mobile opens the app, not just the browser.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
+        <rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" d="M3 9.5h18M7 14h5" />
       </svg>
     ),
   },
@@ -72,6 +54,33 @@ const FEATURES = [
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+    ),
+  },
+  {
+    title: "Swift Signature — your card in every email",
+    body: "Add your live business card to your email signature in one click — the card image plus tap-to-call, email, and website links. It always reflects your latest card, so every email you send shares it.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+      </svg>
+    ),
+  },
+  {
+    title: "Our app is best to use, but not required",
+    body: "SwiftCard works right in any browser — nothing to download for you or the people you share with. Our app just makes building cards and managing your leads and follow-ups even smoother on the go.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3" />
+      </svg>
+    ),
+  },
+  {
+    title: "Tap to call, email & visit",
+    body: "On your card, your phone, email, and website are live — one tap starts a call, opens an email, or visits your site. Sharing your socials on mobile opens the app, not just the browser.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
       </svg>
     ),
   },
@@ -216,12 +225,6 @@ const FAQS = [
   },
 ];
 
-const TRUST_NAMES = [
-  "Salesforce", "HubSpot", "Keller Williams", "Sotheby's", "Goldman Sachs",
-  "Deloitte", "CBRE", "Compass", "Marcus & Millichap", "JLL",
-  "Colliers", "Cushman & Wakefield", "EXP Realty", "RE/MAX", "Berkshire Hathaway",
-];
-
 const SOURCE_BADGE_COLORS: Record<string, string> = {
   LinkedIn: "#0A66C2",
   "App Store": "#007AFF",
@@ -229,8 +232,6 @@ const SOURCE_BADGE_COLORS: Record<string, string> = {
 };
 
 export default function HomePage() {
-  const trustRow = [...TRUST_NAMES, ...TRUST_NAMES];
-
   return (
     <main className="min-h-screen bg-cream flex flex-col">
 
@@ -317,34 +318,11 @@ export default function HomePage() {
         <HeroPhone />
       </section>
 
-      {/* Trust logo marquee */}
-      <div className="border-y border-warm-border bg-cream-dark py-5 overflow-hidden">
-        <p className="text-center text-[11px] font-semibold tracking-widest text-slate-400 uppercase mb-4">
-          Trusted by professionals at
-        </p>
-        <div className="relative overflow-hidden">
-          <div
-            className="flex gap-12 whitespace-nowrap"
-            style={{ animation: "marquee 30s linear infinite", display: "flex" }}
-          >
-            {trustRow.map((name, i) => (
-              <span
-                key={i}
-                className="text-sm font-semibold shrink-0"
-                style={{ color: "#9CA3AF", letterSpacing: "0.02em" }}
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Stats bar */}
-      <div className="bg-cream py-14 px-6">
+      <div className="border-t border-warm-border bg-cream py-14 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
           {[
-            { value: "12,000+", label: "Active professionals" },
+            { value: "30 sec", label: "To set up your card" },
             { value: "4.9★", label: "Average rating" },
             { value: "3×", label: "More follow-ups vs. paper cards" },
           ].map((s) => (
@@ -356,13 +334,72 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* What is SwiftCard — the concept, card first, in plain language */}
+      <section className="border-t border-warm-border bg-cream-dark py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">What is SwiftCard?</p>
+            <h2 className="text-3xl font-bold text-slate-900">One link. Everything they need to reach you.</h2>
+            <p className="text-slate-500 mt-3 max-w-xl mx-auto text-base leading-relaxed">
+              SwiftCard replaces the paper business card. You share one link — people open it, save your contact in one tap, and connect. No app to download, nothing to type. It comes with three things:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Pillar 1 — the card (the star) */}
+            <div className="relative bg-warm-card border-2 border-brand rounded-2xl p-7 shadow-md">
+              <span className="absolute -top-3 left-6 bg-brand text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">Start here</span>
+              <div className="w-11 h-11 rounded-xl bg-brand flex items-center justify-center text-white mb-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+                  <rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" d="M3 9.5h18M7 14h5" />
+                </svg>
+              </div>
+              <p className="text-slate-900 font-bold text-base mb-1">1. Your SwiftCard</p>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                A real, beautiful business card people open in one tap — your photo, logo, colors, and every way to reach you. They save your number and email straight to their phone. This is the main event.
+              </p>
+            </div>
+
+            {/* Pillar 2 — Swift Links */}
+            <div className="bg-warm-card border border-warm-card-border rounded-2xl p-7">
+              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+              </div>
+              <p className="text-slate-900 font-bold text-base mb-1">2. Swift Links</p>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                Your own link-in-bio page — photo, bio, social icons, and buttons, all at one link. Perfect for your Instagram or TikTok bio so followers can reach you.
+              </p>
+            </div>
+
+            {/* Pillar 3 — Swift Signature */}
+            <div className="bg-warm-card border border-warm-card-border rounded-2xl p-7">
+              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+              </div>
+              <p className="text-slate-900 font-bold text-base mb-1">3. Swift Signature</p>
+              <p className="text-slate-500 text-sm leading-relaxed">
+                Your live card at the bottom of every email you send. One click to add it, and it always stays up to date — so every email quietly shares your card.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-slate-400 text-sm mt-8">
+            Everything below is that card working for you — see it live 👇
+          </p>
+        </div>
+      </section>
+
       {/* Interactive live demo — the real dashboard, embedded */}
       <section id="demo" className="bg-gray-950 py-20 px-4 scroll-mt-16">
         <div className="max-w-5xl mx-auto text-center mb-8">
           <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mb-3">See it live</p>
-          <h2 className="text-3xl font-bold text-white">Click around a real dashboard</h2>
+          <h2 className="text-3xl font-bold text-white">Try it yourself — this is your dashboard</h2>
           <p className="text-gray-400 mt-3 max-w-lg mx-auto text-sm">
-            Switch cards, open your live SwiftCard and Swift Links, preview the email signature, and try sharing — it all works right here, with sample data.
+            The screen below is the real app, filled with sample data. It&apos;s your private control center — the follow-up guide inside shows you exactly what to tap first.
           </p>
         </div>
         <PreviewClient embedded />
@@ -373,8 +410,8 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">How it works</p>
-            <h2 className="text-3xl font-bold text-slate-900">Simple by design</h2>
-            <p className="text-slate-500 mt-3 max-w-md mx-auto text-sm">Three steps from setup to closed deal.</p>
+            <h2 className="text-3xl font-bold text-slate-900">Three steps to your first lead</h2>
+            <p className="text-slate-500 mt-3 max-w-md mx-auto text-sm">Set up once, share anywhere, and watch the leads roll in.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 relative">
             {/* Connecting line */}
