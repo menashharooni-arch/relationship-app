@@ -14,7 +14,10 @@ export async function insertNotification(row: {
 }): Promise<void> {
   const admin = getAdminSupabase();
   const { error } = await admin.from("notifications").insert(row);
-  if (error && (error as { code?: string }).code === "42703" && row.card_owner !== undefined) {
+  // Missing column surfaces as 42703 (Postgres) or PGRST204 (PostgREST schema
+  // cache) depending on the path — retry without the card scope on either.
+  const code = (error as { code?: string } | null)?.code;
+  if (error && (code === "42703" || code === "PGRST204") && row.card_owner !== undefined) {
     const { card_owner: _unused, ...rest } = row;
     void _unused;
     await admin.from("notifications").insert(rest);
