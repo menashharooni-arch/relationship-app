@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
 import { marketingEmail, unsubUrl } from "@/lib/email-templates";
+import { getMarketingFrom } from "@/lib/resend-domain";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
 
   const admin = getAdminSupabase();
   const resend = new Resend(process.env.RESEND_API_KEY);
+  // Branded from-address once the sending domain is verified; sandbox fallback until then.
+  const from = await getMarketingFrom();
 
   // Test mode: one email, to the admin, clearly labeled. Nothing else sent.
   if (test) {
@@ -76,7 +79,8 @@ export async function POST(req: NextRequest) {
       unsubscribeUrl: unsubUrl(""),
     });
     try {
-      await resend.emails.send({ ...template, subject: `[TEST] ${subject}`, to: adminUser.email! });
+      const { error } = await resend.emails.send({ ...template, from, subject: `[TEST] ${subject}`, to: adminUser.email! });
+      if (error) return NextResponse.json({ error: `Test send failed: ${error.message}` }, { status: 500 });
       return NextResponse.json({ test: true, sent: 1, to: adminUser.email });
     } catch (e) {
       return NextResponse.json({ error: `Test send failed: ${e}` }, { status: 500 });
@@ -115,11 +119,13 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      const { data: emailData } = await resend.emails.send({
+      const { data: emailData, error: sendErr } = await resend.emails.send({
         ...template,
+        from,
         to: profile.email,
         headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
       });
+      if (sendErr) { errors.push(`${profile.email}: ${sendErr.message}`); continue; }
 
       await admin.from("email_logs").insert({
         user_id: profile.id,

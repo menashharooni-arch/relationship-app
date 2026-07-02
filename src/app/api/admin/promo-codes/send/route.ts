@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { promoEmail, unsubUrl } from "@/lib/email-templates";
+import { requireAdmin } from "@/lib/admin";
+import { getMarketingFrom } from "@/lib/resend-domain";
 
-function auth(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === process.env.ADMIN_SECRET;
-}
-
-// POST /api/admin/promo-codes/send — email a promo code to targeted users
+// POST /api/admin/promo-codes/send — email a promo code to targeted users.
+// Same session-based admin gate as the rest of the console.
 export async function POST(req: NextRequest) {
-  if (!auth(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const {
@@ -49,6 +48,7 @@ export async function POST(req: NextRequest) {
   const { data: profiles } = await q;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
+  const from = await getMarketingFrom();
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -77,11 +77,13 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      const { data: emailData } = await resend.emails.send({
+      const { data: emailData, error: sendErr } = await resend.emails.send({
         ...template,
+        from,
         to: profile.email,
         headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
       });
+      if (sendErr) { errors.push(`${profile.email}: ${sendErr.message}`); continue; }
 
       await admin.from("email_logs").insert({
         user_id: profile.id,
