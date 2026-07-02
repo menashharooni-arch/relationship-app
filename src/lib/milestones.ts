@@ -46,17 +46,19 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
     }
     if (!ownerId) return;
 
-    // Dedupe: one notification per milestone per card, ever.
+    // Dedupe: one notification per milestone per card, ever. If the card_owner
+    // column isn't migrated yet (42703), dedupe per-user instead.
     const type = `milestone_${count}`;
-    const { data: existing } = await admin
-      .from("notifications")
-      .select("id")
-      .eq("card_owner", base)
-      .eq("type", type)
-      .limit(1);
-    if (existing?.length) return;
+    const scoped = await admin.from("notifications").select("id").eq("card_owner", base).eq("type", type).limit(1);
+    if (scoped.error) {
+      const { data: byUser } = await admin.from("notifications").select("id").eq("user_id", ownerId).eq("type", type).limit(1);
+      if (byUser?.length) return;
+    } else if (scoped.data?.length) {
+      return;
+    }
 
-    await admin.from("notifications").insert({
+    const { insertNotification } = await import("@/lib/notify");
+    await insertNotification({
       user_id: ownerId,
       card_owner: base,
       type,

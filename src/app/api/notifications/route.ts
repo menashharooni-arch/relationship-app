@@ -15,7 +15,18 @@ export async function GET(req: NextRequest) {
     .eq("user_id", user.id);
   if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
 
-  const { data } = await q.order("created_at", { ascending: false }).limit(20);
+  let { data, error } = await q.order("created_at", { ascending: false }).limit(20);
+
+  // If the card_owner column migration hasn't run yet, the scoped query errors
+  // and the bell would show nothing — fall back to the user's notifications.
+  if (error && card) {
+    ({ data } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20));
+  }
 
   return NextResponse.json(data ?? []);
 }

@@ -40,17 +40,19 @@ export async function POST(req: NextRequest) {
 
     // Fire in-app notification for meaningful events (not every view)
     if (event_type === "downloaded_vcard") {
-      const { data: owner } = await admin
-        .from("profiles")
-        .select("id")
-        .eq("username", card_owner_username)
-        .single();
+      // card_owner_username is the CARD's slug — resolve through the cards
+      // table first (multi-card accounts), then the legacy profile slug.
+      const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
+      const { data: owner } = cardRow?.user_id
+        ? await admin.from("profiles").select("id").eq("id", cardRow.user_id).maybeSingle()
+        : await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle();
 
       if (owner?.id) {
         const sourceLabel = getSourceLabel(source);
         const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
         const body = `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`;
-        await admin.from("notifications").insert({
+        const { insertNotification } = await import("@/lib/notify");
+        await insertNotification({
           user_id: owner.id,
           card_owner: card_owner_username,
           type: "contact_saved",
