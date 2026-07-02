@@ -5,11 +5,13 @@ export type ResolvedCardMeta = {
   title: string | null;
   company: string | null;
   photoUrl: string | null;
+  logoUrl: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
   address: string | null;
   accentColor: string | null;
+  template: string | null;
 } | null;
 
 // Resolves a public card by username the same way the card page body does:
@@ -51,10 +53,12 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     title: str(src.title),
     company: str(src.company),
     photoUrl: cardRow ? (owner?.photo_url ?? null) : (profileRow?.photo_url ?? null),
+    logoUrl: str(src.logo_url),
     phone: str(src.phone),
     email: str(src.email),
     website: str(src.website),
     address: str(src.address) ?? str(cust.address),
-    accentColor: str(cust.accentColor) ?? "#2563eb",
+    accentColor: str(cust.accentColor),
+    template: str(src.template),
   };
 }
