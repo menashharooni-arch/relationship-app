@@ -279,8 +279,34 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               </div>
               <button onClick={copy} disabled={!ready || status === "working"}
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — now follow the steps below" : "Copy signature"}
+                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — now open your email settings below" : "Copy signature"}
               </button>
+
+              {/* One-tap: open the signature settings for the user's email app,
+                  then they paste. We can't detect the provider, so offer the big
+                  three — each opens that provider's signature settings directly. */}
+              <div className="mt-3">
+                <p className="text-gray-500 text-[10px] mb-1.5 text-center">Then open your email&apos;s signature settings and paste:</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Gmail", url: "https://mail.google.com/mail/u/0/#settings/general" },
+                    { label: "Outlook", url: "https://outlook.live.com/mail/0/options/mail/messageContent" },
+                    { label: "Yahoo", url: "https://mail.yahoo.com/d/settings/1" },
+                  ].map((p) => (
+                    <a
+                      key={p.label}
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[11px] font-semibold py-2 rounded-xl transition-colors"
+                    >
+                      Open {p.label}
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
+                    </a>
+                  ))}
+                </div>
+                <p className="text-gray-600 text-[9px] mt-1.5 text-center">Opens on a computer, where email signatures are set. Using another app? Follow the steps below.</p>
+              </div>
 
               {/* Step-by-step setup — spelled out so anyone can do it */}
               <div className="mt-3 rounded-xl bg-gray-800/60 border border-gray-700/60 px-4 py-3">

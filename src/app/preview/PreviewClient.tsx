@@ -384,8 +384,8 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         </div>
 
         <div className="mt-10 text-center">
-          <p className="text-gray-400 text-sm mb-3">This is exactly what you get — set up your own in under a minute.</p>
-          <Link href="/join" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-3 rounded-full transition-colors">Create your free card →</Link>
+          <p className="text-gray-400 text-sm mb-4">This is exactly what you get — set up your own in under 30 seconds.</p>
+          <Link href="/join" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-full transition-colors text-base">Create your free card →</Link>
         </div>
       </div>
 

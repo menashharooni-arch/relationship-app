@@ -17,6 +17,7 @@ import ShareButton from "@/components/ShareButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import ThemeToggle from "@/components/ThemeToggle";
+import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
@@ -34,7 +35,7 @@ const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -83,6 +84,7 @@ export default async function DashboardPage({
   if (!hasCards) {
     return (
       <>
+        <AppStorePopup trigger={params.welcome === "1"} />
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
         <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
@@ -286,6 +288,7 @@ export default async function DashboardPage({
 
   return (
     <>
+      <AppStorePopup trigger={params.welcome === "1"} />
       <Suspense>
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>

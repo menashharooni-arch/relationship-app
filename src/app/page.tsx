@@ -274,7 +274,7 @@ export default function HomePage() {
           </h1>
 
           <p className="sc-rise sc-rise-3 text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
-            Share your card by link, QR code, or NFC tap. Leads save your contact in one touch. Automated follow-ups do the rest.
+            Share your card by link, QR code, or NFC tap. Leads save your contact in one touch — then SwiftCard follows up with them automatically, so no connection slips away.
           </p>
 
           {/* Social proof inline */}
@@ -310,7 +310,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <p className="text-slate-400 text-xs mt-5">Ready in 60 seconds. No design experience needed.</p>
+          <p className="text-slate-400 text-xs mt-5">Create your own card within 30 seconds. No design experience needed.</p>
         </div>
 
         {/* Phone mockup */}
@@ -497,7 +497,7 @@ export default function HomePage() {
             Your next deal starts with a better introduction.
           </h2>
           <p className="text-white/70 mb-10">
-            Set up your digital card in 60 seconds. Free to start, no credit card needed.
+            Set up your digital card in 30 seconds. Free to start, no credit card needed.
           </p>
           <Link
             href="/login?mode=signup"
