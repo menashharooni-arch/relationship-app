@@ -12,7 +12,8 @@ type Detail = {
     id: string; username: string; name: string | null; email: string | null; plan: string;
     plan_expires_at: string | null; created_at: string; company: string | null; title: string | null;
     phone: string | null; website: string | null; photo_url: string | null;
-    signup_source: string; referral_code: string | null; referred_by: string | null;
+    signup_source: string; referral_code: string | null;
+    referred_by: { id: string; name: string | null; email: string | null } | null;
     referral_reward_earned: boolean; deleted: boolean;
   };
   cards: { id: string; username: string; label: string | null; name: string | null; title: string | null; company: string | null; template: string | null; created_at: string; leads: number; cardViews: number; linkViews: number }[];
@@ -101,7 +102,14 @@ export default function UserDetailClient({ userId }: { userId: string }) {
             <p className="text-gray-600 text-xs mt-0.5">
               Joined {new Date(user.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               {" · "}source: <span className="text-gray-400">{user.signup_source.replace(/_/g, " ")}</span>
-              {user.referred_by && <> · referred via <span className="font-mono text-gray-400">{user.referred_by}</span></>}
+              {user.referred_by && (
+                <>
+                  {" · referred by "}
+                  <Link href={`/admin/users/${user.referred_by.id}`} className="text-blue-400 hover:text-blue-300">
+                    {user.referred_by.name || user.referred_by.email || "another user"}
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -122,7 +130,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <p className="text-white font-semibold text-sm">
-              Plan: <span className="text-blue-300">{PLAN_LABEL[user.plan] ?? user.plan}</span>
+              Plan: <span className="text-blue-300">{PLAN_LABEL[user.plan] ?? user.plan ?? "Free"}</span>
               {user.plan_expires_at && (
                 <span className="text-amber-400 text-xs font-normal ml-2">
                   free month until {new Date(user.plan_expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
