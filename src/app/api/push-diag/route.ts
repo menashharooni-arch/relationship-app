@@ -37,17 +37,17 @@ export async function GET(req: NextRequest) {
     actualColumns = sample?.[0] ? Object.keys(sample[0]) : [];
   } catch { /* ignore */ }
 
-  // Raw inserts, reporting each error verbatim.
-  const inserts: Record<string, string> = {};
+  // End-to-end through the REAL helper (must fall back and land a row).
   const { data: prof } = await admin.from("profiles").select("id").eq("username", "menash").maybeSingle();
   if (prof?.id) {
-    const full = await admin.from("notifications").insert({ user_id: prof.id, card_owner: "menash", type: "diag_test", title: "diag", body: "diag" });
-    inserts.with_card_owner = full.error ? JSON.stringify(full.error) : "OK";
-    const bare = await admin.from("notifications").insert({ user_id: prof.id, type: "diag_test", title: "diag", body: "diag" });
-    inserts.without_card_owner = bare.error ? JSON.stringify(bare.error) : "OK";
+    const { insertNotification } = await import("@/lib/notify");
+    await insertNotification({ user_id: prof.id, card_owner: "menash", type: "diag_test", title: "diag", body: "diag" });
+    const { data: found } = await admin.from("notifications").select("id").eq("user_id", prof.id).eq("type", "diag_test").limit(1);
+    out["insert_notification_e2e"] = { ok: !!found?.length, error: JSON.stringify({ actualColumns }) };
     await admin.from("notifications").delete().eq("user_id", prof.id).eq("type", "diag_test");
+  } else {
+    out["insert_notification_e2e"] = { ok: false, error: "no menash profile" };
   }
-  out["insert_notification_e2e"] = { ok: inserts.without_card_owner === "OK", error: JSON.stringify({ actualColumns, inserts }) };
 
   const failures = Object.entries(out).filter(([, r]) => !r.ok).map(([k]) => k);
   return NextResponse.json({ allOk: failures.length === 0, failures, out });
