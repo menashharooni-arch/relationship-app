@@ -29,6 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        {/* Apply the saved app theme before paint (no dark→light flash). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
+          }}
+        />
         <ServiceWorkerRegistrar />
         {children}
       </body>

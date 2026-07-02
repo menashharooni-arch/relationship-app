@@ -51,13 +51,13 @@ export default async function ContactsPage({
   const contactCount = (leads ?? []).filter((l) => l.card_owner === dashCard).length;
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
+    <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNav />
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky nav */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
           <div className="flex items-center gap-3 shrink-0">
             <Link href={dashHref} className="flex items-center gap-2">

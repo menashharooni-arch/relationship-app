@@ -9,20 +9,24 @@ export type CardTestimonial = {
   text: string;
 };
 
-export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials";
-export type CustomField = "name" | "title" | "company" | "phone" | "email" | "website";
+export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials" | "social" | "qr" | "divider";
+export type CustomField = "name" | "title" | "company" | "phone" | "email" | "website" | "address" | "fax";
+export type CustomSocial = "instagram" | "linkedin" | "twitter" | "tiktok" | "snapchat" | "youtube" | "facebook";
 
 export type CustomElement = {
   id: string;
   type: CustomElementType;
   field?: CustomField;   // for type "field"
   text?: string;         // for type "text"
+  social?: CustomSocial; // for type "social" (one platform: icon + handle)
   x: number;             // left, % of card width (0-100)
   y: number;             // top, % of card height (0-100)
-  fontSize?: number;     // px (text/field/socials)
+  fontSize?: number;     // px (text/field/socials/social)
   color?: string;        // overrides layout text color
   bold?: boolean;        // text/field
-  size?: number;         // px (logo/headshot)
+  italic?: boolean;      // text/field
+  size?: number;         // px (logo/headshot/qr)
+  width?: number;        // px (divider)
 };
 
 export type CustomLayout = {

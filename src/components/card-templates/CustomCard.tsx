@@ -1,6 +1,40 @@
 // CustomCard — a freeform, user-designed card.
 // Layout comes from data.customization.customLayout (built in the Pro designer).
-import type { CardData, CustomElement, CustomLayout } from "./types";
+// NO hooks here — this renders server-side on the public card page.
+import type { CardData, CustomElement, CustomLayout, CustomSocial } from "./types";
+import { MiniQR } from "./types";
+import PlatformIcon from "@/components/PlatformIcon";
+
+// Map a per-platform social element to its value in the card data + icon label.
+const SOCIAL_META: Record<CustomSocial, { label: string; icon: string }> = {
+  instagram: { label: "Instagram", icon: "Instagram" },
+  linkedin:  { label: "LinkedIn",  icon: "LinkedIn" },
+  twitter:   { label: "X",         icon: "X / Twitter" },
+  tiktok:    { label: "TikTok",    icon: "TikTok" },
+  snapchat:  { label: "Snapchat",  icon: "Snapchat" },
+  youtube:   { label: "YouTube",   icon: "YouTube" },
+  facebook:  { label: "Facebook",  icon: "Facebook" },
+};
+
+function socialValue(data: CardData, s?: CustomSocial): string {
+  switch (s) {
+    case "instagram": return data.instagram || "";
+    case "linkedin":  return data.linkedin || "";
+    case "twitter":   return data.twitter || "";
+    case "tiktok":    return data.tiktok || "";
+    case "snapchat":  return data.snapchat || data.customization?.snapchat || "";
+    case "youtube":   return (data.customization as { youtube?: string } | undefined)?.youtube || "";
+    case "facebook":  return (data.customization as { facebook?: string } | undefined)?.facebook || "";
+    default: return "";
+  }
+}
+
+// Shorten stored values (URLs, long handles) to a card-friendly handle.
+function shortHandle(v: string): string {
+  const cleaned = v.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const last = cleaned.split("/").filter(Boolean).pop() ?? cleaned;
+  return last.startsWith("@") ? last : cleaned.includes("/") ? `@${last.replace(/^@/, "")}` : cleaned;
+}
 
 export const DEFAULT_CUSTOM_LAYOUT: CustomLayout = {
   background: "#0e1b35",
@@ -29,6 +63,11 @@ function fieldValue(data: CardData, field?: string): string {
     }
     case "email": return data.email || "";
     case "website": return data.website || "";
+    case "address": return data.address || "";
+    case "fax": {
+      const f = data.customization?.fax?.trim();
+      return f ? `Fax: ${f}` : "";
+    }
     default: return "";
   }
 }
@@ -78,18 +117,56 @@ export function CustomElementContent({
     return (
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: el.fontSize ?? 9, color: el.color ?? layout.textColor, opacity: 0.9 }}>
         {shown.map((h, i) => (
-          <span key={i} style={{ whiteSpace: "nowrap" }}>{h}</span>
+          <span key={i} style={{ whiteSpace: "nowrap" }}>{shortHandle(h)}</span>
         ))}
       </div>
     );
+  }
+
+  // One platform: its icon + the handle.
+  if (el.type === "social") {
+    const meta = SOCIAL_META[el.social ?? "instagram"];
+    const raw = socialValue(data, el.social ?? "instagram");
+    const shown = raw ? shortHandle(raw) : placeholder ? `@your-${el.social ?? "handle"}` : "";
+    if (!shown) return null;
+    const fs = el.fontSize ?? 10;
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: Math.max(3, fs * 0.4), fontSize: fs, color: el.color ?? layout.textColor, whiteSpace: "nowrap", opacity: raw ? 1 : 0.6 }}>
+        <span style={{ width: fs * 1.15, height: fs * 1.15, display: "inline-flex", flexShrink: 0 }}>
+          <PlatformIcon label={meta.icon} className="w-full h-full" />
+        </span>
+        <span style={{ fontWeight: el.bold ? 700 : 400 }}>{shown}</span>
+      </span>
+    );
+  }
+
+  // Scannable QR pointing at this card (marker attr lets the signature hide it).
+  if (el.type === "qr") {
+    return <MiniQR size={el.size ?? 52} bg="#ffffff" fg="#111827" />;
+  }
+
+  // A simple accent line.
+  if (el.type === "divider") {
+    return <div style={{ width: el.width ?? 80, height: 2, borderRadius: 2, background: el.color ?? layout.textColor, opacity: 0.85 }} />;
   }
 
   // field or static text
   const value = el.type === "field" ? fieldValue(data, el.field) : (el.text ?? "");
   const shown = value || (placeholder ? (el.type === "field" ? `{${el.field}}` : "Text") : "");
   if (!shown) return null;
+  const multiline = el.type === "field" && el.field === "address";
   return (
-    <span style={{ fontSize: el.fontSize ?? 12, color: el.color ?? layout.textColor, fontWeight: el.bold ? 700 : 400, whiteSpace: "nowrap" }}>
+    <span
+      style={{
+        fontSize: el.fontSize ?? 12,
+        color: el.color ?? layout.textColor,
+        fontWeight: el.bold ? 700 : 400,
+        fontStyle: el.italic ? "italic" : "normal",
+        whiteSpace: multiline ? "pre-line" : "nowrap",
+        lineHeight: multiline ? 1.35 : undefined,
+        display: multiline ? "block" : undefined,
+      }}
+    >
       {shown}
     </span>
   );

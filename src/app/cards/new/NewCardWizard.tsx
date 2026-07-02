@@ -257,7 +257,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className="max-w-sm mx-auto">
         <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

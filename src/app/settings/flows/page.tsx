@@ -48,14 +48,14 @@ export default async function FlowSettingsPage() {
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
       <MobileNav />
 
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky nav */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2">
