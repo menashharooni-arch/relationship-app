@@ -116,17 +116,19 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
-    // Insert in-app notification for the card owner (non-blocking)
+    // Insert in-app notification for the card owner (non-blocking; falls back
+    // gracefully if the card_owner column migration hasn't run yet)
     if (ownerProfile?.id) {
       const sourceLabel = source ? getSourceLabel(source) : null;
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
-      admin.from("notifications").insert({
+      const { insertNotification } = await import("@/lib/notify");
+      insertNotification({
         user_id: ownerProfile.id,
         card_owner,
         type: "new_lead",
         title: `New contact: ${name}`,
         body: `${name} shared their info with you${sourceStr}.`,
-      }).then(() => {});
+      }).catch(() => {});
 
       // Push notification — phone buzz + optional vCard save
       if (insertedLead?.id) {

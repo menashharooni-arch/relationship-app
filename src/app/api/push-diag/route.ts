@@ -30,6 +30,23 @@ export async function GET(req: NextRequest) {
       out[name] = { ok: false, error: String(e) };
     }
   }
+  // End-to-end: insert a notification through the resilient helper (which
+  // retries without card_owner pre-migration), confirm it landed, delete it.
+  try {
+    const { data: prof } = await admin.from("profiles").select("id").eq("username", "menash").maybeSingle();
+    if (prof?.id) {
+      const { insertNotification } = await import("@/lib/notify");
+      await insertNotification({ user_id: prof.id, card_owner: "menash", type: "diag_test", title: "diag", body: "diag" });
+      const { data: found } = await admin.from("notifications").select("id").eq("user_id", prof.id).eq("type", "diag_test").limit(1);
+      out["insert_notification_e2e"] = { ok: !!found?.length, rows: found?.length ?? 0 };
+      await admin.from("notifications").delete().eq("user_id", prof.id).eq("type", "diag_test");
+    } else {
+      out["insert_notification_e2e"] = { ok: false, error: "no menash profile" };
+    }
+  } catch (e) {
+    out["insert_notification_e2e"] = { ok: false, error: String(e) };
+  }
+
   const failures = Object.entries(out).filter(([, r]) => !r.ok).map(([k]) => k);
   return NextResponse.json({ allOk: failures.length === 0, failures, out });
 }
