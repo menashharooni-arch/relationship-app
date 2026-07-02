@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import EnablePushButton from "@/components/EnablePushButton";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -249,7 +250,10 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
       return;
     }
 
-    router.push("/dashboard");
+    // Card created — last step: turn on notifications for this card so the
+    // owner gets contact alerts + view milestones on their device.
+    setStatus("idle");
+    setStep(4);
   }
 
   return (
@@ -262,20 +266,22 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           Dashboard
         </Link>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-2 flex-1">
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
-                style={{ background: step >= n ? "#2563eb" : "#1f2937", color: step >= n ? "#fff" : "#6b7280" }}
-              >
-                {n}
+        {/* Step indicator (hidden on the post-create success screen) */}
+        {step <= 3 && (
+          <div className="flex items-center gap-2 mb-6">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="flex items-center gap-2 flex-1">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
+                  style={{ background: step >= n ? "#2563eb" : "#1f2937", color: step >= n ? "#fff" : "#6b7280" }}
+                >
+                  {n}
+                </div>
+                {n < 3 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
               </div>
-              {n < 3 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Step 1 — card details */}
         {step === 1 && (
@@ -384,15 +390,20 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             {/* Swiftlinks bio */}
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
+                <span className="text-[10px] font-semibold text-blue-400">Tip: be descriptive</span>
+              </div>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
-                placeholder="A little about yourself or what you do…"
+                placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
                 className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
               />
-              <p className="text-gray-600 text-[11px] mt-1">Shows at the top of your Swift Links — add a bit about yourself or what you do.</p>
+              <p className="text-gray-600 text-[11px] mt-1">
+                Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
+              </p>
             </div>
 
             {/* Social links — website first */}
@@ -515,6 +526,38 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 Next: Logo & design →
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Step 4 — card created: turn on notifications for this card */}
+        {step === 4 && (
+          <div className="space-y-5 text-center">
+            <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Your card is live! 🎉</h1>
+              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{username}</p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-left">
+              <p className="text-blue-200 font-semibold text-sm">🔔 One last thing — turn on notifications</p>
+              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
+                Get an instant alert on this device when someone shares their contact through your card, and celebrate every view milestone as your card takes off.
+              </p>
+            </div>
+
+            <EnablePushButton onDone={() => router.push("/dashboard")} label="🔔 Turn on notifications" />
+
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
+            >
+              Skip for now →
+            </button>
           </div>
         )}
 
