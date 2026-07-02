@@ -15,6 +15,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
+import ShareCardCapture from "@/components/ShareCardCapture";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
@@ -522,6 +523,15 @@ export default async function DashboardPage({
               username={activeUsername}
               storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
               ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
+            />
+
+            {/* Captures a pixel-perfect image of THIS card for its share-link
+                preview (Open Graph). Invisible; regenerates when the card changes. */}
+            <ShareCardCapture
+              key={`share-${activeUsername}`}
+              cardData={cardData}
+              template={activeSource.template ?? "classic-pro"}
+              username={activeUsername}
             />
           </div>
 
