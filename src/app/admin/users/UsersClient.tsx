@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 type User = {
   id: string;
   username: string;
+  primary_username: string | null;
   name: string;
   email: string;
   plan: string;
@@ -192,6 +193,7 @@ export default function UsersClient() {
                   <th className="text-left px-4 py-3 font-medium">Views</th>
                   <th className="text-left px-4 py-3 font-medium">Source</th>
                   <th className="text-left px-4 py-3 font-medium">Joined</th>
+                  <th className="text-left px-4 py-3 font-medium">Open</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60">
@@ -219,6 +221,16 @@ export default function UsersClient() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-[11px]">
                       {new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      {u.primary_username ? (
+                        <div className="flex items-center gap-2 text-[11px] whitespace-nowrap">
+                          <a href={`/card/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
+                          <a href={`/links/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
+                        </div>
+                      ) : (
+                        <span className="text-gray-600 text-[10px]">no card yet</span>
+                      )}
                     </td>
                   </tr>
                 ))}

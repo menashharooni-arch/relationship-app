@@ -84,7 +84,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     linkViews: viewsByCard[c.username as string]?.links ?? 0,
   }));
   // Legacy profile-slug card (pre-migration accounts have no cards rows).
-  const hasProfileCard = !(cards ?? []).some((c) => c.username === p.username) && !!p.username;
+  // Migrated profiles' slugs no longer resolve publicly, so exclude them.
+  const cust = (p.customization ?? {}) as { _migrated?: boolean };
+  const hasProfileCard = !cust._migrated && !!p.username && !(cards ?? []).some((c) => c.username === p.username);
 
   return NextResponse.json({
     user: {

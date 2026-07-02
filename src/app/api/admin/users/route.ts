@@ -51,9 +51,15 @@ export async function GET() {
         lead_count += leadsByUsername[u] ?? 0;
         view_count += viewsByUsername[u] ?? 0;
       }
+      // The slug whose public pages actually EXIST: prefer a real card, fall
+      // back to the profile slug ONLY for legacy (never-migrated) accounts —
+      // migrated profiles' slugs no longer resolve publicly. Null → no page yet.
+      const migrated = !!((p.customization as { _migrated?: boolean } | null)?._migrated);
+      const primary_username = (cardsByUser[p.id as string] ?? [])[0] ?? (!migrated ? ((p.username as string | null) ?? null) : null);
       return {
         id: p.id,
         username: p.username,
+        primary_username,
         name: p.name,
         email: p.email,
         plan: p.plan,
