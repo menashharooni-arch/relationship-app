@@ -1,5 +1,22 @@
 import { ImageResponse } from "next/og";
 import { resolveCardMeta } from "@/lib/resolve-card";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+
+// A pixel-perfect PNG of the real card, captured client-side on the dashboard
+// and stored here. When present it IS the share preview, so the link unfurls
+// with a picture identical to the card. Until it's captured (or on any error)
+// we fall back to the rendered approximation below.
+async function storedCardImage(username: string): Promise<ArrayBuffer | null> {
+  try {
+    const admin = getAdminSupabase();
+    const { data, error } = await admin.storage.from("card-shares").download(`${username}.png`);
+    if (error || !data) return null;
+    const buf = await data.arrayBuffer();
+    return buf.byteLength > 1000 ? buf : null;
+  } catch {
+    return null;
+  }
+}
 
 // Share preview = a picture of the ACTUAL card. When someone texts/DMs their
 // SwiftCard link, the unfurl shows their card in their chosen template (colors,
@@ -219,6 +236,19 @@ export default async function Image({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
+
+  // Prefer the pixel-perfect capture of the real card when it exists.
+  const stored = await storedCardImage(username);
+  if (stored) {
+    return new Response(stored, {
+      headers: {
+        "Content-Type": "image/png",
+        // Short cache so an edited card's new preview propagates quickly.
+        "Cache-Control": "public, max-age=60, s-maxage=60",
+      },
+    });
+  }
+
   const p = await resolveCardMeta(username);
 
   const meta: Meta = p ?? {
