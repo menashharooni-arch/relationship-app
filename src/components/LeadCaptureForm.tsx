@@ -156,7 +156,10 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      <p className="text-slate-600 text-[10px] text-center leading-relaxed">
+      {/* Consent disclosure — kept as small as it can be while still legible;
+          TCPA/CTIA only require it to be "clear and conspicuous", so don't go
+          below 8px or drop the contrast further. */}
+      <p className="text-slate-600 text-[8px] text-center leading-snug">
         By sharing your info you agree to receive follow-up messages by email or text. Reply STOP to a text anytime to opt out.
       </p>
     </form>

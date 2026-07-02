@@ -38,6 +38,118 @@ export function webHref(site: string): string {
   return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
 }
 
+// ─── Auto-fit system ─────────────────────────────────────────────────────────
+// Cards hold a variable amount of info (multiple phones, fax, address lines…).
+// All templates size their contact block from ONE density factor so everything
+// always fits — more rows → slightly smaller text and tighter rows — without
+// ever cutting off the QR code or any wording. Pure functions of the card data,
+// so templates stay server-renderable (no hooks — see card page requirement).
+
+// Weighted count of contact rows on the card.
+export function contactRowCount(data: CardData): number {
+  const addrLines = data.address ? data.address.split("\n").filter(Boolean).length : 0;
+  return (
+    cardPhones(data).length +
+    (data.email ? 1 : 0) +
+    (data.website ? 0.9 : 0) +
+    (cardFax(data) ? 0.9 : 0) +
+    addrLines * 0.7
+  );
+}
+
+// 1 at a normal amount of info, easing down to 0.7 on a packed card.
+export function fitFactor(data: CardData): number {
+  const rows = contactRowCount(data);
+  if (rows <= 4) return 1;
+  return Math.max(0.7, 1 - (rows - 4) * 0.075);
+}
+
+// Shrink one long value (a long email, name, or company) so it never truncates.
+// Gentle power curve with a floor at 60% of the base size.
+export function fitPx(base: number, text: string | null | undefined, comfy: number): number {
+  const len = (text ?? "").trim().length;
+  if (len <= comfy) return base;
+  return Math.max(base * 0.6, base * Math.pow(comfy / len, 0.6));
+}
+
+// QR stays on the card at every density — it just gives up a little room.
+export function qrSize(f: number): number {
+  return f >= 1 ? 66 : f >= 0.85 ? 60 : 54;
+}
+
+// Last-resort safety valve: past the point where shrinking text can absorb the
+// info, the card itself gets slightly taller (smaller width:height ratio) so
+// nothing is EVER cut off — not the QR, not a single row. Stacked layouts
+// (header on top, e.g. LocalBusiness) have less vertical room for contacts,
+// so they pass a lower threshold to start growing earlier.
+export function cardAspect(data: CardData, threshold = 8): string {
+  const rows = contactRowCount(data);
+  if (rows <= threshold) return "1.75 / 1";
+  const ratio = Math.max(1.35, 1.75 - (rows - threshold) * 0.06);
+  return `${ratio.toFixed(3)} / 1`;
+}
+
+// ─── Shared contact block ────────────────────────────────────────────────────
+// One renderer for the contact rows on EVERY template, so the type hierarchy is
+// identical and even across designs: phone (largest, bold) → email → website →
+// fax → address (smallest). Templates keep their character via the palette.
+
+export type RowPalette = {
+  accent?: string;      // icon color; omit to have icons inherit each row's text color
+  strong: string;       // phone numbers
+  mid: string;          // email
+  soft: string;         // website + fax
+  muted: string;        // address
+  phoneWeight?: number; // default 700; refined templates can use 600
+};
+
+export function ContactRows({ data, palette, f }: { data: CardData; palette: RowPalette; f: number }) {
+  const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
+  const gap = Math.round(5 * f);
+  const emailSize = fitPx(13 * f, data.email, 24);
+  const webSize = fitPx(11.5 * f, data.website, 26);
+  return (
+    <div className="flex flex-col" style={{ gap }}>
+      {cardPhones(data).map((p, i) => (
+        <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
+          <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700 }}>
+            {formatPhone(p.number)}
+            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+          </span>
+        </a>
+      ))}
+      {data.email && (
+        <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: palette.mid, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
+          <span style={{ fontSize: emailSize, fontWeight: 600, overflowWrap: "anywhere" }}>{data.email}</span>
+        </a>
+      )}
+      {data.website && (
+        <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: palette.soft, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
+          <span style={{ fontSize: webSize, fontWeight: 500, overflowWrap: "anywhere" }}>{data.website}</span>
+        </a>
+      )}
+      {cardFax(data) && (
+        <div className="flex items-center gap-2" style={{ color: palette.soft }}>
+          <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
+          <span style={{ fontSize: 11 * f, fontWeight: 500 }}>
+            {formatPhone(cardFax(data))}
+            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+          </span>
+        </div>
+      )}
+      {data.address && (
+        <div className="flex items-start gap-2" style={{ color: palette.muted }}>
+          <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
+          <span style={{ fontSize: 10.5 * f, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Contact Icons (stroke style) ────────────────────────────────────────────
 
 export const IcoPhone = () => (
