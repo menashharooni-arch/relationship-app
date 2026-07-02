@@ -98,8 +98,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v7" bump = render-logic change.
-  const contentSig = "v7|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // card's image. "v8" bump = auto-fit template layout change.
+  const contentSig = "v8|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.

@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, webHref, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -14,6 +14,7 @@ const DIM          = "#1e3a5f";
 
 export default function ModernBold({ data }: { data: CardData }) {
   const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
+  const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
     data.twitter   && { icon: <IcoX />,        color: "#94a3b8" },
@@ -25,7 +26,7 @@ export default function ModernBold({ data }: { data: CardData }) {
     <div
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
-        aspectRatio: "1.75 / 1",
+        aspectRatio: cardAspect(data),
         background: BG,
         boxShadow: "0 4px 20px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)",
       }}
@@ -61,8 +62,8 @@ export default function ModernBold({ data }: { data: CardData }) {
             <img src={data.logoUrl} alt="logo" className="w-8 h-8 rounded-md object-contain shrink-0" />
           )}
           <p
-            className="truncate"
-            style={{ fontSize: 12, letterSpacing: "0.16em", color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase" }}
+            className="min-w-0 leading-tight"
+            style={{ fontSize: fitPx(12, data.company, 18), letterSpacing: "0.16em", color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>
@@ -73,7 +74,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: "clamp(19px, 4.2vw, 28px)", lineHeight: 1.08, letterSpacing: "-0.01em" }}
+            style={{ fontSize: fitPx(28, data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em" }}
           >
             {data.name}
           </h2>
@@ -111,49 +112,15 @@ export default function ModernBold({ data }: { data: CardData }) {
         className="flex-1 flex flex-col justify-between"
         style={{ padding: "16px 18px 14px", color: "#94a3b8" }}
       >
-        <div className="flex flex-col gap-[5px] mt-1">
-          {cardPhones(data).map((p, i) => (
-            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: "#f1f5f9", textDecoration: "none" }}>
-              <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 14.5 }}>
-                {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
-              </span>
-            </a>
-          ))}
-          {data.email && (
-            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: "#e2e8f0", textDecoration: "none" }}>
-              <span style={{ color: BLUE }}><IcoMail /></span>
-              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
-            </a>
-          )}
-          {data.website && (
-            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: "#94a3b8", textDecoration: "none" }}>
-              <span style={{ color: BLUE }}><IcoGlobe /></span>
-              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
-            </a>
-          )}
-          {data.address && (
-            <div className="flex items-start gap-2" style={{ color: "#94a3b8" }}>
-              <span style={{ color: BLUE, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
-            </div>
-          )}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: "#94a3b8" }}>
-              <span style={{ color: BLUE }}><IcoPhone /></span>
-              <span style={{ fontSize: 10 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
+        {/* Contact rows — shared block, auto-fits to the amount of info */}
+        <div className="mt-1">
+          <ContactRows data={data} f={f} palette={{ accent: BLUE, strong: "#f1f5f9", mid: "#e2e8f0", soft: "#94a3b8", muted: "#94a3b8" }} />
         </div>
 
-        {/* QR + label */}
+        {/* QR + label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={66} bg={DIM} fg={BLUE} />
+            <QR size={qrSize(f)} bg={DIM} fg={BLUE} />
           </div>
         </div>
       </div>
