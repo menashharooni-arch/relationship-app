@@ -34,7 +34,9 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       success_url: `${APP_URL}/dashboard?upgraded=true`,
       cancel_url: `${APP_URL}/pricing`,
-      ...(couponId ? { discounts: [{ coupon: couponId }] } : {}),
+      // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):
+      // with no coupon, customers can type admin-created promo codes at checkout.
+      ...(couponId ? { discounts: [{ coupon: couponId }] } : { allow_promotion_codes: true }),
     });
 
     return NextResponse.json({ url: session.url });
