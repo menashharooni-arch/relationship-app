@@ -16,6 +16,7 @@ import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardCapture from "@/components/ShareCardCapture";
+import ThemeToggle from "@/components/ThemeToggle";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
@@ -83,7 +84,7 @@ export default async function DashboardPage({
     return (
       <>
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
-        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+        <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SwiftCardIcon size={28} />
@@ -92,7 +93,7 @@ export default async function DashboardPage({
             <SignOutButton />
           </div>
         </nav>
-        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
+        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mb-6">
             <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.5} className="w-8 h-8">
               <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -114,7 +115,7 @@ export default async function DashboardPage({
     return (
       <>
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
-        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+        <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SwiftCardIcon size={28} />
@@ -125,7 +126,7 @@ export default async function DashboardPage({
             </div>
           </div>
         </nav>
-        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
+        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
           <div className="w-full max-w-sm">
             <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
             <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>
@@ -293,7 +294,7 @@ export default async function DashboardPage({
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky navbar */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <Link href={`/dashboard?card=${activeUsername}`} className="flex items-center gap-2">
@@ -335,6 +336,7 @@ export default async function DashboardPage({
           <div className="flex items-center gap-2 shrink-0">
             {isPro && <CardScanner cardOwner={activeUsername} />}
             {isEnterprise && <CSVImport />}
+            <ThemeToggle />
             <NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} />
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
@@ -343,7 +345,7 @@ export default async function DashboardPage({
       </nav>
 
       <MobileNav />
-      <main className="min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
+      <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
           {/* My Cards — full width, top of dashboard */}

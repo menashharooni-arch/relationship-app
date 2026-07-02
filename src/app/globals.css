@@ -83,3 +83,54 @@ body {
   .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
   .reveal3d { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+/* ── Light mode (cream white) for app surfaces ──────────────────────────────
+   Applied when <html data-sc-theme="light"> (set by ThemeToggle) to elements
+   inside a .sc-app container (dashboard, contacts, settings, card editors).
+   Dark stays exactly as designed; public cards/links pages are untouched. */
+[data-sc-theme="light"] .sc-app.bg-gray-950,
+[data-sc-theme="light"] .sc-app .bg-gray-950 { background-color: #FAF7F2 !important; }
+[data-sc-theme="light"] .sc-app.bg-gray-950\/95,
+[data-sc-theme="light"] .sc-app .bg-gray-950\/95,
+[data-sc-theme="light"] .sc-app .bg-gray-950\/90 { background-color: rgba(250,247,242,0.95) !important; }
+[data-sc-theme="light"] .sc-app .bg-gray-900,
+[data-sc-theme="light"] .sc-app .bg-gray-900\/60,
+[data-sc-theme="light"] .sc-app .bg-gray-900\/50 { background-color: #FFFFFF !important; }
+[data-sc-theme="light"] .sc-app .bg-gray-800,
+[data-sc-theme="light"] .sc-app .bg-gray-800\/60,
+[data-sc-theme="light"] .sc-app .bg-gray-800\/40,
+[data-sc-theme="light"] .sc-app .bg-gray-800\/30 { background-color: #F3EDE3 !important; }
+[data-sc-theme="light"] .sc-app .hover\:bg-gray-800:hover,
+[data-sc-theme="light"] .sc-app .hover\:bg-gray-800\/60:hover,
+[data-sc-theme="light"] .sc-app .hover\:bg-gray-700:hover { background-color: #EAE2D4 !important; }
+[data-sc-theme="light"] .sc-app .bg-gray-700 { background-color: #E4DBCB !important; }
+
+[data-sc-theme="light"] .sc-app .border-gray-800,
+[data-sc-theme="light"] .sc-app .border-gray-800\/80,
+[data-sc-theme="light"] .sc-app .border-gray-800\/60,
+[data-sc-theme="light"] .sc-app .border-gray-700,
+[data-sc-theme="light"] .sc-app .border-gray-700\/60 { border-color: #E4DDD4 !important; }
+[data-sc-theme="light"] .sc-app :is(.divide-gray-800, .divide-gray-800\/60) > :not([hidden]) ~ :not([hidden]) { border-color: #EBE4D9 !important; }
+
+[data-sc-theme="light"] .sc-app .text-white { color: #1E293B !important; }
+[data-sc-theme="light"] .sc-app .text-gray-200,
+[data-sc-theme="light"] .sc-app .text-gray-300 { color: #374151 !important; }
+[data-sc-theme="light"] .sc-app .text-gray-400 { color: #57534E !important; }
+[data-sc-theme="light"] .sc-app .text-gray-500 { color: #78716C !important; }
+[data-sc-theme="light"] .sc-app .text-gray-600 { color: #A29D93 !important; }
+[data-sc-theme="light"] .sc-app .placeholder-gray-600::placeholder { color: #B7B0A4 !important; }
+[data-sc-theme="light"] .sc-app .hover\:text-white:hover { color: #0F172A !important; }
+[data-sc-theme="light"] .sc-app .hover\:text-gray-300:hover { color: #44403C !important; }
+
+/* Accent panels: dark tints → light tints so text stays readable */
+[data-sc-theme="light"] .sc-app :is(.bg-blue-950\/30, .bg-blue-950\/40) { background-color: #EFF6FF !important; }
+[data-sc-theme="light"] .sc-app .border-blue-800\/40 { border-color: #BFDBFE !important; }
+[data-sc-theme="light"] .sc-app :is(.text-blue-200, .text-blue-200\/90, .text-blue-300, .text-blue-300\/80) { color: #1D4ED8 !important; }
+[data-sc-theme="light"] .sc-app :is(.bg-amber-950\/30, .bg-amber-950\/40) { background-color: #FFFBEB !important; }
+[data-sc-theme="light"] .sc-app .border-amber-800\/40 { border-color: #FDE68A !important; }
+[data-sc-theme="light"] .sc-app :is(.text-amber-200, .text-amber-300) { color: #92400E !important; }
+[data-sc-theme="light"] .sc-app :is(.bg-emerald-950\/40, .bg-green-950\/30, .bg-green-900\/40) { background-color: #ECFDF5 !important; }
+[data-sc-theme="light"] .sc-app :is(.border-emerald-800\/40, .border-green-800\/40, .border-green-700\/40) { border-color: #A7F3D0 !important; }
+[data-sc-theme="light"] .sc-app :is(.text-emerald-200, .text-emerald-300, .text-emerald-400, .text-green-400) { color: #047857 !important; }
+[data-sc-theme="light"] .sc-app .bg-red-950\/40 { background-color: #FEF2F2 !important; }
+[data-sc-theme="light"] .sc-app .border-red-800\/40 { border-color: #FECACA !important; }

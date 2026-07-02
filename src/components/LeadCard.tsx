@@ -1,5 +1,6 @@
 "use client";
 
+import ShareMyCardButton from "@/components/ShareMyCardButton";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -382,6 +383,9 @@ export default function LeadCard({
             <p className="text-gray-600 text-[10px]">{formatTime(lead.created_at)}</p>
           </div>
           {/* Quick actions */}
+          {lead.phone && (
+            <ShareMyCardButton leadId={lead.id} firstName={lead.name.split(" ")[0]} />
+          )}
           {lead.phone && (
             <a
               href={`tel:${lead.phone}`}

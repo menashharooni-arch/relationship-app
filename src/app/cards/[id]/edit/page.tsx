@@ -24,7 +24,7 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className="max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
