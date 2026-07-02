@@ -54,6 +54,9 @@ export default async function OnboardingPage() {
     } catch (e) {
       console.error("[onboarding] referral apply failed:", e);
     }
+
+    // Brand-new account → land on the dashboard with the App Store prompt.
+    redirect("/dashboard?welcome=1");
   }
 
   redirect("/dashboard");

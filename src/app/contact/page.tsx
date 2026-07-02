@@ -5,7 +5,7 @@ import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   function set(field: string, value: string) {
@@ -67,22 +67,6 @@ export default function ContactPage() {
           </p>
 
           <div className="space-y-6">
-            {/* Email */}
-            <div className="flex items-start gap-4">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "#E8ECF5", border: "1px solid #C8D4E8" }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" strokeWidth={1.5} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-slate-900 font-semibold text-sm">Email us</p>
-                <p className="text-slate-500 text-sm mt-0.5">support@swiftcard.app</p>
-              </div>
-            </div>
-
             {/* Response time */}
             <div className="flex items-start gap-4">
               <div
@@ -112,7 +96,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-slate-900 font-semibold text-sm">Based in</p>
-                <p className="text-slate-500 text-sm mt-0.5">Los Angeles, California</p>
+                <p className="text-slate-500 text-sm mt-0.5">New York, NY</p>
               </div>
             </div>
           </div>
@@ -133,7 +117,7 @@ export default function ContactPage() {
               <h3 className="text-slate-900 font-bold text-xl mb-2">Message sent!</h3>
               <p className="text-slate-500 text-sm mb-6">We&apos;ll get back to you within 24 hours.</p>
               <button
-                onClick={() => { setStatus("idle"); setForm({ name: "", email: "", subject: "", message: "" }); }}
+                onClick={() => { setStatus("idle"); setForm({ name: "", email: "", message: "" }); }}
                 className="text-sm text-brand font-semibold hover:underline"
               >
                 Send another message
@@ -145,7 +129,7 @@ export default function ContactPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-500 block mb-1">Your name</label>
+                  <label className="text-xs text-slate-500 block mb-1">Your name <span className="text-[#1D4ED8]">*</span></label>
                   <input
                     type="text"
                     required
@@ -156,7 +140,7 @@ export default function ContactPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 block mb-1">Email address</label>
+                  <label className="text-xs text-slate-500 block mb-1">Email address <span className="text-[#1D4ED8]">*</span></label>
                   <input
                     type="email"
                     required
@@ -169,18 +153,7 @@ export default function ContactPage() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-500 block mb-1">Subject <span className="text-slate-400">(optional)</span></label>
-                <input
-                  type="text"
-                  value={form.subject}
-                  onChange={(e) => set("subject", e.target.value)}
-                  placeholder="e.g. Question about Pro plan"
-                  className="w-full bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">Message</label>
+                <label className="text-xs text-slate-500 block mb-1">Message <span className="text-[#1D4ED8]">*</span></label>
                 <textarea
                   required
                   rows={5}
