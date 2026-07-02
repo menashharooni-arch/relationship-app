@@ -1,18 +1,31 @@
 "use client";
 
-// Featured links, link.me style: any link with a big preview image (video
-// thumbnail or og:image) renders as a full-width "clickbait" card — the image
-// fills the card and the title sits on a bottom gradient. Links with only a
-// favicon render as compact rows; bare links as clean row buttons.
+// Featured links, replicating link.me's "album" grid exactly:
+// - Two tiles per row (calc(50% - 6px)); with an odd count the FIRST tile goes
+//   full-width with a taller image and bigger title.
+// - Every tile is an image card: video thumbnail or og:image, with a dark
+//   bottom gradient, a centered 2-line title, and a small favicon circle
+//   top-left. Links with no preview image get a branded gradient tile so they
+//   still look designed.
+// - A glossy "shine" sweeps across tiles (link.me's featured-link animation).
+// - YouTube/Vimeo links play INLINE: tapping the play button swaps the tile to
+//   an autoplaying embed (expanding it to full width) instead of leaving.
 
 import { useEffect, useState } from "react";
-import { videoThumbnail } from "@/lib/video";
+import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 type Link = { emoji: string; label: string; url: string };
 type Preview = { image: string | null; favicon: string | null; title: string | null };
 
-const SURFACE = "#242526"; // card surface on the dark sheet
+// Fallback gradients for links with no preview image — picked by index so
+// neighboring tiles differ.
+const FALLBACK_GRADIENTS = [
+  "linear-gradient(135deg, #4338ca 0%, #7c3aed 55%, #db2777 100%)",
+  "linear-gradient(135deg, #0e7490 0%, #2563eb 60%, #4f46e5 100%)",
+  "linear-gradient(135deg, #b45309 0%, #dc2626 60%, #be185d 100%)",
+  "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
+];
 
 function fullHref(url: string) {
   return url.startsWith("http") ? url : `https://${url}`;
@@ -21,6 +34,8 @@ function fullHref(url: string) {
 export default function SwiftLinkButtons({ links }: { links: Link[] }) {
   // Fetched preview (og:image + favicon fallback) for non-video links, by index.
   const [previews, setPreviews] = useState<Record<number, Preview>>({});
+  // Index of the tile currently playing an inline video, if any.
+  const [playing, setPlaying] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,51 +51,133 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
 
   if (!links.length) return null;
 
+  const odd = links.length % 2 === 1;
+
   return (
-    <div className="w-full flex flex-col gap-3 mt-6">
+    <div className="w-full mt-6 flex flex-wrap justify-between">
+      {/* link.me's featured-link shine sweep */}
+      <style>{`
+        @keyframes sc-shine { 0% { transform: translateX(-160%) skewX(-18deg); } 55%, 100% { transform: translateX(320%) skewX(-18deg); } }
+        .sc-shine { position: absolute; top: -10%; bottom: -10%; left: 0; width: 45%; pointer-events: none; z-index: 5;
+          background: linear-gradient(105deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0) 100%);
+          animation: sc-shine 3.8s ease-in-out infinite; }
+      `}</style>
+
       {links.map((link, i) => {
         const href = fullHref(link.url);
         const videoThumb = videoThumbnail(link.url);
+        const embed = videoEmbed(link.url);
         const pv = previews[i];
-        const bigImg = videoThumb || pv?.image || null;
+        const img = videoThumb || pv?.image || null;
         const favicon = pv?.favicon || null;
-        const title = `${link.emoji ? `${link.emoji} ` : ""}${link.label}`;
+        const isPlaying = playing === i;
+        // First tile goes full-width when the count is odd (link.me's rule);
+        // a tile also expands while its video is playing.
+        const big = (odd && i === 0) || isPlaying;
 
-        // Featured card — big image with the title on a bottom gradient
-        if (bigImg) {
+        // Inline video player — tile swaps to an autoplaying embed
+        if (isPlaying && embed) {
           return (
-            <a
-              key={i}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => triggerSignupNudge("link_button")}
-              className="relative block w-full rounded-[20px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.4)] ring-1 ring-white/10 transition-transform active:scale-[0.985] hover:scale-[1.01]"
-              style={{ background: SURFACE }}
-            >
-              <div className="relative w-full aspect-video">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={bigImg} alt={link.label} className="absolute inset-0 w-full h-full object-cover" />
-                {videoThumb && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" fill="#fff" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z" /></svg>
-                    </div>
-                  </div>
-                )}
-                {/* Title on a bottom gradient */}
-                <div className="absolute inset-x-0 bottom-0 pt-12 pb-3 px-4 text-left" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.78) 100%)" }}>
-                  <span className="block text-white font-bold text-[15px] leading-snug drop-shadow-sm">{title}</span>
-                  {pv?.title && pv.title !== link.label && (
-                    <span className="block text-white/70 text-[11px] mt-0.5 truncate">{pv.title}</span>
-                  )}
-                </div>
-              </div>
-            </a>
+            <div key={i} className="relative w-full rounded-[14px] overflow-hidden mb-2.5 bg-black" style={{ aspectRatio: "16/9" }}>
+              <iframe
+                src={embed}
+                className="absolute inset-0 w-full h-full"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                title={link.label}
+              />
+              <button
+                type="button"
+                onClick={() => setPlaying(null)}
+                aria-label="Close video"
+                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/60 text-white/90 text-sm leading-none flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
           );
         }
 
-        // Compact row — favicon (or emoji) tile + label + chevron
+        const tileClasses = `relative overflow-hidden rounded-[14px] mb-2.5 block group transition-transform active:scale-[0.98] ${
+          big ? "w-full" : "w-[calc(50%-6px)]"
+        } ${big ? "h-[200px]" : "h-[151px]"}`;
+
+        const inner = (
+          <>
+            {/* Image (or branded gradient fallback) */}
+            {img ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center" style={{ background: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length] }}>
+                {link.emoji ? (
+                  <span className="text-4xl drop-shadow">{link.emoji}</span>
+                ) : favicon ? (
+                  <span className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center shadow-lg">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={favicon} alt="" className="w-7 h-7 object-contain" />
+                  </span>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2} className="w-9 h-9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
+                )}
+              </div>
+            )}
+
+            {/* Bottom gradient so the title reads over any image */}
+            <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
+
+            {/* Favicon circle, top-left (link.me's iconbox) */}
+            {img && (favicon || link.emoji) && (
+              <span className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full bg-white/95 shadow flex items-center justify-center">
+                {favicon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />
+                ) : (
+                  <span className="text-[15px] leading-none">{link.emoji}</span>
+                )}
+              </span>
+            )}
+
+            {/* Play button for videos */}
+            {videoThumb && (
+              <span className="absolute inset-0 z-[6] flex items-center justify-center">
+                <span className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-[2px] flex items-center justify-center transition-transform group-hover:scale-110">
+                  <svg viewBox="0 0 24 24" fill="#fff" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z" /></svg>
+                </span>
+              </span>
+            )}
+
+            {/* Centered title at the bottom, 2-line clamp */}
+            <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
+              <span
+                className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
+                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word", textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
+              >
+                {link.label}
+              </span>
+            </span>
+
+            {/* Shine sweep */}
+            <span className="sc-shine" aria-hidden="true" />
+          </>
+        );
+
+        // Videos play inline; everything else opens the link.
+        if (embed) {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { triggerSignupNudge("link_button"); setPlaying(i); }}
+              className={`${tileClasses} text-left`}
+              style={{ background: "#242526" }}
+            >
+              {inner}
+            </button>
+          );
+        }
         return (
           <a
             key={i}
@@ -88,30 +185,10 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => triggerSignupNudge("link_button")}
-            className="w-full p-2.5 pr-4 rounded-[18px] text-sm text-white ring-1 ring-white/10 shadow-[0_6px_20px_rgba(0,0,0,0.3)] transition-all active:scale-[0.985] hover:ring-white/25 flex items-center gap-3"
-            style={{ background: SURFACE }}
+            className={tileClasses}
+            style={{ background: "#242526" }}
           >
-            <div className="w-11 h-11 rounded-[13px] overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
-              {favicon ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={favicon} alt="" className="w-6 h-6 object-contain" />
-              ) : link.emoji ? (
-                <span className="text-xl leading-none">{link.emoji}</span>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 text-white/70">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                </svg>
-              )}
-            </div>
-            <span className="flex flex-col min-w-0 flex-1 text-left">
-              <span className="font-semibold truncate">{link.label}</span>
-              {pv?.title && pv.title !== link.label && (
-                <span className="text-[11px] font-normal text-white/50 truncate">{pv.title}</span>
-              )}
-            </span>
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 opacity-40 shrink-0">
-              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-            </svg>
+            {inner}
           </a>
         );
       })}
