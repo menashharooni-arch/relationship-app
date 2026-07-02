@@ -167,16 +167,15 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   const cardSharePanel = (
     <>
       <Box>
-        <div className="flex items-center gap-1.5 mb-3 text-blue-400">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-4 h-4 shrink-0">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-          <p className="text-[11px] font-semibold">This is your main card — tap to preview it live</p>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+          <p className="text-white text-sm font-semibold">Your SwiftCard</p>
         </div>
+        <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">This is exactly what people receive when you share — tap it to open the real thing.</p>
         <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
           <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
         </button>
-        <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">Preview SwiftCard →</button>
+        <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">👆 Preview SwiftCard →</button>
       </Box>
       <Box className="space-y-2">
         <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
@@ -204,10 +203,34 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
       <div className="max-w-5xl mx-auto px-5 py-7">
         {!embedded && (
           <div className="mb-6">
-            <h1 className="text-2xl font-bold">See how we work — and how it all looks, live</h1>
-            <p className="text-gray-500 text-sm mt-1.5">Switch between cards and tap any preview. This is the real interface with sample data — nothing to install.</p>
+            <h1 className="text-2xl font-bold">This is your dashboard — try it out</h1>
+            <p className="text-gray-500 text-sm mt-1.5">It&apos;s the real app filled with sample data. Follow the 3 steps below to see everything SwiftCard does — nothing to install.</p>
           </div>
         )}
+
+        {/* Plain-language guide so a first-time visitor knows what this is and what to tap */}
+        <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-4 sm:p-5 mb-5">
+          <p className="text-blue-100 text-sm font-bold mb-1">👋 New here? Here&apos;s what you&apos;re looking at.</p>
+          <p className="text-blue-200/80 text-[13px] leading-relaxed mb-3">
+            This screen is your <strong className="text-white">dashboard</strong> — your private control center that only you see. It&apos;s full of sample data so you can click around. Try these three, in order:
+          </p>
+          <div className="grid sm:grid-cols-3 gap-2.5">
+            {[
+              { n: "1", t: "See your SwiftCard", d: "Tap “Preview SwiftCard” to open the actual card people get when you share." },
+              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for your Instagram or TikTok bio." },
+              { n: "3", t: "Preview Swift Signature", d: "Your card at the bottom of every email you send." },
+            ].map((s) => (
+              <div key={s.n} className="rounded-xl bg-gray-900/50 border border-gray-800 px-3 py-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">{s.n}</span>
+                  <span className="text-white text-[12px] font-semibold">{s.t}</span>
+                </div>
+                <p className="text-gray-400 text-[11px] leading-snug">{s.d}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-blue-300/70 text-[11px] mt-3">Tip: switch between the two cards up top and watch every number and contact update.</p>
+        </div>
 
         {/* My Cards */}
         <Box className="mb-5">
@@ -274,7 +297,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
 
           {/* Swift Links — with description */}
           <Box>
-            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-1.5">Swift Links</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
+              <p className="text-white text-sm font-semibold">Swift Links</p>
+            </div>
             <p className="text-gray-500 text-[11px] leading-relaxed mb-3">Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your Instagram or TikTok bio.</p>
             <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
               <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
@@ -282,9 +308,12 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             <button type="button" onClick={() => setModal("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">Open Swift Links →</button>
           </Box>
 
-          {/* Email signature — with description */}
+          {/* Swift Signature — with description */}
           <Box>
-            <p className="text-white font-semibold text-sm">Email signature</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+              <p className="text-white text-sm font-semibold">Swift Signature</p>
+            </div>
             <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">Drop your live card into your email signature — image + clickable links, always up to date. Every email shares your card.</p>
             <button type="button" onClick={() => setModal("signature")} className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors">Preview &amp; copy</button>
           </Box>
@@ -401,7 +430,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         </FullScreen>
       )}
       {modal === "signature" && (
-        <FullScreen title="Email signature" onClose={() => setModal(null)}>
+        <FullScreen title="Swift Signature — your card in every email" onClose={() => setModal(null)}>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-md">
             <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
             <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
