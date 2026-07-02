@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { dispatchCrmEvent } from "@/lib/crm-events";
+import { checkViewMilestone } from "@/lib/milestones";
 
 export async function POST(
   req: NextRequest,
@@ -29,6 +30,10 @@ export async function POST(
     surface: isLinks ? "links" : "card",
     location: location ?? undefined,
   });
+
+  // Achievement check: notify the owner when this card lands on a view
+  // milestone (5, 10, 25, 50, 100, …). Best-effort — never blocks tracking.
+  await checkViewMilestone(username);
 
   return NextResponse.json({ ok: true });
 }

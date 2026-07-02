@@ -52,11 +52,15 @@ export async function POST(req: NextRequest) {
 
     const admin = getAdminSupabase();
 
-    const { data: ownerProfile } = await admin
-      .from("profiles")
-      .select("id, plan, name, email, phone, company, zapier_webhook_url")
-      .eq("username", card_owner)
-      .single();
+    // Resolve the OWNER of this card slug. card_owner is the card's username —
+    // for multi-card accounts that is NOT the profile slug, so look the card up
+    // first and fall back to the legacy profile-slug match. Without this,
+    // notifications/emails silently skipped every non-primary card.
+    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url";
+    const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner).maybeSingle();
+    const { data: ownerProfile } = cardRow?.user_id
+      ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
+      : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
 
     if (!isPaidPlan(ownerProfile?.plan)) {
       const { count } = await admin

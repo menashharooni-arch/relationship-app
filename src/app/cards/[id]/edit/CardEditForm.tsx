@@ -370,15 +370,20 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
           {/* Swiftlinks bio */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
+              <span className="text-[10px] font-semibold text-blue-400">Tip: be descriptive</span>
+            </div>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              placeholder="A little about yourself or what you do…"
+              placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
               className={`${inputCls} resize-none`}
             />
-            <p className="text-gray-600 text-[11px] mt-1">Shows at the top of your Swift Links — add a bit about yourself or what you do.</p>
+            <p className="text-gray-600 text-[11px] mt-1">
+              Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
+            </p>
           </div>
 
           {/* Social links — website first */}

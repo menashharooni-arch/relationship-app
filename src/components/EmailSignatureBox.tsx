@@ -279,11 +279,25 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               </div>
               <button onClick={copy} disabled={!ready || status === "working"}
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
+                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — now follow the steps below" : "Copy signature"}
               </button>
-              <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.
-              </p>
+
+              {/* Step-by-step setup — spelled out so anyone can do it */}
+              <div className="mt-3 rounded-xl bg-gray-800/60 border border-gray-700/60 px-4 py-3">
+                <p className="text-gray-300 text-[11px] font-semibold mb-1.5">How to add it in Gmail (1 minute):</p>
+                <ol className="text-gray-400 text-[11px] leading-relaxed list-decimal list-inside space-y-0.5">
+                  <li>Tap <strong className="text-gray-300">Copy signature</strong> above.</li>
+                  <li>Open <strong className="text-gray-300">Gmail on a computer</strong> → click the <strong className="text-gray-300">⚙️ gear</strong> (top right) → <strong className="text-gray-300">See all settings</strong>.</li>
+                  <li>Stay on the <strong className="text-gray-300">General</strong> tab and scroll down to <strong className="text-gray-300">Signature</strong> → click <strong className="text-gray-300">+ Create new</strong> and name it.</li>
+                  <li>Click inside the signature box and paste (<strong className="text-gray-300">Ctrl+V</strong>, or <strong className="text-gray-300">⌘V</strong> on Mac) — your card image appears.</li>
+                  <li>Under <strong className="text-gray-300">Signature defaults</strong>, select it for <strong className="text-gray-300">new emails</strong> and <strong className="text-gray-300">replies</strong>.</li>
+                  <li>Scroll to the bottom → <strong className="text-gray-300">Save Changes</strong>. Send yourself a test email to see it.</li>
+                </ol>
+                <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
+                  <strong className="text-gray-400">Outlook:</strong> Settings → Mail → Compose &amp; reply → paste under Email signature.{" "}
+                  <strong className="text-gray-400">Apple Mail:</strong> Mail → Settings → Signatures → paste into a new signature.
+                </p>
+              </div>
             </div>
           </div>
         </div>
