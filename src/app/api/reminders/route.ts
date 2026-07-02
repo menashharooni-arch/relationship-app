@@ -9,6 +9,37 @@ import { aiComplete } from "@/lib/ai";
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
 
+// Automations send AS the card the contact came through: each card has its own
+// name/title/company/email, so the sender identity (and the reply-to address)
+// is the CARD's, with the owning profile supplying plan/settings/fallbacks.
+// Legacy contacts on profile slugs resolve through the profile as before.
+async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, username: string) {
+  const { data: card } = await supabase
+    .from("cards")
+    .select("user_id, name, title, company, email, phone")
+    .eq("username", username)
+    .maybeSingle();
+  const profileSelect = "name, email, phone, company, title, flow_settings, plan, customization";
+  const { data: profile } = card?.user_id
+    ? await supabase.from("profiles").select(profileSelect).eq("id", card.user_id).maybeSingle()
+    : await supabase.from("profiles").select(profileSelect).eq("username", username).maybeSingle();
+  if (!profile) return null;
+  const sender = {
+    name: (card?.name as string) || (profile.name as string) || null,
+    title: (card?.title as string) || (profile.title as string) || null,
+    company: (card?.company as string) || (profile.company as string) || null,
+    email: (card?.email as string) || (profile.email as string) || null, // replies go to the card's email
+    phone: (card?.phone as string) || (profile.phone as string) || null,
+  };
+  return { profile, sender };
+}
+
+// Per-contact channel switches (email-paused / sms-paused tags) — each shuts
+// that channel down entirely for this contact.
+function channelPaused(tags: string[] | null | undefined, channel: "email" | "sms"): boolean {
+  return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
+}
+
 const DEFAULT_FLOW: FlowSettings = {
   day1:  { enabled: true, time: "13:00" },
   day15: { enabled: true, time: "13:00" },
@@ -139,13 +170,10 @@ export async function GET(req: NextRequest) {
     }
 
     for (const [username, leads] of Object.entries(byOwner)) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name, email, phone, company, title, flow_settings, plan, customization")
-        .eq("username", username)
-        .single();
-
-      if (!profile?.email) continue;
+      // Sender = the CARD's identity; profile = account (plan/settings/owner email).
+      const resolved = await resolveCardSender(supabase, username);
+      if (!resolved?.profile?.email) continue;
+      const { profile, sender } = resolved;
       const ownerAbout = ((profile.customization as { about?: string } | null)?.about ?? "").trim();
 
       // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
@@ -203,45 +231,51 @@ export async function GET(req: NextRequest) {
           </div>`,
       });
 
-      // Send personalized AI follow-up to each lead that has an email
+      // Send personalized AI follow-up to each lead — AS the card's identity,
+      // respecting the contact's per-channel switches (email/text toggles).
       {
+        const senderFirst = sender.name?.split(" ")[0] ?? ownerFirst;
         for (const lead of leads) {
+          // Which channel would this go out on? Email first, SMS only when the
+          // contact has no email. Skip entirely when that channel is switched off.
+          const effective: "email" | "sms" | null = lead.email ? "email" : lead.phone ? "sms" : null;
+          if (!effective || channelPaused(lead.tags, effective)) continue;
+
           const leadFirst = lead.name.split(" ")[0];
 
           const aiPrompt = `${step.leadPrompt(
-            profile.name ?? ownerFirst,
-            profile.title ?? "",
-            profile.company ?? "",
+            sender.name ?? senderFirst,
+            sender.title ?? "",
+            sender.company ?? "",
             leadFirst,
             lead.message ?? ""
           )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`;
           const aiBody = (await aiComplete(aiPrompt, { maxTokens: 200 })) ?? "";
 
-          const emailBody = aiBody || step.leadFallback(ownerFirst);
+          const emailBody = aiBody || step.leadFallback(senderFirst);
           const customNote = flow.customNote?.trim();
           const fullBody = customNote ? `${emailBody}\n\n${customNote}` : emailBody;
 
-          // Deliver via email (free) or SMS fallback (one shared number),
-          // respecting opt-out and logging into the contact's conversation thread.
           await deliverToLead({
             leadId: lead.id,
             cardOwner: username,
             lead: { email: lead.email, phone: lead.phone, name: lead.name },
-            sender: { name: profile.name, company: profile.company, phone: profile.phone, email: profile.email, website: null },
+            sender: { name: sender.name, company: sender.company, phone: sender.phone, email: sender.email, website: null },
             text: fullBody,
             cardUsername: username,
+            channel: effective,
             email: {
-              subject: step.leadSubject(ownerFirst),
+              subject: step.leadSubject(senderFirst),
               html: `
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
                   <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
                   <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${profile.name}</p>
-                    ${profile.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${profile.title}</p>` : ""}
-                    ${profile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${profile.company}</p>` : ""}
-                    <a href="mailto:${profile.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${profile.email}</a>
-                    ${profile.phone ? `<a href="tel:${profile.phone}" style="display:block;color:#2563eb;font-size:13px;">${profile.phone}</a>` : ""}
+                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${sender.name ?? ""}</p>
+                    ${sender.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${sender.title}</p>` : ""}
+                    ${sender.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${sender.company}</p>` : ""}
+                    ${sender.email ? `<a href="mailto:${sender.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${sender.email}</a>` : ""}
+                    ${sender.phone ? `<a href="tel:${sender.phone}" style="display:block;color:#2563eb;font-size:13px;">${sender.phone}</a>` : ""}
                   </div>
                   <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
                     <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p>
@@ -289,29 +323,28 @@ export async function GET(req: NextRequest) {
         if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
       }
 
-      const { data: ownerProfile } = await supabase
-        .from("profiles")
-        .select("name, email, phone, title, company")
-        .eq("username", seqLead.card_owner)
-        .single();
+      // Sender = the CARD's identity (name/company/email of the card this
+      // contact came through), so replies go to the right inbox.
+      const resolvedSeq = await resolveCardSender(supabase, seqLead.card_owner);
+      if (!resolvedSeq) continue;
+      const seqSender = resolvedSeq.sender;
 
-      if (!ownerProfile) continue;
-
-      const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
+      const ownerFirst = seqSender.name?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
-      // Resolve the channel for this item. Email items get a greeting + the
-      // shared personal-email format (subject + spacing + name/company over the
-      // SwiftCard link signature); text items go out as a short SMS with the
-      // same default signature.
-      const itemChannel = item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined;
-      const asEmail = itemChannel === "email" || (itemChannel === undefined && !!seqLead.email);
+      // Resolve the channel for this item (legacy items without a channel are
+      // treated as email when the contact has one, else SMS) — then honor the
+      // contact's per-channel switch: a paused channel sends NOTHING.
+      const itemChannel: "email" | "sms" =
+        item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : (seqLead.email ? "email" : "sms");
+      if (channelPaused(seqLead.tags, itemChannel)) continue;
+      const asEmail = itemChannel === "email";
 
       const r = await deliverToLead({
         leadId: seqLead.id,
         cardOwner: seqLead.card_owner,
         lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
-        sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
+        sender: { name: seqSender.name, company: seqSender.company, phone: seqSender.phone, email: seqSender.email, website: null },
         text: asEmail ? `Hi ${leadFirst},\n\n${item.message}` : item.message,
         subject: item.subject?.trim() || `${ownerFirst} following up`,
         cardUsername: seqLead.card_owner,

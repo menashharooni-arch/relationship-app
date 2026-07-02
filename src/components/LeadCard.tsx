@@ -81,7 +81,7 @@ function tagColor(tag: string) {
   return TAG_COLORS[h % TAG_COLORS.length];
 }
 
-const RESERVED_TAGS = new Set(["flow-paused", "preset-1", "preset-2", "preset-3"]);
+const RESERVED_TAGS = new Set(["flow-paused", "email-paused", "sms-paused", "preset-1", "preset-2", "preset-3"]);
 
 function getPresetFromTags(tags: string[]): "1" | "2" | "3" | null {
   for (const t of tags) {
@@ -125,10 +125,20 @@ export default function LeadCard({
   const [editForm, setEditForm] = useState({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "", company_description: (lead as { company_description?: string }).company_description || "" });
   const [editSaving, setEditSaving] = useState(false);
 
-  // Flow automation
+  // Flow automation. The master toggle (flow-paused) gates everything; email
+  // and text each have their own switch (email-paused / sms-paused tags) that
+  // shuts just that channel down — the cron skips paused channels.
   const flowPaused = tags.includes("flow-paused");
+  const emailPaused = tags.includes("email-paused");
+  const smsPaused = tags.includes("sms-paused");
   const activePreset = getPresetFromTags(tags);
   const [togglingFlow, setTogglingFlow] = useState(false);
+
+  async function toggleChannel(which: "email" | "sms") {
+    const tag = which === "email" ? "email-paused" : "sms-paused";
+    const next = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
+    await updateTags(next);
+  }
 
   // Reminders history
   const [reminders, setReminders] = useState<{ day_trigger: number; created_at: string }[] | null>(null);
@@ -147,10 +157,11 @@ export default function LeadCard({
   const [showSeqGenerator, setShowSeqGenerator] = useState(false);
   const [seqWhereMet, setSeqWhereMet] = useState(lead.where_met || "");
   const [generatingSeq, setGeneratingSeq] = useState(false);
-  const [pendingSequence, setPendingSequence] = useState<{ day: number; message: string }[] | null>(null);
-  const [savedSequence, setSavedSequence] = useState<{ day: number; message: string; sent_at: string | null }[]>(
+  type SeqItem = { day: number; message: string; subject?: string; time?: string; channel?: string; sent_at?: string | null };
+  const [pendingSequence, setPendingSequence] = useState<SeqItem[] | null>(null);
+  const [savedSequence, setSavedSequence] = useState<SeqItem[]>(
     Array.isArray((lead as { follow_up_sequence?: unknown }).follow_up_sequence)
-      ? (lead as { follow_up_sequence?: { day: number; message: string; sent_at: string | null }[] }).follow_up_sequence ?? []
+      ? ((lead as { follow_up_sequence?: SeqItem[] }).follow_up_sequence ?? [])
       : []
   );
 
@@ -603,6 +614,32 @@ export default function LeadCard({
 
             {!flowPaused && (
               <>
+                {/* Per-channel switches — each one shuts its own automation down */}
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { which: "email" as const, label: "📧 Email automation", paused: emailPaused, missing: !lead.email && "no email on contact" },
+                    { which: "sms" as const, label: "💬 Text automation", paused: smsPaused, missing: !lead.phone && "no phone on contact" },
+                  ]).map(({ which, label, paused, missing }) => (
+                    <div key={which} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: "#1f2937", border: "1px solid #374151", opacity: missing ? 0.55 : 1 }}>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-gray-200">{label}</p>
+                        <p className="text-[9px] mt-0.5" style={{ color: missing ? "#9ca3af" : paused ? "#f59e0b" : "#34d399" }}>
+                          {missing || (paused ? "Off — nothing sends" : "On")}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => toggleChannel(which)}
+                        className="relative rounded-full transition-colors duration-200 shrink-0"
+                        style={{ width: "36px", height: "20px", background: paused ? "#374151" : "#1D4ED8" }}
+                        title={paused ? `Turn ${which === "email" ? "email" : "text"} automation on` : `Turn ${which === "email" ? "email" : "text"} automation off`}
+                      >
+                        <div className="absolute top-0.5 bg-white rounded-full shadow transition-transform duration-200"
+                          style={{ width: "16px", height: "16px", transform: paused ? "translateX(2px)" : "translateX(18px)" }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Preset picker */}
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mb-2">Choose preset</p>
@@ -678,14 +715,18 @@ export default function LeadCard({
                       /* Show existing sequence summary */
                       <div className="space-y-1.5">
                         <p className="text-[11px] text-gray-400 font-medium">Saved sequence ({savedSequence.length} messages)</p>
-                        {savedSequence.map((item) => (
-                          <div key={item.day} className="flex items-start gap-2 text-[11px]">
-                            <span className="text-gray-500 shrink-0 mt-0.5">Day {item.day}</span>
-                            <span className={item.sent_at ? "text-green-400" : "text-gray-400"}>
-                              {item.sent_at ? "✓ Sent" : "Scheduled"}
-                            </span>
-                          </div>
-                        ))}
+                        {savedSequence.map((item, idx) => {
+                          const isSms = item.channel === "sms";
+                          const paused = isSms ? smsPaused : emailPaused;
+                          return (
+                            <div key={`${item.day}-${item.channel ?? "email"}-${idx}`} className="flex items-start gap-2 text-[11px]">
+                              <span className="text-gray-500 shrink-0 mt-0.5">Day {item.day} {isSms ? "💬" : "📧"}</span>
+                              <span className={item.sent_at ? "text-green-400" : paused ? "text-amber-500/80" : "text-gray-400"}>
+                                {item.sent_at ? "✓ Sent" : paused ? `Paused (${isSms ? "text" : "email"} off)` : "Scheduled"}
+                              </span>
+                            </div>
+                          );
+                        })}
                         <button
                           onClick={() => { setShowSeqGenerator(true); setPendingSequence(null); }}
                           className="text-[11px] text-blue-400 hover:text-blue-300 underline mt-1"
@@ -719,30 +760,47 @@ export default function LeadCard({
                           <button
                             onClick={async () => {
                               if (generatingSeq) return;
+                              // Generate a sequence for EACH enabled channel, so email and
+                              // text each get copy written for that medium — and a paused
+                              // channel is never generated (nothing to send later).
+                              const chans: ("email" | "sms")[] = [
+                                ...(!emailPaused && lead.email ? (["email"] as const) : []),
+                                ...(!smsPaused && lead.phone ? (["sms"] as const) : []),
+                              ];
+                              if (!chans.length) return;
                               setGeneratingSeq(true);
                               try {
-                                const r = await fetch(`/api/leads/${lead.id}/generate-sequence`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ presetKey: activePreset, whereMet: seqWhereMet, notes: lead.notes ?? "" }),
-                                });
-                                const d = await r.json();
-                                if (d.sequence) setPendingSequence(d.sequence);
+                                const results = await Promise.all(chans.map((c) =>
+                                  fetch(`/api/leads/${lead.id}/generate-sequence`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ presetKey: activePreset, whereMet: seqWhereMet, notes: lead.notes ?? "", channel: c }),
+                                  }).then((r) => r.json())
+                                ));
+                                const merged = results.flatMap((d) => (d.sequence ?? []) as SeqItem[])
+                                  .sort((a, b) => a.day - b.day || (a.channel ?? "").localeCompare(b.channel ?? ""));
+                                if (merged.length) setPendingSequence(merged);
                               } catch { /* fail silently */ }
                               setGeneratingSeq(false);
                             }}
-                            disabled={generatingSeq}
+                            disabled={generatingSeq || (emailPaused && smsPaused) || (!lead.email && !lead.phone)}
                             className="w-full py-2 text-[11px] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg transition-colors font-medium"
                           >
-                            {generatingSeq ? "Generating…" : "Generate AI messages"}
+                            {generatingSeq
+                              ? "Generating…"
+                              : emailPaused && smsPaused
+                              ? "Turn on email or text above first"
+                              : `Generate AI messages${!emailPaused && lead.email && !smsPaused && lead.phone ? " (email + text)" : !smsPaused && lead.phone && (emailPaused || !lead.email) ? " (text)" : " (email)"}`}
                           </button>
                         )}
                         {pendingSequence && (
                           <div className="space-y-2">
                             <p className="text-[11px] text-gray-300 font-medium">Preview & edit before saving:</p>
                             {pendingSequence.map((item, idx) => (
-                              <div key={item.day} className="space-y-1">
-                                <p className="text-[10px] text-gray-500 font-medium">Day {item.day}</p>
+                              <div key={`${item.day}-${item.channel ?? "email"}-${idx}`} className="space-y-1">
+                                <p className="text-[10px] text-gray-500 font-medium">
+                                  Day {item.day} · {item.channel === "sms" ? "💬 Text" : "📧 Email"}
+                                </p>
                                 <textarea
                                   value={item.message}
                                   onChange={(e) => {

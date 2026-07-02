@@ -172,11 +172,12 @@ export async function deliverToLead(opts: {
   const senderName = sender.name || "A SwiftCard user";
   const doLog = opts.log !== false;
 
-  // Honor an explicit channel choice when that channel is available, otherwise
-  // fall back to email-first auto-routing.
+  // An explicit channel choice is STRICT: a text step never leaks out as an
+  // email (or vice versa) — that caused duplicate same-day sends when a lead
+  // was missing one contact method. Without an explicit channel, email-first.
   let use: "email" | "sms" | "none" = "none";
-  if (opts.channel === "email" && lead.email) use = "email";
-  else if (opts.channel === "sms" && lead.phone) use = "sms";
+  if (opts.channel === "email") use = lead.email ? "email" : "none";
+  else if (opts.channel === "sms") use = lead.phone ? "sms" : "none";
   else if (lead.email) use = "email";
   else if (lead.phone) use = "sms";
 
