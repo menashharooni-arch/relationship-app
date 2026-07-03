@@ -10,6 +10,7 @@ import ReferAFriend from "@/components/ReferAFriend";
 import { getReferralProgress } from "@/lib/referral-server";
 import CrmEventSettings from "@/components/CrmEventSettings";
 import HelpWidget from "@/components/HelpWidget";
+import TakeTourButton from "@/components/TakeTourButton";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
@@ -91,25 +92,28 @@ export default async function FlowSettingsPage() {
 
         <div className="space-y-8">
           {/* Your cards */}
-          <div>
+          <div data-tour="settings-cards">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
             <ManageCards cards={cards ?? []} />
           </div>
 
-          {/* Help */}
-          <div>
+          {/* Help — the AI assistant, plus replay the guided tour */}
+          <div data-tour="settings-help">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Need help</p>
-            <HelpWidget />
+            <div className="space-y-3">
+              <HelpWidget />
+              <TakeTourButton />
+            </div>
           </div>
 
           {/* Refer a friend — its own section, between Need help and Integrations */}
-          <div>
+          <div data-tour="settings-refer">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Refer a friend</p>
             <ReferAFriend progress={referral} />
           </div>
 
           {/* Integrations */}
-          <div>
+          <div data-tour="settings-integrations">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Integrations</p>
             <div className="space-y-3">
               <ZapierSettings initialUrl={profile.zapier_webhook_url ?? null} isPro={isPro} />
@@ -130,7 +134,7 @@ export default async function FlowSettingsPage() {
           </div>
 
           {/* General */}
-          <div>
+          <div data-tour="settings-general">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
             <GeneralSettings
               email={user.email ?? ""}

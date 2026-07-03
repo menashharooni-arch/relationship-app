@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import GuidedTour from "@/components/GuidedTour";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         />
         <ServiceWorkerRegistrar />
         {children}
+        <GuidedTour />
       </body>
     </html>
   );

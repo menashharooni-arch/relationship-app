@@ -9,6 +9,7 @@ const ACTIVE_CARD_KEY = "swiftcard_active_card";
 const TABS = [
   {
     href: "/dashboard",
+    tour: "nav-dashboard",
     label: "Home",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -19,6 +20,7 @@ const TABS = [
   },
   {
     href: "/contacts",
+    tour: "nav-contacts",
     label: "Contacts",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -29,6 +31,7 @@ const TABS = [
   },
   {
     href: "/settings/flows",
+    tour: "nav-settings",
     label: "Settings",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -56,12 +59,13 @@ export default function MobileNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="flex items-center justify-around px-2 py-2">
-        {TABS.map(({ href, label, icon }) => {
+        {TABS.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
             <Link
               key={href}
               href={withCard(href)}
+              data-tour={tour}
               className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0"
               style={{ color: active ? "#3b82f6" : "#6b7280" }}
             >
