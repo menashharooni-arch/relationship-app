@@ -32,6 +32,7 @@ export const SIGNUP_SOURCES = [
   "link_button",   // after tapping a Swift Links button
   "badge",         // "Made with SwiftCard" badge
   "follow_up",     // "Sent with SwiftCard" link in an automation email/text
+  "preview",       // a "Create Your Card for Free" button on the Test It Live page
   "direct",        // organic
 ] as const;
 export type SignupSource = (typeof SIGNUP_SOURCES)[number];
