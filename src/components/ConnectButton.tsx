@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 
 export default function ConnectButton({
   cardOwner,
@@ -12,14 +13,26 @@ export default function ConnectButton({
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
+  // True when we already know who the visitor is (they shared with this owner
+  // before) — we collapse the contact fields so they're never asked twice.
+  const [knownInfo, setKnownInfo] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
   function openModal() {
-    setForm({ name: "", phone: "", email: "", message: "" });
+    const v = getVisitorInfo();
+    setForm({ name: v?.name ?? "", phone: v?.phone ?? "", email: v?.email ?? "", message: "" });
+    setKnownInfo(!!v && hasSharedWith(cardOwner));
     setStatus("idle");
     setError("");
     setOpen(true);
+  }
+
+  // Whatever way the modal closes — X, backdrop, or Done after sending — the
+  // visitor gets the join-for-free invite (the host shows it once per session).
+  function closeModal() {
+    setOpen(false);
+    triggerSignupNudge("share_info");
   }
 
   async function submit(e: React.FormEvent) {
@@ -46,13 +59,16 @@ export default function ConnectButton({
         setStatus("error");
         return;
       }
+      markSharedWith(cardOwner, form);
       setStatus("done");
-      triggerSignupNudge("share_info");
     } catch {
       setError("Couldn't send your message. Try again.");
       setStatus("error");
     }
   }
+
+  const inputCls =
+    "w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400";
 
   return (
     <>
@@ -69,7 +85,7 @@ export default function ConnectButton({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6" style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}>
             {status === "done" ? (
               <div className="text-center py-4">
@@ -80,7 +96,7 @@ export default function ConnectButton({
                 </div>
                 <p className="text-slate-900 font-bold text-base">Message sent!</p>
                 <p className="text-slate-500 text-sm mt-1">{ownerFirstName} will get your details and can reach out.</p>
-                <button type="button" onClick={() => setOpen(false)} className="mt-5 w-full font-semibold py-3 rounded-full text-white text-sm" style={{ background: "#1D4ED8" }}>
+                <button type="button" onClick={closeModal} className="mt-5 w-full font-semibold py-3 rounded-full text-white text-sm" style={{ background: "#1D4ED8" }}>
                   Done
                 </button>
               </div>
@@ -89,15 +105,31 @@ export default function ConnectButton({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-slate-900 font-bold text-base leading-snug">Reach out to {ownerFirstName}</p>
-                    <p className="text-slate-500 text-sm mt-1">Send your details and a quick message.</p>
+                    <p className="text-slate-500 text-sm mt-1">
+                      {knownInfo ? "Just type your message — we've got your details." : "Send your details and a quick message."}
+                    </p>
                   </div>
-                  <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 text-2xl leading-none ml-3" aria-label="Close">×</button>
+                  <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 text-2xl leading-none ml-3" aria-label="Close">×</button>
                 </div>
                 <form onSubmit={submit} className="space-y-3">
-                  <input type="text" placeholder="Your name *" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400" />
-                  <input type="tel" placeholder="Your phone *" required value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400" />
-                  <input type="email" placeholder="Your email (optional)" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400" />
-                  <textarea rows={3} placeholder={`Message for ${ownerFirstName}…`} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:border-blue-400" />
+                  {knownInfo ? (
+                    <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3">
+                      <p className="text-gray-700 text-sm truncate">
+                        Sending as <span className="font-semibold text-gray-900">{form.name}</span>
+                        <span className="text-gray-400"> · {form.phone}</span>
+                      </p>
+                      <button type="button" onClick={() => setKnownInfo(false)} className="text-blue-600 text-xs font-semibold shrink-0 ml-3">
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input type="text" placeholder="Your name *" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} />
+                      <input type="tel" placeholder="Your phone *" required value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} />
+                      <input type="email" placeholder="Your email (optional)" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} />
+                    </>
+                  )}
+                  <textarea rows={3} placeholder={`Message for ${ownerFirstName}…`} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} className={`${inputCls} resize-none`} />
                   {error && <p className="text-red-500 text-xs">{error}</p>}
                   <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: "#1D4ED8" }}>
                     {status === "loading" ? "Sending…" : "Send message"}
