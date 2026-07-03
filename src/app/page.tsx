@@ -273,7 +273,7 @@ export default function HomePage() {
           </div>
 
           <h1 className="sc-rise sc-rise-2 text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">
-            The business card that saves itself to their phone.
+            The digital business card people save in one tap.
           </h1>
 
           <p className="sc-rise sc-rise-3 text-slate-600 text-lg leading-relaxed mb-7 max-w-md">
