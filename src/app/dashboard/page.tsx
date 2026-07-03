@@ -19,6 +19,7 @@ import ShareCardCapture from "@/components/ShareCardCapture";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
+import TourBanner from "@/components/TourBanner";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -263,7 +264,7 @@ export default async function DashboardPage({
   const cardSharePanel = (
     <>
       {/* Your card */}
-      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+      <div data-tour="your-card" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
         <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
         <CardPreviewDownload
           data={cardData}
@@ -274,7 +275,7 @@ export default async function DashboardPage({
       </div>
 
       {/* Share */}
-      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
+      <div data-tour="share" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
         <ShareButton
           url={cardUrl}
           title="My SwiftCard"
@@ -319,7 +320,7 @@ export default async function DashboardPage({
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
-              <Link key={href} href={href}
+              <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
                 {label}
               </Link>
@@ -339,8 +340,8 @@ export default async function DashboardPage({
           <div className="flex items-center gap-2 shrink-0">
             {isPro && <CardScanner cardOwner={activeUsername} />}
             {isEnterprise && <CSVImport />}
-            <ThemeToggle />
-            <NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} />
+            <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
+            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} /></span>
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
           </div>
@@ -351,8 +352,11 @@ export default async function DashboardPage({
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
+          {/* First-run guided-tour invitation */}
+          <TourBanner />
+
           {/* My Cards — full width, top of dashboard */}
-          <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
+          <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-white font-semibold text-sm">My Cards</p>
@@ -466,7 +470,7 @@ export default async function DashboardPage({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.85fr_0.72fr_0.7fr] gap-4 mb-5">
 
             {/* Traffic — SwiftCard & SwiftLink views */}
-            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+            <div data-tour="traffic" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-white font-semibold text-sm">Traffic</p>
                 <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
@@ -499,7 +503,7 @@ export default async function DashboardPage({
             </div>
 
             {/* Swift Links — a separate link from the business card */}
-            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+            <div data-tour="swift-links" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
                 Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, anywhere.
               </p>
@@ -518,17 +522,19 @@ export default async function DashboardPage({
 
             {/* Email signature generator — shows the hosted card image instantly,
                 captures the real card pixel-perfect in the background */}
-            <EmailSignatureBox
-              key={activeUsername}
-              cardData={cardData}
-              template={activeSource.template ?? "classic-pro"}
-              name={(activeSource as { name?: string }).name ?? ""}
-              company={(activeSource as { company?: string }).company ?? ""}
-              cardUrl={cardUrl}
-              username={activeUsername}
-              storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
-              ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
-            />
+            <div data-tour="email-signature">
+              <EmailSignatureBox
+                key={activeUsername}
+                cardData={cardData}
+                template={activeSource.template ?? "classic-pro"}
+                name={(activeSource as { name?: string }).name ?? ""}
+                company={(activeSource as { company?: string }).company ?? ""}
+                cardUrl={cardUrl}
+                username={activeUsername}
+                storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
+                ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
+              />
+            </div>
 
             {/* Captures a pixel-perfect image of THIS card for its share-link
                 preview (Open Graph). Invisible; regenerates when the card changes. */}
@@ -559,7 +565,7 @@ export default async function DashboardPage({
                     {!isPro && (
                       <p className="text-gray-600 text-xs hidden sm:block">{allLeads.length}/{FREE_LIMIT} free</p>
                     )}
-                    <AddContactModal cardOwner={activeUsername} />
+                    <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
                     {allLeads.length > 0 && (
                       isPro ? (
                         <a href={`/api/leads/export?username=${activeUsername}`}
@@ -579,7 +585,7 @@ export default async function DashboardPage({
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   {/* View toggle */}
-                  <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
+                  <div data-tour="contact-views" className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
                     {[
                       { id: "notifications", label: "Notifications" },
                       { id: "list", label: "List" },
@@ -593,7 +599,7 @@ export default async function DashboardPage({
                   </div>
 
                   {/* Status filters */}
-                  <div className="flex items-center gap-1 flex-wrap">
+                  <div data-tour="contact-filters" className="flex items-center gap-1 flex-wrap">
                     {[
                       { id: "all",         label: "All" },
                       { id: "new_contact", label: "New Contact" },

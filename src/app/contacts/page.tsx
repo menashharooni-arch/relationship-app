@@ -88,7 +88,7 @@ export default async function ContactsPage({
 
       {/* Header */}
       <div className="pt-[57px] border-b border-gray-800 px-6 py-5 bg-gray-950">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div data-tour="contacts-page" className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div>
             <div className="flex items-baseline gap-2.5">
               <h1 className="text-xl font-bold text-white">Contacts</h1>
