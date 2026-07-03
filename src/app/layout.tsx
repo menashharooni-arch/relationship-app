@@ -29,11 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {/* Apply the saved app theme before paint (no dark→light flash). */}
+        {/* Apply the saved app theme before paint (no dark→light flash), and
+            mark that JS is running so scroll-reveals only hide when they can be
+            un-hidden — with JS off, content stays fully visible. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
+              "try{document.documentElement.classList.add('sc-js');if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
           }}
         />
         <ServiceWorkerRegistrar />

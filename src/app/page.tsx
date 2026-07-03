@@ -1,9 +1,10 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
-import Reveal from "@/components/Reveal";
 import LiveDemo from "@/components/LiveDemo";
 import HeroPhone from "@/components/HeroPhone";
 import PreviewClient from "@/app/preview/PreviewClient";
+import ScrollReveal from "@/components/ScrollReveal";
+import CountUpStat from "@/components/CountUpStat";
 
 const STEPS = [
   {
@@ -234,27 +235,28 @@ const SOURCE_BADGE_COLORS: Record<string, string> = {
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <ScrollReveal />
 
       {/* Nav */}
       <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
           <SwiftCardLogo size={30} />
           <div className="flex items-center gap-8">
-            <Link href="#demo" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+            <Link href="#demo" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               See it live
             </Link>
-            <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+            <Link href="/pricing" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Pricing
             </Link>
-            <Link href="/contact" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+            <Link href="/contact" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Contact
             </Link>
-            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+            <Link href="/login" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors">
               Sign in
             </Link>
             <Link
               href="/login?mode=signup"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
+              className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm"
             >
               Get started free
             </Link>
@@ -262,72 +264,81 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      {/* Hero — clear, benefit-first, instantly scannable */}
+      <section className="max-w-6xl mx-auto w-full px-6 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
+          <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-8 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
 
-          <h1 className="sc-rise sc-rise-2 text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
-            The digital business card that captures every lead.
+          <h1 className="sc-rise sc-rise-2 text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">
+            The business card that saves itself to their phone.
           </h1>
 
-          <p className="sc-rise sc-rise-3 text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
-            Share your card by link, QR code, or NFC tap. Leads save your contact in one touch — then SwiftCard follows up with them automatically, so no connection slips away.
+          <p className="sc-rise sc-rise-3 text-slate-600 text-lg leading-relaxed mb-7 max-w-md">
+            Share your SwiftCard by link, QR, or NFC tap. People save your contact in <strong className="text-slate-900">one tap</strong> — no app, no typing — and every share lands in your CRM with follow-ups on autopilot.
           </p>
 
-          {/* Social proof inline */}
-          <div className="flex items-center gap-5 mb-8">
-            <div className="flex items-center gap-1.5">
-              <div className="flex gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <span className="text-xs text-slate-500 font-medium">4.9 / 5</span>
-            </div>
-            <div className="w-px h-4 bg-warm-border" />
-            <span className="text-xs text-slate-500">12,000+ professionals</span>
-            <div className="w-px h-4 bg-warm-border" />
-            <span className="text-xs text-slate-500">Used in 40+ countries</span>
-          </div>
+          {/* Scannable "what you get" checks — so anyone gets it instantly */}
+          <ul className="sc-rise sc-rise-3 space-y-2.5 mb-8 max-w-md">
+            {[
+              "Share by link, QR code, or NFC tap",
+              "They save you in one tap — nothing to download",
+              "Every share becomes a lead + automatic follow-up",
+            ].map((t) => (
+              <li key={t} className="flex items-start gap-2.5">
+                <span className="mt-0.5 w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 20 20" fill="#1D4ED8" className="w-3 h-3"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 111.4-1.4l2.8 2.79 6.8-6.79a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                </span>
+                <span className="text-slate-700 text-[15px] leading-snug">{t}</span>
+              </li>
+            ))}
+          </ul>
 
           <div className="sc-rise sc-rise-4 flex flex-col sm:flex-row gap-3">
             <Link
               href="/login?mode=signup"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
+              className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm text-center"
             >
               Create your free card
             </Link>
             <Link
-              href="/pricing"
-              className="border border-warm-card-border hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center bg-warm-card"
+              href="#demo"
+              className="btn-cta border border-warm-card-border hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold px-7 py-3.5 rounded-full text-sm text-center bg-warm-card"
             >
-              View pricing
+              See it live →
             </Link>
           </div>
 
-          <p className="text-slate-400 text-xs mt-5">Create your own card within 30 seconds. No design experience needed.</p>
+          <div className="sc-rise sc-rise-4 flex items-center gap-4 mt-6 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="flex gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3 h-3"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                ))}
+              </span>
+              4.9 / 5 rating
+            </span>
+            <span className="w-px h-3.5 bg-warm-border" />
+            <span>Set up in 30 seconds — no design skills needed</span>
+          </div>
         </div>
 
         {/* Phone mockup */}
         <HeroPhone />
       </section>
 
-      {/* Stats bar */}
+      {/* Stats bar — numbers count up as they scroll into view */}
       <div className="border-t border-warm-border bg-cream py-14 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
           {[
-            { value: "30 sec", label: "To set up your card" },
-            { value: "4.9★", label: "Average rating" },
-            { value: "3×", label: "More follow-ups vs. paper cards" },
-          ].map((s) => (
-            <div key={s.label}>
-              <p className="text-3xl font-bold text-slate-900 mb-1">{s.value}</p>
+            { to: 30, suffix: " sec", decimals: 0, label: "To set up your card" },
+            { to: 4.9, suffix: "★", decimals: 1, label: "Average rating" },
+            { to: 3, suffix: "×", decimals: 0, label: "More follow-ups vs. paper cards" },
+          ].map((s, i) => (
+            <div key={s.label} data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
+              <CountUpStat to={s.to} suffix={s.suffix} decimals={s.decimals} className="text-4xl font-bold text-slate-900 mb-1 tabular-nums" />
               <p className="text-slate-500 text-sm">{s.label}</p>
             </div>
           ))}
@@ -337,7 +348,7 @@ export default function HomePage() {
       {/* What is SwiftCard — the concept, card first, in plain language */}
       <section className="border-t border-warm-border bg-cream-dark py-24 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-14" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">What is SwiftCard?</p>
             <h2 className="text-3xl font-bold text-slate-900">One link. Everything they need to reach you.</h2>
             <p className="text-slate-500 mt-3 max-w-xl mx-auto text-base leading-relaxed">
@@ -347,7 +358,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Pillar 1 — the card (the star) */}
-            <div className="relative bg-warm-card border-2 border-brand rounded-2xl p-7 shadow-md">
+            <div className="hover-lift relative bg-warm-card border-2 border-brand rounded-2xl p-7 shadow-md" data-reveal>
               <span className="absolute -top-3 left-6 bg-brand text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">Start here</span>
               <div className="w-11 h-11 rounded-xl bg-brand flex items-center justify-center text-white mb-4">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
@@ -361,7 +372,7 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 2 — Swift Links */}
-            <div className="bg-warm-card border border-warm-card-border rounded-2xl p-7">
+            <div className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7" data-reveal style={{ transitionDelay: "90ms" }}>
               <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
@@ -374,7 +385,7 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 3 — Swift Signature */}
-            <div className="bg-warm-card border border-warm-card-border rounded-2xl p-7">
+            <div className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7" data-reveal style={{ transitionDelay: "180ms" }}>
               <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -395,20 +406,22 @@ export default function HomePage() {
 
       {/* Interactive live demo — the real dashboard, embedded */}
       <section id="demo" className="bg-gray-950 py-20 px-4 scroll-mt-16">
-        <div className="max-w-5xl mx-auto text-center mb-8">
+        <div className="max-w-5xl mx-auto text-center mb-8" data-reveal>
           <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mb-3">See it live</p>
           <h2 className="text-3xl font-bold text-white">Try it yourself — this is your dashboard</h2>
           <p className="text-gray-400 mt-3 max-w-lg mx-auto text-sm">
             The screen below is the real app, filled with sample data. It&apos;s your private control center — the follow-up guide inside shows you exactly what to tap first.
           </p>
         </div>
-        <PreviewClient embedded />
+        <div data-reveal style={{ transitionDelay: "80ms" }}>
+          <PreviewClient embedded />
+        </div>
       </section>
 
       {/* How it works */}
       <section className="border-t border-warm-border py-28 px-6 bg-cream-dark">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">How it works</p>
             <h2 className="text-3xl font-bold text-slate-900">Three steps to your first lead</h2>
             <p className="text-slate-500 mt-3 max-w-md mx-auto text-sm">Set up once, share anywhere, and watch the leads roll in.</p>
@@ -417,8 +430,8 @@ export default function HomePage() {
             {/* Connecting line */}
             <div className="hidden sm:block absolute top-8 left-[22%] right-[22%] h-px bg-warm-border" />
 
-            {STEPS.map((s) => (
-              <div key={s.n} className="relative text-center sm:text-left">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="relative text-center sm:text-left" data-reveal style={{ transitionDelay: `${i * 120}ms` }}>
                 <div
                   className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto sm:mx-0 mb-5 relative z-10"
                   style={{ background: "#E8ECF5", border: "1px solid #C8D4E8" }}
@@ -444,21 +457,20 @@ export default function HomePage() {
       {/* Features */}
       <section className="border-t border-warm-border bg-cream py-28 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Features</p>
             <h2 className="text-3xl font-bold text-slate-900">Everything you need to network smarter</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={(i % 3) * 80}>
-                <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow h-full">
-                  <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
-                    {f.icon}
-                  </div>
-                  <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
-                  <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
+              <div key={f.title} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }}
+                className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-6 h-full">
+                <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                  {f.icon}
                 </div>
-              </Reveal>
+                <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
+                <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -467,14 +479,15 @@ export default function HomePage() {
       {/* Testimonials */}
       <section className="border-t border-warm-border bg-cream-dark py-28 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Testimonials</p>
             <h2 className="text-3xl font-bold text-slate-900">What our users say</h2>
             <p className="text-slate-500 mt-3 text-sm max-w-md mx-auto">Join thousands of professionals who never lose a lead again.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
+            {TESTIMONIALS.map((t, i) => (
+              <div key={t.name} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }}
+                className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
@@ -512,13 +525,13 @@ export default function HomePage() {
       {/* FAQ */}
       <section className="border-t border-warm-border bg-cream py-28 px-6">
         <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">FAQ</p>
             <h2 className="text-3xl font-bold text-slate-900">Common questions</h2>
           </div>
           <div className="space-y-0 divide-y divide-warm-border">
-            {FAQS.map((f) => (
-              <div key={f.q} className="py-6">
+            {FAQS.map((f, i) => (
+              <div key={f.q} className="py-6" data-reveal="fade" style={{ transitionDelay: `${Math.min(i, 4) * 60}ms` }}>
                 <p className="text-slate-900 font-semibold text-sm mb-2">{f.q}</p>
                 <p className="text-slate-500 text-sm leading-relaxed">{f.a}</p>
               </div>
@@ -529,7 +542,7 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="bg-brand py-28 px-6">
-        <div className="max-w-xl mx-auto text-center">
+        <div className="max-w-xl mx-auto text-center" data-reveal>
           <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
             Your next deal starts with a better introduction.
           </h2>
@@ -538,7 +551,7 @@ export default function HomePage() {
           </p>
           <Link
             href="/login?mode=signup"
-            className="inline-block bg-white hover:bg-cream text-brand font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
+            className="btn-cta inline-block bg-white hover:bg-cream text-brand font-semibold px-8 py-3.5 rounded-full text-sm"
           >
             Create your free card
           </Link>
@@ -550,11 +563,11 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
-            <Link href="/preview" className="hover:text-slate-900 transition-colors">See it live</Link>
-            <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
-            <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
-            <Link href="/login?mode=signup" className="hover:text-slate-900 transition-colors">Get started</Link>
+            <Link href="/preview" className="nav-link hover:text-slate-900 transition-colors">See it live</Link>
+            <Link href="/pricing" className="nav-link hover:text-slate-900 transition-colors">Pricing</Link>
+            <Link href="/contact" className="nav-link hover:text-slate-900 transition-colors">Contact</Link>
+            <Link href="/login" className="nav-link hover:text-slate-900 transition-colors">Sign in</Link>
+            <Link href="/login?mode=signup" className="nav-link hover:text-slate-900 transition-colors">Get started</Link>
           </div>
           <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard. All rights reserved.</p>
         </div>
