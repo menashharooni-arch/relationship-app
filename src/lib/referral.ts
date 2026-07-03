@@ -2,12 +2,17 @@
 // CHANGE THE NUMBERS HERE. Everything else reads from this file.
 
 export const REFERRAL = {
-  // A new user who arrives via any promo/referral gets this many free months of Pro.
+  // A new user who arrives via a referral link gets this many free months of Pro.
   NEW_USER_FREE_MONTHS: 1,
-  // A referrer earns this many free months when their friend becomes a PAYING customer.
+  // ── Referrer rewards (signup-count based) ──────────────────────────────────
+  // Every SIGNUPS_PER_REWARD successful signups through a user's link unlocks
+  // one CLAIMABLE free month of Pro. The user must explicitly tap "claim" to
+  // activate it (notification or the Refer-a-friend box in Settings).
+  SIGNUPS_PER_REWARD: 3,
+  // Months granted per completed batch of signups.
   REFERRER_FREE_MONTHS: 1,
-  // A referrer can earn the reward only ONCE, ever — no matter how many they refer.
-  REFERRER_REWARD_ONCE: true,
+  // Lifetime cap on referral months a user can earn (3 months = 9 signups).
+  MAX_REFERRAL_REWARDS: 3,
   // Length of one "month" of a free grant, in days.
   DAYS_PER_FREE_MONTH: 30,
 } as const;

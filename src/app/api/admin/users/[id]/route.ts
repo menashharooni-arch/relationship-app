@@ -30,15 +30,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const DAY = 86_400_000;
   const since30 = new Date(now - 30 * DAY).toISOString();
 
-  const [{ data: leads }, { data: views }, { count: referredCount }] = await Promise.all([
+  const [{ data: leads }, { data: views }, { data: refRows }] = await Promise.all([
     usernames.length
       ? admin.from("leads").select("id, name, email, phone, source, card_owner, created_at").in("card_owner", usernames).order("created_at", { ascending: false }).limit(500)
       : Promise.resolve({ data: [] as never[] }),
     usernames.length
       ? admin.from("card_views").select("username, created_at").in("username", usernames.flatMap((u) => [u, `${u}__links`])).limit(5000)
       : Promise.resolve({ data: [] as never[] }),
-    admin.from("referrals").select("*", { count: "exact", head: true }).eq("referrer_id", id),
+    admin.from("referrals").select("status, reward_granted").eq("referrer_id", id),
   ]);
+
+  // Referral earnings (3 valid signups = 1 claimable month, tap-to-claim, max 3).
+  const validRefs = (refRows ?? []).filter((r) => r.status !== "flagged" && r.status !== "self_referral");
+  const refClaimedRows = validRefs.filter((r) => r.reward_granted).length;
+  const refMonthsClaimed = Math.min(3, Math.floor(refClaimedRows / 3));
+  const refMonthsClaimable = Math.max(0, Math.min(3, Math.floor(Math.min(validRefs.length, 9) / 3)) - refMonthsClaimed);
 
   // Per-card rollups + 30-day daily series.
   const leadsByCard: Record<string, number> = {};
@@ -111,7 +117,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       views: (views ?? []).length,
       leads30,
       views30,
-      referred: referredCount ?? 0,
+      referred: validRefs.length,
+      referralMonthsClaimed: refMonthsClaimed,
+      referralMonthsClaimable: refMonthsClaimable,
     },
     series: Object.entries(series).map(([date, v]) => ({ date, ...v })),
     recentLeads: (leads ?? []).slice(0, 12),

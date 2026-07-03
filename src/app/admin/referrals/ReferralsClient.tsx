@@ -10,8 +10,9 @@ import Link from "next/link";
 type RefStats = {
   ready: boolean; message?: string;
   bySource?: Record<string, number>;
-  totalReferrals?: number; paid?: number; rewarded?: number; flagged?: number;
-  selfReferral?: number; activeFreeMonths?: number; conversionRate?: number;
+  totalReferrals?: number; validSignups?: number; paid?: number;
+  monthsClaimed?: number; monthsClaimable?: number; flagged?: number;
+  selfReferral?: number; activeFreeMonths?: number;
   flaggedList?: { code: string | null; reason: string; created_at: string }[];
 };
 
@@ -27,7 +28,8 @@ export default function ReferralsClient() {
       <div>
         <h1 className="text-2xl font-bold">Referrals</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Referral program performance. To give someone a custom code or a free month, open them in{" "}
+          How it works: <strong className="text-gray-300">3 successful signups = 1 claimable free month of Pro</strong> (the user must tap to claim; max 3 months each).
+          Friends who sign up through a link get a free month too. To give someone a custom code or a free month manually, open them in{" "}
           <Link href="/admin/users" className="text-blue-400 hover:text-blue-300">Users</Link>.
         </p>
       </div>
@@ -42,10 +44,10 @@ export default function ReferralsClient() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Referred signups", value: stats.totalReferrals ?? 0 },
-              { label: "Signup → paid", value: `${stats.conversionRate ?? 0}%` },
-              { label: "Rewards granted", value: stats.rewarded ?? 0 },
-              { label: "Active free months", value: stats.activeFreeMonths ?? 0 },
+              { label: "Successful referred signups", value: stats.validSignups ?? 0 },
+              { label: "Months claimed by users", value: stats.monthsClaimed ?? 0 },
+              { label: "Months earned, not yet claimed", value: stats.monthsClaimable ?? 0 },
+              { label: "Active free months (all sources)", value: stats.activeFreeMonths ?? 0 },
             ].map((s) => (
               <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
                 <p className="text-2xl font-bold tabular-nums">{typeof s.value === "number" ? s.value.toLocaleString() : s.value}</p>

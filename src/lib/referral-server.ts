@@ -2,6 +2,10 @@ import { getAdminSupabase } from "./supabase-admin";
 import { getStripe } from "./stripe";
 import { isPaidPlan } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
+import { insertNotification } from "./notify";
+import { sendPushToUser } from "./push";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0/O/1/I/L)
 
@@ -186,25 +190,183 @@ export async function applyReferralOnSignup(
       },
       { onConflict: "referred_id" },
     );
+
+    // Successful (non-fraud) signup → tell the referrer where they stand
+    // (1/3, 2/3, or the claimable 3/3). Best-effort: never blocks signup.
+    if (referrer && status === "signed_up") {
+      try {
+        await notifyReferrerOfSignup(referrer.id);
+      } catch (e) {
+        console.error("[referral] progress notification failed:", e);
+      }
+    }
   }
 }
 
-// Called from the Stripe webhook when `referredUserId` becomes a PAYING customer.
-// Grants the referrer their ONE-TIME reward. Never called from the browser.
-export async function rewardReferrerIfEligible(referredUserId: string): Promise<void> {
+// ── Signup-count referral rewards ────────────────────────────────────────────
+// Every REFERRAL.SIGNUPS_PER_REWARD (3) successful signups through a user's
+// link unlock ONE claimable free month of Pro, up to MAX_REFERRAL_REWARDS (3)
+// months total (= 9 signups). The user must explicitly TAP to claim — from the
+// notification or the Refer-a-friend box in Settings; nothing is auto-granted.
+//
+// Claims are tracked on the EXISTING referrals columns (no schema change):
+// claiming marks 3 valid rows reward_granted=true + rewarded_at, so
+//   months claimed  = floor(#reward_granted rows / 3)
+//   months unlocked = floor(min(#valid rows, 9) / 3)
+//   claimable now   = unlocked − claimed
+// Flagged / self-referral signups never count.
+
+const INVALID_REF_STATUSES = ["flagged", "self_referral"];
+
+export type ReferralProgress = {
+  code: string | null;
+  validSignups: number;    // successful (non-fraud) signups, uncapped
+  progressInBatch: number; // 0..2 — signups toward the NEXT free month
+  claimable: number;       // free months ready to claim right now
+  monthsClaimed: number;   // free months already claimed (0..3)
+  capReached: boolean;     // all 3 months claimed
+};
+
+async function computeProgress(userId: string): Promise<Omit<ReferralProgress, "code">> {
+  const admin = getAdminSupabase();
+  const { data: rows } = await admin
+    .from("referrals")
+    .select("id, status, reward_granted")
+    .eq("referrer_id", userId);
+
+  const per = REFERRAL.SIGNUPS_PER_REWARD;
+  const cap = REFERRAL.MAX_REFERRAL_REWARDS;
+  const valid = (rows ?? []).filter((r) => !INVALID_REF_STATUSES.includes(r.status as string));
+  const claimedRows = valid.filter((r) => r.reward_granted).length;
+
+  const monthsClaimed = Math.min(cap, Math.floor(claimedRows / per));
+  const counted = Math.min(valid.length, cap * per); // signups beyond the cap don't count
+  const unlocked = Math.min(cap, Math.floor(counted / per));
+  const claimable = Math.max(0, unlocked - monthsClaimed);
+  const capReached = monthsClaimed >= cap;
+  const progressInBatch = capReached ? 0 : counted - unlocked * per;
+
+  return { validSignups: valid.length, progressInBatch, claimable, monthsClaimed, capReached };
+}
+
+// For Settings / dashboard. Resilient: returns null pre-migration so UI never breaks.
+export async function getReferralProgress(userId: string): Promise<ReferralProgress | null> {
+  try {
+    const code = await ensureReferralCode(userId);
+    const p = await computeProgress(userId);
+    return { code, ...p };
+  } catch {
+    return null;
+  }
+}
+
+// The explicit "tap to get it" action. Consumes 3 unclaimed valid signups and
+// grants one month — Stripe balance credit for active paying subscribers,
+// app-level Pro month (extending any current grant) for everyone else.
+export async function claimReferralReward(
+  userId: string,
+): Promise<{ ok: true; monthsClaimed: number; claimable: number } | { ok: false; error: string }> {
+  const admin = getAdminSupabase();
+  const per = REFERRAL.SIGNUPS_PER_REWARD;
+
+  const before = await computeProgress(userId);
+  if (before.claimable <= 0) {
+    return {
+      ok: false,
+      error: before.capReached
+        ? `You've already claimed all ${REFERRAL.MAX_REFERRAL_REWARDS} referral months — thanks for spreading the word!`
+        : `No free month ready yet — ${per - before.progressInBatch} more signup${per - before.progressInBatch === 1 ? "" : "s"} to go.`,
+    };
+  }
+
+  // Consume the OLDEST unclaimed valid signups for this claim.
+  const { data: candidates } = await admin
+    .from("referrals")
+    .select("id")
+    .eq("referrer_id", userId)
+    .eq("reward_granted", false)
+    .not("status", "in", `(${INVALID_REF_STATUSES.join(",")})`)
+    .order("created_at", { ascending: true })
+    .limit(per);
+  const ids = (candidates ?? []).map((c) => c.id as string);
+  if (ids.length < per) return { ok: false, error: "No free month ready to claim yet." };
+
+  const nowIso = new Date().toISOString();
+  const { data: updated } = await admin
+    .from("referrals")
+    .update({ reward_granted: true, rewarded_at: nowIso })
+    .in("id", ids)
+    .eq("reward_granted", false)
+    .select("id");
+
+  if ((updated ?? []).length < per) {
+    // A concurrent claim raced us — release whatever we took and bail cleanly.
+    if (updated?.length) {
+      await admin.from("referrals").update({ reward_granted: false, rewarded_at: null }).in("id", updated.map((u) => u.id));
+    }
+    return { ok: false, error: "That claim was already processed — refresh to see your updated plan." };
+  }
+
+  await grantReferrerReward(userId, REFERRAL.REFERRER_FREE_MONTHS);
+  await admin.from("profiles").update({ referral_reward_earned: true }).eq("id", userId); // legacy "earned ≥1" flag
+
+  const after = await computeProgress(userId);
+  return { ok: true, monthsClaimed: after.monthsClaimed, claimable: after.claimable };
+}
+
+// After each successful referred signup: tell the referrer where they stand.
+// 1/3 and 2/3 are progress notes; 3/3 is the claimable "tap here to get it".
+async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
+  const per = REFERRAL.SIGNUPS_PER_REWARD;
+  const cap = REFERRAL.MAX_REFERRAL_REWARDS;
+  const p = await computeProgress(referrerId);
+
+  let type = "referral_progress";
+  let title: string;
+  let body: string;
+
+  if (p.validSignups > cap * per) {
+    // Past the lifetime cap — appreciative, no reward implied.
+    title = "Another friend joined through your link! 🙌";
+    body = `You've already earned the maximum ${cap} referral months — thanks for spreading the word.`;
+  } else if (p.progressInBatch === 0 && p.claimable > 0) {
+    // This signup completed a batch of 3 → a month is ready to claim.
+    type = "referral_claim";
+    title = "3 of 3 referrals complete! 🎉";
+    body = "Congratulations — you've got Pro free for one month. Tap here to get it.";
+  } else {
+    const left = per - p.progressInBatch;
+    title = `${p.progressInBatch} of ${per} referrals complete`;
+    body = `${left === 2 ? "Two more" : "One more"} to unlock Pro free for one month.`;
+  }
+
+  await insertNotification({ user_id: referrerId, type, title, body });
+  await sendPushToUser(referrerId, {
+    title,
+    body,
+    url: `${APP_URL}/settings/flows#refer`,
+    tag: `referral-${p.validSignups}`,
+  }).catch(() => {});
+}
+
+// Called from the Stripe webhook when a referred user becomes a PAYING customer.
+// Rewards are NOT granted here anymore (they're signup-count based and claimed
+// by the user) — this records the conversion for analytics and runs the
+// same-payment-method fraud check (a flagged signup stops counting).
+export async function markReferralConversion(referredUserId: string): Promise<void> {
   const admin = getAdminSupabase();
   const { data: ref } = await admin
     .from("referrals")
-    .select("id, referrer_id, status, reward_granted")
+    .select("id, referrer_id, status")
     .eq("referred_id", referredUserId)
     .maybeSingle();
   if (!ref || !ref.referrer_id) return;
-  if (ref.status === "self_referral" || ref.status === "flagged") return; // never reward fraud
-  if (ref.reward_granted) return; // this friend already earned the referrer a reward
+  if (INVALID_REF_STATUSES.includes(ref.status as string)) return;
+
   const nowIso = new Date().toISOString();
 
-  // Payment-method self-referral: if the friend paid with the SAME card the
-  // referrer pays with, it's the same person on two accounts — flag, don't reward.
+  // Payment-method self-referral: the friend pays with the SAME card as the
+  // referrer → same person on two accounts. Flag it (removes it from counting).
   const { data: friendPm } = await admin.from("profiles").select("payment_fingerprint").eq("id", referredUserId).maybeSingle();
   const { data: referrerPm } = await admin.from("profiles").select("payment_fingerprint").eq("id", ref.referrer_id).maybeSingle();
   if (friendPm?.payment_fingerprint && referrerPm?.payment_fingerprint && friendPm.payment_fingerprint === referrerPm.payment_fingerprint) {
@@ -212,60 +374,8 @@ export async function rewardReferrerIfEligible(referredUserId: string): Promise<
     return;
   }
 
-  // Mark the friend as converted to paid.
-  if (ref.status !== "paid" && ref.status !== "rewarded") {
+  if (ref.status === "signed_up") {
     await admin.from("referrals").update({ status: "paid", paid_at: nowIso }).eq("id", ref.id);
-  }
-
-  // Idempotency is on the PER-REFERRAL row (not the referrer's once-cap flag), so
-  // duplicate webhooks for the SAME friend can't double-grant, while a different
-  // friend can still earn a reward when the cap allows it.
-  const { data: claimedRef } = await admin
-    .from("referrals")
-    .update({ reward_granted: true, status: "rewarded", rewarded_at: nowIso })
-    .eq("id", ref.id)
-    .eq("reward_granted", false)
-    .select("id")
-    .maybeSingle();
-  if (!claimedRef) return; // a concurrent/duplicate webhook for this friend already granted
-
-  // Enforce the once-only cap atomically on the referrer. If they've already
-  // earned (or a concurrent friend just claimed it), roll this referral back to
-  // "paid" — the friend still counts as converted, the referrer earns nothing more.
-  if (REFERRAL.REFERRER_REWARD_ONCE) {
-    const { data: capClaimed } = await admin
-      .from("profiles")
-      .update({ referral_reward_earned: true })
-      .eq("id", ref.referrer_id)
-      .eq("referral_reward_earned", false)
-      .select("id")
-      .maybeSingle();
-    if (!capClaimed) {
-      await admin.from("referrals").update({ reward_granted: false, status: "paid", rewarded_at: null }).eq("id", ref.id);
-      return;
-    }
-  } else {
-    await admin.from("profiles").update({ referral_reward_earned: true }).eq("id", ref.referrer_id);
-  }
-
-  await grantReferrerReward(ref.referrer_id, REFERRAL.REFERRER_FREE_MONTHS);
-}
-
-// For the dashboard / settings referral area. Resilient: returns null if the
-// migration hasn't been run yet, so the UI never breaks.
-export async function getReferralStatus(userId: string): Promise<{ code: string | null; rewardEarned: boolean } | null> {
-  try {
-    const admin = getAdminSupabase();
-    const { data } = await admin
-      .from("profiles")
-      .select("referral_code, referral_reward_earned")
-      .eq("id", userId)
-      .maybeSingle();
-    let code = (data?.referral_code as string | null) ?? null;
-    if (!code) code = await ensureReferralCode(userId);
-    return { code, rewardEarned: !!data?.referral_reward_earned };
-  } catch {
-    return null;
   }
 }
 
