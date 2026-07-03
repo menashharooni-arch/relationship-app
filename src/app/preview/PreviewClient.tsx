@@ -121,6 +121,18 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
         </div>
       </div>
       <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-8">{children}</div>
+      {/* Peak-interest CTA — they're literally holding the product right now */}
+      <div className="shrink-0 border-t border-gray-800 bg-gray-950/95 backdrop-blur px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="max-w-xl mx-auto flex items-center gap-3">
+          <p className="text-gray-400 text-sm flex-1 hidden sm:block">Like what you see? Yours takes about a minute.</p>
+          <a
+            href="/join?src=preview"
+            className="flex-1 sm:flex-none text-center text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-6 py-3 rounded-full transition-colors shadow-lg shadow-blue-900/40"
+          >
+            Create Your Card for Free →
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -144,6 +156,21 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   const [view, setView] = useState<(typeof VIEWS)[number]>("Notifications");
   const [modal, setModal] = useState<null | "card" | "links" | "signature">(null);
   const [copied, setCopied] = useState(false);
+  // Sticky signup bar (standalone page only): appears once the visitor actually
+  // engages with the demo — never before, so "try it live first" stays true.
+  const [engaged, setEngaged] = useState(false);
+  const [ctaHidden, setCtaHidden] = useState(false);
+  useEffect(() => {
+    try { if (sessionStorage.getItem("sc_preview_cta")) setCtaHidden(true); } catch { /* ignore */ }
+  }, []);
+  function openDemo(m: "card" | "links" | "signature") {
+    setModal(m);
+    setEngaged(true);
+  }
+  function hideStickyCta() {
+    setCtaHidden(true);
+    try { sessionStorage.setItem("sc_preview_cta", "1"); } catch { /* ignore */ }
+  }
   const [read, setRead] = useState<Record<string, boolean>>(() => {
     const m: Record<string, boolean> = {};
     CARDS.forEach((c) => c.leads.forEach((l) => { m[l.id] = l.read; }));
@@ -172,10 +199,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           <p className="text-white text-sm font-semibold">Your SwiftCard</p>
         </div>
         <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">This is exactly what people receive when you share — tap it to open the real thing.</p>
-        <button type="button" onClick={() => setModal("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
+        <button type="button" onClick={() => openDemo("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
           <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
         </button>
-        <button type="button" onClick={() => setModal("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">👆 Preview SwiftCard →</button>
+        <button type="button" onClick={() => openDemo("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">👆 Preview SwiftCard →</button>
       </Box>
       <Box className="space-y-2">
         <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
@@ -195,7 +222,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <span className="font-bold text-sm">SwiftCard</span>
               <span className="text-gray-600 text-xs hidden sm:inline">· See it live</span>
             </Link>
-            <Link href="/join" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors">Start free →</Link>
+            <Link href="/join?src=preview" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors">Start free →</Link>
           </div>
         </header>
       )}
@@ -245,7 +272,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             {CARDS.map((c) => {
               const active = c.key === activeKey;
               return (
-                <button key={c.key} onClick={() => setActiveKey(c.key)} type="button"
+                <button key={c.key} onClick={() => { setActiveKey(c.key); setEngaged(true); }} type="button"
                   className={`text-left flex items-center gap-3 rounded-xl px-4 py-3 border flex-1 min-w-full sm:min-w-[230px] transition-colors ${active ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60 hover:border-gray-600"}`}>
                   <span className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 ${active ? "bg-blue-600 border-blue-600" : "border-gray-600"}`}>
                     {active && <svg viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>}
@@ -305,7 +332,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
               <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
             </div>
-            <button type="button" onClick={() => setModal("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">Open Swift Links →</button>
+            <button type="button" onClick={() => openDemo("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">Open Swift Links →</button>
           </Box>
 
           {/* Swift Signature — with description */}
@@ -315,7 +342,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <p className="text-white text-sm font-semibold">Swift Signature</p>
             </div>
             <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">Drop your live card into your email signature — image + clickable links, always up to date. Every email shares your card.</p>
-            <button type="button" onClick={() => setModal("signature")} className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors">Preview &amp; copy</button>
+            <button type="button" onClick={() => openDemo("signature")} className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors">Preview &amp; copy</button>
           </Box>
         </div>
 
@@ -414,9 +441,34 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
 
         <div className="mt-10 text-center">
           <p className="text-gray-400 text-sm mb-4">This is exactly what you get — set up your own in under 30 seconds.</p>
-          <Link href="/join" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-full transition-colors text-base">Create your free card →</Link>
+          <Link href="/join?src=preview" className="inline-block bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-full transition-colors text-base">Create Your Card for Free →</Link>
         </div>
       </div>
+
+      {/* Sticky signup bar — standalone page only, appears after first interaction,
+          hides while a full-screen preview (which has its own CTA) is open */}
+      {!embedded && engaged && !ctaHidden && !modal && (
+        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pointer-events-none">
+          <div className="pointer-events-auto max-w-sm mx-auto rounded-full p-[1.5px] bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_35px_rgba(79,70,229,0.45)] sc-cta-rise">
+            <div className="flex items-center gap-1 rounded-full bg-gray-950/95 backdrop-blur p-1.5">
+              <a
+                href="/join?src=preview"
+                className="flex-1 text-center text-[13px] font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-5 py-2.5 rounded-full transition-colors"
+              >
+                Create Your Card for Free →
+              </a>
+              <button onClick={hideStickyCta} aria-label="Dismiss" className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors shrink-0">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+              </button>
+            </div>
+          </div>
+          <style>{`
+            @keyframes sc-cta-rise { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            .sc-cta-rise { animation: sc-cta-rise 0.3s ease-out; }
+            @media (prefers-reduced-motion: reduce) { .sc-cta-rise { animation: none; } }
+          `}</style>
+        </div>
+      )}
 
       {/* Full-page live previews */}
       {modal === "card" && (
