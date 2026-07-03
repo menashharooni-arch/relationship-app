@@ -457,7 +457,7 @@ export default async function DashboardPage({
                 <UpgradeButton />
               </div>
               <p className="text-amber-200/60 text-xs mt-2">
-                Not ready to upgrade? <strong className="text-amber-200">Refer a friend</strong> — when one upgrades to Pro, you get a free month too.
+                Not ready to upgrade? <strong className="text-amber-200">Invite 3 friends</strong> — when they sign up, you get a month of Pro free (up to 3 months).
               </p>
             </div>
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Notification = {
   id: string;
@@ -22,9 +23,31 @@ function timeAgo(iso: string) {
 }
 
 export default function NotificationsPanel({ initial }: { initial: Notification[] }) {
+  const router = useRouter();
   const [items, setItems] = useState<Notification[]>(initial);
+  const [claiming, setClaiming] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<Record<string, { ok: boolean; text: string }>>({});
   const unread = items.filter((n) => !n.read).length;
   const readCount = items.filter((n) => n.read).length;
+
+  // "Tap here to get it" — the explicit claim for an earned referral month.
+  async function claimReferral(id: string) {
+    setClaiming(id);
+    try {
+      const res = await fetch("/api/referrals/claim", { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: "🎉 Pro is active for the next month — enjoy!" } }));
+        setRead(id, true);
+        router.refresh(); // update the plan badge etc.
+      } else {
+        setClaimResult((p) => ({ ...p, [id]: { ok: false, text: d.error || "Couldn't claim — try again." } }));
+      }
+    } catch {
+      setClaimResult((p) => ({ ...p, [id]: { ok: false, text: "Couldn't claim — try again." } }));
+    }
+    setClaiming(null);
+  }
 
   async function setRead(id: string, read: boolean) {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
@@ -96,6 +119,22 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
             <div className="min-w-0 flex-1">
               <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"}`}>{n.title}</p>
               {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+              {/* Referral month earned → the explicit tap-to-claim */}
+              {n.type === "referral_claim" && (
+                claimResult[n.id] ? (
+                  <p className={`text-xs font-semibold mt-2 ${claimResult[n.id].ok ? "text-emerald-400" : "text-amber-400"}`}>
+                    {claimResult[n.id].text}
+                  </p>
+                ) : (
+                  <button
+                    onClick={() => claimReferral(n.id)}
+                    disabled={claiming === n.id}
+                    className="mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
+                  >
+                    {claiming === n.id ? "Activating…" : "🎁 Claim my free month of Pro"}
+                  </button>
+                )
+              )}
               <p className="text-gray-600 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
             </div>
             <button

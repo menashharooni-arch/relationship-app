@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/admin";
+import { REFERRAL } from "@/lib/referral";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-
+// Admin referral analytics for the signup-count reward model:
+// 3 successful signups = 1 claimable free month (user must tap to claim), max 3.
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
     const admin = getAdminSupabase();
     const [{ data: profs, error: pErr }, { data: refs, error: rErr }] = await Promise.all([
-      admin.from("profiles").select("signup_source, referral_reward_earned, plan_expires_at"),
-      admin.from("referrals").select("status, reward_granted, flagged_reason, code, referred_id, created_at"),
+      admin.from("profiles").select("signup_source, plan_expires_at"),
+      admin.from("referrals").select("referrer_id, status, reward_granted, flagged_reason, code, created_at"),
     ]);
-    // Supabase resolves (not throws) on a missing table/column, so the try/catch
-    // alone wouldn't catch a pre-migration state — check the errors explicitly.
+    // Supabase resolves (not throws) on a missing table/column — check explicitly.
     if (pErr || rErr) {
       return NextResponse.json({ ready: false, message: "Run REFERRAL_SETUP.sql in Supabase to enable referral analytics." });
     }
@@ -30,17 +26,37 @@ export async function GET() {
       bySource[s] = (bySource[s] ?? 0) + 1;
     }
 
+    const per = REFERRAL.SIGNUPS_PER_REWARD;
+    const cap = REFERRAL.MAX_REFERRAL_REWARDS;
     const referrals = refs ?? [];
+    const isValid = (r: { status: string | null }) => r.status !== "flagged" && r.status !== "self_referral";
+
     const totalReferrals = referrals.length;
-    const paid = referrals.filter((r) => r.status === "paid" || r.status === "rewarded").length;
-    const rewarded = referrals.filter((r) => r.reward_granted).length;
+    const validSignups = referrals.filter(isValid).length;
+    const paid = referrals.filter((r) => r.status === "paid").length;
     const flagged = referrals.filter((r) => r.status === "flagged" || r.flagged_reason).length;
     const selfReferral = referrals.filter((r) => r.status === "self_referral").length;
     const activeFreeMonths = (profs ?? []).filter((p) => p.plan_expires_at).length;
-    const conversionRate = totalReferrals ? Math.round((paid / totalReferrals) * 1000) / 10 : 0;
+
+    // Per-referrer rollup → months claimed + months sitting unclaimed.
+    const byReferrer: Record<string, { valid: number; claimed: number }> = {};
+    for (const r of referrals) {
+      if (!r.referrer_id || !isValid(r)) continue;
+      const slot = (byReferrer[r.referrer_id as string] ??= { valid: 0, claimed: 0 });
+      slot.valid++;
+      if (r.reward_granted) slot.claimed++;
+    }
+    let monthsClaimed = 0;
+    let monthsClaimable = 0;
+    for (const u of Object.values(byReferrer)) {
+      const claimed = Math.min(cap, Math.floor(u.claimed / per));
+      const unlocked = Math.min(cap, Math.floor(Math.min(u.valid, cap * per) / per));
+      monthsClaimed += claimed;
+      monthsClaimable += Math.max(0, unlocked - claimed);
+    }
 
     const flaggedList = referrals
-      .filter((r) => r.status === "flagged" || r.status === "self_referral" || r.flagged_reason)
+      .filter((r) => !isValid(r) || r.flagged_reason)
       .slice(0, 50)
       .map((r) => ({ code: r.code, reason: r.flagged_reason || r.status, created_at: r.created_at }));
 
@@ -48,16 +64,16 @@ export async function GET() {
       ready: true,
       bySource,
       totalReferrals,
+      validSignups,
       paid,
-      rewarded,
+      monthsClaimed,
+      monthsClaimable,
       flagged,
       selfReferral,
       activeFreeMonths,
-      conversionRate,
       flaggedList,
     });
   } catch {
-    // Migration not run yet — degrade gracefully so the panel still loads.
     return NextResponse.json({ ready: false, message: "Run REFERRAL_SETUP.sql in Supabase to enable referral analytics." });
   }
 }

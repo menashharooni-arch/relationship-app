@@ -18,7 +18,7 @@ type Detail = {
   };
   cards: { id: string; username: string; label: string | null; name: string | null; title: string | null; company: string | null; template: string | null; created_at: string; leads: number; cardViews: number; linkViews: number }[];
   profileCard: { username: string; leads: number; cardViews: number; linkViews: number } | null;
-  totals: { leads: number; views: number; leads30: number; views30: number; referred: number };
+  totals: { leads: number; views: number; leads30: number; views30: number; referred: number; referralMonthsClaimed?: number; referralMonthsClaimable?: number };
   series: { date: string; views: number; leads: number }[];
   recentLeads: { id: string; name: string | null; email: string | null; phone: string | null; source: string | null; card_owner: string; created_at: string }[];
 };
@@ -245,7 +245,9 @@ export default function UserDetailClient({ userId }: { userId: string }) {
           <p className="text-white font-semibold text-sm mb-1">Referral</p>
           <p className="text-gray-600 text-[11px] mb-3">
             Their link: {user.referral_code ? <span className="font-mono text-gray-400">swiftcard.me/r/{user.referral_code}</span> : "no code yet"}
-            {" · "}reward earned: {user.referral_reward_earned ? "yes" : "no"}
+            {" · "}<span className="text-gray-400">{totals.referred}</span> successful signups
+            {" · "}<span className="text-gray-400">{totals.referralMonthsClaimed ?? 0}/3</span> months claimed
+            {(totals.referralMonthsClaimable ?? 0) > 0 && <span className="text-emerald-400"> · {totals.referralMonthsClaimable} ready to claim</span>}
           </p>
           <div className="flex items-center gap-2">
             <input
