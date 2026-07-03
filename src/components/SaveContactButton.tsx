@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getVisitorId } from "@/lib/visitor";
+import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 interface Person {
@@ -19,8 +19,6 @@ interface Person {
   twitter?: string;
   tiktok?: string;
 }
-
-const STORAGE_KEY = "swiftcard_shared";
 
 function normalizeUrl(url: string): string {
   if (!url) return "";
@@ -57,11 +55,18 @@ export default function SaveContactButton({
 
   useEffect(() => {
     if (!cardOwner) return;
-    try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      if (data[cardOwner]) setAlreadyShared(true);
-    } catch { /* ignore */ }
+    if (hasSharedWith(cardOwner)) setAlreadyShared(true);
+    // Pre-fill from an earlier share anywhere on SwiftCard — never ask twice.
+    const v = getVisitorInfo();
+    if (v) setForm({ name: v.name, phone: v.phone, email: v.email });
   }, [cardOwner]);
+
+  // Every dismissal path (X, backdrop, "No thanks") still earns the visitor a
+  // friendly "create your free card" invite — the moment is already theirs.
+  function closeSheet() {
+    setShowSheet(false);
+    triggerSignupNudge("vcard");
+  }
 
   function downloadVCard() {
     if (username) trackEvent(username, "clicked_save_contact", source);
@@ -126,7 +131,8 @@ export default function SaveContactButton({
 
     // Show the "share your info back" lead-capture sheet (card owner's). If it
     // won't show, invite the visitor to make their OWN card instead (signup nudge).
-    if (cardOwner && !alreadyShared) {
+    // Live check too — they may have shared via another form since mount.
+    if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
       setTimeout(() => setShowSheet(true), 900);
     } else {
       setTimeout(() => triggerSignupNudge("vcard"), 900);
@@ -150,12 +156,7 @@ export default function SaveContactButton({
       }),
     });
 
-    try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      data[cardOwner] = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch { /* ignore */ }
-
+    markSharedWith(cardOwner, form);
     setAlreadyShared(true);
     setStatus("done");
     // After they share back, close the sheet and invite them to make their own card.
@@ -191,7 +192,7 @@ export default function SaveContactButton({
         <div
           className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => e.target === e.currentTarget && setShowSheet(false)}
+          onClick={(e) => e.target === e.currentTarget && closeSheet()}
         >
           <div
             className="w-full max-w-sm rounded-t-3xl p-6 animate-slide-up"
@@ -219,7 +220,7 @@ export default function SaveContactButton({
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowSheet(false)}
+                    onClick={closeSheet}
                     className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
                     aria-label="Close"
                   >
@@ -261,7 +262,7 @@ export default function SaveContactButton({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowSheet(false)}
+                    onClick={closeSheet}
                     className="w-full text-slate-400 text-sm py-1.5 hover:text-slate-600 transition-colors"
                   >
                     No thanks

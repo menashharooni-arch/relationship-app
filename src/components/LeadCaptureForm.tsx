@@ -1,9 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { getVisitorId } from "@/lib/visitor";
+import { useEffect, useState } from "react";
+import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
+
+// The post-share sales moment: a rich "make your own card" panel whose button
+// lands on the Test It Live demo (/join?to=live → /preview), not a signup form.
+function CreateCardCTA() {
+  const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
+  const signupUrl = `${APP_URL}/join?src=share_info&to=live`;
+
+  return (
+    <div className="rounded-3xl p-[1.5px] bg-gradient-to-br from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_40px_rgba(79,70,229,0.35)]">
+      <div className="rounded-[calc(1.5rem-1.5px)] px-5 pt-5 pb-4" style={{ background: "#0B1120" }}>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-lg leading-none">✨</span>
+          <p className="text-white font-extrabold text-[15px]">Want a smart card like this?</p>
+        </div>
+        <p className="text-slate-400 text-xs leading-relaxed mb-4">
+          Share your contact in one tap, capture every lead, and follow up on autopilot.
+          Try it live right now — no signup needed.
+        </p>
+        <a
+          href={signupUrl}
+          className="flex items-center justify-center gap-1.5 w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-colors shadow-lg shadow-blue-900/40"
+        >
+          Create Your Free Card →
+        </a>
+        <p className="text-slate-500 text-[10px] text-center mt-2.5">
+          Free to start · No credit card · See a live demo first
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function LeadCaptureForm({
   cardOwner,
@@ -13,7 +44,16 @@ export default function LeadCaptureForm({
   source?: string;
 }) {
   const [status, setStatus] = useState<Status>("idle");
+  const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
+
+  // If this visitor shared with this owner before, don't ask again — and
+  // pre-fill their details in case they use another form on the page.
+  useEffect(() => {
+    setAlreadyShared(hasSharedWith(cardOwner));
+    const v = getVisitorInfo();
+    if (v) setForm((prev) => ({ ...prev, name: v.name, phone: v.phone, email: v.email }));
+  }, [cardOwner]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -36,17 +76,16 @@ export default function LeadCaptureForm({
 
     if (res.status === 402) {
       setStatus("limit");
+    } else if (res.ok) {
+      // Remember the share so nothing on this owner's pages asks again.
+      markSharedWith(cardOwner, form);
+      setStatus("done");
     } else {
-      setStatus(res.ok ? "done" : "error");
+      setStatus("error");
     }
   }
 
   if (status === "done") {
-    const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
-    // Plain signup — no referrer, no free month. Only a real /r/CODE referral
-    // (a friend sharing their link who then upgrades to Pro) grants a free month.
-    const signupUrl = `${APP_URL}/join?src=share_info`;
-
     return (
       <div className="space-y-4">
         {/* Success confirmation */}
@@ -60,41 +99,20 @@ export default function LeadCaptureForm({
           <p className="text-slate-500 text-sm mt-1">They&apos;ll be in touch soon.</p>
         </div>
 
-        {/* CTA: get their own card */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: "#0f172a", border: "1px solid #1e293b" }}>
-          <div className="px-5 pt-5 pb-4">
-            <p className="text-white font-bold text-sm mb-1">Want your own smart card like this?</p>
-            <p className="text-slate-400 text-xs leading-relaxed mb-4">
-              Share your contact in one tap, capture leads automatically, and send follow-ups on autopilot.
-              It&apos;s free to start — your card, your way.
-            </p>
+        <CreateCardCTA />
+      </div>
+    );
+  }
 
-            {/* Primary CTA */}
-            <a
-              href={signupUrl}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-center transition-opacity hover:opacity-90 mb-2"
-              style={{ background: "#1D4ED8", color: "#fff" }}
-            >
-              Create a free account →
-            </a>
-
-            {/* Download placeholder */}
-            <button
-              disabled
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-opacity opacity-50 cursor-not-allowed"
-              style={{ background: "#1e293b", color: "#94a3b8", border: "1px solid #334155" }}
-              title="App coming soon"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-                <path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 2a8 8 0 100 16A8 8 0 0012 4zm0 3a1 1 0 011 1v4.586l2.293-2.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L11 12.586V8a1 1 0 011-1z"/>
-              </svg>
-              Download the App — Coming Soon
-            </button>
-          </div>
-          <div className="px-5 py-2.5 border-t" style={{ borderColor: "#1e293b" }}>
-            <p className="text-slate-600 text-[10px] text-center">Free to start · No credit card required</p>
-          </div>
+  // They already shared with this owner — never ask for their info twice.
+  if (alreadyShared) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center py-2">
+          <p className="text-slate-900 font-semibold text-sm">✓ You&apos;ve already shared your info</p>
+          <p className="text-slate-500 text-xs mt-1">They have your details — no need to send them again.</p>
         </div>
+        <CreateCardCTA />
       </div>
     );
   }
