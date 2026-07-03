@@ -66,22 +66,59 @@ body {
 }
 .sc-phone-glow { animation: sc-glow-pulse 7s ease-in-out infinite; }
 
-/* Scroll-reveal: starts tilted/down, settles flat when in view */
+/* Scroll-reveal: clean fade-up (no tilt), settles flat when in view */
 .reveal3d {
   opacity: 0;
-  transform: perspective(1000px) rotateX(9deg) translateY(30px);
-  transition: opacity .7s ease, transform .8s cubic-bezier(.2,.7,.2,1);
-  transform-origin: center top;
+  transform: translateY(28px);
+  transition: opacity .7s cubic-bezier(.16,.8,.3,1), transform .7s cubic-bezier(.16,.8,.3,1);
   will-change: transform, opacity;
 }
 .reveal3d.is-in {
   opacity: 1;
-  transform: perspective(1000px) rotateX(0deg) translateY(0);
+  transform: none;
 }
+
+/* ── Lima-style scroll reveals (data-reveal + IntersectionObserver) ──────────
+   Elements pop in as they enter the viewport. Stagger groups with an inline
+   transition-delay. data-reveal="fade" = fade only; default = fade + rise.
+   The hidden state is gated on .sc-js (set by an inline script the moment JS
+   runs) so with JavaScript disabled the content is always visible — never a
+   blank page. */
+.sc-js [data-reveal] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity .75s cubic-bezier(.16,.8,.3,1), transform .75s cubic-bezier(.16,.8,.3,1);
+  will-change: opacity, transform;
+}
+.sc-js [data-reveal="fade"] { transform: none; }
+.sc-js [data-reveal="left"] { transform: translateX(-34px); }
+.sc-js [data-reveal="right"] { transform: translateX(34px); }
+.sc-js [data-reveal="scale"] { transform: scale(.94); }
+.sc-js [data-reveal].is-in { opacity: 1; transform: none; }
+
+/* ── Hover polish ────────────────────────────────────────────────────────── */
+/* Card lift + shadow on hover */
+.hover-lift { transition: transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s ease, border-color .3s ease; }
+.hover-lift:hover { transform: translateY(-6px); box-shadow: 0 22px 48px -22px rgba(15,23,42,.4); }
+
+/* Nav link: brand underline sweeps in from the left */
+.nav-link { position: relative; }
+.nav-link::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 2px;
+  background: var(--color-brand); border-radius: 2px;
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.7,.2,1);
+}
+.nav-link:hover::after { transform: scaleX(1); }
+
+/* CTA buttons: gentle lift + glow */
+.btn-cta { transition: transform .2s ease, box-shadow .28s ease, background-color .2s ease, color .2s ease; }
+.btn-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -12px rgba(29,78,216,.55); }
 
 @media (prefers-reduced-motion: reduce) {
   .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
-  .reveal3d { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .reveal3d, .sc-js [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .hover-lift:hover, .btn-cta:hover { transform: none !important; }
 }
 
 /* ── Light mode (cream white) for app surfaces ──────────────────────────────
