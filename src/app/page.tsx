@@ -276,10 +276,6 @@ export default function HomePage() {
             The digital business card people save in one tap.
           </h1>
 
-          <p className="sc-rise sc-rise-3 text-slate-600 text-lg leading-relaxed mb-7 max-w-md">
-            Share your SwiftCard by link, QR, or NFC tap. People save your contact in <strong className="text-slate-900">one tap</strong> — no app, no typing — and every share lands in your CRM with follow-ups on autopilot.
-          </p>
-
           {/* Scannable "what you get" checks — so anyone gets it instantly */}
           <ul className="sc-rise sc-rise-3 space-y-2.5 mb-8 max-w-md">
             {[
