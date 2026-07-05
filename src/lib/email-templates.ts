@@ -83,6 +83,61 @@ export function welcomeEmail(opts: {
   };
 }
 
+// What a user keeps on Free vs. loses when their Pro access ends — reused by
+// both trial emails so the message is consistent.
+function proLossCard() {
+  return card(`
+    <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:14px;">What changes on Free</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#475569;">✓ <strong>You keep everything you made</strong> — your card, all your contacts, and your links stay put. Nothing is deleted.</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Contacts cap back to 25 (existing ones stay; new captures pause)</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Extra cards become view-only (your main card stays live)</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Automated Day 15 / 30 follow-ups & AI sequences pause</p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations & full analytics lock</p>
+  `);
+}
+
+// Heads-up a few days before a trial / free-month grant ends.
+export function trialEndingSoonEmail(opts: {
+  firstName: string;
+  daysLeft: number;
+  isTrial: boolean;
+}) {
+  const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
+  const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
+  const body = `
+    ${h1(`${day} left of your ${what}`)}
+    ${p(`Hey ${opts.firstName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just $4.99/mo).`)}
+    ${proLossCard()}
+    ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
+    ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
+  `;
+  return {
+    from: FROM,
+    subject: `${day} left of your ${what}`,
+    html: layout(body),
+  };
+}
+
+// Sent on the day the trial / free-month grant downgrades to Free.
+export function trialEndedEmail(opts: {
+  firstName: string;
+  isTrial: boolean;
+}) {
+  const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
+  const body = `
+    ${h1(what)}
+    ${p(`Hey ${opts.firstName} — you're now on the Free plan. Thanks for trying Pro! Your card, contacts, and links are all exactly where you left them.`)}
+    ${proLossCard()}
+    ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
+    ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
+  `;
+  return {
+    from: FROM,
+    subject: what,
+    html: layout(body),
+  };
+}
+
 export function promoEmail(opts: {
   firstName: string;
   code: string;

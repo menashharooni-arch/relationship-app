@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { PLAN_LIMITS } from "@/lib/plan";
 import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -12,7 +12,9 @@ import { SAMPLE_DATA } from "@/components/card-templates/types";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
 
-const FREE_LINK_LIMIT = 3;
+// Action links and Swift Links buttons are the SAME customization.links array,
+// so they share one cap from plan.ts (was a drifting local 3).
+const FREE_LINK_LIMIT = PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -118,11 +120,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   });
   const [status, setStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   function handle(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -130,12 +127,15 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-    const { error } = await supabase
-      .from("profiles")
-      .update({ ...form, template, customization: { ...customization, links, testimonials } })
-      .eq("username", profile.username);
-    setStatus(error ? "error" : "saved");
-    if (!error) setTimeout(() => setStatus("idle"), 2000);
+    // Save through the server so Pro-only design gates (accent/font + link cap)
+    // are enforced — the browser can't write straight to the profiles table.
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, template, customization: { ...customization, links, testimonials } }),
+    });
+    setStatus(res.ok ? "saved" : "error");
+    if (res.ok) setTimeout(() => setStatus("idle"), 2000);
   }
 
   function addLink() {
@@ -572,7 +572,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
           <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
-          <p className="text-xs text-slate-400 mt-1">Upgrade to Pro to customize your card colors and font.</p>
+          <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { getAdminSupabase } from "./supabase-admin";
 import { getStripe } from "./stripe";
-import { isPaidPlan } from "./plan";
+import { isPaidPlan, TRIAL_DAYS } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
 import { sendPushToUser } from "./push";
@@ -65,6 +65,29 @@ async function grantAppFreeMonths(userId: string, months: number, extend: boolea
   }
   const expires = new Date(baseMs + freeMonthDays(months) * 86400000).toISOString();
   await admin.from("profiles").update({ plan: "pro", plan_expires_at: expires }).eq("id", userId);
+}
+
+// Reverse trial: every NEW signup starts on full Pro for TRIAL_DAYS days, then
+// the daily cron downgrades them to Free. Idempotent (one trial per account,
+// ever), and never touches a real paying subscriber. Tagged in customization so
+// the dashboard banner and the lifecycle emails can say "trial".
+export async function startProTrial(userId: string): Promise<void> {
+  const admin = getAdminSupabase();
+  const { data: p } = await admin
+    .from("profiles")
+    .select("plan_expires_at, stripe_subscription_id, customization")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!p) return;
+  if (p.stripe_subscription_id) return;         // already a real paying subscriber
+  const cust = (p.customization ?? {}) as Record<string, unknown>;
+  if (cust._trialStarted) return;               // never re-trial an account
+  if (p.plan_expires_at) return;                // already on a timed grant
+  const expires = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
+  await admin
+    .from("profiles")
+    .update({ plan: "pro", plan_expires_at: expires, customization: { ...cust, _trial: true, _trialStarted: true } })
+    .eq("id", userId);
 }
 
 // Reward a referrer with free months. If they're already a paying subscriber we
@@ -173,7 +196,9 @@ export async function applyReferralOnSignup(
   await ensureReferralCode(userId);
 
   if (grantsFreeMonth) {
-    await grantAppFreeMonths(userId, REFERRAL.NEW_USER_FREE_MONTHS, false);
+    // Stack the referral/promo month ON TOP of the reverse trial (extend from the
+    // later of now / current expiry) so a referred signup gets trial + month.
+    await grantAppFreeMonths(userId, REFERRAL.NEW_USER_FREE_MONTHS, true);
   }
 
   // Record the referral relationship (only when there's a real or attempted referrer).
@@ -379,22 +404,41 @@ export async function markReferralConversion(referredUserId: string): Promise<vo
   }
 }
 
-// Daily cron: downgrade users whose free month has ended (unless they converted
-// to a paid Stripe subscription). Returns how many were processed.
-export async function expireFreeMonths(): Promise<number> {
+export type DowngradedUser = { id: string; email: string | null; name: string | null; wasTrial: boolean };
+
+// Daily cron: downgrade users whose trial / free-month grant has ended (unless
+// they converted to a paid Stripe subscription). Returns the users who were
+// actually downgraded (app-grant users only) so the caller can email them.
+// NOTE: only NEW capture / creation pauses on Free — existing cards, contacts,
+// and sequences are never deleted (see the card/lead routes and the sequence
+// send-time check).
+export async function expireFreeMonths(): Promise<DowngradedUser[]> {
   const admin = getAdminSupabase();
   const { data: expired } = await admin
     .from("profiles")
-    .select("id, stripe_subscription_id")
+    .select("id, email, name, stripe_subscription_id, customization")
     .not("plan_expires_at", "is", null)
     .lte("plan_expires_at", new Date().toISOString());
 
+  const downgraded: DowngradedUser[] = [];
   for (const u of expired ?? []) {
     if (u.stripe_subscription_id) {
+      // A real subscriber whose grant window lapsed — just clear the expiry so
+      // the row is never mistaken for an app grant. Never downgrade them.
       await admin.from("profiles").update({ plan_expires_at: null }).eq("id", u.id);
-    } else {
-      await admin.from("profiles").update({ plan: "free", plan_expires_at: null }).eq("id", u.id);
+      continue;
     }
+    const cust = (u.customization ?? {}) as Record<string, unknown>;
+    const wasTrial = cust._trial === true;
+    const nextCust = { ...cust };
+    delete nextCust._trial;
+    delete nextCust._proWarnedFor;
+    if (wasTrial) nextCust._trialEnded = true;
+    await admin
+      .from("profiles")
+      .update({ plan: "free", plan_expires_at: null, customization: nextCust })
+      .eq("id", u.id);
+    downgraded.push({ id: u.id as string, email: (u.email as string) ?? null, name: (u.name as string) ?? null, wasTrial });
   }
-  return (expired ?? []).length;
+  return downgraded;
 }

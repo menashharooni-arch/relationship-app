@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
+import { applyReferralOnSignup, hashDevice, startProTrial } from "@/lib/referral-server";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
 function accountHandle(email: string | undefined, userId: string): string {
@@ -36,6 +36,15 @@ export default async function OnboardingPage() {
       tiktok: "",
       template: "classic-pro",
     });
+
+    // Reverse trial: start every new account on full Pro for 14 days. Runs
+    // BEFORE the referral grant so a referred signup gets trial + free month
+    // stacked (trial first, then the month extends on top).
+    try {
+      await startProTrial(user.id);
+    } catch (e) {
+      console.error("[onboarding] trial start failed:", e);
+    }
 
     // First-time signup: apply any referral/promo (free month, attribution,
     // fraud checks, referral row, own referral code). Runs once — only on

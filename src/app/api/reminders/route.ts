@@ -4,6 +4,8 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
 import { expireFreeMonths } from "@/lib/referral-server";
+import { insertNotification } from "@/lib/notify";
+import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { aiComplete } from "@/lib/ai";
 
 type FlowDay = { enabled: boolean; time: string };
@@ -19,7 +21,7 @@ async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, 
     .select("user_id, name, title, company, email, phone")
     .eq("username", username)
     .maybeSingle();
-  const profileSelect = "name, email, phone, company, title, flow_settings, plan, customization";
+  const profileSelect = "id, name, email, phone, company, title, flow_settings, plan, customization";
   const { data: profile } = card?.user_id
     ? await supabase.from("profiles").select(profileSelect).eq("id", card.user_id).maybeSingle()
     : await supabase.from("profiles").select(profileSelect).eq("username", username).maybeSingle();
@@ -31,7 +33,8 @@ async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, 
     email: (card?.email as string) || (profile.email as string) || null, // replies go to the card's email
     phone: (card?.phone as string) || (profile.phone as string) || null,
   };
-  return { profile, sender };
+  const ownerId = (card?.user_id as string) ?? (profile.id as string) ?? null;
+  return { profile, sender, ownerId };
 }
 
 // Per-contact channel switches (email-paused / sms-paused tags) — each shuts
@@ -122,13 +125,53 @@ export async function GET(req: NextRequest) {
   const currentUTCHour = new Date().getUTCHours();
   let totalSent = 0;
 
-  // Expire finished free-month grants (referral / promo) → back to Free, unless
-  // the user converted to a paid subscription in the meantime.
+  // Expire finished trial / free-month grants → back to Free, unless the user
+  // converted to a paid subscription. Email each downgraded user what changed.
   let downgraded = 0;
   try {
-    downgraded = await expireFreeMonths();
+    const downgradedUsers = await expireFreeMonths();
+    downgraded = downgradedUsers.length;
+    for (const u of downgradedUsers) {
+      if (!u.email) continue;
+      const tpl = trialEndedEmail({ firstName: u.name?.split(" ")[0] || "there", isTrial: u.wasTrial });
+      await resend.emails.send({ ...tpl, to: u.email }).catch(() => {});
+    }
   } catch (e) {
     console.error("[reminders] expireFreeMonths failed:", e);
+  }
+
+  // Heads-up ~3 days before an app-level Pro grant (trial / free month) ends.
+  // For a fresh 14-day trial this lands on day 11. Fires once per expiry value
+  // (tracked in customization._proWarnedFor); real subscribers are excluded.
+  try {
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const in3dIso = new Date(nowMs + 3 * 86400000).toISOString();
+    const { data: ending } = await supabase
+      .from("profiles")
+      .select("id, email, name, plan_expires_at, customization")
+      .eq("plan", "pro")
+      .is("stripe_subscription_id", null)
+      .not("plan_expires_at", "is", null)
+      .gt("plan_expires_at", nowIso)
+      .lte("plan_expires_at", in3dIso);
+    for (const u of ending ?? []) {
+      const cust = (u.customization ?? {}) as Record<string, unknown>;
+      const expiresAt = u.plan_expires_at as string;
+      if (cust._proWarnedFor === expiresAt) continue; // already warned for this expiry
+      const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
+      if (u.email) {
+        const tpl = trialEndingSoonEmail({
+          firstName: (u.name as string)?.split(" ")[0] || "there",
+          daysLeft,
+          isTrial: cust._trial === true,
+        });
+        await resend.emails.send({ ...tpl, to: u.email as string }).catch(() => {});
+      }
+      await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
+    }
+  } catch (e) {
+    console.error("[reminders] trial-ending warn failed:", e);
   }
 
   for (const step of SEQUENCE) {
@@ -306,12 +349,56 @@ export async function GET(req: NextRequest) {
     .neq("status", "dissolved")
     .not("follow_up_sequence", "is", null);
 
+  // Resolve each card owner once (identity + plan), cached across their leads.
+  const ownerCache = new Map<string, Awaited<ReturnType<typeof resolveCardSender>>>();
+  const getOwner = async (username: string) => {
+    if (!ownerCache.has(username)) ownerCache.set(username, await resolveCardSender(supabase, username));
+    return ownerCache.get(username)!;
+  };
+  // Notify each downgraded owner at most once per run about paused sequences.
+  const seqPausedNotified = new Set<string>();
+
   for (const seqLead of seqLeads ?? []) {
     const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
+    // Custom follow-up sequences are a Pro feature — only SEND them while the
+    // owner is on a paid plan. If they've downgraded, pause (leave the steps
+    // unsent so they resume automatically on re-upgrade) and notify the owner
+    // once. Nothing is deleted.
+    const owner = await getOwner(seqLead.card_owner);
+    if (!owner) continue;
+    if (!isPaidPlan(owner.profile.plan)) {
+      const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
+      if (owner.ownerId && cust._seqPaused !== true && !seqPausedNotified.has(owner.ownerId)) {
+        seqPausedNotified.add(owner.ownerId);
+        await insertNotification({
+          user_id: owner.ownerId,
+          type: "sequence_paused",
+          title: "Follow-up sequences paused",
+          body: "Your automated follow-up sequences are paused because your plan is no longer Pro. Re-upgrade to Pro to resume them — nothing was deleted.",
+        }).catch(() => {});
+        await supabase.from("profiles").update({ customization: { ...cust, _seqPaused: true } }).eq("id", owner.ownerId);
+      }
+      continue;
+    }
+
+    // Back on a paid plan with sequences flowing again → clear the paused
+    // marker so a future downgrade re-notifies.
+    {
+      const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
+      if (owner.ownerId && cust._seqPaused === true) {
+        const { _seqPaused: _drop, ...rest } = cust;
+        await supabase.from("profiles").update({ customization: rest }).eq("id", owner.ownerId);
+        (owner.profile as { customization?: unknown }).customization = rest; // keep cache coherent
+      }
+    }
+
     const createdAt = new Date(seqLead.created_at).getTime();
+    // Sender = the CARD's identity (name/company/email of the card this contact
+    // came through), so replies go to the right inbox.
+    const seqSender = owner.sender;
 
     for (const item of seq) {
       if (item.sent_at) continue;
@@ -322,12 +409,6 @@ export async function GET(req: NextRequest) {
         const stepHour = parseInt(item.time.split(":")[0], 10);
         if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
       }
-
-      // Sender = the CARD's identity (name/company/email of the card this
-      // contact came through), so replies go to the right inbox.
-      const resolvedSeq = await resolveCardSender(supabase, seqLead.card_owner);
-      if (!resolvedSeq) continue;
-      const seqSender = resolvedSeq.sender;
 
       const ownerFirst = seqSender.name?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
