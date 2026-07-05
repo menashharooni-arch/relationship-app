@@ -359,7 +359,7 @@ export async function GET(req: NextRequest) {
   const seqPausedNotified = new Set<string>();
 
   for (const seqLead of seqLeads ?? []) {
-    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null }[] | null;
+    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null; anchor?: string }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
@@ -402,7 +402,11 @@ export async function GET(req: NextRequest) {
 
     for (const item of seq) {
       if (item.sent_at) continue;
-      const dueMs = createdAt + item.day * 86400000;
+      // Steps schedule from their anchor (stamped when the sequence was set up)
+      // so a flow added to an older contact still sends. Legacy items without an
+      // anchor keep the original contact-creation reference.
+      const anchorMs = item.anchor ? Date.parse(item.anchor) : NaN;
+      const dueMs = (Number.isFinite(anchorMs) ? anchorMs : createdAt) + item.day * 86400000;
       if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
       // Honor the step's scheduled time-of-day (cron runs hourly; send at/after the hour).
       if (item.time) {

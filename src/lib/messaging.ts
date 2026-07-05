@@ -135,12 +135,14 @@ function esc(v: string | null | undefined) {
 }
 
 // Send pre-built HTML (used by automations that have their own templates).
-export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null }): Promise<SendResult> {
+// fromName personalizes the From display name (the card owner's name on the one
+// verified address) so automated emails arrive AS the person, not "SwiftCard".
+export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null; fromName?: string | null }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+      from: opts.fromName ? senderFrom(opts.fromName) : (process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>"),
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,
@@ -184,7 +186,7 @@ export async function deliverToLead(opts: {
   if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
-      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null })
+      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null })
       : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
