@@ -564,7 +564,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             </button>
             {!isPro && (
               <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mb-2">
-                Upgrade to Pro to design your own card →
+                Make it unmistakably yours — unlock the custom designer with Pro →
               </Link>
             )}
 

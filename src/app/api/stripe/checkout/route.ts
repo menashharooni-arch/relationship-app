@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+
+// The Stripe prices we actually sell. Anything else is rejected so a crafted
+// request can't check out against an arbitrary/mispriced Price.
+const PRO_PRICE_IDS = [
+  process.env.STRIPE_PRICE_ID,
+  process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
+  process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID,
+].filter(Boolean) as string[];
+const OFFICE_PRICE_IDS = [
+  process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
+  process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID,
+].filter(Boolean) as string[];
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,8 +33,27 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const priceId = body.priceId || process.env.STRIPE_PRICE_ID!;
-    const quantity = typeof body.quantity === "number" && body.quantity > 0 ? body.quantity : 1;
     const couponId: string | undefined = typeof body.couponId === "string" ? body.couponId : undefined;
+
+    // Only sell prices we actually offer.
+    const isOffice = OFFICE_PRICE_IDS.includes(priceId);
+    const isPro = PRO_PRICE_IDS.includes(priceId);
+    if (!isOffice && !isPro) {
+      return NextResponse.json({ error: "Unknown plan price." }, { status: 400 });
+    }
+
+    // Seats: Office is per-seat with a minimum; Pro is always a single seat.
+    const requestedQty = typeof body.quantity === "number" ? Math.floor(body.quantity) : 1;
+    let quantity = 1;
+    if (isOffice) {
+      if (requestedQty < PLAN_LIMITS.OFFICE_MIN_SEATS) {
+        return NextResponse.json(
+          { error: `The Office plan requires at least ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats.` },
+          { status: 400 }
+        );
+      }
+      quantity = requestedQty;
+    }
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
@@ -32,6 +64,8 @@ export async function POST(req: NextRequest) {
         : { customer_email: profile.email }),
       line_items: [{ price: priceId, quantity }],
       mode: "subscription",
+      // Record the seat count so the webhook provisions the office reliably.
+      ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
       success_url: `${APP_URL}/dashboard?upgraded=true`,
       cancel_url: `${APP_URL}/pricing`,
       // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):

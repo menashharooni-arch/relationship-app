@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
@@ -14,7 +15,7 @@ const PRO_MONTHLY = 4.99;              // $/month
 const PRO_ANNUAL = 54;                 // $/year — ~$4.50/mo, ~10% off $4.99
 const OFFICE_PER_USER = 3.99;          // $/user/month
 const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // ~$43.09/user/year, 10% off
-const OFFICE_MIN_SEATS = 2;
+const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 const features = {
@@ -26,7 +27,7 @@ const features = {
     "Swift Links page (up to 2 buttons)",
     "Save to contacts (vCard), socials, bio, address",
     "Contacts CRM: statuses, notes, read/unread",
-    "Basic analytics (views, today, best day)",
+    "Basic analytics (views, today, best day, saves)",
     "Day-1 follow-up email",
     "3 AI follow-up drafts to try",
     "“Made with SwiftCard” badge",
@@ -72,7 +73,7 @@ type PromoState = { code: string; status: "idle" | "checking" | "valid" | "inval
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
-  const [seats, setSeats] = useState(OFFICE_MIN_SEATS);
+  const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
 
@@ -161,9 +162,13 @@ export default function PricingPage() {
       <section className="text-center px-6 pt-16 pb-10">
         <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Pricing</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">Simple, honest pricing.</h1>
-        <p className="text-slate-500 text-lg max-w-md mx-auto mb-10">
+        <p className="text-slate-500 text-lg max-w-md mx-auto mb-5">
           Free forever to start. Upgrade when your network grows.
         </p>
+        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-9" style={{ background: "#EAF0FF", border: "1px solid #C9D8FF" }}>
+          <span className="text-sm">✨</span>
+          <span className="text-[13px] font-semibold text-[#1D4ED8]">Every new account gets 14 days of Pro, free — no card required.</span>
+        </div>
 
         {/* Monthly / Annual toggle */}
         <div

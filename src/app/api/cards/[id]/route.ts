@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
@@ -20,13 +20,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const admin = getAdminSupabase();
 
-  // Enforce Pro-only features on the backend (custom template + Swift Links cap).
+  // Enforce Pro-only features on the backend: custom template, Pro-only design
+  // keys (accent/font), and the link-button cap — all stripped for non-paid.
   const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow?.plan)) {
+    // Grandfathering: a downgraded user keeps every card, but only the first
+    // FREE_CARD_LIMIT stay editable — extras are view-only (still live publicly).
+    const { data: owned } = await admin
+      .from("cards")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    if ((owned?.length ?? 0) > PLAN_LIMITS.FREE_CARD_LIMIT) {
+      const editable = (owned ?? []).slice(0, PLAN_LIMITS.FREE_CARD_LIMIT).map((c) => c.id);
+      if (!editable.includes(id)) {
+        return NextResponse.json(
+          { error: "view_only", message: "This card is view-only on Free. Upgrade to Pro to edit all your cards.", upgrade: "/pricing" },
+          { status: 403 }
+        );
+      }
+    }
     if (updates.template === "custom") updates.template = "classic-pro";
-    const cust = updates.customization as { links?: unknown[] } | undefined;
-    if (cust && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
-      updates.customization = { ...cust, links: cust.links.slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
+    if ("customization" in updates) {
+      updates.customization = sanitizeCustomizationForPlan(updates.customization as Record<string, unknown>, false);
     }
   }
 

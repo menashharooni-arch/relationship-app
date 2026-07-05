@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: "limit",
-        message: `Free includes ${PLAN_LIMITS.FREE_CARD_LIMIT} card. Upgrade to Pro for unlimited cards.`,
+        message: "Ready for a second card? Go unlimited with Pro.",
         upgrade: "/pricing",
       },
       { status: 402 }
@@ -42,11 +42,9 @@ export async function POST(req: NextRequest) {
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
-  // Cap Swift Links buttons on Free (backend-enforced, not just UI).
-  let cust = (customization ?? {}) as Record<string, unknown>;
-  if (!paid && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
-    cust = { ...cust, links: (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
-  }
+  // Enforce Free limits on the customization blob (Pro-only accent/font stripped,
+  // link buttons capped) — backend-enforced, not just hidden in the UI.
+  let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, paid);
   // Custom designer is Pro-only — Free can't save a "custom" template.
   let safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 

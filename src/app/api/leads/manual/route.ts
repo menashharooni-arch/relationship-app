@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: "limit",
-          message: `You've reached the free plan's ${PLAN_LIMITS.FREE_CONTACT_LIMIT}-contact limit. Upgrade to Pro for unlimited contacts.`,
+          message: `🎉 That's ${PLAN_LIMITS.FREE_CONTACT_LIMIT} leads captured! Upgrade to Pro to never miss the next one.`,
           upgrade: "/pricing",
         },
         { status: 402 }

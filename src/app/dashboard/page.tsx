@@ -20,6 +20,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
+import TrialBanner from "@/components/TrialBanner";
+import ProAnalytics, { ProAnalyticsLocked } from "@/components/ProAnalytics";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -80,6 +82,15 @@ export default async function DashboardPage({
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
   const isEnterprise = profile.plan === "enterprise";
   const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "");
+
+  // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
+  // plan is pro, with an expiry, and NO real Stripe subscription behind it.
+  const proExpiresAt = profile.plan_expires_at as string | null;
+  const onAppGrant = profile.plan === "pro" && !!proExpiresAt && !profile.stripe_subscription_id;
+  const trialDaysLeft = onAppGrant
+    ? Math.max(0, Math.ceil((new Date(proExpiresAt as string).getTime() - Date.now()) / 86400000))
+    : 0;
+  const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
   // No cards yet → show the "create your card" empty state.
   if (!hasCards) {
@@ -176,6 +187,22 @@ export default async function DashboardPage({
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
   ]);
+
+  // Basic-panel "best day" (last 30d views) — available to every plan.
+  const { data: recentViews } = await supabase
+    .from("card_views")
+    .select("viewed_at")
+    .in("username", [analyticsUsername, linkUsername])
+    .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString());
+  const dayTally: Record<string, number> = {};
+  for (const v of recentViews ?? []) {
+    const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
+    dayTally[k] = (dayTally[k] ?? 0) + 1;
+  }
+  let bestDay: { date: string; views: number } | null = null;
+  for (const [date, views] of Object.entries(dayTally)) {
+    if (!bestDay || views > bestDay.views) bestDay = { date, views };
+  }
 
   const [
     { data: leads },
@@ -352,6 +379,9 @@ export default async function DashboardPage({
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
+          {/* Reverse-trial / free-Pro countdown */}
+          {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
+
           {/* First-run guided-tour invitation */}
           <TourBanner />
 
@@ -406,7 +436,7 @@ export default async function DashboardPage({
                   href="/pricing"
                   className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
                 >
-                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Free includes {PLAN_LIMITS.FREE_CARD_LIMIT} card — upgrade to Pro for unlimited cards</p>
+                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
                   <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
                 </Link>
               )}
@@ -455,7 +485,7 @@ export default async function DashboardPage({
                 <div className="flex items-center gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <p className="text-sm font-medium text-amber-400">
-                    {atLimit ? `You've hit the ${FREE_LIMIT}-contact free limit` : `${allLeads.length}/${FREE_LIMIT} leads used — running low`}
+                    {atLimit ? `🎉 That's ${FREE_LIMIT} leads captured! Upgrade to Pro to never miss the next one.` : `${allLeads.length}/${FREE_LIMIT} leads used — running low`}
                   </p>
                 </div>
                 <UpgradeButton />
@@ -499,6 +529,15 @@ export default async function DashboardPage({
                     <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
                   </div>
                 ))}
+              </div>
+              {/* Basic stats (every plan): contacts captured + best day */}
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
+                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{allLeads.length}</span></span>
+                {bestDay && bestDay.views > 0 ? (
+                  <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views}</span>
+                ) : (
+                  <span className="text-gray-600">No views yet</span>
+                )}
               </div>
             </div>
 
@@ -545,6 +584,10 @@ export default async function DashboardPage({
               username={activeUsername}
             />
           </div>
+
+          {/* Full analytics — segmented traffic for Pro, a locked teaser on Free.
+              The data is server-gated (402) in /api/analytics/pro. */}
+          {isPro ? <ProAnalytics username={activeUsername} /> : <ProAnalyticsLocked />}
 
           {/* Main: contacts + card panel */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
