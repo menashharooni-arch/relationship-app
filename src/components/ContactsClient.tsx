@@ -239,26 +239,42 @@ export default function ContactsClient({
     URL.revokeObjectURL(url);
   }
 
-  const automationOn = !((selected?.tags ?? []).includes("flow-paused"));
-  async function toggleAutomation() {
-    if (!selected) return;
-    const tags = selected.tags ?? [];
-    const newTags = automationOn ? [...tags, "flow-paused"] : tags.filter((t) => t !== "flow-paused");
-    await updateTags(selected.id, newTags);
-  }
-
   // Per-channel pause (email-paused / sms-paused tags — the cron skips a paused
-  // channel's steps and they resume, unsent, when switched back on). This is how
-  // a RUNNING email or text automation is turned off individually.
+  // channel's steps and they resume, unsent, when switched back on). The two
+  // channel switches are THE automation controls: text off stops texts, email
+  // off stops emails. (The old master flow-paused toggle is gone — any channel
+  // interaction also clears a legacy flow-paused tag so old contacts unblock.)
   function channelPausedFor(ch: "email" | "sms") {
     return (selected?.tags ?? []).includes(ch === "email" ? "email-paused" : "sms-paused");
   }
   async function toggleChannelPause(ch: "email" | "sms") {
     if (!selected) return;
     const tag = ch === "email" ? "email-paused" : "sms-paused";
-    const tags = selected.tags ?? [];
+    const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused");
     const next = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
     await updateTags(selected.id, next);
+  }
+
+  // Reset a channel: wipe its automation entirely (the other channel keeps
+  // running) and open setup so a fresh one can be submitted. The new flow is
+  // anchored at submit time, so it restarts with its next message from then.
+  async function resetChannel(ch: "email" | "sms") {
+    if (!selected) return;
+    const remaining = ((selected.follow_up_sequence ?? []) as { channel?: string }[]).filter(
+      (o) => (o.channel ?? "email") !== ch
+    );
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ follow_up_sequence: remaining }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
+    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : prev));
+    // Un-pause the channel + clear any legacy master pause so the NEW automation
+    // runs as soon as it's submitted (toggle on = it works).
+    const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused" && t !== (ch === "email" ? "email-paused" : "sms-paused"));
+    await updateTags(selected.id, tags);
+    startDraft(ch);
   }
 
   async function saveField(field: string, value: string) {
@@ -352,6 +368,13 @@ export default function ContactsClient({
     });
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
+    // Submitting turns this channel ON: clear any stale pause (and the legacy
+    // master pause) so the new automation runs immediately.
+    const pauseTag = draftCh === "email" ? "email-paused" : "sms-paused";
+    const curTags = selected.tags ?? [];
+    if (curTags.includes(pauseTag) || curTags.includes("flow-paused")) {
+      await updateTags(selected.id, curTags.filter((t) => t !== pauseTag && t !== "flow-paused"));
+    }
     cancelDraft();
     setSeqSaving("saved");
     setTimeout(() => setSeqSaving("idle"), 2000);
@@ -894,11 +917,12 @@ export default function ContactsClient({
 
             </div>
 
-            {/* Follow-up automations — Email and Text are independent. Each has its
-                own toggle, preset and format; set them up one at a time, run either
-                or both. A RUNNING channel's switch pauses just that channel
-                (email-paused / sms-paused — the cron skips it and it resumes when
-                switched back on). Automated follow-ups (below) is the master stop. */}
+            {/* Follow-up automations — Email and Text are independent, and the two
+                channel switches are the ONLY controls: text off stops texts, email
+                off stops emails (email-paused / sms-paused — the cron skips a
+                paused channel and it resumes when switched back on). Reset clears
+                a channel's automation so a fresh one can be submitted, restarting
+                from submit time. */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
               <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
@@ -932,7 +956,7 @@ export default function ContactsClient({
                           <p className="text-gray-600 text-[11px] mt-0.5">
                             {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
                               : running && chPaused ? `Off — remaining ${noun} won't send. Switch on to resume.`
-                              : running ? (automationOn ? `Active · ${presetName} · auto-sending ${noun}` : `Paused · ${presetName}`)
+                              : running ? `On · ${presetName} · auto-sending ${noun}`
                               : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
                               : isDrafting ? "Choose a cadence, then submit to activate"
                               : `Off — set up a ${word} follow-up`}
@@ -1034,8 +1058,8 @@ export default function ContactsClient({
                       {/* ACTIVE / PAUSED — submitted summary: preset + messages + when they send */}
                       {!isDrafting && running && (
                         <div className="mt-3 pt-3 border-t border-gray-800">
-                          <p className={`text-[11px] font-semibold mb-2 ${automationOn && !chPaused ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
-                            {automationOn && !chPaused ? `● Active — ${presetName}` : `⏸ Paused — ${presetName}`} · {activeItems.length} {noun}
+                          <p className={`text-[11px] font-semibold mb-2 ${!chPaused ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
+                            {!chPaused ? `● On — ${presetName}` : `⏸ Off — ${presetName}`} · {activeItems.length} {noun}
                           </p>
                           <div className="space-y-2">
                             {activeItems.map((it, i) => (
@@ -1046,7 +1070,7 @@ export default function ContactsClient({
                                   </span>
                                   {it.sent_at
                                     ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span>
-                                    : (chPaused || !automationOn)
+                                    : chPaused
                                     ? <span className="text-[10px] text-amber-500/90 shrink-0">paused</span>
                                     : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
                                 </div>
@@ -1055,24 +1079,28 @@ export default function ContactsClient({
                               </div>
                             ))}
                           </div>
-                          {!automationOn ? (
-                            <div className="flex items-center justify-between gap-2 mt-2">
-                              <p className="text-gray-600 text-[10px]">Paused — turn Automated follow-ups on to resume.</p>
-                              <button onClick={() => startDraft(ch)} disabled={!can} className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 shrink-0">Set up again</button>
-                            </div>
-                          ) : chPaused ? (
-                            <p className="text-gray-600 text-[10px] mt-2">Off — nothing sends on this channel. Flip the switch above to resume where it left off.</p>
-                          ) : (
-                            <p className="text-gray-600 text-[10px] mt-2">Flip the switch above to pause just {ch === "sms" ? "texts" : "emails"} — or turn off <strong className="text-gray-500">Automated follow-ups</strong> below to stop everything.</p>
-                          )}
+                          <div className="flex items-center justify-between gap-2 mt-2">
+                            <p className="text-gray-600 text-[10px]">
+                              {chPaused
+                                ? "Off — nothing sends. Switch on to resume where it left off."
+                                : `Switch off above to pause ${ch === "sms" ? "texts" : "emails"} anytime.`}
+                            </p>
+                            <button
+                              onClick={() => resetChannel(ch)}
+                              className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
+                              title={`Clear this ${word} automation and set up a new one`}
+                            >
+                              Reset ↺
+                            </button>
+                          </div>
                         </div>
                       )}
 
-                      {/* COMPLETED — all sent; allow setting up a fresh one */}
+                      {/* COMPLETED — all sent; reset to run a fresh one */}
                       {!isDrafting && allSent && (
                         <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
                           <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>
-                          <button onClick={() => startDraft(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Set up again</button>
+                          <button onClick={() => resetChannel(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Reset ↺</button>
                         </div>
                       )}
                     </div>
@@ -1086,24 +1114,6 @@ export default function ContactsClient({
                   <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
                 </div>
               )}
-            </div>
-
-            {/* Master pause — stops ALL automated follow-ups for this contact */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-gray-200 text-sm font-medium">Automated follow-ups</p>
-                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — runs the Email and Text automations above. Turn off to stop them and choose again." : "Off — your Email & Text automations are stopped. Turn on to run them, or set up new ones above."}</p>
-              </div>
-              <button
-                type="button"
-                onClick={toggleAutomation}
-                role="switch"
-                aria-checked={automationOn}
-                className="relative w-11 h-6 rounded-full transition-colors shrink-0"
-                style={{ background: automationOn ? "#2563eb" : "#374151" }}
-              >
-                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: automationOn ? "22px" : "2px" }} />
-              </button>
             </div>
 
             </div>{/* end Contact info / Presets tab */}

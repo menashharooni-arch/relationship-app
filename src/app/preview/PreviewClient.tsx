@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ShareButton from "@/components/ShareButton";
@@ -107,7 +108,21 @@ function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
 }
 
 function FullScreen({ title, href, onClose, children }: { title: string; href?: string; onClose: () => void; children: React.ReactNode }) {
-  return (
+  // Render into document.body via a portal. Inside the page tree, ancestors with
+  // CSS transforms (the scroll-reveal wrappers on the landing embed) hijack
+  // position:fixed — the modal then anchors to the SECTION, forcing mobile users
+  // to scroll up to find it. Portaling guarantees it opens over the viewport,
+  // right where they are; locking body scroll keeps the page put underneath.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, []);
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
       <div className="shrink-0 h-16 px-6 sm:px-10 flex items-center justify-between">
         <p className="text-white font-semibold text-sm truncate">{title}</p>
@@ -133,7 +148,8 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
           </a>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
