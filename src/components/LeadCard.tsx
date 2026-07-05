@@ -157,7 +157,7 @@ export default function LeadCard({
   const [showSeqGenerator, setShowSeqGenerator] = useState(false);
   const [seqWhereMet, setSeqWhereMet] = useState(lead.where_met || "");
   const [generatingSeq, setGeneratingSeq] = useState(false);
-  type SeqItem = { day: number; message: string; subject?: string; time?: string; channel?: string; sent_at?: string | null };
+  type SeqItem = { day: number; message: string; subject?: string; time?: string; channel?: string; sent_at?: string | null; anchor?: string };
   const [pendingSequence, setPendingSequence] = useState<SeqItem[] | null>(null);
   const [savedSequence, setSavedSequence] = useState<SeqItem[]>(
     Array.isArray((lead as { follow_up_sequence?: unknown }).follow_up_sequence)
@@ -817,7 +817,13 @@ export default function LeadCard({
                               <button
                                 onClick={async () => {
                                   if (!pendingSequence) return;
-                                  const seq = pendingSequence.map((s) => ({ ...s, sent_at: null }));
+                                  // Anchor new steps to NOW (so flows added later still send)
+                                  // and keep any channel we DIDN'T regenerate this time —
+                                  // regenerating email must never wipe a running text flow.
+                                  const nowIso = new Date().toISOString();
+                                  const generated = new Set(pendingSequence.map((s) => s.channel ?? "email"));
+                                  const kept = savedSequence.filter((s) => !generated.has(s.channel ?? "email"));
+                                  const seq = [...kept, ...pendingSequence.map((s) => ({ ...s, sent_at: null, anchor: nowIso }))];
                                   try {
                                     await fetch(`/api/leads/${lead.id}`, {
                                       method: "PATCH",
