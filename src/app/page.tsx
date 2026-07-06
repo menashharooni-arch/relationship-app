@@ -348,7 +348,7 @@ export default function HomePage() {
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">What is SwiftCard?</p>
             <h2 className="text-3xl font-bold text-slate-900">One link. Everything they need to reach you.</h2>
             <p className="text-slate-500 mt-3 max-w-xl mx-auto text-base leading-relaxed">
-              SwiftCard replaces the paper business card. You share one link — people open it, save your contact in one tap, and connect. No app to download, nothing to type. It comes with three things:
+              It replaces the paper business card — and comes with three parts:
             </p>
           </div>
 
@@ -363,7 +363,7 @@ export default function HomePage() {
               </div>
               <p className="text-slate-900 font-bold text-base mb-1">1. Your SwiftCard</p>
               <p className="text-slate-500 text-sm leading-relaxed">
-                A real, beautiful business card people open in one tap — your photo, logo, colors, and every way to reach you. They save your number and email straight to their phone. This is the main event.
+                The business card itself — your photo, logo, and every way to reach you. One tap saves it to their phone.
               </p>
             </div>
 
@@ -376,7 +376,7 @@ export default function HomePage() {
               </div>
               <p className="text-slate-900 font-bold text-base mb-1">2. Swift Links</p>
               <p className="text-slate-500 text-sm leading-relaxed">
-                Your own link-in-bio page — photo, bio, social icons, and buttons, all at one link. Perfect for your Instagram or TikTok bio so followers can reach you.
+                A link-in-bio page — bio, socials, and buttons at one link. Made for your Instagram or TikTok bio.
               </p>
             </div>
 
@@ -389,13 +389,13 @@ export default function HomePage() {
               </div>
               <p className="text-slate-900 font-bold text-base mb-1">3. Swift Signature</p>
               <p className="text-slate-500 text-sm leading-relaxed">
-                Your live card at the bottom of every email you send. One click to add it, and it always stays up to date — so every email quietly shares your card.
+                Your live card in your email signature. Add it once; every email you send shares it.
               </p>
             </div>
           </div>
 
           <p className="text-center text-slate-400 text-sm mt-8">
-            Everything below is that card working for you — see it live 👇
+            See it in action 👇
           </p>
         </div>
       </section>
@@ -406,7 +406,7 @@ export default function HomePage() {
           <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mb-3">See it live</p>
           <h2 className="text-3xl font-bold text-white">Try it yourself — this is your dashboard</h2>
           <p className="text-gray-400 mt-3 max-w-lg mx-auto text-sm">
-            The screen below is the real app, filled with sample data. It&apos;s your private control center — the follow-up guide inside shows you exactly what to tap first.
+            The real app, loaded with sample data. Click around — it&apos;s exactly what you get.
           </p>
         </div>
         <div data-reveal style={{ transitionDelay: "80ms" }}>
