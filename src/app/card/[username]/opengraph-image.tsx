@@ -250,6 +250,14 @@ export default async function Image({
     // hover around WhatsApp's ~600KB og:image ceiling; JPEG lands ~50-100KB so
     // every messenger shows the preview. sharp keeps this fast (~ms).
     try {
+      // Sanity guard: a real card capture is landscape (~1.35–1.75:1, wider
+      // when scaled). Anything else (e.g. a square photo from an old buggy
+      // capture) must NOT become the share preview — fall through to the
+      // faithful rendered card instead.
+      const hdr = new DataView(stored);
+      const ratio = hdr.getUint32(16) / Math.max(1, hdr.getUint32(20));
+      if (ratio < 1.25 || ratio > 2.4) throw new Error("not card-shaped");
+
       const sharp = (await import("sharp")).default;
       const jpeg = await sharp(Buffer.from(stored))
         .resize(CARD_W, CARD_H, { fit: "contain", background: "#0f172a" })
