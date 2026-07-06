@@ -164,11 +164,6 @@ export default function PricingPage() {
         <p className="text-slate-500 text-lg max-w-md mx-auto mb-5">
           Free forever to start. Upgrade when your network grows.
         </p>
-        <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-9" style={{ background: "#EAF0FF", border: "1px solid #C9D8FF" }}>
-          <span className="text-sm">✨</span>
-          <span className="text-[13px] font-semibold text-[#1D4ED8]">Every new account gets 14 days of Pro, free — no card required.</span>
-        </div>
-
         {/* Monthly / Annual toggle */}
         <div
           className="inline-flex items-center gap-4 rounded-full px-5 py-2.5"
@@ -402,8 +397,9 @@ export default function PricingPage() {
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
+            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
           </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · All prices in USD</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY · All prices in USD</p>
         </div>
       </footer>
     </main>

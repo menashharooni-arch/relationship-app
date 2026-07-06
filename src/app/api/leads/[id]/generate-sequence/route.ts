@@ -98,7 +98,14 @@ ${isText
         : `- 2 to 4 short sentences. A real email: you may use a blank line between thoughts so it breathes. Write a natural, low-key subject line (max 6 words, no clickbait, no ALL CAPS).
 - Return ONLY JSON: {"subject":"...","message":"..."}`}`;
 
-    const raw = (await aiComplete(prompt, { maxTokens: 300, json: !isText })) ?? "";
+    // A provider hiccup must never 500 the whole request — the canned fallback
+    // copy below keeps the flow working, and the user can Regenerate.
+    let raw = "";
+    try {
+      raw = (await aiComplete(prompt, { maxTokens: 300, json: !isText })) ?? "";
+    } catch {
+      raw = "";
+    }
     if (raw) {
       if (isText) {
         message = raw;

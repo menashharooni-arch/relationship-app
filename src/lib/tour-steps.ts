@@ -127,7 +127,7 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "swift-links",
     title: "Swift Links",
     body:
-      "A separate link-in-bio page — your bio, all your socials, and your links in one place. Drop it in your Instagram or TikTok bio so followers can reach everything at once.",
+      "A separate link-in-bio page — your bio, all your socials, and your links in one place. Drop it in your Instagram, TikTok, or other social bios so followers can reach everything at once.",
     placement: "bottom",
   },
   {

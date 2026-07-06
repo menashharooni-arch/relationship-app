@@ -185,6 +185,7 @@ export default function ContactsClient({
   const [draftPreset, setDraftPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
   const [draftItems, setDraftItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string }[] | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -291,12 +292,14 @@ export default function ContactsClient({
     setDraftPreset(null);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
   }
   function cancelDraft() {
     setDraftCh(null);
     setDraftPreset(null);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
   }
 
   // Pick a preset → AI-generate the draft for the ONE channel being set up.
@@ -307,6 +310,7 @@ export default function ContactsClient({
     setDraftLoading(true);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
     try {
       const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
         method: "POST",
@@ -323,9 +327,20 @@ export default function ContactsClient({
       const items = (Array.isArray(data.sequence) ? data.sequence : []).map((s: { day: number; time: string; message: string; subject?: string }) => ({
         day: s.day, time: s.time, channel: draftCh, message: s.message, subject: s.subject,
       }));
+      // A failure must never look like a dead button — surface it so the user
+      // can tap the preset again instead of assuming the feature is broken.
+      if (!res.ok || items.length === 0) {
+        setDraftError("Couldn't write the messages just now — tap a cadence to try again.");
+        setDraftItems(null);
+        setDraftPreset(null);
+        return;
+      }
+      setDraftError(null);
       setDraftItems(items);
     } catch {
+      setDraftError("Couldn't write the messages just now — check your connection and tap a cadence to try again.");
       setDraftItems(null);
+      setDraftPreset(null);
     } finally {
       setDraftLoading(false);
     }
@@ -1003,6 +1018,10 @@ export default function ContactsClient({
                               </button>
                             ))}
                           </div>
+
+                          {draftError && !draftLoading && (
+                            <p className="text-[12px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2 mb-3">⚠ {draftError}</p>
+                          )}
 
                           {draftLoading && (
                             <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">

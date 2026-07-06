@@ -159,6 +159,7 @@ export default function LeadCard({
   const [generatingSeq, setGeneratingSeq] = useState(false);
   type SeqItem = { day: number; message: string; subject?: string; time?: string; channel?: string; sent_at?: string | null; anchor?: string };
   const [pendingSequence, setPendingSequence] = useState<SeqItem[] | null>(null);
+  const [seqError, setSeqError] = useState<string | null>(null);
   const [savedSequence, setSavedSequence] = useState<SeqItem[]>(
     Array.isArray((lead as { follow_up_sequence?: unknown }).follow_up_sequence)
       ? ((lead as { follow_up_sequence?: SeqItem[] }).follow_up_sequence ?? [])
@@ -769,6 +770,7 @@ export default function LeadCard({
                               ];
                               if (!chans.length) return;
                               setGeneratingSeq(true);
+                              setSeqError(null);
                               try {
                                 const results = await Promise.all(chans.map((c) =>
                                   fetch(`/api/leads/${lead.id}/generate-sequence`, {
@@ -779,8 +781,17 @@ export default function LeadCard({
                                 ));
                                 const merged = results.flatMap((d) => (d.sequence ?? []) as SeqItem[])
                                   .sort((a, b) => a.day - b.day || (a.channel ?? "").localeCompare(b.channel ?? ""));
-                                if (merged.length) setPendingSequence(merged);
-                              } catch { /* fail silently */ }
+                                // Never fail silently — a dead-looking button reads as broken.
+                                if (merged.length) {
+                                  setPendingSequence(merged);
+                                } else if (results.some((d) => d?.error === "upgrade")) {
+                                  setSeqError(results.find((d) => d?.error === "upgrade")?.message || "Automated follow-up sequences are a Pro feature.");
+                                } else {
+                                  setSeqError("Couldn't write the messages just now — tap Generate to try again.");
+                                }
+                              } catch {
+                                setSeqError("Couldn't write the messages just now — check your connection and try again.");
+                              }
                               setGeneratingSeq(false);
                             }}
                             disabled={generatingSeq || (emailPaused && smsPaused) || (!lead.email && !lead.phone)}
@@ -792,6 +803,11 @@ export default function LeadCard({
                               ? "Turn on email or text above first"
                               : `Generate AI messages${!emailPaused && lead.email && !smsPaused && lead.phone ? " (email + text)" : !smsPaused && lead.phone && (emailPaused || !lead.email) ? " (text)" : " (email)"}`}
                           </button>
+                        )}
+                        {seqError && !generatingSeq && (
+                          <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
+                            ⚠ {seqError}{seqError.includes("Pro feature") && <> <a href="/pricing" className="underline font-semibold">Upgrade →</a></>}
+                          </p>
                         )}
                         {pendingSequence && (
                           <div className="space-y-2">
