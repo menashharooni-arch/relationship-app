@@ -64,12 +64,16 @@ export function fitFactor(data: CardData): number {
   return Math.max(0.7, 1 - (rows - 4) * 0.075);
 }
 
-// Shrink one long value (a long email, name, or company) so it never truncates.
-// Gentle power curve with a floor at 60% of the base size.
+// Shrink one long value (a long email, name, or company) so it never truncates
+// or wraps. Exact-fit curve: beyond the comfy length, font size scales inversely
+// with length, so rendered width stays constant — a 40-char email occupies the
+// same line width a 24-char one does, just smaller. (The old 0.6-power curve
+// under-shrank long values, which is why long emails used to wrap to a second
+// line.) Floor at 45% keeps pathological inputs legible.
 export function fitPx(base: number, text: string | null | undefined, comfy: number): number {
   const len = (text ?? "").trim().length;
   if (len <= comfy) return base;
-  return Math.max(base * 0.6, base * Math.pow(comfy / len, 0.6));
+  return Math.max(base * 0.45, (base * comfy) / len);
 }
 
 // QR stays on the card at every density — it just gives up a little room.
@@ -113,22 +117,24 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
       {cardPhones(data).map((p, i) => (
         <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
-          <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700 }}>
+          <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
             {formatPhone(p.number)}
             {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
           </span>
         </a>
       ))}
+      {/* Email + website stay on ONE line always: fitPx guarantees the width
+          and nowrap forbids the mid-address line break that used to appear. */}
       {data.email && (
         <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: palette.mid, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
-          <span style={{ fontSize: emailSize, fontWeight: 600, overflowWrap: "anywhere" }}>{data.email}</span>
+          <span style={{ fontSize: emailSize, fontWeight: 600, whiteSpace: "nowrap" }}>{data.email}</span>
         </a>
       )}
       {data.website && (
         <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: palette.soft, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
-          <span style={{ fontSize: webSize, fontWeight: 500, overflowWrap: "anywhere" }}>{data.website}</span>
+          <span style={{ fontSize: webSize, fontWeight: 500, whiteSpace: "nowrap" }}>{data.website}</span>
         </a>
       )}
       {cardFax(data) && (
