@@ -21,6 +21,8 @@ import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
 import TrialBanner from "@/components/TrialBanner";
+import AddToWalletButton from "@/components/AddToWalletButton";
+import { hasWalletConfig } from "@/lib/wallet-config";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -307,6 +309,9 @@ export default async function DashboardPage({
     customization: activeSource.customization ?? {},
   };
 
+  // Apple Wallet is only offered once the Apple pass certificate is configured.
+  const walletEnabled = hasWalletConfig();
+
   // Your Card + Share + other ways to share — rendered under My Cards on mobile,
   // and in the sticky right column on desktop.
   const cardSharePanel = (
@@ -331,6 +336,7 @@ export default async function DashboardPage({
           label="Share"
         />
         <MoreShareOptions url={cardUrl} />
+        {walletEnabled && <AddToWalletButton username={activeUsername} />}
       </div>
     </>
   );
