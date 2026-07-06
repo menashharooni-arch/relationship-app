@@ -271,7 +271,8 @@ export default function UserDetailClient({ userId }: { userId: string }) {
 
         {/* Recent contacts captured */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-white font-semibold text-sm mb-3">Recent contacts captured</p>
+          <p className="text-white font-semibold text-sm mb-1">Recent contacts captured</p>
+          <p className="text-gray-600 text-[11px] mb-3">The latest people who shared their info through this user&apos;s cards, and how each one arrived.</p>
           {recentLeads.length === 0 ? (
             <p className="text-gray-500 text-xs">None yet.</p>
           ) : (
