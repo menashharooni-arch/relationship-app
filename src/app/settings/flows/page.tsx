@@ -9,6 +9,7 @@ import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
 import { getReferralProgress } from "@/lib/referral-server";
 import CrmEventSettings from "@/components/CrmEventSettings";
+import EnablePushButton from "@/components/EnablePushButton";
 import HelpWidget from "@/components/HelpWidget";
 import TakeTourButton from "@/components/TakeTourButton";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
@@ -143,6 +144,11 @@ export default async function FlowSettingsPage() {
               plan={profile.plan ?? "free"}
               isPro={isPro}
             />
+            {/* Push opt-in — the wizard offers this once at card creation; this is
+                the permanent home so users can turn alerts on (or see they're on). */}
+            <div className="mt-3">
+              <EnablePushButton label="🔔 Turn on push notifications" />
+            </div>
           </div>
 
           {/* Manage account */}
