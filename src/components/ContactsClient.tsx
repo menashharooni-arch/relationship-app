@@ -1101,16 +1101,20 @@ export default function ContactsClient({
                           <div className="flex items-center justify-between gap-2 mt-2">
                             <p className="text-gray-600 text-[10px]">
                               {chPaused
-                                ? "Off — nothing sends. Switch on to resume where it left off."
+                                ? "Off — nothing sends. Switch on to resume, or reset to start over."
                                 : `Switch off above to pause ${ch === "sms" ? "texts" : "emails"} anytime.`}
                             </p>
-                            <button
-                              onClick={() => resetChannel(ch)}
-                              className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
-                              title={`Clear this ${word} automation and set up a new one`}
-                            >
-                              Reset ↺
-                            </button>
+                            {/* Reset appears ONLY while the channel is switched off/paused —
+                                a running automation must be paused before it can be wiped. */}
+                            {chPaused && (
+                              <button
+                                onClick={() => resetChannel(ch)}
+                                className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
+                                title={`Clear this ${word} automation and set up a new one`}
+                              >
+                                Reset ↺
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}

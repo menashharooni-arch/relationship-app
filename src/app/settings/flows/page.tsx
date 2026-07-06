@@ -144,10 +144,10 @@ export default async function FlowSettingsPage() {
               plan={profile.plan ?? "free"}
               isPro={isPro}
             />
-            {/* Push opt-in — the wizard offers this once at card creation; this is
-                the permanent home so users can turn alerts on (or see they're on). */}
+            {/* Push notifications toggle — the wizard offers opt-in once at card
+                creation; this is the permanent on/off switch for this device. */}
             <div className="mt-3">
-              <EnablePushButton label="🔔 Turn on push notifications" />
+              <EnablePushButton label="🔔 Turn on push notifications" allowDisable />
             </div>
           </div>
 
