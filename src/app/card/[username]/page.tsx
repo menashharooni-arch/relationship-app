@@ -52,7 +52,7 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const p = await resolveCardMeta(username);
   if (!p) return { title: "SwiftCard" };
@@ -131,7 +131,7 @@ export default async function CardPage({
   // One profile picture is shared across all of an account's cards.
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const customization = (profile.customization ?? {}) as {
     bio?: string;

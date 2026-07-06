@@ -7,7 +7,7 @@ import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 const FREE_LEAD_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
               </p>
 
               <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
-                <p style="color:#9ca3af;font-size:11px;margin:0;">Sent via <a href="https://relationship-app-alpha.vercel.app" style="color:#9ca3af;">SwiftCard</a></p>
+                <p style="color:#9ca3af;font-size:11px;margin:0;">Sent via <a href="${APP_URL}" style="color:#9ca3af;">SwiftCard</a></p>
               </div>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { getSourceLabel } from "@/lib/source-labels";
 import { dispatchCrmEvent } from "@/lib/crm-events";
+import { getOwnerUsernames } from "@/lib/owner-usernames";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -84,22 +85,18 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) return NextResponse.json([], { status: 200 });
-
     const visitorId = req.nextUrl.searchParams.get("visitor_id");
     if (!visitorId) return NextResponse.json([], { status: 200 });
+
+    // All the user's card slugs (profile + every card) — a multi-card account
+    // must see the visitor's activity on ANY of its cards, not just the primary.
+    const usernames = await getOwnerUsernames(user.id);
 
     const admin = getAdminSupabase();
     const { data } = await admin
       .from("card_events")
       .select("id, event_type, source, visitor_name, visitor_email, created_at")
-      .eq("card_owner_username", profile.username)
+      .in("card_owner_username", usernames)
       .eq("visitor_id", visitorId)
       .order("created_at", { ascending: true });
 

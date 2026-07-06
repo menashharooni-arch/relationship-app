@@ -1,4 +1,4 @@
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
 
 // ─── Shared layout wrapper ────────────────────────────────────────────────────

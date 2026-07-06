@@ -107,7 +107,7 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "share",
     title: "Share your card",
     body:
-      "Send it by link, QR code, text, email, or an NFC tap. This is the moment a new lead is captured — every share can land straight in your contacts with follow-ups ready to go.",
+      "Send it by link, QR code, text, or email. This is the moment a new lead is captured — every share can land straight in your contacts with follow-ups ready to go.",
     placement: "right",
   },
 
@@ -118,7 +118,7 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "traffic",
     title: "Traffic",
     body:
-      "How many times your card and your Swift Links page were viewed. Switch between Today, Week, and Month to see if a campaign or event is landing.",
+      "How many times your card and your Swift Links page were viewed. Switch between Today, Week, and Month to see if a campaign is landing — or tap Locations to see the top places your views come from.",
     placement: "bottom",
   },
   {
@@ -214,7 +214,7 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "settings-integrations",
     title: "Integrations",
     body:
-      "Connect Zapier, Google, or HubSpot so new contacts flow straight into the tools you already use. Set this up once and your leads sync themselves.",
+      "Connect Zapier or Google Contacts so new contacts flow straight into the tools you already use. Set this up once and your leads sync themselves.",
     placement: "bottom",
   },
   {

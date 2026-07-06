@@ -106,7 +106,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["integration", "integrations", "zapier", "google contacts", "hubspot", "crm", "sync", "connect crm"],
     answer:
-      "Go to Settings → Integrations to connect Zapier, Google Contacts, or HubSpot, so new leads sync into your tools automatically (Pro).",
+      "Go to Settings → Integrations to connect Zapier or Google Contacts, so new leads sync into your tools automatically (Pro).",
   },
   {
     triggers: ["address", "my address", "location on card", "put my address"],

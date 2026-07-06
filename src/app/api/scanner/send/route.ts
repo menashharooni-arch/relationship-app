@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function POST(request: NextRequest) {
   const userSupabase = await createClient();

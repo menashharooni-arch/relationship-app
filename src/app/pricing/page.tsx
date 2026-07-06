@@ -41,7 +41,7 @@ const features = {
     "Unlimited Swift Links buttons",
     "Unlimited AI drafts + automated Day 1/15/30 sequences",
     "CSV export",
-    "Integrations: Zapier, Google, HubSpot",
+    "Integrations: Zapier & Google Contacts",
     "AI business-card scanner",
   ],
   enterprise: [

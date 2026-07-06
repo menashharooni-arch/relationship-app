@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
 
       const ownerFirst = profile.name?.split(" ")[0] ?? "there";
       const isPlural = leads.length > 1;
-      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
       const leadRows = leads.map((l) => `
         <tr>
