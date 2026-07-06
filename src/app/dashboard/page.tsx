@@ -21,7 +21,6 @@ import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
 import TrialBanner from "@/components/TrialBanner";
-import ProAnalytics, { ProAnalyticsLocked } from "@/components/ProAnalytics";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -47,8 +46,8 @@ export default async function DashboardPage({
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
   const selectedCard = params.card ?? null;
-  const viewsRange: "today" | "week" | "month" =
-    params.vrange === "week" || params.vrange === "month" ? params.vrange : "today";
+  const viewsRange: "today" | "week" | "month" | "locations" =
+    params.vrange === "week" || params.vrange === "month" || params.vrange === "locations" ? params.vrange : "today";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -202,6 +201,28 @@ export default async function DashboardPage({
   let bestDay: { date: string; views: number } | null = null;
   for (const [date, views] of Object.entries(dayTally)) {
     if (!bestDay || views > bestDay.views) bestDay = { date, views };
+  }
+
+  // Locations view (on-demand): top places your card + links are viewed from,
+  // with the SwiftCard vs Swift Links split per location. All-time totals.
+  let topLocations: { location: string; card: number; link: number; total: number }[] = [];
+  if (viewsRange === "locations") {
+    const { data: locViews } = await supabase
+      .from("card_views")
+      .select("username, location")
+      .in("username", [analyticsUsername, linkUsername])
+      .not("location", "is", null);
+    const locMap: Record<string, { card: number; link: number }> = {};
+    for (const v of locViews ?? []) {
+      const loc = (v.location as string | null)?.trim();
+      if (!loc) continue;
+      const slot = (locMap[loc] ??= { card: 0, link: 0 });
+      if (v.username === linkUsername) slot.link++; else slot.card++;
+    }
+    topLocations = Object.entries(locMap)
+      .map(([location, c]) => ({ location, card: c.card, link: c.link, total: c.card + c.link }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
   }
 
   const [
@@ -508,6 +529,7 @@ export default async function DashboardPage({
                     { id: "today", label: "Today" },
                     { id: "week", label: "Week" },
                     { id: "month", label: "Month" },
+                    { id: "locations", label: "Locations" },
                   ] as const).map((r) => (
                     <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                       className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
@@ -516,20 +538,44 @@ export default async function DashboardPage({
                   ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {[
-                  { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
-                  { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
-                ].map((m) => (
-                  <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
-                    <div className="min-w-0">
-                      <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
-                      <p className="text-gray-600 text-[11px]">{m.sub}</p>
-                    </div>
-                    <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
+              {viewsRange === "locations" ? (
+                topLocations.length > 0 ? (
+                  <div className="space-y-2">
+                    {topLocations.map((loc) => (
+                      <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <p className="text-gray-100 text-sm font-semibold truncate">📍 {loc.location}</p>
+                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                        </div>
+                        <div className="flex items-center gap-4 text-[11px]">
+                          <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card}</span></span>
+                          <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link}</span></span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
+                    <p className="text-gray-400 text-sm">No location data yet</p>
+                    <p className="text-gray-600 text-[11px] mt-1">Cities appear here as people view your card and links.</p>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3">
+                  {[
+                    { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
+                    { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
+                  ].map((m) => (
+                    <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
+                        <p className="text-gray-600 text-[11px]">{m.sub}</p>
+                      </div>
+                      <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {/* Basic stats (every plan): contacts captured + best day */}
               <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
                 <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{allLeads.length}</span></span>
@@ -584,10 +630,6 @@ export default async function DashboardPage({
               username={activeUsername}
             />
           </div>
-
-          {/* Full analytics — segmented traffic for Pro, a locked teaser on Free.
-              The data is server-gated (402) in /api/analytics/pro. */}
-          {isPro ? <ProAnalytics username={activeUsername} /> : <ProAnalyticsLocked />}
 
           {/* Main: contacts + card panel */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
