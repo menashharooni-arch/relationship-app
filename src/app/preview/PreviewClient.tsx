@@ -214,7 +214,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
           <p className="text-white text-sm font-semibold">Your SwiftCard</p>
         </div>
-        <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">This is exactly what people receive when you share — tap it to open the real thing.</p>
+        <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share — tap to open.</p>
         <button type="button" onClick={() => openDemo("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
           <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
         </button>
@@ -247,21 +247,18 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         {!embedded && (
           <div className="mb-6">
             <h1 className="text-2xl font-bold">This is your dashboard — try it out</h1>
-            <p className="text-gray-500 text-sm mt-1.5">It&apos;s the real app filled with sample data. Follow the 3 steps below to see everything SwiftCard does — nothing to install.</p>
+            <p className="text-gray-500 text-sm mt-1.5">The real app, loaded with sample data. Nothing to install.</p>
           </div>
         )}
 
         {/* Plain-language guide so a first-time visitor knows what this is and what to tap */}
         <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-4 sm:p-5 mb-5">
-          <p className="text-blue-100 text-sm font-bold mb-1">👋 New here? Here&apos;s what you&apos;re looking at.</p>
-          <p className="text-blue-200/80 text-[13px] leading-relaxed mb-3">
-            This screen is your <strong className="text-white">dashboard</strong> — your private control center that only you see. It&apos;s full of sample data so you can click around. Try these three, in order:
-          </p>
+          <p className="text-blue-100 text-sm font-bold mb-3">👋 New here? Start with these three:</p>
           <div className="grid sm:grid-cols-3 gap-2.5">
             {[
-              { n: "1", t: "See your SwiftCard", d: "Tap “Preview SwiftCard” to open the actual card people get when you share." },
-              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for your Instagram or TikTok bio." },
-              { n: "3", t: "Preview Swift Signature", d: "Your card at the bottom of every email you send." },
+              { n: "1", t: "See your SwiftCard", d: "Tap Preview SwiftCard to open the real card people get." },
+              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for Instagram or TikTok." },
+              { n: "3", t: "Preview Swift Signature", d: "Your card in every email you send." },
             ].map((s) => (
               <div key={s.n} className="rounded-xl bg-gray-900/50 border border-gray-800 px-3 py-2.5">
                 <div className="flex items-center gap-2 mb-1">
@@ -272,7 +269,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               </div>
             ))}
           </div>
-          <p className="text-blue-300/70 text-[11px] mt-3">Tip: switch between the two cards up top and watch every number and contact update.</p>
+          <p className="text-blue-300/70 text-[11px] mt-3">Tip: switch cards up top — every number updates.</p>
         </div>
 
         {/* My Cards */}
