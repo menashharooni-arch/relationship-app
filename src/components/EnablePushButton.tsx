@@ -6,13 +6,20 @@
 
 import { useEffect, useState } from "react";
 
-type State = "loading" | "unsupported" | "denied" | "subscribed" | "idle" | "working";
+type State = "loading" | "unsupported" | "denied" | "subscribed" | "idle" | "working" | "error";
 
 export function usePushState(): [State, () => Promise<boolean>] {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window) ||
+      // Without the VAPID public key the subscribe call can only fail — treat as
+      // unsupported so the user never taps a button that silently does nothing.
+      !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    ) {
       setState("unsupported");
       return;
     }
@@ -52,7 +59,9 @@ export function usePushState(): [State, () => Promise<boolean>] {
       setState("subscribed");
       return true;
     } catch {
-      setState("idle");
+      // Never fail silently — the button returning to "idle" with no message
+      // reads as broken. Show a retryable error state instead.
+      setState("error");
       return false;
     }
   }
@@ -90,14 +99,19 @@ export default function EnablePushButton({ onDone, label = "🔔 Turn on notific
   }
 
   return (
-    <button
-      type="button"
-      onClick={async () => { const ok = await enable(); if (ok) onDone?.(); }}
-      disabled={state === "working"}
-      className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-3 rounded-full transition-colors text-sm"
-    >
-      {state === "working" ? "Turning on…" : label}
-    </button>
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={async () => { const ok = await enable(); if (ok) onDone?.(); }}
+        disabled={state === "working"}
+        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+      >
+        {state === "working" ? "Turning on…" : label}
+      </button>
+      {state === "error" && (
+        <p className="text-amber-400 text-xs text-center">Couldn&apos;t turn notifications on — check your connection and tap again.</p>
+      )}
+    </div>
   );
 }
 
