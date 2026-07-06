@@ -120,7 +120,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         {/* QR + label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={qrSize(f)} bg={DIM} fg={BLUE} />
+            <QR size={qrSize(f)} bg={DIM} fg={BLUE} url={data.cardUrl} />
           </div>
         </div>
       </div>

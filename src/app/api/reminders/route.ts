@@ -228,10 +228,9 @@ export async function GET(req: NextRequest) {
 
       // Skip if this reminder day is disabled
       if (!dayConfig.enabled) continue;
-
-      // Skip if this isn't the right UTC hour
-      const [configHour] = dayConfig.time.split(":").map(Number);
-      if (configHour !== currentUTCHour) continue;
+      // NOTE: not gated to the configured hour — the cron runs once a day, so a
+      // due step fires on that run regardless of its set time (time-of-day is
+      // best-effort). lead_reminders dedup below prevents a repeat next day.
 
       const ownerFirst = profile.name?.split(" ")[0] ?? "there";
       const isPlural = leads.length > 1;
@@ -407,12 +406,11 @@ export async function GET(req: NextRequest) {
       // anchor keep the original contact-creation reference.
       const anchorMs = item.anchor ? Date.parse(item.anchor) : NaN;
       const dueMs = (Number.isFinite(anchorMs) ? anchorMs : createdAt) + item.day * 86400000;
-      if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
-      // Honor the step's scheduled time-of-day (cron runs hourly; send at/after the hour).
-      if (item.time) {
-        const stepHour = parseInt(item.time.split(":")[0], 10);
-        if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
-      }
+      // Send once the step is DUE, on the daily cron run — not gated to an exact
+      // hour (a once-a-day cron would otherwise miss most steps). Overdue steps
+      // (e.g. a missed cron day, or a flow un-paused) are caught up too; sent_at
+      // below marks each step so nothing sends twice.
+      if (dueMs >= todayEnd.getTime()) continue;
 
       const ownerFirst = seqSender.name?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];

@@ -1,3 +1,6 @@
+import QRCode from "qrcode";
+import type { ReactElement } from "react";
+
 export type CardLink = {
   emoji: string;
   label: string;
@@ -110,73 +113,45 @@ export const SAMPLE_DATA: CardData = {
   cardUrl: "swiftcard.me/card/alexmorgan",
 };
 
-export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827" }: { size?: number; bg?: string; fg?: string }) {
+// A REAL, scannable QR of the card's URL. The module matrix is computed
+// synchronously (QRCode.create) with NO React hooks, so this stays safe to
+// server-render inside the card templates. Dark runs are merged per row to keep
+// the node count low. Falls back to swiftcard.me if no URL is supplied.
+export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { size?: number; bg?: string; fg?: string; url?: string }) {
   const p = size * 0.055;
+  const raw = (url ?? "").trim();
+  const target = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : "https://swiftcard.me";
+
+  let count = 0;
+  const rects: ReactElement[] = [];
+  try {
+    const qr = QRCode.create(target, { errorCorrectionLevel: "M" });
+    count = qr.modules.size;
+    const cells = qr.modules.data; // Uint8Array, 1 = dark module
+    for (let r = 0; r < count; r++) {
+      let c = 0;
+      while (c < count) {
+        if (cells[r * count + c]) {
+          let w = 1;
+          while (c + w < count && cells[r * count + (c + w)]) w++;
+          rects.push(<rect key={`${r}-${c}`} x={c} y={r} width={w} height={1} fill={fg} />);
+          c += w;
+        } else {
+          c++;
+        }
+      }
+    }
+  } catch {
+    count = 0;
+  }
+
   return (
     <div data-qr="1" style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
-      <svg viewBox="0 0 21 21" style={{ width: "100%", height: "100%", display: "block" }}>
-        {/* Finder top-left */}
-        <rect x="0" y="0" width="7" height="7" fill={fg} />
-        <rect x="1" y="1" width="5" height="5" fill={bg} />
-        <rect x="2" y="2" width="3" height="3" fill={fg} />
-        {/* Finder top-right */}
-        <rect x="14" y="0" width="7" height="7" fill={fg} />
-        <rect x="15" y="1" width="5" height="5" fill={bg} />
-        <rect x="16" y="2" width="3" height="3" fill={fg} />
-        {/* Finder bottom-left */}
-        <rect x="0" y="14" width="7" height="7" fill={fg} />
-        <rect x="1" y="15" width="5" height="5" fill={bg} />
-        <rect x="2" y="16" width="3" height="3" fill={fg} />
-        {/* Data modules */}
-        <rect x="8" y="0" width="1" height="1" fill={fg} />
-        <rect x="10" y="0" width="1" height="1" fill={fg} />
-        <rect x="12" y="1" width="1" height="1" fill={fg} />
-        <rect x="9" y="2" width="2" height="1" fill={fg} />
-        <rect x="8" y="4" width="1" height="1" fill={fg} />
-        <rect x="11" y="3" width="2" height="1" fill={fg} />
-        <rect x="8" y="6" width="3" height="1" fill={fg} />
-        <rect x="9" y="8" width="2" height="1" fill={fg} />
-        <rect x="7" y="7" width="1" height="2" fill={fg} />
-        <rect x="11" y="8" width="1" height="1" fill={fg} />
-        <rect x="7" y="10" width="2" height="1" fill={fg} />
-        <rect x="10" y="9" width="1" height="2" fill={fg} />
-        <rect x="12" y="10" width="1" height="1" fill={fg} />
-        <rect x="7" y="12" width="1" height="1" fill={fg} />
-        <rect x="9" y="11" width="1" height="2" fill={fg} />
-        <rect x="11" y="12" width="2" height="1" fill={fg} />
-        <rect x="8" y="14" width="2" height="1" fill={fg} />
-        <rect x="10" y="13" width="1" height="1" fill={fg} />
-        <rect x="12" y="13" width="1" height="2" fill={fg} />
-        <rect x="8" y="16" width="1" height="2" fill={fg} />
-        <rect x="10" y="16" width="1" height="1" fill={fg} />
-        <rect x="11" y="17" width="2" height="2" fill={fg} />
-        <rect x="14" y="7" width="1" height="2" fill={fg} />
-        <rect x="16" y="7" width="1" height="1" fill={fg} />
-        <rect x="18" y="8" width="2" height="1" fill={fg} />
-        <rect x="14" y="10" width="2" height="1" fill={fg} />
-        <rect x="17" y="9" width="1" height="2" fill={fg} />
-        <rect x="19" y="10" width="1" height="1" fill={fg} />
-        <rect x="15" y="12" width="1" height="1" fill={fg} />
-        <rect x="17" y="11" width="2" height="1" fill={fg} />
-        <rect x="14" y="13" width="1" height="2" fill={fg} />
-        <rect x="16" y="14" width="1" height="1" fill={fg} />
-        <rect x="18" y="13" width="2" height="1" fill={fg} />
-        <rect x="15" y="16" width="2" height="1" fill={fg} />
-        <rect x="19" y="15" width="1" height="2" fill={fg} />
-        <rect x="14" y="18" width="1" height="2" fill={fg} />
-        <rect x="16" y="18" width="2" height="1" fill={fg} />
-        <rect x="19" y="18" width="1" height="1" fill={fg} />
-        <rect x="0" y="8" width="1" height="1" fill={fg} />
-        <rect x="2" y="8" width="2" height="1" fill={fg} />
-        <rect x="5" y="7" width="1" height="2" fill={fg} />
-        <rect x="0" y="10" width="3" height="1" fill={fg} />
-        <rect x="4" y="9" width="1" height="2" fill={fg} />
-        <rect x="1" y="12" width="1" height="1" fill={fg} />
-        <rect x="3" y="11" width="1" height="2" fill={fg} />
-        <rect x="5" y="11" width="1" height="1" fill={fg} />
-        <rect x="0" y="13" width="2" height="1" fill={fg} />
-        <rect x="4" y="13" width="1" height="1" fill={fg} />
-      </svg>
+      {count > 0 && (
+        <svg viewBox={`0 0 ${count} ${count}`} shapeRendering="crispEdges" style={{ width: "100%", height: "100%", display: "block" }}>
+          {rects}
+        </svg>
+      )}
     </div>
   );
 }

@@ -130,7 +130,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         {/* QR + scan label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={qrSize(f)} bg="#f0f5ff" fg={NAVY} />
+            <QR size={qrSize(f)} bg="#f0f5ff" fg={NAVY} url={data.cardUrl} />
           </div>
         </div>
       </div>
