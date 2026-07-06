@@ -1,8 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import ClassicPro from "@/components/card-templates/ClassicPro";
+import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
+
+// Hero demo card — PhotoFirst template with a real headshot.
+const HERO_DATA = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/headshot.jpg" };
 
 // Crisp, front-facing phone that gently floats and tilts toward the cursor in 3D.
 // At rest it's perfectly flat (no blur / no fixed angle); the tilt only happens
@@ -67,21 +70,12 @@ export default function HeroPhone() {
             <div className="relative overflow-hidden" style={{ borderRadius: "2.5rem", height: "600px", background: "#FAF7F2" }}>
               {/* Glass sheen */}
               <div className="absolute inset-0 pointer-events-none z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 32%)" }} />
-              {/* Browser bar */}
-              <div className="flex items-center gap-2 px-3 py-2.5 border-b" style={{ background: "#F0EBE1", borderColor: "#E4DDD4" }}>
-                <div className="flex gap-1 shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-red-400" />
-                  <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                </div>
-              </div>
-
               {/* Card page content — mirrors the real public card page */}
-              <div style={{ padding: "12px 12px 0" }}>
+              <div style={{ padding: "44px 12px 0" }}>
                 {/* The live business card */}
                 <div style={{ height: "150px", overflow: "hidden", marginBottom: "9px", borderRadius: "12px" }}>
                   <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
-                    <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
+                    <PhotoFirst data={HERO_DATA} />
                   </div>
                 </div>
 
