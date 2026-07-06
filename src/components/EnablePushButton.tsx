@@ -69,15 +69,62 @@ export function usePushState(): [State, () => Promise<boolean>] {
   return [state, enable];
 }
 
-export default function EnablePushButton({ onDone, label = "🔔 Turn on notifications" }: { onDone?: () => void; label?: string }) {
+export default function EnablePushButton({
+  onDone,
+  label = "🔔 Turn on notifications",
+  allowDisable = false,
+}: {
+  onDone?: () => void;
+  label?: string;
+  /** Settings mode: when on, show a Turn off control (full on/off toggle). */
+  allowDisable?: boolean;
+}) {
   const [state, enable] = usePushState();
+  const [busyOff, setBusyOff] = useState(false);
+  const [forcedOff, setForcedOff] = useState(false);
+
+  // Unsubscribe this device: browser subscription + our server record.
+  async function disable() {
+    setBusyOff(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        await sub.unsubscribe();
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint }),
+        }).catch(() => {});
+      }
+      setForcedOff(true); // usePushState computed once on mount — reflect the change locally
+    } catch { /* leave state as-is; user can retry */ }
+    setBusyOff(false);
+  }
 
   if (state === "loading") return null;
 
-  if (state === "subscribed") {
+  if (state === "subscribed" && !forcedOff) {
+    if (!allowDisable) {
+      return (
+        <div className="w-full text-center text-sm font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-full py-3">
+          ✓ Notifications are on
+        </div>
+      );
+    }
+    // Settings toggle: on-state with a real off switch.
     return (
-      <div className="w-full text-center text-sm font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-full py-3">
-        ✓ Notifications are on
+      <div className="w-full flex items-center justify-between gap-3 bg-emerald-950/40 border border-emerald-800/40 rounded-full py-2.5 px-4">
+        <span className="text-sm font-semibold text-emerald-400">✓ Notifications are on</span>
+        <button
+          type="button"
+          onClick={disable}
+          disabled={busyOff}
+          className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-600 hover:border-gray-400 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 shrink-0"
+        >
+          {busyOff ? "Turning off…" : "Turn off"}
+        </button>
       </div>
     );
   }
@@ -102,7 +149,7 @@ export default function EnablePushButton({ onDone, label = "🔔 Turn on notific
     <div className="space-y-2">
       <button
         type="button"
-        onClick={async () => { const ok = await enable(); if (ok) onDone?.(); }}
+        onClick={async () => { const ok = await enable(); if (ok) { setForcedOff(false); onDone?.(); } }}
         disabled={state === "working"}
         className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-3 rounded-full transition-colors text-sm"
       >

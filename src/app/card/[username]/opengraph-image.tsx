@@ -237,16 +237,36 @@ export default async function Image({
 }) {
   const { username } = await params;
 
-  // Prefer the pixel-perfect capture of the real card when it exists.
+  // Prefer the pixel-perfect capture of the real card when it exists — but
+  // NEVER serve the raw file: captures can be huge (2×-DPR PNGs of several MB)
+  // and WhatsApp silently drops any og:image over ~600KB, killing the preview.
+  // Embedding the capture in a proper 1200×630 ImageResponse frame re-encodes
+  // it small AND matches the og:image:width/height the page declares.
   const stored = await storedCardImage(username);
   if (stored) {
-    return new Response(stored, {
-      headers: {
-        "Content-Type": "image/png",
-        // Short cache so an edited card's new preview propagates quickly.
-        "Cache-Control": "public, max-age=60, s-maxage=60",
-      },
-    });
+    // PNG header carries the dimensions (width @ byte 16, height @ byte 20) —
+    // Satori needs explicit <img> dimensions, so contain-fit them ourselves.
+    const view = new DataView(stored);
+    const srcW = view.getUint32(16);
+    const srcH = view.getUint32(20);
+    const scale = Math.min(CARD_W / srcW, CARD_H / srcH);
+    const w = Math.max(1, Math.round(srcW * scale));
+    const h = Math.max(1, Math.round(srcH * scale));
+    const dataUrl = `data:image/png;base64,${Buffer.from(stored).toString("base64")}`;
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={dataUrl}
+            width={w}
+            height={h}
+            style={{ borderRadius: 24, boxShadow: "0 30px 90px rgba(0,0,0,0.55)" }}
+          />
+        </div>
+      ),
+      { ...size }
+    );
   }
 
   const p = await resolveCardMeta(username);

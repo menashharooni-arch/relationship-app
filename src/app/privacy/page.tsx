@@ -113,8 +113,8 @@ export default function PrivacyPage() {
 
         <H2>Contact us</H2>
         <P>
-          Questions or requests (including data access or deletion): email{" "}
-          <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>.
+          Questions or requests (including data access or deletion): reach us through the{" "}
+          <Link href="/contact" className="text-brand underline">contact page</Link>.
           SwiftCard · New York, NY.
         </P>
       </div>
