@@ -556,7 +556,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               onClick={() => router.push("/dashboard")}
               className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
             >
-              Skip for now →
+              Continue to dashboard →
             </button>
           </div>
         )}

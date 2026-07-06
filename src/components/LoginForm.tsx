@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
@@ -10,12 +10,32 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Surface a failed OAuth round-trip (auth/callback redirects here with
+  // ?error=oauth) instead of silently landing the visitor back on the form.
+  // Read after mount — reading the URL during render would mismatch SSR.
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("error") === "oauth") {
+        setErrorMsg("Google sign-in didn't complete — please try again.");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Creating a NEW account must never inherit a session already in this browser —
+  // otherwise the visitor can end up inside the previously-logged-in account and
+  // it looks like their new email "linked" to it. Local sign-out only (other
+  // devices stay signed in).
+  async function clearExistingSession() {
+    try { await supabase.auth.signOut({ scope: "local" }); } catch { /* no session — fine */ }
+  }
+
   async function handleGoogle() {
+    if (mode === "signup") await clearExistingSession();
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -36,6 +56,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         window.location.href = redirectTo ?? "/dashboard";
       }
     } else {
+      await clearExistingSession();
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setErrorMsg(error.message);
@@ -98,7 +119,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
           className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
 
-        {status === "error" && (
+        {errorMsg && (
           <p className="text-red-400 text-xs text-center">{errorMsg}</p>
         )}
 
