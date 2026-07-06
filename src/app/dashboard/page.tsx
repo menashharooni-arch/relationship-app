@@ -32,7 +32,7 @@ import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS } from "@/lib/plan";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 

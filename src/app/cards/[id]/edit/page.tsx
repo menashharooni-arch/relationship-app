@@ -21,7 +21,7 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
 
   const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
 
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 // The Stripe prices we actually sell. Anything else is rejected so a crafted
 // request can't check out against an arbitrary/mispriced Price.

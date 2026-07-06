@@ -132,7 +132,7 @@ const FEATURES = [
   },
   {
     title: "CRM integrations",
-    body: "Push new leads to Zapier, Google Contacts, or HubSpot.",
+    body: "Push new leads to Zapier or Google Contacts automatically.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -269,7 +269,7 @@ export default function HomePage() {
         <div>
           <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-8 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-            Free to start — no credit card required
+            14 days of Pro free — no credit card required
           </div>
 
           <h1 className="sc-rise sc-rise-2 text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">

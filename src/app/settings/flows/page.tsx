@@ -122,6 +122,7 @@ export default async function FlowSettingsPage() {
                   googleConnected={googleConnected}
                   hubspotConnected={hubspotConnected}
                   isPro={isPro}
+                  hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
                 />
               </Suspense>
               <CrmEventSettings

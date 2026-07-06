@@ -36,7 +36,7 @@ export default function UnsubscribeContent() {
         </Link>
         <p className="mt-4 text-xs" style={{ color: "#94a3b8" }}>
           Changed your mind?{" "}
-          <Link href="/settings" className="underline">
+          <Link href="/settings/flows" className="underline">
             Update email preferences
           </Link>
         </p>
@@ -64,7 +64,7 @@ export default function UnsubscribeContent() {
           You can manage your email preferences from your account settings.
         </p>
         <Link
-          href="/settings"
+          href="/settings/flows"
           className="inline-block text-sm font-semibold rounded-full px-6 py-3 transition-colors"
           style={{ background: "#1D4ED8", color: "#fff" }}
         >
@@ -88,7 +88,7 @@ export default function UnsubscribeContent() {
         Manage your marketing email preferences from settings.
       </p>
       <Link
-        href="/settings"
+        href="/settings/flows"
         className="inline-block text-sm font-semibold rounded-full px-6 py-3"
         style={{ background: "#1D4ED8", color: "#fff" }}
       >

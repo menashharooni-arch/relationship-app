@@ -6,7 +6,7 @@ import OfficeBranding from "@/components/OfficeBranding";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
 import Link from "next/link";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 type Member = {
   id: string;

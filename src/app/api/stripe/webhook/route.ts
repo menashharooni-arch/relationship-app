@@ -6,7 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 async function sendReceiptForUser(opts: {
   userId: string;

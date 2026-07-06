@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import GuidedTour from "@/components/GuidedTour";
@@ -28,12 +29,18 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable} h-full antialiased`}>
+    // suppressHydrationWarning: the inline script below mutates <html> (adds
+    // .sc-js + the saved theme attr) BEFORE React hydrates — expected mismatch.
+    <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         {/* Apply the saved app theme before paint (no dark→light flash), and
             mark that JS is running so scroll-reveals only hide when they can be
-            un-hidden — with JS off, content stays fully visible. */}
-        <script
+            un-hidden — with JS off, content stays fully visible. next/script
+            beforeInteractive keeps the raw <script> out of the React tree
+            (a literal <script> logs console errors on every client render). */}
+        <Script
+          id="sc-boot"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html:
               "try{document.documentElement.classList.add('sc-js');if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",

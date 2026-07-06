@@ -9,6 +9,9 @@ type Props = {
   googleConnected: boolean;
   hubspotConnected: boolean;
   isPro: boolean;
+  /** HubSpot OAuth env keys present — hide the card entirely when not configured
+      so users never hit a broken Connect redirect. */
+  hubspotEnabled?: boolean;
 };
 
 function IntegrationCard({
@@ -92,7 +95,7 @@ function IntegrationCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, isPro }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, isPro, hubspotEnabled = false }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -127,6 +130,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         flashStatus={flashIntegration === "google" ? flashStatus : null}
       />
 
+      {hubspotEnabled && (
       <IntegrationCard
         name="HubSpot CRM"
         description="New leads are automatically created as HubSpot contacts"
@@ -141,6 +145,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
       />
+      )}
     </div>
   );
 }
