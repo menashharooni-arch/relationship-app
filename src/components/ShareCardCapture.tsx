@@ -47,8 +47,9 @@ export default function ShareCardCapture({
   const capturingRef = useRef(false);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
 
-  // Capture-logic version. Bump to force a global re-capture ("v2" = auto-fit templates).
-  const contentSig = "share-v2|" + hashStr(JSON.stringify(cardData) + "|" + template);
+  // Capture-logic version. Bump to force a global re-capture
+  // ("v3" = single-line contact fitting + square-capture bug purge).
+  const contentSig = "share-v3|" + hashStr(JSON.stringify(cardData) + "|" + template);
   const hashKey = `sc_sharehash_${username}`;
 
   // Photo/logo through a same-origin proxy so the browser can read them into the canvas.
