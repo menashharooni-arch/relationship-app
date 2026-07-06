@@ -27,6 +27,8 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 // Always reflect the live card (so edits show up in shares immediately).
 export const dynamic = "force-dynamic";
+// sharp (used to compress the stored capture) needs the Node runtime.
+export const runtime = "nodejs";
 
 type Meta = NonNullable<Awaited<ReturnType<typeof resolveCardMeta>>>;
 
@@ -244,29 +246,27 @@ export default async function Image({
   // it small AND matches the og:image:width/height the page declares.
   const stored = await storedCardImage(username);
   if (stored) {
-    // PNG header carries the dimensions (width @ byte 16, height @ byte 20) —
-    // Satori needs explicit <img> dimensions, so contain-fit them ourselves.
-    const view = new DataView(stored);
-    const srcW = view.getUint32(16);
-    const srcH = view.getUint32(20);
-    const scale = Math.min(CARD_W / srcW, CARD_H / srcH);
-    const w = Math.max(1, Math.round(srcW * scale));
-    const h = Math.max(1, Math.round(srcH * scale));
-    const dataUrl = `data:image/png;base64,${Buffer.from(stored).toString("base64")}`;
-    return new ImageResponse(
-      (
-        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={dataUrl}
-            width={w}
-            height={h}
-            style={{ borderRadius: 24, boxShadow: "0 30px 90px rgba(0,0,0,0.55)" }}
-          />
-        </div>
-      ),
-      { ...size }
-    );
+    // Re-encode as a contain-fit 1200×630 JPEG. Photo-heavy PNGs at this size
+    // hover around WhatsApp's ~600KB og:image ceiling; JPEG lands ~50-100KB so
+    // every messenger shows the preview. sharp keeps this fast (~ms).
+    try {
+      const sharp = (await import("sharp")).default;
+      const jpeg = await sharp(Buffer.from(stored))
+        .resize(CARD_W, CARD_H, { fit: "contain", background: "#0f172a" })
+        .extend({ top: (size.height - CARD_H) / 2, bottom: (size.height - CARD_H) / 2, left: (size.width - CARD_W) / 2, right: (size.width - CARD_W) / 2, background: "#0f172a" })
+        .flatten({ background: "#0f172a" })
+        .jpeg({ quality: 82 })
+        .toBuffer();
+      return new Response(new Uint8Array(jpeg), {
+        headers: {
+          "Content-Type": "image/jpeg",
+          // Short cache so an edited card's new preview propagates quickly.
+          "Cache-Control": "public, max-age=60, s-maxage=60",
+        },
+      });
+    } catch {
+      // sharp unavailable/failed — fall through to the rendered approximation.
+    }
   }
 
   const p = await resolveCardMeta(username);
