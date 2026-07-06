@@ -3,6 +3,7 @@
 import { useState } from "react";
 import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
+import NFCWriter from "@/components/NFCWriter";
 import CopyButton from "@/components/CopyButton";
 
 export default function MoreShareOptions({ url }: { url: string }) {
@@ -46,6 +47,10 @@ export default function MoreShareOptions({ url }: { url: string }) {
             <div className="mt-3">
               <QRDownloadButton url={url} compact />
             </div>
+
+            {/* NFC */}
+            <p className="text-gray-500 text-[11px] uppercase tracking-wide mt-5 mb-2">NFC tag</p>
+            <NFCWriter url={url} />
           </div>
         </div>
       )}
