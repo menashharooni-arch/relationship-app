@@ -142,7 +142,7 @@ export function CustomElementContent({
 
   // Scannable QR pointing at this card (marker attr lets the signature hide it).
   if (el.type === "qr") {
-    return <MiniQR size={el.size ?? 52} bg="#ffffff" fg="#111827" />;
+    return <MiniQR size={el.size ?? 52} bg="#ffffff" fg="#111827" url={data.cardUrl} />;
   }
 
   // A simple accent line.

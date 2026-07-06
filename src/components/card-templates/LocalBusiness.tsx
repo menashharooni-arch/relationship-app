@@ -106,7 +106,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
         {/* Right: QR — always on the card; gives up a little room when dense */}
         <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
-          <QR size={qrSize(f)} bg="#fff8e6" fg={AMBER} />
+          <QR size={qrSize(f)} bg="#fff8e6" fg={AMBER} url={data.cardUrl} />
         </div>
       </div>
 

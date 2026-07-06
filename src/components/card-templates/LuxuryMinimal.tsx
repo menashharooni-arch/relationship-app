@@ -125,7 +125,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
         {/* QR — always on the card; gives up a little room when dense */}
         <div className="flex flex-col items-end gap-1">
-          <QR size={qrSize(f)} bg="#f5f0e8" fg={GOLD} />
+          <QR size={qrSize(f)} bg="#f5f0e8" fg={GOLD} url={data.cardUrl} />
         </div>
       </div>
     </div>
