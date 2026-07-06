@@ -100,6 +100,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // ── Everything past this point is BEST-EFFORT ──────────────────────────
+    // The lead is already saved. A failure in CRM sync / notifications / email
+    // must NEVER report failure back to the visitor (they'd see "something went
+    // wrong" and re-submit a duplicate, even though we captured them fine).
+    try {
     // Sync to Google Contacts + HubSpot (non-blocking)
     if (ownerProfile?.id) {
       const leadData = { name, email: email || null, phone: phone || null, company: company || null };
@@ -222,6 +227,10 @@ export async function POST(req: NextRequest) {
           </div>
         `,
       }).catch(() => {}); // non-blocking
+    }
+    } catch (sideErr) {
+      // Lead was saved; log and still report success to the visitor.
+      console.error("Lead post-insert side-effect error (lead saved):", sideErr instanceof Error ? sideErr.message : sideErr);
     }
 
     return NextResponse.json({ success: true });
