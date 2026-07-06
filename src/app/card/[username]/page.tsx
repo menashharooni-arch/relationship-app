@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
+import AddToWalletButton from "@/components/AddToWalletButton";
+import { hasWalletConfig } from "@/lib/wallet-config";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
@@ -273,6 +275,11 @@ export default async function CardPage({
           cardOwner={profile.username}
           ownerFirstName={firstName}
         />
+        {hasWalletConfig() && (
+          <div className="mt-2">
+            <AddToWalletButton username={profile.username} />
+          </div>
+        )}
       </div>
 
       {/* ── Section 2: Share Your Info Back ── */}
