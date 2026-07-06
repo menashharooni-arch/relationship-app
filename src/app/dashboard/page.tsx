@@ -325,6 +325,7 @@ export default async function DashboardPage({
           username={activeUsername}
           previewUrl={cardUrl}
         />
+        {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>
 
       {/* Share */}
@@ -336,7 +337,6 @@ export default async function DashboardPage({
           label="Share"
         />
         <MoreShareOptions url={cardUrl} />
-        {walletEnabled && <AddToWalletButton username={activeUsername} />}
       </div>
     </>
   );
