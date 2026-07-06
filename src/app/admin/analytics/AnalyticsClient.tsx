@@ -100,7 +100,7 @@ export default function AnalyticsClient() {
 
             {/* Growth */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-1">
                 <p className="text-white font-semibold text-sm">New accounts · last 30 days</p>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>Today <span className="text-white font-semibold">{a.accounts.today}</span></span>
@@ -108,13 +108,15 @@ export default function AnalyticsClient() {
                   <span>30d <span className="text-white font-semibold">{a.accounts.d30}</span></span>
                 </div>
               </div>
+              <p className="text-gray-600 text-[11px] mb-4">Signups per day — your growth curve. A flat stretch means marketing needs a push.</p>
               <BarChart series={a.accounts.series} color="#3b82f6" />
             </div>
 
             {/* Plans + Sources */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-4">Plan mix</p>
+                <p className="text-white font-semibold text-sm mb-1">Plan mix</p>
+                <p className="text-gray-600 text-[11px] mb-4">How many users sit on each plan — Free is your upgrade pipeline.</p>
                 <Bars rows={[["Free", a.plans.free], ["Pro", a.plans.pro], ["Office", a.plans.office]]} color="#8b5cf6" />
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {[["Free", a.plans.free, "#6b7280"], ["Pro", a.plans.pro, "#60a5fa"], ["Office", a.plans.office, "#c084fc"]].map(([l, n, c]) => (
@@ -127,20 +129,22 @@ export default function AnalyticsClient() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-4">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
+                <p className="text-white font-semibold text-sm mb-1">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
+                <p className="text-gray-600 text-[11px] mb-4">Across ALL users: how people reached a card before sharing their info (QR scan, card link, bio link…).</p>
                 <Bars rows={a.leads.bySource} color="#22c55e" labeler={getSourceLabel} />
               </div>
             </div>
 
             {/* Contacts trend */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-1">
                 <p className="text-white font-semibold text-sm">Contacts captured · last 30 days</p>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>Today <span className="text-white font-semibold">{a.leads.today}</span></span>
                   <span>7d <span className="text-white font-semibold">{a.leads.d7}</span></span>
                 </div>
               </div>
+              <p className="text-gray-600 text-[11px] mb-4">New contacts landing in users&apos; CRMs per day — the clearest signal the product is delivering value.</p>
               <BarChart series={a.leads.series} color="#22c55e" />
             </div>
 
@@ -148,14 +152,15 @@ export default function AnalyticsClient() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Kpi label="Total cards" value={a.cards.total} sub={`${a.cards.perAccount} per account`} />
               <Kpi label="Total views" value={a.views.total} sub={`+${a.views.d7} this week`} />
-              <Kpi label="SwiftCard vs Links (30d)" value={`${a.views.cardViews30} / ${a.views.linkViews30}`} sub="card views / link views" />
+              <Kpi label="Views by surface (30d)" value={`${a.views.cardViews30} / ${a.views.linkViews30}`} sub="card pages / Swift Links pages" />
               <Kpi label="Card activation" value={`${a.engagement.activationRate}%`} sub={`${a.engagement.activatedCards.toLocaleString()} cards got a lead`} />
             </div>
 
             {/* Top cards + recent signups */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-3">Top cards by contacts</p>
+                <p className="text-white font-semibold text-sm mb-1">Top cards by contacts</p>
+                <p className="text-gray-600 text-[11px] mb-3">The cards capturing the most contacts — your power users. Great candidates for testimonials and referrals.</p>
                 {a.topCards.length === 0 ? <p className="text-gray-600 text-xs">No contacts yet.</p> : (
                   <div className="divide-y divide-gray-800/60">
                     {a.topCards.map((c, i) => (
@@ -172,7 +177,8 @@ export default function AnalyticsClient() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-3">Latest signups</p>
+                <p className="text-white font-semibold text-sm mb-1">Latest signups</p>
+                <p className="text-gray-600 text-[11px] mb-3">The most recent accounts — click through in Users to see any of them in detail.</p>
                 <div className="divide-y divide-gray-800/60">
                   {a.accounts.recent.map((u) => (
                     <div key={u.username} className="flex items-center justify-between py-2 text-sm">

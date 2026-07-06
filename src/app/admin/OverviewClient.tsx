@@ -63,10 +63,11 @@ export default function OverviewClient() {
 
       {/* Plan mix — free vs pro vs office at a glance */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-1">
           <p className="text-white font-semibold text-sm">Plan mix</p>
           <Link href="/admin/users" className="text-xs text-blue-400 hover:text-blue-300">Manage users →</Link>
         </div>
+        <p className="text-gray-600 text-[11px] mb-3">How your user base splits across Free, Pro, and Office — the bar is everyone, in proportion.</p>
         <div className="flex h-3 rounded-full overflow-hidden bg-gray-800 mb-3">
           <div style={{ width: `${(plans.free / planTotal) * 100}%`, background: PLAN_COLORS.free }} />
           <div style={{ width: `${(plans.pro / planTotal) * 100}%`, background: PLAN_COLORS.pro }} />
@@ -82,10 +83,11 @@ export default function OverviewClient() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Acquisition — where signups come from (marketing-spend view) */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-1">
             <p className="text-white font-semibold text-sm">Where signups come from</p>
             <Link href="/admin/analytics" className="text-xs text-blue-400 hover:text-blue-300">Full analytics →</Link>
           </div>
+          <p className="text-gray-600 text-[11px] mb-3">How each new account found SwiftCard, with the share that later went paid — tells you which channel is worth pushing.</p>
           {data.acquisition.length === 0 ? (
             <p className="text-gray-500 text-xs">No signups yet.</p>
           ) : (
@@ -109,7 +111,8 @@ export default function OverviewClient() {
 
         {/* Recent signups with source */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-white font-semibold text-sm mb-3">Recent signups</p>
+          <p className="text-white font-semibold text-sm mb-1">Recent signups</p>
+          <p className="text-gray-600 text-[11px] mb-3">The newest accounts and the plan they&apos;re on right now.</p>
           {data.accounts.recent.length === 0 ? (
             <p className="text-gray-500 text-xs">No signups yet.</p>
           ) : (

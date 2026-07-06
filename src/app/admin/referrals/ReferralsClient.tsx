@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getSignupSourceLabel } from "@/lib/source-labels";
 
 type RefStats = {
   ready: boolean; message?: string;
@@ -57,13 +58,14 @@ export default function ReferralsClient() {
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <p className="text-white font-semibold text-sm mb-3">Signups by source</p>
+            <p className="text-white font-semibold text-sm mb-1">Signups by source</p>
+            <p className="text-gray-600 text-[11px] mb-3">Every account by how it found SwiftCard. The &quot;Referral link&quot; row is the referral program; the rest are the free-account prompts around the product.</p>
             <div className="space-y-2">
               {Object.entries(stats.bySource ?? {}).sort((a, b) => b[1] - a[1]).map(([src, n]) => {
                 const max = Math.max(...Object.values(stats.bySource ?? { x: 1 }), 1);
                 return (
                   <div key={src} className="flex items-center gap-3">
-                    <span className="text-gray-300 text-xs w-32 shrink-0">{src.replace(/_/g, " ")}</span>
+                    <span className="text-gray-300 text-xs w-44 shrink-0 truncate" title={getSignupSourceLabel(src)}>{getSignupSourceLabel(src)}</span>
                     <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(n / max) * 100}%` }} />
                     </div>
@@ -79,6 +81,7 @@ export default function ReferralsClient() {
             <p className="text-white font-semibold text-sm mb-1">
               Suspicious <span className="text-gray-500 font-normal">({stats.flagged ?? 0} flagged · {stats.selfReferral ?? 0} self-referrals)</span>
             </p>
+            <p className="text-gray-600 text-[11px]">Referral signups the fraud checks caught (same device/IP as the referrer, self-referrals). These never grant free months — listed here so you can spot abuse patterns.</p>
             {(stats.flaggedList ?? []).length === 0 ? (
               <p className="text-gray-500 text-xs mt-2">Nothing suspicious so far.</p>
             ) : (
