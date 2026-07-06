@@ -188,8 +188,9 @@ export default function ContactPage() {
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
+            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
           </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
         </div>
       </footer>
     </main>

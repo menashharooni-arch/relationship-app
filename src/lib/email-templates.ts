@@ -21,11 +21,11 @@ function layout(body: string, unsubscribeUrl?: string) {
   <!-- Footer -->
   <tr><td style="padding-top:40px;border-top:1px solid #E4DDD4;margin-top:40px;">
     <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
-      SwiftCard · 123 Business Ave, Los Angeles, CA 90001<br>
-      ${unsubscribeUrl
-        ? `<a href="${unsubscribeUrl}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a> from marketing emails`
-        : "You are receiving this because you have an account with SwiftCard."}
+      SwiftCard · New York, NY
     </p>
+    ${unsubscribeUrl
+      ? `<p style="margin:4px 0 0;color:#b6bcc6;font-size:9px;line-height:1.5;"><a href="${unsubscribeUrl}" style="color:#b6bcc6;text-decoration:underline;">Unsubscribe</a></p>`
+      : `<p style="margin:4px 0 0;color:#b6bcc6;font-size:10px;line-height:1.5;">You are receiving this because you have an account with SwiftCard.</p>`}
   </td></tr>
 
 </table>

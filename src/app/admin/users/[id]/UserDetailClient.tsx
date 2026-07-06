@@ -5,6 +5,7 @@
 // links, 30-day activity, recent captured contacts, referral tools.
 
 import { useCallback, useEffect, useState } from "react";
+import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
 type Detail = {
@@ -104,7 +105,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
             <p className="text-gray-500 text-sm truncate">{user.email}{user.company ? ` · ${user.company}` : ""}{user.title ? ` · ${user.title}` : ""}</p>
             <p className="text-gray-600 text-xs mt-0.5">
               Joined {new Date(user.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-              {" · "}source: <span className="text-gray-400">{user.signup_source.replace(/_/g, " ")}</span>
+              {" · "}found us via: <span className="text-gray-400">{getSignupSourceLabel(user.signup_source)}</span>
               {user.referred_by && (
                 <>
                   {" · referred by "}
@@ -279,7 +280,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                 <div key={l.id} className="py-1.5 flex items-center justify-between gap-2 text-xs">
                   <div className="min-w-0">
                     <p className="text-white truncate">{l.name || l.email || l.phone || "—"}</p>
-                    <p className="text-gray-600 text-[10px] truncate">via {(l.source || "direct").replace(/_/g, " ")} · /{l.card_owner}</p>
+                    <p className="text-gray-600 text-[10px] truncate">via {getSourceLabel(l.source)} · /{l.card_owner}</p>
                   </div>
                   <span className="text-gray-600 text-[10px] shrink-0">
                     {new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}

@@ -8,7 +8,8 @@ import ShareButton from "@/components/ShareButton";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import type { CardData } from "@/components/card-templates/types";
 
-type Range = "today" | "week" | "month";
+type Range = "today" | "week" | "month" | "locations";
+type DemoLocation = { location: string; card: number; link: number };
 type Status = "New Contact" | "Touch" | "Dissolved";
 type Lead = { id: string; name: string; initial: string; source: string; color: string; status: Status; msg: string; time: string; read: boolean };
 type DemoCard = {
@@ -19,7 +20,8 @@ type DemoCard = {
   accent: string;
   data: CardData;
   total: string;
-  traffic: Record<Range, { card: string; links: string }>;
+  traffic: Record<"today" | "week" | "month", { card: string; links: string }>;
+  locations: DemoLocation[];
   leads: Lead[];
 };
 
@@ -27,6 +29,12 @@ const CARDS: DemoCard[] = [
   {
     key: "sales", label: "Sales Card", handle: "demo-sales", template: "modern-bold", accent: "#2563eb", total: "87",
     traffic: { today: { card: "142", links: "63" }, week: { card: "1,248", links: "593" }, month: { card: "4,517", links: "2,104" } },
+    locations: [
+      { location: "New York, US", card: 1834, link: 902 },
+      { location: "Chicago, US", card: 1121, link: 486 },
+      { location: "Austin, US", card: 764, link: 341 },
+      { location: "Miami, US", card: 512, link: 227 },
+    ],
     leads: [
       { id: "s1", name: "Sarah Chen", initial: "S", source: "LinkedIn", color: "#0A66C2", status: "New Contact", msg: "Loved your pitch — let's set up a call this week!", time: "2m ago", read: false },
       { id: "s2", name: "Priya Patel", initial: "P", source: "Instagram", color: "#E1306C", status: "New Contact", msg: "Saw your card — I'd love a demo for my team.", time: "1h ago", read: false },
@@ -42,8 +50,14 @@ const CARDS: DemoCard[] = [
   {
     key: "realestate", label: "Real Estate Card", handle: "demo-realty", template: "local-business", accent: "#d97706", total: "143",
     traffic: { today: { card: "231", links: "98" }, week: { card: "2,034", links: "874" }, month: { card: "7,860", links: "3,221" } },
+    locations: [
+      { location: "San Francisco, US", card: 3105, link: 1240 },
+      { location: "Oakland, US", card: 1877, link: 705 },
+      { location: "San Jose, US", card: 1442, link: 618 },
+      { location: "Sacramento, US", card: 903, link: 366 },
+    ],
     leads: [
-      { id: "r1", name: "Marcus Webb", initial: "M", source: "QR Code", color: "#1D4ED8", status: "Touch", msg: "Is the Maple St listing still available?", time: "12m ago", read: false },
+      { id: "r1", name: "Nathan Cole", initial: "N", source: "QR Code", color: "#1D4ED8", status: "Touch", msg: "Is the Maple St listing still available?", time: "12m ago", read: false },
       { id: "r2", name: "Elena Ruiz", initial: "E", source: "Website", color: "#0EA5E9", status: "New Contact", msg: "Can you send pricing for next month?", time: "2h ago", read: false },
       { id: "r3", name: "David Kim", initial: "D", source: "NFC Tap", color: "#7C3AED", status: "New Contact", msg: "Looking to tour homes this weekend.", time: "Yesterday", read: false },
       { id: "r4", name: "Olivia Brooks", initial: "O", source: "Instagram", color: "#E1306C", status: "Dissolved", msg: "Found a place — thanks for your help!", time: "4d ago", read: true },
@@ -163,7 +177,12 @@ function IframePhone({ src }: { src: string }) {
   );
 }
 
-const RANGES: { id: Range; label: string }[] = [{ id: "today", label: "Today" }, { id: "week", label: "Week" }, { id: "month", label: "Month" }];
+const RANGES: { id: Range; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "Week" },
+  { id: "month", label: "Month" },
+  { id: "locations", label: "Locations" },
+];
 const VIEWS = ["Notifications", "List", "Pipeline"] as const;
 
 export default function PreviewClient({ embedded = false }: { embedded?: boolean }) {
@@ -195,7 +214,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
 
   const card = CARDS.find((c) => c.key === activeKey)!;
   const firstName = card.data.name.split(" ")[0];
-  const traffic = card.traffic[range];
+  const traffic = card.traffic[range === "locations" ? "week" : range];
   const cardUrl = `https://swiftcard.me/card/${card.handle}`;
   const toggleRead = (id: string) => setRead((p) => ({ ...p, [id]: !p[id] }));
 
@@ -257,7 +276,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           <div className="grid sm:grid-cols-3 gap-2.5">
             {[
               { n: "1", t: "See your SwiftCard", d: "Tap Preview SwiftCard to open the real card people get." },
-              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for Instagram or TikTok." },
+              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for Instagram, TikTok, or other social bios." },
               { n: "3", t: "Preview Swift Signature", d: "Your card in every email you send." },
             ].map((s) => (
               <div key={s.n} className="rounded-xl bg-gray-900/50 border border-gray-800 px-3 py-2.5">
@@ -319,6 +338,23 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 ))}
               </div>
             </div>
+            {range === "locations" ? (
+              /* Locations — top places views come from, split by surface (mirrors the real dashboard) */
+              <div className="space-y-2">
+                {card.locations.map((loc) => (
+                  <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="text-gray-100 text-sm font-semibold truncate">📍 {loc.location}</p>
+                      <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                    </div>
+                    <div className="flex items-center gap-4 text-[11px]">
+                      <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString()}</span></span>
+                      <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString()}</span></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div className="space-y-3">
               {[
                 { label: "SwiftCard Views", sub: "from your business card link", value: traffic.card },
@@ -333,6 +369,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 </div>
               ))}
             </div>
+            )}
           </Box>
 
           {/* Swift Links — with description */}
@@ -341,7 +378,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
               <p className="text-white text-sm font-semibold">Swift Links</p>
             </div>
-            <p className="text-gray-500 text-[11px] leading-relaxed mb-3">Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your Instagram or TikTok bio.</p>
+            <p className="text-gray-500 text-[11px] leading-relaxed mb-3">Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your Instagram, TikTok, or other social bios.</p>
             <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
               <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
             </div>

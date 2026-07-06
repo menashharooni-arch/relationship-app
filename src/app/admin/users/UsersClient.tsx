@@ -4,6 +4,7 @@
 // counts, signup source — click any row to drill into that user.
 
 import { useState, useEffect, useCallback } from "react";
+import { getSignupSourceLabel } from "@/lib/source-labels";
 import { useRouter } from "next/navigation";
 
 type User = {
@@ -215,8 +216,8 @@ export default function UsersClient() {
                     <td className="px-4 py-3 text-white font-semibold tabular-nums">{u.lead_count}</td>
                     <td className="px-4 py-3 text-gray-400 tabular-nums">{u.view_count}</td>
                     <td className="px-4 py-3">
-                      <span className="text-[10px] text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full">
-                        {(u.signup_source || "direct").replace(/_/g, " ")}
+                      <span className="text-[10px] text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full" title={getSignupSourceLabel(u.signup_source)}>
+                        {getSignupSourceLabel(u.signup_source)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-[11px]">

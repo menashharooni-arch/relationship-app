@@ -232,7 +232,7 @@ function NotifyScreen() {
         {[
           { name: "Sarah Williams", src: "Instagram bio", time: "just now", hot: true },
           { name: "John Chicoine", src: "QR code scan", time: "2h ago", hot: false },
-          { name: "Jubin Kalimian", src: "Direct link", time: "Yesterday", hot: false },
+          { name: "Aaron Bennett", src: "Direct link", time: "Yesterday", hot: false },
         ].map((lead, i) => (
           <div
             key={lead.name}

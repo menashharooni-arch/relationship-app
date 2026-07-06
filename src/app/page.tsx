@@ -51,7 +51,7 @@ const FEATURES = [
   },
   {
     title: "Swift Links page",
-    body: "A link-in-bio page for your Instagram or TikTok bio.",
+    body: "A link-in-bio page for your Instagram, TikTok, or other social bios.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
@@ -160,9 +160,9 @@ const TESTIMONIALS = [
   },
   {
     quote: "As a mortgage broker, first impressions are everything. SwiftCard makes me look polished and my clients always comment on how easy it was to save my contact.",
-    name: "Jubin Kalimian",
+    name: "Aaron Bennett",
     role: "Senior Mortgage Broker",
-    initial: "JK",
+    initial: "AB",
     source: "App Store",
   },
   {
@@ -206,7 +206,7 @@ const FAQS = [
   },
   {
     q: "What is a Swift Links page?",
-    a: "Every card comes with its own Swift Links page — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Share it anywhere you'd drop a link, like your Instagram or TikTok bio.",
+    a: "Every card comes with its own Swift Links page — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Share it anywhere you'd drop a link, like your Instagram, TikTok, or other social bios.",
   },
   {
     q: "Can I put my card in my email signature?",
@@ -269,7 +269,7 @@ export default function HomePage() {
         <div>
           <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-8 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-            14 days of Pro free — no credit card required
+            Free to start — no credit card required
           </div>
 
           <h1 className="sc-rise sc-rise-2 text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">
@@ -329,9 +329,9 @@ export default function HomePage() {
       <div className="border-t border-warm-border bg-cream py-14 px-6">
         <div className="max-w-4xl mx-auto grid grid-cols-3 gap-8 text-center">
           {[
-            { to: 30, suffix: " sec", decimals: 0, label: "To set up your card" },
-            { to: 4.9, suffix: "★", decimals: 1, label: "Average rating" },
-            { to: 3, suffix: "×", decimals: 0, label: "More follow-ups vs. paper cards" },
+            { to: 88, suffix: "%", decimals: 0, label: "of paper cards are tossed within a week — a digital card never is" },
+            { to: 70, suffix: "%", decimals: 0, label: "more follow-ups when people can save your contact instantly" },
+            { to: 1, suffix: " tap", decimals: 0, label: "to save your card to their phone — no app, no typing" },
           ].map((s, i) => (
             <div key={s.label} data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
               <CountUpStat to={s.to} suffix={s.suffix} decimals={s.decimals} className="text-4xl font-bold text-slate-900 mb-1 tabular-nums" />
@@ -376,7 +376,7 @@ export default function HomePage() {
               </div>
               <p className="text-slate-900 font-bold text-base mb-1">2. Swift Links</p>
               <p className="text-slate-500 text-sm leading-relaxed">
-                A link-in-bio page — bio, socials, and buttons at one link. Made for your Instagram or TikTok bio.
+                A link-in-bio page — bio, socials, and buttons at one link. Made for your Instagram, TikTok, or other social bios.
               </p>
             </div>
 
@@ -564,8 +564,9 @@ export default function HomePage() {
             <Link href="/contact" className="nav-link hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="nav-link hover:text-slate-900 transition-colors">Sign in</Link>
             <Link href="/login?mode=signup" className="nav-link hover:text-slate-900 transition-colors">Get started</Link>
+            <Link href="/privacy" className="nav-link hover:text-slate-900 transition-colors">Privacy</Link>
           </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard. All rights reserved.</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY. All rights reserved.</p>
         </div>
       </footer>
     </main>

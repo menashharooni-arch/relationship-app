@@ -596,7 +596,7 @@ export default async function DashboardPage({
             {/* Swift Links — a separate link from the business card */}
             <div data-tour="swift-links" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
-                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, anywhere.
+                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram, TikTok, or other social bios — anywhere.
               </p>
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
               <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">

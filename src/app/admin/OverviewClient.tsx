@@ -4,6 +4,7 @@
 // business doing (signups, revenue, engagement), and where new users came from.
 
 import { useEffect, useState } from "react";
+import { getSignupSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
 type Analytics = {
@@ -93,7 +94,7 @@ export default function OverviewClient() {
                 const max = Math.max(...data.acquisition.map((x) => x.signups), 1);
                 return (
                   <div key={a.source} className="flex items-center gap-3 text-xs">
-                    <span className="text-gray-300 w-28 shrink-0 truncate">{a.source.replace(/_/g, " ")}</span>
+                    <span className="text-gray-300 w-40 shrink-0 truncate" title={getSignupSourceLabel(a.source)}>{getSignupSourceLabel(a.source)}</span>
                     <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(a.signups / max) * 100}%` }} />
                     </div>

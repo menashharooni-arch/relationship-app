@@ -155,6 +155,9 @@ export default async function FlowSettingsPage() {
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
             <ManageAccount isPro={isPro} />
+            <p className="text-center mt-4">
+              <a href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</a>
+            </p>
           </div>
 
         </div>

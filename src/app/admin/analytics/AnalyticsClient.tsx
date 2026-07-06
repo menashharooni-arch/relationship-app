@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
 type Analytics = {
@@ -45,14 +46,14 @@ function BarChart({ series, color = "#3b82f6" }: { series: { date: string; count
   );
 }
 
-function Bars({ rows, color = "#3b82f6" }: { rows: [string, number][]; color?: string }) {
+function Bars({ rows, color = "#3b82f6", labeler }: { rows: [string, number][]; color?: string; labeler?: (key: string) => string }) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
   if (!rows.length) return <p className="text-gray-600 text-xs">No data yet.</p>;
   return (
     <div className="space-y-2">
       {rows.map(([label, n]) => (
         <div key={label} className="flex items-center gap-3">
-          <span className="text-gray-300 text-xs w-28 shrink-0 truncate capitalize">{label.replace(/_/g, " ")}</span>
+          <span className="text-gray-300 text-xs w-36 shrink-0 truncate" title={labeler ? labeler(label) : label.replace(/_/g, " ")}>{labeler ? labeler(label) : label.replace(/_/g, " ")}</span>
           <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${(n / max) * 100}%`, background: color }} />
           </div>
@@ -127,7 +128,7 @@ export default function AnalyticsClient() {
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                 <p className="text-white font-semibold text-sm mb-4">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
-                <Bars rows={a.leads.bySource} color="#22c55e" />
+                <Bars rows={a.leads.bySource} color="#22c55e" labeler={getSourceLabel} />
               </div>
             </div>
 
@@ -210,7 +211,7 @@ export default function AnalyticsClient() {
                     <tbody className="divide-y divide-gray-800/60">
                       {a.acquisition.map((row) => (
                         <tr key={row.source}>
-                          <td className="py-2 text-gray-300 text-xs capitalize">{row.source.replace(/_/g, " ")}</td>
+                          <td className="py-2 text-gray-300 text-xs">{getSignupSourceLabel(row.source)}</td>
                           <td className="py-2 text-right text-white font-semibold tabular-nums">{row.signups.toLocaleString()}</td>
                           <td className="py-2 text-right text-gray-400 tabular-nums">{row.d30.toLocaleString()}</td>
                           <td className="py-2 text-right text-gray-400 tabular-nums">{row.paid.toLocaleString()}</td>
