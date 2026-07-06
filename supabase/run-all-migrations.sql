@@ -15,6 +15,18 @@
 -- ============================================================================
 
 
+-- ── 0) Make optional lead columns nullable ──────────────────────────────────
+-- The "share your info" form only requires name + phone; email/company/message/
+-- location are optional. If these columns are NOT NULL, a phone-only capture
+-- fails with "null value ... violates not-null constraint" and the visitor sees
+-- "something went wrong". DROP NOT NULL is idempotent (no-op if already nullable).
+ALTER TABLE leads ALTER COLUMN email    DROP NOT NULL;
+ALTER TABLE leads ALTER COLUMN phone    DROP NOT NULL;
+ALTER TABLE leads ALTER COLUMN company  DROP NOT NULL;
+ALTER TABLE leads ALTER COLUMN message  DROP NOT NULL;
+ALTER TABLE leads ALTER COLUMN location DROP NOT NULL;
+
+
 -- ── 1) Per-card notifications ───────────────────────────────────────────────
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS card_owner text;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_card
