@@ -3,8 +3,12 @@ import SwiftCardLogo from "@/components/SwiftCardLogo";
 import HeroPhone from "@/components/HeroPhone";
 import PreviewClient from "@/app/preview/PreviewClient";
 import ScrollReveal from "@/components/ScrollReveal";
+import ScrollProgress from "@/components/ScrollProgress";
+import MarketingNav from "@/components/MarketingNav";
 import CountUpStat from "@/components/CountUpStat";
 import StickyMobileCTA from "@/components/StickyMobileCTA";
+
+const HERO_HEADLINE = "The digital business card people save in one tap.";
 
 const STEPS = [
   {
@@ -235,46 +239,36 @@ const SOURCE_BADGE_COLORS: Record<string, string> = {
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <ScrollProgress />
       <ScrollReveal />
       <StickyMobileCTA />
 
-      {/* Nav */}
-      <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
-          <SwiftCardLogo size={30} />
-          <div className="flex items-center gap-8">
-            <Link href="#demo" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
-              See it live
-            </Link>
-            <Link href="/pricing" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
-              Pricing
-            </Link>
-            <Link href="/contact" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
-              Contact
-            </Link>
-            <Link href="/login" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors">
-              Sign in
-            </Link>
-            <Link
-              href="/login?mode=signup"
-              className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm"
-            >
-              Get started free
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* Nav — scroll-aware, animated mobile menu (same links) */}
+      <MarketingNav />
 
       {/* Hero — clear, benefit-first, instantly scannable */}
-      <section className="max-w-6xl mx-auto w-full px-6 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="relative max-w-6xl mx-auto w-full px-6 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        {/* Decorative floating blobs — subtle depth behind the hero */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden>
+          <div className="sc-blob sc-blob-a" style={{ width: 340, height: 340, top: -80, left: -60, background: "radial-gradient(circle, rgba(29,78,216,0.14), transparent 70%)" }} />
+          <div className="sc-blob sc-blob-b" style={{ width: 300, height: 300, top: 40, right: -40, background: "radial-gradient(circle, rgba(124,58,237,0.12), transparent 70%)" }} />
+        </div>
         <div>
           <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-8 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
 
-          <h1 className="sc-rise sc-rise-2 text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">
-            The digital business card people save in one tap.
+          <h1 className="text-[2.9rem] sm:text-[3.25rem] font-bold text-slate-900 leading-[1.08] tracking-tight mb-5">
+            {HERO_HEADLINE.split(" ").map((w, i, arr) => (
+              // Wrapper keeps a real, breakable space between words (correct
+              // wrapping + text selection + screen readers); the inner span does
+              // the word-by-word rise.
+              <span key={i}>
+                <span className="sc-word" style={{ ["--sc-wd" as string]: `${120 + i * 55}ms` } as React.CSSProperties}>{w}</span>
+                {i < arr.length - 1 ? " " : ""}
+              </span>
+            ))}
           </h1>
 
           {/* Scannable "what you get" checks — so anyone gets it instantly */}
@@ -357,8 +351,8 @@ export default function HomePage() {
             {/* All three are neutral at rest; hovering any one gives it the blue
                 outline + blue highlighted icon + subtle blue tint. */}
             {/* Pillar 1 — the card */}
-            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal>
-              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
+            <div className="card-premium group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal>
+              <div className="sc-card-icon w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" d="M3 9.5h18M7 14h5" />
                 </svg>
@@ -370,8 +364,8 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 2 — Swift Links */}
-            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "90ms" }}>
-              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
+            <div className="card-premium group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "90ms" }}>
+              <div className="sc-card-icon w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                 </svg>
@@ -383,8 +377,8 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 3 — Swift Signature */}
-            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "180ms" }}>
-              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
+            <div className="card-premium group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "180ms" }}>
+              <div className="sc-card-icon w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
@@ -425,8 +419,8 @@ export default function HomePage() {
             <p className="text-slate-500 mt-3 max-w-md mx-auto text-sm">Set up once, share anywhere, and watch the leads roll in.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 relative">
-            {/* Connecting line */}
-            <div className="hidden sm:block absolute top-8 left-[22%] right-[22%] h-px bg-warm-border" />
+            {/* Connecting line — draws in left→right as the timeline reveals */}
+            <div className="hidden sm:block absolute top-8 left-[22%] right-[22%] h-px bg-warm-border" data-reveal="line" style={{ transitionDuration: "1s" }} />
 
             {STEPS.map((s, i) => (
               <div key={s.n} className="relative text-center sm:text-left" data-reveal style={{ transitionDelay: `${i * 120}ms` }}>
@@ -455,8 +449,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f, i) => (
               <div key={f.title} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }}
-                className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-6 h-full">
-                <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                className="card-premium group bg-warm-card border border-warm-card-border rounded-2xl p-6 h-full">
+                <div className="sc-card-icon w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
                   {f.icon}
                 </div>
                 <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
@@ -478,7 +472,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {TESTIMONIALS.map((t, i) => (
               <div key={t.name} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }}
-                className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
+                className="card-premium bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex gap-0.5">
                     {[...Array(5)].map((_, i) => (
@@ -532,7 +526,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-brand py-28 px-6">
+      <section className="sc-gradient-move py-28 px-6" style={{ background: "linear-gradient(120deg, #1D4ED8 0%, #2745c9 45%, #4f46e5 100%)", backgroundSize: "200% 200%" }}>
         <div className="max-w-xl mx-auto text-center" data-reveal>
           <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
             Your next deal starts with a better introduction.
