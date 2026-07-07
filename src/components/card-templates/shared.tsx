@@ -57,11 +57,41 @@ export function contactRowCount(data: CardData): number {
   );
 }
 
-// 1 at a normal amount of info, easing down to 0.7 on a packed card.
+// Density factor — the card always uses its FULL space:
+//   sparse card (≤2 rows)  → up to 1.18: text, logo and QR grow into the room
+//   normal (4 rows)        → 1
+//   packed                 → eases down to 0.7 so nothing is ever cut off
 export function fitFactor(data: CardData): number {
   const rows = contactRowCount(data);
-  if (rows <= 4) return 1;
+  if (rows <= 4) return Math.min(1.18, 1 + (4 - rows) * 0.09);
   return Math.max(0.7, 1 - (rows - 4) * 0.075);
+}
+
+// Cap used for HERO text (names/companies) — they grow with sparseness but a
+// touch less than rows so the layout stays balanced.
+export function heroGrow(f: number): number {
+  return Math.min(f, 1.14);
+}
+
+// Logo sizing that adapts to the logo's OWN shape without any JS measurement:
+// height is fixed (scaled by density), width is auto — so a square logo renders
+// height×height while a banner/wordmark logo naturally takes more width.
+// object-contain guarantees nothing is ever cropped.
+//
+// CRITICAL: when the logo shares its row with the company name, maxWidth must
+// be a PERCENTAGE of the row — a px cap ≥ the row width would squeeze the text
+// to zero and wrap it letter-by-letter down past the card's bottom edge.
+export function logoStyle(f: number, base: number, extra?: React.CSSProperties): React.CSSProperties {
+  const h = Math.round(base * Math.min(Math.max(f, 0.85), 1.3));
+  return {
+    height: h,
+    width: "auto",
+    // Default assumes a text sibling: banner logos get at most half the row.
+    maxWidth: "48%",
+    objectFit: "contain",
+    flexShrink: 0,
+    ...extra,
+  };
 }
 
 // Shrink one long value (a long email, name, or company) so it never truncates
@@ -76,9 +106,10 @@ export function fitPx(base: number, text: string | null | undefined, comfy: numb
   return Math.max(base * 0.45, (base * comfy) / len);
 }
 
-// QR stays on the card at every density — it just gives up a little room.
+// QR stays on the card at every density — it grows on sparse cards (more
+// scannable from further away) and gives up a little room when packed.
 export function qrSize(f: number): number {
-  return f >= 1 ? 66 : f >= 0.85 ? 60 : 54;
+  return f >= 1.12 ? 74 : f >= 1 ? 66 : f >= 0.85 ? 60 : 54;
 }
 
 // Last-resort safety valve: past the point where shrinking text can absorb the
@@ -110,8 +141,12 @@ export type RowPalette = {
 export function ContactRows({ data, palette, f }: { data: CardData; palette: RowPalette; f: number }) {
   const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
   const gap = Math.round(5 * f);
-  const emailSize = fitPx(13 * f, data.email, 24);
-  const webSize = fitPx(11.5 * f, data.website, 26);
+  // Email/website grow a bit less than the rest (capped at 1.1) and shrink on a
+  // tighter budget — sized for the narrowest contact panel (ModernBold) so a
+  // grown email can never poke past the card edge.
+  const rowGrow = Math.min(f, 1.1);
+  const emailSize = fitPx(13 * rowGrow, data.email, 22);
+  const webSize = fitPx(11.5 * rowGrow, data.website, 24);
   return (
     <div className="flex flex-col" style={{ gap }}>
       {cardPhones(data).map((p, i) => (

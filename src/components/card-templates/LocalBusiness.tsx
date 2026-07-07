@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, qrSize } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -52,8 +52,8 @@ export default function LocalBusiness({ data }: { data: CardData }) {
             <img
               src={data.logoUrl}
               alt="logo"
-              className="rounded-xl object-contain"
-              style={{ width: 58, height: 58, background: "rgba(255,255,255,0.15)", padding: 5 }}
+              className="rounded-xl"
+              style={logoStyle(f, 58, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(58 * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
             />
           ) : (
             <div
@@ -73,7 +73,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="absolute bottom-0 left-0 px-5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(20, data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+            style={{ fontSize: fitPx(20 * heroGrow(f), data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
           >
             {data.name}
           </h2>

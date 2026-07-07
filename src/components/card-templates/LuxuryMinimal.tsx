@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, qrSize } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -66,7 +66,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="w-8 h-8 object-contain shrink-0 rounded" />
+            <img src={data.logoUrl} alt="logo" className="rounded" style={logoStyle(f, 32, { maxWidth: data.company ? "48%" : "88%" })} />
           ) : null}
           <p
             className="min-w-0 leading-tight"
@@ -81,7 +81,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: fitPx(23, data.name, 17),
+              fontSize: fitPx(23 * heroGrow(f), data.name, 17),
               fontWeight: 400,
               letterSpacing: "0.01em",
               color: TEXT,
