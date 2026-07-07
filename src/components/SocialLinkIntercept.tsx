@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 export type SocialLinkData = {
   label: string;
@@ -102,11 +103,13 @@ export default function SocialLinkIntercept({
   function skip() {
     if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
     setPendingHref(null);
+    triggerSignupNudge("link_button");
   }
 
   // Just dismiss the popup without visiting the link.
   function close() {
     setPendingHref(null);
+    triggerSignupNudge("link_button");
   }
 
   async function shareAndVisit(e: React.FormEvent) {
@@ -138,6 +141,9 @@ export default function SocialLinkIntercept({
     setTimeout(() => {
       if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
       setPendingHref(null);
+      // They just shared their info off someone's card — invite them to make
+      // their own (the host shows it once per session, never to logged-in users).
+      triggerSignupNudge("share_info");
     }, 800);
   }
 
