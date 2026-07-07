@@ -123,6 +123,14 @@ body {
 }
 .sc-btn-glow { animation: sc-btn-glow 1.35s ease-in-out infinite; }
 
+/* Notifications panel — slides in from the right edge (mobile + web). */
+@keyframes sc-notif-in {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.sc-notif-in { animation: sc-notif-in .22s cubic-bezier(.2,.7,.2,1); }
+@media (prefers-reduced-motion: reduce) { .sc-notif-in { animation: none; } }
+
 @media (prefers-reduced-motion: reduce) {
   .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
   .reveal3d, .sc-js [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }

@@ -59,6 +59,35 @@ function hashStr(s: string): string {
   return h.toString(36);
 }
 
+// Replace every <img> src with an inlined data URL BEFORE capturing. html-to-image
+// otherwise re-fetches each image while rasterizing, which (with cache-busting or
+// a slow proxy MISS) was dropping the photo/logo and leaving a blank panel. Once
+// the src is a data URL there's nothing to fetch — the image always embeds.
+async function inlineImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.currentSrc || img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:")) return;
+    try {
+      const res = await fetch(src, { cache: "force-cache" });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = dataUrl;
+        setTimeout(resolve, 3000);
+      });
+    } catch { /* keep the original src — better a proxied fetch than nothing */ }
+  }));
+}
+
 function CardPreview({ src, ready, status, onLoad, onError }: {
   src: string; ready: boolean; status: "idle" | "working" | "error"; onLoad: () => void; onError: () => void;
 }) {
@@ -99,7 +128,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
   // card's image. "v8" bump = auto-fit template layout change.
-  const contentSig = "v8|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  const contentSig = "v9|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
@@ -122,11 +151,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       if (!el) return null;
       // Wait for the lazy-loaded template to actually render…
       for (let i = 0; i < 80 && el.offsetHeight < 150; i++) await new Promise((r) => setTimeout(r, 100));
-      // …and for its images (photo/logo) to load.
-      const imgs = Array.from(el.querySelectorAll("img"));
-      await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
-        ? Promise.resolve()
-        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
+      // …then inline the photo/logo as data URLs so they always embed (this is
+      // what makes the signature a faithful copy of the real card).
+      await inlineImages(el);
 
       // Hide the QR for the signature (done in the DOM, not via context, so the
       // templates stay server-renderable on the public card page).
@@ -154,7 +181,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         width: w * SCALE,
         height: h * SCALE,
         pixelRatio: 1,
-        cacheBust: true,
+        cacheBust: false, // images are already inlined; cache-busting was dropping the photo
         backgroundColor: "#ffffff",
         style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
       });
