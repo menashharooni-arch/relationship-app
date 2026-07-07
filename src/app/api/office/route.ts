@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { PLAN_LIMITS } from "@/lib/plan";
 import { NextResponse } from "next/server";
 
 // GET — return office + members for the calling admin
@@ -11,7 +12,7 @@ export async function GET() {
     .from("offices")
     .select("*, office_members(*)")
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   return NextResponse.json(office ?? null);
 }
@@ -37,15 +38,18 @@ export async function POST(req: Request) {
     .from("offices")
     .select("*")
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
   if (existing) return NextResponse.json(existing);
 
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Office name required" }, { status: 400 });
 
+  // Seats MUST be set — the invite/seat math divides by it. A Stripe purchase
+  // provisions the real seat count via the webhook; a manually-created office
+  // (e.g. plan granted by an admin) defaults to the minimum so invites work.
   const { data: office, error } = await supabase
     .from("offices")
-    .insert({ name: name.trim(), owner_id: user.id })
+    .insert({ name: name.trim(), owner_id: user.id, seats: PLAN_LIMITS.OFFICE_MIN_SEATS })
     .select()
     .single();
 
