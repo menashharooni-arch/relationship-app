@@ -181,7 +181,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: SETTINGS,
     anchor: "settings-cards",
     title: "Your cards",
-    body: "Rename, edit, add cards, or set your main one.",
+    body: "Rename, edit, or add cards.",
     placement: "bottom",
   },
   {
