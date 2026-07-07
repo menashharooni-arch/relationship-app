@@ -2,6 +2,8 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
+import ShareCardCapture from "@/components/ShareCardCapture";
+import type { CardData } from "@/components/card-templates/types";
 import Link from "next/link";
 
 export default async function CardEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +24,37 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
   const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+  // Share-preview capture data — IDENTICAL construction to the dashboard's, so
+  // saving an edit re-photographs the card right here (router.refresh() reloads
+  // this server component with fresh data → content hash changes → re-capture).
+  // Without this, an edited card's texted-link preview stayed stale until the
+  // owner next opened the dashboard with this card selected.
+  const _addr = (card.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
+  const captureData: CardData = {
+    name: card.name || "",
+    title: card.title || "",
+    company: card.company || "",
+    phone: card.phone || "",
+    email: card.email || "",
+    website: card.website || "",
+    instagram: card.instagram || "",
+    twitter: card.twitter || "",
+    tiktok: card.tiktok || "",
+    linkedin: card.linkedin || "",
+    initials: card.name ? (card.name as string).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "SC",
+    photoUrl: profile?.photo_url || null,
+    logoUrl: card.logo_url || null,
+    cardUrl: `${APP_URL.replace("https://", "")}/card/${card.username}`,
+    address: _addr
+      ? [
+          [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
+          _addr.city ?? "",
+          [_addr.state, _addr.zip].filter(Boolean).join(" "),
+        ].filter(Boolean).join("\n")
+      : "",
+    customization: card.customization ?? {},
+  };
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
@@ -51,6 +84,14 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
 
         <CardEditForm card={card} photoUrl={profile?.photo_url ?? null} logoUrl={card.logo_url ?? null} isPro={isPro} />
       </div>
+
+      {/* Invisible: keeps the texted-link share preview a pixel-perfect copy
+          of this card, re-capturing whenever its content changes. */}
+      <ShareCardCapture
+        cardData={captureData}
+        template={(card.template as string) ?? "classic-pro"}
+        username={card.username as string}
+      />
     </main>
   );
 }
