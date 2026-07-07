@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { hasWalletConfig } from "@/lib/wallet-config";
+import { isCardActive } from "@/lib/card-active";
 
 // Signing needs Node (node-forge + fetch of assets) — never the edge runtime.
 export const runtime = "nodejs";
@@ -19,6 +20,14 @@ export async function GET(req: NextRequest) {
 
   const username = req.nextUrl.searchParams.get("card");
   if (!username) return NextResponse.json({ error: "missing_card" }, { status: 400 });
+
+  // Kill-switch: no passes for deleted accounts or plan-deactivated cards —
+  // the pass is a durable artifact, so it must never be mintable for a card
+  // whose links are dead. (Passes already in wallets point at the card URL,
+  // which the same kill-switch 404s.)
+  if (!(await isCardActive(username))) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
   const admin = getAdminSupabase();
   const select = "username, name, title, company, phone, email, website";

@@ -20,6 +20,7 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
+import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
 import { isPaidPlan } from "@/lib/plan";
 import { buildConnectLinks } from "@/lib/social-url";
@@ -122,6 +123,12 @@ export default async function CardPage({
     : (legacyCardOk ? profileRow : null);
 
   if (!profile || ownerDeleted) notFound();
+
+  // Plan kill-switch: a Free account only serves its first card(s) — extra
+  // cards created on Pro go dark (page, QR, links) after a downgrade.
+  if (cardRow && !(await cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan))) {
+    notFound();
+  }
 
   // Don't count the owner viewing their own card as a view.
   const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);

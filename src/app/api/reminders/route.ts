@@ -26,6 +26,9 @@ async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, 
     ? await supabase.from("profiles").select(profileSelect).eq("id", card.user_id).maybeSingle()
     : await supabase.from("profiles").select(profileSelect).eq("username", username).maybeSingle();
   if (!profile) return null;
+  // Deleted accounts send NOTHING — no automation may keep emailing/texting
+  // a deleted account's contacts. Single choke point for both flows.
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) return null;
   const sender = {
     name: (card?.name as string) || (profile.name as string) || null,
     title: (card?.title as string) || (profile.title as string) || null,

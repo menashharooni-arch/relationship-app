@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { cardWithinPlanLimit } from "@/lib/card-active";
 
 export type ResolvedCardMeta = {
   name: string | null;
@@ -24,7 +25,7 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
 
   const { data: owner } = cardRow
-    ? await admin.from("profiles").select("photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("photo_url, customization, plan").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
 
   const { data: profileRow } = !cardRow
@@ -35,6 +36,10 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     ? !!(owner?.customization as { _deleted?: boolean } | null)?._deleted
     : !!(profileRow?.customization as { _deleted?: boolean } | null)?._deleted;
   if (deleted) return null;
+
+  // Plan kill-switch — extra Pro-era cards resolve to nothing (kills the OG
+  // share image and the wallet pass alongside the page itself).
+  if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, owner?.plan))) return null;
 
   const legacyOk =
     !cardRow &&

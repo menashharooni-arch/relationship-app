@@ -428,8 +428,11 @@ export default async function DashboardPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {allCards.map((card) => {
+              {allCards.map((card, cardIdx) => {
                 const isActive = activeUsername === card.username;
+                // Mirrors the public kill-switch (lib/card-active): on Free,
+                // only the oldest FREE_CARD_LIMIT card(s) serve publicly.
+                const planInactive = !isPro && cardIdx >= PLAN_LIMITS.FREE_CARD_LIMIT;
                 return (
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
@@ -448,7 +451,14 @@ export default async function DashboardPage({
                         {(card.label || card.name || card.username)[0]?.toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+                        <p className="text-white text-sm font-medium truncate">
+                          {card.label || card.name || card.username}
+                          {planInactive && (
+                            <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
+                              LINK OFF — PRO ONLY
+                            </span>
+                          )}
+                        </p>
                         <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
                       </div>
                     </Link>
