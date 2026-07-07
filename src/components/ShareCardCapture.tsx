@@ -33,6 +33,20 @@ function hashStr(s: string): string {
   return h.toString(36);
 }
 
+// PNG dimensions straight from the header (width @ byte 16, height @ byte 20)
+// of a data:image/png;base64 URL — no Image() round-trip needed.
+function pngDims(dataUrl: string): { w: number; h: number } | null {
+  try {
+    const bin = atob(dataUrl.slice("data:image/png;base64,".length, "data:image/png;base64,".length + 44));
+    const at = (i: number) =>
+      (bin.charCodeAt(i) << 24) | (bin.charCodeAt(i + 1) << 16) | (bin.charCodeAt(i + 2) << 8) | bin.charCodeAt(i + 3);
+    const w = at(16) >>> 0, h = at(20) >>> 0;
+    return w > 0 && h > 0 ? { w, h } : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ShareCardCapture({
   cardData,
   template,
@@ -96,7 +110,19 @@ export default function ShareCardCapture({
       png,
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
     ]);
-    return dataUrl && dataUrl.length >= 5000 ? dataUrl : null; // null = blank/timed-out
+    if (!dataUrl || dataUrl.length < 5000) return null; // blank / timed out
+
+    // Pre-flight: a real card capture is landscape (~1.35–1.75:1). Anything
+    // else means the template didn't lay out (e.g. a browser without
+    // aspect-ratio support captured a square) — treat as a failed attempt so
+    // we retry and, failing that, keep the previous/fallback preview instead
+    // of poisoning storage with a wrong image.
+    const dims = pngDims(dataUrl);
+    if (!dims) return null;
+    const ratio = dims.w / Math.max(1, dims.h);
+    if (ratio < 1.25 || ratio > 2.4) return null;
+
+    return dataUrl;
   }
 
   async function captureAndUpload() {

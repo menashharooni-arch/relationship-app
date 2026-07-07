@@ -28,6 +28,20 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(dataUrl.split(",")[1], "base64");
   if (buffer.length > 12_000_000) return NextResponse.json({ error: "too large" }, { status: 413 });
 
+  // Defense in depth: only accept CARD-SHAPED PNGs (landscape ~1.35–1.75:1,
+  // wider when the card grows taller). A square/portrait upload means the
+  // client capture failed mid-layout — storing it would make the share
+  // preview show a wrong picture on every messenger, so reject it here too.
+  if (buffer.length < 8 || buffer.readUInt32BE(0) !== 0x89504e47) {
+    return NextResponse.json({ error: "not a png" }, { status: 400 });
+  }
+  const pngW = buffer.readUInt32BE(16);
+  const pngH = buffer.readUInt32BE(20);
+  const ratio = pngW / Math.max(1, pngH);
+  if (pngW < 300 || ratio < 1.25 || ratio > 2.4) {
+    return NextResponse.json({ error: "not card-shaped" }, { status: 400 });
+  }
+
   const admin = getAdminSupabase();
   await admin.storage.createBucket(BUCKET, { public: true }).catch(() => {}); // idempotent
 
