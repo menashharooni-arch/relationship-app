@@ -115,10 +115,21 @@ body {
 .btn-cta { transition: transform .2s ease, box-shadow .28s ease, background-color .2s ease, color .2s ease; }
 .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -12px rgba(29,78,216,.55); }
 
+/* Pulsing glow — draws the eye to a button that's ready to be clicked
+   (e.g. "Add link" once both fields are filled). */
+@keyframes sc-btn-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.45), 0 0 14px rgba(37,99,235,0.45); }
+  50%      { box-shadow: 0 0 0 3px rgba(37,99,235,0.22), 0 0 24px rgba(37,99,235,0.85); }
+}
+.sc-btn-glow { animation: sc-btn-glow 1.35s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
   .reveal3d, .sc-js [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
   .hover-lift:hover, .btn-cta:hover { transform: none !important; }
+  /* No pulse for reduced-motion users, but keep a static glow so the "ready"
+     state is still obvious. */
+  .sc-btn-glow { animation: none !important; box-shadow: 0 0 16px rgba(37,99,235,0.75) !important; }
 }
 
 /* ── Light mode (cream white) for app surfaces ──────────────────────────────
