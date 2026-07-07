@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import ScrollProgress from "@/components/ScrollProgress";
+import ScrollReveal from "@/components/ScrollReveal";
 import { PLAN_LIMITS } from "@/lib/plan";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
@@ -135,6 +137,8 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <ScrollProgress />
+      <ScrollReveal />
 
       {/* Nav */}
       <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
@@ -149,7 +153,7 @@ export default function PricingPage() {
             </Link>
             <Link
               href="/login?mode=signup"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
+              className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
             </Link>
@@ -240,7 +244,7 @@ export default function PricingPage() {
       <section className="max-w-6xl mx-auto w-full px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-5">
 
         {/* Free */}
-        <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
+        <div data-reveal className="card-premium bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
           <p className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-3">Free</p>
           <div className="flex items-end gap-1 mb-1">
             <span className="text-4xl font-bold text-slate-900">$0</span>
@@ -263,7 +267,7 @@ export default function PricingPage() {
         </div>
 
         {/* Pro */}
-        <div className="relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-xl shadow-blue-200">
+        <div data-reveal style={{ transitionDelay: "90ms" }} className="card-premium relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-xl shadow-blue-200">
           <div className="absolute top-5 right-5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
             POPULAR
           </div>
@@ -307,7 +311,7 @@ export default function PricingPage() {
         </div>
 
         {/* Office Plan */}
-        <div className="relative bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
+        <div data-reveal style={{ transitionDelay: "180ms" }} className="card-premium relative bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#E0D5F0" }}>
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-purple-700">

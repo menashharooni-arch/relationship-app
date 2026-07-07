@@ -131,6 +131,114 @@ body {
 .sc-notif-in { animation: sc-notif-in .22s cubic-bezier(.2,.7,.2,1); }
 @media (prefers-reduced-motion: reduce) { .sc-notif-in { animation: none; } }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PREMIUM MOTION SYSTEM — one cohesive animation language for the marketing
+   site. Everything here is GPU-friendly (transform/opacity/filter only), runs
+   once, and is fully disabled under prefers-reduced-motion (block at the end).
+   Tokens keep timing + easing consistent across every interaction.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --ease-out: cubic-bezier(.16,.8,.3,1);      /* reveals, movement in */
+  --ease-inout: cubic-bezier(.65,.05,.36,1);  /* symmetrical */
+  --ease-spring: cubic-bezier(.34,1.4,.5,1);  /* gentle overshoot, used sparingly */
+  --dur-fast: .18s;
+  --dur-med: .3s;
+  --dur-slow: .7s;
+}
+
+/* ── Scroll progress bar (top of viewport) ─────────────────────────────────── */
+.sc-scroll-progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 60;
+  transform: scaleX(var(--sc-progress, 0)); transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--color-brand), #7c3aed 60%, #ec4899);
+  will-change: transform;
+}
+
+/* ── Sticky nav: gains blur + shadow + tighter padding once scrolled ───────── */
+.sc-nav { transition: background-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out); }
+.sc-nav.is-stuck {
+  background-color: color-mix(in srgb, var(--color-cream) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  box-shadow: 0 1px 0 rgba(15,23,42,.06), 0 8px 30px -18px rgba(15,23,42,.28);
+}
+
+/* ── Blur-in reveal variant (premium fade; add filter to the reveal transition) */
+.sc-js [data-reveal] { transition: opacity .75s var(--ease-out), transform .75s var(--ease-out), filter .75s var(--ease-out); }
+.sc-js [data-reveal="blur"] { transform: translateY(20px); filter: blur(10px); }
+.sc-js [data-reveal="blur"].is-in { transform: none; filter: blur(0); }
+/* Line-draw (timelines / connectors): scales in from the left. */
+.sc-js [data-reveal="line"] { transform: scaleX(0); transform-origin: left center; opacity: 1; }
+.sc-js [data-reveal="line"].is-in { transform: scaleX(1); }
+
+/* ── Hero headline: word-by-word rise (on load, above the fold) ────────────── */
+@keyframes sc-word-in {
+  from { opacity: 0; transform: translateY(0.5em) rotate(1.5deg); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0) rotate(0);         filter: blur(0); }
+}
+.sc-word { display: inline-block; opacity: 0; animation: sc-word-in .7s var(--ease-out) forwards; animation-delay: var(--sc-wd, 0ms); will-change: transform, opacity, filter; }
+
+/* ── Premium card: lift + soft shadow + brand border/ring + inner top sheen ── */
+.card-premium {
+  position: relative;
+  transition: transform var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out);
+  will-change: transform;
+}
+.card-premium:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 22px 48px -22px rgba(29,78,216,.32), 0 6px 16px -10px rgba(15,23,42,.18);
+  border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+/* soft brand glow ring that fades in on hover — pure opacity, no layout cost */
+.card-premium::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 40%, transparent) inset,
+              0 0 24px color-mix(in srgb, var(--color-brand) 20%, transparent) inset;
+  opacity: 0; transition: opacity var(--dur-med) var(--ease-out);
+}
+.card-premium:hover::after { opacity: 1; }
+/* icon inside a premium card gets a subtle pop */
+.card-premium .sc-card-icon { transition: transform var(--dur-med) var(--ease-spring); }
+.card-premium:hover .sc-card-icon { transform: translateY(-2px) scale(1.06); }
+
+/* ── Button sheen: a soft light sweep passes across on hover ────────────────── */
+.btn-cta { position: relative; overflow: hidden; isolation: isolate; }
+.btn-cta::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: skewX(-18deg); transition: left .6s var(--ease-out); pointer-events: none;
+}
+.btn-cta:hover::before { left: 130%; }
+
+/* ── Gradient drift (CTA band) ─────────────────────────────────────────────── */
+@keyframes sc-gradient-drift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.sc-gradient-move { background-size: 200% 200%; animation: sc-gradient-drift 14s ease-in-out infinite; }
+
+/* ── Floating background blobs (very subtle, decorative, behind content) ────── */
+@keyframes sc-drift-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(24px,-30px) scale(1.08); } }
+@keyframes sc-drift-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-28px,22px) scale(1.1); } }
+.sc-blob { position: absolute; border-radius: 9999px; filter: blur(48px); pointer-events: none; will-change: transform; }
+.sc-blob-a { animation: sc-drift-a 18s ease-in-out infinite; }
+.sc-blob-b { animation: sc-drift-b 22s ease-in-out infinite; }
+
+/* ── Refined input focus (forms) ───────────────────────────────────────────── */
+.sc-input { transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), background-color var(--dur-med) var(--ease-out); }
+.sc-input:focus, .sc-input:focus-visible {
+  outline: none; border-color: var(--color-brand);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand) 14%, transparent);
+}
+
+/* ── Reduced motion: honour it everywhere in the premium system ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .sc-word { animation: none !important; opacity: 1 !important; }
+  .sc-blob-a, .sc-blob-b, .sc-gradient-move { animation: none !important; }
+  .btn-cta::before { display: none; }
+  .card-premium { transition: box-shadow var(--dur-med) ease, border-color var(--dur-med) ease; }
+  .card-premium:hover { transform: none; }
+  .card-premium:hover .sc-card-icon { transform: none; }
+  .sc-scroll-progress { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sc-rise, .sc-fade-in, .sc-phone-bob, .sc-phone-glow { animation: none !important; opacity: 1 !important; }
   .reveal3d, .sc-js [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
