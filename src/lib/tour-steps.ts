@@ -169,15 +169,26 @@ export const TOUR_STEPS: TourStep[] = [
     placement: "left",
   },
 
-  // ── Contacts page ─────────────────────────────────────────────────────────
+  // ── Contacts page — walk through a real contact + its automations ─────────
+  // (The Contacts page auto-opens the sample contact while the tour runs, so
+  // these two steps always have a live contact to point at.)
   {
-    id: "contacts-page",
+    id: "contact-detail",
     path: CONTACTS,
-    anchor: "contacts-page",
-    title: "Your full contact book",
+    anchor: "contact-detail",
+    title: "This is a contact",
     body:
-      "Here's the complete Contacts page. Open anyone to see their full history, add notes, set a follow-up date, and (on Pro) export everyone to a CSV. This is your CRM.",
+      "Here's a sample contact we added so you can see how it works (delete it anytime). Everyone who scans or taps your card lands here automatically — with how you met, their status, your private notes, and the full conversation. Tap any contact in the list to open their profile.",
     placement: "bottom",
+  },
+  {
+    id: "contact-automations",
+    path: CONTACTS,
+    anchor: "contact-automations",
+    title: "Send follow-ups on autopilot",
+    body:
+      "This is the magic. Flip on Email or Text, pick a cadence (Light, Medium, or Aggressive), and the AI writes each message from your notes about them. Hit Submit and SwiftCard sends the whole sequence for you — so leads never go cold. Email and text run independently.",
+    placement: "top",
   },
 
   // ── Settings ──────────────────────────────────────────────────────────────

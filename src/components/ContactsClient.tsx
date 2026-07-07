@@ -195,6 +195,22 @@ export default function ContactsClient({
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
 
+  // Guided tour: when the tour reaches the Contacts page, auto-open the sample
+  // (demo) contact on its info tab so the tour can walk through the contact's
+  // details and the follow-up automations. No-op outside the tour.
+  useEffect(() => {
+    let touring = false;
+    try { touring = sessionStorage.getItem("sc_tour_running") === "1"; } catch { /* ignore */ }
+    if (!touring) return;
+    const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
+    if (demo) {
+      setSelected(demo);
+      setDetailTab("info");
+      setWhereMetText(demo.where_met ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function saveContact() {
     if (!selected) return;
     setFieldSaving("contact");
@@ -669,7 +685,7 @@ export default function ContactsClient({
             </div>
           <div className="max-w-xl mx-auto p-6 sm:p-8 pb-24 lg:pb-8">
             {/* Header */}
-            <div className="flex items-start gap-5 mb-8">
+            <div data-tour="contact-detail" className="flex items-start gap-5 mb-8">
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
                 {selected.name[0]?.toUpperCase() ?? "?"}
               </div>
@@ -938,7 +954,7 @@ export default function ContactsClient({
                 paused channel and it resumes when switched back on). Reset clears
                 a channel's automation so a fresh one can be submitted, restarting
                 from submit time. */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <div data-tour="contact-automations" className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
               <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
 
