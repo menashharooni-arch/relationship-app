@@ -329,7 +329,7 @@ export default async function CardPage({
                   className="flex items-center gap-2.5 w-full py-3.5 px-5 rounded-2xl font-semibold text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-sm"
                   style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", color: "#0f172a" }}
                 >
-                  <span className="text-base">{link.emoji}</span>
+                  {link.emoji && <span className="text-base">{link.emoji}</span>}
                   {link.label}
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 ml-auto opacity-30">
                     <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
