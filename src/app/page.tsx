@@ -4,6 +4,7 @@ import HeroPhone from "@/components/HeroPhone";
 import PreviewClient from "@/app/preview/PreviewClient";
 import ScrollReveal from "@/components/ScrollReveal";
 import CountUpStat from "@/components/CountUpStat";
+import StickyMobileCTA from "@/components/StickyMobileCTA";
 
 const STEPS = [
   {
@@ -235,6 +236,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
       <ScrollReveal />
+      <StickyMobileCTA />
 
       {/* Nav */}
       <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
