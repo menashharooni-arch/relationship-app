@@ -22,7 +22,7 @@ import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -140,7 +140,14 @@ export default async function CardPage({
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-  const customization = (profile.customization ?? {}) as {
+  // Render-time plan enforcement: a downgraded Pro's card may still have Pro
+  // design keys (accentColor/font) and >2 link buttons SAVED — the save-time
+  // sanitizer only covers new writes. Sanitize here too so the PUBLIC card
+  // always reflects the owner's CURRENT plan (Swift Links page already does).
+  const customization = sanitizeCustomizationForPlan(
+    (profile.customization ?? {}) as Record<string, unknown>,
+    isPaidPlan(profile.plan)
+  ) as {
     bio?: string;
     facebook?: string;
     snapchat?: string;
@@ -207,7 +214,10 @@ export default async function CardPage({
     tiktok: profile.tiktok || "",
   };
 
-  const templateId = (profile.template as string) || "classic-pro";
+  // The custom designer is Pro-only — a downgraded card falls back to the
+  // standard template at render time (same rule the save path enforces).
+  const rawTemplateId = (profile.template as string) || "classic-pro";
+  const templateId = rawTemplateId === "custom" && !isPaidPlan(profile.plan) ? "classic-pro" : rawTemplateId;
   const TemplateComponent = TEMPLATES[templateId] ?? ClassicPro;
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
