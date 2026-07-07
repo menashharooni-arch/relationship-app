@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -54,17 +54,17 @@ export default function ClassicPro({ data }: { data: CardData }) {
             <img
               src={data.logoUrl}
               alt="logo"
-              className="rounded-lg object-contain shrink-0"
-              style={{ width: 40, height: 40, background: "rgba(255,255,255,0.1)" }}
+              className="rounded-lg"
+              style={logoStyle(f, 40, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? "48%" : "88%" })}
             />
           ) : (
             <div
               className="rounded-lg flex items-center justify-center shrink-0 font-black"
               style={{
-                width: 40, height: 40,
+                width: Math.round(40 * heroGrow(f)), height: Math.round(40 * heroGrow(f)),
                 background: BLUE,
                 color: "#bfdbfe",
-                fontSize: 18,
+                fontSize: Math.round(18 * heroGrow(f)),
               }}
             >
               {(data.company || data.name || "K")[0].toUpperCase()}
@@ -83,7 +83,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(24, data.name, 16), lineHeight: 1.12 }}
+            style={{ fontSize: fitPx(24 * heroGrow(f), data.name, 16), lineHeight: 1.12 }}
           >
             {data.name}
           </h2>

@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -59,7 +59,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="w-8 h-8 rounded-md object-contain shrink-0" />
+            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 32, { maxWidth: data.company ? "48%" : "88%" })} />
           )}
           <p
             className="min-w-0 leading-tight"
@@ -74,7 +74,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: fitPx(28, data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em" }}
+            style={{ fontSize: fitPx(28 * heroGrow(f), data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em" }}
           >
             {data.name}
           </h2>

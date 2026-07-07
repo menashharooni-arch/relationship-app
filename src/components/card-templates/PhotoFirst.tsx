@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, qrSize, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 
@@ -80,7 +80,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div className="relative px-3.5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(18, data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+            style={{ fontSize: fitPx(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
           >
             {data.name}
           </h2>
@@ -102,7 +102,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="w-9 h-9 rounded-md object-contain shrink-0" />
+              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 36, { maxWidth: data.company ? "48%" : "88%" })} />
             )}
             <p className="font-extrabold text-gray-900 min-w-0 leading-tight" style={{ fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
               {data.company}
