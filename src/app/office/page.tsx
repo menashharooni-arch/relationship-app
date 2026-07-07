@@ -50,44 +50,36 @@ export default async function OfficePage() {
     .eq("owner_id", user.id)
     .single();
 
-  // Fetch unified team leads if office exists
+  // Fetch unified team leads if office exists. Leads are keyed by CARD username,
+  // which differs from a member's profile handle — so gather every card slug the
+  // owner and active members own (profile slug covers legacy profile-cards),
+  // otherwise member leads captured on their real cards would be missing.
   let teamLeads: TeamLead[] = [];
   if (office) {
     const admin = getAdminSupabase();
     const members = (office.office_members ?? []) as Member[];
-    const activeMembers = members.filter((m) => m.status === "active" && m.user_id);
-    const memberUserIds = activeMembers.map((m) => m.user_id!);
+    const memberUserIds = members.filter((m) => m.status === "active" && m.user_id).map((m) => m.user_id!);
+    const allUserIds = [user.id, ...memberUserIds];
 
-    if (memberUserIds.length > 0) {
-      // Get usernames of all active members
-      const { data: memberProfiles } = await admin
-        .from("profiles")
-        .select("username")
-        .in("id", memberUserIds);
+    const [{ data: teamProfiles }, { data: teamCards }] = await Promise.all([
+      admin.from("profiles").select("username").in("id", allUserIds),
+      admin.from("cards").select("username").in("user_id", allUserIds),
+    ]);
 
-      const memberUsernames = [
-        profile.username,
-        ...(memberProfiles ?? []).map((p) => p.username),
-      ];
+    const memberUsernames = Array.from(new Set([
+      profile.username,
+      ...(teamProfiles ?? []).map((p) => p.username as string),
+      ...(teamCards ?? []).map((c) => c.username as string),
+    ].filter(Boolean))) as string[];
 
-      const { data: leads } = await admin
-        .from("leads")
-        .select("id, name, email, phone, status, created_at, card_owner, location, tags")
-        .in("card_owner", memberUsernames)
-        .order("created_at", { ascending: false })
-        .limit(100);
+    const { data: leads } = await admin
+      .from("leads")
+      .select("id, name, email, phone, status, created_at, card_owner, location, tags")
+      .in("card_owner", memberUsernames)
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-      teamLeads = (leads ?? []) as TeamLead[];
-    } else {
-      // Just owner's leads
-      const { data: leads } = await admin
-        .from("leads")
-        .select("id, name, email, phone, status, created_at, card_owner, location, tags")
-        .eq("card_owner", profile.username)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      teamLeads = (leads ?? []) as TeamLead[];
-    }
+    teamLeads = (leads ?? []) as TeamLead[];
   }
 
   return (

@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { PLAN_LIMITS } from "@/lib/plan";
 import { NextResponse } from "next/server";
+
+const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -22,6 +25,26 @@ export async function POST(req: Request) {
   if (!member) return NextResponse.json({ error: "Invalid or expired invite link." }, { status: 404 });
   if (member.status === "active") return NextResponse.json({ error: "This invite has already been used." }, { status: 400 });
 
+  const officeId = (member.offices as { id: string } | null)?.id ?? member.office_id;
+
+  // HARD seat guard at accept time. The invite-send check only counts ACTIVE
+  // members, so an admin could send more pending invites than seats; without
+  // this, all of them accepting would overflow the seat count. This is the
+  // real guarantee that active members never exceed the paid seats.
+  const { data: officeRow } = await admin.from("offices").select("seats").eq("id", officeId).maybeSingle();
+  const seatCap = (officeRow?.seats as number | null) ?? OFFICE_MIN_SEATS;
+  const { count: activeCount } = await admin
+    .from("office_members")
+    .select("*", { count: "exact", head: true })
+    .eq("office_id", officeId)
+    .eq("status", "active");
+  if ((activeCount ?? 0) >= seatCap) {
+    return NextResponse.json(
+      { error: "This team's seats are all full. Ask the team admin to free up or add a seat." },
+      { status: 409 }
+    );
+  }
+
   // Accept: mark active, link user_id
   const { error: updateError } = await admin
     .from("office_members")
@@ -31,7 +54,6 @@ export async function POST(req: Request) {
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
   // Give the joining user enterprise plan + link to office
-  const officeId = (member.offices as { id: string } | null)?.id ?? member.office_id;
   await admin
     .from("profiles")
     .update({ plan: "enterprise", office_id: officeId })
