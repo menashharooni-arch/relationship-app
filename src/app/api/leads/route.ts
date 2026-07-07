@@ -63,15 +63,14 @@ export async function POST(req: NextRequest) {
       ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
       : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
 
-    // Kill-switch: no lead capture for deleted accounts or plan-deactivated
-    // extra cards — the page 404s, and this API must not be a back door.
-    if (ownerProfile) {
-      if (ownerIsDeleted(ownerProfile.customization)) {
-        return NextResponse.json({ error: "not_found" }, { status: 404 });
-      }
-      if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerProfile.plan))) {
-        return NextResponse.json({ error: "not_found" }, { status: 404 });
-      }
+    // Kill-switch: no lead capture for nonexistent slugs, deleted accounts, or
+    // plan-deactivated extra cards — the page 404s, and this API must not be a
+    // back door (previously a bogus card_owner could insert orphan leads).
+    if (!ownerProfile || ownerIsDeleted(ownerProfile.customization)) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerProfile.plan))) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
     if (!isPaidPlan(ownerProfile?.plan)) {
