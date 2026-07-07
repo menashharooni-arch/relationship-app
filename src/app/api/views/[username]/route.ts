@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { checkViewMilestone } from "@/lib/milestones";
+import { isCardActive } from "@/lib/card-active";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
   const { username } = await params;
+
+  // Only record views for cards that actually serve. Blocks spam inflation of
+  // view counts via direct POSTs for nonexistent/deleted/plan-deactivated slugs
+  // (the "__links" suffix maps back to its card).
+  const baseSlug = username.replace(/__links$/, "");
+  if (!(await isCardActive(baseSlug))) {
+    return NextResponse.json({ ok: true }); // don't reveal which slugs exist
+  }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? req.headers.get("x-real-ip")

@@ -27,7 +27,10 @@ export default async function ContactsPage({
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
-  await ensureUserCards(user.id);
+  // Skip the one-time migration entirely once done (the common case).
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id);
+  }
 
   const admin = getAdminSupabase();
   const { data: cards } = await admin

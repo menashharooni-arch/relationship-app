@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 
+// sharp (image resizing) needs the Node runtime.
+export const runtime = "nodejs";
+
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
@@ -50,13 +53,41 @@ export async function POST(req: Request) {
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
-  const ext = file.name.split(".").pop() ?? "jpg";
+  // Resize + compress at upload. Phone photos arrive at 3-5MB / 4000px+ — storing
+  // originals made every card page, signature and share capture slow. 1000px is
+  // ~3x the largest display size, so everything stays retina-sharp, never blurry.
+  //   photo → JPEG (q85, EXIF-rotated)   logo → PNG (keeps transparency)
+  //   gif  → passthrough (may be animated)
+  const arrayBuffer = await file.arrayBuffer();
+  let body: ArrayBuffer | Buffer = arrayBuffer;
+  let contentType = file.type;
+  let ext = file.name.split(".").pop() ?? "jpg";
+  if (file.type !== "image/gif") {
+    try {
+      const sharp = (await import("sharp")).default;
+      const MAXDIM = field === "photo" ? 1000 : 800;
+      const img = sharp(Buffer.from(arrayBuffer)).rotate().resize(MAXDIM, MAXDIM, { fit: "inside", withoutEnlargement: true });
+      if (field === "logo") {
+        body = await img.png({ compressionLevel: 9 }).toBuffer();
+        contentType = "image/png";
+        ext = "png";
+      } else {
+        body = await img.jpeg({ quality: 85 }).toBuffer();
+        contentType = "image/jpeg";
+        ext = "jpg";
+      }
+    } catch {
+      // sharp failure → store the original rather than fail the upload.
+      body = arrayBuffer;
+      contentType = file.type;
+    }
+  }
+
   const path = `${user.id}/${field}-${Date.now()}.${ext}`;
 
-  const arrayBuffer = await file.arrayBuffer();
   const { error: uploadError } = await supabase.storage
     .from("card-uploads")
-    .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+    .upload(path, body, { contentType, upsert: true });
 
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
