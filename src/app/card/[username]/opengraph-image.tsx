@@ -35,9 +35,29 @@ export const runtime = "nodejs";
 
 type Meta = NonNullable<Awaited<ReturnType<typeof resolveCardMeta>>>;
 
-function initialsOf(name: string) {
-  return name.split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+function initialsOf(name: string | null | undefined) {
+  return (name ?? "").split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2) || "SC";
 }
+
+// Guaranteed-renderable branded fallback — ASCII text only, so it can NEVER
+// hit Satori's "missing glyph" error the way an arbitrary name/company could.
+function BrandFallback() {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0b1120 0%, #1e293b 100%)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
+        <div style={{ width: 76, height: 76, borderRadius: 20, background: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 46, fontWeight: 800, color: "#fff" }}>S</div>
+        <div style={{ fontSize: 54, fontWeight: 800, color: "#fff", letterSpacing: -1 }}>SwiftCard</div>
+      </div>
+    </div>
+  );
+}
+
+// Absolute last resort: a static solid PNG (bytes are constant → cannot fail).
+// Only reached if next/og itself is broken, which would be a deploy-wide issue.
+const SOLID_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABgAAAAOCAIAAAC6mkspAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAHElEQVR4nGPgFlSgCmIYNYh7NIy4R9OR4BDKIgAi4U7BLtU/7QAAAABJRU5ErkJggg==",
+  "base64"
+);
 
 function Contact({ value, dot, color, fs = 27 }: { value: string; dot: string; color: string; fs?: number }) {
   return (
@@ -231,6 +251,17 @@ function GenericOG(p: Meta) {
   );
 }
 
+// Render an element to a fully-materialized PNG Response. Forcing the buffer
+// here (not returning the streaming ImageResponse) means a Satori failure —
+// a missing glyph, an unexpected value — is caught by OUR try/catch instead of
+// surfacing as a 500 / broken image on the messenger.
+async function toResponse(el: React.ReactElement, contentType = "image/png"): Promise<Response> {
+  const buf = await new ImageResponse(el, { ...size }).arrayBuffer();
+  return new Response(buf, {
+    headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=60, s-maxage=60" },
+  });
+}
+
 export default async function Image({
   params,
 }: {
@@ -238,67 +269,64 @@ export default async function Image({
 }) {
   const { username } = await params;
 
-  // Prefer the pixel-perfect capture of the real card when it exists — but
-  // NEVER serve the raw file: captures can be huge (2×-DPR PNGs of several MB)
-  // and WhatsApp silently drops any og:image over ~600KB, killing the preview.
-  // Embedding the capture in a proper 1200×630 ImageResponse frame re-encodes
-  // it small AND matches the og:image:width/height the page declares.
-  const stored = await storedCardImage(username);
-  if (stored) {
-    // The capture IS the card. COVER-fit it to the exact frame so it fills
-    // edge-to-edge with NO blank space — the capture's ratio already matches
-    // the frame's (both ~1.75:1), so this is a clean fill with no visible crop.
-    // Re-encoded to JPEG (~40-90KB) to stay under WhatsApp's ~600KB ceiling.
-    try {
-      // Sanity guard: a real card capture is landscape (~1.35–1.9:1). Anything
-      // else (e.g. a square photo from an old buggy capture) must NOT become the
-      // preview — fall through to the faithful rendered card instead.
+  // ── Tier 1: the pixel-perfect capture of the real card ────────────────────
+  // Cover-fit to the exact frame → full-bleed, no blank space. JPEG keeps it
+  // small (~40-90KB, under WhatsApp's ~600KB ceiling). Any failure → next tier.
+  try {
+    const stored = await storedCardImage(username);
+    if (stored) {
       const hdr = new DataView(stored);
       const ratio = hdr.getUint32(16) / Math.max(1, hdr.getUint32(20));
-      if (ratio < 1.25 || ratio > 2.4) throw new Error("not card-shaped");
-
-      const sharp = (await import("sharp")).default;
-      const jpeg = await sharp(Buffer.from(stored))
-        .resize(size.width, size.height, { fit: "cover", position: "centre" })
-        .jpeg({ quality: 86 })
-        .toBuffer();
-      return new Response(new Uint8Array(jpeg), {
-        headers: {
-          "Content-Type": "image/jpeg",
-          // Short cache so an edited card's new preview propagates quickly.
-          "Cache-Control": "public, max-age=60, s-maxage=60",
-        },
-      });
-    } catch {
-      // sharp unavailable/failed — fall through to the rendered approximation.
+      if (ratio >= 1.25 && ratio <= 2.4) {
+        const sharp = (await import("sharp")).default;
+        const jpeg = await sharp(Buffer.from(stored))
+          .resize(size.width, size.height, { fit: "cover", position: "centre" })
+          .jpeg({ quality: 86 })
+          .toBuffer();
+        return new Response(new Uint8Array(jpeg), {
+          headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=60, s-maxage=60" },
+        });
+      }
     }
+  } catch {
+    /* fall through to the rendered card */
   }
 
-  const p = await resolveCardMeta(username);
+  // ── Tier 2: faithfully render the card (full-bleed) ───────────────────────
+  try {
+    let p: Meta | null = null;
+    try { p = await resolveCardMeta(username); } catch { p = null; }
+    const meta: Meta = p ?? {
+      name: "SwiftCard", title: null, company: null, photoUrl: null, logoUrl: null,
+      phone: null, email: null, website: null, address: null, accentColor: null, template: null,
+    };
+    // Never hand the renderers a null name (used for initials/hero text).
+    if (!(typeof meta.name === "string" && meta.name.trim())) meta.name = "SwiftCard";
 
-  const meta: Meta = p ?? {
-    name: "SwiftCard", title: null, company: null, photoUrl: null, logoUrl: null,
-    phone: null, email: null, website: null, address: null, accentColor: null, template: null,
-  };
-
-  let card: React.ReactElement;
-  switch (meta.template) {
-    case "modern-bold":     card = ModernBoldOG(meta); break;
-    case "classic-pro":     card = ClassicProOG(meta); break;
-    case "photo-first":     card = PhotoFirstOG(meta); break;
-    case "local-business":  card = LocalBusinessOG(meta); break;
-    case "luxury-minimal":  card = LuxuryMinimalOG(meta); break;
-    default:                card = meta.template ? GenericOG(meta) : ClassicProOG(meta); break;
+    let card: React.ReactElement;
+    switch (meta.template) {
+      case "modern-bold":     card = ModernBoldOG(meta); break;
+      case "classic-pro":     card = ClassicProOG(meta); break;
+      case "photo-first":     card = PhotoFirstOG(meta); break;
+      case "local-business":  card = LocalBusinessOG(meta); break;
+      case "luxury-minimal":  card = LuxuryMinimalOG(meta); break;
+      default:                card = meta.template ? GenericOG(meta) : ClassicProOG(meta); break;
+    }
+    // Full-bleed: the card fills the ENTIRE frame — no backdrop, no blank space.
+    return await toResponse(<div style={{ width: "100%", height: "100%", display: "flex" }}>{card}</div>);
+  } catch {
+    /* fall through to the branded fallback */
   }
 
-  return new ImageResponse(
-    (
-      // Full-bleed: the card fills the ENTIRE frame — no backdrop, no rounded
-      // float, no blank space. The card design's own background reaches every edge.
-      <div style={{ width: "100%", height: "100%", display: "flex" }}>
-        {card}
-      </div>
-    ),
-    { ...size }
-  );
+  // ── Tier 3: guaranteed branded image (ASCII only — can't glyph-fail) ──────
+  try {
+    return await toResponse(<BrandFallback />);
+  } catch {
+    /* fall through to the static bytes */
+  }
+
+  // ── Tier 4: static solid PNG — literally cannot fail ──────────────────────
+  return new Response(SOLID_PNG, {
+    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=60" },
+  });
 }
