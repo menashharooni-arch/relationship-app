@@ -35,8 +35,6 @@ const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
 ];
 
-const LINK_EMOJIS = ["🔗", "🌐", "📅", "⭐", "🎥", "🏠", "💼", "📋", "📸", "🎵", "💸", "📄"];
-
 const TEMPLATES = [
   { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
   { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
@@ -94,7 +92,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [bio, setBio] = useState(card.customization?.bio || "");
   const [website, setWebsite] = useState(card.website || "");
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
-  const [newLink, setNewLink] = useState({ label: "", url: "", emoji: "🔗" });
+  const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Record<SocialKey, string>>({
     linkedin:  card.linkedin || "",
     instagram: card.instagram || "",
@@ -144,8 +142,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     let url = newLink.url.trim();
     if (!linkLabel || !url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((prev) => [...prev, { emoji: newLink.emoji || "🔗", label: linkLabel, url }]);
-    setNewLink({ label: "", url: "", emoji: "🔗" });
+    // Add the link, then reset the fields so another can be entered right away.
+    setLinks((prev) => [...prev, { label: linkLabel, url }]);
+    setNewLink({ label: "", url: "" });
   }
   function removeLink(i: number) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i));
@@ -227,7 +226,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       });
       if (res.ok) {
         setStatus("saved");
-        setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
+        // Show the "Saved" confirmation briefly, then return to the dashboard.
+        setTimeout(() => { router.push("/dashboard"); }, 1000);
       } else {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 2500);
@@ -444,7 +444,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div className="space-y-2 mb-2">
                 {links.map((l, i) => (
                   <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
-                    <span className="text-base shrink-0">{l.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                       <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
@@ -455,19 +454,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             )}
             <div className="space-y-2">
-              {/* Emoji picker */}
-              <div className="flex flex-wrap gap-1.5">
-                {LINK_EMOJIS.map((em) => (
-                  <button
-                    key={em}
-                    type="button"
-                    onClick={() => setNewLink((n) => ({ ...n, emoji: em }))}
-                    className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition-colors ${newLink.emoji === em ? "border-blue-500 bg-blue-600/20" : "border-gray-700 bg-gray-900 hover:border-gray-600"}`}
-                  >
-                    {em}
-                  </button>
-                ))}
-              </div>
               <input
                 type="text"
                 placeholder="Link name (e.g. Leave a review)"

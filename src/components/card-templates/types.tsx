@@ -2,7 +2,7 @@ import QRCode from "qrcode";
 import type { ReactElement } from "react";
 
 export type CardLink = {
-  emoji: string;
+  emoji?: string; // legacy — new links have no emoji (picker removed)
   label: string;
   url: string;
 };

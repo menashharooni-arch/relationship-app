@@ -74,7 +74,6 @@ const EMPTY_SOCIALS: Socials = {
   linkedin: "", instagram: "", tiktok: "", facebook: "", twitter: "", snapchat: "", youtube: "",
 };
 
-const LINK_EMOJIS = ["🔗", "🌐", "📅", "⭐", "🎥", "🏠", "💼", "📋", "📸", "🎵", "💸", "📄"];
 
 const TEMPLATES = [
   { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
@@ -105,7 +104,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [links, setLinks] = useState<CardLink[]>([]);
-  const [newLink, setNewLink] = useState({ label: "", url: "", emoji: "🔗" });
+  const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
   // Step 3 — media + design
@@ -152,8 +151,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     let url = newLink.url.trim();
     if (!label || !url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((prev) => [...prev, { emoji: newLink.emoji || "🔗", label, url }]);
-    setNewLink({ label: "", url: "", emoji: "🔗" });
+    // Add, then reset the fields so another link can be entered right away.
+    setLinks((prev) => [...prev, { label, url }]);
+    setNewLink({ label: "", url: "" });
   }
   function removeLink(i: number) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i));
@@ -464,7 +464,6 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) => (
                     <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
-                      <span className="text-base shrink-0">{l.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                         <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
@@ -475,19 +474,6 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               )}
               <div className="space-y-2">
-                {/* Emoji picker */}
-                <div className="flex flex-wrap gap-1.5">
-                  {LINK_EMOJIS.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => setNewLink((n) => ({ ...n, emoji: em }))}
-                      className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition-colors ${newLink.emoji === em ? "border-blue-500 bg-blue-600/20" : "border-gray-700 bg-gray-900 hover:border-gray-600"}`}
-                    >
-                      {em}
-                    </button>
-                  ))}
-                </div>
                 <input
                   type="text"
                   placeholder="Link name (e.g. Leave a review)"
