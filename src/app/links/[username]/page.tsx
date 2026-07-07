@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
@@ -23,9 +24,14 @@ async function resolve(username: string) {
   const ownerDeleted = cardRow
     ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
     : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
-  const profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
-  const photoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyOk ? (profileRow?.photo_url ?? null) : null);
+  let profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
   const ownerPlan = (cardRow ? cardOwner?.plan : profileRow?.plan) as string | null | undefined;
+  // Plan kill-switch: a Free account's extra (Pro-era) cards serve no Swift
+  // Links page either — same rule as the card page, no bypass.
+  if (profile && cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerPlan))) {
+    profile = null;
+  }
+  const photoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyOk ? (profileRow?.photo_url ?? null) : null);
   return { profile, photoUrl, ownerPlan };
 }
 

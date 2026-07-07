@@ -6,6 +6,7 @@ import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -56,11 +57,22 @@ export async function POST(req: NextRequest) {
     // for multi-card accounts that is NOT the profile slug, so look the card up
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
-    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url";
-    const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner).maybeSingle();
+    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, customization";
+    const { data: cardRow } = await admin.from("cards").select("id, user_id").eq("username", card_owner).maybeSingle();
     const { data: ownerProfile } = cardRow?.user_id
       ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
       : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
+
+    // Kill-switch: no lead capture for deleted accounts or plan-deactivated
+    // extra cards — the page 404s, and this API must not be a back door.
+    if (ownerProfile) {
+      if (ownerIsDeleted(ownerProfile.customization)) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+      if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerProfile.plan))) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
+      }
+    }
 
     if (!isPaidPlan(ownerProfile?.plan)) {
       const { count } = await admin
