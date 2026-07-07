@@ -40,7 +40,21 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   const { profile } = await resolve(username);
   if (!profile) return { title: "Swift Links" };
   const name = profile.name || username;
-  return { title: `${name} — Swift Links`, description: `Connect with ${name}.` };
+  const description = `Connect with ${name} — all their links in one place.`;
+  return {
+    title: `${name} — Swift Links`,
+    description,
+    // Texted /links/ URLs unfurl with the same picture-of-the-card preview the
+    // card link gets (iMessage/WhatsApp/SMS), reusing the card's OG image.
+    openGraph: {
+      title: `${name} — Swift Links`,
+      description,
+      url: `${APP_URL}/links/${username}`,
+      siteName: "SwiftCard",
+      images: [{ url: `${APP_URL}/card/${username}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: { card: "summary_large_image", title: `${name} — Swift Links`, description },
+  };
 }
 
 export default async function SwiftLinksPage({ params, searchParams }: { params: Promise<{ username: string }>; searchParams: Promise<{ embed?: string }> }) {
