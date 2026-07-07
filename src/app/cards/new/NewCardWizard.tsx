@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
 import EnablePushButton from "@/components/EnablePushButton";
+import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -586,7 +587,11 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               ) : (
                 <div className="rounded-2xl overflow-hidden border border-gray-800 mb-3">
-                  <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                  {/* Scale from the 460px natural width (same as the published
+                      card) so a long name/title/company never clips in-preview. */}
+                  <CardScaler>
+                    <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                  </CardScaler>
                 </div>
               )}
 

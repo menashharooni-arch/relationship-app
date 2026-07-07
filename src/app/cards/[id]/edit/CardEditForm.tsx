@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -535,7 +536,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             ) : (
               <div className="rounded-2xl overflow-hidden border border-gray-800 mb-3">
-                <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                {/* Scale from the 460px natural width (same as the published
+                    card) so a long name/title/company never clips in-preview. */}
+                <CardScaler>
+                  <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                </CardScaler>
               </div>
             )}
 
