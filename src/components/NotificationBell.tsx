@@ -86,20 +86,28 @@ export default function NotificationBell({
       {open && (
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
 
-          {/* Dropdown */}
-          <div className="absolute right-0 top-9 z-40 w-80 max-w-[calc(100vw-1.5rem)] bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+          {/* Right-side pop-up banner — fixed to the screen's right edge, same on
+              mobile and web, slides in from the right. */}
+          <div
+            role="dialog"
+            aria-label="Notifications"
+            className="sc-notif-in fixed z-[61] top-16 right-3 w-[min(360px,calc(100vw-1.5rem))] max-h-[75vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <p className="text-sm font-bold text-white">Notifications</p>
-              {notifications.some((n) => !n.read) && (
-                <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                  Mark all read
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {notifications.some((n) => !n.read) && (
+                  <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                    Mark all read
+                  </button>
+                )}
+                <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mr-0.5">✕</button>
+              </div>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-gray-800">
+            <div className="overflow-y-auto divide-y divide-gray-800">
               {notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-gray-400 text-sm">No notifications yet</p>
