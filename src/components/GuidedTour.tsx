@@ -86,7 +86,9 @@ export default function GuidedTour() {
     setRunning(false);
     targetRef.current = null;
     endTour(completed);
-  }, []);
+    // When the tour ends, land the user on their dashboard.
+    router.push("/dashboard");
+  }, [router]);
 
   const go = useCallback((next: number) => {
     if (next < 0) return;

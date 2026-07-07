@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { scanBusinessCard, ProRequiredError } from "@/lib/scan-card";
 
 export default function AddContactModal({
   cardOwner,
@@ -19,6 +20,10 @@ export default function AddContactModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [atLimit, setAtLimit] = useState(false);
+  const [scanState, setScanState] = useState<"idle" | "scanning" | "error" | "pro">("idle");
+  const [scanMsg, setScanMsg] = useState("");
+  const [scanned, setScanned] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -28,6 +33,34 @@ export default function AddContactModal({
     setForm({ name: "", email: "", phone: "", company: "", notes: "", where_met: "" });
     setError("");
     setAtLimit(false);
+    setScanState("idle");
+    setScanMsg("");
+    setScanned(false);
+  }
+
+  // Scan a business card → auto-fill name/company/email/phone. The user still
+  // adds "where you met" and notes. Same robust helper as the dashboard scanner
+  // (compresses huge phone photos + times out so it never hangs).
+  async function handleScan(file: File) {
+    setScanState("scanning");
+    setScanMsg("");
+    if (fileRef.current) fileRef.current.value = "";
+    try {
+      const d = await scanBusinessCard(file);
+      setForm((prev) => ({
+        ...prev,
+        name: d.name || prev.name,
+        email: d.email || prev.email,
+        phone: d.phone || prev.phone,
+        company: d.company || prev.company,
+      }));
+      setScanned(true);
+      setScanState("idle");
+    } catch (err) {
+      if (err instanceof ProRequiredError) { setScanState("pro"); setScanMsg("Card scanning is a Pro feature."); }
+      else if (err instanceof DOMException && err.name === "AbortError") { setScanState("error"); setScanMsg("That took too long — try a clearer photo."); }
+      else { setScanState("error"); setScanMsg("Couldn't read that card. Try a clear, well-lit photo."); }
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -100,6 +133,43 @@ export default function AddContactModal({
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3 overflow-y-auto">
+              {/* Scan a business card — auto-fills the fields below */}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleScan(f); }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={scanState === "scanning"}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {scanState === "scanning" ? (
+                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Reading card…</>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>
+                    Scan a business card
+                  </>
+                )}
+              </button>
+              {scanned && scanState === "idle" && (
+                <p className="text-emerald-400 text-[11px] text-center">✓ Filled from the card — add where you met &amp; notes below.</p>
+              )}
+              {scanState === "error" && <p className="text-amber-400 text-[11px] text-center">{scanMsg}</p>}
+              {scanState === "pro" && (
+                <p className="text-[11px] text-center text-blue-300">{scanMsg} <Link href="/pricing" className="font-semibold underline">Upgrade →</Link></p>
+              )}
+              <div className="flex items-center gap-2 py-0.5">
+                <div className="flex-1 h-px bg-gray-800" />
+                <span className="text-gray-600 text-[10px] uppercase tracking-wide">or enter manually</span>
+                <div className="flex-1 h-px bg-gray-800" />
+              </div>
+
               <div>
                 <label className="text-xs text-gray-400 font-medium block mb-1">Full name *</label>
                 <input
