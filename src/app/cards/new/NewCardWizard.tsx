@@ -488,14 +488,23 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                   onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
                   className={inputCls}
                 />
-                <button
-                  type="button"
-                  onClick={addLink}
-                  disabled={atLinkCap || !newLink.label.trim() || !newLink.url.trim()}
-                  className="w-full border border-dashed border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-40 text-xs font-medium py-2.5 rounded-xl transition-colors"
-                >
-                  + Add link
-                </button>
+                {(() => {
+                  const readyToAdd = !atLinkCap && !!newLink.label.trim() && !!newLink.url.trim();
+                  return (
+                    <button
+                      type="button"
+                      onClick={addLink}
+                      disabled={!readyToAdd}
+                      className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                        readyToAdd
+                          ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                          : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
+                      }`}
+                    >
+                      + Add link
+                    </button>
+                  );
+                })()}
                 {atLinkCap && (
                   <p className="text-[11px] text-blue-400 text-center">
                     Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} buttons — <Link href="/pricing" className="underline hover:text-blue-300">upgrade to Pro</Link> for unlimited.
