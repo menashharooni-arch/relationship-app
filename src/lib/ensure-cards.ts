@@ -17,10 +17,16 @@ const CARD_FIELDS = [
  * also means a card the user later deletes is NOT re-created. Purely additive: it
  * never deletes profile data.
  */
-export async function ensureUserCards(userId: string): Promise<void> {
+export async function ensureUserCards(userId: string, prefetchedProfile?: Record<string, unknown>): Promise<void> {
   const admin = getAdminSupabase();
 
-  const { data: profile } = await admin.from("profiles").select("*").eq("id", userId).single();
+  // Callers that already hold the profile row pass it in — saves a round trip
+  // on every dashboard load (this runs on each visit but is a no-op once migrated).
+  let profile = prefetchedProfile ?? null;
+  if (!profile) {
+    const { data } = await admin.from("profiles").select("*").eq("id", userId).single();
+    profile = (data as Record<string, unknown>) ?? null;
+  }
   if (!profile) return;
 
   const p = profile as Record<string, unknown>;

@@ -58,10 +58,20 @@ export async function POST(req: NextRequest) {
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
     const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, customization";
-    const { data: cardRow } = await admin.from("cards").select("id, user_id").eq("username", card_owner).maybeSingle();
+    const { data: cardRow } = await admin.from("cards").select("id, user_id, name, email, phone, company").eq("username", card_owner).maybeSingle();
     const { data: ownerProfile } = cardRow?.user_id
       ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
       : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
+
+    // ISOLATION RULE: the account's signup email must never appear on anything
+    // card-facing. Everything shown to the LEAD comes from the CARD's own
+    // identity (falling back to the profile only for legacy profile-cards).
+    const cardIdentity = {
+      name: (cardRow?.name as string) || ownerProfile?.name || "",
+      email: (cardRow?.email as string) || ownerProfile?.email || "",
+      phone: (cardRow?.phone as string) || ownerProfile?.phone || "",
+      company: (cardRow?.company as string) || ownerProfile?.company || "",
+    };
 
     // Kill-switch: no lead capture for nonexistent slugs, deleted accounts, or
     // plan-deactivated extra cards — the page 404s, and this API must not be a
@@ -198,15 +208,18 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
-    // Send instant confirmation email to the lead (only when they provided an email)
-    if (email && ownerProfile?.name && ownerProfile?.email) {
+    // Send instant confirmation email to the lead (only when they provided an
+    // email). Everything the LEAD sees is the CARD's identity — never the
+    // account's signup email (cardIdentity falls back to profile only for
+    // legacy profile-cards).
+    if (email && cardIdentity.name && cardIdentity.email) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const ownerFirst = ownerProfile.name.split(" ")[0];
+      const ownerFirst = cardIdentity.name.split(" ")[0];
       const leadFirst = name.split(" ")[0];
 
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-        replyTo: ownerProfile.email,
+        replyTo: cardIdentity.email,
         to: email,
         subject: `Great connecting with you, ${leadFirst}! — ${ownerFirst}`,
         html: `
@@ -220,10 +233,10 @@ export async function POST(req: NextRequest) {
               </p>
 
               <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                <p style="margin:0 0 8px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>
-                ${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}
-                <a href="mailto:${ownerProfile.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${ownerProfile.email}</a>
-                ${ownerProfile.phone ? `<a href="tel:${ownerProfile.phone}" style="display:block;color:#2563eb;font-size:13px;">${ownerProfile.phone}</a>` : ""}
+                <p style="margin:0 0 8px;font-weight:700;color:#111827;font-size:15px;">${cardIdentity.name}</p>
+                ${cardIdentity.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${cardIdentity.company}</p>` : ""}
+                <a href="mailto:${cardIdentity.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${cardIdentity.email}</a>
+                ${cardIdentity.phone ? `<a href="tel:${cardIdentity.phone}" style="display:block;color:#2563eb;font-size:13px;">${cardIdentity.phone}</a>` : ""}
               </div>
 
               <p style="color:#6b7280;font-size:13px;margin:0;">

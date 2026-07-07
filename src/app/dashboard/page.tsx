@@ -61,7 +61,10 @@ export default async function DashboardPage({
 
   // Migrate any legacy "primary card" (stored on the profile) into the cards table,
   // then treat the cards table as the single source of truth — no primary card.
-  await ensureUserCards(user.id);
+  // Skip entirely once migrated (the common case) — saves DB round trips per load.
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id, profile as Record<string, unknown>);
+  }
 
   const { data: cards } = await getAdminSupabase()
     .from("cards")
@@ -184,17 +187,43 @@ export default async function DashboardPage({
     d.setUTCHours(0, 0, 0, 0);
     return d.toISOString();
   })();
-  const [{ count: swiftCardViews }, { count: swiftLinkViews }] = await Promise.all([
+  // ONE parallel batch for everything below-the-fold — previously 4 sequential
+  // awaits (2 counts → best-day rows → locations → leads+notifications), i.e.
+  // 3 extra DB round trips per dashboard load. Now a single round trip's latency.
+  const [
+    { count: swiftCardViews },
+    { count: swiftLinkViews },
+    { data: recentViews },
+    locViewsRes,
+    { data: leads },
+    { data: notifications },
+    ownedOfficeRes,
+  ] = await Promise.all([
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+    supabase
+      .from("card_views")
+      .select("viewed_at")
+      .in("username", [analyticsUsername, linkUsername])
+      .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString()),
+    viewsRange === "locations"
+      ? supabase.from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("leads")
+      .select("id, name, email, phone, company, message, location, notes, status, tags, source, follow_up_date, created_at, card_owner")
+      .eq("card_owner", activeUsername)
+      .order(
+        sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
+        { ascending: sortBy === "name-asc" || sortBy === "oldest" }
+      ),
+    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    isEnterprise
+      ? supabase.from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   // Basic-panel "best day" (last 30d views) — available to every plan.
-  const { data: recentViews } = await supabase
-    .from("card_views")
-    .select("viewed_at")
-    .in("username", [analyticsUsername, linkUsername])
-    .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString());
   const dayTally: Record<string, number> = {};
   for (const v of recentViews ?? []) {
     const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
@@ -209,14 +238,9 @@ export default async function DashboardPage({
   // with the SwiftCard vs Swift Links split per location. All-time totals.
   let topLocations: { location: string; card: number; link: number; total: number }[] = [];
   if (viewsRange === "locations") {
-    const { data: locViews } = await supabase
-      .from("card_views")
-      .select("username, location")
-      .in("username", [analyticsUsername, linkUsername])
-      .not("location", "is", null);
     const locMap: Record<string, { card: number; link: number }> = {};
-    for (const v of locViews ?? []) {
-      const loc = (v.location as string | null)?.trim();
+    for (const v of (locViewsRes.data ?? []) as { username: string; location: string | null }[]) {
+      const loc = v.location?.trim();
       if (!loc) continue;
       const slot = (locMap[loc] ??= { card: 0, link: 0 });
       if (v.username === linkUsername) slot.link++; else slot.card++;
@@ -226,21 +250,6 @@ export default async function DashboardPage({
       .sort((a, b) => b.total - a.total)
       .slice(0, 8);
   }
-
-  const [
-    { data: leads },
-    { data: notifications },
-  ] = await Promise.all([
-    supabase
-      .from("leads")
-      .select("id, name, email, phone, company, message, location, notes, status, tags, source, follow_up_date, created_at, card_owner")
-      .eq("card_owner", activeUsername)
-      .order(
-        sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
-        { ascending: sortBy === "name-asc" || sortBy === "oldest" }
-      ),
-    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
-  ]);
 
   const allLeads = leads ?? [];
 
@@ -269,9 +278,7 @@ export default async function DashboardPage({
   const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
   const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
 
-  const { data: ownedOffice } = isEnterprise
-    ? await supabase.from("offices").select("id, name").eq("owner_id", user.id).single()
-    : { data: null };
+  const ownedOffice = ownedOfficeRes.data;
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
