@@ -558,7 +558,7 @@ export default function HomePage() {
       <footer className="border-t border-warm-border py-12 px-6 bg-cream">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
-          <div className="flex items-center gap-8 text-sm text-slate-500">
+          <div className="flex items-center justify-center flex-wrap gap-x-5 gap-y-2 sm:gap-8 text-sm text-slate-500">
             <Link href="/preview" className="nav-link hover:text-slate-900 transition-colors">See it live</Link>
             <Link href="/pricing" className="nav-link hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="nav-link hover:text-slate-900 transition-colors">Contact</Link>
