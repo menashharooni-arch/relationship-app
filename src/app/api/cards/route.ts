@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { seedDemoContact } from "@/lib/demo-contact";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -89,6 +90,12 @@ export async function POST(req: NextRequest) {
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // First card on the account → seed a sample contact so the dashboard/contacts
+  // aren't empty and the guided tour has a real contact to demonstrate.
+  if ((count ?? 0) === 0) {
+    await seedDemoContact(username);
   }
 
   return NextResponse.json({ card: data });

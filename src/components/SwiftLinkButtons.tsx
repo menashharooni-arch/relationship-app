@@ -28,7 +28,10 @@ const FALLBACK_GRADIENTS = [
 ];
 
 function fullHref(url: string) {
-  return url.startsWith("http") ? url : `https://${url}`;
+  const v = (url || "").trim();
+  if (!v) return "#";
+  if (/^(https?:|mailto:|tel:)/i.test(v)) return v;
+  return `https://${v.replace(/^\/+/, "")}`;
 }
 
 export default function SwiftLinkButtons({ links }: { links: Link[] }) {

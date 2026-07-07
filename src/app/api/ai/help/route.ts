@@ -8,7 +8,7 @@ IMPORTANT: You can ONLY give directions and answer questions. You cannot make an
 
 WHAT SWIFTCARD IS
 - A digital business card. One account can hold multiple cards. Each card has a card page (swiftcard.me/card/<url>) and a Swift Links page (swiftcard.me/links/<url>) — a link-in-bio with photo, bio, social icons, video previews, and custom buttons.
-- Free: up to 3 cards and 25 contacts. Pro: unlimited cards/contacts, custom card designer, full analytics (card vs link views, locations, sources), integrations, no SwiftCard branding.
+- Free: 1 card, up to 25 contacts, all templates, analytics (views, locations), a Day-1 follow-up email, and 3 AI drafts to try. Pro: unlimited cards/contacts, custom card designer, automated multi-step follow-up sequences (Light/Medium/Aggressive), AI card scanner, unlimited Swift Links buttons, CSV export, integrations (Zapier, Google Contacts), no SwiftCard branding.
 
 KEY PLACES
 - Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
@@ -81,7 +81,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
     answer:
-      "Free includes up to 3 cards and 25 contacts. Pro adds unlimited cards & contacts, the custom card designer, full analytics, integrations, and removes SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
+      "Free includes 1 card and up to 25 contacts. Pro adds unlimited cards & contacts, the custom card designer, automated follow-up sequences, the AI card scanner, integrations, and removes SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
   },
   {
     triggers: ["upgrade", "go pro", "buy pro", "subscribe"],

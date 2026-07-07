@@ -39,7 +39,7 @@ const features = {
     "Custom card designer",
     "No SwiftCard branding",
     "Unlimited Swift Links buttons",
-    "Unlimited AI drafts + automated Day 1/15/30 sequences",
+    "Unlimited AI drafts + automated follow-up sequences (Light · Medium · Aggressive)",
     "CSV export",
     "Integrations: Zapier & Google Contacts",
     "AI business-card scanner",

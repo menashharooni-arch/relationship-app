@@ -92,7 +92,7 @@ function proLossCard() {
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Contacts cap back to 25 (existing ones stay; new captures pause)</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Extra cards become view-only (your main card stays live)</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Automated Day 15 / 30 follow-ups & AI sequences pause</p>
-    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations & full analytics lock</p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations & automated sequences lock</p>
   `);
 }
 

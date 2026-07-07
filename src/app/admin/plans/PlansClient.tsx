@@ -16,7 +16,7 @@ const FEATURES: { label: string; free: string; pro: string; office: string }[] =
   { label: "Swift Links buttons", free: "2", pro: "Unlimited", office: "Unlimited" },
   { label: "AI follow-up drafts", free: "3 total", pro: "Unlimited", office: "Unlimited" },
   { label: "Custom card designer", free: "—", pro: "✓", office: "✓" },
-  { label: "Full analytics", free: "Basic", pro: "✓", office: "✓" },
+  { label: "Automated follow-up sequences", free: "Day-1 email only", pro: "✓", office: "✓" },
   { label: "CRM integrations", free: "—", pro: "✓", office: "✓" },
   { label: "Email signature", free: "✓", pro: "✓", office: "✓" },
   { label: "SwiftCard branding badge", free: "Shown", pro: "Removed", office: "Removed" },
