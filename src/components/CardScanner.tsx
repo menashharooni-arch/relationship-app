@@ -1,15 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { scanBusinessCard, ProRequiredError, type ScannedCard } from "@/lib/scan-card";
 
-type ScannedData = {
-  name?: string;
-  title?: string;
-  company?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-};
+type ScannedData = ScannedCard;
 
 type State = "idle" | "scanning" | "review" | "saving" | "done" | "error";
 
@@ -38,32 +32,22 @@ export default function CardScanner({ cardOwner }: { cardOwner: string }) {
 
   async function handleImage(file: File) {
     setState("scanning");
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      const [prefix, base64] = dataUrl.split(",");
-      const mediaType = prefix.split(":")[1].split(";")[0];
-
-      try {
-        const res = await fetch("/api/scanner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64, mediaType }),
-        });
-        if (res.status === 403) {
-          setErrorMsg("Card scanner is a Pro feature. Upgrade to use it.");
-          setState("error");
-          return;
-        }
-        const data: ScannedData = await res.json();
-        setFields(data);
-        setState("review");
-      } catch {
-        setErrorMsg("Something went wrong. Please try again.");
-        setState("error");
+    // Reset the input so re-selecting the same photo fires onChange again.
+    if (fileRef.current) fileRef.current.value = "";
+    try {
+      const data = await scanBusinessCard(file);
+      setFields(data);
+      setState("review");
+    } catch (err) {
+      if (err instanceof ProRequiredError) {
+        setErrorMsg("Card scanner is a Pro feature. Upgrade to use it.");
+      } else if (err instanceof DOMException && err.name === "AbortError") {
+        setErrorMsg("That took too long. Try a clearer, closer photo of the card.");
+      } else {
+        setErrorMsg("Couldn't read that image. Try again with a clear, well-lit photo.");
       }
-    };
-    reader.readAsDataURL(file);
+      setState("error");
+    }
   }
 
   async function saveAsLead() {

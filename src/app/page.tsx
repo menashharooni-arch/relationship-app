@@ -1,6 +1,5 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
-import LiveDemo from "@/components/LiveDemo";
 import HeroPhone from "@/components/HeroPhone";
 import PreviewClient from "@/app/preview/PreviewClient";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -441,13 +440,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Live Demo */}
-      <section className="border-t border-warm-border bg-cream py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <LiveDemo />
         </div>
       </section>
 
