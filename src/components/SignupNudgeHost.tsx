@@ -74,12 +74,12 @@ export default function SignupNudgeHost() {
             </div>
           </div>
           <a
-            href={`/join?src=${encodeURIComponent(source)}&to=live`}
+            href={`/join?src=${encodeURIComponent(source)}`}
             className="flex items-center justify-center gap-1.5 w-full py-3 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-colors shadow-lg shadow-blue-900/40"
           >
             {copy.cta} →
           </a>
-          <p className="text-gray-500 text-[11px] text-center mt-2">Try it live first — no signup needed</p>
+          <p className="text-gray-500 text-[11px] text-center mt-2">Free to start — no credit card needed</p>
         </div>
       </div>
     </div>

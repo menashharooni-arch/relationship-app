@@ -61,6 +61,9 @@ export default function ConnectButton({
       }
       markSharedWith(cardOwner, form);
       setStatus("done");
+      // Sent successfully → briefly show the confirmation, then auto-surface the
+      // "Create your free account" invite (same as the exit path). No extra tap.
+      setTimeout(() => closeModal(), 1400);
     } catch {
       setError("Couldn't send your message. Try again.");
       setStatus("error");

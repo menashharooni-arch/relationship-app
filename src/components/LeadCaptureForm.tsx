@@ -6,10 +6,10 @@ import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/l
 type Status = "idle" | "loading" | "done" | "error" | "limit";
 
 // The post-share sales moment: a rich "make your own card" panel whose button
-// lands on the Test It Live demo (/join?to=live → /preview), not a signup form.
+// goes straight to the create-account page (/join?src → /login?mode=signup).
 function CreateCardCTA() {
   const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
-  const signupUrl = `${APP_URL}/join?src=share_info&to=live`;
+  const signupUrl = `${APP_URL}/join?src=share_info`;
 
   return (
     <div className="rounded-3xl p-[1.5px] bg-gradient-to-br from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_40px_rgba(79,70,229,0.35)]">
@@ -20,7 +20,7 @@ function CreateCardCTA() {
         </div>
         <p className="text-slate-400 text-xs leading-relaxed mb-4">
           Share your contact in one tap, capture every lead, and follow up on autopilot.
-          Try it live right now — no signup needed.
+          Free to start — no credit card needed.
         </p>
         <a
           href={signupUrl}

@@ -11,7 +11,7 @@ export async function sendPushToUser(userId: string, payload: {
   if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
 
   webpush.setVapidDetails(
-    "mailto:menashharooni@gmail.com",
+    "mailto:hello@swiftcard.me",
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
