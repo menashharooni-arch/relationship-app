@@ -50,7 +50,16 @@ export default function CountUpStat({
       { threshold: 0.4 }
     );
     io.observe(el);
-    return () => io.disconnect();
+
+    // Safety net: these are headline stats — a value stuck at 0 would literally
+    // read "0% of paper cards are tossed". If the observer never fires (odd
+    // viewport, backgrounded tab that never regains focus, throttled rAF), snap
+    // to the final value so the number is never left at 0.
+    const fallback = window.setTimeout(() => {
+      if (!started.current) { started.current = true; setVal(to); }
+    }, 2600);
+
+    return () => { io.disconnect(); window.clearTimeout(fallback); };
   }, [to, duration]);
 
   return (

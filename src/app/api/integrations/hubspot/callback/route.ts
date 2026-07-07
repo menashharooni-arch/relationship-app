@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
+import { verifyState } from "@/lib/oauth-state";
+
+export const runtime = "nodejs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -14,10 +17,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/settings/flows?integration=hubspot&status=error`);
   }
 
-  let userId: string;
-  try {
-    userId = Buffer.from(state, "base64url").toString("utf8");
-  } catch {
+  const userId = verifyState(state);
+  if (!userId) {
     return NextResponse.redirect(`${APP_URL}/settings/flows?integration=hubspot&status=error`);
   }
 

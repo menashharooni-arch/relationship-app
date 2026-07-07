@@ -43,6 +43,14 @@ export async function POST(req: NextRequest) {
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
+  // Charset guard: usernames flow into Supabase `.or()` filter strings elsewhere
+  // (dashboard analytics), where a `,` / `.` / `(` / `)` would break the filter.
+  // Lock the slug to [a-z0-9-] at the source so that can never happen.
+  const normalizedUsername = String(username).toLowerCase().trim();
+  if (!/^[a-z0-9-]{1,60}$/.test(normalizedUsername)) {
+    return NextResponse.json({ error: "Username can only contain letters, numbers, and hyphens." }, { status: 400 });
+  }
+
   // Enforce Free limits on the customization blob (Pro-only accent/font stripped,
   // link buttons capped) — backend-enforced, not just hidden in the UI.
   let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, paid);
@@ -68,7 +76,7 @@ export async function POST(req: NextRequest) {
     .from("cards")
     .insert({
       user_id: user.id,
-      username,
+      username: normalizedUsername,
       name: name || "",
       title: title || "",
       company: finalCompany,
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
   // First card on the account → seed a sample contact so the dashboard/contacts
   // aren't empty and the guided tour has a real contact to demonstrate.
   if ((count ?? 0) === 0) {
-    await seedDemoContact(username);
+    await seedDemoContact(normalizedUsername);
   }
 
   return NextResponse.json({ card: data });
