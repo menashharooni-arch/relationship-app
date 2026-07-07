@@ -353,10 +353,11 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Pillar 1 — the card (the star) */}
-            <div className="hover-lift relative bg-warm-card border-2 border-brand rounded-2xl p-7 shadow-md" data-reveal>
-              <span className="absolute -top-3 left-6 bg-brand text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">Start here</span>
-              <div className="w-11 h-11 rounded-xl bg-brand flex items-center justify-center text-white mb-4">
+            {/* All three are neutral at rest; hovering any one gives it the blue
+                outline + blue highlighted icon + subtle blue tint. */}
+            {/* Pillar 1 — the card */}
+            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal>
+              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" d="M3 9.5h18M7 14h5" />
                 </svg>
@@ -368,8 +369,8 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 2 — Swift Links */}
-            <div className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7" data-reveal style={{ transitionDelay: "90ms" }}>
-              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "90ms" }}>
+              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                 </svg>
@@ -381,8 +382,8 @@ export default function HomePage() {
             </div>
 
             {/* Pillar 3 — Swift Signature */}
-            <div className="hover-lift bg-warm-card border border-warm-card-border rounded-2xl p-7" data-reveal style={{ transitionDelay: "180ms" }}>
-              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+            <div className="hover-lift group bg-warm-card border border-warm-card-border hover:border-brand hover:bg-[#EFF3FF] rounded-2xl p-7 transition-colors" data-reveal style={{ transitionDelay: "180ms" }}>
+              <div className="w-11 h-11 rounded-xl bg-[#E8ECF5] text-brand group-hover:bg-brand group-hover:text-white flex items-center justify-center mb-4 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>

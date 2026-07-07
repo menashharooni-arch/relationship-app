@@ -544,7 +544,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               </p>
             </div>
 
-            <EnablePushButton onDone={() => router.push("/dashboard")} label="🔔 Turn on notifications" />
+            <EnablePushButton />
 
             <button
               type="button"

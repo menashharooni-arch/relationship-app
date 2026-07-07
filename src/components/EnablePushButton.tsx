@@ -6,21 +6,33 @@
 
 import { useEffect, useState } from "react";
 
-type State = "loading" | "unsupported" | "denied" | "subscribed" | "idle" | "working" | "error";
+type State = "loading" | "unsupported" | "ios-install" | "denied" | "subscribed" | "idle" | "working" | "error";
+
+// iOS (iPhone/iPad) only allows web push for a site that's been ADDED TO THE
+// HOME SCREEN and opened from there (standalone). In a normal Safari tab the
+// PushManager API doesn't even exist — so we detect this case and guide the
+// user to install, instead of a dead-end "not supported".
+function detectEnv() {
+  if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false };
+  const ua = navigator.userAgent || "";
+  const isIOS = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document);
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true;
+  const hasApis =
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  return { supported: hasApis, iosNeedsInstall: isIOS && !standalone && !hasApis };
+}
 
 export function usePushState(): [State, () => Promise<boolean>] {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window) ||
-      // Without the VAPID public key the subscribe call can only fail — treat as
-      // unsupported so the user never taps a button that silently does nothing.
-      !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    ) {
-      setState("unsupported");
+    const { supported, iosNeedsInstall } = detectEnv();
+    if (!supported) {
+      setState(iosNeedsInstall ? "ios-install" : "unsupported");
       return;
     }
     if (Notification.permission === "denied") { setState("denied"); return; }
@@ -69,14 +81,30 @@ export function usePushState(): [State, () => Promise<boolean>] {
   return [state, enable];
 }
 
+// The on/off switch itself.
+function Switch({ on, busy, onClick }: { on: boolean; busy: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label="Push notifications"
+      disabled={busy}
+      onClick={onClick}
+      className="relative w-12 h-7 rounded-full transition-colors shrink-0 disabled:opacity-60"
+      style={{ background: on ? "#059669" : "#4b5563" }}
+    >
+      <span className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all" style={{ left: on ? "22px" : "2px" }} />
+    </button>
+  );
+}
+
 export default function EnablePushButton({
   onDone,
-  label = "🔔 Turn on notifications",
-  allowDisable = false,
 }: {
   onDone?: () => void;
+  /** @deprecated kept for call-site compatibility — always a toggle now. */
   label?: string;
-  /** Settings mode: when on, show a Turn off control (full on/off toggle). */
   allowDisable?: boolean;
 }) {
   const [state, enable] = usePushState();
@@ -105,26 +133,14 @@ export default function EnablePushButton({
 
   if (state === "loading") return null;
 
-  if (state === "subscribed" && !forcedOff) {
-    if (!allowDisable) {
-      return (
-        <div className="w-full text-center text-sm font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-full py-3">
-          ✓ Notifications are on
-        </div>
-      );
-    }
-    // Settings toggle: on-state with a real off switch.
+  // iPhone/iPad in a Safari tab: guide them to install, don't dead-end.
+  if (state === "ios-install") {
     return (
-      <div className="w-full flex items-center justify-between gap-3 bg-emerald-950/40 border border-emerald-800/40 rounded-full py-2.5 px-4">
-        <span className="text-sm font-semibold text-emerald-400">✓ Notifications are on</span>
-        <button
-          type="button"
-          onClick={disable}
-          disabled={busyOff}
-          className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-600 hover:border-gray-400 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 shrink-0"
-        >
-          {busyOff ? "Turning off…" : "Turn off"}
-        </button>
+      <div className="w-full rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left">
+        <p className="text-blue-200 text-sm font-semibold">📱 Turn on notifications on iPhone</p>
+        <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
+          Tap the <strong>Share</strong> button, choose <strong>Add to Home Screen</strong>, then open SwiftCard from your home screen and switch notifications on here.
+        </p>
       </div>
     );
   }
@@ -132,7 +148,7 @@ export default function EnablePushButton({
   if (state === "unsupported") {
     return (
       <p className="text-gray-500 text-xs text-center">
-        This browser doesn&apos;t support notifications — open SwiftCard on your phone&apos;s browser and add it to your home screen to get alerts.
+        This browser doesn&apos;t support push notifications. Try Chrome on Android, or add SwiftCard to your home screen on iPhone.
       </p>
     );
   }
@@ -145,18 +161,28 @@ export default function EnablePushButton({
     );
   }
 
+  const isOn = state === "subscribed" && !forcedOff;
+  const busy = state === "working" || busyOff;
+
+  async function toggle() {
+    if (isOn) { await disable(); return; }
+    const ok = await enable();
+    if (ok) { setForcedOff(false); onDone?.(); }
+  }
+
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        onClick={async () => { const ok = await enable(); if (ok) { setForcedOff(false); onDone?.(); } }}
-        disabled={state === "working"}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-3 rounded-full transition-colors text-sm"
-      >
-        {state === "working" ? "Turning on…" : label}
-      </button>
+      <div className="w-full flex items-center justify-between gap-3 bg-gray-800/50 border border-gray-700/60 rounded-2xl py-2.5 px-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-100">🔔 Push notifications</p>
+          <p className="text-[11px] text-gray-500">
+            {busy ? "One moment…" : isOn ? "On for this device" : "Get a buzz when someone shares their info"}
+          </p>
+        </div>
+        <Switch on={isOn} busy={busy} onClick={toggle} />
+      </div>
       {state === "error" && (
-        <p className="text-amber-400 text-xs text-center">Couldn&apos;t turn notifications on — check your connection and tap again.</p>
+        <p className="text-amber-400 text-xs text-center">Couldn&apos;t turn notifications on — check your connection and tap the switch again.</p>
       )}
     </div>
   );
