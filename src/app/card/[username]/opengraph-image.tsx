@@ -23,7 +23,10 @@ async function storedCardImage(username: string): Promise<ArrayBuffer | null> {
 // photo, logo, accent) — not a generic banner. Rendered with Satori, so each
 // template is a faithful flexbox approximation of the real design.
 
-export const size = { width: 1200, height: 630 };
+// Match the card's real aspect ratio (1.75:1) so the preview IS the card,
+// edge-to-edge, with NO blank backdrop around it. 1200 / 1.75 = 686.
+// Messengers crop-to-fill their own slot from this, so no letterbox bars.
+export const size = { width: 1200, height: 686 };
 export const contentType = "image/png";
 // Always reflect the live card (so edits show up in shares immediately).
 export const dynamic = "force-dynamic";
@@ -31,10 +34,6 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type Meta = NonNullable<Awaited<ReturnType<typeof resolveCardMeta>>>;
-
-// Card canvas inside the 1200×630 frame — same 1.75:1 ratio as the real cards.
-const CARD_W = 1008;
-const CARD_H = 576;
 
 function initialsOf(name: string) {
   return name.split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2);
@@ -246,24 +245,22 @@ export default async function Image({
   // it small AND matches the og:image:width/height the page declares.
   const stored = await storedCardImage(username);
   if (stored) {
-    // Re-encode as a contain-fit 1200×630 JPEG. Photo-heavy PNGs at this size
-    // hover around WhatsApp's ~600KB og:image ceiling; JPEG lands ~50-100KB so
-    // every messenger shows the preview. sharp keeps this fast (~ms).
+    // The capture IS the card. COVER-fit it to the exact frame so it fills
+    // edge-to-edge with NO blank space — the capture's ratio already matches
+    // the frame's (both ~1.75:1), so this is a clean fill with no visible crop.
+    // Re-encoded to JPEG (~40-90KB) to stay under WhatsApp's ~600KB ceiling.
     try {
-      // Sanity guard: a real card capture is landscape (~1.35–1.75:1, wider
-      // when scaled). Anything else (e.g. a square photo from an old buggy
-      // capture) must NOT become the share preview — fall through to the
-      // faithful rendered card instead.
+      // Sanity guard: a real card capture is landscape (~1.35–1.9:1). Anything
+      // else (e.g. a square photo from an old buggy capture) must NOT become the
+      // preview — fall through to the faithful rendered card instead.
       const hdr = new DataView(stored);
       const ratio = hdr.getUint32(16) / Math.max(1, hdr.getUint32(20));
       if (ratio < 1.25 || ratio > 2.4) throw new Error("not card-shaped");
 
       const sharp = (await import("sharp")).default;
       const jpeg = await sharp(Buffer.from(stored))
-        .resize(CARD_W, CARD_H, { fit: "contain", background: "#0f172a" })
-        .extend({ top: (size.height - CARD_H) / 2, bottom: (size.height - CARD_H) / 2, left: (size.width - CARD_W) / 2, right: (size.width - CARD_W) / 2, background: "#0f172a" })
-        .flatten({ background: "#0f172a" })
-        .jpeg({ quality: 82 })
+        .resize(size.width, size.height, { fit: "cover", position: "centre" })
+        .jpeg({ quality: 86 })
         .toBuffer();
       return new Response(new Uint8Array(jpeg), {
         headers: {
@@ -296,11 +293,10 @@ export default async function Image({
 
   return new ImageResponse(
     (
-      // The card sits on a soft dark backdrop, like a photo of the real card.
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" }}>
-        <div style={{ width: CARD_W, height: CARD_H, borderRadius: 28, overflow: "hidden", display: "flex", boxShadow: "0 30px 90px rgba(0,0,0,0.55)" }}>
-          {card}
-        </div>
+      // Full-bleed: the card fills the ENTIRE frame — no backdrop, no rounded
+      // float, no blank space. The card design's own background reaches every edge.
+      <div style={{ width: "100%", height: "100%", display: "flex" }}>
+        {card}
       </div>
     ),
     { ...size }
