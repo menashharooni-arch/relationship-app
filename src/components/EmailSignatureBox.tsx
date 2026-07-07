@@ -254,12 +254,20 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       {open && (
         <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          {/* max-h + flex-col so the body scrolls on small phones instead of
+              overflowing off-screen; header (with the X) stays pinned. */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
               <p className="text-white font-semibold text-sm">Your email signature</p>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors">✕</button>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close and return to dashboard"
+                className="w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-lg leading-none"
+              >
+                ✕
+              </button>
             </div>
-            <div className="p-5">
+            <div className="p-5 overflow-y-auto">
               <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
               <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
@@ -279,50 +287,43 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               </div>
               <button onClick={copy} disabled={!ready || status === "working"}
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — now open your email settings below" : "Copy signature"}
+                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓" : "Copy signature"}
               </button>
 
-              {/* One-tap: open the signature settings for the user's email app,
-                  then they paste. We can't detect the provider, so offer the big
-                  three — each opens that provider's signature settings directly. */}
-              <div className="mt-3">
-                <p className="text-gray-500 text-[10px] mb-1.5 text-center">Then open your email&apos;s signature settings and paste:</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Gmail", url: "https://mail.google.com/mail/u/0/#settings/general" },
-                    { label: "Outlook", url: "https://outlook.live.com/mail/0/options/mail/messageContent" },
-                    { label: "Yahoo", url: "https://mail.yahoo.com/d/settings/1" },
-                  ].map((p) => (
-                    <a
-                      key={p.label}
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[11px] font-semibold py-2 rounded-xl transition-colors"
-                    >
-                      Open {p.label}
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
-                    </a>
-                  ))}
-                </div>
-                <p className="text-gray-600 text-[9px] mt-1.5 text-center">Opens on a computer, where email signatures are set. Using another app? Follow the steps below.</p>
-              </div>
+              {/* Concise 3-step directions */}
+              <ol className="mt-4 space-y-2.5">
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Tap <strong className="text-white">Copy signature</strong> above.</p>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Open your email below and <strong className="text-white">paste</strong> it into your signature settings.</p>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Using a different email? Paste it into that app&apos;s signature settings.</p>
+                </li>
+              </ol>
 
-              {/* Step-by-step setup — spelled out so anyone can do it */}
-              <div className="mt-3 rounded-xl bg-gray-800/60 border border-gray-700/60 px-4 py-3">
-                <p className="text-gray-300 text-[11px] font-semibold mb-1.5">How to add it in Gmail (1 minute):</p>
-                <ol className="text-gray-400 text-[11px] leading-relaxed list-decimal list-inside space-y-0.5">
-                  <li>Tap <strong className="text-gray-300">Copy signature</strong> above.</li>
-                  <li>Open <strong className="text-gray-300">Gmail on a computer</strong> → click the <strong className="text-gray-300">⚙️ gear</strong> (top right) → <strong className="text-gray-300">See all settings</strong>.</li>
-                  <li>Stay on the <strong className="text-gray-300">General</strong> tab and scroll down to <strong className="text-gray-300">Signature</strong> → click <strong className="text-gray-300">+ Create new</strong> and name it.</li>
-                  <li>Click inside the signature box and paste (<strong className="text-gray-300">Ctrl+V</strong>, or <strong className="text-gray-300">⌘V</strong> on Mac) — your card image appears.</li>
-                  <li>Under <strong className="text-gray-300">Signature defaults</strong>, select it for <strong className="text-gray-300">new emails</strong> and <strong className="text-gray-300">replies</strong>.</li>
-                  <li>Scroll to the bottom → <strong className="text-gray-300">Save Changes</strong>. Send yourself a test email to see it.</li>
-                </ol>
-                <p className="text-gray-500 text-[10px] mt-2 leading-relaxed">
-                  <strong className="text-gray-400">Outlook:</strong> Settings → Mail → Compose &amp; reply → paste under Email signature.{" "}
-                  <strong className="text-gray-400">Apple Mail:</strong> Mail → Settings → Signatures → paste into a new signature.
-                </p>
+              {/* Open the user's email signature settings directly */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {[
+                  { label: "Gmail", url: "https://mail.google.com/mail/u/0/#settings/general" },
+                  { label: "Outlook", url: "https://outlook.live.com/mail/0/options/mail/messageContent" },
+                  { label: "Yahoo", url: "https://mail.yahoo.com/d/settings/1" },
+                ].map((p) => (
+                  <a
+                    key={p.label}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[11px] font-semibold py-2 rounded-xl transition-colors"
+                  >
+                    {p.label}
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
+                  </a>
+                ))}
               </div>
             </div>
           </div>
