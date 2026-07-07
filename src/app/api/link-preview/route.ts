@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeFetch } from "@/lib/safe-fetch";
+
+// Node runtime — the SSRF guard uses node:dns / node:net.
+export const runtime = "nodejs";
 
 // Open Graph fetcher for Swift Links thumbnails ("the face of the page"). Fetches the
 // target page, pulls og:image / twitter:image + og:title, and ALWAYS returns a favicon
 // so links that block scraping (e.g. Zillow's PerimeterX) still show a branded preview.
+// SSRF is enforced by safeFetch (resolve + private-IP block + per-redirect recheck).
 
 type Preview = { image: string | null; favicon: string | null; title: string | null };
 const cache = new Map<string, { data: Preview; at: number }>();
 const TTL = 1000 * 60 * 60 * 24; // 24h
-
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) return true;
-  if (h === "::1" || h === "0.0.0.0") return true;
-  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(h)) return true;
-  return false;
-}
 
 function decodeEntities(s: string): string {
   return s
@@ -60,9 +56,6 @@ export async function GET(req: NextRequest) {
   let target: URL;
   try { target = new URL(raw.startsWith("http") ? raw : `https://${raw}`); }
   catch { return NextResponse.json({ image: null, favicon: null, title: null }); }
-  if (!/^https?:$/.test(target.protocol) || isBlockedHost(target.hostname)) {
-    return NextResponse.json({ image: null, favicon: null, title: null });
-  }
 
   // Always available, even when the page itself blocks scraping.
   const favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(target.hostname)}&sz=128`;
@@ -78,9 +71,8 @@ export async function GET(req: NextRequest) {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch(target.toString(), {
+    const res = await safeFetch(target.toString(), {
       signal: ctrl.signal,
-      redirect: "follow",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

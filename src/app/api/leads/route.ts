@@ -7,27 +7,13 @@ import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import { cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
+import { escapeHtml, safeUrlAttr } from "@/lib/escape";
+import { isRateLimited } from "@/lib/rate-limit";
+import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 const FREE_LEAD_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
-
-// Simple in-process rate limiter: max 3 submissions per 10 min per IP+owner pair
-const rateMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_WINDOW_MS = 10 * 60 * 1000;
-const RATE_MAX = 3;
-
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const entry = rateMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateMap.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return false;
-  }
-  if (entry.count >= RATE_MAX) return true;
-  entry.count++;
-  return false;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -133,8 +119,9 @@ export async function POST(req: NextRequest) {
       syncLeadToHubSpot(leadData, ownerProfile.id).catch(() => {});
     }
 
-    // Fire Zapier webhook (non-blocking)
-    if (ownerProfile?.zapier_webhook_url) {
+    // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
+    // a URL stored before validation existed can't exfiltrate lead PII (SSRF).
+    if (ownerProfile?.zapier_webhook_url && isZapierWebhookUrl(ownerProfile.zapier_webhook_url)) {
       fetch(ownerProfile.zapier_webhook_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,11 +156,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // This is a PUBLIC endpoint — every visitor-supplied field below is escaped
+    // before it touches the notification email's HTML, so a crafted name/message
+    // can't inject markup or a phishing link into the owner's trusted inbox.
+    const eName = escapeHtml(name);
+    const eCompany = escapeHtml(company);
+    const eEmail = escapeHtml(email);
+    const ePhone = escapeHtml(phone);
+    const eMessage = escapeHtml(message);
+    const eLocation = escapeHtml(location);
+    const emailHref = safeUrlAttr(email ? `mailto:${email}` : "");
+    const telHref = safeUrlAttr(phone ? `tel:${phone}` : "");
+
     // Send email to card owner about the new lead (non-blocking)
     if (ownerProfile?.name && ownerProfile?.email) {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const locStr = location ? ` · ${location}` : "";
-      const ownerFirst = ownerProfile.name.split(" ")[0];
+      const locStr = eLocation ? ` · ${eLocation}` : "";
+      const ownerFirst = escapeHtml(ownerProfile.name.split(" ")[0]);
       resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
         to: ownerProfile.email,
@@ -191,12 +190,12 @@ export async function POST(req: NextRequest) {
     <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">Hey ${ownerFirst}, you have a new lead</h1>
     <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone just shared their info with you via your SwiftCard.</p>
     <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#f1f5f9;">${name}</p>
-      ${company ? `<p style="margin:0 0 6px;font-size:13px;color:#94a3b8;">${company}</p>` : ""}
-      ${email ? `<a href="mailto:${email}" style="display:block;font-size:13px;color:#60a5fa;margin:0 0 4px;text-decoration:none;">${email}</a>` : ""}
-      ${phone ? `<a href="tel:${phone}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${phone}</a>` : ""}
+      <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#f1f5f9;">${eName}</p>
+      ${eCompany ? `<p style="margin:0 0 6px;font-size:13px;color:#94a3b8;">${eCompany}</p>` : ""}
+      ${eEmail ? `<a href="${emailHref}" style="display:block;font-size:13px;color:#60a5fa;margin:0 0 4px;text-decoration:none;">${eEmail}</a>` : ""}
+      ${ePhone ? `<a href="${telHref}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${ePhone}</a>` : ""}
       ${locStr ? `<p style="margin:8px 0 0;font-size:12px;color:#4b5563;">📍${locStr}</p>` : ""}
-      ${message ? `<p style="margin:10px 0 0;font-size:13px;color:#94a3b8;font-style:italic;border-top:1px solid #334155;padding-top:10px;">"${message}"</p>` : ""}
+      ${eMessage ? `<p style="margin:10px 0 0;font-size:13px;color:#94a3b8;font-style:italic;border-top:1px solid #334155;padding-top:10px;">"${eMessage}"</p>` : ""}
     </div>
     <a href="${APP_URL}/dashboard" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:99px;font-size:14px;font-weight:700;margin-bottom:28px;">Open Dashboard →</a>
   </div>
@@ -215,13 +214,19 @@ export async function POST(req: NextRequest) {
     if (email && cardIdentity.name && cardIdentity.email) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const ownerFirst = cardIdentity.name.split(" ")[0];
-      const leadFirst = name.split(" ")[0];
+      const leadFirst = escapeHtml(name.split(" ")[0]);
+      const cName = escapeHtml(cardIdentity.name);
+      const cCompany = escapeHtml(cardIdentity.company);
+      const cEmail = escapeHtml(cardIdentity.email);
+      const cPhone = escapeHtml(cardIdentity.phone);
+      const cEmailHref = safeUrlAttr(`mailto:${cardIdentity.email}`);
+      const cTelHref = safeUrlAttr(cardIdentity.phone ? `tel:${cardIdentity.phone}` : "");
 
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
         replyTo: cardIdentity.email,
         to: email,
-        subject: `Great connecting with you, ${leadFirst}! — ${ownerFirst}`,
+        subject: `Great connecting with you, ${name.split(" ")[0]}! — ${ownerFirst}`,
         html: `
           <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
             <div style="max-width:480px;margin:0 auto;">
@@ -233,10 +238,10 @@ export async function POST(req: NextRequest) {
               </p>
 
               <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                <p style="margin:0 0 8px;font-weight:700;color:#111827;font-size:15px;">${cardIdentity.name}</p>
-                ${cardIdentity.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${cardIdentity.company}</p>` : ""}
-                <a href="mailto:${cardIdentity.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${cardIdentity.email}</a>
-                ${cardIdentity.phone ? `<a href="tel:${cardIdentity.phone}" style="display:block;color:#2563eb;font-size:13px;">${cardIdentity.phone}</a>` : ""}
+                <p style="margin:0 0 8px;font-weight:700;color:#111827;font-size:15px;">${cName}</p>
+                ${cCompany ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${cCompany}</p>` : ""}
+                <a href="${cEmailHref}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${cEmail}</a>
+                ${cPhone ? `<a href="${cTelHref}" style="display:block;color:#2563eb;font-size:13px;">${cPhone}</a>` : ""}
               </div>
 
               <p style="color:#6b7280;font-size:13px;margin:0;">
