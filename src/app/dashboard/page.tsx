@@ -30,7 +30,7 @@ import MobileNav from "@/components/MobileNav";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, sanitizeCustomizationForPlan } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -313,8 +313,18 @@ export default async function DashboardPage({
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
     address: activeAddress,
-    customization: activeSource.customization ?? {},
+    // Render-time plan enforcement (matches the public card page): a downgraded
+    // card's saved Pro design keys are stripped so the preview + the signature/
+    // share captures always reflect the CURRENT plan.
+    customization: sanitizeCustomizationForPlan(
+      (activeSource.customization ?? {}) as Record<string, unknown>,
+      isPro
+    ),
   };
+  // Custom designer is Pro-only — downgraded cards render the standard template.
+  const activeTemplate = (activeSource.template ?? "classic-pro") === "custom" && !isPro
+    ? "classic-pro"
+    : (activeSource.template ?? "classic-pro");
 
   // Apple Wallet is only offered once the Apple pass certificate is configured.
   const walletEnabled = hasWalletConfig();
@@ -328,7 +338,7 @@ export default async function DashboardPage({
         <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
         <CardPreviewDownload
           data={cardData}
-          template={activeSource.template ?? "classic-pro"}
+          template={activeTemplate}
           username={activeUsername}
           previewUrl={cardUrl}
         />
@@ -634,7 +644,7 @@ export default async function DashboardPage({
               <EmailSignatureBox
                 key={activeUsername}
                 cardData={cardData}
-                template={activeSource.template ?? "classic-pro"}
+                template={activeTemplate}
                 name={(activeSource as { name?: string }).name ?? ""}
                 company={(activeSource as { company?: string }).company ?? ""}
                 cardUrl={cardUrl}
@@ -649,7 +659,7 @@ export default async function DashboardPage({
             <ShareCardCapture
               key={`share-${activeUsername}`}
               cardData={cardData}
-              template={activeSource.template ?? "classic-pro"}
+              template={activeTemplate}
               username={activeUsername}
             />
           </div>
