@@ -242,6 +242,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           address,
           phones: cleanPhones,
           fax: fax.trim(),
+          // Headshot is per-card (explicit key, null when none) — never inherits
+          // another card's photo.
+          photoUrl: headshotUrl ?? null,
           ...(template === "custom" ? { customLayout } : {}),
         },
       }),
@@ -574,8 +577,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" onUploaded={(url) => setHeadshotUrl(url || null)} />
-              <p className="text-[11px] text-gray-600 mt-1">Your headshot is shared across all your cards.</p>
+              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" defer onUploaded={(url) => setHeadshotUrl(url || null)} />
+              <p className="text-[11px] text-gray-600 mt-1">This headshot is just for this card.</p>
             </div>
 
             {/* Design */}

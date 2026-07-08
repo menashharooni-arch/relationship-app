@@ -32,6 +32,7 @@ import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { readUsage } from "@/lib/usage";
+import { cardHeadshot, backfillCardPhotos } from "@/lib/card-media";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -65,6 +66,12 @@ export default async function DashboardPage({
   // Skip entirely once migrated (the common case) — saves DB round trips per load.
   if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
     await ensureUserCards(user.id, profile as Record<string, unknown>);
+  }
+
+  // One-time: make every card's headshot explicit so none can inherit another
+  // card's photo (oldest keeps the shared account photo, newer ones blank).
+  if (!(profile.customization as { _photoMigrated?: boolean } | null)?._photoMigrated) {
+    await backfillCardPhotos(getAdminSupabase(), user.id, profile.customization as Record<string, unknown> | null, profile.photo_url as string | null);
   }
 
   const { data: cards } = await getAdminSupabase()
@@ -316,8 +323,8 @@ export default async function DashboardPage({
     tiktok: activeSource.tiktok || "",
     linkedin: activeSource.linkedin || "",
     initials: activeSource.name ? initials(activeSource.name) : "SC",
-    // One profile picture is shared across all cards (lives on the profile).
-    photoUrl: profile.photo_url || null,
+    // Per-card headshot (falls back to the account photo only for legacy cards).
+    photoUrl: cardHeadshot(activeSource.customization, profile.photo_url),
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
     address: activeAddress,

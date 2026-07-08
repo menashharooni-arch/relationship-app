@@ -228,6 +228,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             customLayout,
             phones: cleanPhones,
             fax: fax.trim(),
+            // Headshot is per-card (explicit key, null when removed).
+            photoUrl: photoState ?? null,
           },
           logo_url: cardLogoUrl,
         }),
@@ -523,8 +525,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-            <ImageUpload field="photo" currentUrl={photoState} label="Upload your headshot" shape="circle" onUploaded={(url) => setPhotoState(url || null)} />
-            <p className="text-[11px] text-gray-600 mt-1">Your headshot is shared across all your cards.</p>
+            <ImageUpload field="photo" currentUrl={photoState} label="Upload your headshot" shape="circle" defer onUploaded={(url) => setPhotoState(url || null)} />
+            <p className="text-[11px] text-gray-600 mt-1">This headshot is just for this card.</p>
           </div>
 
           {/* Design */}
