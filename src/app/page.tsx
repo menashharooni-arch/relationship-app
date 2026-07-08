@@ -222,7 +222,7 @@ const FAQS = [
   },
   {
     q: "What's the difference between Free and Pro?",
-    a: "Free gives you 1 card, up to 25 contacts, all 5 templates, analytics with top locations, and a Day-1 follow-up email — plenty to get started. Pro removes the contact limit, gives you unlimited cards, the custom card designer, automated multi-step follow-up sequences, the AI card scanner, integrations, and removes the SwiftCard branding from your card.",
+    a: "Free gives you 1 card, up to 15 contacts, all 5 templates, analytics with top locations, and a Day-1 follow-up email — plenty to get started. Pro removes the contact limit, gives you unlimited cards, the custom card designer, automated multi-step follow-up sequences, the AI card scanner, integrations, and removes the SwiftCard branding from your card.",
   },
   {
     q: "Can I cancel anytime?",

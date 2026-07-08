@@ -23,7 +23,7 @@ const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits
 const features = {
   free: [
     "1 digital business card",
-    "Up to 25 contacts",
+    "Up to 15 contacts",
     "All 5 card templates",
     "QR code, shareable link & NFC",
     "Swift Links page (up to 2 buttons)",

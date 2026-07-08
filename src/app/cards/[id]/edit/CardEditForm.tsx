@@ -6,7 +6,7 @@
 // NewCardWizard — the only differences are prefilled values and "Save
 // changes" instead of "Create card".
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
@@ -72,6 +72,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
   const [step, setStep] = useState(1);
+
+  // Start each step at the top of the page, not mid-scroll from the last one.
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
 
   // Step 1 — card details
   const [label, setLabel] = useState(card.label || "");
