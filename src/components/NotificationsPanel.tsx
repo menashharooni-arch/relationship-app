@@ -22,8 +22,14 @@ function timeAgo(iso: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function NotificationsPanel({ initial }: { initial: Notification[] }) {
+export default function NotificationsPanel({ initial, card }: { initial: Notification[]; card?: string }) {
   const router = useRouter();
+
+  // A "new contact" notification is about a lead — clicking it takes the owner
+  // to their contacts (for the active card) where they can open that contact.
+  function openContacts() {
+    router.push(card ? `/contacts?card=${encodeURIComponent(card)}` : "/contacts");
+  }
   const [items, setItems] = useState<Notification[]>(initial);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<Record<string, { ok: boolean; text: string }>>({});
@@ -116,8 +122,12 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
         {items.map((n) => (
           <div key={n.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"}`}>
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"}`}>{n.title}</p>
+            <div
+              className={`min-w-0 flex-1 ${n.type === "new_lead" ? "cursor-pointer" : ""}`}
+              onClick={n.type === "new_lead" ? openContacts : undefined}
+              role={n.type === "new_lead" ? "button" : undefined}
+            >
+              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${n.type === "new_lead" ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>
               {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
               {/* Referral month earned → the explicit tap-to-claim */}
               {n.type === "referral_claim" && (

@@ -768,7 +768,7 @@ export default async function DashboardPage({
 
                 {/* Lead list */}
                 {view === "notifications" ? (
-                  <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} />
+                  <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} card={activeUsername} />
                 ) : visibleLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">

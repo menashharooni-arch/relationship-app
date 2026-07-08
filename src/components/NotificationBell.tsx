@@ -83,8 +83,10 @@ export default function NotificationBell({
   }
 
   function handleOpen() {
+    // Just open/close. Notifications stay UNREAD (and the badge stays) until the
+    // user explicitly marks them read or dismisses them — opening no longer
+    // silently clears everything.
     setOpen((v) => !v);
-    if (!open && unread > 0) markAllRead();
   }
 
   return (
