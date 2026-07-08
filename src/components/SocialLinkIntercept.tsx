@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { hasSharedWith, markSharedWith } from "@/lib/visitor";
 
 export type SocialLinkData = {
   label: string;
@@ -10,8 +11,6 @@ export type SocialLinkData = {
   color: string;
   textColor?: string;
 };
-
-const STORAGE_KEY = "swiftcard_shared";
 
 function PlatformIcon({ label }: { label: string }) {
   switch (label) {
@@ -82,17 +81,21 @@ export default function SocialLinkIntercept({
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data[cardOwner]) setAlreadyShared(true);
-      }
-    } catch { /* ignore */ }
+    // Reflect shared-state on mount, AND update live when the visitor shares via
+    // any surface on the page (Save Contact, "Share your info", the connect form)
+    // — after they've shared once, these links open without asking again.
+    setAlreadyShared(hasSharedWith(cardOwner));
+    const onShared = (e: Event) => {
+      const owner = (e as CustomEvent).detail?.owner;
+      if (!owner || owner === cardOwner) setAlreadyShared(true);
+    };
+    window.addEventListener("sc:shared", onShared as EventListener);
+    return () => window.removeEventListener("sc:shared", onShared as EventListener);
   }, [cardOwner]);
 
   function handleClick(link: SocialLinkData, e: React.MouseEvent) {
-    if (alreadyShared) return;
+    // Already shared (state OR a live re-check) → let the link open, no intercept.
+    if (alreadyShared || hasSharedWith(cardOwner)) { setAlreadyShared(true); return; }
     e.preventDefault();
     setPendingHref(link.href);
     setPendingLabel(link.label);
@@ -129,11 +132,9 @@ export default function SocialLinkIntercept({
       }),
     });
 
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      stored[cardOwner] = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch { /* ignore */ }
+    // Record the share the shared way (stores their info for pre-fill + broadcasts
+    // so every other surface stops asking).
+    markSharedWith(cardOwner, form);
 
     setAlreadyShared(true);
     setStatus("done");

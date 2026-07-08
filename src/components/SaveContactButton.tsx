@@ -168,14 +168,18 @@ export default function SaveContactButton({
       <button
         onClick={downloadVCard}
         className="w-full active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
-        style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
+        style={{ background: "#1D4ED8" }}
       >
         {saved ? (
+          // NOT a "done" state — the contact card just opened on their phone and
+          // they still have to confirm (Create New Contact / Add). Kept to a
+          // concise button label, not a bulky instruction block, and no green
+          // check so it never reads as already-saved.
           <>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v11m0 0l4-4m-4 4l-4-4M4.5 19.5h15" />
             </svg>
-            Saved to Contacts!
+            One more tap to save
           </>
         ) : (
           <>
