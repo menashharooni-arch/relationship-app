@@ -94,12 +94,14 @@ export default function CardScanner({ cardOwner }: { cardOwner: string }) {
     return (
       <button
         onClick={openModal}
-        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+        type="button"
+        aria-label="Scan a business card"
+        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white active:text-white transition-colors px-2 py-2.5 -mx-1 rounded-lg hover:bg-gray-800/60 active:bg-gray-800 min-h-[44px] touch-manipulation"
       >
-        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 sm:w-4 sm:h-4 shrink-0">
           <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
         </svg>
-        Scan card
+        <span className="hidden sm:inline">Scan card</span>
       </button>
     );
   }
@@ -128,22 +130,26 @@ export default function CardScanner({ cardOwner }: { cardOwner: string }) {
           {/* IDLE: pick image */}
           {state === "idle" && (
             <div className="space-y-3">
+              {/* No `capture` attribute: on mobile this shows the native sheet
+                  (Take Photo / Photo Library / Files) which opens reliably on
+                  every device — forcing camera-only failed for some iOS/PWA
+                  setups and blocked using an existing card photo. */}
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImage(f); }}
               />
               <button
+                type="button"
                 onClick={() => fileRef.current?.click()}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-full text-sm transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3.5 rounded-full text-sm transition-colors touch-manipulation"
               >
-                Take photo / Upload image
+                Take photo / Choose image
               </button>
               <p className="text-xs text-gray-500 text-center">
-                Point your camera at a business card and Claude AI will extract the contact details for you.
+                Take a photo of a business card — or pick one from your library — and Claude AI will pull out the contact details.
               </p>
             </div>
           )}

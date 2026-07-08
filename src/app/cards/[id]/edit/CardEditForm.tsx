@@ -74,7 +74,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [step, setStep] = useState(1);
 
   // Start each step at the top of the page, not mid-scroll from the last one.
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
+  // Defer to the next frame and jump instantly — mobile browsers can drop a
+  // smooth scroll issued mid-render.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    return () => cancelAnimationFrame(id);
+  }, [step]);
 
   // Step 1 — card details
   const [label, setLabel] = useState(card.label || "");

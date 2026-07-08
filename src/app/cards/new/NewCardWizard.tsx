@@ -92,8 +92,12 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [step, setStep] = useState(1);
 
   // Advancing (or going back) a step should start the user at the top of the
-  // new step, not wherever they were scrolled on the previous one.
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
+  // new step. Defer to the next frame so the new content is laid out first, and
+  // jump instantly — mobile browsers can drop a smooth scroll issued mid-render.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    return () => cancelAnimationFrame(id);
+  }, [step]);
 
   // Step 1 — card details
   const [nickname, setNickname] = useState("");
@@ -544,6 +548,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
               <p className="text-blue-200 font-semibold text-sm">🔔 Press here to turn on notifications</p>
+              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
+                Get an instant alert the moment someone shares their info through your card.
+              </p>
             </div>
 
             <EnablePushButton />
