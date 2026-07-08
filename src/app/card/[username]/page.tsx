@@ -355,7 +355,7 @@ export default async function CardPage({
           className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
         >
           <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-          Made with SwiftCard.me
+          Powered by SwiftCard
         </a>
       )}
     </main>

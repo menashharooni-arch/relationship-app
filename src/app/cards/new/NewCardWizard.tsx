@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
@@ -90,6 +90,10 @@ const inputCls =
 export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
+
+  // Advancing (or going back) a step should start the user at the top of the
+  // new step, not wherever they were scrolled on the previous one.
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
 
   // Step 1 — card details
   const [nickname, setNickname] = useState("");
@@ -538,11 +542,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
               <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{username}</p>
             </div>
 
-            <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-left">
-              <p className="text-blue-200 font-semibold text-sm">🔔 One last thing — turn on notifications</p>
-              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
-                Get an instant alert on this device when someone shares their contact through your card, and celebrate every view milestone as your card takes off.
-              </p>
+            <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
+              <p className="text-blue-200 font-semibold text-sm">🔔 Press here to turn on notifications</p>
             </div>
 
             <EnablePushButton />

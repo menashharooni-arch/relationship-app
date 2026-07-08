@@ -203,11 +203,35 @@ export async function deliverToLead(opts: {
   return { channel: "none", status: "no_contact" };
 }
 
-// Build the shared HTML signature block (name/company/contacts + card link).
-// Used so emails look like a real personal email, not a notification.
-// Default signature: the sender's name + business name stacked ON TOP of their
-// SwiftCard link. Kept deliberately simple so every email signs off the same way.
-export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null }): string {
+// The public URL of the sender's stored Swift Signature image (the exact card
+// image they copy from the dashboard), or null if they haven't generated one.
+// HEAD-checked so we never embed a broken image.
+export async function resolveSignatureImageUrl(username: string | null | undefined): Promise<string | null> {
+  if (!username) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  const url = `${base}/storage/v1/object/public/card-signatures/${encodeURIComponent(username)}.png`;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(url, { method: "HEAD", signal: ctrl.signal });
+    clearTimeout(t);
+    return res.ok ? `${url}?v=${Date.now()}` : null; // cache-bust so an updated card refreshes
+  } catch { return null; }
+}
+
+// Build the shared HTML signature block. When the sender has a Swift Signature
+// image (the exact card they'd paste into an email themselves), the automation
+// signs off with THAT image — identical to the SwiftCard we offer them — linked
+// to their card. Falls back to the simple name/company/link block for anyone who
+// hasn't generated their signature image yet (or image-blocked clients via alt).
+export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null; signatureImageUrl?: string | null }): string {
+  if (opts.signatureImageUrl) {
+    const alt = `${esc(opts.senderName)}${opts.company ? `, ${esc(opts.company)}` : ""} — SwiftCard`;
+    const img = `<img src="${opts.signatureImageUrl}" alt="${alt}" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;" />`;
+    const wrapped = opts.cardUrl ? `<a href="${opts.cardUrl}" style="text-decoration:none;">${img}</a>` : img;
+    return `<div style="margin-top:24px;padding-top:14px;border-top:1px solid #e5e7eb;">${wrapped}</div>`;
+  }
   const lines: string[] = [];
   lines.push(`<p style="margin:0;font-size:14px;font-weight:700;color:#111827;">${esc(opts.senderName)}</p>`);
   if (opts.company) lines.push(`<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${esc(opts.company)}</p>`);
@@ -248,6 +272,8 @@ export async function sendBrandedEmail(opts: {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
+  // Sign off with the sender's actual Swift Signature card image when available.
+  const signatureImageUrl = await resolveSignatureImageUrl(opts.cardUsername);
   const signature = emailSignatureHtml({
     senderName: opts.senderName,
     company: opts.company,
@@ -256,6 +282,7 @@ export async function sendBrandedEmail(opts: {
     email: opts.replyTo,
     website: opts.website,
     cardUrl,
+    signatureImageUrl,
   });
 
   try {

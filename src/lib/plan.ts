@@ -4,7 +4,8 @@
 // component reads from this file.
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,        // max cards on Free (Pro/Office: unlimited)
-  FREE_CONTACT_LIMIT: 25,    // max captured contacts/leads on Free
+  FREE_CONTACT_LIMIT: 15,    // max captured contacts/leads on Free (lifetime,
+                             // counted per-account so deleting a card can't reset it)
   FREE_AI_DRAFT_LIMIT: 3,    // total AI follow-up drafts a Free user can generate (taste)
   FREE_SWIFTLINK_BUTTONS: 2, // max link buttons on Free — the SAME customization.links
                              // array powers both Swift Links buttons and card "action
