@@ -3,6 +3,11 @@
 import { useEffect } from "react";
 import { getVisitorId } from "@/lib/visitor";
 
+// Fire-once guard, per (username+surface), for this page load. Prevents a double
+// view record from React strict-mode's double-mount (dev) or any remount, so the
+// dashboard Traffic count is exactly one view per page open.
+const firedViews = new Set<string>();
+
 export default function CardEventTracker({
   username,
   source,
@@ -15,6 +20,11 @@ export default function CardEventTracker({
   viewSurface?: "card" | "links";
 }) {
   useEffect(() => {
+    // Views table for the dashboard chart — keyed by surface so card vs link split.
+    const viewsKey = viewSurface === "links" ? `${username}__links` : username;
+    if (firedViews.has(viewsKey)) return;
+    firedViews.add(viewsKey);
+
     const visitorId = getVisitorId();
     fetch("/api/card-events", {
       method: "POST",
@@ -29,8 +39,6 @@ export default function CardEventTracker({
       }),
     }).catch(() => {});
 
-    // Views table for the dashboard chart — keyed by surface so card vs link split.
-    const viewsKey = viewSurface === "links" ? `${username}__links` : username;
     fetch(`/api/views/${encodeURIComponent(viewsKey)}`, { method: "POST" }).catch(() => {});
   }, [username, source, viewSurface]);
 

@@ -123,6 +123,24 @@ ALTER TABLE offices ADD COLUMN IF NOT EXISTS brand_template      text;
 ALTER TABLE offices ADD COLUMN IF NOT EXISTS brand_custom_layout jsonb;
 
 
+-- ── 4b) View-tracking table (dashboard Traffic + Locations) ─────────────────
+-- Records one row per public card / Swift Links view. The API writes username
+-- (plain for the card, "<username>__links" for Swift Links), the geo location
+-- ("City, CC" from Vercel headers), and the visitor IP. The dashboard reads
+-- these back on `viewed_at`. Defined here so the schema is reproducible; all
+-- IF NOT EXISTS, so this is a no-op on the existing production DB.
+CREATE TABLE IF NOT EXISTS public.card_views (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  username   text NOT NULL,
+  ip         text,
+  location   text,
+  viewed_at  timestamptz NOT NULL DEFAULT now()
+);
+-- Repair drift on an existing table (older versions may predate a column):
+ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS location  text;
+ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS viewed_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS ip        text;
+
 -- ── 5) Performance indexes ──────────────────────────────────────────────────
 -- If your DB is ALREADY large and under traffic, swap each `CREATE INDEX` below
 -- for `CREATE INDEX CONCURRENTLY` and run them one at a time (CONCURRENTLY can't
