@@ -30,7 +30,7 @@ export const SIGNUP_SOURCE_LABELS: Record<string, string> = {
   share_info:   "Shared their info on a card, then signed up",
   vcard:        "Downloaded a vCard, then signed up",
   link_button:  "Tapped a Swift Links button",
-  badge:        "'Made with SwiftCard' badge",
+  badge:        "'Powered by SwiftCard' badge",
   follow_up:    "Link in a follow-up email/text",
 };
 

@@ -348,7 +348,7 @@ export default async function CardPage({
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
       </div>
 
-      {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
+      {/* "Powered by SwiftCard.me" badge (links to site) — Free only, removed on Pro/Office */}
       {!isPaidPlan(profile.plan) && (
         <a
           href={`${APP_URL}/?src=badge`}
