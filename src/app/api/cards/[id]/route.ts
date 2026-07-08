@@ -41,9 +41,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
     if (updates.template === "custom") updates.template = "classic-pro";
-    if ("customization" in updates) {
-      updates.customization = sanitizeCustomizationForPlan(updates.customization as Record<string, unknown>, false);
-    }
+  }
+
+  // Merge the incoming customization onto THIS card's existing customization
+  // (same card, ownership-scoped) rather than replacing the whole JSON. The form
+  // only sends the keys it manages, so without this a key it doesn't send (e.g.
+  // testimonials, or any future field) would be silently wiped on save. Merging
+  // the card's OWN data can never introduce cross-card bleed — form keys win,
+  // omitted keys are preserved. Free plans still have Pro-only keys stripped.
+  if ("customization" in updates) {
+    const { data: existingCard } = await admin
+      .from("cards")
+      .select("customization")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const merged = {
+      ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
+      ...(updates.customization as Record<string, unknown>),
+    };
+    updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false);
   }
 
   // Office uniform branding: force brand fields so members can't override them.
