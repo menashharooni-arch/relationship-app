@@ -30,11 +30,12 @@ import MobileNav from "@/components/MobileNav";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { readUsage } from "@/lib/usage";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
+const FREE_LIMIT = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
 
 export default async function DashboardPage({
   searchParams,
@@ -252,6 +253,13 @@ export default async function DashboardPage({
   }
 
   const allLeads = leads ?? [];
+  // Free plan: leads captured beyond the 5/month cap are tagged locked. The owner
+  // sees only unlocked leads; the locked ones are counted for the upgrade banner
+  // and hidden until they go Pro (upgrading makes isPro true → nothing hidden).
+  const isLocked = (l: { tags?: string[] | null }) => Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG);
+  const visibleLeads = isPro ? allLeads : allLeads.filter((l) => !isLocked(l));
+  const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
+  const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
   const dateThreshold = filterDate === "today"
     ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -261,7 +269,7 @@ export default async function DashboardPage({
     ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
-  const filteredLeads = allLeads.filter((l) => {
+  const filteredLeads = visibleLeads.filter((l) => {
     if (filterStatus !== "all" && (l.status || "new_contact") !== filterStatus) return false;
     if (dateThreshold && l.created_at < dateThreshold) return false;
     return true;
@@ -275,8 +283,8 @@ export default async function DashboardPage({
   };
   const flowPresets: FlowPresets = (rawFlowSettings.presets as FlowPresets) ?? defaultPresets;
 
-  const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
-  const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
+  const atLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT;
+  const nearLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT - 2;
 
   const ownedOffice = ownedOfficeRes.data;
 
@@ -409,7 +417,7 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {isPro && <CardScanner cardOwner={activeUsername} />}
+            <CardScanner cardOwner={activeUsername} />{/* Free: 3 scans/mo · Pro: unlimited */}
             {isEnterprise && <CSVImport />}
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} /></span>
@@ -515,7 +523,7 @@ export default async function DashboardPage({
           {/* Follow-up due today */}
           {(() => {
             const today = new Date().toISOString().split("T")[0];
-            const due = allLeads.filter((l) => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today);
+            const due = visibleLeads.filter((l) => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today);
             if (!due.length) return null;
             return (
               <div className="flex items-center justify-between gap-4 rounded-2xl px-5 py-3.5 mb-5 bg-blue-950/40 border border-blue-800/40">
@@ -531,15 +539,19 @@ export default async function DashboardPage({
           })()}
 
           {/* Free plan limit banner */}
-          <FirstLeadNudge leadCount={allLeads.length} isPro={isPro} />
+          <FirstLeadNudge leadCount={visibleLeads.length} isPro={isPro} />
 
-          {!isPro && nearLimit && (
+          {!isPro && (nearLimit || lockedCount > 0) && (
             <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <p className="text-sm font-medium text-amber-400">
-                    {atLimit ? `🎉 That's ${FREE_LIMIT} leads captured! Upgrade to Pro to never miss the next one.` : `${allLeads.length}/${FREE_LIMIT} leads used — running low`}
+                    {lockedCount > 0
+                      ? `🔒 ${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
+                      : atLimit
+                        ? `You've used your ${FREE_LIMIT} free leads this month. Upgrade to Pro for unlimited.`
+                        : `${monthlyLeadsUsed}/${FREE_LIMIT} free leads used this month`}
                   </p>
                 </div>
                 <UpgradeButton />
@@ -611,7 +623,7 @@ export default async function DashboardPage({
               )}
               {/* Basic stats (every plan): contacts captured + best day */}
               <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
-                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{allLeads.length}</span></span>
+                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
                 {bestDay && bestDay.views > 0 ? (
                   <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views}</span>
                 ) : (
@@ -676,15 +688,15 @@ export default async function DashboardPage({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-baseline gap-2.5">
                     <h2 className="text-white font-semibold text-sm">Contacts</h2>
-                    <span className="text-white font-bold text-lg tabular-nums">{allLeads.length}</span>
+                    <span className="text-white font-bold text-lg tabular-nums">{visibleLeads.length}</span>
                     <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {!isPro && (
-                      <p className="text-gray-600 text-xs hidden sm:block">{allLeads.length}/{FREE_LIMIT} free</p>
+                      <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
                     )}
                     <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
-                    {allLeads.length > 0 && (
+                    {visibleLeads.length > 0 && (
                       isPro ? (
                         <a href={`/api/leads/export?username=${activeUsername}`}
                           className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
@@ -750,7 +762,7 @@ export default async function DashboardPage({
                 {/* Lead list */}
                 {view === "notifications" ? (
                   <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} />
-                ) : allLeads.length === 0 ? (
+                ) : visibleLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">
                       <div className="w-10 h-10 bg-gray-800/60 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -789,7 +801,7 @@ export default async function DashboardPage({
                     leads={filteredLeads}
                     flowPresets={flowPresets}
                     sortBy={sortBy}
-                    totalCount={allLeads.length}
+                    totalCount={visibleLeads.length}
                     isPro={isPro}
                   />
                 )}

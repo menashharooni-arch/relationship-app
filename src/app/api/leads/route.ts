@@ -5,15 +5,14 @@ import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
+import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 import { escapeHtml, safeUrlAttr } from "@/lib/escape";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
-const FREE_LEAD_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,19 +68,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    if (!isPaidPlan(ownerProfile?.plan)) {
-      const { count } = await admin
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("card_owner", card_owner);
-
-      // Cap blocks only NEW captures — existing contacts are untouched.
-      if ((count ?? 0) >= FREE_LEAD_LIMIT) {
-        return NextResponse.json(
-          { error: "limit", message: "This card has reached its free plan limit." },
-          { status: 402 }
-        );
-      }
+    // Free plan: 5 new leads/month. We NEVER reject a visitor's info — over the
+    // cap the lead is still captured and stored, just flagged locked (blurred in
+    // the owner's dashboard until they upgrade; unlocked instantly when they do).
+    // The counter lives on the ACCOUNT so deleting/remaking a card can't reset it.
+    let locked = false;
+    if (!isPaidPlan(ownerProfile?.plan) && ownerProfile?.id) {
+      const usedThisMonth = readUsage(ownerProfile.customization).leads;
+      locked = usedThisMonth >= PLAN_LIMITS.FREE_LEADS_PER_MONTH;
+      await bumpUsage(admin, ownerProfile.id, ownerProfile.customization as Record<string, unknown> | null, "leads");
     }
 
     const { data: insertedLead, error } = await admin
@@ -94,8 +89,9 @@ export async function POST(req: NextRequest) {
         message: message || null,
         location: location || null,
         card_owner,
-        // New reach-outs arrive unread so the owner can track what they've seen.
-        tags: [...(Array.isArray(tags) ? tags : []), "unread"],
+        // New reach-outs arrive unread; over the free monthly cap they're also
+        // tagged locked so the dashboard blurs them behind Pro.
+        tags: [...(Array.isArray(tags) ? tags : []), "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
         source: source || null,
         visitor_id: visitor_id || null,
       })
@@ -135,22 +131,29 @@ export async function POST(req: NextRequest) {
       const sourceLabel = source ? getSourceLabel(source) : null;
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
       const { insertNotification } = await import("@/lib/notify");
+      // A locked lead (over the free monthly cap) gets a TEASER notification —
+      // it must not reveal the contact's name/details, or that would bypass the
+      // lock. It's a conversion nudge instead.
       insertNotification({
         user_id: ownerProfile.id,
         card_owner,
         type: "new_lead",
-        title: `New contact: ${name}`,
-        body: `${name} shared their info with you${sourceStr}.`,
+        title: locked ? "🔒 New lead locked" : `New contact: ${name}`,
+        body: locked
+          ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
+          : `${name} shared their info with you${sourceStr}.`,
       }).catch(() => {});
 
-      // Push notification — phone buzz + optional vCard save
+      // Push notification — phone buzz + optional vCard save (teaser when locked)
       if (insertedLead?.id) {
         const vcardUrl = `${APP_URL}/api/leads/vcard?id=${insertedLead.id}`;
         sendPushToUser(ownerProfile.id, {
-          title: `New contact: ${name}`,
-          body: phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save"),
+          title: locked ? "🔒 New lead locked" : `New contact: ${name}`,
+          body: locked
+            ? "Upgrade to Pro to unlock this lead."
+            : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
           url: `${APP_URL}/dashboard`,
-          vcardUrl,
+          ...(locked ? {} : { vcardUrl }),
           tag: `lead-${insertedLead.id}`,
         }).catch(() => {});
       }

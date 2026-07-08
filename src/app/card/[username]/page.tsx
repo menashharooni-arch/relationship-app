@@ -351,11 +351,11 @@ export default async function CardPage({
       {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
       {!isPaidPlan(profile.plan) && (
         <a
-          href={`${APP_URL}/join?src=badge`}
+          href={`${APP_URL}/?src=badge`}
           className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
         >
           <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-          Powered by SwiftCard
+          Powered by SwiftCard.me
         </a>
       )}
     </main>

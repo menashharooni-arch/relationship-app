@@ -148,13 +148,13 @@ export default function SwiftLinkProfile({
           {!ownerPaid && (
             <div className="flex justify-center mt-10">
               <a
-                href={`${appUrl}/join?src=badge`}
+                href={`${appUrl}/?src=badge`}
                 className="flex items-center gap-1.5 text-white/40 text-[11px] hover:text-white/75 transition-colors"
               >
                 <svg viewBox="0 0 100 100" className="w-3 h-3">
                   <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
                 </svg>
-                Powered by SwiftCard
+                Powered by SwiftCard.me
               </a>
             </div>
           )}

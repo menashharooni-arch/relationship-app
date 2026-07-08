@@ -19,7 +19,6 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
-import { PLAN_LIMITS } from "@/lib/plan";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
@@ -144,7 +143,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
   }
 
-  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
+  const atLinkCap = false; // Free now gets unlimited Swift Links buttons.
   function addLink() {
     if (atLinkCap) return;
     const linkLabel = newLink.label.trim();
@@ -494,11 +493,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   </button>
                 );
               })()}
-              {atLinkCap && (
-                <p className="text-[11px] text-blue-400 text-center">
-                  Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} buttons — <Link href="/pricing" className="underline hover:text-blue-300">upgrade to Pro</Link> for unlimited.
-                </p>
-              )}
             </div>
           </div>
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { isPaidPlan } from "@/lib/plan";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
@@ -78,9 +78,9 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     links?: { emoji: string; label: string; url: string }[];
   };
   const bio = customization.bio || "";
-  // Free shows up to FREE_SWIFTLINK_BUTTONS buttons; Pro/Office unlimited.
-  const allLinks = (customization.links ?? []).filter((l) => l.label && l.url);
-  const actionLinks = ownerPaid ? allLinks : allLinks.slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS);
+  // Every plan shows all Swift Links buttons now (Pro is differentiated by
+  // presentation — video previews, featured tiles, themes — not button count).
+  const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
 
   const socials = buildConnectLinks({
     website: profile.website,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { aiVision, hasAiProvider } from "@/lib/ai";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { readUsage, bumpUsage } from "@/lib/usage";
 
 export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
@@ -11,12 +13,17 @@ export async function POST(request: NextRequest) {
   const adminSupabase = getAdminSupabase();
   const { data: profile } = await adminSupabase
     .from("profiles")
-    .select("plan")
+    .select("plan, customization")
     .eq("id", user.id)
     .single();
 
-  if (profile?.plan !== "pro" && profile?.plan !== "enterprise") {
-    return NextResponse.json({ error: "pro_required" }, { status: 403 });
+  // Free gets a monthly taste of the scanner (resets on the 1st); Pro/Office unlimited.
+  const paid = isPaidPlan(profile?.plan);
+  if (!paid && readUsage(profile?.customization).scans >= PLAN_LIMITS.FREE_SCANS_PER_MONTH) {
+    return NextResponse.json(
+      { error: "upgrade", message: `You've used your ${PLAN_LIMITS.FREE_SCANS_PER_MONTH} free card scans this month. Upgrade to Pro for unlimited scanning.`, upgrade: "/pricing" },
+      { status: 402 }
+    );
   }
 
   const body = await request.json();
@@ -37,7 +44,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const extracted = JSON.parse(jsonMatch[0]);
-    return NextResponse.json(extracted);
+    // Count a successful scan against the free monthly allowance.
+    if (!paid) await bumpUsage(adminSupabase, user.id, profile?.customization as Record<string, unknown> | null, "scans");
+    return NextResponse.json({ ...extracted, scansRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_SCANS_PER_MONTH - (readUsage(profile?.customization).scans + 1)) });
   } catch {
     return NextResponse.json({});
   }

@@ -13,7 +13,7 @@ export type ScannedCard = {
 };
 
 export class ProRequiredError extends Error {
-  constructor() { super("pro_required"); this.name = "ProRequiredError"; }
+  constructor(message = "Card scanner is a Pro feature. Upgrade to use it.") { super(message); this.name = "ProRequiredError"; }
 }
 
 const SCAN_TIMEOUT_MS = 45_000;
@@ -30,7 +30,11 @@ export async function scanBusinessCard(file: File): Promise<ScannedCard> {
       body: JSON.stringify({ imageBase64: base64, mediaType }),
       signal: controller.signal,
     });
-    if (res.status === 403) throw new ProRequiredError();
+    // 402 = free monthly scans used up · 403 = scanner not on this plan.
+    if (res.status === 402 || res.status === 403) {
+      const data = await res.json().catch(() => ({} as { message?: string }));
+      throw new ProRequiredError(data.message || undefined);
+    }
     if (!res.ok) throw new Error("scan_failed");
     return (await res.json()) as ScannedCard;
   } finally {

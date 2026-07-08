@@ -40,7 +40,7 @@ export default function CardScanner({ cardOwner }: { cardOwner: string }) {
       setState("review");
     } catch (err) {
       if (err instanceof ProRequiredError) {
-        setErrorMsg("Card scanner is a Pro feature. Upgrade to use it.");
+        setErrorMsg(err.message);
       } else if (err instanceof DOMException && err.name === "AbortError") {
         setErrorMsg("That took too long. Try a clearer, closer photo of the card.");
       } else {
