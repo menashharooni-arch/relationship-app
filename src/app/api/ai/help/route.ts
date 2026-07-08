@@ -116,7 +116,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["logo", "headshot", "photo", "profile picture", "upload image", "upload photo", "company logo"],
     answer:
-      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Your profile photo is shared across all your cards.",
+      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Each card has its OWN headshot — a card with no headshot won't show one from another card.",
   },
   {
     triggers: ["multiple cards", "more than one card", "switch card", "select a card", "select card", "my cards", "active card", "second card"],

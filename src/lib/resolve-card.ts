@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { cardWithinPlanLimit } from "@/lib/card-active";
+import { cardHeadshot } from "@/lib/card-media";
 
 export type ResolvedCardMeta = {
   name: string | null;
@@ -57,7 +58,7 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     name: str(src.name),
     title: str(src.title),
     company: str(src.company),
-    photoUrl: cardRow ? (owner?.photo_url ?? null) : (profileRow?.photo_url ?? null),
+    photoUrl: cardRow ? cardHeadshot(cardRow.customization, owner?.photo_url) : (profileRow?.photo_url ?? null),
     logoUrl: str(src.logo_url),
     phone: str(src.phone),
     email: str(src.email),

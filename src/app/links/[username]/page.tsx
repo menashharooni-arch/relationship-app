@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { isPaidPlan } from "@/lib/plan";
 import { cardWithinPlanLimit } from "@/lib/card-active";
+import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
@@ -31,7 +32,12 @@ async function resolve(username: string) {
   if (profile && cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerPlan))) {
     profile = null;
   }
-  const photoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyOk ? (profileRow?.photo_url ?? null) : null);
+  // Per-card headshot: use the card's OWN headshot (customization.photoUrl) and
+  // only fall back to the account photo for legacy cards that never set one —
+  // so a new card with no headshot never shows another card's picture.
+  const photoUrl = cardRow
+    ? cardHeadshot(cardRow.customization, cardOwner?.photo_url)
+    : (legacyOk ? (profileRow?.photo_url ?? null) : null);
   return { profile, photoUrl, ownerPlan };
 }
 

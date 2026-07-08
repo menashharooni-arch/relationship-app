@@ -24,6 +24,7 @@ import { resolveCardMeta } from "@/lib/resolve-card";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { cardHeadshot } from "@/lib/card-media";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -136,7 +137,7 @@ export default async function CardPage({
   const { data: { user: viewer } } = await (await createClient()).auth.getUser();
   const isOwnerView = !!viewer && viewer.id === ownerId;
 
-  // One profile picture is shared across all of an account's cards.
+  // Per-card headshot (account photo is only a fallback for legacy cards).
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -186,7 +187,7 @@ export default async function CardPage({
     linkedin: profile.linkedin || "",
     snapchat,
     initials: profile.name ? initials(profile.name) : "SC",
-    photoUrl: accountPhotoUrl,
+    photoUrl: cardHeadshot(profile.customization, accountPhotoUrl),
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
     address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
