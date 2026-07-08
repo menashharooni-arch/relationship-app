@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { PLAN_LIMITS } from "@/lib/plan";
 import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -12,9 +11,6 @@ import { SAMPLE_DATA } from "@/components/card-templates/types";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
 
-// Action links and Swift Links buttons are the SAME customization.links array,
-// so they share one cap from plan.ts (was a drifting local 3).
-const FREE_LINK_LIMIT = PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -277,9 +273,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       <div className="h-px bg-slate-200 my-2" />
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs text-slate-500 font-medium">Action links</p>
-        {!isPro && (
-          <span className="text-[10px] text-slate-400">{links.length}/{FREE_LINK_LIMIT} free</span>
-        )}
       </div>
       <p className="text-[11px] text-slate-400 mb-3">Add buttons to your card — Book a call, View portfolio, Leave a review, and more.</p>
 
@@ -366,7 +359,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             </button>
           </div>
         </div>
-      ) : (isPro || links.length < FREE_LINK_LIMIT) ? (
+      ) : (
         <button
           type="button"
           onClick={() => setAddingLink(true)}
@@ -374,10 +367,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         >
           + Add link
         </button>
-      ) : (
-        <div className="border border-dashed border-slate-200 rounded-xl px-4 py-3 text-center">
-          <p className="text-xs text-slate-400">Upgrade to Pro for unlimited action links</p>
-        </div>
       )}
 
       {/* Testimonials */}

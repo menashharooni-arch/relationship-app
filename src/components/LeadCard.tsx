@@ -81,7 +81,7 @@ function tagColor(tag: string) {
   return TAG_COLORS[h % TAG_COLORS.length];
 }
 
-const RESERVED_TAGS = new Set(["flow-paused", "email-paused", "sms-paused", "preset-1", "preset-2", "preset-3"]);
+const RESERVED_TAGS = new Set(["flow-paused", "email-paused", "sms-paused", "preset-1", "preset-2", "preset-3", "sc-locked"]);
 
 function getPresetFromTags(tags: string[]): "1" | "2" | "3" | null {
   for (const t of tags) {

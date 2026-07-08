@@ -57,7 +57,7 @@ export default function AddContactModal({
       setScanned(true);
       setScanState("idle");
     } catch (err) {
-      if (err instanceof ProRequiredError) { setScanState("pro"); setScanMsg("Card scanning is a Pro feature."); }
+      if (err instanceof ProRequiredError) { setScanState("pro"); setScanMsg(err.message); }
       else if (err instanceof DOMException && err.name === "AbortError") { setScanState("error"); setScanMsg("That took too long — try a clearer photo."); }
       else { setScanState("error"); setScanMsg("Couldn't read that card. Try a clear, well-lit photo."); }
     }

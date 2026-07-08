@@ -22,7 +22,7 @@ type Lead = {
   created_at: string;
 };
 
-const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
+const FREE_LIMIT = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
 
 export default function LeadListClient({
   leads,

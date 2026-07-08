@@ -3,16 +3,19 @@
 // nothing drifts. If you change a number, change it HERE — every route and
 // component reads from this file.
 export const PLAN_LIMITS = {
-  FREE_CARD_LIMIT: 1,        // max cards on Free (Pro/Office: unlimited)
-  FREE_CONTACT_LIMIT: 15,    // max captured contacts/leads on Free (lifetime,
-                             // counted per-account so deleting a card can't reset it)
-  FREE_AI_DRAFT_LIMIT: 3,    // total AI follow-up drafts a Free user can generate (taste)
-  FREE_SWIFTLINK_BUTTONS: 2, // max link buttons on Free — the SAME customization.links
-                             // array powers both Swift Links buttons and card "action
-                             // links", so this one cap governs both (previously the
-                             // profile editor drifted to a separate 3).
-  OFFICE_MIN_SEATS: 2,       // minimum seats for the Office plan
+  FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
+  // ── Monthly free meters (refresh on the 1st; counted per-ACCOUNT via
+  //    profiles.customization._usage so deleting a card can never reset them).
+  FREE_LEADS_PER_MONTH: 5,     // new leads/month before extras soft-lock behind Pro
+  FREE_SCANS_PER_MONTH: 3,     // AI business-card scans/month (a taste of the scanner)
+  FREE_AI_DRAFTS_PER_MONTH: 3, // AI follow-up drafts/month
+  OFFICE_MIN_SEATS: 2,         // minimum seats for the Office plan
 } as const;
+
+// Internal lead tag: a lead captured beyond the free monthly cap. Stored on the
+// lead, hidden from the owner (blurred) until they upgrade — never deleted, and
+// unlocked automatically the moment the account is paid.
+export const LOCKED_LEAD_TAG = "sc-locked";
 
 // Every NEW signup gets a full-Pro reverse trial for this many days, then the
 // daily cron downgrades them to Free (never touches a real paying subscriber).
@@ -45,9 +48,9 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
 ): T {
   const cust = { ...(customization ?? {}) } as Record<string, unknown>;
   if (paid) return cust as T;
+  // Free now gets UNLIMITED Swift Links / action-link buttons (matches the plan
+  // sheet). Pro is differentiated by presentation (custom theme colors/fonts,
+  // video previews, featured tiles) — so we still strip the Pro-only design keys.
   for (const key of PRO_CUSTOMIZATION_KEYS) delete cust[key];
-  if (Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
-    cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS);
-  }
   return cust as T;
 }
