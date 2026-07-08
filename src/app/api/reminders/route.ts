@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
-import { deliverToLead } from "@/lib/messaging";
+import { deliverToLead, resolveSignatureImageUrl } from "@/lib/messaging";
 import { expireFreeMonths } from "@/lib/referral-server";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
@@ -280,6 +280,21 @@ export async function GET(req: NextRequest) {
       // respecting the contact's per-channel switches (email/text toggles).
       {
         const senderFirst = sender.name?.split(" ")[0] ?? ownerFirst;
+        // Sign every automated email with the sender's ACTUAL Swift Signature
+        // card image — the exact one they paste from the dashboard — resolved
+        // once per owner. Falls back to a text card block if they haven't
+        // generated their signature yet (or for image-blocked email clients).
+        const cardLink = `${APP_URL}/card/${username}`;
+        const sigUrl = await resolveSignatureImageUrl(username);
+        const signatureBlock = sigUrl
+          ? `<a href="${cardLink}" style="text-decoration:none;"><img src="${sigUrl}" alt="${sender.name ?? ""}${sender.company ? `, ${sender.company}` : ""} — SwiftCard" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;margin-bottom:24px;" /></a>`
+          : `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
+                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${sender.name ?? ""}</p>
+                    ${sender.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${sender.title}</p>` : ""}
+                    ${sender.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${sender.company}</p>` : ""}
+                    ${sender.email ? `<a href="mailto:${sender.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${sender.email}</a>` : ""}
+                    ${sender.phone ? `<a href="tel:${sender.phone}" style="display:block;color:#2563eb;font-size:13px;">${sender.phone}</a>` : ""}
+                  </div>`;
         for (const lead of leads) {
           // Which channel would this go out on? Email first, SMS only when the
           // contact has no email. Skip entirely when that channel is switched off.
@@ -315,13 +330,7 @@ export async function GET(req: NextRequest) {
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
                   <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
-                  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${sender.name ?? ""}</p>
-                    ${sender.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${sender.title}</p>` : ""}
-                    ${sender.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${sender.company}</p>` : ""}
-                    ${sender.email ? `<a href="mailto:${sender.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${sender.email}</a>` : ""}
-                    ${sender.phone ? `<a href="tel:${sender.phone}" style="display:block;color:#2563eb;font-size:13px;">${sender.phone}</a>` : ""}
-                  </div>
+                  ${signatureBlock}
                   <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
                     <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p>
                   </div>
