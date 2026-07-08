@@ -5,7 +5,7 @@ import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -42,11 +42,18 @@ export default async function ContactsPage({
   const cardList = cards ?? [];
   const allUsernames = cardList.map((c) => c.username);
 
-  const { data: leads } = await admin
+  const { data: rawLeads } = await admin
     .from("leads")
     .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
     .in("card_owner", allUsernames)
     .order("name", { ascending: true });
+
+  // Free plan: leads captured beyond the 5/month cap are locked — hide them here
+  // too (same as the dashboard) so they're never revealed until the account is Pro.
+  const paid = isPaidPlan(profile.plan);
+  const leads = paid
+    ? rawLeads
+    : (rawLeads ?? []).filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)));
 
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
