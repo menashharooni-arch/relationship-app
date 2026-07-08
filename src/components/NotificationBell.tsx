@@ -34,6 +34,7 @@ export default function NotificationBell({
   openRef.current = open;
 
   const unread = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.filter((n) => n.read).length;
 
   useEffect(() => {
     const poll = async () => {
@@ -59,6 +60,26 @@ export default function NotificationBell({
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  // Remove a single notification for good (not just mark it read).
+  async function dismiss(id: string) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  }
+
+  // Clear out everything already read in one tap.
+  async function clearRead() {
+    setNotifications((prev) => prev.filter((n) => !n.read));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read: true }),
+    }).catch(() => {});
   }
 
   function handleOpen() {
@@ -98,9 +119,14 @@ export default function NotificationBell({
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <p className="text-sm font-bold text-white">Notifications</p>
               <div className="flex items-center gap-3">
-                {notifications.some((n) => !n.read) && (
+                {unread > 0 && (
                   <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
                     Mark all read
+                  </button>
+                )}
+                {readCount > 0 && (
+                  <button onClick={clearRead} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                    Clear read
                   </button>
                 )}
                 <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mr-0.5">✕</button>
@@ -115,7 +141,7 @@ export default function NotificationBell({
                 </div>
               ) : (
                 notifications.map((n) => (
-                  <div key={n.id} className={`px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
+                  <div key={n.id} className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
@@ -123,6 +149,16 @@ export default function NotificationBell({
                         {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
                         <p className="text-gray-500 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
                       </div>
+                      <button
+                        onClick={() => dismiss(n.id)}
+                        aria-label="Dismiss notification"
+                        title="Dismiss"
+                        className="shrink-0 -mt-0.5 -mr-1 p-1 text-gray-600 hover:text-gray-200 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))

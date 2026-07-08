@@ -29,7 +29,12 @@ export async function POST(
     : country || null;
 
   const supabase = getAdminSupabase();
-  await supabase.from("card_views").insert({ username, ip, location });
+  // Record the view. Surface a failure in the logs instead of silently dropping
+  // it (a missing column / RLS issue would otherwise make views vanish with no
+  // signal). Tracking must never break the visitor's page load, so we still
+  // return ok — but the error is now visible.
+  const { error: insertErr } = await supabase.from("card_views").insert({ username, ip, location });
+  if (insertErr) console.error("card_views insert failed:", insertErr.message, { username });
 
   // Mirror the view to the owner's CRM (SwiftCard vs SwiftLink). Gated by their
   // "card & link views" CRM preference; no-op for everyone else.
