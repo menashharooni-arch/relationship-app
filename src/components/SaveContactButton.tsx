@@ -69,8 +69,9 @@ export default function SaveContactButton({
   }
 
   function downloadVCard() {
-    if (username) trackEvent(username, "clicked_save_contact", source);
-
+    // One action = one activity entry. We record the save once (below, as
+    // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
+    // event was creating a duplicate line in each contact's conversation timeline.
     const lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
