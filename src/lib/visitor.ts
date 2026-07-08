@@ -44,6 +44,9 @@ export function markSharedWith(owner: string | null | undefined, info?: Partial<
       );
     }
   } catch { /* private mode */ }
+  // Broadcast so any other share surface on the page (e.g. the social-link
+  // intercept) updates live — once the visitor has shared, nothing re-asks.
+  try { window.dispatchEvent(new CustomEvent("sc:shared", { detail: { owner } })); } catch { /* ignore */ }
 }
 
 export function getVisitorInfo(): VisitorInfo | null {
