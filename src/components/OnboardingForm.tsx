@@ -267,7 +267,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           </div>
 
           {/* Template selector */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 pt-2.5">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 pt-3">
             {TEMPLATES.map(({ id, label, Component, tags }) => (
               <button
                 key={id}
