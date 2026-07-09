@@ -3,6 +3,15 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
+import ManageCards from "@/components/ManageCards";
+import GeneralSettings from "@/components/GeneralSettings";
+import ManageAccount from "@/components/ManageAccount";
+import ReferAFriend from "@/components/ReferAFriend";
+import { getReferralStatus } from "@/lib/referral-server";
+import CrmEventSettings from "@/components/CrmEventSettings";
+import HelpWidget from "@/components/HelpWidget";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -14,19 +23,27 @@ export default async function FlowSettingsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("flow_settings, plan, zapier_webhook_url")
+    .select("flow_settings, plan, zapier_webhook_url, name, username, customization")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
-  const admin = getAdminSupabase();
-  const { data: integrations } = await admin
-    .from("integrations")
-    .select("provider")
-    .eq("user_id", user.id);
+  await ensureUserCards(user.id);
 
+  const admin = getAdminSupabase();
+  const [{ data: integrations }, { data: cards }] = await Promise.all([
+    admin.from("integrations").select("provider").eq("user_id", user.id),
+    admin
+      .from("cards")
+      .select("id, username, name, title, label")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const referral = await getReferralStatus(user.id);
   const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
 
@@ -42,12 +59,7 @@ export default async function FlowSettingsPage() {
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
-                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                  <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
-                </svg>
-              </div>
+              <SwiftCardIcon size={28} />
               <span className="font-bold text-white text-sm tracking-tight hidden sm:block">SwiftCard</span>
             </Link>
           </div>
@@ -78,6 +90,18 @@ export default async function FlowSettingsPage() {
         </div>
 
         <div className="space-y-8">
+          {/* Your cards */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
+            <ManageCards cards={cards ?? []} />
+          </div>
+
+          {/* Help */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Need help</p>
+            <HelpWidget />
+          </div>
+
           {/* Integrations */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Integrations</p>
@@ -90,21 +114,33 @@ export default async function FlowSettingsPage() {
                   isPro={isPro}
                 />
               </Suspense>
+              <CrmEventSettings
+                initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
+                initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
+                zapierConnected={!!profile.zapier_webhook_url}
+                isPro={isPro}
+              />
+              <ReferAFriend code={referral?.code ?? null} rewardEarned={!!referral?.rewardEarned} />
             </div>
           </div>
 
-          {/* Link to profile */}
-          <div className="pt-4 border-t border-gray-800">
-            <Link href="/profile" className="flex items-center justify-between group bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div>
-                <p className="text-white text-sm font-medium">Profile & follow-up settings</p>
-                <p className="text-gray-500 text-xs mt-0.5">Edit your card info, follow-up automation, and email preferences</p>
-              </div>
-              <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+          {/* General */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
+            <GeneralSettings
+              email={user.email ?? ""}
+              cardCount={cards?.length ?? 0}
+              plan={profile.plan ?? "free"}
+              isPro={isPro}
+            />
           </div>
+
+          {/* Manage account */}
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
+            <ManageAccount isPro={isPro} />
+          </div>
+
         </div>
       </div>
     </main>

@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
+import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import QRCodeModal from "@/components/QRCodeModal";
@@ -12,7 +14,13 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import CustomCard from "@/components/card-templates/CustomCard";
+import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
+import { resolveCardMeta } from "@/lib/resolve-card";
+import CardScaler from "@/components/CardScaler";
+import { isPaidPlan } from "@/lib/plan";
+import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro,
@@ -20,17 +28,13 @@ const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "photo-first": PhotoFirst,
   "local-business": LocalBusiness,
   "luxury-minimal": LuxuryMinimal,
+  "custom": CustomCard,
 };
 
 function initials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function normalizeUrl(raw: string, base: string) {
-  if (!raw) return null;
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
-}
 
 function SectionNumber({ n }: { n: number }) {
   return (
@@ -46,20 +50,9 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const admin = getAdminSupabase();
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("name, title, company, photo_url")
-    .eq("username", username)
-    .single();
-
-  const { data: card } = !profile
-    ? await admin.from("cards").select("name, title, company, photo_url").eq("username", username).single()
-    : { data: null };
-
-  const p = profile ?? card;
+  const p = await resolveCardMeta(username);
   if (!p) return { title: "SwiftCard" };
 
   const name = p.name ?? username;
@@ -91,43 +84,80 @@ export default async function CardPage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ source?: string }>;
+  searchParams: Promise<{ source?: string; embed?: string }>;
 }) {
   const { username } = await params;
-  const { source: rawSource } = await searchParams;
+  const { source: rawSource, embed } = await searchParams;
   const source = rawSource ?? "direct_link";
-  const supabase = getAdminSupabase();
+  const isEmbed = embed === "1"; // rendered inside the /preview demo — skip tracking + nudge
 
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("username", username)
-    .single();
-
-  const { data: extraCard } = !profileData
-    ? await supabase.from("cards").select("*, profiles!inner(plan)").eq("username", username).single()
+  // Cards table is the source of truth. Fall back to a legacy profile-card for any
+  // account not yet migrated. Admin client so row-level security doesn't hide cards.
+  const admin = getAdminSupabase();
+  const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
+  const { data: cardOwner } = cardRow
+    ? await admin.from("profiles").select("plan, photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
 
-  const profile = profileData ?? (extraCard ? { ...extraCard, plan: (extraCard as { profiles?: { plan?: string } }).profiles?.plan ?? "free" } : null);
+  const { data: profileRow } = !cardRow
+    ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
+    : { data: null };
 
-  if (!profile) notFound();
+  // Only treat a profile as a card if it's a legacy, not-yet-migrated card (so a
+  // deleted/migrated card doesn't keep resolving from the account profile).
+  const legacyCardOk =
+    !!profileRow &&
+    !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) &&
+    !!profileRow.name;
+
+  // Hide cards whose owner account has been deleted.
+  const ownerDeleted = cardRow
+    ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
+    : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
+
+  const profile = cardRow
+    ? { ...cardRow, plan: cardOwner?.plan ?? "free" }
+    : (legacyCardOk ? profileRow : null);
+
+  if (!profile || ownerDeleted) notFound();
+
+  // Don't count the owner viewing their own card as a view.
+  const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);
+  let isOwnerView = false;
+  try {
+    const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+    isOwnerView = !!viewer && viewer.id === ownerId;
+  } catch { /* cookie refresh may fail for public viewers — safe to ignore */ }
+
+  // One profile picture is shared across all of an account's cards.
+  const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
   const customization = (profile.customization ?? {}) as {
+    bio?: string;
+    facebook?: string;
     snapchat?: string;
     youtube?: string;
-    about?: string;
+    address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string };
     accentColor?: string;
     font?: string;
     links?: { emoji: string; label: string; url: string }[];
     testimonials?: { name: string; text: string }[];
+    phones?: { number: string; label: "mobile" | "office"; showOnCard: boolean }[];
+    fax?: string;
   };
+  const bio = customization.bio || "";
+  const facebook = customization.facebook || "";
   const snapchat = customization.snapchat || "";
   const youtube = customization.youtube || "";
-  const about = customization.about || "";
   const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
   const testimonials = (customization.testimonials ?? []).filter((t) => t.name && t.text);
+
+  const addr = customization.address;
+  const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
+  const addressLine2 = addr?.city ?? "";
+  const addressLine3 = [addr?.state, addr?.zip].filter(Boolean).join(" ");
 
   const cardData: CardData = {
     name: profile.name || "",
@@ -141,11 +171,11 @@ export default async function CardPage({
     tiktok: profile.tiktok || "",
     linkedin: profile.linkedin || "",
     snapchat,
-    about,
     initials: profile.name ? initials(profile.name) : "SC",
-    photoUrl: profile.photo_url || null,
+    photoUrl: accountPhotoUrl,
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
+    address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
     customization: profile.customization ?? {},
   };
 
@@ -155,7 +185,16 @@ export default async function CardPage({
     company: profile.company || "",
     email: profile.email || "",
     phone: profile.phone || "",
+    phones: (customization.phones ?? []).filter((p) => p?.number?.trim()),
+    fax: customization.fax || "",
     website: profile.website || "",
+    address: {
+      street: addr?.street || "",
+      unit: addr?.unit || "",
+      city: addr?.city || "",
+      state: addr?.state || "",
+      zip: addr?.zip || "",
+    },
     linkedin: profile.linkedin || "",
     instagram: profile.instagram || "",
     twitter: profile.twitter || "",
@@ -167,67 +206,45 @@ export default async function CardPage({
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
 
-  // Build serializable social link data (no ReactNode icons — SocialLinkIntercept renders icons by label)
-  const connectLinks = [
-    profile.linkedin && {
-      label: "LinkedIn",
-      href: normalizeUrl(profile.linkedin, "https://linkedin.com/in")!,
-      color: "#0A66C2",
-    },
-    profile.instagram && {
-      label: "Instagram",
-      href: normalizeUrl(profile.instagram, "https://instagram.com")!,
-      color: "#E1306C",
-    },
-    profile.twitter && {
-      label: "X / Twitter",
-      href: normalizeUrl(profile.twitter, "https://x.com")!,
-      color: "#000000",
-    },
-    snapchat && {
-      label: "Snapchat",
-      href: snapchat.startsWith("@")
-        ? `https://snapchat.com/add/${snapchat.slice(1)}`
-        : normalizeUrl(snapchat, "https://snapchat.com/add")!,
-      color: "#FFCA28",
-      textColor: "#1a1a00",
-    },
-    profile.tiktok && {
-      label: "TikTok",
-      href: normalizeUrl(profile.tiktok, "https://tiktok.com/@")!,
-      color: "#010101",
-    },
-    youtube && {
-      label: "YouTube",
-      href: normalizeUrl(youtube, "https://youtube.com/")!,
-      color: "#FF0000",
-    },
-    profile.website && {
-      label: "Website",
-      href: normalizeUrl(profile.website, "https://")!,
-      color: "#1D4ED8",
-    },
-  ].filter(Boolean) as { label: string; href: string; color: string; textColor?: string }[];
+  // Swift Links — socials in canonical order (Website first)
+  const connectLinks = buildConnectLinks({
+    website: profile.website,
+    linkedin: profile.linkedin,
+    instagram: profile.instagram,
+    tiktok: profile.tiktok,
+    facebook,
+    twitter: profile.twitter,
+    snapchat,
+    youtube,
+  });
 
-  // Total connect items = social links + action links
-  const hasConnectSection = connectLinks.length > 0 || actionLinks.length > 0;
+  // Swift Links shows a bio, social links, and additional links
+  const hasConnectSection = !!bio || connectLinks.length > 0 || actionLinks.length > 0;
+
+  // Card-only mode (?embed=card): render just the card, used as the /preview inline preview.
+  if (embed === "card") {
+    return (
+      <div id="sc-card-only" className="w-full overflow-hidden" style={{ background: "#FAF7F2" }}>
+        <CardScaler>
+          <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+        </CardScaler>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
-      <CardEventTracker username={profile.username} source={source} />
+      {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
+      {!isEmbed && <SignupNudgeHost />}
 
-      {/* Business card */}
+      {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
-        <TemplateComponent data={cardData} />
+        <CardScaler>
+          <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+        </CardScaler>
       </div>
 
-      {/* About section */}
-      {about && (
-        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">About</p>
-          <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{about}</p>
-        </div>
-      )}
+      {/* Address now lives inside the card design above (no separate section). */}
 
       {/* Testimonials */}
       {testimonials.length > 0 && (
@@ -274,10 +291,13 @@ export default async function CardPage({
       {/* ── Section 3: Other Ways to Connect ── */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-3">
             <SectionNumber n={3} />
-            <p className="text-slate-900 font-semibold text-sm">Other ways to connect with {firstName}</p>
+            <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
           </div>
+          {bio && (
+            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap mb-4 ml-9">{bio}</p>
+          )}
           {/* Social links with intercept modal */}
           {connectLinks.length > 0 && (
             <SocialLinkIntercept
@@ -324,6 +344,17 @@ export default async function CardPage({
         />
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
       </div>
+
+      {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
+      {!isPaidPlan(profile.plan) && (
+        <a
+          href={`${APP_URL}/join?src=badge`}
+          className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
+        >
+          <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
+          Made with SwiftCard.me
+        </a>
+      )}
     </main>
   );
 }

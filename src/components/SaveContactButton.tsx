@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getVisitorId } from "@/lib/visitor";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 interface Person {
   name: string;
@@ -9,7 +10,10 @@ interface Person {
   company: string;
   email: string;
   phone: string;
+  phones?: { number: string; label: string; showOnCard: boolean }[];
+  fax?: string;
   website: string;
+  address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string };
   linkedin?: string;
   instagram?: string;
   twitter?: string;
@@ -70,9 +74,29 @@ export default function SaveContactButton({
     ];
     if (person.title)    lines.push(`TITLE:${person.title}`);
     if (person.company)  lines.push(`ORG:${person.company}`);
-    if (person.email)    lines.push(`EMAIL:${person.email}`);
-    if (person.phone)    lines.push(`TEL:${person.phone}`);
+    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${person.email}`);
+
+    // All phone numbers, typed (mobile → CELL, office → WORK), then fax.
+    const phones = (person.phones ?? []).filter((p) => p.number?.trim());
+    if (phones.length) {
+      for (const p of phones) {
+        const type = p.label === "office" ? "WORK,VOICE" : "CELL,VOICE";
+        lines.push(`TEL;TYPE=${type}:${p.number.trim()}`);
+      }
+    } else if (person.phone) {
+      lines.push(`TEL:${person.phone}`);
+    }
+    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${person.fax.trim()}`);
+
     if (person.website)  lines.push(`URL:${normalizeUrl(person.website)}`);
+
+    // Postal address (structured ADR: ;;street;city;state;zip;)
+    const addr = person.address;
+    if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
+      const street = [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(" ");
+      const esc = (v?: string) => (v ?? "").replace(/([,;\\])/g, "\\$1");
+      lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
+    }
     if (person.linkedin)   lines.push(`URL;type=LinkedIn:${normalizeUrl(person.linkedin)}`);
     if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${person.instagram.replace(/^@/, "")}`);
     if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${person.twitter.replace(/^@/, "")}`);
@@ -100,9 +124,12 @@ export default function SaveContactButton({
       }).catch(() => {});
     }
 
-    // Show conversion sheet after short delay (let the download dialog appear first)
+    // Show the "share your info back" lead-capture sheet (card owner's). If it
+    // won't show, invite the visitor to make their OWN card instead (signup nudge).
     if (cardOwner && !alreadyShared) {
       setTimeout(() => setShowSheet(true), 900);
+    } else {
+      setTimeout(() => triggerSignupNudge("vcard"), 900);
     }
   }
 
@@ -131,7 +158,8 @@ export default function SaveContactButton({
 
     setAlreadyShared(true);
     setStatus("done");
-    setTimeout(() => setShowSheet(false), 1500);
+    // After they share back, close the sheet and invite them to make their own card.
+    setTimeout(() => { setShowSheet(false); triggerSignupNudge("vcard"); }, 1500);
   }
 
   return (
@@ -187,7 +215,7 @@ export default function SaveContactButton({
                       Let {ownerFirstName ?? "them"} have yours too
                     </p>
                     <p className="text-slate-500 text-sm mt-1">
-                      You saved their contact — share yours so they can follow up.
+                      Share your information!
                     </p>
                   </div>
                   <button

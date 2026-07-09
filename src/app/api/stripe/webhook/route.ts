@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { getStripe } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail } from "@/lib/email-templates";
+import { rewardReferrerIfEligible } from "@/lib/referral-server";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
@@ -83,12 +84,40 @@ export async function POST(req: NextRequest) {
         ? (session.metadata?.seats ? parseInt(session.metadata.seats) : (lineItems.data[0]?.quantity ?? 5))
         : 1;
 
+      // Card fingerprint for referral fraud dedup (same card on two accounts).
+      let paymentFingerprint: string | null = null;
+      try {
+        if (session.subscription) {
+          const sub = await getStripe().subscriptions.retrieve(session.subscription as string, { expand: ["default_payment_method"] });
+          const pm = sub.default_payment_method as Stripe.PaymentMethod | null;
+          paymentFingerprint = pm?.card?.fingerprint ?? null;
+        }
+      } catch (e) {
+        console.error("[stripe] payment fingerprint fetch failed:", e);
+      }
+
       const admin = getAdminSupabase();
+      // Critical: upgrade the plan. Kept to pre-existing columns ONLY so it can
+      // never be blocked by a not-yet-run REFERRAL_SETUP.sql migration.
       await admin.from("profiles").update({
         plan,
         stripe_customer_id: session.customer as string,
         stripe_subscription_id: session.subscription as string,
       }).eq("id", userId);
+      // Referral columns (added by the migration) — best-effort; a missing column
+      // just no-ops here and never affects the upgrade above.
+      await admin.from("profiles").update({
+        plan_expires_at: null, // a real paying customer — no free-month downgrade
+        ...(paymentFingerprint ? { payment_fingerprint: paymentFingerprint } : {}),
+      }).eq("id", userId);
+
+      // Referral: the friend just became a PAYING customer — grant the referrer
+      // their one-time reward (verified Stripe event, never from the browser).
+      try {
+        await rewardReferrerIfEligible(userId);
+      } catch (e) {
+        console.error("Referral reward error:", e);
+      }
 
       // Send receipt
       try {
@@ -152,11 +181,15 @@ export async function POST(req: NextRequest) {
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data.object as Stripe.Subscription;
     const admin2 = getAdminSupabase();
+    // Critical downgrade (pre-existing columns only — never blocked by the migration).
     const { data: profile } = await admin2.from("profiles")
-      .update({ plan: "free" })
+      .update({ plan: "free", stripe_subscription_id: null })
       .eq("stripe_subscription_id", sub.id)
       .select("id")
       .single();
+    // Best-effort: clear any free-month expiry so the row can't later be mistaken
+    // for an active subscriber (which would leak Pro forever).
+    if (profile?.id) await admin2.from("profiles").update({ plan_expires_at: null }).eq("id", profile.id);
 
     if (profile?.id) {
       const admin = getAdminSupabase();
@@ -172,6 +205,7 @@ export async function POST(req: NextRequest) {
         for (const m of activeMembers ?? []) {
           if (m.user_id) {
             await admin.from("profiles").update({ plan: "free", office_id: null }).eq("id", m.user_id);
+            await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id); // best-effort
           }
         }
       }

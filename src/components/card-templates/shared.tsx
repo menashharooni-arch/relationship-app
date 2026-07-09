@@ -1,10 +1,41 @@
 // Shared design tokens, icons, and utilities for all card templates
 
+import type { CardData } from "./types";
+
 export function formatPhone(raw: string): string {
   const d = raw.replace(/\D/g, "");
   if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
   if (d.length === 11 && d[0] === "1") return `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
   return raw;
+}
+
+export type ShownPhone = { number: string; label: string };
+
+// Phone numbers to display on the card: the ones flagged showOnCard, falling
+// back to the legacy single `phone` field for cards saved before multi-phone.
+export function cardPhones(data: CardData): ShownPhone[] {
+  const phones = data.customization?.phones;
+  if (Array.isArray(phones) && phones.length) {
+    return phones
+      .filter((p) => p?.showOnCard && p.number?.trim())
+      .map((p) => ({ number: p.number, label: p.label || "" }));
+  }
+  return data.phone ? [{ number: data.phone, label: "" }] : [];
+}
+
+// Fax number (card-only).
+export function cardFax(data: CardData): string {
+  return data.customization?.fax?.trim() || "";
+}
+
+export function capLabel(label: string): string {
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : "";
+}
+
+// Absolute URL for the card's website value (handles bare domains like "swiftcard.me").
+export function webHref(site: string): string {
+  const s = (site || "").trim();
+  return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
 }
 
 // ─── Contact Icons (stroke style) ────────────────────────────────────────────
@@ -24,6 +55,13 @@ export const IcoMail = () => (
 export const IcoGlobe = () => (
   <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582" />
+  </svg>
+);
+
+export const IcoPin = () => (
+  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
   </svg>
 );
 

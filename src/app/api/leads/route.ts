@@ -5,10 +5,11 @@ import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
-const FREE_LEAD_LIMIT = 25;
+const FREE_LEAD_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
 
 // Simple in-process rate limiter: max 3 submissions per 10 min per IP+owner pair
 const rateMap = new Map<string, { count: number; resetAt: number }>();
@@ -57,12 +58,13 @@ export async function POST(req: NextRequest) {
       .eq("username", card_owner)
       .single();
 
-    if (ownerProfile?.plan !== "pro" && ownerProfile?.plan !== "enterprise") {
+    if (!isPaidPlan(ownerProfile?.plan)) {
       const { count } = await admin
         .from("leads")
         .select("*", { count: "exact", head: true })
         .eq("card_owner", card_owner);
 
+      // Cap blocks only NEW captures — existing contacts are untouched.
       if ((count ?? 0) >= FREE_LEAD_LIMIT) {
         return NextResponse.json(
           { error: "limit", message: "This card has reached its free plan limit." },
@@ -81,7 +83,8 @@ export async function POST(req: NextRequest) {
         message: message || null,
         location: location || null,
         card_owner,
-        tags: tags ?? null,
+        // New reach-outs arrive unread so the owner can track what they've seen.
+        tags: [...(Array.isArray(tags) ? tags : []), "unread"],
         source: source || null,
         visitor_id: visitor_id || null,
       })
@@ -105,7 +108,7 @@ export async function POST(req: NextRequest) {
       fetch(ownerProfile.zapier_webhook_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone: phone || null, message: message || null, location, card_owner, tags: tags ?? null, created_at: new Date().toISOString() }),
+        body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: tags ?? null, created_at: new Date().toISOString() }),
       }).catch(() => {});
     }
 
@@ -115,6 +118,7 @@ export async function POST(req: NextRequest) {
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
       admin.from("notifications").insert({
         user_id: ownerProfile.id,
+        card_owner,
         type: "new_lead",
         title: `New contact: ${name}`,
         body: `${name} shared their info with you${sourceStr}.`,

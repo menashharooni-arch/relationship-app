@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 const SCREENS = [
   {
@@ -87,10 +87,12 @@ function CardScreen() {
 
       {/* Card content */}
       <div className="flex-1 overflow-hidden px-3 pt-3 pb-2 flex flex-col gap-2.5">
-        {/* Actual ClassicPro template scaled to fit */}
-        <div className="shrink-0 rounded-xl overflow-hidden" style={{ height: "122px" }}>
-          <div style={{ width: "390px", transform: "scale(0.564)", transformOrigin: "top left" }}>
-            <ClassicPro data={SAMPLE_DATA} />
+        {/* Actual ClassicPro template scaled to fit the ~196px-wide card slot.
+            390px design width × 0.5 = 195px wide, (390/1.75)×0.5 ≈ 111px tall —
+            so nothing (right-edge QR or bottom row) gets clipped. */}
+        <div className="shrink-0 rounded-xl overflow-hidden" style={{ height: "112px" }}>
+          <div style={{ width: "390px", transform: "scale(0.5)", transformOrigin: "top left" }}>
+            <ClassicPro data={withoutSocials(SAMPLE_DATA)} />
           </div>
         </div>
 

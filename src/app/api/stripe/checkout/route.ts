@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("email, username, plan")
+      .select("email, username, plan, stripe_customer_id")
       .eq("id", user.id)
       .single();
 
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       client_reference_id: user.id,
-      customer_email: profile.email,
+      // Reuse the existing Stripe customer so re-subscribing doesn't create duplicates.
+      ...(profile.stripe_customer_id
+        ? { customer: profile.stripe_customer_id as string }
+        : { customer_email: profile.email }),
       line_items: [{ price: priceId, quantity }],
       mode: "subscription",
       success_url: `${APP_URL}/dashboard?upgraded=true`,
