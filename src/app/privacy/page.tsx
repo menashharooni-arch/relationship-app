@@ -8,8 +8,6 @@ export const metadata: Metadata = {
 };
 
 // Plain-language privacy policy reflecting what the product actually does.
-// Update the "Last updated" date whenever practices change.
-const LAST_UPDATED = "July 6, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -32,8 +30,7 @@ export default function PrivacyPage() {
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-slate-400 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+        <h1 className="text-3xl font-bold text-slate-900 mb-8">Privacy Policy</h1>
 
         <P>
           SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;) provides digital business cards, link-in-bio pages,
