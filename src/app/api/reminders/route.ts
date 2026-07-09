@@ -420,8 +420,17 @@ export async function GET(req: NextRequest) {
     // came through), so replies go to the right inbox.
     const seqSender = owner.sender;
 
+    // Working copy that ACCUMULATES sent_at stamps across this run. Stamping
+    // against the original `seq` snapshot each time meant that when TWO steps
+    // were due in one run (the catch-up case), the second write erased the
+    // first step's stamp — and that step re-sent the next day.
+    let curSeq = seq;
+
     for (const item of seq) {
       if (item.sent_at) continue;
+      // Skip anything already stamped earlier in THIS run (same day+channel).
+      const live = curSeq.find((s) => s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email"));
+      if (live?.sent_at) continue;
       // Steps schedule from their anchor (stamped when the sequence was set up)
       // so a flow added to an older contact still sends. Legacy items without an
       // anchor keep the original contact-creation reference.
@@ -457,14 +466,15 @@ export async function GET(req: NextRequest) {
 
       // Mark THIS step (matched by day AND channel) done unless it failed
       // transiently — so the email and text flows for the same day don't cancel
-      // each other.
+      // each other. Stamp into the ACCUMULATING copy (not the stale snapshot)
+      // and write per-step, so a crash mid-run never re-sends what already went.
       if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
-        const updatedSeq = seq.map((s) =>
+        curSeq = curSeq.map((s) =>
           s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email")
             ? { ...s, sent_at: new Date().toISOString() }
             : s
         );
-        await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
+        await supabase.from("leads").update({ follow_up_sequence: curSeq }).eq("id", seqLead.id);
         if (r.status === "sent") totalSent++;
       }
     }
