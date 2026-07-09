@@ -293,6 +293,7 @@ export default async function CardPage({
           source={source}
           cardOwner={profile.username}
           ownerFirstName={firstName}
+          suppressTracking={isOwnerView}
         />
         {hasWalletConfig() && (
           <div className="mt-2">

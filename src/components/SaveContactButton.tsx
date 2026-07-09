@@ -40,12 +40,16 @@ export default function SaveContactButton({
   source = "direct_link",
   cardOwner,
   ownerFirstName,
+  suppressTracking = false,
 }: {
   person: Person;
   username?: string;
   source?: string;
   cardOwner?: string;
   ownerFirstName?: string;
+  /** True when the OWNER is viewing their own card — the download still works,
+      but no activity event or analytics are recorded (self-noise). */
+  suppressTracking?: boolean;
 }) {
   const [saved, setSaved] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
@@ -123,7 +127,9 @@ export default function SaveContactButton({
 
     setSaved(true);
 
-    if (username) {
+    // Owners testing their own card still get the download, but nothing is
+    // recorded — no "saved your contact" event/notification to themselves.
+    if (username && !suppressTracking) {
       trackEvent(username, "downloaded_vcard", source);
       fetch("/api/analytics/event", {
         method: "POST",
