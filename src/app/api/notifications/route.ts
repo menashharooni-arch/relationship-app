@@ -6,20 +6,22 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Scope to the selected card (plus legacy un-tagged notifications) when given.
+  // No ?card= → ALL cards (the bell). ?card=X → that card only, plus legacy
+  // un-tagged/account-level notifications (the dashboard panel).
   const card = (req.nextUrl.searchParams.get("card") || "").replace(/[^a-zA-Z0-9_-]/g, "");
 
   let q = supabase
     .from("notifications")
-    .select("id, type, title, body, read, created_at")
+    .select("id, type, title, body, read, created_at, card_owner")
     .eq("user_id", user.id);
   if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
 
-  let { data, error } = await q.order("created_at", { ascending: false }).limit(20);
+  const { data: scoped, error } = await q.order("created_at", { ascending: false }).limit(20);
+  let data: Record<string, unknown>[] | null = scoped;
 
-  // If the card_owner column migration hasn't run yet, the scoped query errors
-  // and the bell would show nothing — fall back to the user's notifications.
-  if (error && card) {
+  // If the card_owner column migration hasn't run yet, selecting/filtering on
+  // it errors and the bell would show nothing — fall back to the plain query.
+  if (error) {
     ({ data } = await supabase
       .from("notifications")
       .select("id, type, title, body, read, created_at")

@@ -9,6 +9,9 @@ type Notification = {
   body: string | null;
   read: boolean;
   created_at: string;
+  // Which card this notification belongs to (username slug). Null/absent for
+  // account-level notifications (referrals etc.) and legacy rows.
+  card_owner?: string | null;
 };
 
 function timeAgo(iso: string) {
@@ -23,10 +26,11 @@ function timeAgo(iso: string) {
 
 export default function NotificationBell({
   initialNotifications,
-  activeCard,
+  cardLabels,
 }: {
   initialNotifications: Notification[];
-  activeCard?: string;
+  // username → display label, for the per-card tag on each notification.
+  cardLabels?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -40,7 +44,9 @@ export default function NotificationBell({
     const poll = async () => {
       if (openRef.current) return;
       try {
-        const res = await fetch(`/api/notifications${activeCard ? `?card=${encodeURIComponent(activeCard)}` : ""}`);
+        // The bell watches EVERY card (no ?card= scope) — activity on any card
+        // shows here, tagged with that card's name.
+        const res = await fetch("/api/notifications");
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setNotifications((prev) => {
@@ -54,12 +60,22 @@ export default function NotificationBell({
 
     const id = setInterval(poll, 30000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCard]);
+  }, []);
 
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  // Toggle ONE notification read/unread — the badge only drops when the user
+  // explicitly marks items read (individually here, or in bulk above).
+  async function setRead(id: string, read: boolean) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, read }),
+    }).catch(() => {});
   }
 
   // Remove a single notification for good (not just mark it read).
@@ -147,10 +163,29 @@ export default function NotificationBell({
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs font-semibold">{n.title}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="text-white text-xs font-semibold truncate">{n.title}</p>
+                          {n.card_owner && (
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[110px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
+                              {cardLabels?.[n.card_owner] ?? n.card_owner}
+                            </span>
+                          )}
+                        </div>
                         {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
                         <p className="text-gray-500 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
                       </div>
+                      <button
+                        onClick={() => setRead(n.id, !n.read)}
+                        title={n.read ? "Mark as unread" : "Mark as read"}
+                        aria-label={n.read ? "Mark as unread" : "Mark as read"}
+                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors ${
+                          n.read
+                            ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
+                            : "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25"
+                        }`}
+                      >
+                        {n.read ? "Unread" : "Read"}
+                      </button>
                       <button
                         onClick={() => dismiss(n.id)}
                         aria-label="Dismiss notification"

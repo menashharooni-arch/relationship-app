@@ -22,6 +22,10 @@ function timeAgo(iso: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// Notification types that are about a contact — clicking these rows opens the
+// active card's contacts ("shared their info" and "saved your contact").
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved"]);
+
 export default function NotificationsPanel({ initial, card }: { initial: Notification[]; card?: string }) {
   const router = useRouter();
 
@@ -123,11 +127,11 @@ export default function NotificationsPanel({ initial, card }: { initial: Notific
           <div key={n.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"}`}>
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
             <div
-              className={`min-w-0 flex-1 ${n.type === "new_lead" ? "cursor-pointer" : ""}`}
-              onClick={n.type === "new_lead" ? openContacts : undefined}
-              role={n.type === "new_lead" ? "button" : undefined}
+              className={`min-w-0 flex-1 ${CONTACT_TYPES.has(n.type) ? "cursor-pointer" : ""}`}
+              onClick={CONTACT_TYPES.has(n.type) ? openContacts : undefined}
+              role={CONTACT_TYPES.has(n.type) ? "button" : undefined}
             >
-              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${n.type === "new_lead" ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>
+              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${CONTACT_TYPES.has(n.type) ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>
               {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
               {/* Referral month earned → the explicit tap-to-claim */}
               {n.type === "referral_claim" && (
@@ -137,7 +141,7 @@ export default function NotificationsPanel({ initial, card }: { initial: Notific
                   </p>
                 ) : (
                   <button
-                    onClick={() => claimReferral(n.id)}
+                    onClick={(e) => { e.stopPropagation(); claimReferral(n.id); }}
                     disabled={claiming === n.id}
                     className="mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
                   >
