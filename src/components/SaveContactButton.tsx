@@ -72,41 +72,43 @@ export default function SaveContactButton({
     // One action = one activity entry. We record the save once (below, as
     // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
     // event was creating a duplicate line in each contact's conversation timeline.
+    // vCard escaping (RFC 6350): a ";" or "," in a name/company would otherwise
+    // shift field boundaries and corrupt the saved contact.
+    const esc = (v?: string | null) => String(v ?? "").replace(/[\r\n]+/g, " ").replace(/([,;\\])/g, "\\$1").trim();
     const lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
-      `FN:${person.name}`,
-      `N:${person.name.split(" ").slice(1).join(" ")};${person.name.split(" ")[0]};;;`,
+      `FN:${esc(person.name)}`,
+      `N:${esc(person.name.split(" ").slice(1).join(" "))};${esc(person.name.split(" ")[0])};;;`,
     ];
-    if (person.title)    lines.push(`TITLE:${person.title}`);
-    if (person.company)  lines.push(`ORG:${person.company}`);
-    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${person.email}`);
+    if (person.title)    lines.push(`TITLE:${esc(person.title)}`);
+    if (person.company)  lines.push(`ORG:${esc(person.company)}`);
+    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${esc(person.email)}`);
 
     // All phone numbers, typed (mobile → CELL, office → WORK), then fax.
     const phones = (person.phones ?? []).filter((p) => p.number?.trim());
     if (phones.length) {
       for (const p of phones) {
         const type = p.label === "office" ? "WORK,VOICE" : "CELL,VOICE";
-        lines.push(`TEL;TYPE=${type}:${p.number.trim()}`);
+        lines.push(`TEL;TYPE=${type}:${esc(p.number)}`);
       }
     } else if (person.phone) {
-      lines.push(`TEL:${person.phone}`);
+      lines.push(`TEL:${esc(person.phone)}`);
     }
-    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${person.fax.trim()}`);
+    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${esc(person.fax)}`);
 
-    if (person.website)  lines.push(`URL:${normalizeUrl(person.website)}`);
+    if (person.website)  lines.push(`URL:${esc(normalizeUrl(person.website))}`);
 
     // Postal address (structured ADR: ;;street;city;state;zip;)
     const addr = person.address;
     if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
       const street = [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(" ");
-      const esc = (v?: string) => (v ?? "").replace(/([,;\\])/g, "\\$1");
       lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
     }
-    if (person.linkedin)   lines.push(`URL;type=LinkedIn:${normalizeUrl(person.linkedin)}`);
-    if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${person.instagram.replace(/^@/, "")}`);
-    if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${person.twitter.replace(/^@/, "")}`);
-    if (person.tiktok)     lines.push(`X-SOCIALPROFILE;type=tiktok:${person.tiktok.replace(/^@/, "")}`);
+    if (person.linkedin)   lines.push(`URL;type=LinkedIn:${esc(normalizeUrl(person.linkedin))}`);
+    if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
+    if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
+    if (person.tiktok)     lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);
     lines.push("END:VCARD");
 
     const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });

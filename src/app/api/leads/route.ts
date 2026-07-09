@@ -18,13 +18,25 @@ export async function POST(req: NextRequest) {
   try {
     const { name, email, phone, company, message, card_owner, tags, source, visitor_id } = await req.json();
 
-    if (!name || !phone) {
+    // This is a PUBLIC endpoint — require real strings, not just truthy values
+    // (a JSON payload of {name: [], phone: {}} would otherwise pass and crash
+    // downstream string handling in emails/vCards).
+    if (typeof name !== "string" || !name.trim() || typeof phone !== "string" || !phone.trim() || typeof card_owner !== "string" || !card_owner.trim()) {
       return NextResponse.json({ error: "Name and phone are required." }, { status: 400 });
     }
 
-    // Rate limit: same IP submitting to the same card too frequently
+    // Visitors must not be able to inject system tags ("sc-locked" would hide
+    // the lead behind the paywall, "email-paused" would kill its automations).
+    // Only the scanner's benign marker survives from the client.
+    const CLIENT_TAG_WHITELIST = new Set(["scanned"]);
+    const safeTags = (Array.isArray(tags) ? tags : []).filter(
+      (t): t is string => typeof t === "string" && CLIENT_TAG_WHITELIST.has(t)
+    );
+
+    // Rate limit: same IP submitting to the same card too frequently.
+    // card_owner is normalized so "Alice " vs "alice" can't mint fresh buckets.
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    const rateKey = `${ip}:${card_owner}`;
+    const rateKey = `${ip}:${card_owner.trim().toLowerCase()}`;
     if (isRateLimited(rateKey)) {
       return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });
     }
@@ -91,7 +103,7 @@ export async function POST(req: NextRequest) {
         card_owner,
         // New reach-outs arrive unread; over the free monthly cap they're also
         // tagged locked so the dashboard blurs them behind Pro.
-        tags: [...(Array.isArray(tags) ? tags : []), "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
+        tags: [...safeTags, "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
         source: source || null,
         visitor_id: visitor_id || null,
       })
@@ -121,7 +133,7 @@ export async function POST(req: NextRequest) {
       fetch(ownerProfile.zapier_webhook_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: tags ?? null, created_at: new Date().toISOString() }),
+        body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
       }).catch(() => {});
     }
 

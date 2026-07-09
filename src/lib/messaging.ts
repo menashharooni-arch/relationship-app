@@ -1,8 +1,44 @@
 import { Resend } from "resend";
 import twilio from "twilio";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+// ── Contact-level unsubscribe (for emails we send TO leads) ─────────────────
+// Signed token = base64url(email) + "." + HMAC — so only links we generated can
+// opt an address out (nobody can suppress someone else's follow-ups by guessing).
+const UNSUB_SECRET = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "swiftcard-unsub";
+
+function unsubSig(encoded: string): string {
+  return createHmac("sha256", UNSUB_SECRET).update(`unsub:${encoded}`).digest("base64url").slice(0, 24);
+}
+
+export function contactUnsubUrl(email: string): string {
+  const encoded = Buffer.from(email.trim().toLowerCase()).toString("base64url");
+  return `${APP_URL}/api/unsubscribe/contact?token=${encoded}.${unsubSig(encoded)}`;
+}
+
+export function verifyContactUnsubToken(token: string): string | null {
+  const [encoded, sig] = (token || "").split(".");
+  if (!encoded || !sig) return null;
+  const expected = unsubSig(encoded);
+  try {
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    const email = Buffer.from(encoded, "base64url").toString("utf8");
+    return email.includes("@") ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+// RFC 8058 one-click unsubscribe headers for any email sent to a LEAD.
+function unsubHeaders(to: string): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${contactUnsubUrl(to)}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
 
 export type SendResult = "sent" | "not_configured" | "failed";
 
@@ -147,6 +183,8 @@ export async function sendRawEmail(opts: { to: string; subject: string; html: st
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,
       html: opts.html,
+      // Every email to a lead carries one-click unsubscribe (RFC 8058).
+      headers: unsubHeaders(opts.to),
     });
     return "sent";
   } catch {
@@ -242,7 +280,7 @@ export function emailSignatureHtml(opts: { senderName: string; company?: string 
 // Wrap a plain message body in a clean personal-email shell + signature.
 // Blank lines become real paragraph spacing so the email "breathes" like a
 // message a person actually typed; single newlines become line breaks.
-export function personalEmailHtml(text: string, signature: string): string {
+export function personalEmailHtml(text: string, signature: string, unsubscribeUrl?: string | null): string {
   const paragraphs = esc(text.trim())
     .split(/\n{2,}/)
     .filter((p) => p.length > 0)
@@ -251,7 +289,7 @@ export function personalEmailHtml(text: string, signature: string): string {
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <div>${paragraphs}</div>
   ${signature}
-  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.</p>
+  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.${unsubscribeUrl ? ` · <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
 </div>`;
 }
 
@@ -292,7 +330,8 @@ export async function sendBrandedEmail(opts: {
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject,
-      html: personalEmailHtml(opts.text, signature),
+      html: personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to)),
+      headers: unsubHeaders(opts.to),
     });
     return "sent";
   } catch {

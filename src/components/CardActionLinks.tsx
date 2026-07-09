@@ -15,7 +15,7 @@ export default function CardActionLinks({ links, spaced }: { links: CardLink[]; 
       {links.map((link, i) => (
         <a
           key={i}
-          href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
+          href={/^https?:\/\//i.test(link.url) ? link.url : `https://${link.url.replace(/^[a-z][a-z0-9+.-]*:\/*/i, "")}`}
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => triggerSignupNudge("link_button")}
