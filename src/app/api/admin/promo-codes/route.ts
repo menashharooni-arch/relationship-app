@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { requireAdmin as requireAdminShared } from "@/lib/admin";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-
-async function requireAdmin(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) return null;
-  return user;
+// Shared gate (lib/admin) — one source of truth for ADMIN_EMAILS parsing.
+async function requireAdmin(_req: NextRequest) {
+  return requireAdminShared();
 }
 
 // POST /api/admin/promo-codes — create a new promo code

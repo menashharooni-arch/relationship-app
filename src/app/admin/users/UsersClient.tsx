@@ -139,12 +139,21 @@ export default function UsersClient() {
           <h1 className="text-2xl font-bold">Users</h1>
           <p className="text-gray-500 text-sm mt-1">Every account — click a user to see everything about them.</p>
         </div>
-        <button
-          onClick={() => { setShowCreate(true); setCreateResult(null); }}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-        >
-          + Create card for business
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Full directory as CSV (plan, source, cards, leads, views) */}
+          <a
+            href="/api/admin/users/export"
+            className="border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          >
+            Export CSV
+          </a>
+          <button
+            onClick={() => { setShowCreate(true); setCreateResult(null); }}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          >
+            + Create card for business
+          </button>
+        </div>
       </div>
 
       {/* Plan filter chips */}
