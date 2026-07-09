@@ -147,7 +147,7 @@ export default function SwiftLinkProfile({
           <div className="flex justify-center mt-10">
             <a
               href={`/card/${username}`}
-              className="text-white/35 text-[11px] hover:text-white/70 transition-colors"
+              className="inline-block px-4 py-2 text-white/40 text-xs hover:text-white/80 hover:bg-white/10 rounded-lg transition-colors"
             >
               View SwiftCard →
             </a>

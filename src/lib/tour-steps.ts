@@ -64,7 +64,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "notif-bell",
     title: "Notifications",
-    body: "New contacts and milestones land here. A dot means something just happened — tap to see.",
+    body: "Every new contact, save, and milestone across ALL your cards lands here — each tagged with the card it came from, and emailed to you too. They stay unread until you mark them read.",
     placement: "bottom",
   },
   {
@@ -90,7 +90,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "your-card",
     title: "Your SwiftCard — tap it",
-    body: "Exactly what people see when you share. Tap to preview it; hit Edit above to change it.",
+    body: "Exactly what people see when you share. Tap to preview it; hit Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
     placement: "right",
     clickToAdvance: true,
   },
@@ -171,7 +171,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: CONTACTS,
     anchor: "contact-automations",
     title: "Follow up on autopilot",
-    body: "The magic: flip on Email or Text, pick a cadence (Light, Medium, Aggressive), and AI writes each message from your notes. Hit Submit and SwiftCard sends the whole sequence for you — leads never go cold. Email and text run separately.",
+    body: "The magic: flip on Email or Text, pick a cadence (Light, Medium, Aggressive), and AI writes each message from your notes. Every email is signed with your Swift Signature card. Hit Submit and SwiftCard sends the whole sequence for you — leads never go cold. Email and text run separately.",
     placement: "top",
   },
 

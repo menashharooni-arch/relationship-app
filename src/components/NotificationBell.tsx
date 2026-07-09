@@ -163,16 +163,18 @@ export default function NotificationBell({
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <p className="text-white text-xs font-semibold truncate">{n.title}</p>
+                        <p className="text-white text-xs font-semibold truncate">{n.title}</p>
+                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+                        {/* Meta line: card tag + time — chip lives here so the
+                            title keeps full width on narrow phones. */}
+                        <div className="flex items-center gap-2 mt-1 min-w-0">
                           {n.card_owner && (
-                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[110px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[130px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
                               {cardLabels?.[n.card_owner] ?? n.card_owner}
                             </span>
                           )}
+                          <p className="text-gray-500 text-[11px] truncate">{timeAgo(n.created_at)}</p>
                         </div>
-                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
-                        <p className="text-gray-500 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
                       </div>
                       <button
                         onClick={() => setRead(n.id, !n.read)}

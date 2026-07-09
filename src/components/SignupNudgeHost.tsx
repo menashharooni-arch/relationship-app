@@ -115,7 +115,7 @@ export default function SignupNudgeHost() {
           <button
             onClick={dismiss}
             aria-label="Dismiss"
-            className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/70 backdrop-blur text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200/60 transition-colors"
+            className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-white/70 backdrop-blur text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200/60 transition-colors"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
           </button>
@@ -136,16 +136,16 @@ export default function SignupNudgeHost() {
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
           </a>
 
-          {/* Trust row — answers the hesitation at the exact moment it happens */}
-          <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <svg viewBox="0 0 20 20" fill="#16a34a" className="w-3 h-3"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/></svg>
+          {/* Trust row — answers the hesitation at the exact moment it happens.
+              flex-wrap + gap (no literal dot separators) so it wraps cleanly to
+              two centered lines on narrow phones instead of clipping. */}
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2.5 text-[11px] text-slate-400">
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <svg viewBox="0 0 20 20" fill="#16a34a" className="w-3 h-3 shrink-0"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/></svg>
               100% free to start
             </span>
-            <span className="text-slate-300">·</span>
-            <span>No credit card</span>
-            <span className="text-slate-300">·</span>
-            <span>Live in 60 seconds</span>
+            <span className="whitespace-nowrap">No credit card</span>
+            <span className="whitespace-nowrap">Live in 60 seconds</span>
           </div>
         </div>
       </div>
