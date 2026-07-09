@@ -96,7 +96,6 @@ export default function LeadCaptureForm({
             </svg>
           </div>
           <p className="text-slate-900 font-bold text-base">Info shared!</p>
-          <p className="text-slate-500 text-sm mt-1">They&apos;ll be in touch soon.</p>
         </div>
 
         <CreateCardCTA />

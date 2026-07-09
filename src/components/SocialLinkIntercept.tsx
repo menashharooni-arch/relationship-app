@@ -198,7 +198,7 @@ export default function SocialLinkIntercept({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-900 font-bold text-base">Saved! Opening {pendingLabel}…</p>
+                <p className="text-slate-900 font-bold text-base">Info shared! Opening {pendingLabel}…</p>
               </div>
             ) : (
               <>

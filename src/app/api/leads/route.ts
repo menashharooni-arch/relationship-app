@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
     const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, customization";
-    const { data: cardRow } = await admin.from("cards").select("id, user_id, name, email, phone, company").eq("username", card_owner).maybeSingle();
+    const { data: cardRow } = await admin.from("cards").select("id, user_id, name, email, phone, company, label").eq("username", card_owner).maybeSingle();
     const { data: ownerProfile } = cardRow?.user_id
       ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
       : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
@@ -183,15 +183,23 @@ export async function POST(req: NextRequest) {
     const emailHref = safeUrlAttr(email ? `mailto:${email}` : "");
     const telHref = safeUrlAttr(phone ? `tel:${phone}` : "");
 
-    // Send email to the card owner about the new lead (non-blocking). It goes
-    // to THIS CARD's email — each card can alert a different inbox — falling
-    // back to the account email only for legacy cards with no email of their own
-    // (cardIdentity already resolves card first, profile second).
-    if (cardIdentity.email) {
+    // Send email to the card owner about the new lead (non-blocking). ALL cards
+    // alert the ONE email the account was created with (the auth email — the
+    // inbox the owner actually checks), and the email is tagged with which card
+    // the lead came through. Falls back to profiles.email only if the auth
+    // lookup fails.
+    const authRes = await admin.auth.admin.getUserById(ownerProfile.id).catch(() => null);
+    const accountEmail = authRes?.data?.user?.email || ownerProfile.email || null;
+    if (accountEmail) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const locStr = eLocation ? ` · ${eLocation}` : "";
-      const ownerFirst = escapeHtml((cardIdentity.name || ownerProfile.name || "there").split(" ")[0]);
+      const ownerFirst = escapeHtml((ownerProfile.name || cardIdentity.name || "there").split(" ")[0]);
       const dashboardUrl = `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner)}`;
+      // Which card this lead came through — label first, then the card's name,
+      // then the slug (legacy profile-cards fall back to the profile name).
+      const cardTag = escapeHtml(
+        (cardRow?.label as string) || (cardRow?.name as string) || (cardRow ? card_owner : (ownerProfile.name as string) || card_owner)
+      );
       // A locked lead (over the free monthly cap) gets the same TEASER the
       // in-app notification gets — revealing the details in the email would
       // bypass the lock entirely.
@@ -206,8 +214,8 @@ export async function POST(req: NextRequest) {
       ${eMessage ? `<p style="margin:10px 0 0;font-size:13px;color:#94a3b8;font-style:italic;border-top:1px solid #334155;padding-top:10px;">"${eMessage}"</p>` : ""}`;
       resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-        to: cardIdentity.email,
-        subject: locked ? "New lead on your SwiftCard (locked)" : `New lead: ${name} just connected with you`,
+        to: accountEmail,
+        subject: locked ? `New lead on your SwiftCard (locked) · ${(cardRow?.label as string) || (cardRow?.name as string) || card_owner}` : `New lead: ${name} · ${(cardRow?.label as string) || (cardRow?.name as string) || card_owner}`,
         html: `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#FAF7F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;padding:40px 16px;">
@@ -218,8 +226,9 @@ export async function POST(req: NextRequest) {
 <tr><td>
   <div style="background:#0f172a;border-radius:16px;padding:28px 28px 8px;margin-bottom:20px;">
     <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.15em;color:#4b5563;text-transform:uppercase;">New Contact</p>
+    <span style="display:inline-block;background:#1d4ed81f;border:1px solid #1d4ed855;color:#93c5fd;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin:0 0 10px;">💳 ${cardTag}</span>
     <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">Hey ${ownerFirst}, you have a new lead</h1>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone just shared their info with you via your SwiftCard.</p>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone just shared their info with you on your <strong style="color:#9ca3af;">${cardTag}</strong> card.</p>
     <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
       ${detailsCard}
     </div>
@@ -233,58 +242,9 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
-    // Send instant confirmation email to the lead (only when they provided an
-    // email). Everything the LEAD sees is the CARD's identity — never the
-    // account's signup email (cardIdentity falls back to profile only for
-    // legacy profile-cards).
-    if (email && cardIdentity.name && cardIdentity.email) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      // Subject is plain text; only the HTML body needs the escaped variant.
-      const ownerFirstRaw = cardIdentity.name.split(" ")[0];
-      const ownerFirst = escapeHtml(ownerFirstRaw);
-      const leadFirst = escapeHtml(name.split(" ")[0]);
-      const cName = escapeHtml(cardIdentity.name);
-      const cCompany = escapeHtml(cardIdentity.company);
-      const cEmail = escapeHtml(cardIdentity.email);
-      const cPhone = escapeHtml(cardIdentity.phone);
-      const cEmailHref = safeUrlAttr(`mailto:${cardIdentity.email}`);
-      const cTelHref = safeUrlAttr(cardIdentity.phone ? `tel:${cardIdentity.phone}` : "");
-
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-        replyTo: cardIdentity.email,
-        to: email,
-        subject: `Great connecting with you, ${name.split(" ")[0]}! — ${ownerFirstRaw}`,
-        html: `
-          <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-            <div style="max-width:480px;margin:0 auto;">
-              <h2 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 16px;">
-                Hey ${leadFirst}! 👋
-              </h2>
-              <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 24px;">
-                It was so great meeting you. I just wanted to make sure you have my contact info saved — feel free to reach out anytime.
-              </p>
-
-              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                <p style="margin:0 0 8px;font-weight:700;color:#111827;font-size:15px;">${cName}</p>
-                ${cCompany ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${cCompany}</p>` : ""}
-                <a href="${cEmailHref}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${cEmail}</a>
-                ${cPhone ? `<a href="${cTelHref}" style="display:block;color:#2563eb;font-size:13px;">${cPhone}</a>` : ""}
-              </div>
-
-              <p style="color:#6b7280;font-size:13px;margin:0;">
-                Looking forward to keeping in touch!<br/>
-                <strong style="color:#111827;">${ownerFirst}</strong>
-              </p>
-
-              <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
-                <p style="color:#9ca3af;font-size:11px;margin:0;">Sent via <a href="${APP_URL}" style="color:#9ca3af;">SwiftCard</a></p>
-              </div>
-            </div>
-          </div>
-        `,
-      }).catch(() => {}); // non-blocking
-    }
+    // NOTE: the instant "Great connecting with you" confirmation email to the
+    // LEAD was removed on purpose — the owner's real follow-up (manual or the
+    // Day-1 automation) is the first thing the lead hears, not a canned blast.
     } catch (sideErr) {
       // Lead was saved; log and still report success to the visitor.
       console.error("Lead post-insert side-effect error (lead saved):", sideErr instanceof Error ? sideErr.message : sideErr);
