@@ -27,6 +27,19 @@ export async function POST(req: NextRequest) {
 
     const admin = getAdminSupabase();
 
+    // Owner self-activity never records — an owner tapping around their own
+    // card must not create events or "saved your contact" notifications to
+    // themselves. (Client components also suppress this; server closes it.)
+    try {
+      const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+      if (viewer) {
+        const { data: owned } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
+        const ownerId = owned?.user_id
+          ?? (await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle()).data?.id;
+        if (ownerId && ownerId === viewer.id) return NextResponse.json({ ok: true, self: true });
+      }
+    } catch { /* no session — treat as a visitor */ }
+
     await admin.from("card_events").insert({
       card_owner_username,
       visitor_id: visitor_id || null,
