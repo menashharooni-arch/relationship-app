@@ -5,13 +5,14 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, webHref, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
 
 export default function ClassicPro({ data }: { data: CardData }) {
   const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
+  const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
     data.instagram && { icon: <IcoInsta />,    handle: data.instagram, color: "#c084fc" },
@@ -23,7 +24,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
     <div
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
-        aspectRatio: "1.75 / 1",
+        aspectRatio: cardAspect(data),
         background: "#fff",
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
@@ -53,25 +54,25 @@ export default function ClassicPro({ data }: { data: CardData }) {
             <img
               src={data.logoUrl}
               alt="logo"
-              className="rounded-lg object-contain shrink-0"
-              style={{ width: 40, height: 40, background: "rgba(255,255,255,0.1)" }}
+              className="rounded-lg"
+              style={logoStyle(f, 40, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? "48%" : "88%" })}
             />
           ) : (
             <div
               className="rounded-lg flex items-center justify-center shrink-0 font-black"
               style={{
-                width: 40, height: 40,
+                width: Math.round(40 * heroGrow(f)), height: Math.round(40 * heroGrow(f)),
                 background: BLUE,
                 color: "#bfdbfe",
-                fontSize: 18,
+                fontSize: Math.round(18 * heroGrow(f)),
               }}
             >
               {(data.company || data.name || "K")[0].toUpperCase()}
             </div>
           )}
           <span
-            className="text-white/80 font-bold truncate leading-tight"
-            style={{ fontSize: 13.5, letterSpacing: "0.03em" }}
+            className="text-white/80 font-bold leading-tight min-w-0"
+            style={{ fontSize: fitPx(13.5, data.company, 18), letterSpacing: "0.03em", overflowWrap: "anywhere" }}
           >
             {data.company}
           </span>
@@ -82,7 +83,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: "clamp(17px, 3.8vw, 24px)", lineHeight: 1.12 }}
+            style={{ fontSize: fitPx(24 * heroGrow(f), data.name, 16), lineHeight: 1.12 }}
           >
             {data.name}
           </h2>
@@ -109,44 +110,9 @@ export default function ClassicPro({ data }: { data: CardData }) {
         className="flex-1 flex flex-col justify-between"
         style={{ padding: "16px 18px 14px", borderLeft: "1px solid #e8eef8" }}
       >
-        {/* Contact rows */}
-        <div className="flex flex-col gap-[5px] mt-0.5">
-          {cardPhones(data).map((p, i) => (
-            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: NAVY, textDecoration: "none" }}>
-              <IcoPhone />
-              <span className="font-bold" style={{ fontSize: 14.5 }}>
-                {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
-              </span>
-            </a>
-          ))}
-          {data.email && (
-            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: "#334155", textDecoration: "none" }}>
-              <IcoMail />
-              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
-            </a>
-          )}
-          {data.website && (
-            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: "#475569", textDecoration: "none" }}>
-              <IcoGlobe />
-              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
-            </a>
-          )}
-          {data.address && (
-            <div className="flex items-start gap-2" style={{ color: "#64748b" }}>
-              <span style={{ marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
-            </div>
-          )}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: "#64748b" }}>
-              <IcoPhone />
-              <span style={{ fontSize: 10 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
+        {/* Contact rows — shared block, auto-fits to the amount of info */}
+        <div className="mt-0.5">
+          <ContactRows data={data} f={f} palette={{ strong: NAVY, mid: "#334155", soft: "#475569", muted: "#64748b" }} />
         </div>
 
         {/* Social handles (compact, if space) */}
@@ -161,10 +127,10 @@ export default function ClassicPro({ data }: { data: CardData }) {
           </div>
         )}
 
-        {/* QR + scan label */}
+        {/* QR + scan label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={66} bg="#f0f5ff" fg={NAVY} />
+            <QR size={qrSize(f)} bg="#f0f5ff" fg={NAVY} url={data.cardUrl} />
           </div>
         </div>
       </div>

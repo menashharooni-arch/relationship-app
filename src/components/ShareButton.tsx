@@ -10,9 +10,10 @@ type Props = {
   variant?: "primary" | "secondary";
 };
 
+// `title` is accepted for backwards compatibility but intentionally not shared —
+// see handleShare: only the bare URL guarantees the rich card preview.
 export default function ShareButton({
   url,
-  title = "My SwiftCard card",
   text = "Save my contact and connect with me instantly.",
   label = "Share Card",
   variant = "primary",
@@ -22,7 +23,10 @@ export default function ShareButton({
   async function handleShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({ title, text, url });
+        // Share ONLY the link. iMessage (and most messengers) render the rich
+        // card preview only when the message is the bare URL — sharing extra
+        // text makes it a plain text message with a link and no preview.
+        await navigator.share({ url });
         return;
       } catch {
         return;

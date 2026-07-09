@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { triggerSignupNudge } from "@/lib/nudge";
+import { hasSharedWith, markSharedWith } from "@/lib/visitor";
 
 export type SocialLinkData = {
   label: string;
@@ -9,8 +11,6 @@ export type SocialLinkData = {
   color: string;
   textColor?: string;
 };
-
-const STORAGE_KEY = "swiftcard_shared";
 
 function PlatformIcon({ label }: { label: string }) {
   switch (label) {
@@ -81,17 +81,21 @@ export default function SocialLinkIntercept({
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data[cardOwner]) setAlreadyShared(true);
-      }
-    } catch { /* ignore */ }
+    // Reflect shared-state on mount, AND update live when the visitor shares via
+    // any surface on the page (Save Contact, "Share your info", the connect form)
+    // — after they've shared once, these links open without asking again.
+    setAlreadyShared(hasSharedWith(cardOwner));
+    const onShared = (e: Event) => {
+      const owner = (e as CustomEvent).detail?.owner;
+      if (!owner || owner === cardOwner) setAlreadyShared(true);
+    };
+    window.addEventListener("sc:shared", onShared as EventListener);
+    return () => window.removeEventListener("sc:shared", onShared as EventListener);
   }, [cardOwner]);
 
   function handleClick(link: SocialLinkData, e: React.MouseEvent) {
-    if (alreadyShared) return;
+    // Already shared (state OR a live re-check) → let the link open, no intercept.
+    if (alreadyShared || hasSharedWith(cardOwner)) { setAlreadyShared(true); return; }
     e.preventDefault();
     setPendingHref(link.href);
     setPendingLabel(link.label);
@@ -102,11 +106,13 @@ export default function SocialLinkIntercept({
   function skip() {
     if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
     setPendingHref(null);
+    triggerSignupNudge("link_button");
   }
 
   // Just dismiss the popup without visiting the link.
   function close() {
     setPendingHref(null);
+    triggerSignupNudge("link_button");
   }
 
   async function shareAndVisit(e: React.FormEvent) {
@@ -126,11 +132,9 @@ export default function SocialLinkIntercept({
       }),
     });
 
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      stored[cardOwner] = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch { /* ignore */ }
+    // Record the share the shared way (stores their info for pre-fill + broadcasts
+    // so every other surface stops asking).
+    markSharedWith(cardOwner, form);
 
     setAlreadyShared(true);
     setStatus("done");
@@ -138,6 +142,9 @@ export default function SocialLinkIntercept({
     setTimeout(() => {
       if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
       setPendingHref(null);
+      // They just shared their info off someone's card — invite them to make
+      // their own (the host shows it once per session, never to logged-in users).
+      triggerSignupNudge("share_info");
     }, 800);
   }
 
@@ -191,7 +198,7 @@ export default function SocialLinkIntercept({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-900 font-bold text-base">Saved! Opening {pendingLabel}…</p>
+                <p className="text-slate-900 font-bold text-base">Info shared! Opening {pendingLabel}…</p>
               </div>
             ) : (
               <>

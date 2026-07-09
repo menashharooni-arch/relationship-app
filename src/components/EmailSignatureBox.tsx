@@ -16,29 +16,8 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst,
   "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
 };
-const NATURAL = 460;
-const FONT_SCALE = 1.22; // gentle: bigger wording that still sits comfortably in each template
-
-// Scale the wording up uniformly (so each template keeps its own hierarchy and looks
-// organized) and release truncation so nothing gets cut off. The card grows in height
-// to absorb the bigger text instead of clipping it.
-function enlargeForSignature(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((node) => {
-    const cs = getComputedStyle(node);
-    const fs = parseFloat(cs.fontSize);
-    if (fs) node.style.fontSize = `${(fs * FONT_SCALE).toFixed(2)}px`;
-    if (cs.whiteSpace === "nowrap") {
-      node.style.whiteSpace = "normal";
-      node.style.maxWidth = "none";
-      node.style.minWidth = "0";
-      node.style.textOverflow = "clip";
-      node.style.overflow = "visible";
-    }
-  });
-  root.style.height = "auto";
-  root.style.minHeight = "0";
-  root.style.overflow = "visible";
-}
+const NATURAL = 460;       // same natural card width the public page renders at
+const CARD_BG = "#FAF7F2"; // the public card page background (shows at the card's rounded corners)
 
 type Props = {
   cardData: CardData;
@@ -57,6 +36,35 @@ function hashStr(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
   return h.toString(36);
+}
+
+// Replace every <img> src with an inlined data URL BEFORE capturing. html-to-image
+// otherwise re-fetches each image while rasterizing, which (with cache-busting or
+// a slow proxy MISS) was dropping the photo/logo and leaving a blank panel. Once
+// the src is a data URL there's nothing to fetch — the image always embeds.
+async function inlineImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.currentSrc || img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:")) return;
+    try {
+      const res = await fetch(src, { cache: "force-cache" });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = dataUrl;
+        setTimeout(resolve, 3000);
+      });
+    } catch { /* keep the original src — better a proxied fetch than nothing */ }
+  }));
 }
 
 function CardPreview({ src, ready, status, onLoad, onError }: {
@@ -79,7 +87,7 @@ function buildSignatureHtml(name: string, company: string, cardUrl: string, imgU
   const header = `<div style="font-size:14px;color:#111827;margin-bottom:6px;"><strong>${name}</strong>${company ? ` | ${company}` : ""}</div>`;
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
 ${header}
-<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="340" style="display:block;border:0;border-radius:12px;" /></a>
+<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;" /></a>
 <div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me</a></div>
 </td></tr></table>`;
 }
@@ -98,8 +106,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v7" bump = render-logic change.
-  const contentSig = "v7|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // card's image. "v10" bump = signature is now a pixel-exact copy of the card (no
+  // font enlarging, QR kept, card-page background) — forces everyone to re-capture.
+  const contentSig = "v10|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
@@ -122,24 +131,19 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       if (!el) return null;
       // Wait for the lazy-loaded template to actually render…
       for (let i = 0; i < 80 && el.offsetHeight < 150; i++) await new Promise((r) => setTimeout(r, 100));
-      // …and for its images (photo/logo) to load.
-      const imgs = Array.from(el.querySelectorAll("img"));
-      await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
-        ? Promise.resolve()
-        : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 5000); })));
+      // …then inline the photo/logo as data URLs so they always embed (this is
+      // what makes the signature a faithful copy of the real card).
+      await inlineImages(el);
 
-      // Hide the QR for the signature (done in the DOM, not via context, so the
-      // templates stay server-renderable on the public card page).
-      el.querySelectorAll<HTMLElement>("[data-qr]").forEach((q) => { q.style.display = "none"; });
+      // NO modifications to the card here — the signature is a PIXEL-EXACT copy of
+      // the real SwiftCard: same fonts, sizes, placement, photo, logo, and the QR
+      // (all rendered by the identical template at the identical NATURAL width the
+      // public card page uses). The wording is deliberately NOT enlarged and the QR
+      // is deliberately NOT hidden, so it matches the card the visitor sees 1:1.
 
-      // Enlarge the wording once, in place. The hidden card is off-screen so this is
-      // invisible; the flag stops repeat captures from compounding the scale. Skip the
-      // user-designed "custom" template (absolute-positioned elements would overlap).
-      if (template !== "custom" && !el.dataset.enlarged) {
-        enlargeForSignature(el);
-        el.dataset.enlarged = "1";
-        await new Promise((r) => setTimeout(r, 200)); // let the reflow settle
-      }
+      // Let fonts + reflow settle so text metrics are identical on every capture
+      // (deterministic output — the signature looks the same every time).
+      await new Promise((r) => setTimeout(r, 200));
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
@@ -154,8 +158,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         width: w * SCALE,
         height: h * SCALE,
         pixelRatio: 1,
-        cacheBust: true,
-        backgroundColor: "#ffffff",
+        cacheBust: false, // images are already inlined; cache-busting was dropping the photo
+        backgroundColor: CARD_BG, // the card page's background, so corners match exactly
         style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
       });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
@@ -227,11 +231,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size render of the selected card. The QR is removed at capture time
-          (DOM), then the wording is enlarged; html-to-image reads it via the browser engine. */}
+      {/* Hidden full-size render of the selected card — captured AS-IS (no font
+          scaling, QR kept) so the signature image is a pixel-exact copy of the card.
+          html-to-image reads it via the browser engine. */}
       {mounted && (
         <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
-          <div ref={cardRef} style={{ width: NATURAL }}>
+          <div ref={cardRef} style={{ width: NATURAL, background: CARD_BG }}>
             <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
         </div>
@@ -254,12 +259,20 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       {open && (
         <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          {/* max-h + flex-col so the body scrolls on small phones instead of
+              overflowing off-screen; header (with the X) stays pinned. */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
               <p className="text-white font-semibold text-sm">Your email signature</p>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors">✕</button>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close and return to dashboard"
+                className="w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-lg leading-none"
+              >
+                ✕
+              </button>
             </div>
-            <div className="p-5">
+            <div className="p-5 overflow-y-auto">
               <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
               <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
@@ -279,11 +292,44 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               </div>
               <button onClick={copy} disabled={!ready || status === "working"}
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
+                {status === "working" ? "Generating from your card…" : copied ? "Copied ✓" : "Copy signature"}
               </button>
-              <p className="text-gray-600 text-[11px] mt-2 text-center">
-                Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.
-              </p>
+
+              {/* Concise 3-step directions */}
+              <ol className="mt-4 space-y-2.5">
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Tap <strong className="text-white">Copy signature</strong> above.</p>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Open your email below and <strong className="text-white">paste</strong> it into your signature settings.</p>
+                </li>
+                <li className="flex gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
+                  <p className="text-gray-300 text-[12px] leading-relaxed">Using a different email? Paste it into that app&apos;s signature settings.</p>
+                </li>
+              </ol>
+
+              {/* Open the user's email signature settings directly */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {[
+                  { label: "Gmail", url: "https://mail.google.com/mail/u/0/#settings/general" },
+                  { label: "Outlook", url: "https://outlook.live.com/mail/0/options/mail/messageContent" },
+                  { label: "Yahoo", url: "https://mail.yahoo.com/d/settings/1" },
+                ].map((p) => (
+                  <a
+                    key={p.label}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[11px] font-semibold py-2 rounded-xl transition-colors"
+                  >
+                    {p.label}
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
         </div>

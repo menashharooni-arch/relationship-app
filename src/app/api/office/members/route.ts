@@ -16,7 +16,7 @@ export async function DELETE(req: Request) {
     .from("offices")
     .select("id")
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!office) return NextResponse.json({ error: "No office found" }, { status: 404 });
 

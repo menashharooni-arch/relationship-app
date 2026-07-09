@@ -2,6 +2,9 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
+import ShareCardCapture from "@/components/ShareCardCapture";
+import { cardHeadshot } from "@/lib/card-media";
+import type { CardData } from "@/components/card-templates/types";
 import Link from "next/link";
 
 export default async function CardEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,11 +23,44 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
   if (!card) notFound();
 
   const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
+  // Per-card headshot (legacy cards fall back to the account photo).
+  const cardPhoto = cardHeadshot(card.customization, profile?.photo_url);
 
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+  // Share-preview capture data — IDENTICAL construction to the dashboard's, so
+  // saving an edit re-photographs the card right here (router.refresh() reloads
+  // this server component with fresh data → content hash changes → re-capture).
+  // Without this, an edited card's texted-link preview stayed stale until the
+  // owner next opened the dashboard with this card selected.
+  const _addr = (card.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
+  const captureData: CardData = {
+    name: card.name || "",
+    title: card.title || "",
+    company: card.company || "",
+    phone: card.phone || "",
+    email: card.email || "",
+    website: card.website || "",
+    instagram: card.instagram || "",
+    twitter: card.twitter || "",
+    tiktok: card.tiktok || "",
+    linkedin: card.linkedin || "",
+    initials: card.name ? (card.name as string).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "SC",
+    photoUrl: cardPhoto,
+    logoUrl: card.logo_url || null,
+    cardUrl: `${APP_URL.replace("https://", "")}/card/${card.username}`,
+    address: _addr
+      ? [
+          [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
+          _addr.city ?? "",
+          [_addr.state, _addr.zip].filter(Boolean).join(" "),
+        ].filter(Boolean).join("\n")
+      : "",
+    customization: card.customization ?? {},
+  };
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className="max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
@@ -49,8 +85,16 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>
 
-        <CardEditForm card={card} photoUrl={profile?.photo_url ?? null} logoUrl={card.logo_url ?? null} isPro={isPro} />
+        <CardEditForm card={card} photoUrl={cardPhoto} logoUrl={card.logo_url ?? null} isPro={isPro} />
       </div>
+
+      {/* Invisible: keeps the texted-link share preview a pixel-perfect copy
+          of this card, re-capturing whenever its content changes. */}
+      <ShareCardCapture
+        cardData={captureData}
+        template={(card.template as string) ?? "classic-pro"}
+        username={card.username as string}
+      />
     </main>
   );
 }

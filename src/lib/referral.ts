@@ -2,12 +2,17 @@
 // CHANGE THE NUMBERS HERE. Everything else reads from this file.
 
 export const REFERRAL = {
-  // A new user who arrives via any promo/referral gets this many free months of Pro.
+  // A new user who arrives via a referral link gets this many free months of Pro.
   NEW_USER_FREE_MONTHS: 1,
-  // A referrer earns this many free months when their friend becomes a PAYING customer.
+  // ── Referrer rewards (signup-count based) ──────────────────────────────────
+  // Every SIGNUPS_PER_REWARD successful signups through a user's link unlocks
+  // one CLAIMABLE free month of Pro. The user must explicitly tap "claim" to
+  // activate it (notification or the Refer-a-friend box in Settings).
+  SIGNUPS_PER_REWARD: 3,
+  // Months granted per completed batch of signups.
   REFERRER_FREE_MONTHS: 1,
-  // A referrer can earn the reward only ONCE, ever — no matter how many they refer.
-  REFERRER_REWARD_ONCE: true,
+  // Lifetime cap on referral months a user can earn (3 months = 9 signups).
+  MAX_REFERRAL_REWARDS: 3,
   // Length of one "month" of a free grant, in days.
   DAYS_PER_FREE_MONTH: 30,
 } as const;
@@ -27,6 +32,7 @@ export const SIGNUP_SOURCES = [
   "link_button",   // after tapping a Swift Links button
   "badge",         // "Made with SwiftCard" badge
   "follow_up",     // "Sent with SwiftCard" link in an automation email/text
+  "preview",       // a "Create Your Card for Free" button on the Test It Live page
   "direct",        // organic
 ] as const;
 export type SignupSource = (typeof SIGNUP_SOURCES)[number];
@@ -35,24 +41,30 @@ export function isSignupSource(s: string | null | undefined): s is SignupSource 
   return !!s && (SIGNUP_SOURCES as readonly string[]).includes(s);
 }
 
-// Every promo source grants the new user a free month; only plain "direct" doesn't.
+// Only a real referral (a friend sharing their /r/CODE link) grants a free month.
+// All other prompts — save_contact, share_info, badge, follow_up, etc. — are plain
+// "create a free account" CTAs with no free month.
 export function sourceGrantsFreeMonth(src: string | null | undefined): boolean {
-  return isSignupSource(src) && src !== "direct";
+  return src === "referral";
 }
 
 // ── Shared nudge copy ───────────────────────────────────────────────────────
 // One place for all the "create your own SwiftCard" wording. Keyed by source.
 type NudgeCopy = { title: string; sub: string; cta: string };
-const FREE = "Get 1 month of Pro free";
 
+// The CTA takes visitors to the Test It Live demo (/join?to=live → /preview),
+// so the button promises the card, and the demo closes the sale.
+// Copy rides the moment the visitor JUST had: they saved/received a card in one
+// tap and it felt effortless — the headline turns that feeling into "I want
+// that for me". "My" in the CTA (not "your") is the classic CRO ownership win.
 export const NUDGE_COPY: Record<string, NudgeCopy> = {
-  default:      { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  save_contact: { title: "Create your own SwiftCard", sub: `${FREE} — your card, your way.`, cta: "Get 1 month free" },
-  share_info:   { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  vcard:        { title: "Saved ✓ Now make your own", sub: `${FREE} on your own SwiftCard.`, cta: "Make my card free" },
-  link_button:  { title: "Get a page like this, free", sub: `Your own Swift Links + card. ${FREE}.`, cta: "Get started free" },
-  badge:        { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
-  follow_up:    { title: "Create your own SwiftCard", sub: `${FREE} when you start today.`, cta: "Get 1 month free" },
+  default:      { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
+  save_contact: { title: "Next time, be the one they save", sub: "One tap and you're in their phone — card, links, everything.", cta: "Create my free card" },
+  share_info:   { title: "Never type your info again", sub: "One tap shares who you are — your card, your links, your brand.", cta: "Create my free card" },
+  vcard:        { title: "Saved in one tap. That could be you", sub: "Your own SwiftCard — in their phone before the handshake ends.", cta: "Create my free card" },
+  link_button:  { title: "One link for everything you are", sub: "Your links + a smart business card in one beautiful page.", cta: "Create my free card" },
+  badge:        { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
+  follow_up:    { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
 };
 
 export function nudgeCopy(source: string | null | undefined): NudgeCopy {

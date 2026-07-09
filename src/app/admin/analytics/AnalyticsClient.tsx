@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
 type Analytics = {
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string; email: string; username: string; plan: string; created_at: string }[] };
   plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number };
+  acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
   cards: { total: number; perAccount: number };
   leads: { total: number; today: number; d7: number; series: { date: string; count: number }[]; bySource: [string, number][]; perAccount: number };
   views: { total: number; d7: number; cardViews30: number; linkViews30: number };
@@ -44,14 +46,14 @@ function BarChart({ series, color = "#3b82f6" }: { series: { date: string; count
   );
 }
 
-function Bars({ rows, color = "#3b82f6" }: { rows: [string, number][]; color?: string }) {
+function Bars({ rows, color = "#3b82f6", labeler }: { rows: [string, number][]; color?: string; labeler?: (key: string) => string }) {
   const max = Math.max(1, ...rows.map((r) => r[1]));
   if (!rows.length) return <p className="text-gray-600 text-xs">No data yet.</p>;
   return (
     <div className="space-y-2">
       {rows.map(([label, n]) => (
         <div key={label} className="flex items-center gap-3">
-          <span className="text-gray-300 text-xs w-28 shrink-0 truncate capitalize">{label.replace(/_/g, " ")}</span>
+          <span className="text-gray-300 text-xs w-36 shrink-0 truncate" title={labeler ? labeler(label) : label.replace(/_/g, " ")}>{labeler ? labeler(label) : label.replace(/_/g, " ")}</span>
           <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${(n / max) * 100}%`, background: color }} />
           </div>
@@ -76,18 +78,10 @@ export default function AnalyticsClient() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400 z-50" />
-      <div className="max-w-6xl mx-auto px-5 pt-8 pb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-slate-500 uppercase mb-1">SwiftCard</p>
-            <h1 className="text-2xl font-bold text-white">Company analytics</h1>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/admin/plans" className="text-gray-400 hover:text-white transition-colors">Plan tester</Link>
-            <Link href="/admin" className="text-gray-400 hover:text-white transition-colors">← Admin</Link>
-          </div>
+    <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Company analytics</h1>
+          <p className="text-gray-500 text-sm mt-1">Growth, revenue, engagement, and where users come from.</p>
         </div>
 
         {loading ? (
@@ -106,7 +100,7 @@ export default function AnalyticsClient() {
 
             {/* Growth */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-1">
                 <p className="text-white font-semibold text-sm">New accounts · last 30 days</p>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>Today <span className="text-white font-semibold">{a.accounts.today}</span></span>
@@ -114,13 +108,15 @@ export default function AnalyticsClient() {
                   <span>30d <span className="text-white font-semibold">{a.accounts.d30}</span></span>
                 </div>
               </div>
+              <p className="text-gray-600 text-[11px] mb-4">Signups per day — your growth curve. A flat stretch means marketing needs a push.</p>
               <BarChart series={a.accounts.series} color="#3b82f6" />
             </div>
 
             {/* Plans + Sources */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-4">Plan mix</p>
+                <p className="text-white font-semibold text-sm mb-1">Plan mix</p>
+                <p className="text-gray-600 text-[11px] mb-4">How many users sit on each plan — Free is your upgrade pipeline.</p>
                 <Bars rows={[["Free", a.plans.free], ["Pro", a.plans.pro], ["Office", a.plans.office]]} color="#8b5cf6" />
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {[["Free", a.plans.free, "#6b7280"], ["Pro", a.plans.pro, "#60a5fa"], ["Office", a.plans.office, "#c084fc"]].map(([l, n, c]) => (
@@ -133,20 +129,22 @@ export default function AnalyticsClient() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-4">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
-                <Bars rows={a.leads.bySource} color="#22c55e" />
+                <p className="text-white font-semibold text-sm mb-1">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
+                <p className="text-gray-600 text-[11px] mb-4">Across ALL users: how people reached a card before sharing their info (QR scan, card link, bio link…).</p>
+                <Bars rows={a.leads.bySource} color="#22c55e" labeler={getSourceLabel} />
               </div>
             </div>
 
             {/* Contacts trend */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-1">
                 <p className="text-white font-semibold text-sm">Contacts captured · last 30 days</p>
                 <div className="flex gap-4 text-xs text-gray-500">
                   <span>Today <span className="text-white font-semibold">{a.leads.today}</span></span>
                   <span>7d <span className="text-white font-semibold">{a.leads.d7}</span></span>
                 </div>
               </div>
+              <p className="text-gray-600 text-[11px] mb-4">New contacts landing in users&apos; CRMs per day — the clearest signal the product is delivering value.</p>
               <BarChart series={a.leads.series} color="#22c55e" />
             </div>
 
@@ -154,14 +152,15 @@ export default function AnalyticsClient() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Kpi label="Total cards" value={a.cards.total} sub={`${a.cards.perAccount} per account`} />
               <Kpi label="Total views" value={a.views.total} sub={`+${a.views.d7} this week`} />
-              <Kpi label="SwiftCard vs Links (30d)" value={`${a.views.cardViews30} / ${a.views.linkViews30}`} sub="card views / link views" />
+              <Kpi label="Views by surface (30d)" value={`${a.views.cardViews30} / ${a.views.linkViews30}`} sub="card pages / Swift Links pages" />
               <Kpi label="Card activation" value={`${a.engagement.activationRate}%`} sub={`${a.engagement.activatedCards.toLocaleString()} cards got a lead`} />
             </div>
 
             {/* Top cards + recent signups */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-3">Top cards by contacts</p>
+                <p className="text-white font-semibold text-sm mb-1">Top cards by contacts</p>
+                <p className="text-gray-600 text-[11px] mb-3">The cards capturing the most contacts — your power users. Great candidates for testimonials and referrals.</p>
                 {a.topCards.length === 0 ? <p className="text-gray-600 text-xs">No contacts yet.</p> : (
                   <div className="divide-y divide-gray-800/60">
                     {a.topCards.map((c, i) => (
@@ -178,7 +177,8 @@ export default function AnalyticsClient() {
               </div>
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                <p className="text-white font-semibold text-sm mb-3">Latest signups</p>
+                <p className="text-white font-semibold text-sm mb-1">Latest signups</p>
+                <p className="text-gray-600 text-[11px] mb-3">The most recent accounts — click through in Users to see any of them in detail.</p>
                 <div className="divide-y divide-gray-800/60">
                   {a.accounts.recent.map((u) => (
                     <div key={u.username} className="flex items-center justify-between py-2 text-sm">
@@ -196,10 +196,43 @@ export default function AnalyticsClient() {
               </div>
             </div>
 
-            <p className="text-gray-600 text-[11px] text-center">Referral & fraud analytics live in the <Link href="/admin" className="text-blue-400 hover:text-blue-300">Admin → Referrals</Link> tab. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
+            {/* Acquisition — where signups come from and which sources convert to paid */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <p className="text-white font-semibold text-sm mb-1">Acquisition — where signups come from</p>
+              <p className="text-gray-600 text-[11px] mb-4">Use the paid-conversion column to decide where marketing money works hardest.</p>
+              {a.acquisition.length === 0 ? (
+                <p className="text-gray-600 text-xs">No signups yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-800 text-gray-500 text-xs">
+                        <th className="text-left py-2 font-medium">Source</th>
+                        <th className="text-right py-2 font-medium">Signups</th>
+                        <th className="text-right py-2 font-medium">Last 30d</th>
+                        <th className="text-right py-2 font-medium">Went paid</th>
+                        <th className="text-right py-2 font-medium">Paid rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/60">
+                      {a.acquisition.map((row) => (
+                        <tr key={row.source}>
+                          <td className="py-2 text-gray-300 text-xs">{getSignupSourceLabel(row.source)}</td>
+                          <td className="py-2 text-right text-white font-semibold tabular-nums">{row.signups.toLocaleString()}</td>
+                          <td className="py-2 text-right text-gray-400 tabular-nums">{row.d30.toLocaleString()}</td>
+                          <td className="py-2 text-right text-gray-400 tabular-nums">{row.paid.toLocaleString()}</td>
+                          <td className="py-2 text-right tabular-nums font-semibold" style={{ color: row.paidRate > 0 ? "#4ade80" : "#6b7280" }}>{row.paidRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <p className="text-gray-600 text-[11px] text-center">Referral & fraud analytics live in <Link href="/admin/referrals" className="text-blue-400 hover:text-blue-300">Referrals</Link>. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
           </div>
         )}
-      </div>
     </div>
   );
 }

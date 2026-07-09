@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getOwnerUsernames } from "@/lib/owner-usernames";
 
 type LeadRow = {
   name?: string;
@@ -25,10 +26,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "enterprise_required" }, { status: 403 });
   }
 
-  const { leads } = await request.json() as { leads: LeadRow[] };
+  const { leads, card_owner } = await request.json() as { leads: LeadRow[]; card_owner?: string };
   if (!Array.isArray(leads) || leads.length === 0) {
     return NextResponse.json({ error: "no_leads" }, { status: 400 });
   }
+
+  // Import into the requested card only if the caller actually owns it;
+  // otherwise fall back to the primary profile card.
+  const owned = await getOwnerUsernames(user.id);
+  const targetCard = card_owner && owned.includes(card_owner) ? card_owner : profile.username;
 
   const rows = leads
     .filter((l) => l.name || l.email)
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
       email: l.email || "",
       phone: l.phone || null,
       message: l.company ? `Company: ${l.company}` : null,
-      card_owner: profile.username,
+      card_owner: targetCard,
       tags: ["imported"],
     }));
 

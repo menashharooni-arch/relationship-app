@@ -4,6 +4,7 @@ import { useState } from "react";
 import LeadCard from "@/components/LeadCard";
 import SortSelect from "@/components/SortSelect";
 import UpgradeButton from "@/components/UpgradeButton";
+import { PLAN_LIMITS } from "@/lib/plan";
 import type { FlowPresets } from "@/components/LeadCard";
 
 type Lead = {
@@ -21,7 +22,7 @@ type Lead = {
   created_at: string;
 };
 
-const FREE_LIMIT = 25;
+const FREE_LIMIT = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
 
 export default function LeadListClient({
   leads,

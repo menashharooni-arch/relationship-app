@@ -5,7 +5,7 @@ import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -27,7 +27,10 @@ export default async function ContactsPage({
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
-  await ensureUserCards(user.id);
+  // Skip the one-time migration entirely once done (the common case).
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id);
+  }
 
   const admin = getAdminSupabase();
   const { data: cards } = await admin
@@ -39,11 +42,18 @@ export default async function ContactsPage({
   const cardList = cards ?? [];
   const allUsernames = cardList.map((c) => c.username);
 
-  const { data: leads } = await admin
+  const { data: rawLeads } = await admin
     .from("leads")
     .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
     .in("card_owner", allUsernames)
     .order("name", { ascending: true });
+
+  // Free plan: leads captured beyond the 5/month cap are locked — hide them here
+  // too (same as the dashboard) so they're never revealed until the account is Pro.
+  const paid = isPaidPlan(profile.plan);
+  const leads = paid
+    ? rawLeads
+    : (rawLeads ?? []).filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)));
 
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
@@ -51,13 +61,13 @@ export default async function ContactsPage({
   const contactCount = (leads ?? []).filter((l) => l.card_owner === dashCard).length;
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
+    <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNav />
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky nav */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
           <div className="flex items-center gap-3 shrink-0">
             <Link href={dashHref} className="flex items-center gap-2">
@@ -88,7 +98,7 @@ export default async function ContactsPage({
 
       {/* Header */}
       <div className="pt-[57px] border-b border-gray-800 px-6 py-5 bg-gray-950">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <div data-tour="contacts-page" className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div>
             <div className="flex items-baseline gap-2.5">
               <h1 className="text-xl font-bold text-white">Contacts</h1>

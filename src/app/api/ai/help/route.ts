@@ -8,7 +8,7 @@ IMPORTANT: You can ONLY give directions and answer questions. You cannot make an
 
 WHAT SWIFTCARD IS
 - A digital business card. One account can hold multiple cards. Each card has a card page (swiftcard.me/card/<url>) and a Swift Links page (swiftcard.me/links/<url>) — a link-in-bio with photo, bio, social icons, video previews, and custom buttons.
-- Free: up to 3 cards and 25 contacts. Pro: unlimited cards/contacts, custom card designer, full analytics (card vs link views, locations, sources), integrations, no SwiftCard branding.
+- Free (monthly meters that reset on the 1st): 1 card, 5 new leads/month, 3 AI drafts/month, 3 card scans/month, all templates, unlimited Swift Links buttons, analytics (views, locations), a Day-1 follow-up email, and a "Powered by SwiftCard" badge. Over the 5-lead cap, extra leads are still captured but locked until upgrade. Pro: unlimited leads/drafts/scans, unlimited cards, custom card designer, automated email + text follow-up sequences (Light/Medium/Aggressive), premium Swift Links (video previews, featured tiles, themes), full who/when/where analytics, CSV export, integrations (Zapier, Google, HubSpot), no SwiftCard branding. Office = everything in Pro for each seat, $1/user cheaper, min 2 seats, with an admin who makes cards for the team.
 
 KEY PLACES
 - Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
@@ -81,7 +81,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
     answer:
-      "Free includes up to 3 cards and 25 contacts. Pro adds unlimited cards & contacts, the custom card designer, full analytics, integrations, and removes SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
+      "Free includes 1 card and 5 new leads a month (plus 3 AI drafts and 3 card scans a month, all resetting on the 1st). Pro removes those monthly limits — unlimited leads, drafts and scans — and adds unlimited cards, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
   },
   {
     triggers: ["upgrade", "go pro", "buy pro", "subscribe"],
@@ -106,7 +106,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["integration", "integrations", "zapier", "google contacts", "hubspot", "crm", "sync", "connect crm"],
     answer:
-      "Go to Settings → Integrations to connect Zapier, Google Contacts, or HubSpot, so new leads sync into your tools automatically (Pro).",
+      "Go to Settings → Integrations to connect Zapier or Google Contacts, so new leads sync into your tools automatically (Pro).",
   },
   {
     triggers: ["address", "my address", "location on card", "put my address"],
@@ -116,7 +116,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["logo", "headshot", "photo", "profile picture", "upload image", "upload photo", "company logo"],
     answer:
-      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Your profile photo is shared across all your cards.",
+      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Each card has its OWN headshot — a card with no headshot won't show one from another card.",
   },
   {
     triggers: ["multiple cards", "more than one card", "switch card", "select a card", "select card", "my cards", "active card", "second card"],

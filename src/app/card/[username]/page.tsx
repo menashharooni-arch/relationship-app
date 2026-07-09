@@ -3,11 +3,14 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
+import AddToWalletButton from "@/components/AddToWalletButton";
+import { hasWalletConfig } from "@/lib/wallet-config";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
+import CardActionLinks from "@/components/CardActionLinks";
 import QRCodeModal from "@/components/QRCodeModal";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -18,8 +21,10 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
+import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { cardHeadshot } from "@/lib/card-media";
 import { buildConnectLinks } from "@/lib/social-url";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
@@ -50,7 +55,7 @@ export async function generateMetadata({
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
   const { username } = await params;
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const p = await resolveCardMeta(username);
   if (!p) return { title: "SwiftCard" };
@@ -121,6 +126,12 @@ export default async function CardPage({
 
   if (!profile || ownerDeleted) notFound();
 
+  // Plan kill-switch: a Free account only serves its first card(s) — extra
+  // cards created on Pro go dark (page, QR, links) after a downgrade.
+  if (cardRow && !(await cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan))) {
+    notFound();
+  }
+
   // Don't count the owner viewing their own card as a view.
   const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);
   let isOwnerView = false;
@@ -129,12 +140,19 @@ export default async function CardPage({
     isOwnerView = !!viewer && viewer.id === ownerId;
   } catch { /* cookie refresh may fail for public viewers — safe to ignore */ }
 
-  // One profile picture is shared across all of an account's cards.
+  // Per-card headshot (account photo is only a fallback for legacy cards).
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
 
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-  const customization = (profile.customization ?? {}) as {
+  // Render-time plan enforcement: a downgraded Pro's card may still have Pro
+  // design keys (accentColor/font) and >2 link buttons SAVED — the save-time
+  // sanitizer only covers new writes. Sanitize here too so the PUBLIC card
+  // always reflects the owner's CURRENT plan (Swift Links page already does).
+  const customization = sanitizeCustomizationForPlan(
+    (profile.customization ?? {}) as Record<string, unknown>,
+    isPaidPlan(profile.plan)
+  ) as {
     bio?: string;
     facebook?: string;
     snapchat?: string;
@@ -172,7 +190,7 @@ export default async function CardPage({
     linkedin: profile.linkedin || "",
     snapchat,
     initials: profile.name ? initials(profile.name) : "SC",
-    photoUrl: accountPhotoUrl,
+    photoUrl: cardHeadshot(profile.customization, accountPhotoUrl),
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
     address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
@@ -201,7 +219,10 @@ export default async function CardPage({
     tiktok: profile.tiktok || "",
   };
 
-  const templateId = (profile.template as string) || "classic-pro";
+  // The custom designer is Pro-only — a downgraded card falls back to the
+  // standard template at render time (same rule the save path enforces).
+  const rawTemplateId = (profile.template as string) || "classic-pro";
+  const templateId = rawTemplateId === "custom" && !isPaidPlan(profile.plan) ? "classic-pro" : rawTemplateId;
   const TemplateComponent = TEMPLATES[templateId] ?? ClassicPro;
   const publicCardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
@@ -275,7 +296,13 @@ export default async function CardPage({
           source={source}
           cardOwner={profile.username}
           ownerFirstName={firstName}
+          suppressTracking={isOwnerView}
         />
+        {hasWalletConfig() && (
+          <div className="mt-2">
+            <AddToWalletButton username={profile.username} />
+          </div>
+        )}
       </div>
 
       {/* ── Section 2: Share Your Info Back ── */}
@@ -291,9 +318,18 @@ export default async function CardPage({
       {/* ── Section 3: Other Ways to Connect ── */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <SectionNumber n={3} />
-            <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <SectionNumber n={3} />
+              <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
+            </div>
+            {/* Small, light jump to this card's full Swift Links page */}
+            <a
+              href={`/links/${profile.username}`}
+              className="shrink-0 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors px-1 py-1"
+            >
+              Go to Swift Links →
+            </a>
           </div>
           {bio && (
             <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap mb-4 ml-9">{bio}</p>
@@ -307,26 +343,7 @@ export default async function CardPage({
             />
           )}
           {/* Custom action links (link-in-bio style) */}
-          {actionLinks.length > 0 && (
-            <div className={`flex flex-col gap-2${connectLinks.length > 0 ? " mt-2" : ""}`}>
-              {actionLinks.map((link, i) => (
-                <a
-                  key={i}
-                  href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 w-full py-3.5 px-5 rounded-2xl font-semibold text-sm transition-all hover:opacity-90 active:scale-[0.98] shadow-sm"
-                  style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", color: "#0f172a" }}
-                >
-                  <span className="text-base">{link.emoji}</span>
-                  {link.label}
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 ml-auto opacity-30">
-                    <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
-                  </svg>
-                </a>
-              ))}
-            </div>
-          )}
+          <CardActionLinks links={actionLinks} spaced={connectLinks.length > 0} />
         </div>
       )}
 
@@ -345,14 +362,14 @@ export default async function CardPage({
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
       </div>
 
-      {/* "Made with SwiftCard" badge — shown on Free, removed on Pro/Office */}
+      {/* "Powered by SwiftCard.me" badge (links to site) — Free only, removed on Pro/Office */}
       {!isPaidPlan(profile.plan) && (
         <a
-          href={`${APP_URL}/join?src=badge`}
+          href={`${APP_URL}/?src=badge`}
           className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
         >
           <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-          Made with SwiftCard.me
+          Powered by SwiftCard.me
         </a>
       )}
     </main>

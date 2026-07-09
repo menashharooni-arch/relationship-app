@@ -38,6 +38,159 @@ export function webHref(site: string): string {
   return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
 }
 
+// ─── Auto-fit system ─────────────────────────────────────────────────────────
+// Cards hold a variable amount of info (multiple phones, fax, address lines…).
+// All templates size their contact block from ONE density factor so everything
+// always fits — more rows → slightly smaller text and tighter rows — without
+// ever cutting off the QR code or any wording. Pure functions of the card data,
+// so templates stay server-renderable (no hooks — see card page requirement).
+
+// Weighted count of contact rows on the card.
+export function contactRowCount(data: CardData): number {
+  const addrLines = data.address ? data.address.split("\n").filter(Boolean).length : 0;
+  return (
+    cardPhones(data).length +
+    (data.email ? 1 : 0) +
+    (data.website ? 0.9 : 0) +
+    (cardFax(data) ? 0.9 : 0) +
+    addrLines * 0.7
+  );
+}
+
+// Density factor — the card always uses its FULL space:
+//   sparse card (≤2 rows)  → up to 1.18: text, logo and QR grow into the room
+//   normal (4 rows)        → 1
+//   packed                 → eases down to 0.7 so nothing is ever cut off
+export function fitFactor(data: CardData): number {
+  const rows = contactRowCount(data);
+  if (rows <= 4) return Math.min(1.18, 1 + (4 - rows) * 0.09);
+  return Math.max(0.7, 1 - (rows - 4) * 0.075);
+}
+
+// Cap used for HERO text (names/companies) — they grow with sparseness but a
+// touch less than rows so the layout stays balanced.
+export function heroGrow(f: number): number {
+  return Math.min(f, 1.14);
+}
+
+// Logo sizing that adapts to the logo's OWN shape without any JS measurement:
+// height is fixed (scaled by density), width is auto — so a square logo renders
+// height×height while a banner/wordmark logo naturally takes more width.
+// object-contain guarantees nothing is ever cropped.
+//
+// CRITICAL: when the logo shares its row with the company name, maxWidth must
+// be a PERCENTAGE of the row — a px cap ≥ the row width would squeeze the text
+// to zero and wrap it letter-by-letter down past the card's bottom edge.
+export function logoStyle(f: number, base: number, extra?: React.CSSProperties): React.CSSProperties {
+  const h = Math.round(base * Math.min(Math.max(f, 0.85), 1.3));
+  return {
+    height: h,
+    width: "auto",
+    // Default assumes a text sibling: banner logos get at most half the row.
+    maxWidth: "48%",
+    objectFit: "contain",
+    flexShrink: 0,
+    ...extra,
+  };
+}
+
+// Shrink one long value (a long email, name, or company) so it never truncates
+// or wraps. Exact-fit curve: beyond the comfy length, font size scales inversely
+// with length, so rendered width stays constant — a 40-char email occupies the
+// same line width a 24-char one does, just smaller. (The old 0.6-power curve
+// under-shrank long values, which is why long emails used to wrap to a second
+// line.) Floor at 45% keeps pathological inputs legible.
+export function fitPx(base: number, text: string | null | undefined, comfy: number): number {
+  const len = (text ?? "").trim().length;
+  if (len <= comfy) return base;
+  return Math.max(base * 0.45, (base * comfy) / len);
+}
+
+// QR stays on the card at every density — it grows on sparse cards (more
+// scannable from further away) and gives up a little room when packed.
+export function qrSize(f: number): number {
+  return f >= 1.12 ? 74 : f >= 1 ? 66 : f >= 0.85 ? 60 : 54;
+}
+
+// Last-resort safety valve: past the point where shrinking text can absorb the
+// info, the card itself gets slightly taller (smaller width:height ratio) so
+// nothing is EVER cut off — not the QR, not a single row. Stacked layouts
+// (header on top, e.g. LocalBusiness) have less vertical room for contacts,
+// so they pass a lower threshold to start growing earlier.
+export function cardAspect(data: CardData, threshold = 8): string {
+  const rows = contactRowCount(data);
+  if (rows <= threshold) return "1.75 / 1";
+  const ratio = Math.max(1.35, 1.75 - (rows - threshold) * 0.06);
+  return `${ratio.toFixed(3)} / 1`;
+}
+
+// ─── Shared contact block ────────────────────────────────────────────────────
+// One renderer for the contact rows on EVERY template, so the type hierarchy is
+// identical and even across designs: phone (largest, bold) → email → website →
+// fax → address (smallest). Templates keep their character via the palette.
+
+export type RowPalette = {
+  accent?: string;      // icon color; omit to have icons inherit each row's text color
+  strong: string;       // phone numbers
+  mid: string;          // email
+  soft: string;         // website + fax
+  muted: string;        // address
+  phoneWeight?: number; // default 700; refined templates can use 600
+};
+
+export function ContactRows({ data, palette, f }: { data: CardData; palette: RowPalette; f: number }) {
+  const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
+  const gap = Math.round(5 * f);
+  // Email/website grow a bit less than the rest (capped at 1.1) and shrink on a
+  // tighter budget — sized for the narrowest contact panel (ModernBold) so a
+  // grown email can never poke past the card edge.
+  const rowGrow = Math.min(f, 1.1);
+  const emailSize = fitPx(13 * rowGrow, data.email, 22);
+  const webSize = fitPx(11.5 * rowGrow, data.website, 24);
+  return (
+    <div className="flex flex-col" style={{ gap }}>
+      {cardPhones(data).map((p, i) => (
+        <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
+          <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
+            {formatPhone(p.number)}
+            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+          </span>
+        </a>
+      ))}
+      {/* Email + website stay on ONE line always: fitPx guarantees the width
+          and nowrap forbids the mid-address line break that used to appear. */}
+      {data.email && (
+        <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: palette.mid, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
+          <span style={{ fontSize: emailSize, fontWeight: 600, whiteSpace: "nowrap" }}>{data.email}</span>
+        </a>
+      )}
+      {data.website && (
+        <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: palette.soft, textDecoration: "none" }}>
+          <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
+          <span style={{ fontSize: webSize, fontWeight: 500, whiteSpace: "nowrap" }}>{data.website}</span>
+        </a>
+      )}
+      {cardFax(data) && (
+        <div className="flex items-center gap-2" style={{ color: palette.soft }}>
+          <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
+          <span style={{ fontSize: 11 * f, fontWeight: 500 }}>
+            {formatPhone(cardFax(data))}
+            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+          </span>
+        </div>
+      )}
+      {data.address && (
+        <div className="flex items-start gap-2" style={{ color: palette.muted }}>
+          <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
+          <span style={{ fontSize: 10.5 * f, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Contact Icons (stroke style) ────────────────────────────────────────────
 
 export const IcoPhone = () => (

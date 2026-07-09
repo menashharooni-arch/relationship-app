@@ -1,4 +1,4 @@
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
 
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
@@ -21,11 +21,11 @@ function layout(body: string, unsubscribeUrl?: string) {
   <!-- Footer -->
   <tr><td style="padding-top:40px;border-top:1px solid #E4DDD4;margin-top:40px;">
     <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
-      SwiftCard · 123 Business Ave, Los Angeles, CA 90001<br>
-      ${unsubscribeUrl
-        ? `<a href="${unsubscribeUrl}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a> from marketing emails`
-        : "You are receiving this because you have an account with SwiftCard."}
+      SwiftCard · New York, NY
     </p>
+    ${unsubscribeUrl
+      ? `<p style="margin:4px 0 0;color:#b6bcc6;font-size:9px;line-height:1.5;"><a href="${unsubscribeUrl}" style="color:#b6bcc6;text-decoration:underline;">Unsubscribe</a></p>`
+      : `<p style="margin:4px 0 0;color:#b6bcc6;font-size:10px;line-height:1.5;">You are receiving this because you have an account with SwiftCard.</p>`}
   </td></tr>
 
 </table>
@@ -80,6 +80,61 @@ export function welcomeEmail(opts: {
     from: FROM,
     subject: `Your SwiftCard is live, ${opts.firstName}!`,
     html: layout(body, opts.unsubscribeUrl),
+  };
+}
+
+// What a user keeps on Free vs. loses when their Pro access ends — reused by
+// both trial emails so the message is consistent.
+function proLossCard() {
+  return card(`
+    <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:14px;">What changes on Free</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#475569;">✓ <strong>You keep everything you made</strong> — your card, all your contacts, and your links stay put. Nothing is deleted.</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Contacts cap back to 25 (existing ones stay; new captures pause)</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Extra cards become view-only (your main card stays live)</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Automated Day 15 / 30 follow-ups & AI sequences pause</p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations & automated sequences lock</p>
+  `);
+}
+
+// Heads-up a few days before a trial / free-month grant ends.
+export function trialEndingSoonEmail(opts: {
+  firstName: string;
+  daysLeft: number;
+  isTrial: boolean;
+}) {
+  const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
+  const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
+  const body = `
+    ${h1(`${day} left of your ${what}`)}
+    ${p(`Hey ${opts.firstName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just $4.99/mo).`)}
+    ${proLossCard()}
+    ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
+    ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
+  `;
+  return {
+    from: FROM,
+    subject: `${day} left of your ${what}`,
+    html: layout(body),
+  };
+}
+
+// Sent on the day the trial / free-month grant downgrades to Free.
+export function trialEndedEmail(opts: {
+  firstName: string;
+  isTrial: boolean;
+}) {
+  const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
+  const body = `
+    ${h1(what)}
+    ${p(`Hey ${opts.firstName} — you're now on the Free plan. Thanks for trying Pro! Your card, contacts, and links are all exactly where you left them.`)}
+    ${proLossCard()}
+    ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
+    ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
+  `;
+  return {
+    from: FROM,
+    subject: what,
+    html: layout(body),
   };
 }
 

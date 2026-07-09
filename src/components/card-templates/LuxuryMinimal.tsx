@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, IcoPin, webHref } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -18,12 +18,13 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
   const GOLD  = data.customization?.accentColor ?? GOLD_DEFAULT;
   const GOLD2 = data.customization?.accentColor ?? GOLD2_DEFAULT;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
+  const f = fitFactor(data); // auto-fit: more info → everything sizes down together
 
   return (
     <div
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
-        aspectRatio: "1.75 / 1",
+        aspectRatio: cardAspect(data),
         background: IVORY,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
@@ -65,11 +66,11 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="w-8 h-8 object-contain shrink-0 rounded" />
+            <img src={data.logoUrl} alt="logo" className="rounded" style={logoStyle(f, 32, { maxWidth: data.company ? "48%" : "88%" })} />
           ) : null}
           <p
-            className="truncate"
-            style={{ fontSize: 10.5, letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase" }}
+            className="min-w-0 leading-tight"
+            style={{ fontSize: fitPx(10.5, data.company, 18), letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>
@@ -80,7 +81,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: "clamp(16px, 3.5vw, 23px)",
+              fontSize: fitPx(23 * heroGrow(f), data.name, 17),
               fontWeight: 400,
               letterSpacing: "0.01em",
               color: TEXT,
@@ -119,49 +120,12 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           — Private Contact —
         </p>
 
-        {/* Contact rows with gold icon accents */}
-        <div className="flex flex-col gap-[5px]">
-          {cardPhones(data).map((p, i) => (
-            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ textDecoration: "none" }}>
-              <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 14.5, color: TEXT, fontWeight: 600, letterSpacing: "0.02em" }}>
-                {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
-              </span>
-            </a>
-          ))}
-          {data.email && (
-            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
-              <span style={{ color: GOLD }}><IcoMail /></span>
-              <span className="truncate" style={{ fontSize: 13, color: TEXT, fontWeight: 500 }}>{data.email}</span>
-            </a>
-          )}
-          {data.website && (
-            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
-              <span style={{ color: GOLD }}><IcoGlobe /></span>
-              <span className="truncate" style={{ fontSize: 10, color: MUTED }}>{data.website}</span>
-            </a>
-          )}
-          {data.address && (
-            <div className="flex items-start gap-2">
-              <span style={{ color: GOLD, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, color: MUTED, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
-            </div>
-          )}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2">
-              <span style={{ color: GOLD }}><IcoPhone /></span>
-              <span style={{ fontSize: 10, color: MUTED }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
-        </div>
+        {/* Contact rows — shared block, auto-fits; lighter phone weight keeps the refined feel */}
+        <ContactRows data={data} f={f} palette={{ accent: GOLD, strong: TEXT, mid: TEXT, soft: MUTED, muted: MUTED, phoneWeight: 600 }} />
 
-        {/* QR */}
+        {/* QR — always on the card; gives up a little room when dense */}
         <div className="flex flex-col items-end gap-1">
-          <QR size={66} bg="#f5f0e8" fg={GOLD} />
+          <QR size={qrSize(f)} bg="#f5f0e8" fg={GOLD} url={data.cardUrl} />
         </div>
       </div>
     </div>

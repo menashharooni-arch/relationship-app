@@ -24,7 +24,14 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    await supabase.auth.exchangeCodeForSession(code);
+    // CRITICAL: if the exchange fails we must NOT fall through to getUser() —
+    // a still-present previous session would silently log the visitor into the
+    // OLD account (looks like their brand-new Google email "linked" to it).
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeError) {
+      console.error("[auth/callback] code exchange failed:", exchangeError.message);
+      return NextResponse.redirect(new URL("/login?error=oauth", origin));
+    }
 
     // Only honour a same-origin relative redirect (no open-redirect to other sites).
     const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;

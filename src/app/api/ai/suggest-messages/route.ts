@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { readUsage, bumpUsage } from "@/lib/usage";
 import { aiComplete, hasAiProvider } from "@/lib/ai";
 
 export async function POST(req: NextRequest) {
@@ -28,14 +29,14 @@ export async function POST(req: NextRequest) {
   // Only the owner of the lead may generate messages for it.
   if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
-  // Free plan gets a limited "taste" of AI drafts; Pro/Office are unlimited.
+  // Free plan gets a monthly "taste" of AI drafts (resets on the 1st); Pro/Office unlimited.
   const paid = isPaidPlan(profile?.plan);
-  const usedDrafts = ((profile?.customization as { _aiDrafts?: number } | null)?._aiDrafts) ?? 0;
-  if (!paid && usedDrafts >= PLAN_LIMITS.FREE_AI_DRAFT_LIMIT) {
+  const usedDrafts = readUsage(profile?.customization).drafts;
+  if (!paid && usedDrafts >= PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH) {
     return NextResponse.json(
       {
         error: "upgrade",
-        message: `You've used your ${PLAN_LIMITS.FREE_AI_DRAFT_LIMIT} free AI drafts. Upgrade to Pro for unlimited AI follow-ups and automated sequences.`,
+        message: `You've used your ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} free AI drafts this month. Upgrade to Pro for unlimited AI follow-ups and automated sequences.`,
         upgrade: "/pricing",
         messages: [],
       },
@@ -93,18 +94,15 @@ Return ONLY valid JSON: ${isText ? `{"messages":["m1","m2","m3"]}` : `{"subject"
     const out = Array.isArray(parsed.messages) ? parsed.messages.slice(0, 3) : [];
     const subject = isText ? null : (typeof parsed.subject === "string" ? parsed.subject.trim() : null);
 
-    // Count this draft against the Free taste limit.
+    // Count this draft against the Free monthly taste limit.
     if (!paid && out.length > 0) {
-      await adminSupabase
-        .from("profiles")
-        .update({ customization: { ...(profile?.customization ?? {}), _aiDrafts: usedDrafts + 1 } })
-        .eq("id", user.id);
+      await bumpUsage(adminSupabase, user.id, profile?.customization as Record<string, unknown> | null, "drafts");
     }
 
     return NextResponse.json({
       messages: out,
       subject,
-      aiDraftsRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_AI_DRAFT_LIMIT - (usedDrafts + 1)),
+      aiDraftsRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH - (usedDrafts + 1)),
     });
   } catch {
     return NextResponse.json({ messages: [] });

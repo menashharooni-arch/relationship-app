@@ -6,18 +6,24 @@ self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data.json(); } catch { return; }
 
+  // "Save to Contacts" only applies to lead notifications (they carry a vCard);
+  // milestones and other alerts get a single "Open" action.
+  const actions = data.vcardUrl
+    ? [
+        { action: "save", title: "💾 Save to Contacts" },
+        { action: "view", title: "View in SwiftCard" },
+      ]
+    : [{ action: "view", title: "Open SwiftCard" }];
+
   event.waitUntil(
-    self.registration.showNotification(data.title ?? "New contact", {
+    self.registration.showNotification(data.title ?? "SwiftCard", {
       body: data.body ?? "",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: data.tag ?? "swiftcard-lead",
+      tag: data.tag ?? "swiftcard",
       renotify: true,
       data: { url: data.url ?? "/dashboard", vcardUrl: data.vcardUrl ?? null },
-      actions: [
-        { action: "save", title: "💾 Save to Contacts" },
-        { action: "view", title: "View in SwiftCard" },
-      ],
+      actions,
     })
   );
 });

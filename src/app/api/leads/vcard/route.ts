@@ -24,13 +24,19 @@ export async function GET(req: NextRequest) {
 
   if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // vCard escaping (RFC 6350): these fields are VISITOR-supplied — a name with
+  // an embedded newline or ";" could otherwise inject arbitrary vCard fields
+  // into the contact saved on the owner's phone.
+  const esc = (v: string | null | undefined) =>
+    String(v ?? "").replace(/[\r\n]+/g, " ").replace(/([,;\\])/g, "\\$1").trim();
+
   const lines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${lead.name}`,
-    lead.phone ? `TEL;TYPE=CELL:${lead.phone}` : null,
-    lead.email ? `EMAIL:${lead.email}` : null,
-    lead.company ? `ORG:${lead.company}` : null,
+    `FN:${esc(lead.name)}`,
+    lead.phone ? `TEL;TYPE=CELL:${esc(lead.phone)}` : null,
+    lead.email ? `EMAIL:${esc(lead.email)}` : null,
+    lead.company ? `ORG:${esc(lead.company)}` : null,
     "END:VCARD",
   ].filter(Boolean).join("\r\n");
 

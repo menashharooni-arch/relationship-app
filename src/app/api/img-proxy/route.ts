@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeFetch } from "@/lib/safe-fetch";
+
+// Node runtime — the SSRF guard uses node:dns / node:net to resolve + vet IPs.
+export const runtime = "nodejs";
 
 // Same-origin image proxy so html2canvas can read cross-origin card images
-// (Google/OAuth avatars, external logos) without tainting the canvas. SSRF-guarded.
-function blockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) return true;
-  if (h === "::1" || h === "0.0.0.0") return true;
-  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(h)) return true;
-  return false;
-}
+// (Google/OAuth avatars, external logos) without tainting the canvas. SSRF is
+// enforced by safeFetch: resolves the host, blocks private/loopback IPs, and
+// re-checks every redirect hop (a hostname-only allowlist was bypassable via
+// a public host that redirects to 169.254.169.254 / DNS-rebinds to a private IP).
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("url");
@@ -17,14 +16,11 @@ export async function GET(req: NextRequest) {
 
   let target: URL;
   try { target = new URL(raw); } catch { return new NextResponse("bad url", { status: 400 }); }
-  if (!/^https?:$/.test(target.protocol) || blockedHost(target.hostname)) {
-    return new NextResponse("forbidden", { status: 403 });
-  }
 
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
-    const res = await fetch(target.toString(), {
+    const res = await safeFetch(target.toString(), {
       signal: ctrl.signal,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; SwiftCard/1.0)" },
     });

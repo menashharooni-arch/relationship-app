@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import ScrollProgress from "@/components/ScrollProgress";
+import ScrollReveal from "@/components/ScrollReveal";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
@@ -14,35 +17,33 @@ const PRO_MONTHLY = 4.99;              // $/month
 const PRO_ANNUAL = 54;                 // $/year — ~$4.50/mo, ~10% off $4.99
 const OFFICE_PER_USER = 3.99;          // $/user/month
 const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // ~$43.09/user/year, 10% off
-const OFFICE_MIN_SEATS = 2;
+const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 const features = {
   free: [
     "1 digital business card",
-    "Up to 25 contacts",
+    "5 new leads a month",
     "All 5 card templates",
     "QR code, shareable link & NFC",
-    "Swift Links page (up to 2 buttons)",
+    "Unlimited Swift Links buttons",
     "Save to contacts (vCard), socials, bio, address",
     "Contacts CRM: statuses, notes, read/unread",
-    "Basic analytics (views, today, best day)",
+    "Analytics: views, best day, saves & top locations",
     "Day-1 follow-up email",
-    "3 AI follow-up drafts to try",
-    "“Made with SwiftCard” badge",
+    "3 AI drafts + 3 card scans a month",
+    "“Powered by SwiftCard” badge",
   ],
   pro: [
     "Everything in Free, plus:",
-    "Unlimited cards",
-    "Unlimited contacts",
-    "Custom card designer",
+    "Unlimited leads & contacts",
+    "Unlimited cards + custom card designer",
     "No SwiftCard branding",
-    "Unlimited Swift Links buttons",
-    "Unlimited AI drafts + automated Day 1/15/30 sequences",
-    "Full analytics: traffic sources, locations & conversion",
-    "CSV export",
-    "Integrations: Zapier, Google, HubSpot",
-    "AI business-card scanner",
+    "Automated follow-up sequences — email + text (Light · Medium · Aggressive)",
+    "Unlimited AI drafts & card scans",
+    "Premium Swift Links: video previews, featured tiles & themes",
+    "Full analytics: who viewed, when & where",
+    "CSV export + Zapier, Google & HubSpot sync",
   ],
   enterprise: [
     "Everything in Pro, for every seat",
@@ -72,7 +73,7 @@ type PromoState = { code: string; status: "idle" | "checking" | "valid" | "inval
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
-  const [seats, setSeats] = useState(OFFICE_MIN_SEATS);
+  const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
 
@@ -135,6 +136,8 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <ScrollProgress />
+      <ScrollReveal />
 
       {/* Nav */}
       <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
@@ -149,7 +152,7 @@ export default function PricingPage() {
             </Link>
             <Link
               href="/login?mode=signup"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
+              className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
             </Link>
@@ -161,10 +164,9 @@ export default function PricingPage() {
       <section className="text-center px-6 pt-16 pb-10">
         <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Pricing</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">Simple, honest pricing.</h1>
-        <p className="text-slate-500 text-lg max-w-md mx-auto mb-10">
+        <p className="text-slate-500 text-lg max-w-md mx-auto mb-5">
           Free forever to start. Upgrade when your network grows.
         </p>
-
         {/* Monthly / Annual toggle */}
         <div
           className="inline-flex items-center gap-4 rounded-full px-5 py-2.5"
@@ -241,7 +243,7 @@ export default function PricingPage() {
       <section className="max-w-6xl mx-auto w-full px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-5">
 
         {/* Free */}
-        <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
+        <div data-reveal className="card-premium bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
           <p className="text-[11px] font-bold tracking-[0.2em] text-slate-400 uppercase mb-3">Free</p>
           <div className="flex items-end gap-1 mb-1">
             <span className="text-4xl font-bold text-slate-900">$0</span>
@@ -264,7 +266,7 @@ export default function PricingPage() {
         </div>
 
         {/* Pro */}
-        <div className="relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-xl shadow-blue-200">
+        <div data-reveal style={{ transitionDelay: "90ms" }} className="card-premium relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-xl shadow-blue-200">
           <div className="absolute top-5 right-5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
             POPULAR
           </div>
@@ -308,7 +310,7 @@ export default function PricingPage() {
         </div>
 
         {/* Office Plan */}
-        <div className="relative bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
+        <div data-reveal style={{ transitionDelay: "180ms" }} className="card-premium relative bg-[#EDE5D8] border border-[#D4C8B8] rounded-3xl p-8 flex flex-col">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "#E0D5F0" }}>
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-purple-700">
@@ -398,8 +400,9 @@ export default function PricingPage() {
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
+            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
           </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · All prices in USD</p>
+          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY · All prices in USD</p>
         </div>
       </footer>
     </main>

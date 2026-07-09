@@ -267,18 +267,24 @@ export default function OnboardingForm({ userId }: { userId: string }) {
           </div>
 
           {/* Template selector */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 pt-3">
             {TEMPLATES.map(({ id, label, Component, tags }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setForm((prev) => ({ ...prev, template: id }))}
-                className="text-left rounded-xl overflow-hidden border-2 transition-all"
+                className="relative text-left rounded-xl border-2 transition-all"
                 style={{
                   borderColor: form.template === id ? "#1D4ED8" : "#e5e7eb",
                   boxShadow: form.template === id ? "0 0 0 2px #1D4ED820" : "none",
                 }}
               >
+                {id === "photo-first" && (
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap text-[8.5px] font-bold uppercase tracking-wide text-white px-2 py-0.5 rounded-full shadow-sm" style={{ background: "#1D4ED8" }}>
+                    ★ Most Popular
+                  </span>
+                )}
+                <div className="rounded-[10px] overflow-hidden">
                 <div className="w-full pointer-events-none scale-[0.85] origin-top-left" style={{ width: "117%", height: "auto" }}>
                   <Component data={SAMPLE_DATA} />
                 </div>
@@ -303,6 +309,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                       </span>
                     ))}
                   </div>
+                </div>
                 </div>
               </button>
             ))}
