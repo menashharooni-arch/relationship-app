@@ -56,9 +56,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .eq("id", id)
       .eq("user_id", user.id)
       .maybeSingle();
+    // Server-owned "_"-prefixed keys never come from the client — strip any the
+    // payload tries to send so a crafted request can't overwrite internal flags.
+    const incoming = { ...(updates.customization as Record<string, unknown>) };
+    for (const k of Object.keys(incoming)) if (k.startsWith("_")) delete incoming[k];
     const merged = {
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
-      ...(updates.customization as Record<string, unknown>),
+      ...incoming,
     };
     updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false);
   }
@@ -89,6 +93,29 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminSupabase();
+
+  // Look the card up first: everything keyed to it (leads, views, events,
+  // notifications) is keyed by USERNAME. Deleting the row frees the username —
+  // without this cleanup, whoever registers the same slug next would inherit
+  // this card's leads and visitor history (a cross-account data leak). The
+  // owner already loses access to these on delete, so removing them changes
+  // nothing for them.
+  const { data: cardRow } = await admin
+    .from("cards")
+    .select("username")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!cardRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const username = cardRow.username as string;
+  await Promise.all([
+    admin.from("leads").delete().eq("card_owner", username),
+    admin.from("card_views").delete().in("username", [username, `${username}__links`]),
+    admin.from("card_events").delete().eq("card_owner_username", username),
+    admin.from("notifications").delete().eq("user_id", user.id).eq("card_owner", username).then(() => {}, () => {}),
+  ]);
+
   const { error } = await admin
     .from("cards")
     .delete()

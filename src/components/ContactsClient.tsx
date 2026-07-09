@@ -214,16 +214,22 @@ export default function ContactsClient({
   async function saveContact() {
     if (!selected) return;
     setFieldSaving("contact");
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(contactDraft),
-    });
-    const patch = { ...contactDraft };
-    setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
-    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactDraft),
+      });
+      ok = res.ok;
+    } catch { /* network error — leave the editor open with the draft intact */ }
+    if (ok) {
+      const patch = { ...contactDraft };
+      setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
+      setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+      setEditingContact(false);
+    }
     setFieldSaving(null);
-    setEditingContact(false);
   }
 
   // Download this contact as a vCard so the user can save it to their phone.
@@ -280,11 +286,16 @@ export default function ContactsClient({
     const remaining = ((selected.follow_up_sequence ?? []) as { channel?: string }[]).filter(
       (o) => (o.channel ?? "email") !== ch
     );
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ follow_up_sequence: remaining }),
-    });
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follow_up_sequence: remaining }),
+      });
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : prev));
     // Un-pause the channel + clear any legacy master pause so the NEW automation
@@ -297,8 +308,8 @@ export default function ContactsClient({
   async function saveField(field: string, value: string) {
     if (!selected) return;
     setFieldSaving(field);
-    await updateField(selected.id, field, value);
-    setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
+    const ok = await updateField(selected.id, field, value);
+    if (ok) setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
     setFieldSaving(null);
   }
 
@@ -392,11 +403,21 @@ export default function ContactsClient({
       };
     });
     const payload = [...otherChannel, ...mine];
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ follow_up_sequence: payload }),
-    });
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follow_up_sequence: payload }),
+      });
+      ok = res.ok;
+    } catch { /* network error */ }
+    if (!ok) {
+      // Keep the draft on screen so nothing is lost — the user can retry.
+      setSeqSaving("idle");
+      alert("Couldn't save the automation — please try again.");
+      return;
+    }
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
     // Submitting turns this channel ON: clear any stale pause (and the legacy
@@ -413,7 +434,8 @@ export default function ContactsClient({
 
   async function changeStatus(newStatus: string) {
     if (!selected) return;
-    await updateField(selected.id, "status", newStatus);
+    const ok = await updateField(selected.id, "status", newStatus);
+    if (!ok) return;
     setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
     if (newStatus === "dissolved") {
       const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
@@ -490,23 +512,37 @@ export default function ContactsClient({
 
   const today = new Date().toISOString().split("T")[0];
 
-  async function updateField(leadId: string, field: string, value: string) {
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
-    });
+  // Every mutator below only applies its local state change when the server
+  // ACCEPTED the write — a failed PATCH (expired session, deleted lead, 500)
+  // must never leave the UI pretending the save happened.
+  async function updateField(leadId: string, field: string, value: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   // tags is a Postgres text[] — send the real array, not a stringified one.
-  async function updateTags(leadId: string, tags: string[]) {
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags }),
-    });
+  async function updateTags(leadId: string, tags: string[]): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags }),
+      });
+      if (!res.ok) return false;
+    } catch {
+      return false;
+    }
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags } : l)));
     setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags } : prev));
+    return true;
   }
 
   function isUnread(lead: Lead) {
@@ -522,19 +558,24 @@ export default function ContactsClient({
   }
 
   async function deleteLead(id: string) {
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+      ok = res.ok;
+    } catch { /* network error — keep the contact in the list */ }
+    setConfirmDeleteId(null);
+    if (!ok) return;
     setLeads((prev) => prev.filter((l) => l.id !== id));
     if (selected?.id === id) setSelected(null);
-    setConfirmDeleteId(null);
   }
 
   async function saveNotes() {
     if (!selected) return;
     setNotesSaving(true);
-    await updateField(selected.id, "notes", notesText);
-    setSelected((prev) => prev ? { ...prev, notes: notesText } : prev);
+    const ok = await updateField(selected.id, "notes", notesText);
+    if (ok) setSelected((prev) => prev ? { ...prev, notes: notesText } : prev);
     setNotesSaving(false);
-    setEditingNotes(false);
+    if (ok) setEditingNotes(false);
   }
 
   const renderLeadItem = (lead: Lead) => {

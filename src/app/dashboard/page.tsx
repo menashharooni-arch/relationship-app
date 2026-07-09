@@ -569,7 +569,7 @@ export default async function DashboardPage({
                     {due.length === 1 ? `Follow up with ${due[0].name} today` : `${due.length} follow-ups due today`}
                   </p>
                 </div>
-                <Link scroll={false} href="?status=all&date=all&sort=newest" className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
+                <Link scroll={false} href={`?status=all&date=all&sort=newest${selectedCard ? `&card=${selectedCard}` : ""}`} className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
               </div>
             );
           })()}

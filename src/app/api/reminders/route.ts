@@ -7,6 +7,8 @@ import { expireFreeMonths } from "@/lib/referral-server";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { aiComplete } from "@/lib/ai";
+import { escapeHtml } from "@/lib/escape";
+import { contactUnsubUrl } from "@/lib/messaging";
 
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
@@ -119,7 +121,9 @@ Rules:
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // The env var must exist AND match — with it unset, `Bearer undefined` would
+  // otherwise pass and expose the whole send-run to anyone.
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -239,13 +243,22 @@ export async function GET(req: NextRequest) {
       const isPlural = leads.length > 1;
       const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
+      // Mark this batch BEFORE sending. A crash mid-send then SKIPS the batch on
+      // the next run instead of re-emailing everyone who already got one —
+      // a missed reminder is recoverable, a duplicate blast to leads is not.
+      await supabase.from("lead_reminders").insert(
+        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
+      );
+
+      // Every lead-supplied field is escaped — this is visitor-controlled data
+      // going into HTML delivered to the owner's trusted inbox.
       const leadRows = leads.map((l) => `
         <tr>
           <td style="padding:12px 0;border-bottom:1px solid #1f2937;">
-            <p style="margin:0;font-weight:600;color:#ffffff;">${l.name}</p>
-            <a href="mailto:${l.email}" style="color:#60a5fa;font-size:13px;">${l.email}</a>
-            ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${l.phone}</p>` : ""}
-            ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${l.notes}</p>` : ""}
+            <p style="margin:0;font-weight:600;color:#ffffff;">${escapeHtml(l.name)}</p>
+            <a href="mailto:${escapeHtml(l.email ?? "")}" style="color:#60a5fa;font-size:13px;">${escapeHtml(l.email ?? "")}</a>
+            ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${escapeHtml(l.phone)}</p>` : ""}
+            ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${escapeHtml(l.notes)}</p>` : ""}
           </td>
         </tr>`).join("");
 
@@ -259,7 +272,7 @@ export async function GET(req: NextRequest) {
               <p style="font-size:11px;font-weight:700;letter-spacing:0.2em;color:#4b5563;text-transform:uppercase;margin:0 0 32px;">SWIFTCARD</p>
               <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0 0 8px;">Hey ${ownerFirst}</h1>
               <p style="color:#9ca3af;font-size:15px;margin:0 0 32px;">
-                ${isPlural ? `${leads.length} people` : leads[0].name} ${step.intro}
+                ${isPlural ? `${leads.length} people` : escapeHtml(leads[0].name)} ${step.intro}
               </p>
               <table style="width:100%;border-collapse:collapse;">${leadRows}</table>
               <div style="margin-top:32px;">
@@ -329,10 +342,10 @@ export async function GET(req: NextRequest) {
               html: `
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
-                  <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
+                  <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${escapeHtml(leadFirst)},<br/><br/>${escapeHtml(fullBody).replace(/\n/g, "<br/>")}</p>
                   ${signatureBlock}
                   <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
-                    <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p>
+                    <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard${lead.email ? ` · <a href="${contactUnsubUrl(lead.email)}" style="color:#d1d5db;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
                   </div>
                 </div>
               </div>`,
@@ -340,10 +353,6 @@ export async function GET(req: NextRequest) {
           });
         }
       }
-
-      await supabase.from("lead_reminders").insert(
-        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
-      );
 
       totalSent++;
     }
