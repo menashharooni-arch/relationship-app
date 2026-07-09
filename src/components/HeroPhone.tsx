@@ -7,17 +7,16 @@ import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 // Hero demo card — PhotoFirst template with a real headshot.
 const HERO_DATA = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/headshot.jpg" };
 
-// How far the phone flips at full scroll progress.
-const FLIP_Y = 34;   // deg — main outward rotation around the Y axis
-const FLIP_X = 7;    // deg — slight backward lean for depth
-const LIFT_Z = 46;   // px — comes toward the viewer as it turns
-const HOVER_MAX = 7; // deg — cursor tilt, layered on top of the scroll flip
+// How far the phone folds down at full scroll progress.
+const FOLD_X = 74;   // deg — tips forward around the X axis, falling onto its screen
+const HOVER_MAX = 7; // deg — cursor tilt, layered on top (fades out as it folds)
 
 // Crisp, front-facing phone that (1) gently floats, (2) tilts toward the cursor,
-// and (3) flips outward in 3D as the page scrolls — driven directly by scroll
-// position and smoothed with a critically-damped lerp, so scrolling back up
-// returns it to dead-front just as fluidly. All transform writes happen
-// imperatively in one rAF loop (no re-render per frame).
+// and (3) FOLDS DOWN as the page scrolls — pivoting at its bottom edge and
+// tipping forward like it's falling flat onto its screen. Driven directly by
+// scroll position and smoothed with a lerp, so scrolling back up stands it
+// upright again just as fluidly. All transform writes happen imperatively in
+// one rAF loop (no re-render per frame).
 export default function HeroPhone() {
   const wrapRef = useRef<HTMLDivElement>(null);  // measures scroll progress
   const stageRef = useRef<HTMLDivElement>(null); // receives the transform
@@ -70,15 +69,16 @@ export default function HeroPhone() {
       if (Math.abs(curRx - targetRx) < 0.01) curRx = targetRx;
       if (Math.abs(curRy - targetRy) < 0.01) curRy = targetRy;
 
-      // Scroll flip: rotate outward around Y, lean back slightly, and bring the
-      // phone toward the viewer — the "flipping toward you" read.
-      const ry = curP * FLIP_Y + curRy;
-      const rx = curP * -FLIP_X + curRx;
-      const tz = curP * LIFT_Z;
-      const scale = 1 - curP * 0.02;
+      // Scroll fold: pivot at the bottom edge and tip forward (negative rotateX
+      // brings the top toward the viewer) — the phone lies down onto its screen.
+      // The cursor tilt fades out as it folds so nothing fights the motion.
+      const hoverFade = 1 - curP;
+      const rx = curP * -FOLD_X + curRx * hoverFade;
+      const ry = curRy * hoverFade;
+      const scale = 1 - curP * 0.03;
 
       stage.style.transform =
-        `translateZ(${tz.toFixed(1)}px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+        `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
 
       raf = requestAnimationFrame(frame);
     };
@@ -107,11 +107,13 @@ export default function HeroPhone() {
         style={{ background: "radial-gradient(circle, rgba(29,78,216,0.30) 0%, transparent 70%)", filter: "blur(48px)" }}
       />
 
-      {/* 3D stage — scroll flip + cursor tilt are composed here each frame */}
+      {/* 3D stage — scroll fold + cursor tilt are composed here each frame.
+          transform-origin near the bottom edge = the phone tips over from its
+          base instead of spinning in place. */}
       <div
         ref={stageRef}
         className="relative"
-        style={{ width: "320px", transformStyle: "preserve-3d", willChange: "transform" }}
+        style={{ width: "320px", transformStyle: "preserve-3d", willChange: "transform", transformOrigin: "50% 92%" }}
       >
         {/* Bob — gentle vertical float (translateY only, stays crisp) */}
         <div className="sc-phone-bob relative">
