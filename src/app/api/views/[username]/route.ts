@@ -18,6 +18,21 @@ export async function POST(
     return NextResponse.json({ ok: true }); // don't reveal which slugs exist
   }
 
+  // Owner self-views NEVER count as traffic. The pages already skip the tracker
+  // for a logged-in owner, but this closes every other path (stale tabs, direct
+  // calls, future components): if the caller's session owns this card, skip.
+  try {
+    const { createClient } = await import("@/lib/supabase-server");
+    const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+    if (viewer) {
+      const admin0 = getAdminSupabase();
+      const { data: owned } = await admin0.from("cards").select("user_id").eq("username", baseSlug).maybeSingle();
+      const ownerId = owned?.user_id
+        ?? (await admin0.from("profiles").select("id").eq("username", baseSlug).maybeSingle()).data?.id;
+      if (ownerId && ownerId === viewer.id) return NextResponse.json({ ok: true, self: true });
+    }
+  } catch { /* no session context (e.g. cron) — treat as a visitor */ }
+
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? req.headers.get("x-real-ip")
     ?? null;
