@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+import { requireAdmin } from "@/lib/admin";
 
 // Rough monthly price per paid plan (matches the pricing page).
 const PRO_PRICE = 4.99;
@@ -13,9 +11,7 @@ function dayKey(t: number | string) {
 }
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -102,10 +98,12 @@ export async function GET() {
 
   // ── Views (SwiftCard vs SwiftLink) ────────────────────────────────────────
   const { count: viewTotal } = await admin.from("card_views").select("*", { count: "exact", head: true });
-  const { data: recentViews } = await admin.from("card_views").select("username, created_at").gte("created_at", iso(30)).limit(5000);
+  // card_views has viewed_at (NOT created_at) — selecting the wrong column made
+  // this whole block silently return nothing and the views charts showed 0.
+  const { data: recentViews } = await admin.from("card_views").select("username, viewed_at").gte("viewed_at", iso(30)).limit(5000);
   let cardViews30 = 0, linkViews30 = 0, views7 = 0;
   (recentViews ?? []).forEach((v) => {
-    const t = new Date(v.created_at as string).getTime();
+    const t = new Date(v.viewed_at as string).getTime();
     if (t >= now - 7 * DAY) views7++;
     if (((v.username as string) || "").endsWith("__links")) linkViews30++; else cardViews30++;
   });

@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ? admin.from("leads").select("id, name, email, phone, source, card_owner, created_at").in("card_owner", usernames).order("created_at", { ascending: false }).limit(500)
       : Promise.resolve({ data: [] as never[] }),
     usernames.length
-      ? admin.from("card_views").select("username, created_at").in("username", usernames.flatMap((u) => [u, `${u}__links`])).limit(5000)
+      ? admin.from("card_views").select("username, viewed_at").in("username", usernames.flatMap((u) => [u, `${u}__links`])).limit(5000)
       : Promise.resolve({ data: [] as never[] }),
     admin.from("referrals").select("status, reward_granted").eq("referrer_id", id),
   ]);
@@ -59,10 +59,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const base = raw.replace(/__links$/, "");
     const slot = (viewsByCard[base] ??= { card: 0, links: 0 });
     if (raw.endsWith("__links")) slot.links++; else slot.card++;
-    const t = new Date(v.created_at as string).getTime();
+    const t = new Date(v.viewed_at as string).getTime();
     if (t >= now - 30 * DAY) {
       views30++;
-      const k = new Date(v.created_at as string).toISOString().slice(0, 10);
+      const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
       if (series[k]) series[k].views++;
     }
   }
@@ -136,6 +136,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const admin = getAdminSupabase();
 
   if (body.grantFreeMonth) {
+    // A paying subscriber doesn't need a grant — and stacking plan_expires_at
+    // onto an active Stripe subscription creates a conflicting billing state.
+    const { data: cur } = await admin.from("profiles").select("stripe_subscription_id").eq("id", id).maybeSingle();
+    if (cur?.stripe_subscription_id) {
+      return NextResponse.json({ error: "This user is on an active paid subscription — no free month needed." }, { status: 409 });
+    }
     const expires = new Date(Date.now() + freeMonthDays(REFERRAL.NEW_USER_FREE_MONTHS) * 86_400_000).toISOString();
     const { error } = await admin.from("profiles").update({ plan: "pro", plan_expires_at: expires }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -146,8 +152,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!["free", "pro", "enterprise"].includes(body.plan)) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+    // Downgrading to free must ALSO stop the billing — otherwise the user shows
+    // as free in the app while Stripe keeps charging them.
+    let subCleared = false;
+    if (body.plan === "free") {
+      const { data: cur } = await admin.from("profiles").select("stripe_subscription_id").eq("id", id).maybeSingle();
+      if (cur?.stripe_subscription_id) {
+        try {
+          const { getStripe } = await import("@/lib/stripe");
+          await getStripe().subscriptions.cancel(cur.stripe_subscription_id as string);
+          subCleared = true;
+        } catch (e) {
+          console.error("[admin user plan] Stripe cancel failed:", e instanceof Error ? e.message : e);
+          return NextResponse.json(
+            { error: "Couldn't cancel the user's Stripe subscription — plan NOT changed (they would keep being billed). Cancel it in Stripe first, then retry." },
+            { status: 502 }
+          );
+        }
+      }
+    }
     // Explicit plan set clears any free-month expiry (it's a real plan now).
-    const { error } = await admin.from("profiles").update({ plan: body.plan, plan_expires_at: null }).eq("id", id);
+    const { error } = await admin
+      .from("profiles")
+      .update({ plan: body.plan, plan_expires_at: null, ...(subCleared ? { stripe_subscription_id: null } : {}) })
+      .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, plan: body.plan });
   }
