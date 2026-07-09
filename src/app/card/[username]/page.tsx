@@ -314,9 +314,18 @@ export default async function CardPage({
       {/* ── Section 3: Other Ways to Connect ── */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <SectionNumber n={3} />
-            <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <SectionNumber n={3} />
+              <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
+            </div>
+            {/* Small, light jump to this card's full Swift Links page */}
+            <a
+              href={`/links/${profile.username}`}
+              className="shrink-0 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors px-1 py-1"
+            >
+              Go to Swift Links →
+            </a>
           </div>
           {bio && (
             <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap mb-4 ml-9">{bio}</p>
