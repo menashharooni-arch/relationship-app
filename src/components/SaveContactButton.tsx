@@ -170,19 +170,15 @@ export default function SaveContactButton({
     <>
       <button
         onClick={downloadVCard}
-        className="w-full active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
-        style={{ background: "#1D4ED8" }}
+        className={`w-full text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2 ${saved ? "" : "active:bg-blue-800"}`}
+        style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
       >
         {saved ? (
-          // NOT a "done" state — the contact card just opened on their phone and
-          // they still have to confirm (Create New Contact / Add). Kept to a
-          // concise button label, not a bulky instruction block, and no green
-          // check so it never reads as already-saved.
           <>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v11m0 0l4-4m-4 4l-4-4M4.5 19.5h15" />
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
-            One more tap to save
+            Saved to Contacts!
           </>
         ) : (
           <>
@@ -193,6 +189,12 @@ export default function SaveContactButton({
           </>
         )}
       </button>
+      {/* Small, unobtrusive pointer to the phone's confirm step */}
+      {saved && (
+        <p className="text-center text-[11px] mt-1.5" style={{ color: "#94a3b8" }}>
+          Save — then tap &ldquo;Create New Contact&rdquo;
+        </p>
+      )}
 
       {/* Conversion bottom sheet */}
       {showSheet && (
@@ -212,8 +214,7 @@ export default function SaveContactButton({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-900 font-bold text-base">{ownerFirstName ?? "They"}&apos;ll be in touch!</p>
-                <p className="text-slate-500 text-sm mt-1">Your info has been sent.</p>
+                <p className="text-slate-900 font-bold text-base">Info shared!</p>
               </div>
             ) : (
               <>

@@ -58,13 +58,13 @@ type NudgeCopy = { title: string; sub: string; cta: string };
 // tap and it felt effortless — the headline turns that feeling into "I want
 // that for me". "My" in the CTA (not "your") is the classic CRO ownership win.
 export const NUDGE_COPY: Record<string, NudgeCopy> = {
-  default:      { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Claim My Free Card" },
-  save_contact: { title: "Next time, be the one they save", sub: "One tap and you're in their phone — card, links, everything. Free.", cta: "Claim My Free Card" },
-  share_info:   { title: "Never type your info again", sub: "One tap shares who you are — your card, your links, your brand. Free.", cta: "Claim My Free Card" },
-  vcard:        { title: "Saved in one tap. That could be you", sub: "Your own SwiftCard — in their phone before the handshake ends. Free.", cta: "Claim My Free Card" },
-  link_button:  { title: "One link for everything you are", sub: "Your links + a smart business card in one beautiful page. Free.", cta: "Claim My Free Card" },
-  badge:        { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Claim My Free Card" },
-  follow_up:    { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Claim My Free Card" },
+  default:      { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
+  save_contact: { title: "Next time, be the one they save", sub: "One tap and you're in their phone — card, links, everything.", cta: "Create my free card" },
+  share_info:   { title: "Never type your info again", sub: "One tap shares who you are — your card, your links, your brand.", cta: "Create my free card" },
+  vcard:        { title: "Saved in one tap. That could be you", sub: "Your own SwiftCard — in their phone before the handshake ends.", cta: "Create my free card" },
+  link_button:  { title: "One link for everything you are", sub: "Your links + a smart business card in one beautiful page.", cta: "Create my free card" },
+  badge:        { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
+  follow_up:    { title: "Look this good when you network", sub: "Your own tap-to-share card — stunning, smart, live in 60 seconds.", cta: "Create my free card" },
 };
 
 export function nudgeCopy(source: string | null | undefined): NudgeCopy {

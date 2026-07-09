@@ -208,15 +208,19 @@ export default async function DashboardPage({
     bellNotifRes,
     ownedOfficeRes,
   ] = await Promise.all([
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
-    supabase
+    // card_views is written by the PUBLIC view API via the service role and has
+    // RLS on with no select policy — reading it with the user's session client
+    // silently returns 0 rows (this hid ALL traffic). Read via the admin client;
+    // safe: analyticsUsername is verified above to be one of THIS user's cards.
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+    getAdminSupabase()
       .from("card_views")
       .select("viewed_at")
       .in("username", [analyticsUsername, linkUsername])
       .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString()),
     viewsRange === "locations"
-      ? supabase.from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
+      ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
       : Promise.resolve({ data: null }),
     supabase
       .from("leads")

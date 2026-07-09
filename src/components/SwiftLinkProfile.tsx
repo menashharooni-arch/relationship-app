@@ -143,10 +143,19 @@ export default function SwiftLinkProfile({
           {/* Featured links — rich preview cards */}
           <SwiftLinkButtons links={links} />
 
-          {/* Footer — "Made with SwiftCard" attribution badge on Free only.
-              Paid plans show nothing (the "View Swift Card" button was removed). */}
+          {/* Faint link to this person's full SwiftCard (every plan) */}
+          <div className="flex justify-center mt-10">
+            <a
+              href={`/card/${username}`}
+              className="text-white/35 text-[11px] hover:text-white/70 transition-colors"
+            >
+              View SwiftCard →
+            </a>
+          </div>
+
+          {/* Footer — "Made with SwiftCard" attribution badge on Free only. */}
           {!ownerPaid && (
-            <div className="flex justify-center mt-10">
+            <div className="flex justify-center mt-3">
               <a
                 href={`${appUrl}/?src=badge`}
                 className="flex items-center gap-1.5 text-white/40 text-[11px] hover:text-white/75 transition-colors"

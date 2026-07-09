@@ -97,8 +97,7 @@ export default function ConnectButton({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-900 font-bold text-base">Message sent!</p>
-                <p className="text-slate-500 text-sm mt-1">{ownerFirstName} will get your details and can reach out.</p>
+                <p className="text-slate-900 font-bold text-base">Info shared!</p>
                 <button type="button" onClick={closeModal} className="mt-5 w-full font-semibold py-3 rounded-full text-white text-sm" style={{ background: "#1D4ED8" }}>
                   Done
                 </button>

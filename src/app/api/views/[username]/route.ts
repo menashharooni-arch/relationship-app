@@ -33,7 +33,10 @@ export async function POST(
   // it (a missing column / RLS issue would otherwise make views vanish with no
   // signal). Tracking must never break the visitor's page load, so we still
   // return ok — but the error is now visible.
-  const { error: insertErr } = await supabase.from("card_views").insert({ username, ip, location });
+  // viewed_at is set explicitly (not left to a column DEFAULT) so a view always
+  // has the timestamp the dashboard filters/counts on — no dependency on the
+  // production table having the DEFAULT now() the migration specifies.
+  const { error: insertErr } = await supabase.from("card_views").insert({ username, ip, location, viewed_at: new Date().toISOString() });
   if (insertErr) console.error("card_views insert failed:", insertErr.message, { username });
 
   // Mirror the view to the owner's CRM (SwiftCard vs SwiftLink). Gated by their
