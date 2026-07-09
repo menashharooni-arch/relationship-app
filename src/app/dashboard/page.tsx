@@ -7,7 +7,6 @@ import CopyButton from "@/components/CopyButton";
 import LeadPipeline from "@/components/LeadPipeline";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
-import CardScanner from "@/components/CardScanner";
 import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
@@ -15,7 +14,14 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
+import ShareCardCapture from "@/components/ShareCardCapture";
+import ThemeToggle from "@/components/ThemeToggle";
+import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
+import TourBanner from "@/components/TourBanner";
+import TrialBanner from "@/components/TrialBanner";
+import AddToWalletButton from "@/components/AddToWalletButton";
+import { hasWalletConfig } from "@/lib/wallet-config";
 import AddContactModal from "@/components/AddContactModal";
 import LeadListClient from "@/components/LeadListClient";
 import Link from "next/link";
@@ -23,16 +29,18 @@ import MobileNav from "@/components/MobileNav";
 import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { readUsage } from "@/lib/usage";
+import { cardHeadshot, backfillCardPhotos } from "@/lib/card-media";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-const FREE_LIMIT = PLAN_LIMITS.FREE_CONTACT_LIMIT;
+const FREE_LIMIT = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -41,8 +49,8 @@ export default async function DashboardPage({
   const filterStatus = params.status ?? "all";
   const filterDate = params.date ?? "all";
   const selectedCard = params.card ?? null;
-  const viewsRange: "today" | "week" | "month" =
-    params.vrange === "week" || params.vrange === "month" ? params.vrange : "today";
+  const viewsRange: "today" | "week" | "month" | "locations" =
+    params.vrange === "week" || params.vrange === "month" || params.vrange === "locations" ? params.vrange : "today";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -54,7 +62,16 @@ export default async function DashboardPage({
 
   // Migrate any legacy "primary card" (stored on the profile) into the cards table,
   // then treat the cards table as the single source of truth — no primary card.
-  await ensureUserCards(user.id);
+  // Skip entirely once migrated (the common case) — saves DB round trips per load.
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id, profile as Record<string, unknown>);
+  }
+
+  // One-time: make every card's headshot explicit so none can inherit another
+  // card's photo (oldest keeps the shared account photo, newer ones blank).
+  if (!(profile.customization as { _photoMigrated?: boolean } | null)?._photoMigrated) {
+    await backfillCardPhotos(getAdminSupabase(), user.id, profile.customization as Record<string, unknown> | null, profile.photo_url as string | null);
+  }
 
   const { data: cards } = await getAdminSupabase()
     .from("cards")
@@ -77,12 +94,22 @@ export default async function DashboardPage({
   const isEnterprise = profile.plan === "enterprise";
   const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "");
 
+  // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
+  // plan is pro, with an expiry, and NO real Stripe subscription behind it.
+  const proExpiresAt = profile.plan_expires_at as string | null;
+  const onAppGrant = profile.plan === "pro" && !!proExpiresAt && !profile.stripe_subscription_id;
+  const trialDaysLeft = onAppGrant
+    ? Math.max(0, Math.ceil((new Date(proExpiresAt as string).getTime() - Date.now()) / 86400000))
+    : 0;
+  const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
+
   // No cards yet → show the "create your card" empty state.
   if (!hasCards) {
     return (
       <>
+        <AppStorePopup trigger={params.welcome === "1"} />
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
-        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+        <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SwiftCardIcon size={28} />
@@ -91,7 +118,7 @@ export default async function DashboardPage({
             <SignOutButton />
           </div>
         </nav>
-        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
+        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mb-6">
             <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.5} className="w-8 h-8">
               <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -113,7 +140,7 @@ export default async function DashboardPage({
     return (
       <>
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
-        <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+        <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SwiftCardIcon size={28} />
@@ -124,7 +151,7 @@ export default async function DashboardPage({
             </div>
           </div>
         </nav>
-        <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
+        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
           <div className="w-full max-w-sm">
             <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
             <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>
@@ -167,15 +194,33 @@ export default async function DashboardPage({
     d.setUTCHours(0, 0, 0, 0);
     return d.toISOString();
   })();
-  const [{ count: swiftCardViews }, { count: swiftLinkViews }] = await Promise.all([
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
-    supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
-  ]);
-
+  // ONE parallel batch for everything below-the-fold — previously 4 sequential
+  // awaits (2 counts → best-day rows → locations → leads+notifications), i.e.
+  // 3 extra DB round trips per dashboard load. Now a single round trip's latency.
   const [
+    { count: swiftCardViews },
+    { count: swiftLinkViews },
+    { data: recentViews },
+    locViewsRes,
     { data: leads },
-    { data: notifications },
+    panelNotifRes,
+    bellNotifRes,
+    ownedOfficeRes,
   ] = await Promise.all([
+    // card_views is written by the PUBLIC view API via the service role and has
+    // RLS on with no select policy — reading it with the user's session client
+    // silently returns 0 rows (this hid ALL traffic). Read via the admin client;
+    // safe: analyticsUsername is verified above to be one of THIS user's cards.
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+    getAdminSupabase()
+      .from("card_views")
+      .select("viewed_at")
+      .in("username", [analyticsUsername, linkUsername])
+      .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString()),
+    viewsRange === "locations"
+      ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
+      : Promise.resolve({ data: null }),
     supabase
       .from("leads")
       .select("id, name, email, phone, company, message, location, notes, status, tags, source, follow_up_date, created_at, card_owner")
@@ -184,10 +229,70 @@ export default async function DashboardPage({
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
         { ascending: sortBy === "name-asc" || sortBy === "oldest" }
       ),
-    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    // Panel (bottom of dashboard): ONLY this card's activity (+ account-level
+    // ones like referral months, which have no card scope).
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    // Bell (top nav): EVERY card's notifications, each tagged with its card.
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    isEnterprise
+      ? supabase.from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
+  // If the notifications.card_owner column migration hasn't run yet, BOTH
+  // scoped queries above error and the panel/bell would silently show nothing
+  // (this exact failure hid real "shared their info" notifications). Fall back
+  // to the un-scoped query so notifications always appear.
+  type NotifRow = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; card_owner?: string | null };
+  let panelNotifications: NotifRow[] | null = panelNotifRes.data;
+  let bellNotifications: NotifRow[] | null = bellNotifRes.data;
+  if (panelNotifRes.error || bellNotifRes.error) {
+    const { data: fallback } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    panelNotifications ??= fallback;
+    bellNotifications ??= fallback;
+  }
+
+  // Basic-panel "best day" (last 30d views) — available to every plan.
+  const dayTally: Record<string, number> = {};
+  for (const v of recentViews ?? []) {
+    const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
+    dayTally[k] = (dayTally[k] ?? 0) + 1;
+  }
+  let bestDay: { date: string; views: number } | null = null;
+  for (const [date, views] of Object.entries(dayTally)) {
+    if (!bestDay || views > bestDay.views) bestDay = { date, views };
+  }
+
+  // Locations view (on-demand): top places your card + links are viewed from,
+  // with the SwiftCard vs Swift Links split per location. All-time totals.
+  let topLocations: { location: string; card: number; link: number; total: number }[] = [];
+  if (viewsRange === "locations") {
+    const locMap: Record<string, { card: number; link: number }> = {};
+    for (const v of (locViewsRes.data ?? []) as { username: string; location: string | null }[]) {
+      const loc = v.location?.trim();
+      if (!loc) continue;
+      const slot = (locMap[loc] ??= { card: 0, link: 0 });
+      if (v.username === linkUsername) slot.link++; else slot.card++;
+    }
+    topLocations = Object.entries(locMap)
+      .map(([location, c]) => ({ location, card: c.card, link: c.link, total: c.card + c.link }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }
+
   const allLeads = leads ?? [];
+  // Free plan: leads captured beyond the 5/month cap are tagged locked. The owner
+  // sees only unlocked leads; the locked ones are counted for the upgrade banner
+  // and hidden until they go Pro (upgrading makes isPro true → nothing hidden).
+  const isLocked = (l: { tags?: string[] | null }) => Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG);
+  const visibleLeads = isPro ? allLeads : allLeads.filter((l) => !isLocked(l));
+  const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
+  const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
   const dateThreshold = filterDate === "today"
     ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -197,7 +302,7 @@ export default async function DashboardPage({
     ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
-  const filteredLeads = allLeads.filter((l) => {
+  const filteredLeads = visibleLeads.filter((l) => {
     if (filterStatus !== "all" && (l.status || "new_contact") !== filterStatus) return false;
     if (dateThreshold && l.created_at < dateThreshold) return false;
     return true;
@@ -211,15 +316,19 @@ export default async function DashboardPage({
   };
   const flowPresets: FlowPresets = (rawFlowSettings.presets as FlowPresets) ?? defaultPresets;
 
-  const atLimit = !isPro && allLeads.length >= FREE_LIMIT;
-  const nearLimit = !isPro && allLeads.length >= FREE_LIMIT - 5;
+  const atLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT;
+  const nearLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT - 2;
 
-  const { data: ownedOffice } = isEnterprise
-    ? await supabase.from("offices").select("id, name").eq("owner_id", user.id).single()
-    : { data: null };
+  const ownedOffice = ownedOfficeRes.data;
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
+
+  // Bell tags: username → human label, so every notification shows which card
+  // it came from ("Work", "Personal", …) instead of a raw slug.
+  const cardLabels: Record<string, string> = Object.fromEntries(
+    allCards.map((c) => [c.username as string, (c.label || c.name || c.username) as string])
+  );
 
   function initials(name: string) {
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -246,31 +355,45 @@ export default async function DashboardPage({
     tiktok: activeSource.tiktok || "",
     linkedin: activeSource.linkedin || "",
     initials: activeSource.name ? initials(activeSource.name) : "SC",
-    // One profile picture is shared across all cards (lives on the profile).
-    photoUrl: profile.photo_url || null,
+    // Per-card headshot (falls back to the account photo only for legacy cards).
+    photoUrl: cardHeadshot(activeSource.customization, profile.photo_url),
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
     address: activeAddress,
-    customization: activeSource.customization ?? {},
+    // Render-time plan enforcement (matches the public card page): a downgraded
+    // card's saved Pro design keys are stripped so the preview + the signature/
+    // share captures always reflect the CURRENT plan.
+    customization: sanitizeCustomizationForPlan(
+      (activeSource.customization ?? {}) as Record<string, unknown>,
+      isPro
+    ),
   };
+  // Custom designer is Pro-only — downgraded cards render the standard template.
+  const activeTemplate = (activeSource.template ?? "classic-pro") === "custom" && !isPro
+    ? "classic-pro"
+    : (activeSource.template ?? "classic-pro");
+
+  // Apple Wallet is only offered once the Apple pass certificate is configured.
+  const walletEnabled = hasWalletConfig();
 
   // Your Card + Share + other ways to share — rendered under My Cards on mobile,
   // and in the sticky right column on desktop.
   const cardSharePanel = (
     <>
       {/* Your card */}
-      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+      <div data-tour="your-card" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
         <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
         <CardPreviewDownload
           data={cardData}
-          template={activeSource.template ?? "classic-pro"}
+          template={activeTemplate}
           username={activeUsername}
           previewUrl={cardUrl}
         />
+        {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>
 
       {/* Share */}
-      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
+      <div data-tour="share" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 space-y-2">
         <ShareButton
           url={cardUrl}
           title="My SwiftCard"
@@ -284,6 +407,7 @@ export default async function DashboardPage({
 
   return (
     <>
+      <AppStorePopup trigger={params.welcome === "1"} />
       <Suspense>
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>
@@ -292,7 +416,7 @@ export default async function DashboardPage({
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky navbar */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <Link href={`/dashboard?card=${activeUsername}`} className="flex items-center gap-2">
@@ -314,7 +438,7 @@ export default async function DashboardPage({
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
-              <Link key={href} href={href}
+              <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
                 {label}
               </Link>
@@ -332,9 +456,9 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {isPro && <CardScanner cardOwner={activeUsername} />}
             {isEnterprise && <CSVImport />}
-            <NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} />
+            <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
+            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
           </div>
@@ -342,11 +466,17 @@ export default async function DashboardPage({
       </nav>
 
       <MobileNav />
-      <main className="min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
+      <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
+          {/* Reverse-trial / free-Pro countdown */}
+          {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
+
+          {/* First-run guided-tour invitation */}
+          <TourBanner />
+
           {/* My Cards — full width, top of dashboard */}
-          <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
+          <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-white font-semibold text-sm">My Cards</p>
@@ -361,8 +491,11 @@ export default async function DashboardPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {allCards.map((card) => {
+              {allCards.map((card, cardIdx) => {
                 const isActive = activeUsername === card.username;
+                // Mirrors the public kill-switch (lib/card-active): on Free,
+                // only the oldest FREE_CARD_LIMIT card(s) serve publicly.
+                const planInactive = !isPro && cardIdx >= PLAN_LIMITS.FREE_CARD_LIMIT;
                 return (
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
@@ -381,7 +514,14 @@ export default async function DashboardPage({
                         {(card.label || card.name || card.username)[0]?.toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+                        <p className="text-white text-sm font-medium truncate">
+                          {card.label || card.name || card.username}
+                          {planInactive && (
+                            <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
+                              LINK OFF — PRO ONLY
+                            </span>
+                          )}
+                        </p>
                         <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
                       </div>
                     </Link>
@@ -396,7 +536,7 @@ export default async function DashboardPage({
                   href="/pricing"
                   className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
                 >
-                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Free includes {PLAN_LIMITS.FREE_CARD_LIMIT} card — upgrade to Pro for unlimited cards</p>
+                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
                   <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
                 </Link>
               )}
@@ -421,7 +561,7 @@ export default async function DashboardPage({
           {/* Follow-up due today */}
           {(() => {
             const today = new Date().toISOString().split("T")[0];
-            const due = allLeads.filter((l) => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today);
+            const due = visibleLeads.filter((l) => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today);
             if (!due.length) return null;
             return (
               <div className="flex items-center justify-between gap-4 rounded-2xl px-5 py-3.5 mb-5 bg-blue-950/40 border border-blue-800/40">
@@ -431,27 +571,31 @@ export default async function DashboardPage({
                     {due.length === 1 ? `Follow up with ${due[0].name} today` : `${due.length} follow-ups due today`}
                   </p>
                 </div>
-                <Link scroll={false} href="?status=all&date=all&sort=newest" className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
+                <Link scroll={false} href={`?status=all&date=all&sort=newest${selectedCard ? `&card=${selectedCard}` : ""}`} className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
               </div>
             );
           })()}
 
           {/* Free plan limit banner */}
-          <FirstLeadNudge leadCount={allLeads.length} isPro={isPro} />
+          <FirstLeadNudge leadCount={visibleLeads.length} isPro={isPro} />
 
-          {!isPro && nearLimit && (
+          {!isPro && (nearLimit || lockedCount > 0) && (
             <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <p className="text-sm font-medium text-amber-400">
-                    {atLimit ? `You've hit the ${FREE_LIMIT}-contact free limit` : `${allLeads.length}/${FREE_LIMIT} leads used — running low`}
+                    {lockedCount > 0
+                      ? `🔒 ${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
+                      : atLimit
+                        ? `You've used your ${FREE_LIMIT} free leads this month. Upgrade to Pro for unlimited.`
+                        : `${monthlyLeadsUsed}/${FREE_LIMIT} free leads used this month`}
                   </p>
                 </div>
                 <UpgradeButton />
               </div>
               <p className="text-amber-200/60 text-xs mt-2">
-                Not ready to upgrade? <strong className="text-amber-200">Refer a friend</strong> — when one upgrades to Pro, you get a free month too.
+                Not ready to upgrade? <strong className="text-amber-200">Invite 3 friends</strong> — when they sign up, you get a month of Pro free (up to 3 months).
               </p>
             </div>
           )}
@@ -460,7 +604,7 @@ export default async function DashboardPage({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.85fr_0.72fr_0.7fr] gap-4 mb-5">
 
             {/* Traffic — SwiftCard & SwiftLink views */}
-            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+            <div data-tour="traffic" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-white font-semibold text-sm">Traffic</p>
                 <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
@@ -468,6 +612,7 @@ export default async function DashboardPage({
                     { id: "today", label: "Today" },
                     { id: "week", label: "Week" },
                     { id: "month", label: "Month" },
+                    { id: "locations", label: "Locations" },
                   ] as const).map((r) => (
                     <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                       className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
@@ -476,26 +621,59 @@ export default async function DashboardPage({
                   ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {[
-                  { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
-                  { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
-                ].map((m) => (
-                  <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
-                    <div className="min-w-0">
-                      <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
-                      <p className="text-gray-600 text-[11px]">{m.sub}</p>
-                    </div>
-                    <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
+              {viewsRange === "locations" ? (
+                topLocations.length > 0 ? (
+                  <div className="space-y-2">
+                    {topLocations.map((loc) => (
+                      <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <p className="text-gray-100 text-sm font-semibold truncate">📍 {loc.location}</p>
+                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                        </div>
+                        <div className="flex items-center gap-4 text-[11px]">
+                          <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card}</span></span>
+                          <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link}</span></span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
+                    <p className="text-gray-400 text-sm">No location data yet</p>
+                    <p className="text-gray-600 text-[11px] mt-1">Cities appear here as people view your card and links.</p>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3">
+                  {[
+                    { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
+                    { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
+                  ].map((m) => (
+                    <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
+                        <p className="text-gray-600 text-[11px]">{m.sub}</p>
+                      </div>
+                      <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Basic stats (every plan): contacts captured + best day */}
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
+                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
+                {bestDay && bestDay.views > 0 ? (
+                  <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views}</span>
+                ) : (
+                  <span className="text-gray-600">No views yet</span>
+                )}
               </div>
             </div>
 
             {/* Swift Links — a separate link from the business card */}
-            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+            <div data-tour="swift-links" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
-                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram/TikTok bio, anywhere.
+                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram, TikTok, or other social bios — anywhere.
               </p>
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
               <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
@@ -512,16 +690,27 @@ export default async function DashboardPage({
 
             {/* Email signature generator — shows the hosted card image instantly,
                 captures the real card pixel-perfect in the background */}
-            <EmailSignatureBox
-              key={activeUsername}
+            <div data-tour="email-signature">
+              <EmailSignatureBox
+                key={activeUsername}
+                cardData={cardData}
+                template={activeTemplate}
+                name={(activeSource as { name?: string }).name ?? ""}
+                company={(activeSource as { company?: string }).company ?? ""}
+                cardUrl={cardUrl}
+                username={activeUsername}
+                storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
+                ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
+              />
+            </div>
+
+            {/* Captures a pixel-perfect image of THIS card for its share-link
+                preview (Open Graph). Invisible; regenerates when the card changes. */}
+            <ShareCardCapture
+              key={`share-${activeUsername}`}
               cardData={cardData}
-              template={activeSource.template ?? "classic-pro"}
-              name={(activeSource as { name?: string }).name ?? ""}
-              company={(activeSource as { company?: string }).company ?? ""}
-              cardUrl={cardUrl}
+              template={activeTemplate}
               username={activeUsername}
-              storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
-              ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
             />
           </div>
 
@@ -537,15 +726,15 @@ export default async function DashboardPage({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-baseline gap-2.5">
                     <h2 className="text-white font-semibold text-sm">Contacts</h2>
-                    <span className="text-white font-bold text-lg tabular-nums">{allLeads.length}</span>
+                    <span className="text-white font-bold text-lg tabular-nums">{visibleLeads.length}</span>
                     <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {!isPro && (
-                      <p className="text-gray-600 text-xs hidden sm:block">{allLeads.length}/{FREE_LIMIT} free</p>
+                      <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
                     )}
-                    <AddContactModal cardOwner={activeUsername} />
-                    {allLeads.length > 0 && (
+                    <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
+                    {visibleLeads.length > 0 && (
                       isPro ? (
                         <a href={`/api/leads/export?username=${activeUsername}`}
                           className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
@@ -564,7 +753,7 @@ export default async function DashboardPage({
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   {/* View toggle */}
-                  <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
+                  <div data-tour="contact-views" className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
                     {[
                       { id: "notifications", label: "Notifications" },
                       { id: "list", label: "List" },
@@ -578,7 +767,7 @@ export default async function DashboardPage({
                   </div>
 
                   {/* Status filters */}
-                  <div className="flex items-center gap-1 flex-wrap">
+                  <div data-tour="contact-filters" className="flex items-center gap-1 flex-wrap">
                     {[
                       { id: "all",         label: "All" },
                       { id: "new_contact", label: "New Contact" },
@@ -610,8 +799,8 @@ export default async function DashboardPage({
 
                 {/* Lead list */}
                 {view === "notifications" ? (
-                  <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} />
-                ) : allLeads.length === 0 ? (
+                  <NotificationsPanel initial={(panelNotifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} card={activeUsername} />
+                ) : visibleLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">
                       <div className="w-10 h-10 bg-gray-800/60 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -650,7 +839,7 @@ export default async function DashboardPage({
                     leads={filteredLeads}
                     flowPresets={flowPresets}
                     sortBy={sortBy}
-                    totalCount={allLeads.length}
+                    totalCount={visibleLeads.length}
                     isPro={isPro}
                   />
                 )}

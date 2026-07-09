@@ -25,7 +25,7 @@ type Lead = {
   where_met: string | null;
   convo_details: string | null;
   message: string | null;
-  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
+  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[] | null;
 };
 
 type CardEvent = {
@@ -185,6 +185,7 @@ export default function ContactsClient({
   const [draftPreset, setDraftPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
   const [draftItems, setDraftItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string }[] | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -194,19 +195,41 @@ export default function ContactsClient({
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
 
+  // Guided tour: when the tour reaches the Contacts page, auto-open the sample
+  // (demo) contact on its info tab so the tour can walk through the contact's
+  // details and the follow-up automations. No-op outside the tour.
+  useEffect(() => {
+    let touring = false;
+    try { touring = sessionStorage.getItem("sc_tour_running") === "1"; } catch { /* ignore */ }
+    if (!touring) return;
+    const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
+    if (demo) {
+      setSelected(demo);
+      setDetailTab("info");
+      setWhereMetText(demo.where_met ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function saveContact() {
     if (!selected) return;
     setFieldSaving("contact");
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(contactDraft),
-    });
-    const patch = { ...contactDraft };
-    setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
-    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactDraft),
+      });
+      ok = res.ok;
+    } catch { /* network error — leave the editor open with the draft intact */ }
+    if (ok) {
+      const patch = { ...contactDraft };
+      setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
+      setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+      setEditingContact(false);
+    }
     setFieldSaving(null);
-    setEditingContact(false);
   }
 
   // Download this contact as a vCard so the user can save it to their phone.
@@ -239,19 +262,54 @@ export default function ContactsClient({
     URL.revokeObjectURL(url);
   }
 
-  const automationOn = !((selected?.tags ?? []).includes("flow-paused"));
-  async function toggleAutomation() {
+  // Per-channel pause (email-paused / sms-paused tags — the cron skips a paused
+  // channel's steps and they resume, unsent, when switched back on). The two
+  // channel switches are THE automation controls: text off stops texts, email
+  // off stops emails. (The old master flow-paused toggle is gone — any channel
+  // interaction also clears a legacy flow-paused tag so old contacts unblock.)
+  function channelPausedFor(ch: "email" | "sms") {
+    return (selected?.tags ?? []).includes(ch === "email" ? "email-paused" : "sms-paused");
+  }
+  async function toggleChannelPause(ch: "email" | "sms") {
     if (!selected) return;
-    const tags = selected.tags ?? [];
-    const newTags = automationOn ? [...tags, "flow-paused"] : tags.filter((t) => t !== "flow-paused");
-    await updateTags(selected.id, newTags);
+    const tag = ch === "email" ? "email-paused" : "sms-paused";
+    const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused");
+    const next = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
+    await updateTags(selected.id, next);
+  }
+
+  // Reset a channel: wipe its automation entirely (the other channel keeps
+  // running) and open setup so a fresh one can be submitted. The new flow is
+  // anchored at submit time, so it restarts with its next message from then.
+  async function resetChannel(ch: "email" | "sms") {
+    if (!selected) return;
+    const remaining = ((selected.follow_up_sequence ?? []) as { channel?: string }[]).filter(
+      (o) => (o.channel ?? "email") !== ch
+    );
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follow_up_sequence: remaining }),
+      });
+      if (!res.ok) return;
+    } catch {
+      return;
+    }
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
+    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : prev));
+    // Un-pause the channel + clear any legacy master pause so the NEW automation
+    // runs as soon as it's submitted (toggle on = it works).
+    const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused" && t !== (ch === "email" ? "email-paused" : "sms-paused"));
+    await updateTags(selected.id, tags);
+    startDraft(ch);
   }
 
   async function saveField(field: string, value: string) {
     if (!selected) return;
     setFieldSaving(field);
-    await updateField(selected.id, field, value);
-    setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
+    const ok = await updateField(selected.id, field, value);
+    if (ok) setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
     setFieldSaving(null);
   }
 
@@ -261,12 +319,14 @@ export default function ContactsClient({
     setDraftPreset(null);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
   }
   function cancelDraft() {
     setDraftCh(null);
     setDraftPreset(null);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
   }
 
   // Pick a preset → AI-generate the draft for the ONE channel being set up.
@@ -277,6 +337,7 @@ export default function ContactsClient({
     setDraftLoading(true);
     setDraftItems(null);
     setAiUpgrade(null);
+    setDraftError(null);
     try {
       const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
         method: "POST",
@@ -293,9 +354,20 @@ export default function ContactsClient({
       const items = (Array.isArray(data.sequence) ? data.sequence : []).map((s: { day: number; time: string; message: string; subject?: string }) => ({
         day: s.day, time: s.time, channel: draftCh, message: s.message, subject: s.subject,
       }));
+      // A failure must never look like a dead button — surface it so the user
+      // can tap the preset again instead of assuming the feature is broken.
+      if (!res.ok || items.length === 0) {
+        setDraftError("Couldn't write the messages just now — tap a cadence to try again.");
+        setDraftItems(null);
+        setDraftPreset(null);
+        return;
+      }
+      setDraftError(null);
       setDraftItems(items);
     } catch {
+      setDraftError("Couldn't write the messages just now — check your connection and tap a cadence to try again.");
       setDraftItems(null);
+      setDraftPreset(null);
     } finally {
       setDraftLoading(false);
     }
@@ -309,24 +381,52 @@ export default function ContactsClient({
   }
 
   // Submit the draft → activate THIS channel. Merge into follow_up_sequence,
-  // keeping the OTHER channel's items (so both can run), preserving sent steps.
+  // keeping the OTHER channel's items (so both can run). Steps are anchored to
+  // NOW (not the contact's created date) so flows set up later still send.
   async function submitDraft() {
     if (!selected || !draftCh || !draftItems?.length) return;
     setSeqSaving("saving");
-    const old = (selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[];
+    const nowIso = new Date().toISOString();
+    const old = (selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[];
     const otherChannel = old.filter((o) => (o.channel ?? "email") !== draftCh);
+    const oldMine = old.filter((o) => (o.channel ?? "email") === draftCh);
+    // A finished flow being set up again starts FRESH — carrying old sent_at
+    // stamps would silently mark the new steps as already sent. Mid-flight
+    // re-drafts keep sent steps (and their schedule) so nothing double-sends.
+    const freshStart = oldMine.length === 0 || oldMine.every((o) => o.sent_at);
     const mine = draftItems.map((it) => {
-      const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === draftCh);
-      return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: draftCh, sent_at: prior?.sent_at ?? null };
+      const prior = freshStart ? undefined : oldMine.find((o) => o.day === it.day);
+      return {
+        day: it.day, time: it.time, message: it.message, subject: it.subject, channel: draftCh,
+        sent_at: prior?.sent_at ?? null,
+        anchor: prior ? prior.anchor : nowIso,
+      };
     });
     const payload = [...otherChannel, ...mine];
-    await fetch(`/api/leads/${selected.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ follow_up_sequence: payload }),
-    });
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follow_up_sequence: payload }),
+      });
+      ok = res.ok;
+    } catch { /* network error */ }
+    if (!ok) {
+      // Keep the draft on screen so nothing is lost — the user can retry.
+      setSeqSaving("idle");
+      alert("Couldn't save the automation — please try again.");
+      return;
+    }
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
+    // Submitting turns this channel ON: clear any stale pause (and the legacy
+    // master pause) so the new automation runs immediately.
+    const pauseTag = draftCh === "email" ? "email-paused" : "sms-paused";
+    const curTags = selected.tags ?? [];
+    if (curTags.includes(pauseTag) || curTags.includes("flow-paused")) {
+      await updateTags(selected.id, curTags.filter((t) => t !== pauseTag && t !== "flow-paused"));
+    }
     cancelDraft();
     setSeqSaving("saved");
     setTimeout(() => setSeqSaving("idle"), 2000);
@@ -334,7 +434,8 @@ export default function ContactsClient({
 
   async function changeStatus(newStatus: string) {
     if (!selected) return;
-    await updateField(selected.id, "status", newStatus);
+    const ok = await updateField(selected.id, "status", newStatus);
+    if (!ok) return;
     setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
     if (newStatus === "dissolved") {
       const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
@@ -411,23 +512,37 @@ export default function ContactsClient({
 
   const today = new Date().toISOString().split("T")[0];
 
-  async function updateField(leadId: string, field: string, value: string) {
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
-    });
+  // Every mutator below only applies its local state change when the server
+  // ACCEPTED the write — a failed PATCH (expired session, deleted lead, 500)
+  // must never leave the UI pretending the save happened.
+  async function updateField(leadId: string, field: string, value: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   // tags is a Postgres text[] — send the real array, not a stringified one.
-  async function updateTags(leadId: string, tags: string[]) {
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags }),
-    });
+  async function updateTags(leadId: string, tags: string[]): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags }),
+      });
+      if (!res.ok) return false;
+    } catch {
+      return false;
+    }
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags } : l)));
     setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags } : prev));
+    return true;
   }
 
   function isUnread(lead: Lead) {
@@ -443,19 +558,24 @@ export default function ContactsClient({
   }
 
   async function deleteLead(id: string) {
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    let ok = false;
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+      ok = res.ok;
+    } catch { /* network error — keep the contact in the list */ }
+    setConfirmDeleteId(null);
+    if (!ok) return;
     setLeads((prev) => prev.filter((l) => l.id !== id));
     if (selected?.id === id) setSelected(null);
-    setConfirmDeleteId(null);
   }
 
   async function saveNotes() {
     if (!selected) return;
     setNotesSaving(true);
-    await updateField(selected.id, "notes", notesText);
-    setSelected((prev) => prev ? { ...prev, notes: notesText } : prev);
+    const ok = await updateField(selected.id, "notes", notesText);
+    if (ok) setSelected((prev) => prev ? { ...prev, notes: notesText } : prev);
     setNotesSaving(false);
-    setEditingNotes(false);
+    if (ok) setEditingNotes(false);
   }
 
   const renderLeadItem = (lead: Lead) => {
@@ -606,7 +726,7 @@ export default function ContactsClient({
             </div>
           <div className="max-w-xl mx-auto p-6 sm:p-8 pb-24 lg:pb-8">
             {/* Header */}
-            <div className="flex items-start gap-5 mb-8">
+            <div data-tour="contact-detail" className="flex items-start gap-5 mb-8">
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
                 {selected.name[0]?.toUpperCase() ?? "?"}
               </div>
@@ -869,11 +989,13 @@ export default function ContactsClient({
 
             </div>
 
-            {/* Follow-up automations — Email and Text are independent. Each has its
-                own toggle, preset and format; set them up one at a time, run either
-                or both. Once active, a channel only stops when it finishes or when
-                Automated follow-ups (below) is turned off. */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            {/* Follow-up automations — Email and Text are independent, and the two
+                channel switches are the ONLY controls: text off stops texts, email
+                off stops emails (email-paused / sms-paused — the cron skips a
+                paused channel and it resumes when switched back on). Reset clears
+                a channel's automation so a fresh one can be submitted, restarting
+                from submit time. */}
+            <div data-tour="contact-automations" className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
               <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
 
@@ -886,15 +1008,16 @@ export default function ContactsClient({
                   { ch: "email" as const, label: "Email", icon: "✉", can: !!selected.email, word: "email", noun: "emails" },
                   { ch: "sms" as const,   label: "Text",  icon: "💬", can: !!selected.phone, word: "text",  noun: "texts" },
                 ]).map(({ ch, label, icon, can, word, noun }) => {
-                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[])
+                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[])
                     .filter((i) => (i.channel ?? "email") === ch)
                     .sort((a, b) => a.day - b.day);
                   const isDrafting = draftCh === ch;
                   const hasActive = activeItems.length > 0;
                   const allSent = hasActive && activeItems.every((i) => i.sent_at);
                   const running = hasActive && !allSent;
+                  const chPaused = channelPausedFor(ch);
                   const presetName = PRESET_FROM_COUNT(activeItems.length);
-                  const switchOn = isDrafting || running;
+                  const switchOn = isDrafting || (running && !chPaused);
 
                   return (
                     <div key={ch} className={`border rounded-xl p-4 ${switchOn ? (ch === "sms" ? "border-emerald-800/50 bg-emerald-950/10" : "border-blue-800/50 bg-blue-950/10") : "border-gray-800 bg-gray-800/20"}`}>
@@ -904,7 +1027,8 @@ export default function ContactsClient({
                           <p className="text-sm font-semibold text-gray-100">{icon} {label} automation</p>
                           <p className="text-gray-600 text-[11px] mt-0.5">
                             {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
-                              : running ? (automationOn ? `Active · ${presetName} · auto-sending ${noun}` : `Paused · ${presetName}`)
+                              : running && chPaused ? `Off — remaining ${noun} won't send. Switch on to resume.`
+                              : running ? `On · ${presetName} · auto-sending ${noun}`
                               : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
                               : isDrafting ? "Choose a cadence, then submit to activate"
                               : `Off — set up a ${word} follow-up`}
@@ -914,10 +1038,18 @@ export default function ContactsClient({
                           type="button"
                           role="switch"
                           aria-checked={switchOn}
-                          disabled={!can || running}
-                          title={running ? "Active — turn off Automated follow-ups below to stop it" : !can ? "No contact info" : `Set up a ${word} follow-up`}
-                          onClick={() => { if (!can || running) return; if (isDrafting) cancelDraft(); else startDraft(ch); }}
-                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${(!can || running) ? "opacity-60 cursor-not-allowed" : ""}`}
+                          disabled={!can}
+                          title={!can ? "No contact info"
+                            : running ? (chPaused ? `Resume ${word} automation` : `Turn ${word} automation off`)
+                            : `Set up a ${word} follow-up`}
+                          onClick={() => {
+                            if (!can) return;
+                            // A live flow toggles ITS OWN channel off/on; otherwise the
+                            // switch opens (or closes) the setup flow.
+                            if (running) { toggleChannelPause(ch); return; }
+                            if (isDrafting) cancelDraft(); else startDraft(ch);
+                          }}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${!can ? "opacity-60 cursor-not-allowed" : ""}`}
                           style={{ background: switchOn ? (ch === "sms" ? "#059669" : "#2563eb") : "#374151" }}
                         >
                           <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: switchOn ? "22px" : "2px" }} />
@@ -943,6 +1075,10 @@ export default function ContactsClient({
                               </button>
                             ))}
                           </div>
+
+                          {draftError && !draftLoading && (
+                            <p className="text-[12px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2 mb-3">⚠ {draftError}</p>
+                          )}
 
                           {draftLoading && (
                             <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
@@ -998,39 +1134,53 @@ export default function ContactsClient({
                       {/* ACTIVE / PAUSED — submitted summary: preset + messages + when they send */}
                       {!isDrafting && running && (
                         <div className="mt-3 pt-3 border-t border-gray-800">
-                          <p className={`text-[11px] font-semibold mb-2 ${automationOn ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
-                            {automationOn ? `● Active — ${presetName}` : `⏸ Paused — ${presetName}`} · {activeItems.length} {noun}
+                          <p className={`text-[11px] font-semibold mb-2 ${!chPaused ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
+                            {!chPaused ? `● On — ${presetName}` : `⏸ Off — ${presetName}`} · {activeItems.length} {noun}
                           </p>
                           <div className="space-y-2">
                             {activeItems.map((it, i) => (
                               <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <span className="text-[10px] font-semibold text-gray-500">
-                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(selected.created_at, it.day, it.time ?? "13:00")}`}
+                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day, it.time ?? "13:00")}`}
                                   </span>
-                                  {it.sent_at ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span> : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
+                                  {it.sent_at
+                                    ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span>
+                                    : chPaused
+                                    ? <span className="text-[10px] text-amber-500/90 shrink-0">paused</span>
+                                    : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
                                 </div>
                                 {ch === "email" && it.subject && <p className="text-[11px] text-gray-400 font-medium truncate">Subject: {it.subject}</p>}
                                 <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">{it.message}</p>
                               </div>
                             ))}
                           </div>
-                          {automationOn ? (
-                            <p className="text-gray-600 text-[10px] mt-2">To stop this, turn off <strong className="text-gray-500">Automated follow-ups</strong> below.</p>
-                          ) : (
-                            <div className="flex items-center justify-between gap-2 mt-2">
-                              <p className="text-gray-600 text-[10px]">Paused — turn Automated follow-ups on to resume.</p>
-                              <button onClick={() => startDraft(ch)} disabled={!can} className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 shrink-0">Set up again</button>
-                            </div>
-                          )}
+                          <div className="flex items-center justify-between gap-2 mt-2">
+                            <p className="text-gray-600 text-[10px]">
+                              {chPaused
+                                ? "Off — nothing sends. Switch on to resume, or reset to start over."
+                                : `Switch off above to pause ${ch === "sms" ? "texts" : "emails"} anytime.`}
+                            </p>
+                            {/* Reset appears ONLY while the channel is switched off/paused —
+                                a running automation must be paused before it can be wiped. */}
+                            {chPaused && (
+                              <button
+                                onClick={() => resetChannel(ch)}
+                                className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
+                                title={`Clear this ${word} automation and set up a new one`}
+                              >
+                                Reset ↺
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
 
-                      {/* COMPLETED — all sent; allow setting up a fresh one */}
+                      {/* COMPLETED — all sent; reset to run a fresh one */}
                       {!isDrafting && allSent && (
                         <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
                           <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>
-                          <button onClick={() => startDraft(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Set up again</button>
+                          <button onClick={() => resetChannel(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Reset ↺</button>
                         </div>
                       )}
                     </div>
@@ -1044,24 +1194,6 @@ export default function ContactsClient({
                   <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
                 </div>
               )}
-            </div>
-
-            {/* Master pause — stops ALL automated follow-ups for this contact */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-gray-200 text-sm font-medium">Automated follow-ups</p>
-                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — runs the Email and Text automations above. Turn off to stop them and choose again." : "Off — your Email & Text automations are stopped. Turn on to run them, or set up new ones above."}</p>
-              </div>
-              <button
-                type="button"
-                onClick={toggleAutomation}
-                role="switch"
-                aria-checked={automationOn}
-                className="relative w-11 h-6 rounded-full transition-colors shrink-0"
-                style={{ background: automationOn ? "#2563eb" : "#374151" }}
-              >
-                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: automationOn ? "22px" : "2px" }} />
-              </button>
             </div>
 
             </div>{/* end Contact info / Presets tab */}
@@ -1082,6 +1214,10 @@ export default function ContactsClient({
                 const fname = selected.name.split(" ")[0] || "They";
                 const items: { at: string; key: string; kind: "event" | "in" | "out"; icon?: string; text?: string; source?: string | null; body?: string; channel?: string | null; status?: string | null }[] = [];
                 for (const ev of events) {
+                  // "clicked_save_contact" always fired alongside "downloaded_vcard"
+                  // (same tap) — we stopped emitting it, and we hide the historical
+                  // ones so old conversations show one "saved your contact" line too.
+                  if (ev.event_type === "clicked_save_contact") continue;
                   items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
                 items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });

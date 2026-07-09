@@ -2,12 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
-import { deliverToLead } from "@/lib/messaging";
+import { deliverToLead, resolveSignatureImageUrl } from "@/lib/messaging";
 import { expireFreeMonths } from "@/lib/referral-server";
+import { insertNotification } from "@/lib/notify";
+import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { aiComplete } from "@/lib/ai";
+import { escapeHtml } from "@/lib/escape";
+import { contactUnsubUrl } from "@/lib/messaging";
 
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
+
+// Automations send AS the card the contact came through: each card has its own
+// name/title/company/email, so the sender identity (and the reply-to address)
+// is the CARD's, with the owning profile supplying plan/settings/fallbacks.
+// Legacy contacts on profile slugs resolve through the profile as before.
+async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, username: string) {
+  const { data: card } = await supabase
+    .from("cards")
+    .select("user_id, name, title, company, email, phone")
+    .eq("username", username)
+    .maybeSingle();
+  const profileSelect = "id, name, email, phone, company, title, flow_settings, plan, customization";
+  const { data: profile } = card?.user_id
+    ? await supabase.from("profiles").select(profileSelect).eq("id", card.user_id).maybeSingle()
+    : await supabase.from("profiles").select(profileSelect).eq("username", username).maybeSingle();
+  if (!profile) return null;
+  // Deleted accounts send NOTHING — no automation may keep emailing/texting
+  // a deleted account's contacts. Single choke point for both flows.
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) return null;
+  const sender = {
+    name: (card?.name as string) || (profile.name as string) || null,
+    title: (card?.title as string) || (profile.title as string) || null,
+    company: (card?.company as string) || (profile.company as string) || null,
+    email: (card?.email as string) || (profile.email as string) || null, // replies go to the card's email
+    phone: (card?.phone as string) || (profile.phone as string) || null,
+  };
+  const ownerId = (card?.user_id as string) ?? (profile.id as string) ?? null;
+  return { profile, sender, ownerId };
+}
+
+// Per-contact channel switches (email-paused / sms-paused tags) — each shuts
+// that channel down entirely for this contact.
+function channelPaused(tags: string[] | null | undefined, channel: "email" | "sms"): boolean {
+  return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
+}
 
 const DEFAULT_FLOW: FlowSettings = {
   day1:  { enabled: true, time: "13:00" },
@@ -82,7 +121,9 @@ Rules:
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // The env var must exist AND match — with it unset, `Bearer undefined` would
+  // otherwise pass and expose the whole send-run to anyone.
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -91,13 +132,53 @@ export async function GET(req: NextRequest) {
   const currentUTCHour = new Date().getUTCHours();
   let totalSent = 0;
 
-  // Expire finished free-month grants (referral / promo) → back to Free, unless
-  // the user converted to a paid subscription in the meantime.
+  // Expire finished trial / free-month grants → back to Free, unless the user
+  // converted to a paid subscription. Email each downgraded user what changed.
   let downgraded = 0;
   try {
-    downgraded = await expireFreeMonths();
+    const downgradedUsers = await expireFreeMonths();
+    downgraded = downgradedUsers.length;
+    for (const u of downgradedUsers) {
+      if (!u.email) continue;
+      const tpl = trialEndedEmail({ firstName: u.name?.split(" ")[0] || "there", isTrial: u.wasTrial });
+      await resend.emails.send({ ...tpl, to: u.email }).catch(() => {});
+    }
   } catch (e) {
     console.error("[reminders] expireFreeMonths failed:", e);
+  }
+
+  // Heads-up ~3 days before an app-level Pro grant (trial / free month) ends.
+  // For a fresh 14-day trial this lands on day 11. Fires once per expiry value
+  // (tracked in customization._proWarnedFor); real subscribers are excluded.
+  try {
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+    const in3dIso = new Date(nowMs + 3 * 86400000).toISOString();
+    const { data: ending } = await supabase
+      .from("profiles")
+      .select("id, email, name, plan_expires_at, customization")
+      .eq("plan", "pro")
+      .is("stripe_subscription_id", null)
+      .not("plan_expires_at", "is", null)
+      .gt("plan_expires_at", nowIso)
+      .lte("plan_expires_at", in3dIso);
+    for (const u of ending ?? []) {
+      const cust = (u.customization ?? {}) as Record<string, unknown>;
+      const expiresAt = u.plan_expires_at as string;
+      if (cust._proWarnedFor === expiresAt) continue; // already warned for this expiry
+      const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
+      if (u.email) {
+        const tpl = trialEndingSoonEmail({
+          firstName: (u.name as string)?.split(" ")[0] || "there",
+          daysLeft,
+          isTrial: cust._trial === true,
+        });
+        await resend.emails.send({ ...tpl, to: u.email as string }).catch(() => {});
+      }
+      await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
+    }
+  } catch (e) {
+    console.error("[reminders] trial-ending warn failed:", e);
   }
 
   for (const step of SEQUENCE) {
@@ -139,13 +220,10 @@ export async function GET(req: NextRequest) {
     }
 
     for (const [username, leads] of Object.entries(byOwner)) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name, email, phone, company, title, flow_settings, plan, customization")
-        .eq("username", username)
-        .single();
-
-      if (!profile?.email) continue;
+      // Sender = the CARD's identity; profile = account (plan/settings/owner email).
+      const resolved = await resolveCardSender(supabase, username);
+      if (!resolved?.profile?.email) continue;
+      const { profile, sender } = resolved;
       const ownerAbout = ((profile.customization as { about?: string } | null)?.about ?? "").trim();
 
       // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
@@ -157,22 +235,30 @@ export async function GET(req: NextRequest) {
 
       // Skip if this reminder day is disabled
       if (!dayConfig.enabled) continue;
-
-      // Skip if this isn't the right UTC hour
-      const [configHour] = dayConfig.time.split(":").map(Number);
-      if (configHour !== currentUTCHour) continue;
+      // NOTE: not gated to the configured hour — the cron runs once a day, so a
+      // due step fires on that run regardless of its set time (time-of-day is
+      // best-effort). lead_reminders dedup below prevents a repeat next day.
 
       const ownerFirst = profile.name?.split(" ")[0] ?? "there";
       const isPlural = leads.length > 1;
-      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
+      // Mark this batch BEFORE sending. A crash mid-send then SKIPS the batch on
+      // the next run instead of re-emailing everyone who already got one —
+      // a missed reminder is recoverable, a duplicate blast to leads is not.
+      await supabase.from("lead_reminders").insert(
+        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
+      );
+
+      // Every lead-supplied field is escaped — this is visitor-controlled data
+      // going into HTML delivered to the owner's trusted inbox.
       const leadRows = leads.map((l) => `
         <tr>
           <td style="padding:12px 0;border-bottom:1px solid #1f2937;">
-            <p style="margin:0;font-weight:600;color:#ffffff;">${l.name}</p>
-            <a href="mailto:${l.email}" style="color:#60a5fa;font-size:13px;">${l.email}</a>
-            ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${l.phone}</p>` : ""}
-            ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${l.notes}</p>` : ""}
+            <p style="margin:0;font-weight:600;color:#ffffff;">${escapeHtml(l.name)}</p>
+            <a href="mailto:${escapeHtml(l.email ?? "")}" style="color:#60a5fa;font-size:13px;">${escapeHtml(l.email ?? "")}</a>
+            ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${escapeHtml(l.phone)}</p>` : ""}
+            ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${escapeHtml(l.notes)}</p>` : ""}
           </td>
         </tr>`).join("");
 
@@ -186,7 +272,7 @@ export async function GET(req: NextRequest) {
               <p style="font-size:11px;font-weight:700;letter-spacing:0.2em;color:#4b5563;text-transform:uppercase;margin:0 0 32px;">SWIFTCARD</p>
               <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0 0 8px;">Hey ${ownerFirst}</h1>
               <p style="color:#9ca3af;font-size:15px;margin:0 0 32px;">
-                ${isPlural ? `${leads.length} people` : leads[0].name} ${step.intro}
+                ${isPlural ? `${leads.length} people` : escapeHtml(leads[0].name)} ${step.intro}
               </p>
               <table style="width:100%;border-collapse:collapse;">${leadRows}</table>
               <div style="margin-top:32px;">
@@ -203,48 +289,63 @@ export async function GET(req: NextRequest) {
           </div>`,
       });
 
-      // Send personalized AI follow-up to each lead that has an email
+      // Send personalized AI follow-up to each lead — AS the card's identity,
+      // respecting the contact's per-channel switches (email/text toggles).
       {
+        const senderFirst = sender.name?.split(" ")[0] ?? ownerFirst;
+        // Sign every automated email with the sender's ACTUAL Swift Signature
+        // card image — the exact one they paste from the dashboard — resolved
+        // once per owner. Falls back to a text card block if they haven't
+        // generated their signature yet (or for image-blocked email clients).
+        const cardLink = `${APP_URL}/card/${username}`;
+        const sigUrl = await resolveSignatureImageUrl(username);
+        const signatureBlock = sigUrl
+          ? `<a href="${cardLink}" style="text-decoration:none;"><img src="${sigUrl}" alt="${sender.name ?? ""}${sender.company ? `, ${sender.company}` : ""} — SwiftCard" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;margin-bottom:24px;" /></a>`
+          : `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
+                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${sender.name ?? ""}</p>
+                    ${sender.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${sender.title}</p>` : ""}
+                    ${sender.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${sender.company}</p>` : ""}
+                    ${sender.email ? `<a href="mailto:${sender.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${sender.email}</a>` : ""}
+                    ${sender.phone ? `<a href="tel:${sender.phone}" style="display:block;color:#2563eb;font-size:13px;">${sender.phone}</a>` : ""}
+                  </div>`;
         for (const lead of leads) {
+          // Which channel would this go out on? Email first, SMS only when the
+          // contact has no email. Skip entirely when that channel is switched off.
+          const effective: "email" | "sms" | null = lead.email ? "email" : lead.phone ? "sms" : null;
+          if (!effective || channelPaused(lead.tags, effective)) continue;
+
           const leadFirst = lead.name.split(" ")[0];
 
           const aiPrompt = `${step.leadPrompt(
-            profile.name ?? ownerFirst,
-            profile.title ?? "",
-            profile.company ?? "",
+            sender.name ?? senderFirst,
+            sender.title ?? "",
+            sender.company ?? "",
             leadFirst,
             lead.message ?? ""
           )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`;
           const aiBody = (await aiComplete(aiPrompt, { maxTokens: 200 })) ?? "";
 
-          const emailBody = aiBody || step.leadFallback(ownerFirst);
+          const emailBody = aiBody || step.leadFallback(senderFirst);
           const customNote = flow.customNote?.trim();
           const fullBody = customNote ? `${emailBody}\n\n${customNote}` : emailBody;
 
-          // Deliver via email (free) or SMS fallback (one shared number),
-          // respecting opt-out and logging into the contact's conversation thread.
           await deliverToLead({
             leadId: lead.id,
             cardOwner: username,
             lead: { email: lead.email, phone: lead.phone, name: lead.name },
-            sender: { name: profile.name, company: profile.company, phone: profile.phone, email: profile.email, website: null },
+            sender: { name: sender.name, company: sender.company, phone: sender.phone, email: sender.email, website: null },
             text: fullBody,
             cardUsername: username,
+            channel: effective,
             email: {
-              subject: step.leadSubject(ownerFirst),
+              subject: step.leadSubject(senderFirst),
               html: `
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
-                  <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
-                  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${profile.name}</p>
-                    ${profile.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${profile.title}</p>` : ""}
-                    ${profile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${profile.company}</p>` : ""}
-                    <a href="mailto:${profile.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${profile.email}</a>
-                    ${profile.phone ? `<a href="tel:${profile.phone}" style="display:block;color:#2563eb;font-size:13px;">${profile.phone}</a>` : ""}
-                  </div>
+                  <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${escapeHtml(leadFirst)},<br/><br/>${escapeHtml(fullBody).replace(/\n/g, "<br/>")}</p>
+                  ${signatureBlock}
                   <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
-                    <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard</p>
+                    <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard${lead.email ? ` · <a href="${contactUnsubUrl(lead.email)}" style="color:#d1d5db;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
                   </div>
                 </div>
               </div>`,
@@ -252,10 +353,6 @@ export async function GET(req: NextRequest) {
           });
         }
       }
-
-      await supabase.from("lead_reminders").insert(
-        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
-      );
 
       totalSent++;
     }
@@ -272,46 +369,95 @@ export async function GET(req: NextRequest) {
     .neq("status", "dissolved")
     .not("follow_up_sequence", "is", null);
 
+  // Resolve each card owner once (identity + plan), cached across their leads.
+  const ownerCache = new Map<string, Awaited<ReturnType<typeof resolveCardSender>>>();
+  const getOwner = async (username: string) => {
+    if (!ownerCache.has(username)) ownerCache.set(username, await resolveCardSender(supabase, username));
+    return ownerCache.get(username)!;
+  };
+  // Notify each downgraded owner at most once per run about paused sequences.
+  const seqPausedNotified = new Set<string>();
+
   for (const seqLead of seqLeads ?? []) {
-    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null }[] | null;
+    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null; anchor?: string }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
+    // Custom follow-up sequences are a Pro feature — only SEND them while the
+    // owner is on a paid plan. If they've downgraded, pause (leave the steps
+    // unsent so they resume automatically on re-upgrade) and notify the owner
+    // once. Nothing is deleted.
+    const owner = await getOwner(seqLead.card_owner);
+    if (!owner) continue;
+    if (!isPaidPlan(owner.profile.plan)) {
+      const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
+      if (owner.ownerId && cust._seqPaused !== true && !seqPausedNotified.has(owner.ownerId)) {
+        seqPausedNotified.add(owner.ownerId);
+        await insertNotification({
+          user_id: owner.ownerId,
+          type: "sequence_paused",
+          title: "Follow-up sequences paused",
+          body: "Your automated follow-up sequences are paused because your plan is no longer Pro. Re-upgrade to Pro to resume them — nothing was deleted.",
+        }).catch(() => {});
+        await supabase.from("profiles").update({ customization: { ...cust, _seqPaused: true } }).eq("id", owner.ownerId);
+      }
+      continue;
+    }
+
+    // Back on a paid plan with sequences flowing again → clear the paused
+    // marker so a future downgrade re-notifies.
+    {
+      const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
+      if (owner.ownerId && cust._seqPaused === true) {
+        const { _seqPaused: _drop, ...rest } = cust;
+        await supabase.from("profiles").update({ customization: rest }).eq("id", owner.ownerId);
+        (owner.profile as { customization?: unknown }).customization = rest; // keep cache coherent
+      }
+    }
+
     const createdAt = new Date(seqLead.created_at).getTime();
+    // Sender = the CARD's identity (name/company/email of the card this contact
+    // came through), so replies go to the right inbox.
+    const seqSender = owner.sender;
+
+    // Working copy that ACCUMULATES sent_at stamps across this run. Stamping
+    // against the original `seq` snapshot each time meant that when TWO steps
+    // were due in one run (the catch-up case), the second write erased the
+    // first step's stamp — and that step re-sent the next day.
+    let curSeq = seq;
 
     for (const item of seq) {
       if (item.sent_at) continue;
-      const dueMs = createdAt + item.day * 86400000;
-      if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
-      // Honor the step's scheduled time-of-day (cron runs hourly; send at/after the hour).
-      if (item.time) {
-        const stepHour = parseInt(item.time.split(":")[0], 10);
-        if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
-      }
+      // Skip anything already stamped earlier in THIS run (same day+channel).
+      const live = curSeq.find((s) => s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email"));
+      if (live?.sent_at) continue;
+      // Steps schedule from their anchor (stamped when the sequence was set up)
+      // so a flow added to an older contact still sends. Legacy items without an
+      // anchor keep the original contact-creation reference.
+      const anchorMs = item.anchor ? Date.parse(item.anchor) : NaN;
+      const dueMs = (Number.isFinite(anchorMs) ? anchorMs : createdAt) + item.day * 86400000;
+      // Send once the step is DUE, on the daily cron run — not gated to an exact
+      // hour (a once-a-day cron would otherwise miss most steps). Overdue steps
+      // (e.g. a missed cron day, or a flow un-paused) are caught up too; sent_at
+      // below marks each step so nothing sends twice.
+      if (dueMs >= todayEnd.getTime()) continue;
 
-      const { data: ownerProfile } = await supabase
-        .from("profiles")
-        .select("name, email, phone, title, company")
-        .eq("username", seqLead.card_owner)
-        .single();
-
-      if (!ownerProfile) continue;
-
-      const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
+      const ownerFirst = seqSender.name?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
-      // Resolve the channel for this item. Email items get a greeting + the
-      // shared personal-email format (subject + spacing + name/company over the
-      // SwiftCard link signature); text items go out as a short SMS with the
-      // same default signature.
-      const itemChannel = item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined;
-      const asEmail = itemChannel === "email" || (itemChannel === undefined && !!seqLead.email);
+      // Resolve the channel for this item (legacy items without a channel are
+      // treated as email when the contact has one, else SMS) — then honor the
+      // contact's per-channel switch: a paused channel sends NOTHING.
+      const itemChannel: "email" | "sms" =
+        item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : (seqLead.email ? "email" : "sms");
+      if (channelPaused(seqLead.tags, itemChannel)) continue;
+      const asEmail = itemChannel === "email";
 
       const r = await deliverToLead({
         leadId: seqLead.id,
         cardOwner: seqLead.card_owner,
         lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
-        sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
+        sender: { name: seqSender.name, company: seqSender.company, phone: seqSender.phone, email: seqSender.email, website: null },
         text: asEmail ? `Hi ${leadFirst},\n\n${item.message}` : item.message,
         subject: item.subject?.trim() || `${ownerFirst} following up`,
         cardUsername: seqLead.card_owner,
@@ -320,14 +466,15 @@ export async function GET(req: NextRequest) {
 
       // Mark THIS step (matched by day AND channel) done unless it failed
       // transiently — so the email and text flows for the same day don't cancel
-      // each other.
+      // each other. Stamp into the ACCUMULATING copy (not the stale snapshot)
+      // and write per-step, so a crash mid-run never re-sends what already went.
       if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
-        const updatedSeq = seq.map((s) =>
+        curSeq = curSeq.map((s) =>
           s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email")
             ? { ...s, sent_at: new Date().toISOString() }
             : s
         );
-        await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
+        await supabase.from("leads").update({ follow_up_sequence: curSeq }).eq("id", seqLead.id);
         if (r.status === "sent") totalSent++;
       }
     }

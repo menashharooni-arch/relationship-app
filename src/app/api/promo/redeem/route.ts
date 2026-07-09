@@ -64,8 +64,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Record redemption + increment uses
-  await admin.from("promo_code_redemptions").insert({ code_id: promo.id, user_id: user.id });
+  // Record the redemption. The UNIQUE(code_id, user_id) constraint is the
+  // authoritative single-use guard: even under concurrent requests only ONE
+  // insert can succeed, so a code can never be redeemed twice by the same user
+  // (the pre-check above is a fast path; this closes the race window).
+  const { error: redeemErr } = await admin
+    .from("promo_code_redemptions")
+    .insert({ code_id: promo.id, user_id: user.id });
+
+  if (redeemErr) {
+    if (redeemErr.code === "23505") {
+      // Unique violation → already redeemed. Never hand out the reward twice.
+      return NextResponse.json({ error: "You have already used this promo code" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Could not redeem this code. Please try again." }, { status: 500 });
+  }
+
+  // Only now — after the redemption is durably recorded — bump the usage count,
+  // so a duplicate/failed attempt can never inflate it.
   await admin.from("promo_codes").update({ uses_count: promo.uses_count + 1 }).eq("id", promo.id);
 
   return NextResponse.json({

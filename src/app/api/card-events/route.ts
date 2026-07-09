@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { getSourceLabel } from "@/lib/source-labels";
 import { dispatchCrmEvent } from "@/lib/crm-events";
+import { getOwnerUsernames } from "@/lib/owner-usernames";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -26,6 +27,19 @@ export async function POST(req: NextRequest) {
 
     const admin = getAdminSupabase();
 
+    // Owner self-activity never records — an owner tapping around their own
+    // card must not create events or "saved your contact" notifications to
+    // themselves. (Client components also suppress this; server closes it.)
+    try {
+      const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+      if (viewer) {
+        const { data: owned } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
+        const ownerId = owned?.user_id
+          ?? (await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle()).data?.id;
+        if (ownerId && ownerId === viewer.id) return NextResponse.json({ ok: true, self: true });
+      }
+    } catch { /* no session — treat as a visitor */ }
+
     await admin.from("card_events").insert({
       card_owner_username,
       visitor_id: visitor_id || null,
@@ -40,17 +54,19 @@ export async function POST(req: NextRequest) {
 
     // Fire in-app notification for meaningful events (not every view)
     if (event_type === "downloaded_vcard") {
-      const { data: owner } = await admin
-        .from("profiles")
-        .select("id")
-        .eq("username", card_owner_username)
-        .single();
+      // card_owner_username is the CARD's slug — resolve through the cards
+      // table first (multi-card accounts), then the legacy profile slug.
+      const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
+      const { data: owner } = cardRow?.user_id
+        ? await admin.from("profiles").select("id").eq("id", cardRow.user_id).maybeSingle()
+        : await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle();
 
       if (owner?.id) {
         const sourceLabel = getSourceLabel(source);
         const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
         const body = `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`;
-        await admin.from("notifications").insert({
+        const { insertNotification } = await import("@/lib/notify");
+        await insertNotification({
           user_id: owner.id,
           card_owner: card_owner_username,
           type: "contact_saved",
@@ -82,22 +98,18 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) return NextResponse.json([], { status: 200 });
-
     const visitorId = req.nextUrl.searchParams.get("visitor_id");
     if (!visitorId) return NextResponse.json([], { status: 200 });
+
+    // All the user's card slugs (profile + every card) — a multi-card account
+    // must see the visitor's activity on ANY of its cards, not just the primary.
+    const usernames = await getOwnerUsernames(user.id);
 
     const admin = getAdminSupabase();
     const { data } = await admin
       .from("card_events")
       .select("id, event_type, source, visitor_name, visitor_email, created_at")
-      .eq("card_owner_username", profile.username)
+      .in("card_owner_username", usernames)
       .eq("visitor_id", visitorId)
       .order("created_at", { ascending: true });
 

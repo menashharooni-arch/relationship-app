@@ -1,8 +1,44 @@
 import { Resend } from "resend";
 import twilio from "twilio";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+// ── Contact-level unsubscribe (for emails we send TO leads) ─────────────────
+// Signed token = base64url(email) + "." + HMAC — so only links we generated can
+// opt an address out (nobody can suppress someone else's follow-ups by guessing).
+const UNSUB_SECRET = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "swiftcard-unsub";
+
+function unsubSig(encoded: string): string {
+  return createHmac("sha256", UNSUB_SECRET).update(`unsub:${encoded}`).digest("base64url").slice(0, 24);
+}
+
+export function contactUnsubUrl(email: string): string {
+  const encoded = Buffer.from(email.trim().toLowerCase()).toString("base64url");
+  return `${APP_URL}/api/unsubscribe/contact?token=${encoded}.${unsubSig(encoded)}`;
+}
+
+export function verifyContactUnsubToken(token: string): string | null {
+  const [encoded, sig] = (token || "").split(".");
+  if (!encoded || !sig) return null;
+  const expected = unsubSig(encoded);
+  try {
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    const email = Buffer.from(encoded, "base64url").toString("utf8");
+    return email.includes("@") ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+// RFC 8058 one-click unsubscribe headers for any email sent to a LEAD.
+function unsubHeaders(to: string): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${contactUnsubUrl(to)}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
 
 export type SendResult = "sent" | "not_configured" | "failed";
 
@@ -135,16 +171,20 @@ function esc(v: string | null | undefined) {
 }
 
 // Send pre-built HTML (used by automations that have their own templates).
-export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null }): Promise<SendResult> {
+// fromName personalizes the From display name (the card owner's name on the one
+// verified address) so automated emails arrive AS the person, not "SwiftCard".
+export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null; fromName?: string | null }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+      from: opts.fromName ? senderFrom(opts.fromName) : (process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>"),
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,
       html: opts.html,
+      // Every email to a lead carries one-click unsubscribe (RFC 8058).
+      headers: unsubHeaders(opts.to),
     });
     return "sent";
   } catch {
@@ -172,18 +212,19 @@ export async function deliverToLead(opts: {
   const senderName = sender.name || "A SwiftCard user";
   const doLog = opts.log !== false;
 
-  // Honor an explicit channel choice when that channel is available, otherwise
-  // fall back to email-first auto-routing.
+  // An explicit channel choice is STRICT: a text step never leaks out as an
+  // email (or vice versa) — that caused duplicate same-day sends when a lead
+  // was missing one contact method. Without an explicit channel, email-first.
   let use: "email" | "sms" | "none" = "none";
-  if (opts.channel === "email" && lead.email) use = "email";
-  else if (opts.channel === "sms" && lead.phone) use = "sms";
+  if (opts.channel === "email") use = lead.email ? "email" : "none";
+  else if (opts.channel === "sms") use = lead.phone ? "sms" : "none";
   else if (lead.email) use = "email";
   else if (lead.phone) use = "sms";
 
   if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
-      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null })
+      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null })
       : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
@@ -200,11 +241,35 @@ export async function deliverToLead(opts: {
   return { channel: "none", status: "no_contact" };
 }
 
-// Build the shared HTML signature block (name/company/contacts + card link).
-// Used so emails look like a real personal email, not a notification.
-// Default signature: the sender's name + business name stacked ON TOP of their
-// SwiftCard link. Kept deliberately simple so every email signs off the same way.
-export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null }): string {
+// The public URL of the sender's stored Swift Signature image (the exact card
+// image they copy from the dashboard), or null if they haven't generated one.
+// HEAD-checked so we never embed a broken image.
+export async function resolveSignatureImageUrl(username: string | null | undefined): Promise<string | null> {
+  if (!username) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  const url = `${base}/storage/v1/object/public/card-signatures/${encodeURIComponent(username)}.png`;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(url, { method: "HEAD", signal: ctrl.signal });
+    clearTimeout(t);
+    return res.ok ? `${url}?v=${Date.now()}` : null; // cache-bust so an updated card refreshes
+  } catch { return null; }
+}
+
+// Build the shared HTML signature block. When the sender has a Swift Signature
+// image (the exact card they'd paste into an email themselves), the automation
+// signs off with THAT image — identical to the SwiftCard we offer them — linked
+// to their card. Falls back to the simple name/company/link block for anyone who
+// hasn't generated their signature image yet (or image-blocked clients via alt).
+export function emailSignatureHtml(opts: { senderName: string; company?: string | null; title?: string | null; phone?: string | null; email?: string | null; website?: string | null; cardUrl?: string | null; signatureImageUrl?: string | null }): string {
+  if (opts.signatureImageUrl) {
+    const alt = `${esc(opts.senderName)}${opts.company ? `, ${esc(opts.company)}` : ""} — SwiftCard`;
+    const img = `<img src="${opts.signatureImageUrl}" alt="${alt}" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;" />`;
+    const wrapped = opts.cardUrl ? `<a href="${opts.cardUrl}" style="text-decoration:none;">${img}</a>` : img;
+    return `<div style="margin-top:24px;padding-top:14px;border-top:1px solid #e5e7eb;">${wrapped}</div>`;
+  }
   const lines: string[] = [];
   lines.push(`<p style="margin:0;font-size:14px;font-weight:700;color:#111827;">${esc(opts.senderName)}</p>`);
   if (opts.company) lines.push(`<p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${esc(opts.company)}</p>`);
@@ -215,7 +280,7 @@ export function emailSignatureHtml(opts: { senderName: string; company?: string 
 // Wrap a plain message body in a clean personal-email shell + signature.
 // Blank lines become real paragraph spacing so the email "breathes" like a
 // message a person actually typed; single newlines become line breaks.
-export function personalEmailHtml(text: string, signature: string): string {
+export function personalEmailHtml(text: string, signature: string, unsubscribeUrl?: string | null): string {
   const paragraphs = esc(text.trim())
     .split(/\n{2,}/)
     .filter((p) => p.length > 0)
@@ -224,7 +289,7 @@ export function personalEmailHtml(text: string, signature: string): string {
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <div>${paragraphs}</div>
   ${signature}
-  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — get 1 month of Pro free.</p>
+  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.${unsubscribeUrl ? ` · <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
 </div>`;
 }
 
@@ -245,6 +310,8 @@ export async function sendBrandedEmail(opts: {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
+  // Sign off with the sender's actual Swift Signature card image when available.
+  const signatureImageUrl = await resolveSignatureImageUrl(opts.cardUsername);
   const signature = emailSignatureHtml({
     senderName: opts.senderName,
     company: opts.company,
@@ -253,6 +320,7 @@ export async function sendBrandedEmail(opts: {
     email: opts.replyTo,
     website: opts.website,
     cardUrl,
+    signatureImageUrl,
   });
 
   try {
@@ -262,7 +330,8 @@ export async function sendBrandedEmail(opts: {
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject,
-      html: personalEmailHtml(opts.text, signature),
+      html: personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to)),
+      headers: unsubHeaders(opts.to),
     });
     return "sent";
   } catch {

@@ -6,12 +6,13 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, cardPhones, cardFax, webHref, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 
 export default function PhotoFirst({ data }: { data: CardData }) {
   const ACCENT = data.customization?.accentColor ?? ACCENT_DEFAULT;
+  const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
     data.twitter   && { icon: <IcoX />,        color: "#64748b" },
@@ -23,7 +24,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
     <div
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
-        aspectRatio: "1.75 / 1",
+        aspectRatio: cardAspect(data),
         background: "#fff",
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
@@ -79,7 +80,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div className="relative px-3.5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: "clamp(12px, 2.8vw, 18px)", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+            style={{ fontSize: fitPx(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
           >
             {data.name}
           </h2>
@@ -101,53 +102,18 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="w-9 h-9 rounded-md object-contain shrink-0" />
+              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 36, { maxWidth: data.company ? "48%" : "88%" })} />
             )}
-            <p className="font-extrabold text-gray-900 truncate" style={{ fontSize: 13.5 }}>
+            <p className="font-extrabold text-gray-900 min-w-0 leading-tight" style={{ fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
               {data.company}
             </p>
           </div>
           <div className="w-10 h-[2px] rounded-full" style={{ background: `linear-gradient(90deg, ${ACCENT}, #a78bfa)` }} />
         </div>
 
-        {/* Contact rows */}
-        <div className="flex flex-col gap-[5px]">
-          {cardPhones(data).map((p, i) => (
-            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: "#1e1b4b", textDecoration: "none" }}>
-              <span style={{ color: ACCENT }}><IcoPhone /></span>
-              <span className="font-bold" style={{ fontSize: 14.5 }}>
-                {formatPhone(p.number)}
-                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
-              </span>
-            </a>
-          ))}
-          {data.email && (
-            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: "#374151", textDecoration: "none" }}>
-              <span style={{ color: ACCENT }}><IcoMail /></span>
-              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
-            </a>
-          )}
-          {data.website && (
-            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: "#4b5563", textDecoration: "none" }}>
-              <span style={{ color: ACCENT }}><IcoGlobe /></span>
-              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
-            </a>
-          )}
-          {data.address && (
-            <div className="flex items-start gap-2" style={{ color: "#6b7280" }}>
-              <span style={{ color: ACCENT, marginTop: 1 }}><IcoPin /></span>
-              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
-            </div>
-          )}
-          {cardFax(data) && (
-            <div className="flex items-center gap-2" style={{ color: "#6b7280" }}>
-              <span style={{ color: ACCENT }}><IcoPhone /></span>
-              <span style={{ fontSize: 10 }}>
-                {formatPhone(cardFax(data))}
-                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-              </span>
-            </div>
-          )}
+        {/* Contact rows — shared block, auto-fits to the amount of info */}
+        <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
+          <ContactRows data={data} f={f} palette={{ accent: ACCENT, strong: "#1e1b4b", mid: "#374151", soft: "#4b5563", muted: "#6b7280" }} />
           {socials.length > 0 && (
             <div className="flex items-center gap-2.5 mt-0.5">
               {socials.map((s, i) => <span key={i} style={{ color: s.color }}>{s.icon}</span>)}
@@ -155,10 +121,10 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           )}
         </div>
 
-        {/* QR + scan label */}
+        {/* QR + scan label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={66} bg="#f5f0ff" fg={ACCENT} />
+            <QR size={qrSize(f)} bg="#f5f0ff" fg={ACCENT} url={data.cardUrl} />
           </div>
         </div>
       </div>

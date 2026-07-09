@@ -37,6 +37,10 @@ export default async function OnboardingPage() {
       template: "classic-pro",
     });
 
+    // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
+    // new signups start on Free. startProTrial() is kept in referral-server for
+    // the users already mid-trial; the cron still winds those down normally.
+
     // First-time signup: apply any referral/promo (free month, attribution,
     // fraud checks, referral row, own referral code). Runs once — only on
     // profile creation — so it can't be replayed.
@@ -54,6 +58,9 @@ export default async function OnboardingPage() {
     } catch (e) {
       console.error("[onboarding] referral apply failed:", e);
     }
+
+    // Brand-new account → land on the dashboard with the App Store prompt.
+    redirect("/dashboard?welcome=1");
   }
 
   redirect("/dashboard");

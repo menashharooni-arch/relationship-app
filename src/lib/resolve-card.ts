@@ -1,15 +1,19 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { cardWithinPlanLimit } from "@/lib/card-active";
+import { cardHeadshot } from "@/lib/card-media";
 
 export type ResolvedCardMeta = {
   name: string | null;
   title: string | null;
   company: string | null;
   photoUrl: string | null;
+  logoUrl: string | null;
   phone: string | null;
   email: string | null;
   website: string | null;
   address: string | null;
   accentColor: string | null;
+  template: string | null;
 } | null;
 
 // Resolves a public card by username the same way the card page body does:
@@ -22,7 +26,7 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
 
   const { data: owner } = cardRow
-    ? await admin.from("profiles").select("photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("photo_url, customization, plan").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
 
   const { data: profileRow } = !cardRow
@@ -33,6 +37,10 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     ? !!(owner?.customization as { _deleted?: boolean } | null)?._deleted
     : !!(profileRow?.customization as { _deleted?: boolean } | null)?._deleted;
   if (deleted) return null;
+
+  // Plan kill-switch — extra Pro-era cards resolve to nothing (kills the OG
+  // share image and the wallet pass alongside the page itself).
+  if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, owner?.plan))) return null;
 
   const legacyOk =
     !cardRow &&
@@ -50,11 +58,13 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     name: str(src.name),
     title: str(src.title),
     company: str(src.company),
-    photoUrl: cardRow ? (owner?.photo_url ?? null) : (profileRow?.photo_url ?? null),
+    photoUrl: cardRow ? cardHeadshot(cardRow.customization, owner?.photo_url) : (profileRow?.photo_url ?? null),
+    logoUrl: str(src.logo_url),
     phone: str(src.phone),
     email: str(src.email),
     website: str(src.website),
     address: str(src.address) ?? str(cust.address),
-    accentColor: str(cust.accentColor) ?? "#2563eb",
+    accentColor: str(cust.accentColor),
+    template: str(src.template),
   };
 }

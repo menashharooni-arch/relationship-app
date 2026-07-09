@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getVisitorId } from "@/lib/visitor";
+import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 interface Person {
@@ -19,8 +19,6 @@ interface Person {
   twitter?: string;
   tiktok?: string;
 }
-
-const STORAGE_KEY = "swiftcard_shared";
 
 function normalizeUrl(url: string): string {
   if (!url) return "";
@@ -42,12 +40,16 @@ export default function SaveContactButton({
   source = "direct_link",
   cardOwner,
   ownerFirstName,
+  suppressTracking = false,
 }: {
   person: Person;
   username?: string;
   source?: string;
   cardOwner?: string;
   ownerFirstName?: string;
+  /** True when the OWNER is viewing their own card — the download still works,
+      but no activity event or analytics are recorded (self-noise). */
+  suppressTracking?: boolean;
 }) {
   const [saved, setSaved] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
@@ -57,50 +59,60 @@ export default function SaveContactButton({
 
   useEffect(() => {
     if (!cardOwner) return;
-    try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      if (data[cardOwner]) setAlreadyShared(true);
-    } catch { /* ignore */ }
+    if (hasSharedWith(cardOwner)) setAlreadyShared(true);
+    // Pre-fill from an earlier share anywhere on SwiftCard — never ask twice.
+    const v = getVisitorInfo();
+    if (v) setForm({ name: v.name, phone: v.phone, email: v.email });
   }, [cardOwner]);
 
-  function downloadVCard() {
-    if (username) trackEvent(username, "clicked_save_contact", source);
+  // Every dismissal path (X, backdrop, "No thanks") still earns the visitor a
+  // friendly "create your free card" invite — the moment is already theirs.
+  function closeSheet() {
+    setShowSheet(false);
+    triggerSignupNudge("vcard");
+  }
 
+  function downloadVCard() {
+    // One action = one activity entry. We record the save once (below, as
+    // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
+    // event was creating a duplicate line in each contact's conversation timeline.
+    // vCard escaping (RFC 6350): a ";" or "," in a name/company would otherwise
+    // shift field boundaries and corrupt the saved contact.
+    const esc = (v?: string | null) => String(v ?? "").replace(/[\r\n]+/g, " ").replace(/([,;\\])/g, "\\$1").trim();
     const lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
-      `FN:${person.name}`,
-      `N:${person.name.split(" ").slice(1).join(" ")};${person.name.split(" ")[0]};;;`,
+      `FN:${esc(person.name)}`,
+      `N:${esc(person.name.split(" ").slice(1).join(" "))};${esc(person.name.split(" ")[0])};;;`,
     ];
-    if (person.title)    lines.push(`TITLE:${person.title}`);
-    if (person.company)  lines.push(`ORG:${person.company}`);
-    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${person.email}`);
+    if (person.title)    lines.push(`TITLE:${esc(person.title)}`);
+    if (person.company)  lines.push(`ORG:${esc(person.company)}`);
+    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${esc(person.email)}`);
 
     // All phone numbers, typed (mobile → CELL, office → WORK), then fax.
     const phones = (person.phones ?? []).filter((p) => p.number?.trim());
     if (phones.length) {
       for (const p of phones) {
         const type = p.label === "office" ? "WORK,VOICE" : "CELL,VOICE";
-        lines.push(`TEL;TYPE=${type}:${p.number.trim()}`);
+        lines.push(`TEL;TYPE=${type}:${esc(p.number)}`);
       }
     } else if (person.phone) {
-      lines.push(`TEL:${person.phone}`);
+      lines.push(`TEL:${esc(person.phone)}`);
     }
-    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${person.fax.trim()}`);
+    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${esc(person.fax)}`);
 
-    if (person.website)  lines.push(`URL:${normalizeUrl(person.website)}`);
+    if (person.website)  lines.push(`URL:${esc(normalizeUrl(person.website))}`);
 
     // Postal address (structured ADR: ;;street;city;state;zip;)
     const addr = person.address;
     if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
       const street = [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(" ");
-      const esc = (v?: string) => (v ?? "").replace(/([,;\\])/g, "\\$1");
       lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
     }
-    if (person.linkedin)   lines.push(`URL;type=LinkedIn:${normalizeUrl(person.linkedin)}`);
-    if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${person.instagram.replace(/^@/, "")}`);
-    if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${person.twitter.replace(/^@/, "")}`);
-    if (person.tiktok)     lines.push(`X-SOCIALPROFILE;type=tiktok:${person.tiktok.replace(/^@/, "")}`);
+    if (person.linkedin)   lines.push(`URL;type=LinkedIn:${esc(normalizeUrl(person.linkedin))}`);
+    if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
+    if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
+    if (person.tiktok)     lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);
     lines.push("END:VCARD");
 
     const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });
@@ -115,7 +127,9 @@ export default function SaveContactButton({
 
     setSaved(true);
 
-    if (username) {
+    // Owners testing their own card still get the download, but nothing is
+    // recorded — no "saved your contact" event/notification to themselves.
+    if (username && !suppressTracking) {
       trackEvent(username, "downloaded_vcard", source);
       fetch("/api/analytics/event", {
         method: "POST",
@@ -126,7 +140,8 @@ export default function SaveContactButton({
 
     // Show the "share your info back" lead-capture sheet (card owner's). If it
     // won't show, invite the visitor to make their OWN card instead (signup nudge).
-    if (cardOwner && !alreadyShared) {
+    // Live check too — they may have shared via another form since mount.
+    if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
       setTimeout(() => setShowSheet(true), 900);
     } else {
       setTimeout(() => triggerSignupNudge("vcard"), 900);
@@ -150,12 +165,7 @@ export default function SaveContactButton({
       }),
     });
 
-    try {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-      data[cardOwner] = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch { /* ignore */ }
-
+    markSharedWith(cardOwner, form);
     setAlreadyShared(true);
     setStatus("done");
     // After they share back, close the sheet and invite them to make their own card.
@@ -166,12 +176,12 @@ export default function SaveContactButton({
     <>
       <button
         onClick={downloadVCard}
-        className="w-full active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2"
+        className={`w-full text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2 ${saved ? "" : "active:bg-blue-800"}`}
         style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
       >
         {saved ? (
           <>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
             Saved to Contacts!
@@ -185,13 +195,19 @@ export default function SaveContactButton({
           </>
         )}
       </button>
+      {/* Small, unobtrusive pointer to the phone's confirm step */}
+      {saved && (
+        <p className="text-center text-[11px] mt-1.5" style={{ color: "#94a3b8" }}>
+          Save — then tap &ldquo;Create New Contact&rdquo;
+        </p>
+      )}
 
       {/* Conversion bottom sheet */}
       {showSheet && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => e.target === e.currentTarget && setShowSheet(false)}
+          onClick={(e) => e.target === e.currentTarget && closeSheet()}
         >
           <div
             className="w-full max-w-sm rounded-t-3xl p-6 animate-slide-up"
@@ -204,8 +220,7 @@ export default function SaveContactButton({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <p className="text-slate-900 font-bold text-base">{ownerFirstName ?? "They"}&apos;ll be in touch!</p>
-                <p className="text-slate-500 text-sm mt-1">Your info has been sent.</p>
+                <p className="text-slate-900 font-bold text-base">Info shared!</p>
               </div>
             ) : (
               <>
@@ -219,7 +234,7 @@ export default function SaveContactButton({
                     </p>
                   </div>
                   <button
-                    onClick={() => setShowSheet(false)}
+                    onClick={closeSheet}
                     className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
                     aria-label="Close"
                   >
@@ -261,7 +276,7 @@ export default function SaveContactButton({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowSheet(false)}
+                    onClick={closeSheet}
                     className="w-full text-slate-400 text-sm py-1.5 hover:text-slate-600 transition-colors"
                   >
                     No thanks

@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
 
-type Social = { label: string; href: string };
+export type BrandSocial = { label: string; href: string; color?: string; textColor?: string };
+
+// Official-feeling brand backgrounds for the icon tiles (link.me style).
+// Instagram gets its signature gradient; the rest use the platform color.
+function brandBackground(label: string, color?: string): string {
+  if (label === "Instagram") {
+    return "radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)";
+  }
+  return color || "rgba(255,255,255,0.1)";
+}
 
 // Build a native-app deep link from the web profile URL, when the app supports one.
 // Returns null for platforms without a reliable scheme (we just use the web URL).
@@ -36,7 +45,7 @@ function appScheme(label: string, href: string): string | null {
   }
 }
 
-export default function SocialIcons({ socials }: { socials: Social[] }) {
+export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -47,7 +56,7 @@ export default function SocialIcons({ socials }: { socials: Social[] }) {
   }, []);
 
   // On mobile: try to open the native app; if it doesn't take over, fall back to web.
-  function handle(e: React.MouseEvent, s: Social) {
+  function handle(e: React.MouseEvent, s: BrandSocial) {
     if (!isMobile) return; // desktop: normal new-tab behavior
     const scheme = appScheme(s.label, s.href);
     if (!scheme) return; // no app scheme: normal web behavior
@@ -70,9 +79,10 @@ export default function SocialIcons({ socials }: { socials: Social[] }) {
           rel="noopener noreferrer"
           aria-label={s.label}
           onClick={(e) => handle(e, s)}
-          className="w-[52px] h-[52px] rounded-full flex items-center justify-center text-white border border-white/15 bg-white/10 hover:bg-white/20 transition-colors backdrop-blur"
+          className="w-[54px] h-[54px] rounded-full flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 transition-transform active:scale-95 hover:scale-105"
+          style={{ background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }}
         >
-          <PlatformIcon label={s.label} className="w-[22px] h-[22px]" />
+          <PlatformIcon label={s.label} className="w-6 h-6" />
         </a>
       ))}
     </div>

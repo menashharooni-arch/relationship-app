@@ -9,6 +9,9 @@ type Notification = {
   body: string | null;
   read: boolean;
   created_at: string;
+  // Which card this notification belongs to (username slug). Null/absent for
+  // account-level notifications (referrals etc.) and legacy rows.
+  card_owner?: string | null;
 };
 
 function timeAgo(iso: string) {
@@ -23,10 +26,11 @@ function timeAgo(iso: string) {
 
 export default function NotificationBell({
   initialNotifications,
-  activeCard,
+  cardLabels,
 }: {
   initialNotifications: Notification[];
-  activeCard?: string;
+  // username → display label, for the per-card tag on each notification.
+  cardLabels?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -34,12 +38,15 @@ export default function NotificationBell({
   openRef.current = open;
 
   const unread = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.filter((n) => n.read).length;
 
   useEffect(() => {
     const poll = async () => {
       if (openRef.current) return;
       try {
-        const res = await fetch(`/api/notifications${activeCard ? `?card=${encodeURIComponent(activeCard)}` : ""}`);
+        // The bell watches EVERY card (no ?card= scope) — activity on any card
+        // shows here, tagged with that card's name.
+        const res = await fetch("/api/notifications");
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setNotifications((prev) => {
@@ -53,17 +60,49 @@ export default function NotificationBell({
 
     const id = setInterval(poll, 30000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCard]);
+  }, []);
 
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
+  // Toggle ONE notification read/unread — the badge only drops when the user
+  // explicitly marks items read (individually here, or in bulk above).
+  async function setRead(id: string, read: boolean) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, read }),
+    }).catch(() => {});
+  }
+
+  // Remove a single notification for good (not just mark it read).
+  async function dismiss(id: string) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {});
+  }
+
+  // Clear out everything already read in one tap.
+  async function clearRead() {
+    setNotifications((prev) => prev.filter((n) => !n.read));
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read: true }),
+    }).catch(() => {});
+  }
+
   function handleOpen() {
+    // Just open/close. Notifications stay UNREAD (and the badge stays) until the
+    // user explicitly marks them read or dismisses them — opening no longer
+    // silently clears everything.
     setOpen((v) => !v);
-    if (!open && unread > 0) markAllRead();
   }
 
   return (
@@ -86,20 +125,33 @@ export default function NotificationBell({
       {open && (
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
 
-          {/* Dropdown */}
-          <div className="absolute right-0 top-9 z-40 w-80 max-w-[calc(100vw-1.5rem)] bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+          {/* Right-side pop-up banner — fixed to the screen's right edge, same on
+              mobile and web, slides in from the right. */}
+          <div
+            role="dialog"
+            aria-label="Notifications"
+            className="sc-notif-in fixed z-[61] top-16 right-3 w-[min(360px,calc(100vw-1.5rem))] max-h-[75vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <p className="text-sm font-bold text-white">Notifications</p>
-              {notifications.some((n) => !n.read) && (
-                <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                  Mark all read
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {unread > 0 && (
+                  <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                    Mark all read
+                  </button>
+                )}
+                {readCount > 0 && (
+                  <button onClick={clearRead} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                    Clear read
+                  </button>
+                )}
+                <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mr-0.5">✕</button>
+              </div>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-gray-800">
+            <div className="overflow-y-auto divide-y divide-gray-800">
               {notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-gray-400 text-sm">No notifications yet</p>
@@ -107,14 +159,45 @@ export default function NotificationBell({
                 </div>
               ) : (
                 notifications.map((n) => (
-                  <div key={n.id} className={`px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
+                  <div key={n.id} className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs font-semibold">{n.title}</p>
+                        <p className="text-white text-xs font-semibold truncate">{n.title}</p>
                         {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
-                        <p className="text-gray-500 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
+                        {/* Meta line: card tag + time — chip lives here so the
+                            title keeps full width on narrow phones. */}
+                        <div className="flex items-center gap-2 mt-1 min-w-0">
+                          {n.card_owner && (
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[130px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
+                              {cardLabels?.[n.card_owner] ?? n.card_owner}
+                            </span>
+                          )}
+                          <p className="text-gray-500 text-[11px] truncate">{timeAgo(n.created_at)}</p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => setRead(n.id, !n.read)}
+                        title={n.read ? "Mark as unread" : "Mark as read"}
+                        aria-label={n.read ? "Mark as unread" : "Mark as read"}
+                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors ${
+                          n.read
+                            ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
+                            : "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25"
+                        }`}
+                      >
+                        {n.read ? "Unread" : "Read"}
+                      </button>
+                      <button
+                        onClick={() => dismiss(n.id)}
+                        aria-label="Dismiss notification"
+                        title="Dismiss"
+                        className="shrink-0 -mt-0.5 -mr-1 p-1 text-gray-600 hover:text-gray-200 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))

@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "./supabase-admin";
 import { isPaidPlan } from "./plan";
+import { isZapierWebhookUrl } from "./safe-fetch";
 
 export type CrmEvent = { type: string; [k: string]: unknown };
 
@@ -26,7 +27,9 @@ export async function dispatchCrmEvent(ownerUsername: string | null | undefined,
       }
     }
 
-    if (!p?.zapier_webhook_url || !isPaidPlan(p.plan)) return;
+    // Send-time allowlist too — a URL stored before validation existed must not
+    // receive lead data (SSRF defense-in-depth).
+    if (!p?.zapier_webhook_url || !isPaidPlan(p.plan) || !isZapierWebhookUrl(p.zapier_webhook_url)) return;
 
     const prefs: CrmPrefs = ((p.customization as { crm?: CrmPrefs } | null)?.crm) ?? {};
     if (event.type.startsWith("view.") && !prefs.views) return;

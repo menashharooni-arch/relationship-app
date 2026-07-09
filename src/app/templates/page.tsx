@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -136,7 +137,9 @@ export default function TemplatesPage() {
                     boxShadow: isSelected ? "0 0 0 5px rgba(59,130,246,0.15)" : undefined,
                   }}
                 >
-                  <Component data={withoutSocials(SAMPLE_DATA)} />
+                  <CardScaler>
+                    <Component data={withoutSocials(SAMPLE_DATA)} />
+                  </CardScaler>
                 </div>
               </button>
 

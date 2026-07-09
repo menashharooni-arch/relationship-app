@@ -7,9 +7,11 @@ import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
-import { getReferralStatus } from "@/lib/referral-server";
+import { getReferralProgress } from "@/lib/referral-server";
 import CrmEventSettings from "@/components/CrmEventSettings";
+import EnablePushButton from "@/components/EnablePushButton";
 import HelpWidget from "@/components/HelpWidget";
+import TakeTourButton from "@/components/TakeTourButton";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
@@ -43,19 +45,19 @@ export default async function FlowSettingsPage() {
       .order("created_at", { ascending: true }),
   ]);
 
-  const referral = await getReferralStatus(user.id);
+  const referral = await getReferralProgress(user.id);
   const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
   const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
       <MobileNav />
 
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky nav */}
-      <nav className="fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
+      <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2">
@@ -91,19 +93,28 @@ export default async function FlowSettingsPage() {
 
         <div className="space-y-8">
           {/* Your cards */}
-          <div>
+          <div data-tour="settings-cards">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Your cards</p>
             <ManageCards cards={cards ?? []} />
           </div>
 
-          {/* Help */}
-          <div>
+          {/* Help — the AI assistant, plus replay the guided tour */}
+          <div data-tour="settings-help">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Need help</p>
-            <HelpWidget />
+            <div className="space-y-3">
+              <HelpWidget />
+              <TakeTourButton />
+            </div>
+          </div>
+
+          {/* Refer a friend — its own section, between Need help and Integrations */}
+          <div data-tour="settings-refer">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Refer a friend</p>
+            <ReferAFriend progress={referral} />
           </div>
 
           {/* Integrations */}
-          <div>
+          <div data-tour="settings-integrations">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Integrations</p>
             <div className="space-y-3">
               <ZapierSettings initialUrl={profile.zapier_webhook_url ?? null} isPro={isPro} />
@@ -112,6 +123,7 @@ export default async function FlowSettingsPage() {
                   googleConnected={googleConnected}
                   hubspotConnected={hubspotConnected}
                   isPro={isPro}
+                  hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
                 />
               </Suspense>
               <CrmEventSettings
@@ -120,12 +132,11 @@ export default async function FlowSettingsPage() {
                 zapierConnected={!!profile.zapier_webhook_url}
                 isPro={isPro}
               />
-              <ReferAFriend code={referral?.code ?? null} rewardEarned={!!referral?.rewardEarned} />
             </div>
           </div>
 
           {/* General */}
-          <div>
+          <div data-tour="settings-general">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">General</p>
             <GeneralSettings
               email={user.email ?? ""}
@@ -133,12 +144,20 @@ export default async function FlowSettingsPage() {
               plan={profile.plan ?? "free"}
               isPro={isPro}
             />
+            {/* Push notifications toggle — the wizard offers opt-in once at card
+                creation; this is the permanent on/off switch for this device. */}
+            <div className="mt-3">
+              <EnablePushButton label="🔔 Turn on push notifications" allowDisable />
+            </div>
           </div>
 
           {/* Manage account */}
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
             <ManageAccount isPro={isPro} />
+            <p className="text-center mt-4">
+              <a href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</a>
+            </p>
           </div>
 
         </div>

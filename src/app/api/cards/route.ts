@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { seedDemoContact } from "@/lib/demo-contact";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: "limit",
-        message: `Free includes ${PLAN_LIMITS.FREE_CARD_LIMIT} card. Upgrade to Pro for unlimited cards.`,
+        message: "Ready for a second card? Go unlimited with Pro.",
         upgrade: "/pricing",
       },
       { status: 402 }
@@ -42,11 +43,17 @@ export async function POST(req: NextRequest) {
 
   if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
 
-  // Cap Swift Links buttons on Free (backend-enforced, not just UI).
-  let cust = (customization ?? {}) as Record<string, unknown>;
-  if (!paid && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) {
-    cust = { ...cust, links: (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS) };
+  // Charset guard: usernames flow into Supabase `.or()` filter strings elsewhere
+  // (dashboard analytics), where a `,` / `.` / `(` / `)` would break the filter.
+  // Lock the slug to [a-z0-9-] at the source so that can never happen.
+  const normalizedUsername = String(username).toLowerCase().trim();
+  if (!/^[a-z0-9-]{1,60}$/.test(normalizedUsername)) {
+    return NextResponse.json({ error: "Username can only contain letters, numbers, and hyphens." }, { status: 400 });
   }
+
+  // Enforce Free limits on the customization blob (Pro-only accent/font stripped,
+  // link buttons capped) — backend-enforced, not just hidden in the UI.
+  let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, paid);
   // Custom designer is Pro-only — Free can't save a "custom" template.
   let safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 
@@ -69,7 +76,7 @@ export async function POST(req: NextRequest) {
     .from("cards")
     .insert({
       user_id: user.id,
-      username,
+      username: normalizedUsername,
       name: name || "",
       title: title || "",
       company: finalCompany,
@@ -91,6 +98,12 @@ export async function POST(req: NextRequest) {
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // First card on the account → seed a sample contact so the dashboard/contacts
+  // aren't empty and the guided tour has a real contact to demonstrate.
+  if ((count ?? 0) === 0) {
+    await seedDemoContact(normalizedUsername);
   }
 
   return NextResponse.json({ card: data });

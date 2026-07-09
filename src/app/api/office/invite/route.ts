@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { getMarketingFrom } from "@/lib/resend-domain";
+import { PLAN_LIMITS } from "@/lib/plan";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -14,19 +16,22 @@ export async function POST(req: Request) {
     .from("offices")
     .select("id, name, seats")
     .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!office) return NextResponse.json({ error: "No office found. Create one first." }, { status: 404 });
 
-  // Check seat limit
+  // Seats is required for the math; fall back to the minimum for legacy rows.
+  const seatCap = (office.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
+
+  // Check seat limit (active members already occupy seats).
   const { count } = await supabase
     .from("office_members")
     .select("*", { count: "exact", head: true })
     .eq("office_id", office.id)
     .eq("status", "active");
 
-  if ((count ?? 0) >= office.seats) {
-    return NextResponse.json({ error: `Seat limit reached (${office.seats} seats). Upgrade to add more.` }, { status: 400 });
+  if ((count ?? 0) >= seatCap) {
+    return NextResponse.json({ error: `Seat limit reached (${seatCap} seats). Add a seat to invite more.` }, { status: 400 });
   }
 
   const { email } = await req.json();
@@ -38,7 +43,7 @@ export async function POST(req: Request) {
     .select("id, status")
     .eq("office_id", office.id)
     .eq("invite_email", email.trim().toLowerCase())
-    .single();
+    .maybeSingle();
 
   if (existing?.status === "active") {
     return NextResponse.json({ error: "This person is already a member." }, { status: 400 });
@@ -52,7 +57,7 @@ export async function POST(req: Request) {
       .from("office_members")
       .select("invite_token")
       .eq("id", existing.id)
-      .single();
+      .maybeSingle();
     token = member!.invite_token;
   } else {
     const { data: member, error } = await supabase
@@ -75,7 +80,7 @@ export async function POST(req: Request) {
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: "SwiftCard <onboarding@resend.dev>",
+    from: await getMarketingFrom(), // verified domain when set up, safe fallback otherwise
     to: email.trim(),
     subject: `${ownerFirst} invited you to join ${office.name} on SwiftCard`,
     html: `

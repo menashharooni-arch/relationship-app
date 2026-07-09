@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { readUsage, bumpUsage } from "@/lib/usage";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminSupabase();
-  const { data: profile } = await admin.from("profiles").select("username, plan").eq("id", user.id).single();
+  const { data: profile } = await admin.from("profiles").select("username, plan, customization").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   const { name, email, phone, company, notes, where_met, card_owner: requestedOwner } = await req.json();
@@ -25,23 +26,19 @@ export async function POST(req: NextRequest) {
       ? requestedOwner
       : profile.username;
 
-  // Enforce the same free-plan contact limit as the public capture route.
-  // Only blocks NEW adds — existing contacts are never removed.
-  if (!isPaidPlan(profile.plan)) {
-    const { count } = await admin
-      .from("leads")
-      .select("*", { count: "exact", head: true })
-      .eq("card_owner", finalOwner);
-    if ((count ?? 0) >= PLAN_LIMITS.FREE_CONTACT_LIMIT) {
-      return NextResponse.json(
-        {
-          error: "limit",
-          message: `You've reached the free plan's ${PLAN_LIMITS.FREE_CONTACT_LIMIT}-contact limit. Upgrade to Pro for unlimited contacts.`,
-          upgrade: "/pricing",
-        },
-        { status: 402 }
-      );
-    }
+  // Manual adds count against the same monthly free-lead meter (5/month, on the
+  // account so it survives card deletion). A deliberate owner action, so we hard-
+  // block at the cap with an upgrade prompt rather than silently locking.
+  const paid = isPaidPlan(profile.plan);
+  if (!paid && readUsage(profile.customization).leads >= PLAN_LIMITS.FREE_LEADS_PER_MONTH) {
+    return NextResponse.json(
+      {
+        error: "limit",
+        message: `You've captured your ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} free leads this month. Upgrade to Pro to add unlimited contacts.`,
+        upgrade: "/pricing",
+      },
+      { status: 402 }
+    );
   }
 
   const { data, error } = await admin
@@ -61,5 +58,6 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!paid) await bumpUsage(admin, user.id, profile.customization as Record<string, unknown> | null, "leads");
   return NextResponse.json({ lead: data });
 }

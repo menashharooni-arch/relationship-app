@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -12,7 +11,6 @@ import { SAMPLE_DATA } from "@/components/card-templates/types";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
 
-const FREE_LINK_LIMIT = 3;
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -118,11 +116,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   });
   const [status, setStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   function handle(e: React.ChangeEvent<HTMLInputElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -130,12 +123,15 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-    const { error } = await supabase
-      .from("profiles")
-      .update({ ...form, template, customization: { ...customization, links, testimonials } })
-      .eq("username", profile.username);
-    setStatus(error ? "error" : "saved");
-    if (!error) setTimeout(() => setStatus("idle"), 2000);
+    // Save through the server so Pro-only design gates (accent/font + link cap)
+    // are enforced — the browser can't write straight to the profiles table.
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, template, customization: { ...customization, links, testimonials } }),
+    });
+    setStatus(res.ok ? "saved" : "error");
+    if (res.ok) setTimeout(() => setStatus("idle"), 2000);
   }
 
   function addLink() {
@@ -277,9 +273,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       <div className="h-px bg-slate-200 my-2" />
       <div className="flex items-center justify-between mb-1">
         <p className="text-xs text-slate-500 font-medium">Action links</p>
-        {!isPro && (
-          <span className="text-[10px] text-slate-400">{links.length}/{FREE_LINK_LIMIT} free</span>
-        )}
       </div>
       <p className="text-[11px] text-slate-400 mb-3">Add buttons to your card — Book a call, View portfolio, Leave a review, and more.</p>
 
@@ -366,7 +359,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             </button>
           </div>
         </div>
-      ) : (isPro || links.length < FREE_LINK_LIMIT) ? (
+      ) : (
         <button
           type="button"
           onClick={() => setAddingLink(true)}
@@ -374,10 +367,6 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         >
           + Add link
         </button>
-      ) : (
-        <div className="border border-dashed border-slate-200 rounded-xl px-4 py-3 text-center">
-          <p className="text-xs text-slate-400">Upgrade to Pro for unlimited action links</p>
-        </div>
       )}
 
       {/* Testimonials */}
@@ -467,18 +456,24 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         <SelectedTemplate data={previewData} />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 pt-3">
         {TEMPLATES.map(({ id, label, Component, tags }) => (
           <button
             key={id}
             type="button"
             onClick={() => setTemplate(id)}
-            className="text-left rounded-xl overflow-hidden border-2 transition-all"
+            className="relative text-left rounded-xl border-2 transition-all"
             style={{
               borderColor: template === id ? "#1D4ED8" : "#e2e8f0",
               boxShadow: template === id ? "0 0 0 2px #1D4ED820" : "none",
             }}
           >
+            {id === "photo-first" && (
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap text-[8.5px] font-bold uppercase tracking-wide text-white px-2 py-0.5 rounded-full shadow-sm" style={{ background: "#1D4ED8" }}>
+                ★ Most Popular
+              </span>
+            )}
+            <div className="rounded-[10px] overflow-hidden">
             <div className="w-full pointer-events-none" style={{ transform: "scale(0.85)", transformOrigin: "top left", width: "117%", height: "auto" }}>
               <Component data={SAMPLE_DATA} />
             </div>
@@ -503,6 +498,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
                   </span>
                 ))}
               </div>
+            </div>
             </div>
           </button>
         ))}
@@ -572,7 +568,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
           <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
-          <p className="text-xs text-slate-400 mt-1">Upgrade to Pro to customize your card colors and font.</p>
+          <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
         </div>
       )}
 

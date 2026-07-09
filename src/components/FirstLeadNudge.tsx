@@ -28,7 +28,7 @@ export default function FirstLeadNudge({ leadCount, isPro }: { leadCount: number
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="text-base shrink-0">🎉</span>
         <p className="text-sm text-emerald-100/90 leading-snug">
-          Your first contact! Know someone who&apos;d love this? <strong className="text-emerald-200">Refer a friend</strong> — they get a free month, and you get one when they upgrade.
+          Your first contact! Know someone who&apos;d love this? <strong className="text-emerald-200">Refer a friend</strong> — they get a free month, and 3 signups earn you a month of Pro free.
         </p>
       </div>
       <button onClick={dismiss} className="text-emerald-300/60 hover:text-emerald-200 text-xs font-medium shrink-0">

@@ -4,9 +4,9 @@ import { Resend } from "resend";
 import { getStripe } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail } from "@/lib/email-templates";
-import { rewardReferrerIfEligible } from "@/lib/referral-server";
+import { markReferralConversion } from "@/lib/referral-server";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 async function sendReceiptForUser(opts: {
   userId: string;
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       // Referral: the friend just became a PAYING customer — grant the referrer
       // their one-time reward (verified Stripe event, never from the browser).
       try {
-        await rewardReferrerIfEligible(userId);
+        await markReferralConversion(userId);
       } catch (e) {
         console.error("Referral reward error:", e);
       }

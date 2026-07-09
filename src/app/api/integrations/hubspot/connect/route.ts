@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isPaidPlan } from "@/lib/plan";
+import { signState } from "@/lib/oauth-state";
+
+export const runtime = "nodejs";
 
 const SCOPES = "crm.objects.contacts.write";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -14,7 +17,7 @@ export async function GET() {
   const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}/pricing`);
 
-  const state = Buffer.from(user.id).toString("base64url");
+  const state = signState(user.id);
   const params = new URLSearchParams({
     client_id: process.env.HUBSPOT_CLIENT_ID!,
     redirect_uri: `${APP_URL}/api/integrations/hubspot/callback`,

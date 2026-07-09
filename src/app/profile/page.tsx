@@ -8,7 +8,7 @@ import MobileNav from "@/components/MobileNav";
 import CopyButton from "@/components/CopyButton";
 import Link from "next/link";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export default async function ProfilePage() {
   const supabase = await createClient();

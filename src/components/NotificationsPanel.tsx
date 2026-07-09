@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Notification = {
   id: string;
@@ -21,10 +22,42 @@ function timeAgo(iso: string) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export default function NotificationsPanel({ initial }: { initial: Notification[] }) {
+// Notification types that are about a contact — clicking these rows opens the
+// active card's contacts ("shared their info" and "saved your contact").
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved"]);
+
+export default function NotificationsPanel({ initial, card }: { initial: Notification[]; card?: string }) {
+  const router = useRouter();
+
+  // A "new contact" notification is about a lead — clicking it takes the owner
+  // to their contacts (for the active card) where they can open that contact.
+  function openContacts() {
+    router.push(card ? `/contacts?card=${encodeURIComponent(card)}` : "/contacts");
+  }
   const [items, setItems] = useState<Notification[]>(initial);
+  const [claiming, setClaiming] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<Record<string, { ok: boolean; text: string }>>({});
   const unread = items.filter((n) => !n.read).length;
   const readCount = items.filter((n) => n.read).length;
+
+  // "Tap here to get it" — the explicit claim for an earned referral month.
+  async function claimReferral(id: string) {
+    setClaiming(id);
+    try {
+      const res = await fetch("/api/referrals/claim", { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: "🎉 Pro is active for the next month — enjoy!" } }));
+        setRead(id, true);
+        router.refresh(); // update the plan badge etc.
+      } else {
+        setClaimResult((p) => ({ ...p, [id]: { ok: false, text: d.error || "Couldn't claim — try again." } }));
+      }
+    } catch {
+      setClaimResult((p) => ({ ...p, [id]: { ok: false, text: "Couldn't claim — try again." } }));
+    }
+    setClaiming(null);
+  }
 
   async function setRead(id: string, read: boolean) {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
@@ -37,7 +70,13 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
 
   async function markAllRead() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    await fetch("/api/notifications", { method: "PATCH" }).catch(() => {});
+    // Scoped to THIS card (+ account-level rows) — the panel is per-card, so
+    // bulk-reading here must never touch another card's notifications.
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card }),
+    }).catch(() => {});
   }
 
   async function dismiss(id: string) {
@@ -54,7 +93,7 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
     await fetch("/api/notifications", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ read: true }),
+      body: JSON.stringify({ read: true, card }),
     }).catch(() => {});
   }
 
@@ -93,9 +132,29 @@ export default function NotificationsPanel({ initial }: { initial: Notification[
         {items.map((n) => (
           <div key={n.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"}`}>
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"}`}>{n.title}</p>
+            <div
+              className={`min-w-0 flex-1 ${CONTACT_TYPES.has(n.type) ? "cursor-pointer" : ""}`}
+              onClick={CONTACT_TYPES.has(n.type) ? openContacts : undefined}
+              role={CONTACT_TYPES.has(n.type) ? "button" : undefined}
+            >
+              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${CONTACT_TYPES.has(n.type) ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>
               {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+              {/* Referral month earned → the explicit tap-to-claim */}
+              {n.type === "referral_claim" && (
+                claimResult[n.id] ? (
+                  <p className={`text-xs font-semibold mt-2 ${claimResult[n.id].ok ? "text-emerald-400" : "text-amber-400"}`}>
+                    {claimResult[n.id].text}
+                  </p>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); claimReferral(n.id); }}
+                    disabled={claiming === n.id}
+                    className="mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
+                  >
+                    {claiming === n.id ? "Activating…" : "🎁 Claim my free month of Pro"}
+                  </button>
+                )
+              )}
               <p className="text-gray-600 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
             </div>
             <button

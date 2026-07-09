@@ -19,7 +19,7 @@ export default async function LoginPage({
             {initialMode === "signup" ? "Create your account" : "Welcome back"}
           </h1>
           <p className="text-slate-500 text-sm mt-2">
-            {next ? "Sign in to accept your invitation." : initialMode === "signup" ? "Free forever. Ready in 60 seconds." : "Sign in or create your account."}
+            {next ? "Sign in to accept your invitation." : initialMode === "signup" ? "Free to start. Ready in 30 seconds." : "Sign in or create your account."}
           </p>
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">

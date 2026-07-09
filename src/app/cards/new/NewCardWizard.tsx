@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import EnablePushButton from "@/components/EnablePushButton";
+import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -14,7 +16,6 @@ import CustomCardDesigner from "@/components/CustomCardDesigner";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
-import { PLAN_LIMITS } from "@/lib/plan";
 import { socialUrl } from "@/lib/social-url";
 
 function slugify(str: string): string {
@@ -73,7 +74,6 @@ const EMPTY_SOCIALS: Socials = {
   linkedin: "", instagram: "", tiktok: "", facebook: "", twitter: "", snapchat: "", youtube: "",
 };
 
-const LINK_EMOJIS = ["🔗", "🌐", "📅", "⭐", "🎥", "🏠", "💼", "📋", "📸", "🎵", "💸", "📄"];
 
 const TEMPLATES = [
   { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
@@ -90,6 +90,14 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
 
+  // Advancing (or going back) a step should start the user at the top of the
+  // new step. Defer to the next frame so the new content is laid out first, and
+  // jump instantly — mobile browsers can drop a smooth scroll issued mid-render.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
+    return () => cancelAnimationFrame(id);
+  }, [step]);
+
   // Step 1 — card details
   const [nickname, setNickname] = useState("");
   const [name, setName] = useState("");
@@ -104,7 +112,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [links, setLinks] = useState<CardLink[]>([]);
-  const [newLink, setNewLink] = useState({ label: "", url: "", emoji: "🔗" });
+  const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
   // Step 3 — media + design
@@ -144,15 +152,16 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
   }
 
-  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
+  const atLinkCap = false; // Free now gets unlimited Swift Links buttons.
   function addLink() {
     if (atLinkCap) return;
     const label = newLink.label.trim();
     let url = newLink.url.trim();
     if (!label || !url) return;
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    setLinks((prev) => [...prev, { emoji: newLink.emoji || "🔗", label, url }]);
-    setNewLink({ label: "", url: "", emoji: "🔗" });
+    // Add, then reset the fields so another link can be entered right away.
+    setLinks((prev) => [...prev, { label, url }]);
+    setNewLink({ label: "", url: "" });
   }
   function removeLink(i: number) {
     setLinks((prev) => prev.filter((_, idx) => idx !== i));
@@ -233,6 +242,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           address,
           phones: cleanPhones,
           fax: fax.trim(),
+          // Headshot is per-card (explicit key, null when none) — never inherits
+          // another card's photo.
+          photoUrl: headshotUrl ?? null,
           ...(template === "custom" ? { customLayout } : {}),
         },
       }),
@@ -249,11 +261,14 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
       return;
     }
 
-    router.push("/dashboard");
+    // Card created — last step: turn on notifications for this card so the
+    // owner gets contact alerts + view milestones on their device.
+    setStatus("idle");
+    setStep(4);
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 px-5 py-10">
+    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className="max-w-sm mx-auto">
         <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -262,20 +277,22 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
           Dashboard
         </Link>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-6">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="flex items-center gap-2 flex-1">
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
-                style={{ background: step >= n ? "#2563eb" : "#1f2937", color: step >= n ? "#fff" : "#6b7280" }}
-              >
-                {n}
+        {/* Step indicator (hidden on the post-create success screen) */}
+        {step <= 3 && (
+          <div className="flex items-center gap-2 mb-6">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="flex items-center gap-2 flex-1">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
+                  style={{ background: step >= n ? "#2563eb" : "#1f2937", color: step >= n ? "#fff" : "#6b7280" }}
+                >
+                  {n}
+                </div>
+                {n < 3 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
               </div>
-              {n < 3 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Step 1 — card details */}
         {step === 1 && (
@@ -384,15 +401,20 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             {/* Swiftlinks bio */}
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
+                <span className="text-[10px] font-semibold text-blue-400">Tip: be descriptive</span>
+              </div>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
-                placeholder="A little about yourself or what you do…"
+                placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
                 className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
               />
-              <p className="text-gray-600 text-[11px] mt-1">Shows at the top of your Swift Links — add a bit about yourself or what you do.</p>
+              <p className="text-gray-600 text-[11px] mt-1">
+                Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
+              </p>
             </div>
 
             {/* Social links — website first */}
@@ -453,7 +475,6 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) => (
                     <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
-                      <span className="text-base shrink-0">{l.emoji}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                         <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
@@ -464,19 +485,6 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               )}
               <div className="space-y-2">
-                {/* Emoji picker */}
-                <div className="flex flex-wrap gap-1.5">
-                  {LINK_EMOJIS.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => setNewLink((n) => ({ ...n, emoji: em }))}
-                      className={`w-8 h-8 rounded-lg text-base flex items-center justify-center border transition-colors ${newLink.emoji === em ? "border-blue-500 bg-blue-600/20" : "border-gray-700 bg-gray-900 hover:border-gray-600"}`}
-                    >
-                      {em}
-                    </button>
-                  ))}
-                </div>
                 <input
                   type="text"
                   placeholder="Link name (e.g. Leave a review)"
@@ -491,19 +499,23 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                   onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
                   className={inputCls}
                 />
-                <button
-                  type="button"
-                  onClick={addLink}
-                  disabled={atLinkCap || !newLink.label.trim() || !newLink.url.trim()}
-                  className="w-full border border-dashed border-gray-700 text-gray-400 hover:border-blue-500 hover:text-blue-400 disabled:opacity-40 text-xs font-medium py-2.5 rounded-xl transition-colors"
-                >
-                  + Add link
-                </button>
-                {atLinkCap && (
-                  <p className="text-[11px] text-blue-400 text-center">
-                    Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} buttons — <Link href="/pricing" className="underline hover:text-blue-300">upgrade to Pro</Link> for unlimited.
-                  </p>
-                )}
+                {(() => {
+                  const readyToAdd = !atLinkCap && !!newLink.label.trim() && !!newLink.url.trim();
+                  return (
+                    <button
+                      type="button"
+                      onClick={addLink}
+                      disabled={!readyToAdd}
+                      className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                        readyToAdd
+                          ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                          : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
+                      }`}
+                    >
+                      + Add link
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 
@@ -515,6 +527,38 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 Next: Logo & design →
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Step 4 — card created: turn on notifications for this card */}
+        {step === 4 && (
+          <div className="space-y-5 text-center">
+            <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Your card is live! 🎉</h1>
+              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{username}</p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
+              <p className="text-blue-200 font-semibold text-sm">🔔 Press here to turn on notifications</p>
+              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
+                Get an instant alert the moment someone shares their info through your card.
+              </p>
+            </div>
+
+            <EnablePushButton />
+
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
+            >
+              Continue to dashboard →
+            </button>
           </div>
         )}
 
@@ -533,8 +577,8 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" onUploaded={(url) => setHeadshotUrl(url || null)} />
-              <p className="text-[11px] text-gray-600 mt-1">Your headshot is shared across all your cards.</p>
+              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" defer onUploaded={(url) => setHeadshotUrl(url || null)} />
+              <p className="text-[11px] text-gray-600 mt-1">This headshot is just for this card.</p>
             </div>
 
             {/* Design */}
@@ -548,7 +592,11 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 </div>
               ) : (
                 <div className="rounded-2xl overflow-hidden border border-gray-800 mb-3">
-                  <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                  {/* Scale from the 460px natural width (same as the published
+                      card) so a long name/title/company never clips in-preview. */}
+                  <CardScaler>
+                    <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+                  </CardScaler>
                 </div>
               )}
 

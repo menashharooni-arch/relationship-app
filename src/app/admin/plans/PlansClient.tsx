@@ -16,7 +16,7 @@ const FEATURES: { label: string; free: string; pro: string; office: string }[] =
   { label: "Swift Links buttons", free: "2", pro: "Unlimited", office: "Unlimited" },
   { label: "AI follow-up drafts", free: "3 total", pro: "Unlimited", office: "Unlimited" },
   { label: "Custom card designer", free: "—", pro: "✓", office: "✓" },
-  { label: "Full analytics", free: "Basic", pro: "✓", office: "✓" },
+  { label: "Automated follow-up sequences", free: "Day-1 email only", pro: "✓", office: "✓" },
   { label: "CRM integrations", free: "—", pro: "✓", office: "✓" },
   { label: "Email signature", free: "✓", pro: "✓", office: "✓" },
   { label: "SwiftCard branding badge", free: "Shown", pro: "Removed", office: "Removed" },
@@ -51,19 +51,10 @@ export default function PlansClient({ userId, email, initialPlan }: { userId: st
   const currentLabel = PLANS.find((p) => p.id === plan)?.label ?? "Free";
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400 z-50" />
-      <div className="max-w-4xl mx-auto px-5 pt-8 pb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-slate-500 uppercase mb-1">SwiftCard · Developer</p>
-            <h1 className="text-2xl font-bold text-white">Plan tester</h1>
-            <p className="text-gray-500 text-sm mt-1">Switch <span className="text-gray-300">{email}</span> between plans to test each experience instantly.</p>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/admin/analytics" className="text-gray-400 hover:text-white transition-colors">Analytics</Link>
-            <Link href="/admin" className="text-gray-400 hover:text-white transition-colors">← Admin</Link>
-          </div>
+    <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Plan sandbox</h1>
+          <p className="text-gray-500 text-sm mt-1">Switch <span className="text-gray-300">{email}</span> between plans to test each experience instantly.</p>
         </div>
 
         {/* Current plan */}
@@ -135,7 +126,6 @@ export default function PlansClient({ userId, email, initialPlan }: { userId: st
         </div>
 
         <p className="text-gray-600 text-[11px] mt-4">Note: this changes your real account&apos;s plan flag (no charge). Set yourself back to your preferred plan when you&apos;re done testing.</p>
-      </div>
     </div>
   );
 }
