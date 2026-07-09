@@ -1173,6 +1173,10 @@ export default function ContactsClient({
                 const fname = selected.name.split(" ")[0] || "They";
                 const items: { at: string; key: string; kind: "event" | "in" | "out"; icon?: string; text?: string; source?: string | null; body?: string; channel?: string | null; status?: string | null }[] = [];
                 for (const ev of events) {
+                  // "clicked_save_contact" always fired alongside "downloaded_vcard"
+                  // (same tap) — we stopped emitting it, and we hide the historical
+                  // ones so old conversations show one "saved your contact" line too.
+                  if (ev.event_type === "clicked_save_contact") continue;
                   items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
                 items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });
