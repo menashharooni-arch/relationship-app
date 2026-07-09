@@ -204,7 +204,8 @@ export default async function DashboardPage({
     { data: recentViews },
     locViewsRes,
     { data: leads },
-    { data: notifications },
+    panelNotifRes,
+    bellNotifRes,
     ownedOfficeRes,
   ] = await Promise.all([
     supabase.from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
@@ -225,11 +226,33 @@ export default async function DashboardPage({
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
         { ascending: sortBy === "name-asc" || sortBy === "oldest" }
       ),
-    supabase.from("notifications").select("id, type, title, body, read, created_at").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    // Panel (bottom of dashboard): ONLY this card's activity (+ account-level
+    // ones like referral months, which have no card scope).
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    // Bell (top nav): EVERY card's notifications, each tagged with its card.
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
     isEnterprise
       ? supabase.from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+
+  // If the notifications.card_owner column migration hasn't run yet, BOTH
+  // scoped queries above error and the panel/bell would silently show nothing
+  // (this exact failure hid real "shared their info" notifications). Fall back
+  // to the un-scoped query so notifications always appear.
+  type NotifRow = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; card_owner?: string | null };
+  let panelNotifications: NotifRow[] | null = panelNotifRes.data;
+  let bellNotifications: NotifRow[] | null = bellNotifRes.data;
+  if (panelNotifRes.error || bellNotifRes.error) {
+    const { data: fallback } = await supabase
+      .from("notifications")
+      .select("id, type, title, body, read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    panelNotifications ??= fallback;
+    bellNotifications ??= fallback;
+  }
 
   // Basic-panel "best day" (last 30d views) — available to every plan.
   const dayTally: Record<string, number> = {};
@@ -297,6 +320,12 @@ export default async function DashboardPage({
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
+
+  // Bell tags: username → human label, so every notification shows which card
+  // it came from ("Work", "Personal", …) instead of a raw slug.
+  const cardLabels: Record<string, string> = Object.fromEntries(
+    allCards.map((c) => [c.username as string, (c.label || c.name || c.username) as string])
+  );
 
   function initials(name: string) {
     return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -427,7 +456,7 @@ export default async function DashboardPage({
             <CardScanner cardOwner={activeUsername} />{/* Free: 3 scans/mo · Pro: unlimited */}
             {isEnterprise && <CSVImport />}
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
-            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={notifications ?? []} activeCard={activeUsername} /></span>
+            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
           </div>
@@ -768,7 +797,7 @@ export default async function DashboardPage({
 
                 {/* Lead list */}
                 {view === "notifications" ? (
-                  <NotificationsPanel initial={(notifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} card={activeUsername} />
+                  <NotificationsPanel initial={(panelNotifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} card={activeUsername} />
                 ) : visibleLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">
