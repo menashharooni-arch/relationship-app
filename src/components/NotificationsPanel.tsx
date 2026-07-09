@@ -70,7 +70,13 @@ export default function NotificationsPanel({ initial, card }: { initial: Notific
 
   async function markAllRead() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    await fetch("/api/notifications", { method: "PATCH" }).catch(() => {});
+    // Scoped to THIS card (+ account-level rows) — the panel is per-card, so
+    // bulk-reading here must never touch another card's notifications.
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card }),
+    }).catch(() => {});
   }
 
   async function dismiss(id: string) {
@@ -87,7 +93,7 @@ export default function NotificationsPanel({ initial, card }: { initial: Notific
     await fetch("/api/notifications", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ read: true }),
+      body: JSON.stringify({ read: true, card }),
     }).catch(() => {});
   }
 
