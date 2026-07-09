@@ -6,9 +6,13 @@ import { getVisitorId } from "@/lib/visitor";
 export default function CardEventTracker({
   username,
   source,
+  viewSurface = "card",
 }: {
   username: string;
   source: string;
+  // "card" tracks views under the plain username; "links" tracks the Swift Link
+  // under "<username>__links" so the dashboard can show them separately.
+  viewSurface?: "card" | "links";
 }) {
   useEffect(() => {
     const visitorId = getVisitorId();
@@ -25,9 +29,10 @@ export default function CardEventTracker({
       }),
     }).catch(() => {});
 
-    // Keep existing views table for the dashboard chart
-    fetch(`/api/views/${username}`, { method: "POST" }).catch(() => {});
-  }, [username, source]);
+    // Views table for the dashboard chart — keyed by surface so card vs link split.
+    const viewsKey = viewSurface === "links" ? `${username}__links` : username;
+    fetch(`/api/views/${encodeURIComponent(viewsKey)}`, { method: "POST" }).catch(() => {});
+  }, [username, source, viewSurface]);
 
   return null;
 }

@@ -8,7 +8,16 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import type { CardData, CardLink } from "@/components/card-templates/types";
+import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
+import CustomCardDesigner from "@/components/CustomCardDesigner";
+import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
+import { PLAN_LIMITS } from "@/lib/plan";
+import { withoutSocials } from "@/components/card-templates/types";
+import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
+import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
+import Link from "next/link";
+
+const SOCIAL_KEYS = new Set(["linkedin", "instagram", "tiktok", "facebook", "twitter", "snapchat", "youtube"]);
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
   { emoji: "📅", label: "Book a call" },
@@ -29,11 +38,10 @@ const TEMPLATES = [
   { id: "luxury-minimal",  name: "Luxury Minimal",       Component: LuxuryMinimal },
 ] as const;
 
-type CardTestimonial = { name: string; text: string };
-
 type Card = {
   id: string;
   username: string;
+  label?: string;
   name: string;
   title: string;
   company: string;
@@ -45,7 +53,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { snapchat?: string; youtube?: string; about?: string; links?: CardLink[]; testimonials?: CardTestimonial[] };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string };
 };
 
 const FIELDS = [
@@ -57,39 +65,52 @@ const FIELDS = [
   { key: "website",   label: "Website",     placeholder: "www.company.com",      required: false },
   { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/john", required: false },
   { key: "instagram", label: "Instagram",   placeholder: "@john",                required: false },
-  { key: "twitter",   label: "Twitter / X", placeholder: "@john",                required: false },
   { key: "tiktok",    label: "TikTok",      placeholder: "@john",                required: false },
+  { key: "facebook",  label: "Facebook",    placeholder: "facebook.com/john",    required: false },
+  { key: "twitter",   label: "X (Twitter)", placeholder: "@john",                required: false },
   { key: "snapchat",  label: "Snapchat",    placeholder: "@john",                required: false },
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@john",    required: false },
 ];
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean };
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false }: Props) {
+  const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
+  const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
   const [form, setForm] = useState({
     name:      card.name || "",
     title:     card.title || "",
     company:   card.company || "",
-    phone:     card.phone || "",
     email:     card.email || "",
     website:   card.website || "",
     linkedin:  card.linkedin || "",
     instagram: card.instagram || "",
     twitter:   card.twitter || "",
     tiktok:    card.tiktok || "",
+    facebook:  card.customization?.facebook || "",
     snapchat:  card.customization?.snapchat || "",
     youtube:   card.customization?.youtube || "",
   });
-  const [about, setAbout] = useState(card.customization?.about || "");
+  const [label, setLabel] = useState(card.label || "");
+  const [bio, setBio] = useState(card.customization?.bio || "");
+  const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
+  const [phones, setPhones] = useState<CardPhone[]>(
+    card.customization?.phones?.length
+      ? card.customization.phones
+      : card.phone
+      ? [{ number: card.phone, label: "mobile", showOnCard: true }]
+      : [{ number: "", label: "mobile", showOnCard: true }]
+  );
+  const [fax, setFax] = useState(card.customization?.fax || "");
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS;
   const [addingLink, setAddingLink] = useState(false);
   const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
-  const [testimonials, setTestimonials] = useState<CardTestimonial[]>(card.customization?.testimonials ?? []);
-  const [addingTestimonial, setAddingTestimonial] = useState(false);
-  const [newTestimonial, setNewTestimonial] = useState<CardTestimonial>({ name: "", text: "" });
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
+  const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT);
   const [tab, setTab] = useState<"info" | "design">("info");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -97,11 +118,26 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  // Phone management (multiple numbers, each labeled + toggleable on the card).
+  function updatePhone(i: number, patch: Partial<CardPhone>) {
+    setPhones((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function addPhone() {
+    setPhones((prev) => [...prev, { number: "", label: "office", showOnCard: true }]);
+  }
+  function removePhone(i: number) {
+    setPhones((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+  }
+  const cleanPhones: CardPhone[] = phones
+    .filter((p) => p.number.trim())
+    .map((p) => ({ number: p.number.trim(), label: p.label, showOnCard: p.showOnCard }));
+  const primaryPhone = (cleanPhones.find((p) => p.showOnCard) ?? cleanPhones[0])?.number ?? "";
+
   const previewData: CardData = {
     name:      form.name || card.username,
     title:     form.title,
     company:   form.company,
-    phone:     form.phone,
+    phone:     primaryPhone,
     email:     form.email,
     website:   form.website,
     linkedin:  form.linkedin,
@@ -109,15 +145,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
     twitter:   form.twitter,
     tiktok:    form.tiktok,
     initials:  (form.name || card.username)[0]?.toUpperCase() ?? "?",
-    photoUrl:  photoUrl ?? null,
+    photoUrl:  photoState ?? null,
     logoUrl:   cardLogoUrl ?? null,
     cardUrl:   `swiftcard.me/card/${card.username}`,
-    customization: {},
+    address: [
+      [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
+      address.city,
+      [address.state, address.zip].filter(Boolean).join(" "),
+    ].filter(Boolean).join("\n"),
+    customization: { customLayout, phones: cleanPhones, fax: fax.trim() },
   };
 
-  const ActiveTemplate = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
+  const ActiveTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
 
   function addLink() {
+    if (atLinkCap) return;
     if (!newLink.label.trim() || !newLink.url.trim()) return;
     const url = newLink.url.startsWith("http") ? newLink.url : `https://${newLink.url}`;
     setLinks((prev) => [...prev, { ...newLink, url }]);
@@ -131,21 +173,35 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
 
   async function handleSave() {
     setStatus("saving");
-    const { snapchat: _snap, youtube: _yt, ...coreForm } = form;
-    const res = await fetch(`/api/cards/${card.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...coreForm,
-        template,
-        customization: { snapchat: form.snapchat, youtube: form.youtube, about, links, testimonials },
-        logo_url: cardLogoUrl,
-      }),
-    });
-    if (res.ok) {
-      setStatus("saved");
-      setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
-    } else {
+    const { snapchat: _snap, youtube: _yt, facebook: _fb, ...coreForm } = form;
+    // Normalize every social to a clean, linkable value so the saved links resolve.
+    const n = (k: string, v: string) => normalizeSocial(v, k);
+    try {
+      const res = await fetch(saveUrl, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...coreForm,
+          linkedin: n("linkedin", form.linkedin),
+          instagram: n("instagram", form.instagram),
+          twitter: n("twitter", form.twitter),
+          tiktok: n("tiktok", form.tiktok),
+          phone: primaryPhone,
+          ...(isPrimary ? {} : { label }),
+          template,
+          customization: { bio, facebook: n("facebook", form.facebook), snapchat: n("snapchat", form.snapchat), youtube: n("youtube", form.youtube), address, links, customLayout, phones: cleanPhones, fax: fax.trim() },
+          logo_url: cardLogoUrl,
+        }),
+      });
+      if (res.ok) {
+        setStatus("saved");
+        setTimeout(() => { setStatus("idle"); router.refresh(); }, 1800);
+      } else {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 2500);
+      }
+    } catch {
+      // Network failure — don't leave the button stuck on "Saving…".
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2500);
     }
@@ -155,7 +211,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
     <div className="space-y-6">
       {/* Live preview */}
       <div className="rounded-2xl overflow-hidden border border-gray-800">
-        <ActiveTemplate data={previewData} />
+        <ActiveTemplate data={template === "custom" ? previewData : withoutSocials(previewData)} />
       </div>
 
       {/* Tab bar */}
@@ -185,98 +241,148 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
               currentUrl={cardLogoUrl}
               label="Company logo"
               shape="square"
-              cardId={card.id}
-              onUploaded={(url) => setCardLogoUrl(url)}
+              cardId={logoCardId}
+              onUploaded={(url) => setCardLogoUrl(url || null)}
             />
             <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>
           </div>
-          {FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">{f.label}</label>
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
+            <ImageUpload
+              field="photo"
+              currentUrl={photoState}
+              label="Your headshot"
+              shape="circle"
+              onUploaded={(url) => setPhotoState(url || null)}
+            />
+            <p className="text-[11px] text-gray-600 mt-1">Shared across all your cards.</p>
+          </div>
+          {!isPrimary && (
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
               <input
                 type="text"
-                placeholder={f.placeholder}
-                required={f.required}
-                value={form[f.key as keyof typeof form]}
-                onChange={(e) => set(f.key, e.target.value)}
+                placeholder="e.g. Sales Card"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
               />
+              <p className="text-[11px] text-gray-600 mt-1">Shown on your dashboard to identify this card.</p>
             </div>
-          ))}
+          )}
+          {FIELDS.map((f) => {
+            if (f.key === "phone") {
+              return (
+                <div key="phone">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-400">Phone numbers</label>
+                    <button type="button" onClick={addPhone} className="text-xs font-semibold text-blue-400 hover:text-blue-300">+ Add number</button>
+                  </div>
+                  <div className="space-y-2">
+                    {phones.map((p, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <select
+                          value={p.label}
+                          onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
+                          className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
+                        >
+                          <option value="mobile">Mobile</option>
+                          <option value="office">Office</option>
+                        </select>
+                        <input
+                          type="tel"
+                          placeholder="+1 (555) 000-0000"
+                          value={p.number}
+                          onChange={(e) => updatePhone(i, { number: e.target.value })}
+                          className="flex-1 min-w-0 bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updatePhone(i, { showOnCard: !p.showOnCard })}
+                          title={p.showOnCard ? "Showing on card" : "Hidden from card"}
+                          className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-500"}`}
+                        >
+                          {p.showOnCard ? "On card ✓" : "Off card"}
+                        </button>
+                        {phones.length > 1 && (
+                          <button type="button" onClick={() => removePhone(i)} className="shrink-0 text-gray-600 hover:text-red-400 px-1 text-lg leading-none" aria-label="Remove number">×</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which appear on your card (you can show more than one).</p>
+                </div>
+              );
+            }
+            const isSocial = SOCIAL_KEYS.has(f.key);
+            const val = (form[f.key as keyof typeof form] ?? "") as string;
+            const linkHref = (isSocial || f.key === "website") ? socialUrl(f.key, val) : null;
+            return (
+              <div key={f.key}>
+                {f.key === "linkedin" && (
+                  <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
+                    Paste a profile URL or type an @handle — we link it automatically. Tap <span className="text-blue-400 font-medium">Open</span> to test that a link goes to the right place.
+                  </p>
+                )}
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-400">{f.label}</label>
+                  {linkHref && (
+                    <a href={linkHref} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" /></svg>
+                      Open
+                    </a>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder={f.placeholder}
+                  required={f.required}
+                  value={val}
+                  onChange={(e) => set(f.key, e.target.value)}
+                  onBlur={isSocial ? (e) => set(f.key, normalizeSocial(e.target.value, f.key)) : undefined}
+                  className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                />
+                {isSocial && SOCIAL_FORMATS[f.key] && (
+                  <p className="text-gray-600 text-[11px] mt-1">
+                    Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[f.key]}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <AddressInput value={address} onChange={setAddress} />
+
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">About (optional)</label>
-            <textarea
-              placeholder="A short bio, what you do, or your services. Shows on your public card."
-              value={about}
-              onChange={(e) => setAbout(e.target.value)}
-              rows={3}
-              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">
+              Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
+            </label>
+            <input
+              type="tel"
+              placeholder="+1 (555) 000-0000"
+              value={fax}
+              onChange={(e) => setFax(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
-          {/* Testimonials */}
+          {/* Swiftlinks bio */}
           <div className="pt-1">
-            <p className="text-xs font-medium text-gray-400 mb-2">Testimonials</p>
-            {testimonials.length > 0 && (
-              <div className="space-y-2 mb-2">
-                {testimonials.map((t, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-yellow-400 text-xs">★★★★★</p>
-                      <p className="text-gray-300 text-xs mt-0.5 line-clamp-2">&ldquo;{t.text}&rdquo;</p>
-                      <p className="text-gray-500 text-[10px] mt-1">— {t.name}</p>
-                    </div>
-                    <button type="button" onClick={() => setTestimonials((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {addingTestimonial ? (
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Reviewer name"
-                  value={newTestimonial.name}
-                  onChange={(e) => setNewTestimonial((n) => ({ ...n, name: e.target.value }))}
-                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                <textarea
-                  placeholder="What did they say about you?"
-                  value={newTestimonial.text}
-                  onChange={(e) => setNewTestimonial((n) => ({ ...n, text: e.target.value }))}
-                  rows={3}
-                  className="w-full bg-gray-900 border border-gray-600 text-white placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={!newTestimonial.name.trim() || !newTestimonial.text.trim()}
-                    onClick={() => {
-                      if (!newTestimonial.name.trim() || !newTestimonial.text.trim()) return;
-                      setTestimonials((prev) => [...prev, { ...newTestimonial }]);
-                      setNewTestimonial({ name: "", text: "" });
-                      setAddingTestimonial(false);
-                    }}
-                    className="flex-1 bg-blue-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg"
-                  >
-                    Add testimonial
-                  </button>
-                  <button type="button" onClick={() => { setAddingTestimonial(false); setNewTestimonial({ name: "", text: "" }); }} className="px-3 text-xs text-gray-500 hover:text-gray-300">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button type="button" onClick={() => setAddingTestimonial(true)}
-                className="w-full border border-dashed border-gray-700 text-gray-600 hover:border-blue-500 hover:text-blue-400 text-xs font-medium py-2.5 rounded-xl transition-colors">
-                + Add testimonial
-              </button>
-            )}
+            <label className="block text-xs font-medium text-gray-400 mb-1.5">Swiftlinks bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              placeholder="A little about yourself or what you do…"
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+            />
+            <p className="text-[11px] text-gray-600 mt-1">Shows at the top of your Swift Links.</p>
           </div>
 
-          {/* Action links */}
+          {/* Additional links */}
           <div className="pt-1">
-            <p className="text-xs font-medium text-gray-400 mb-2">Action links</p>
+            <p className="text-xs font-medium text-gray-400 mb-0.5">Additional links</p>
+            <p className="text-gray-600 text-[11px] mb-2">Add your links — a review page, recent video, listing, etc.</p>
             {links.length > 0 && (
               <div className="space-y-2 mb-2">
                 {links.map((link, i) => (
@@ -344,6 +450,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
                   </button>
                 </div>
               </div>
+            ) : atLinkCap ? (
+              <div className="border border-dashed border-blue-800/50 bg-blue-950/30 rounded-xl py-3 px-4 text-center">
+                <p className="text-blue-200 text-xs">Free includes {PLAN_LIMITS.FREE_SWIFTLINK_BUTTONS} Swift Links buttons.</p>
+                <a href="/pricing" className="inline-block mt-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro for unlimited →</a>
+              </div>
             ) : (
               <button type="button" onClick={() => setAddingLink(true)}
                 className="w-full border border-dashed border-gray-700 text-gray-600 hover:border-blue-500 hover:text-blue-400 text-xs font-medium py-2.5 rounded-xl transition-colors">
@@ -357,6 +468,46 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
       {/* Design tab */}
       {tab === "design" && (
         <div className="space-y-4">
+          {/* Custom design — Pro (first option) */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-300">
+                Custom design
+                <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => { if (isPro) setTemplate("custom"); }}
+                disabled={!isPro}
+                className="text-xs font-semibold px-2.5 py-0.5 rounded-full disabled:opacity-50"
+                style={{ background: template === "custom" ? "#1D4ED8" : "#1f2937", color: template === "custom" ? "#fff" : "#6b7280" }}
+              >
+                {template === "custom" ? "Selected" : "Select"}
+              </button>
+            </div>
+
+            {!isPro ? (
+              <div className="rounded-2xl border border-dashed border-gray-700 p-5 text-center">
+                <p className="text-gray-300 text-sm font-medium mb-1">Design your own card</p>
+                <p className="text-gray-600 text-xs mb-3">Place your logo, headshot, text and socials anywhere. Choose fonts and colors.</p>
+                <Link href="/pricing" className="inline-block text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</Link>
+              </div>
+            ) : template === "custom" ? (
+              <div
+                className="rounded-2xl"
+                style={{ outline: "3px solid #3b82f6", outlineOffset: 3, boxShadow: "0 0 0 5px rgba(59,130,246,0.12)" }}
+              >
+                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
+              </div>
+            ) : (
+              <button type="button" onClick={() => setTemplate("custom")} className="w-full text-left">
+                <div className="rounded-2xl overflow-hidden border border-gray-800">
+                  <CustomCard data={previewData} />
+                </div>
+              </button>
+            )}
+          </div>
+
           {TEMPLATES.map(({ id, name, Component }) => (
             <button
               key={id}
@@ -383,7 +534,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl }
                   boxShadow: template === id ? "0 0 0 5px rgba(59,130,246,0.12)" : undefined,
                 }}
               >
-                <Component data={previewData} />
+                <Component data={withoutSocials(previewData)} />
               </div>
             </button>
           ))}

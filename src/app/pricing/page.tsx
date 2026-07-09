@@ -7,37 +7,51 @@ import SwiftCardLogo from "@/components/SwiftCardLogo";
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
+const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
+
+// Display prices (USD). Must match the amounts on your Stripe Price objects.
+const PRO_MONTHLY = 4.99;              // $/month
+const PRO_ANNUAL = 54;                 // $/year — ~$4.50/mo, ~10% off $4.99
+const OFFICE_PER_USER = 3.99;          // $/user/month
+const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // ~$43.09/user/year, 10% off
+const OFFICE_MIN_SEATS = 2;
+const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 const features = {
   free: [
-    "Up to 3 digital business cards",
-    "25 leads",
-    "Day 1, 15, and 30 follow-up reminders",
-    "QR code and shareable link",
-    "Save to contacts (vCard)",
-    "Social links",
-    "5 card templates",
-    "SwiftCard branding on card",
+    "1 digital business card",
+    "Up to 25 contacts",
+    "All 5 card templates",
+    "QR code, shareable link & NFC",
+    "Swift Links page (up to 2 buttons)",
+    "Save to contacts (vCard), socials, bio, address",
+    "Contacts CRM: statuses, notes, read/unread",
+    "Basic analytics (views, today, best day)",
+    "Day-1 follow-up email",
+    "3 AI follow-up drafts to try",
+    "“Made with SwiftCard” badge",
   ],
   pro: [
-    "Everything in Free",
-    "Unlimited leads",
+    "Everything in Free, plus:",
     "Unlimited cards",
-    "Analytics dashboard",
-    "Lead status tags",
-    "Automated emails to leads",
+    "Unlimited contacts",
+    "Custom card designer",
     "No SwiftCard branding",
+    "Unlimited Swift Links buttons",
+    "Unlimited AI drafts + automated Day 1/15/30 sequences",
+    "Full analytics: traffic sources, locations & conversion",
     "CSV export",
+    "Integrations: Zapier, Google, HubSpot",
+    "AI business-card scanner",
   ],
   enterprise: [
-    "Everything in Pro",
-    "Unlimited team members",
-    "Shared office dashboard",
+    "Everything in Pro, for every seat",
+    "Shared office/team dashboard",
     "Individual card per member",
-    "Admin seat controls",
+    "Admin seat controls & invites",
+    "Unlimited seats (minimum 2)",
+    "Bulk CSV import of contacts",
     "Priority support",
-    "Custom onboarding",
-    "NFC cards (coming soon)",
   ],
 };
 
@@ -58,7 +72,7 @@ type PromoState = { code: string; status: "idle" | "checking" | "valid" | "inval
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
-  const [seats, setSeats] = useState(5);
+  const [seats, setSeats] = useState(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
 
@@ -98,7 +112,7 @@ export default function PricingPage() {
     setLoading(plan);
     try {
       const priceId = plan === "enterprise"
-        ? ENTERPRISE_PRICE_ID
+        ? (annual ? (ENTERPRISE_ANNUAL_PRICE_ID ?? ENTERPRISE_PRICE_ID) : ENTERPRISE_PRICE_ID)
         : annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
 
       const res = await fetch("/api/stripe/checkout", {
@@ -171,7 +185,7 @@ export default function PricingPage() {
           </button>
           <span className={`text-sm font-medium transition-colors ${annual ? "text-slate-900" : "text-slate-400"}`}>
             Annual
-            <span className="ml-1.5 text-[10px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">SAVE 20%</span>
+            <span className="ml-1.5 text-[10px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
           </span>
         </div>
       </section>
@@ -258,14 +272,14 @@ export default function PricingPage() {
           {annual ? (
             <div className="mb-1">
               <div className="flex items-end gap-1">
-                <span className="text-4xl font-bold text-white">$77</span>
+                <span className="text-4xl font-bold text-white">${PRO_ANNUAL}</span>
                 <span className="text-blue-200 text-sm mb-1.5">/ year</span>
               </div>
-              <p className="text-green-300 text-xs font-semibold mt-1">~$6.42/mo · Save $19 vs monthly</p>
+              <p className="text-green-300 text-xs font-semibold mt-1">~$4.50/mo · Save 10%</p>
             </div>
           ) : (
             <div className="flex items-end gap-1 mb-1">
-              <span className="text-4xl font-bold text-white">$8</span>
+              <span className="text-4xl font-bold text-white">${PRO_MONTHLY}</span>
               <span className="text-blue-200 text-sm mb-1.5">/ month</span>
             </div>
           )}
@@ -289,7 +303,7 @@ export default function PricingPage() {
               ? "Loading…"
               : promo.status === "valid"
               ? `Upgrade to Pro · ${promo.discountLabel} →`
-              : `Upgrade to Pro${annual ? " · $77/yr" : " · $8/mo"} →`}
+              : `Upgrade to Pro${annual ? ` · $${PRO_ANNUAL}/yr` : ` · $${PRO_MONTHLY}/mo`} →`}
           </button>
         </div>
 
@@ -305,10 +319,15 @@ export default function PricingPage() {
           </div>
           <div className="mb-1">
             <div className="flex items-end gap-1">
-              <span className="text-4xl font-bold text-slate-900">${(seats * 5).toLocaleString()}</span>
-              <span className="text-slate-400 text-sm mb-1.5">/ month</span>
+              <span className="text-4xl font-bold text-slate-900">${annual ? "3.59" : OFFICE_PER_USER}</span>
+              <span className="text-slate-400 text-sm mb-1.5">/ month per user</span>
             </div>
-            <p className="text-purple-700 text-xs font-semibold mt-1">$5 × {seats} users</p>
+            <p className="text-purple-700 text-xs font-semibold mt-1">
+              Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}
+            </p>
+            <p className="text-slate-900 font-bold text-[13px] mt-0.5">
+              {seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}
+            </p>
           </div>
 
           {/* Seat selector */}
@@ -330,6 +349,18 @@ export default function PricingPage() {
                 </button>
               ))}
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-slate-500">Custom:</span>
+              <input
+                type="number"
+                min={OFFICE_MIN_SEATS}
+                value={seats}
+                onChange={(e) => setSeats(Math.max(OFFICE_MIN_SEATS, Math.floor(Number(e.target.value) || OFFICE_MIN_SEATS)))}
+                className="w-20 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                style={{ background: "#FAF7F2", border: "1px solid #D4C8B8", color: "#0f172a" }}
+              />
+              <span className="text-xs text-slate-500">users · no upper limit</span>
+            </div>
           </div>
 
           <ul className="space-y-3 mb-10 flex-1">
@@ -349,9 +380,13 @@ export default function PricingPage() {
               boxShadow: "0 4px 20px rgba(124,58,237,0.25)",
             }}
           >
-            {loading === "enterprise" ? "Loading…" : `Get Office Plan · $${seats * 5}/mo →`}
+            {loading === "enterprise"
+              ? "Loading…"
+              : `Get Office Plan · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
           </button>
-          <p className="text-center text-slate-400 text-xs mt-3">Billed monthly per seat. Cancel anytime.</p>
+          <p className="text-center text-slate-400 text-xs mt-3">
+            {annual ? "Billed annually per seat (10% off)." : "Billed monthly per seat."} Minimum {OFFICE_MIN_SEATS} users · cancel anytime.
+          </p>
         </div>
       </section>
 

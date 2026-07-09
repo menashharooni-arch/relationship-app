@@ -2,13 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function AddContactModal() {
+export default function AddContactModal({
+  cardOwner,
+  onAdded,
+}: {
+  /** Username of the card the contact should be attached to (the selected card). */
+  cardOwner?: string;
+  /** Called with the new lead so a client list can insert it instantly (contacts page). */
+  onAdded?: (lead: unknown) => void;
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", company: "", notes: "", where_met: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [atLimit, setAtLimit] = useState(false);
 
   function set(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -17,6 +27,7 @@ export default function AddContactModal() {
   function reset() {
     setForm({ name: "", email: "", phone: "", company: "", notes: "", where_met: "" });
     setError("");
+    setAtLimit(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,17 +35,27 @@ export default function AddContactModal() {
     if (!form.name.trim()) { setError("Name is required."); return; }
     setSaving(true);
     setError("");
+    setAtLimit(false);
     try {
       const res = await fetch("/api/leads/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, card_owner: cardOwner }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Something went wrong."); setSaving(false); return; }
+      if (!res.ok) {
+        // Contact cap reached → show an upgrade prompt instead of a raw error.
+        if (res.status === 402 || data.error === "limit") setAtLimit(true);
+        setError(data.message || data.error || "Something went wrong.");
+        setSaving(false);
+        return;
+      }
       setOpen(false);
       reset();
-      router.refresh();
+      // On the contacts page, insert into the client list instantly; on the
+      // dashboard (no callback), refresh the server data.
+      if (onAdded) onAdded(data.lead);
+      else router.refresh();
     } catch {
       setError("Network error. Please try again.");
     }
@@ -60,7 +81,7 @@ export default function AddContactModal() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setOpen(false); reset(); }} />
 
           {/* Modal */}
-          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <div>
@@ -78,7 +99,7 @@ export default function AddContactModal() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+            <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3 overflow-y-auto">
               <div>
                 <label className="text-xs text-gray-400 font-medium block mb-1">Full name *</label>
                 <input
@@ -144,7 +165,13 @@ export default function AddContactModal() {
                 />
               </div>
 
-              {error && <p className="text-red-400 text-xs">{error}</p>}
+              {error && !atLimit && <p className="text-red-400 text-xs">{error}</p>}
+              {atLimit && (
+                <div className="rounded-xl px-3 py-2.5 bg-blue-950/40 border border-blue-800/40">
+                  <p className="text-blue-200 text-xs">{error}</p>
+                  <Link href="/pricing" className="inline-block mt-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro · keep capturing every lead →</Link>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-1">
                 <button

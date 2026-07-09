@@ -11,6 +11,8 @@ type Props = {
   label: string;
   shape?: "circle" | "square";
   cardId?: string;
+  defer?: boolean;
+  large?: boolean;
   onUploaded: (url: string) => void;
 };
 
@@ -22,10 +24,19 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
     image.onerror = reject;
   });
 
+  // Preserve the crop's aspect ratio (so wide/rectangular logos aren't squished
+  // into a square), capping the longest edge at 800px.
+  const MAX = 800;
+  let w = pixelCrop.width;
+  let h = pixelCrop.height;
+  if (Math.max(w, h) > MAX) {
+    if (w >= h) { h = Math.round((h / w) * MAX); w = MAX; }
+    else { w = Math.round((w / h) * MAX); h = MAX; }
+  }
+
   const canvas = document.createElement("canvas");
-  const size = Math.min(pixelCrop.width, pixelCrop.height, 800);
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = w;
+  canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
   ctx.drawImage(
@@ -36,8 +47,8 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
     pixelCrop.height,
     0,
     0,
-    size,
-    size
+    w,
+    h
   );
 
   return new Promise((resolve, reject) => {
@@ -49,7 +60,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   });
 }
 
-export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, onUploaded }: Props) {
+export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, defer, large, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -60,6 +71,13 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  // Logos can be square or rectangular — let the user pick the frame that fits.
+  const [logoAspect, setLogoAspect] = useState(1);
+  const LOGO_ASPECTS = [
+    { label: "Square", value: 1 },
+    { label: "Wide", value: 16 / 9 },
+    { label: "Banner", value: 3 },
+  ];
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -86,6 +104,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
       form.append("file", file);
       form.append("field", field);
       if (cardId) form.append("card_id", cardId);
+      if (defer) form.append("defer", "true");
 
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const json = await res.json();
@@ -111,7 +130,28 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
     setUploadStatus("idle");
   }
 
+  async function handleRemove() {
+    // Persisted images (account photo/logo, or a saved card logo) are cleared server-side.
+    if (!defer) {
+      try {
+        await fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field, card_id: cardId }),
+        });
+      } catch {
+        /* ignore — still clear locally */
+      }
+    }
+    setPreview(null);
+    setUploadStatus("idle");
+    onUploaded("");
+  }
+
   const isCircle = shape === "circle";
+  const isLogo = field === "logo";
+  // Logos get a wider box so rectangular marks fit; photos stay square.
+  const boxSize = isLogo ? "w-36 h-24" : large ? "w-24 h-24" : "w-20 h-20";
 
   return (
     <>
@@ -147,8 +187,9 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
               image={rawSrc}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={field === "logo" ? logoAspect : 1}
               cropShape={isCircle ? "round" : "rect"}
+              objectFit="contain"
               showGrid={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
@@ -165,6 +206,25 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
 
           {/* Bottom controls */}
           <div className="px-8 shrink-0" style={{ paddingTop: 20, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}>
+            {/* Logo shape presets — square or rectangular */}
+            {field === "logo" && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {LOGO_ASPECTS.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => setLogoAspect(a.value)}
+                    className="text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors"
+                    style={{
+                      background: Math.abs(logoAspect - a.value) < 0.01 ? "#2563eb" : "rgba(255,255,255,0.1)",
+                      color: "#fff",
+                    }}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Zoom slider */}
             <div className="flex items-center gap-4 mb-3">
               <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -198,7 +258,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="w-20 h-20 overflow-hidden border-2 border-dashed flex items-center justify-center shrink-0 transition-all hover:border-blue-500"
+            className={`${boxSize} overflow-hidden border-2 border-dashed flex items-center justify-center shrink-0 transition-all hover:border-blue-500`}
             style={{
               borderRadius: isCircle ? "9999px" : "12px",
               borderColor: "#374151",
@@ -210,8 +270,8 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
               <img
                 src={preview}
                 alt={label}
-                className="w-full h-full object-cover"
-                style={{ borderRadius: isCircle ? "9999px" : "10px" }}
+                className="w-full h-full"
+                style={{ objectFit: isLogo ? "contain" : "cover", padding: isLogo ? 6 : 0, borderRadius: isCircle ? "9999px" : "10px" }}
               />
             ) : (
               <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -222,14 +282,25 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
           </button>
 
           <div>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploadStatus === "uploading"}
-              className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 block mb-1"
-            >
-              {uploadStatus === "uploading" ? "Uploading…" : preview ? "Change photo" : "Upload photo"}
-            </button>
+            <div className="flex items-center gap-3 mb-1">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploadStatus === "uploading"}
+                className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+              >
+                {uploadStatus === "uploading" ? "Uploading…" : preview ? "Change" : "Upload"}
+              </button>
+              {preview && uploadStatus !== "uploading" && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
             <p className="text-[11px] text-gray-600">JPG, PNG · max 5 MB</p>
             <p className="text-[11px] text-gray-500 mt-0.5">Tap to select · then drag &amp; zoom to fit</p>
             {uploadStatus === "error" && (

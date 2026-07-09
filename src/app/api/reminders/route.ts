@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import Anthropic from "@anthropic-ai/sdk";
+import { isPaidPlan } from "@/lib/plan";
+import { deliverToLead } from "@/lib/messaging";
+import { expireFreeMonths } from "@/lib/referral-server";
+import { aiComplete } from "@/lib/ai";
 
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
@@ -88,6 +91,15 @@ export async function GET(req: NextRequest) {
   const currentUTCHour = new Date().getUTCHours();
   let totalSent = 0;
 
+  // Expire finished free-month grants (referral / promo) → back to Free, unless
+  // the user converted to a paid subscription in the meantime.
+  let downgraded = 0;
+  try {
+    downgraded = await expireFreeMonths();
+  } catch (e) {
+    console.error("[reminders] expireFreeMonths failed:", e);
+  }
+
   for (const step of SEQUENCE) {
     const now = Date.now();
     const windowStart = new Date(now - (step.day + 1) * 86400000).toISOString();
@@ -95,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     const { data: candidates } = await supabase
       .from("leads")
-      .select("id, name, email, phone, message, notes, card_owner, tags")
+      .select("id, name, email, phone, message, notes, card_owner, tags, follow_up_sequence")
       .gte("created_at", windowStart)
       .lt("created_at", windowEnd);
 
@@ -109,7 +121,14 @@ export async function GET(req: NextRequest) {
       .eq("day_trigger", step.day);
 
     const sentSet = new Set(alreadySent?.map((r) => r.lead_id) ?? []);
-    const pending = candidates.filter((l) => !sentSet.has(l.id) && !(l.tags ?? []).includes("flow-paused"));
+    // Skip the default Day-1/15/30 flow for leads that have a custom follow-up
+    // sequence — that sequence takes over, so we never double-send.
+    const pending = candidates.filter((l) => {
+      if (sentSet.has(l.id) || (l.tags ?? []).includes("flow-paused")) return false;
+      const seq = (l as { follow_up_sequence?: unknown[] }).follow_up_sequence;
+      if (Array.isArray(seq) && seq.length > 0) return false;
+      return true;
+    });
     if (!pending.length) continue;
 
     // Group by card_owner
@@ -122,11 +141,15 @@ export async function GET(req: NextRequest) {
     for (const [username, leads] of Object.entries(byOwner)) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, email, phone, company, title, flow_settings")
+        .select("name, email, phone, company, title, flow_settings, plan, customization")
         .eq("username", username)
         .single();
 
       if (!profile?.email) continue;
+      const ownerAbout = ((profile.customization as { about?: string } | null)?.about ?? "").trim();
+
+      // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
+      if (step.key !== "day1" && !isPaidPlan(profile.plan)) continue;
 
       // Respect the user's flow settings
       const flow: FlowSettings = (profile.flow_settings as FlowSettings) ?? DEFAULT_FLOW;
@@ -182,47 +205,34 @@ export async function GET(req: NextRequest) {
 
       // Send personalized AI follow-up to each lead that has an email
       {
-        const anthropic = process.env.ANTHROPIC_API_KEY
-          ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-          : null;
-
         for (const lead of leads) {
-          if (!lead.email) continue;
           const leadFirst = lead.name.split(" ")[0];
 
-          let aiBody = "";
-          if (anthropic) {
-            try {
-              const resp = await anthropic.messages.create({
-                model: "claude-haiku-4-5-20251001",
-                max_tokens: 200,
-                messages: [{
-                  role: "user",
-                  content: step.leadPrompt(
-                    profile.name ?? ownerFirst,
-                    profile.title ?? "",
-                    profile.company ?? "",
-                    leadFirst,
-                    lead.message ?? ""
-                  ),
-                }],
-              });
-              aiBody = resp.content[0].type === "text" ? resp.content[0].text.trim() : "";
-            } catch {
-              aiBody = "";
-            }
-          }
+          const aiPrompt = `${step.leadPrompt(
+            profile.name ?? ownerFirst,
+            profile.title ?? "",
+            profile.company ?? "",
+            leadFirst,
+            lead.message ?? ""
+          )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`;
+          const aiBody = (await aiComplete(aiPrompt, { maxTokens: 200 })) ?? "";
 
           const emailBody = aiBody || step.leadFallback(ownerFirst);
           const customNote = flow.customNote?.trim();
           const fullBody = customNote ? `${emailBody}\n\n${customNote}` : emailBody;
 
-          await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-            replyTo: profile.email,
-            to: lead.email,
-            subject: step.leadSubject(ownerFirst),
-            html: `
+          // Deliver via email (free) or SMS fallback (one shared number),
+          // respecting opt-out and logging into the contact's conversation thread.
+          await deliverToLead({
+            leadId: lead.id,
+            cardOwner: username,
+            lead: { email: lead.email, phone: lead.phone, name: lead.name },
+            sender: { name: profile.name, company: profile.company, phone: profile.phone, email: profile.email, website: null },
+            text: fullBody,
+            cardUsername: username,
+            email: {
+              subject: step.leadSubject(ownerFirst),
+              html: `
               <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
                 <div style="max-width:480px;margin:0 auto;">
                   <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${leadFirst},<br/><br/>${fullBody.replace(/\n/g, "<br/>")}</p>
@@ -238,7 +248,8 @@ export async function GET(req: NextRequest) {
                   </div>
                 </div>
               </div>`,
-          }).catch(() => {});
+            },
+          });
         }
       }
 
@@ -257,12 +268,12 @@ export async function GET(req: NextRequest) {
 
   const { data: seqLeads } = await supabase
     .from("leads")
-    .select("id, name, email, card_owner, created_at, follow_up_sequence, tags, status")
+    .select("id, name, email, phone, card_owner, created_at, follow_up_sequence, tags, status")
     .neq("status", "dissolved")
     .not("follow_up_sequence", "is", null);
 
   for (const seqLead of seqLeads ?? []) {
-    const seq = seqLead.follow_up_sequence as { day: number; message: string; sent_at: string | null }[] | null;
+    const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
@@ -272,11 +283,15 @@ export async function GET(req: NextRequest) {
       if (item.sent_at) continue;
       const dueMs = createdAt + item.day * 86400000;
       if (dueMs < todayStart.getTime() || dueMs >= todayEnd.getTime()) continue;
-      if (!seqLead.email) continue;
+      // Honor the step's scheduled time-of-day (cron runs hourly; send at/after the hour).
+      if (item.time) {
+        const stepHour = parseInt(item.time.split(":")[0], 10);
+        if (!Number.isNaN(stepHour) && currentUTCHour < stepHour) continue;
+      }
 
       const { data: ownerProfile } = await supabase
         .from("profiles")
-        .select("name, email, title, company")
+        .select("name, email, phone, title, company")
         .eq("username", seqLead.card_owner)
         .single();
 
@@ -285,24 +300,39 @@ export async function GET(req: NextRequest) {
       const ownerFirst = (ownerProfile.name as string)?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
-      try {
-        await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-          replyTo: ownerProfile.email ?? undefined,
-          to: seqLead.email as string,
-          subject: `${ownerFirst} following up`,
-          html: `<div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;"><p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hi ${leadFirst},<br/><br/>${(item.message as string).replace(/\n/g, "<br/>")}</p><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;"><p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${ownerProfile.name}</p>${ownerProfile.title ? `<p style="margin:0;color:#6b7280;font-size:12px;">${ownerProfile.title}</p>` : ""}${ownerProfile.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${ownerProfile.company}</p>` : ""}${ownerProfile.email ? `<a href="mailto:${ownerProfile.email}" style="color:#2563eb;font-size:13px;">${ownerProfile.email}</a>` : ""}</div><p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard · <a href="{{unsubscribe_url}}" style="color:#d1d5db;">Unsubscribe</a></p></div></div>`,
-        });
+      // Resolve the channel for this item. Email items get a greeting + the
+      // shared personal-email format (subject + spacing + name/company over the
+      // SwiftCard link signature); text items go out as a short SMS with the
+      // same default signature.
+      const itemChannel = item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : undefined;
+      const asEmail = itemChannel === "email" || (itemChannel === undefined && !!seqLead.email);
 
+      const r = await deliverToLead({
+        leadId: seqLead.id,
+        cardOwner: seqLead.card_owner,
+        lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
+        sender: { name: ownerProfile.name, company: ownerProfile.company, phone: ownerProfile.phone, email: ownerProfile.email, website: null },
+        text: asEmail ? `Hi ${leadFirst},\n\n${item.message}` : item.message,
+        subject: item.subject?.trim() || `${ownerFirst} following up`,
+        cardUsername: seqLead.card_owner,
+        channel: itemChannel,
+      });
+
+      // Mark THIS step (matched by day AND channel) done unless it failed
+      // transiently — so the email and text flows for the same day don't cancel
+      // each other.
+      if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
         const updatedSeq = seq.map((s) =>
-          s.day === item.day ? { ...s, sent_at: new Date().toISOString() } : s
+          s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email")
+            ? { ...s, sent_at: new Date().toISOString() }
+            : s
         );
         await supabase.from("leads").update({ follow_up_sequence: updatedSeq }).eq("id", seqLead.id);
-        totalSent++;
-      } catch { /* fail silently */ }
+        if (r.status === "sent") totalSent++;
+      }
     }
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===
 
-  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour });
+  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded });
 }

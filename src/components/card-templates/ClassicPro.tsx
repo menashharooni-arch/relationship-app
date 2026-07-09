@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { formatPhone, cardPhones, cardFax, webHref, IcoPhone, IcoMail, IcoGlobe, IcoPin, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -54,24 +54,24 @@ export default function ClassicPro({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-lg object-contain shrink-0"
-              style={{ width: 28, height: 28, background: "rgba(255,255,255,0.1)" }}
+              style={{ width: 40, height: 40, background: "rgba(255,255,255,0.1)" }}
             />
           ) : (
             <div
               className="rounded-lg flex items-center justify-center shrink-0 font-black"
               style={{
-                width: 28, height: 28,
+                width: 40, height: 40,
                 background: BLUE,
                 color: "#bfdbfe",
-                fontSize: 12,
+                fontSize: 18,
               }}
             >
               {(data.company || data.name || "K")[0].toUpperCase()}
             </div>
           )}
           <span
-            className="text-white/60 font-semibold truncate leading-tight"
-            style={{ fontSize: 9.5, letterSpacing: "0.05em" }}
+            className="text-white/80 font-bold truncate leading-tight"
+            style={{ fontSize: 13.5, letterSpacing: "0.03em" }}
           >
             {data.company}
           </span>
@@ -82,13 +82,13 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: "clamp(15px, 3.5vw, 22px)", lineHeight: 1.15 }}
+            style={{ fontSize: "clamp(17px, 3.8vw, 24px)", lineHeight: 1.12 }}
           >
             {data.name}
           </h2>
           <p
             className="text-blue-300 font-semibold mt-1.5"
-            style={{ fontSize: 8.5, letterSpacing: "0.18em", textTransform: "uppercase" }}
+            style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase" }}
           >
             {data.title}
           </p>
@@ -110,23 +110,41 @@ export default function ClassicPro({ data }: { data: CardData }) {
         style={{ padding: "16px 18px 14px", borderLeft: "1px solid #e8eef8" }}
       >
         {/* Contact rows */}
-        <div className="flex flex-col gap-[7px] mt-0.5">
-          {data.phone && (
-            <div className="flex items-center gap-2" style={{ color: NAVY }}>
+        <div className="flex flex-col gap-[5px] mt-0.5">
+          {cardPhones(data).map((p, i) => (
+            <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: NAVY, textDecoration: "none" }}>
               <IcoPhone />
-              <span className="font-semibold" style={{ fontSize: 11 }}>{formatPhone(data.phone)}</span>
-            </div>
-          )}
+              <span className="font-bold" style={{ fontSize: 14.5 }}>
+                {formatPhone(p.number)}
+                {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+              </span>
+            </a>
+          ))}
           {data.email && (
-            <div className="flex items-center gap-2 min-w-0" style={{ color: "#334155" }}>
+            <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: "#334155", textDecoration: "none" }}>
               <IcoMail />
-              <span className="truncate" style={{ fontSize: 10.5 }}>{data.email}</span>
-            </div>
+              <span className="truncate font-semibold" style={{ fontSize: 13.5 }}>{data.email}</span>
+            </a>
           )}
           {data.website && (
-            <div className="flex items-center gap-2" style={{ color: "#334155" }}>
+            <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: "#475569", textDecoration: "none" }}>
               <IcoGlobe />
-              <span style={{ fontSize: 10.5 }}>{data.website}</span>
+              <span className="truncate" style={{ fontSize: 10 }}>{data.website}</span>
+            </a>
+          )}
+          {data.address && (
+            <div className="flex items-start gap-2" style={{ color: "#64748b" }}>
+              <span style={{ marginTop: 1 }}><IcoPin /></span>
+              <span style={{ fontSize: 9, lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</span>
+            </div>
+          )}
+          {cardFax(data) && (
+            <div className="flex items-center gap-2" style={{ color: "#64748b" }}>
+              <IcoPhone />
+              <span style={{ fontSize: 10 }}>
+                {formatPhone(cardFax(data))}
+                <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+              </span>
             </div>
           )}
         </div>
@@ -146,10 +164,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         {/* QR + scan label */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <p style={{ fontSize: 6.5, color: "#94a3b8", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-              Scan to save contact
-            </p>
-            <QR size={92} bg="#f0f5ff" fg={NAVY} />
+            <QR size={66} bg="#f0f5ff" fg={NAVY} />
           </div>
         </div>
       </div>

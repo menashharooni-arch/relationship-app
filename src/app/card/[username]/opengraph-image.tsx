@@ -1,8 +1,10 @@
 import { ImageResponse } from "next/og";
-import { getAdminSupabase } from "@/lib/supabase-admin";
+import { resolveCardMeta } from "@/lib/resolve-card";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+// Always reflect the live card (so edits show up in the signature immediately).
+export const dynamic = "force-dynamic";
 
 export default async function Image({
   params,
@@ -10,150 +12,56 @@ export default async function Image({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const admin = getAdminSupabase();
+  const p = await resolveCardMeta(username);
 
-  const { data: profileData } = await admin
-    .from("profiles")
-    .select("name, title, company, photo_url")
-    .eq("username", username)
-    .single();
-
-  const { data: cardData } = !profileData
-    ? await admin
-        .from("cards")
-        .select("name, title, company, photo_url")
-        .eq("username", username)
-        .single()
-    : { data: null };
-
-  const p = profileData ?? cardData;
-  const name = p?.name ?? username;
+  const name = p?.name ?? "SwiftCard";
   const title = p?.title ?? "";
   const company = p?.company ?? "";
-  const photoUrl = p?.photo_url ?? null;
-  const initials = name
-    .split(" ")
-    .map((n: string) => n[0] ?? "")
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const photoUrl = p?.photoUrl ?? null;
+  const phone = p?.phone ?? "";
+  const email = p?.email ?? "";
+  const website = (p?.website ?? "").replace(/^https?:\/\//, "");
+  const address = p?.address ?? "";
+  const accent = p?.accentColor || "#2563eb";
+
+  const initials = name.split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+
+  const line = (val: string, fs: number, color: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{ width: 14, height: 14, borderRadius: 14, background: accent, flexShrink: 0 }} />
+      <div style={{ fontSize: fs, color }}>{val}</div>
+    </div>
+  );
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          background: "#0f172a",
-          padding: "72px 80px",
-          justifyContent: "space-between",
-        }}
-      >
-        {/* Main content row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 56, flex: 1 }}>
-          {/* Avatar */}
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#ffffff" }}>
+        <div style={{ height: 18, background: accent, display: "flex" }} />
+        <div style={{ display: "flex", flex: 1, padding: "52px 60px", alignItems: "center", gap: 52 }}>
+          {/* Photo / initials */}
           <div style={{ display: "flex", flexShrink: 0 }}>
             {photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={photoUrl}
-                width={190}
-                height={190}
-                style={{
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "4px solid #3b82f6",
-                }}
-              />
+              <img src={photoUrl} width={250} height={250} style={{ borderRadius: "50%", objectFit: "cover", border: `8px solid ${accent}` }} />
             ) : (
-              <div
-                style={{
-                  width: 190,
-                  height: 190,
-                  borderRadius: "50%",
-                  background: "#1D4ED8",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 68,
-                  fontWeight: 800,
-                  color: "#fff",
-                  border: "4px solid #3b82f6",
-                }}
-              >
+              <div style={{ width: 250, height: 250, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 104, fontWeight: 800, color: "#fff" }}>
                 {initials}
               </div>
             )}
           </div>
 
-          {/* Text */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div
-              style={{
-                fontSize: 68,
-                fontWeight: 800,
-                color: "#ffffff",
-                lineHeight: 1.05,
-              }}
-            >
-              {name}
-            </div>
-            {title && (
-              <div style={{ fontSize: 34, color: "#94a3b8", fontWeight: 500 }}>
-                {title}
-              </div>
-            )}
-            {company && (
-              <div style={{ fontSize: 28, color: "#64748b" }}>{company}</div>
-            )}
-          </div>
-        </div>
+          {/* Details — fills the majority of the card with large text */}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 82, fontWeight: 800, color: "#0f172a", lineHeight: 1.0 }}>{name}</div>
+            {title ? <div style={{ fontSize: 42, color: "#475569", marginTop: 12 }}>{title}</div> : null}
+            {company ? <div style={{ fontSize: 40, fontWeight: 700, color: accent, marginTop: 2 }}>{company}</div> : null}
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                background: "#1D4ED8",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#fff",
-              }}
-            >
-              S
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 30 }}>
+              {phone ? line(phone, 38, "#1e293b") : null}
+              {email ? line(email, 36, "#334155") : null}
+              {website ? line(website, 36, "#334155") : null}
+              {address ? line(address, 28, "#64748b") : null}
             </div>
-            <span style={{ fontSize: 22, fontWeight: 700, color: "#475569" }}>
-              SwiftCard
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "#1D4ED820",
-              border: "1px solid #1D4ED840",
-              borderRadius: 999,
-              padding: "10px 22px",
-              color: "#60a5fa",
-              fontSize: 20,
-            }}
-          >
-            Tap to connect →
           </div>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import Reveal from "@/components/Reveal";
 import LiveDemo from "@/components/LiveDemo";
-import ClassicPro from "@/components/card-templates/ClassicPro";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import HeroPhone from "@/components/HeroPhone";
+import PreviewClient from "@/app/preview/PreviewClient";
 
 const STEPS = [
   {
@@ -39,8 +40,8 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: "No app required",
-    body: "Your card opens in any browser on any device. One tap saves your contact directly to their phone.",
+    title: "Our app is best to use, but not required",
+    body: "SwiftCard works right in any browser — nothing to download for you or the people you share with. Our app just makes building cards and managing your leads and follow-ups even smoother on the go.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3" />
@@ -48,26 +49,44 @@ const FEATURES = [
     ),
   },
   {
-    title: "Automated follow-ups",
-    body: "Your leads receive a personal email from you the next day. Reminders go out at day 1, 15, and 30 — all on autopilot.",
+    title: "One-click email signature",
+    body: "Add your live business card to your email signature in one click — the card image plus tap-to-call, email, and website links. It always reflects your latest card, so every email you send shares it.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
       </svg>
     ),
   },
   {
-    title: "Card view analytics",
-    body: "See exactly who viewed your card and when. Know who's engaged before you pick up the phone.",
+    title: "Tap to call, email & visit",
+    body: "On your card, your phone, email, and website are live — one tap starts a call, opens an email, or visits your site. Sharing your socials on mobile opens the app, not just the browser.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
       </svg>
     ),
   },
   {
-    title: "Lead pipeline",
-    body: "Tag every lead as Hot, Warm, Cold, or Won. Add notes, track conversations, and never lose a deal.",
+    title: "Swift Links page",
+    body: "Every card gets a modern link-in-bio page — your photo, bio, social icons, rich link & video previews, and custom buttons — at your own swiftcard.me/links address.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+      </svg>
+    ),
+  },
+  {
+    title: "Custom card design",
+    body: "Five professional templates, or build a fully branded card with the drag-and-drop designer — your logo, fonts, colors, and layout.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Built-in CRM & pipeline",
+    body: "Every share becomes a contact — with their message, location, and source. Track conversations, notes, statuses, and read/unread so you never lose a deal.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
@@ -75,11 +94,38 @@ const FEATURES = [
     ),
   },
   {
-    title: "5 professional templates",
-    body: "Choose from Classic, Modern, Photo, Local Business, or Luxury Minimal. Switch anytime.",
+    title: "AI & automated follow-ups",
+    body: "AI drafts personal follow-up messages and full sequences in your tone, then text or email in one click — and new leads get an automatic first touch.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Views & traffic analytics",
+    body: "Card views vs. Swift Link views, weekly trends, conversion rate, top locations, and which sources drive the most saves.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Unlimited cards",
+    body: "Run a separate card for every role, event, or campaign — each with its own link, design, and contact list, all from one dashboard.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Connects to your CRM",
+    body: "Push every new lead straight into Zapier, Google Contacts, or HubSpot — no copy-paste, nothing stranded in one app.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
       </svg>
     ),
   },
@@ -146,7 +192,15 @@ const FAQS = [
   },
   {
     q: "What happens when someone shares their info with me?",
-    a: "Their name, email, and phone appear in your dashboard immediately. An automated email goes out to them the next day, keeping the relationship warm without you lifting a finger.",
+    a: "They land in your built-in CRM instantly — name, email, phone, the message they wrote, even their location and which link they came from. You can mark contacts read/unread, add notes, track the conversation, and let AI draft your follow-up.",
+  },
+  {
+    q: "What is a Swift Links page?",
+    a: "Every card comes with its own Swift Links page — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Share it anywhere you'd drop a link, like your Instagram or TikTok bio.",
+  },
+  {
+    q: "Can I put my card in my email signature?",
+    a: "Yes — copy your live business card straight into your email signature in one click. It includes your card image with tap-to-call, email, and website links, and it always reflects your latest card, so every email you send shares it.",
   },
   {
     q: "Can I use SwiftCard with NFC cards?",
@@ -154,7 +208,7 @@ const FAQS = [
   },
   {
     q: "What's the difference between Free and Pro?",
-    a: "Free gives you up to 3 cards and 25 leads — plenty to get started. Pro removes the lead limit, gives you unlimited cards, unlocks analytics, and removes the SwiftCard branding from your card.",
+    a: "Free gives you 1 card and up to 25 leads — plenty to get started. Pro removes the lead limit, gives you unlimited cards, the custom card designer, full analytics, integrations, and removes the SwiftCard branding from your card.",
   },
   {
     q: "Can I cancel anytime?",
@@ -185,6 +239,9 @@ export default function HomePage() {
         <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
           <SwiftCardLogo size={30} />
           <div className="flex items-center gap-8">
+            <Link href="#demo" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
+              See it live
+            </Link>
             <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
               Pricing
             </Link>
@@ -207,16 +264,16 @@ export default function HomePage() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto w-full px-6 pt-20 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
-          <div className="inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
+          <div className="sc-rise inline-flex items-center gap-2 border border-warm-border rounded-full px-4 py-1.5 text-xs text-slate-500 mb-10 bg-cream-dark">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
             Free to start — no credit card required
           </div>
 
-          <h1 className="text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
+          <h1 className="sc-rise sc-rise-2 text-[3.25rem] font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
             The digital business card that captures every lead.
           </h1>
 
-          <p className="text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
+          <p className="sc-rise sc-rise-3 text-slate-500 text-lg leading-relaxed mb-8 max-w-md">
             Share your card by link, QR code, or NFC tap. Leads save your contact in one touch. Automated follow-ups do the rest.
           </p>
 
@@ -238,7 +295,7 @@ export default function HomePage() {
             <span className="text-xs text-slate-500">Used in 40+ countries</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="sc-rise sc-rise-4 flex flex-col sm:flex-row gap-3">
             <Link
               href="/login?mode=signup"
               className="bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-colors text-center"
@@ -257,100 +314,7 @@ export default function HomePage() {
         </div>
 
         {/* Phone mockup */}
-        <div className="relative hidden lg:flex items-center justify-center">
-          {/* Glow behind phone */}
-          <div
-            className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
-            style={{ background: "radial-gradient(circle, #1D4ED8 0%, transparent 70%)" }}
-          />
-
-          <div className="relative" style={{ width: "270px" }}>
-            {/* Phone shell */}
-            <div
-              className="relative rounded-[3rem] shadow-2xl"
-              style={{
-                background: "#0f172a",
-                padding: "12px",
-                border: "2px solid #1e293b",
-              }}
-            >
-              {/* Dynamic island */}
-              <div
-                className="absolute top-[14px] left-1/2 -translate-x-1/2 rounded-full z-20"
-                style={{ width: "80px", height: "22px", background: "#0f172a" }}
-              />
-              {/* Side buttons */}
-              <div className="absolute -right-[3px] top-28 w-[3px] h-10 rounded-r-full" style={{ background: "#1e293b" }} />
-              <div className="absolute -left-[3px] top-20 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
-              <div className="absolute -left-[3px] top-32 w-[3px] h-7 rounded-l-full" style={{ background: "#1e293b" }} />
-
-              {/* Screen */}
-              <div
-                className="overflow-hidden"
-                style={{
-                  borderRadius: "2.5rem",
-                  height: "520px",
-                  background: "#FAF7F2",
-                }}
-              >
-                {/* Browser bar */}
-                <div
-                  className="flex items-center gap-2 px-3 py-2.5 border-b"
-                  style={{ background: "#F0EBE1", borderColor: "#E4DDD4" }}
-                >
-                  <div className="flex gap-1 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-red-400" />
-                    <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                    <div className="w-2 h-2 rounded-full bg-green-400" />
-                  </div>
-                  <div
-                    className="flex-1 rounded-md text-center"
-                    style={{ background: "#fff", padding: "3px 8px", fontSize: "9px", color: "#94a3b8" }}
-                  >
-                    swiftcard.me/alexmorgan
-                  </div>
-                </div>
-
-                {/* Card page content — actual ClassicPro template scaled to fit */}
-                <div style={{ padding: "12px 12px 0" }}>
-                  {/* Scaled card template */}
-                  <div style={{ height: "136px", overflow: "hidden", marginBottom: "10px", borderRadius: "12px" }}>
-                    <div style={{ width: "390px", transform: "scale(0.615)", transformOrigin: "top left" }}>
-                      <ClassicPro data={SAMPLE_DATA} />
-                    </div>
-                  </div>
-
-                  {/* Save contact button */}
-                  <div style={{
-                    background: "#1D4ED8", color: "#fff", borderRadius: "99px",
-                    padding: "9px 0", textAlign: "center", fontSize: "11px", fontWeight: 700,
-                    marginBottom: "8px",
-                  }}>
-                    💾 Save Alex&apos;s contact
-                  </div>
-
-                  {/* Share your info form */}
-                  <div style={{ background: "#EDE5D8", borderRadius: "12px", padding: "10px", border: "1px solid #D4C8B8" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "7px", margin: "0 0 7px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Share your info with Alex →
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "24px", background: "#fff", borderRadius: "7px", border: "1px solid #D4C8B8" }} />
-                      <div style={{ height: "24px", background: "#1D4ED8", borderRadius: "7px" }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Reflection/shadow */}
-            <div
-              className="absolute -bottom-6 left-1/2 -translate-x-1/2 rounded-full blur-xl opacity-30"
-              style={{ width: "200px", height: "30px", background: "#1D4ED8" }}
-            />
-          </div>
-        </div>
+        <HeroPhone />
       </section>
 
       {/* Trust logo marquee */}
@@ -391,6 +355,18 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* Interactive live demo — the real dashboard, embedded */}
+      <section id="demo" className="bg-gray-950 py-20 px-4 scroll-mt-16">
+        <div className="max-w-5xl mx-auto text-center mb-8">
+          <p className="text-xs font-semibold tracking-widest text-blue-400 uppercase mb-3">See it live</p>
+          <h2 className="text-3xl font-bold text-white">Click around a real dashboard</h2>
+          <p className="text-gray-400 mt-3 max-w-lg mx-auto text-sm">
+            Switch cards, open your live SwiftCard and Swift Links, preview the email signature, and try sharing — it all works right here, with sample data.
+          </p>
+        </div>
+        <PreviewClient embedded />
+      </section>
 
       {/* How it works */}
       <section className="border-t border-warm-border py-28 px-6 bg-cream-dark">
@@ -436,14 +412,16 @@ export default function HomePage() {
             <h2 className="text-3xl font-bold text-slate-900">Everything you need to network smarter</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow">
-                <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
-                  {f.icon}
+            {FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={(i % 3) * 80}>
+                <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 hover:shadow-md transition-shadow h-full">
+                  <div className="w-9 h-9 rounded-xl bg-[#E8ECF5] flex items-center justify-center text-brand mb-4">
+                    {f.icon}
+                  </div>
+                  <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
+                  <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
                 </div>
-                <p className="text-slate-900 font-semibold text-sm mb-2">{f.title}</p>
-                <p className="text-slate-500 text-sm leading-relaxed">{f.body}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -535,6 +513,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <SwiftCardLogo size={26} />
           <div className="flex items-center gap-8 text-sm text-slate-500">
+            <Link href="/preview" className="hover:text-slate-900 transition-colors">See it live</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>

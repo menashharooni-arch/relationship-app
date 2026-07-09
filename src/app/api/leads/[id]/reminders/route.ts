@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getOwnerUsernames } from "@/lib/owner-usernames";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -10,9 +11,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const admin = getAdminSupabase();
 
-  // Verify lead belongs to this user
-  const { data: profile } = await admin.from("profiles").select("username").eq("id", user.id).single();
-  if (!profile) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Verify the lead belongs to this user before returning its reminder history.
+  const [{ data: lead }, usernames] = await Promise.all([
+    admin.from("leads").select("card_owner").eq("id", id).single(),
+    getOwnerUsernames(user.id),
+  ]);
+  if (!lead || !usernames.includes(lead.card_owner)) {
+    return NextResponse.json({ reminders: [] });
+  }
 
   const { data: reminders } = await admin
     .from("lead_reminders")

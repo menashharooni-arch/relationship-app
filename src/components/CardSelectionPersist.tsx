@@ -1,30 +1,20 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 
 const KEY = "swiftcard_active_card";
 
+// Persists the currently-selected card so other pages (e.g. Contacts) can default to
+// it. It does NOT auto-select a card — after login you start with no card selected.
 export default function CardSelectionPersist({ selectedCard }: { selectedCard: string | null }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
   useEffect(() => {
     if (selectedCard) {
-      localStorage.setItem(KEY, selectedCard);
-    }
-  }, [selectedCard]);
-
-  useEffect(() => {
-    if (!searchParams.get("card")) {
-      const saved = localStorage.getItem(KEY);
-      if (saved) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("card", saved);
-        router.replace(`/dashboard?${params.toString()}`);
+      try {
+        localStorage.setItem(KEY, selectedCard);
+      } catch {
+        /* ignore */
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedCard]);
 
   return null;
 }

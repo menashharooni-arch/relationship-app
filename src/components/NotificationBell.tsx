@@ -23,8 +23,10 @@ function timeAgo(iso: string) {
 
 export default function NotificationBell({
   initialNotifications,
+  activeCard,
 }: {
   initialNotifications: Notification[];
+  activeCard?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -37,7 +39,7 @@ export default function NotificationBell({
     const poll = async () => {
       if (openRef.current) return;
       try {
-        const res = await fetch("/api/notifications");
+        const res = await fetch(`/api/notifications${activeCard ? `?card=${encodeURIComponent(activeCard)}` : ""}`);
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setNotifications((prev) => {
@@ -51,7 +53,8 @@ export default function NotificationBell({
 
     const id = setInterval(poll, 30000);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCard]);
 
   async function markAllRead() {
     await fetch("/api/notifications", { method: "PATCH" });
@@ -86,7 +89,7 @@ export default function NotificationBell({
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
 
           {/* Dropdown */}
-          <div className="absolute right-0 top-9 z-20 w-80 bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="absolute right-0 top-9 z-40 w-80 max-w-[calc(100vw-1.5rem)] bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
               <p className="text-sm font-bold text-white">Notifications</p>
               {notifications.some((n) => !n.read) && (

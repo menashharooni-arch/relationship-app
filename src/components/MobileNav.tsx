@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
 const TABS = [
   {
@@ -37,16 +40,28 @@ const TABS = [
 
 export default function MobileNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [card, setCard] = useState<string | null>(null);
+
+  // Carry the selected card across tabs so the view doesn't reset to the picker.
+  useEffect(() => {
+    const fromUrl = searchParams.get("card");
+    if (fromUrl) { setCard(fromUrl); return; }
+    try { setCard(localStorage.getItem(ACTIVE_CARD_KEY)); } catch { /* ignore */ }
+  }, [searchParams]);
+
+  const withCard = (href: string) =>
+    (href === "/dashboard" || href === "/contacts") && card ? `${href}?card=${card}` : href;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="flex items-center justify-around px-2 py-2">
         {TABS.map(({ href, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
             <Link
               key={href}
-              href={href}
+              href={withCard(href)}
               className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0"
               style={{ color: active ? "#3b82f6" : "#6b7280" }}
             >

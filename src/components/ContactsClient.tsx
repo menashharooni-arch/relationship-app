@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
+import AddContactModal from "@/components/AddContactModal";
+
+const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
 type Lead = {
   id: string;
@@ -21,6 +24,8 @@ type Lead = {
   card_owner: string | null;
   where_met: string | null;
   convo_details: string | null;
+  message: string | null;
+  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[] | null;
 };
 
 type CardEvent = {
@@ -37,6 +42,15 @@ const EVENT_LABELS: Record<string, { label: string; icon: string }> = {
   clicked_save_contact:  { label: "Clicked Save Contact",   icon: "👆" },
   downloaded_vcard:      { label: "Downloaded your contact", icon: "💾" },
   shared_info:           { label: "Shared their info",       icon: "✅" },
+};
+
+// Natural-language phrases for the read-only conversation/activity log,
+// prefixed with the contact's first name ("Aaron saved your contact").
+const ACTIVITY_PHRASES: Record<string, string> = {
+  viewed_card:           "viewed your card",
+  clicked_save_contact:  "tapped Save Contact",
+  downloaded_vcard:      "saved your contact",
+  shared_info:           "shared their info with you",
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -58,6 +72,36 @@ function formatShort(iso: string) {
     hour: "numeric", minute: "2-digit",
   });
 }
+
+// Follow-up sequence presets — auto-send cadences (days + times).
+const SEQ_PRESETS = {
+  light:      { label: "Light",      desc: "2 touches · tomorrow 10:06 AM, then day 30 at 1:22 PM" },
+  medium:     { label: "Medium",     desc: "3 touches · tomorrow 10:06 AM, 2 weeks 1:22 PM, 4 weeks 11:45 AM" },
+  aggressive: { label: "Aggressive", desc: "4 touches · tomorrow 10:06 AM, 2 weeks 1:22 PM, 4 weeks 11:45 AM, 8 weeks 11:22 AM" },
+} as const;
+
+function to12h(time: string): string {
+  const [h, m] = (time || "13:00").split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hr = h % 12 === 0 ? 12 : h % 12;
+  return `${hr}:${String(m || 0).padStart(2, "0")} ${ampm}`;
+}
+
+function stepLabel(day: number, time: string): string {
+  const when = day === 1 ? "Tomorrow" : day % 7 === 0 ? `${day / 7} week${day / 7 > 1 ? "s" : ""}` : `Day ${day}`;
+  return `${when} · ${to12h(time)}`;
+}
+
+// Actual calendar date/time a step will send: contact-created + N days, at the
+// step's time-of-day. Used in the post-submit "when they send" summary.
+function sendWhen(createdAt: string, day: number, time: string): string {
+  const d = new Date(new Date(createdAt).getTime() + day * 86400000);
+  const [h, m] = (time || "13:00").split(":").map(Number);
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+const PRESET_FROM_COUNT = (n: number): string => (n >= 4 ? "Aggressive" : n === 2 ? "Light" : "Medium");
 
 function formatDateOnly(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -99,35 +143,109 @@ export default function ContactsClient({
   leads: initialLeads,
   primaryUsername,
   userCards = [],
+  initialCardFilter = null,
 }: {
   leads: Lead[];
   primaryUsername?: string;
   userCards?: { username: string; name: string }[];
+  initialCardFilter?: string | null;
 }) {
   const [search, setSearch] = useState("");
-  const [cardFilter, setCardFilter] = useState<string>("all");
+  // Default to the card currently selected on the dashboard so only its contacts show.
+  // Priority: ?card= from the dashboard link → primary card (overridden by saved selection below).
+  const [cardFilter, setCardFilter] = useState<string>(initialCardFilter || primaryUsername || "all");
+
+  useEffect(() => {
+    if (initialCardFilter) return; // the URL param already set the card
+    try {
+      const saved = localStorage.getItem(ACTIVE_CARD_KEY);
+      if (saved && userCards.some((c) => c.username === saved)) {
+        setCardFilter(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selected, setSelected] = useState<Lead | null>(null);
   const [events, setEvents] = useState<CardEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [smsOpen, setSmsOpen] = useState(false);
-  const [smsText, setSmsText] = useState("");
-  const [smsSending, setSmsSending] = useState(false);
-  const [smsSent, setSmsSent] = useState<"idle" | "sent" | "error" | "no_twilio">("idle");
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
   const [editingWhereMet, setEditingWhereMet] = useState(false);
   const [whereMetText, setWhereMetText] = useState("");
-  const [editingConvo, setEditingConvo] = useState(false);
-  const [convoText, setConvoText] = useState("");
   const [fieldSaving, setFieldSaving] = useState<string | null>(null);
-  const [aiMessages, setAiMessages] = useState<string[] | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiCopied, setAiCopied] = useState<number | null>(null);
-  const [aiTone, setAiTone] = useState<"friendly" | "professional" | "direct">("friendly");
+  const [aiUpgrade, setAiUpgrade] = useState<string | null>(null);
+  // Per-channel follow-up automations. Email and text are INDEPENDENT — each has
+  // its own toggle, preset, format and on/off, and both can be active at once —
+  // but you set them up one at a time. The active flow for each channel lives in
+  // the lead's follow_up_sequence; `draft*` is the channel currently being set up.
+  const [draftCh, setDraftCh] = useState<"email" | "sms" | null>(null);
+  const [draftPreset, setDraftPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
+  const [draftItems, setDraftItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string }[] | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
+  const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
+
+  async function saveContact() {
+    if (!selected) return;
+    setFieldSaving("contact");
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contactDraft),
+    });
+    const patch = { ...contactDraft };
+    setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
+    setFieldSaving(null);
+    setEditingContact(false);
+  }
+
+  // Download this contact as a vCard so the user can save it to their phone.
+  function saveContactToPhone() {
+    if (!selected) return;
+    const esc = (v: string) => v.replace(/([\\,;])/g, "\\$1").replace(/\n/g, "\\n");
+    const name = (selected.name || "Contact").trim();
+    const parts = name.split(" ");
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `FN:${esc(name)}`,
+      `N:${esc(parts.slice(1).join(" "))};${esc(parts[0] || "")};;;`,
+    ];
+    if (selected.company) lines.push(`ORG:${esc(selected.company)}`);
+    if (selected.email) lines.push(`EMAIL;TYPE=INTERNET:${selected.email.trim()}`);
+    if (selected.phone) lines.push(`TEL;TYPE=CELL:${selected.phone.trim()}`);
+    const note = [selected.where_met ? `Met at: ${selected.where_met}` : "", selected.notes ?? ""].filter(Boolean).join(" — ");
+    if (note) lines.push(`NOTE:${esc(note)}`);
+    lines.push("END:VCARD");
+
+    const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/[^a-z0-9]+/gi, "_")}.vcf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  const automationOn = !((selected?.tags ?? []).includes("flow-paused"));
+  async function toggleAutomation() {
+    if (!selected) return;
+    const tags = selected.tags ?? [];
+    const newTags = automationOn ? [...tags, "flow-paused"] : tags.filter((t) => t !== "flow-paused");
+    await updateTags(selected.id, newTags);
+  }
 
   async function saveField(field: string, value: string) {
     if (!selected) return;
@@ -137,35 +255,81 @@ export default function ContactsClient({
     setFieldSaving(null);
   }
 
-  async function generateAiMessages() {
-    if (!selected) return;
-    setAiLoading(true);
-    setAiMessages(null);
+  // Turn a channel ON to configure it — one channel at a time.
+  function startDraft(ch: "email" | "sms") {
+    setDraftCh(ch);
+    setDraftPreset(null);
+    setDraftItems(null);
+    setAiUpgrade(null);
+  }
+  function cancelDraft() {
+    setDraftCh(null);
+    setDraftPreset(null);
+    setDraftItems(null);
+    setAiUpgrade(null);
+  }
+
+  // Pick a preset → AI-generate the draft for the ONE channel being set up.
+  // Nothing schedules until Submit.
+  async function selectPreset(preset: "light" | "medium" | "aggressive") {
+    if (!selected || !draftCh) return;
+    setDraftPreset(preset);
+    setDraftLoading(true);
+    setDraftItems(null);
+    setAiUpgrade(null);
     try {
-      const res = await fetch("/api/ai/suggest-messages", {
+      const res = await fetch(`/api/leads/${selected.id}/generate-sequence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          leadId: selected.id,
-          meetContext: selected.where_met ?? "",
-          tone: aiTone,
-        }),
+        body: JSON.stringify({ presetKey: preset, whereMet: selected.where_met ?? "", notes: selected.notes ?? "", channel: draftCh }),
       });
       const data = await res.json();
-      setAiMessages(Array.isArray(data.messages) ? data.messages : []);
+      if (res.status === 402 || data.error === "upgrade") {
+        setAiUpgrade(data.message || "Automated follow-up sequences are a Pro feature.");
+        setDraftItems(null);
+        setDraftPreset(null);
+        return;
+      }
+      const items = (Array.isArray(data.sequence) ? data.sequence : []).map((s: { day: number; time: string; message: string; subject?: string }) => ({
+        day: s.day, time: s.time, channel: draftCh, message: s.message, subject: s.subject,
+      }));
+      setDraftItems(items);
     } catch {
-      setAiMessages([]);
+      setDraftItems(null);
     } finally {
-      setAiLoading(false);
+      setDraftLoading(false);
     }
   }
 
-  async function copyAiMessage(i: number, msg: string) {
-    try {
-      await navigator.clipboard.writeText(msg);
-      setAiCopied(i);
-      setTimeout(() => setAiCopied(null), 2000);
-    } catch {/* ignore */}
+  function updateDraftItem(i: number, message: string) {
+    setDraftItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, message } : it)) : prev));
+  }
+  function updateDraftSubject(i: number, subject: string) {
+    setDraftItems((prev) => (prev ? prev.map((it, idx) => (idx === i ? { ...it, subject } : it)) : prev));
+  }
+
+  // Submit the draft → activate THIS channel. Merge into follow_up_sequence,
+  // keeping the OTHER channel's items (so both can run), preserving sent steps.
+  async function submitDraft() {
+    if (!selected || !draftCh || !draftItems?.length) return;
+    setSeqSaving("saving");
+    const old = (selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[];
+    const otherChannel = old.filter((o) => (o.channel ?? "email") !== draftCh);
+    const mine = draftItems.map((it) => {
+      const prior = old.find((o) => o.day === it.day && (o.channel ?? "email") === draftCh);
+      return { day: it.day, time: it.time, message: it.message, subject: it.subject, channel: draftCh, sent_at: prior?.sent_at ?? null };
+    });
+    const payload = [...otherChannel, ...mine];
+    await fetch(`/api/leads/${selected.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ follow_up_sequence: payload }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
+    setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
+    cancelDraft();
+    setSeqSaving("saved");
+    setTimeout(() => setSeqSaving("idle"), 2000);
   }
 
   async function changeStatus(newStatus: string) {
@@ -174,8 +338,7 @@ export default function ContactsClient({
     setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
     if (newStatus === "dissolved") {
       const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
-      await updateField(selected.id, "tags", JSON.stringify(newTags));
-      setSelected((prev) => prev ? { ...prev, tags: newTags } : prev);
+      await updateTags(selected.id, newTags);
     }
   }
 
@@ -214,13 +377,25 @@ export default function ContactsClient({
   async function selectLead(lead: Lead) {
     setSelected(lead);
     setEvents([]);
+    setDetailTab("conversation");
+    setEditingContact(false);
     setEditingNotes(false);
     setEditingWhereMet(false);
-    setEditingConvo(false);
     setWhereMetText(lead.where_met ?? "");
-    setConvoText(lead.convo_details ?? "");
-    setAiMessages(null);
-    setAiCopied(null);
+    setAiUpgrade(null);
+    // The active automations render directly from the lead's follow_up_sequence;
+    // just clear any in-progress draft when switching contacts.
+    setDraftCh(null);
+    setDraftPreset(null);
+    setDraftItems(null);
+    setDraftLoading(false);
+    setSeqSaving("idle");
+    setConvoMessages([]);
+    // Load the message thread (degrades to empty if not yet migrated).
+    fetch(`/api/leads/${lead.id}/message`)
+      .then((r) => r.json())
+      .then((d) => setConvoMessages(Array.isArray(d.messages) ? d.messages : []))
+      .catch(() => setConvoMessages([]));
     if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
@@ -244,6 +419,29 @@ export default function ContactsClient({
     });
   }
 
+  // tags is a Postgres text[] — send the real array, not a stringified one.
+  async function updateTags(leadId: string, tags: string[]) {
+    await fetch(`/api/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags } : l)));
+    setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags } : prev));
+  }
+
+  function isUnread(lead: Lead) {
+    return (lead.tags ?? []).includes("unread");
+  }
+
+  async function toggleRead(lead: Lead) {
+    const tags = lead.tags ?? [];
+    const newTags = tags.includes("unread")
+      ? tags.filter((t) => t !== "unread")
+      : [...tags, "unread"];
+    await updateTags(lead.id, newTags);
+  }
+
   async function deleteLead(id: string) {
     await fetch(`/api/leads/${id}`, { method: "DELETE" });
     setLeads((prev) => prev.filter((l) => l.id !== id));
@@ -260,48 +458,28 @@ export default function ContactsClient({
     setEditingNotes(false);
   }
 
-  async function sendSms() {
-    if (!selected || !smsText.trim()) return;
-    setSmsSending(true);
-    setSmsSent("idle");
-    try {
-      const res = await fetch("/api/sms/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: selected.id, message: smsText.trim() }),
-      });
-      const data = await res.json();
-      if (res.status === 503 || data.error === "twilio_not_configured") {
-        setSmsSent("no_twilio");
-      } else if (res.ok) {
-        setSmsSent("sent");
-        setSmsText("");
-        setTimeout(() => { setSmsOpen(false); setSmsSent("idle"); }, 2000);
-      } else {
-        setSmsSent("error");
-      }
-    } catch {
-      setSmsSent("error");
-    } finally {
-      setSmsSending(false);
-    }
-  }
-
   const renderLeadItem = (lead: Lead) => {
     const isOverdue = lead.follow_up_date && lead.follow_up_date.slice(0, 10) <= today;
+    const unread = isUnread(lead);
     return (
-      <button
+      <div
         key={lead.id}
+        role="button"
+        tabIndex={0}
         onClick={() => selectLead(lead)}
-        className={`w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectLead(lead); } }}
+        className={`group w-full text-left px-4 py-3.5 border-b border-gray-800/50 transition-colors hover:bg-gray-900 cursor-pointer ${selected?.id === lead.id ? "bg-gray-900 border-l-2 border-l-blue-500" : ""}`}
       >
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5">
-            {lead.name[0]?.toUpperCase() ?? "?"}
+          <div className="relative shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+              {lead.name[0]?.toUpperCase() ?? "?"}
+            </div>
+            {unread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-gray-950" title="Unread" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-gray-100 font-semibold text-sm truncate">{lead.name}</p>
+              <p className={`text-sm truncate ${unread ? "text-white font-bold" : "text-gray-100 font-semibold"}`}>{lead.name}</p>
               <SourceBadge source={lead.source} />
             </div>
             {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
@@ -316,17 +494,51 @@ export default function ContactsClient({
               )}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleRead(lead); }}
+            title={unread ? "Mark as read" : "Mark as unread"}
+            aria-label={unread ? "Mark as read" : "Mark as unread"}
+            className={`shrink-0 self-center p-1.5 rounded-lg transition-colors ${unread ? "text-blue-400 hover:bg-blue-500/10" : "text-gray-600 hover:text-gray-300 hover:bg-gray-800"}`}
+          >
+            {unread ? (
+              // filled envelope = unread
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" /><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" /></svg>
+            ) : (
+              // open envelope = read
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
+            )}
+          </button>
         </div>
-      </button>
+      </div>
     );
   };
 
   return (
-    <div className="flex gap-0 h-[calc(100vh-56px)]">
-      {/* Left: contact list */}
-      <div className="w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex flex-col overflow-hidden">
+    <div className="flex gap-0 lg:h-[calc(100vh-56px)]">
+      {/* Left: contact list — full width on mobile, hidden once a contact is opened */}
+      <div className={`${selected ? "hidden lg:flex" : "flex"} w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex-col lg:overflow-hidden`}>
         {/* Search */}
         <div className="p-4 border-b border-gray-800 space-y-3">
+          {/* Add contact — attaches to the currently-selected card */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-gray-500 text-xs">
+              {cardFilter !== "all" && userCards.length > 1
+                ? `Showing /${cardFilter}`
+                : "All contacts"}
+            </p>
+            <AddContactModal
+              cardOwner={cardFilter !== "all" ? cardFilter : (primaryUsername || userCards[0]?.username)}
+              onAdded={(lead) => {
+                const l = lead as Lead;
+                setLeads((prev) => [l, ...prev]);
+                // Make sure it's visible under the active filter.
+                if (cardFilter !== "all" && l.card_owner && l.card_owner !== cardFilter) {
+                  setCardFilter(l.card_owner);
+                }
+              }}
+            />
+          </div>
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -348,30 +560,11 @@ export default function ContactsClient({
             <option value="recent">Recently Added</option>
             <option value="activity">Recent Activity</option>
           </select>
-          {userCards.length > 1 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-              <button
-                onClick={() => setCardFilter("all")}
-                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 ${cardFilter === "all" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
-              >
-                All cards
-              </button>
-              {userCards.map((c) => (
-                <button
-                  key={c.username}
-                  onClick={() => setCardFilter(c.username)}
-                  className={`text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 ${cardFilter === c.username ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
-                >
-                  /{c.username}
-                </button>
-              ))}
-            </div>
-          )}
           <p className="text-gray-600 text-xs pl-1">{filtered.length} contact{filtered.length !== 1 ? "s" : ""}</p>
         </div>
 
         {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 lg:overflow-y-auto pb-20 lg:pb-0">
           {filtered.length === 0 ? (
             <div className="p-8 text-center text-gray-600 text-sm">
               {search ? "No contacts match your search." : "No contacts yet."}
@@ -393,8 +586,8 @@ export default function ContactsClient({
         </div>
       </div>
 
-      {/* Right: detail panel */}
-      <div className="flex-1 overflow-y-auto hidden lg:block">
+      {/* Right: detail panel — full-screen overlay on mobile, side pane on desktop */}
+      <div className={`${selected ? "fixed inset-0 z-40 bg-gray-950 overflow-y-auto" : "hidden"} lg:static lg:z-auto lg:block lg:flex-1 lg:overflow-y-auto`}>
         {!selected ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-gray-600 gap-3">
             <svg className="w-10 h-10 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -403,7 +596,15 @@ export default function ContactsClient({
             <p className="text-sm">Select a contact to view details</p>
           </div>
         ) : (
-          <div className="max-w-xl mx-auto p-8">
+          <>
+            {/* Mobile back bar */}
+            <div className="lg:hidden sticky top-0 z-10 flex items-center gap-2 px-4 h-12 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+              <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Contacts
+              </button>
+            </div>
+          <div className="max-w-xl mx-auto p-6 sm:p-8 pb-24 lg:pb-8">
             {/* Header */}
             <div className="flex items-start gap-5 mb-8">
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
@@ -434,11 +635,96 @@ export default function ContactsClient({
                   <FlowBadge tags={selected.tags} />
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => toggleRead(selected)}
+                className={`ml-auto shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${isUnread(selected) ? "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"}`}
+              >
+                {isUnread(selected) ? (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" /><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" /></svg>
+                    Mark as read
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
+                    Mark as unread
+                  </>
+                )}
+              </button>
             </div>
+
+            {/* Quick actions — call the contact + save them to your phone */}
+            <div className="flex items-center gap-2 mb-6">
+              {selected.phone ? (
+                <a
+                  href={`tel:${selected.phone}`}
+                  className="flex items-center justify-center gap-1.5 flex-1 text-sm font-semibold py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <path d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                  </svg>
+                  Call
+                </a>
+              ) : (
+                <span className="flex-1 text-center text-xs text-gray-600 py-2.5 rounded-xl border border-dashed border-gray-800">No phone to call</span>
+              )}
+              <button
+                onClick={saveContactToPhone}
+                className="flex items-center justify-center gap-1.5 flex-1 text-sm font-semibold py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                </svg>
+                Save to phone
+              </button>
+            </div>
+
+            {/* Tab switcher */}
+            <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-6">
+              {([
+                { id: "conversation", label: "Conversation" },
+                { id: "info", label: "Contact info / Presets" },
+              ] as const).map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setDetailTab(t.id)}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: detailTab === t.id ? "#1D4ED8" : "transparent", color: detailTab === t.id ? "#fff" : "#6b7280" }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ── CONTACT INFO / PRESETS TAB ── */}
+            <div className={detailTab === "info" ? "" : "hidden"}>
 
             {/* Contact info */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 space-y-3">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-3">Contact Info</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Contact Info</p>
+                {!editingContact && (
+                  <button
+                    onClick={() => { setContactDraft({ name: selected.name ?? "", company: selected.company ?? "", email: selected.email ?? "", phone: selected.phone ?? "" }); setEditingContact(true); }}
+                    className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+              {editingContact && (
+                <div className="space-y-2 mb-2">
+                  <input type="text" value={contactDraft.name} onChange={(e) => setContactDraft((d) => ({ ...d, name: e.target.value }))} placeholder="Name" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="text" value={contactDraft.company} onChange={(e) => setContactDraft((d) => ({ ...d, company: e.target.value }))} placeholder="Company" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="email" value={contactDraft.email} onChange={(e) => setContactDraft((d) => ({ ...d, email: e.target.value }))} placeholder="Email" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <input type="tel" value={contactDraft.phone} onChange={(e) => setContactDraft((d) => ({ ...d, phone: e.target.value }))} placeholder="Phone" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingContact(false)} className="text-xs text-gray-500 hover:text-gray-300">Cancel</button>
+                    <button onClick={saveContact} disabled={fieldSaving === "contact"} className="text-xs text-blue-400 hover:text-blue-300 font-medium disabled:opacity-40">{fieldSaving === "contact" ? "Saving…" : "Save"}</button>
+                  </div>
+                </div>
+              )}
               {selected.company && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
@@ -466,40 +752,6 @@ export default function ContactsClient({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                   </svg>
                   <a href={`tel:${selected.phone}`} className="text-gray-300 text-sm hover:text-white flex-1">{selected.phone}</a>
-                  <button
-                    onClick={() => { setSmsOpen(true); setSmsText(""); setSmsSent("idle"); }}
-                    className="text-xs text-blue-400 hover:text-blue-300 border border-blue-800 hover:border-blue-600 px-2 py-0.5 rounded-full transition-colors shrink-0"
-                  >
-                    Send SMS
-                  </button>
-                </div>
-              )}
-              {smsOpen && selected.phone && (
-                <div className="mt-2 border border-gray-700 rounded-xl p-3 bg-gray-950 space-y-2">
-                  <textarea
-                    value={smsText}
-                    onChange={(e) => setSmsText(e.target.value)}
-                    placeholder="Type your SMS message…"
-                    rows={3}
-                    maxLength={160}
-                    className="w-full bg-gray-900 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-gray-600">{smsText.length}/160</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setSmsOpen(false)} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-1.5 rounded-lg transition-colors">Cancel</button>
-                      <button
-                        onClick={sendSms}
-                        disabled={smsSending || !smsText.trim()}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        {smsSending ? "Sending…" : "Send"}
-                      </button>
-                    </div>
-                  </div>
-                  {smsSent === "sent" && <p className="text-xs text-green-400">SMS sent!</p>}
-                  {smsSent === "error" && <p className="text-xs text-red-400">Failed to send. Try again.</p>}
-                  {smsSent === "no_twilio" && <p className="text-xs text-amber-400">Add Twilio env vars to enable SMS sending.</p>}
                 </div>
               )}
               {selected.location && (
@@ -527,11 +779,19 @@ export default function ContactsClient({
                   </span>
                 </div>
               )}
-              <div className="flex gap-3 pt-2 border-t border-gray-800">
+            </div>
+
+            {/* Notes & Context */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
+              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Notes &amp; Context</p>
+
+              {/* Notes */}
+              <div className="flex gap-3">
                 <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
                 <div className="flex-1">
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Notes</p>
                   {editingNotes ? (
                     <div className="space-y-2">
                       <textarea
@@ -563,14 +823,9 @@ export default function ContactsClient({
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Where did you meet */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Context</p>
 
               {/* Where met */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-3 border-t border-gray-800">
                 <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                 </svg>
@@ -612,177 +867,277 @@ export default function ContactsClient({
                 </div>
               </div>
 
-              {/* Conversation details */}
-              <div className="flex gap-3 pt-3 border-t border-gray-800">
-                <svg className="w-4 h-4 text-gray-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Conversation details</p>
-                  {editingConvo ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={convoText}
-                        onChange={(e) => setConvoText(e.target.value)}
-                        rows={3}
-                        placeholder="What did you discuss? What are their needs?"
-                        className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
-                      />
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingConvo(false)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
+            </div>
+
+            {/* Follow-up automations — Email and Text are independent. Each has its
+                own toggle, preset and format; set them up one at a time, run either
+                or both. Once active, a channel only stops when it finishes or when
+                Automated follow-ups (below) is turned off. */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
+              <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
+
+              <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-4 leading-relaxed">
+                💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive.
+              </p>
+
+              <div className="space-y-3">
+                {([
+                  { ch: "email" as const, label: "Email", icon: "✉", can: !!selected.email, word: "email", noun: "emails" },
+                  { ch: "sms" as const,   label: "Text",  icon: "💬", can: !!selected.phone, word: "text",  noun: "texts" },
+                ]).map(({ ch, label, icon, can, word, noun }) => {
+                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null }[])
+                    .filter((i) => (i.channel ?? "email") === ch)
+                    .sort((a, b) => a.day - b.day);
+                  const isDrafting = draftCh === ch;
+                  const hasActive = activeItems.length > 0;
+                  const allSent = hasActive && activeItems.every((i) => i.sent_at);
+                  const running = hasActive && !allSent;
+                  const presetName = PRESET_FROM_COUNT(activeItems.length);
+                  const switchOn = isDrafting || running;
+
+                  return (
+                    <div key={ch} className={`border rounded-xl p-4 ${switchOn ? (ch === "sms" ? "border-emerald-800/50 bg-emerald-950/10" : "border-blue-800/50 bg-blue-950/10") : "border-gray-800 bg-gray-800/20"}`}>
+                      {/* Header + on/off toggle */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-100">{icon} {label} automation</p>
+                          <p className="text-gray-600 text-[11px] mt-0.5">
+                            {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
+                              : running ? (automationOn ? `Active · ${presetName} · auto-sending ${noun}` : `Paused · ${presetName}`)
+                              : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
+                              : isDrafting ? "Choose a cadence, then submit to activate"
+                              : `Off — set up a ${word} follow-up`}
+                          </p>
+                        </div>
                         <button
-                          onClick={async () => { await saveField("convo_details", convoText); setEditingConvo(false); }}
-                          disabled={fieldSaving === "convo_details"}
-                          className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-40"
+                          type="button"
+                          role="switch"
+                          aria-checked={switchOn}
+                          disabled={!can || running}
+                          title={running ? "Active — turn off Automated follow-ups below to stop it" : !can ? "No contact info" : `Set up a ${word} follow-up`}
+                          onClick={() => { if (!can || running) return; if (isDrafting) cancelDraft(); else startDraft(ch); }}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${(!can || running) ? "opacity-60 cursor-not-allowed" : ""}`}
+                          style={{ background: switchOn ? (ch === "sms" ? "#059669" : "#2563eb") : "#374151" }}
                         >
-                          {fieldSaving === "convo_details" ? "Saving…" : "Save"}
+                          <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: switchOn ? "22px" : "2px" }} />
                         </button>
                       </div>
+
+                      {/* DRAFTING — pick a preset, edit, submit */}
+                      {isDrafting && (
+                        <div className="mt-3 pt-3 border-t border-gray-800">
+                          <div className="space-y-2 mb-3">
+                            {(["light", "medium", "aggressive"] as const).map((p) => (
+                              <button
+                                key={p}
+                                onClick={() => selectPreset(p)}
+                                disabled={draftLoading}
+                                className={`w-full text-left rounded-xl px-3.5 py-2.5 border transition-colors disabled:opacity-60 ${draftPreset === p ? (ch === "sms" ? "border-emerald-500 bg-emerald-950/30" : "border-blue-500 bg-blue-950/30") : "border-gray-700 bg-gray-800/40 hover:border-gray-600"}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
+                                  {draftPreset === p && <span className="text-[10px] text-gray-400 font-semibold">Selected</span>}
+                                </div>
+                                <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
+                              </button>
+                            ))}
+                          </div>
+
+                          {draftLoading && (
+                            <div className="flex items-center justify-center gap-2 py-3 text-gray-500 text-sm">
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                              </svg>
+                              Writing your {noun}…
+                            </div>
+                          )}
+
+                          {!draftLoading && draftItems && draftItems.length > 0 && (
+                            <div className="space-y-3">
+                              <p className="text-[11px] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
+                              {draftItems.map((it, i) => (
+                                <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                                  <p className="text-[11px] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
+                                  {ch === "email" && (
+                                    <input
+                                      type="text"
+                                      value={it.subject ?? ""}
+                                      onChange={(e) => updateDraftSubject(i, e.target.value)}
+                                      placeholder="Email subject"
+                                      className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-1.5 text-xs mb-1.5 focus:outline-none focus:border-blue-500"
+                                    />
+                                  )}
+                                  <textarea
+                                    value={it.message}
+                                    onChange={(e) => updateDraftItem(i, e.target.value)}
+                                    rows={2}
+                                    className="w-full bg-gray-900 border border-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between">
+                                <button onClick={() => draftPreset && selectPreset(draftPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={cancelDraft} className="text-xs font-semibold text-gray-400 hover:text-gray-200 px-3 py-2 transition-colors">Cancel</button>
+                                  <button
+                                    onClick={submitDraft}
+                                    disabled={seqSaving === "saving"}
+                                    className={`text-xs font-semibold text-white px-5 py-2 rounded-full disabled:opacity-40 transition-colors ${ch === "sms" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-blue-600 hover:bg-blue-500"}`}
+                                  >
+                                    {seqSaving === "saving" ? "Submitting…" : "Submit & activate"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ACTIVE / PAUSED — submitted summary: preset + messages + when they send */}
+                      {!isDrafting && running && (
+                        <div className="mt-3 pt-3 border-t border-gray-800">
+                          <p className={`text-[11px] font-semibold mb-2 ${automationOn ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
+                            {automationOn ? `● Active — ${presetName}` : `⏸ Paused — ${presetName}`} · {activeItems.length} {noun}
+                          </p>
+                          <div className="space-y-2">
+                            {activeItems.map((it, i) => (
+                              <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="text-[10px] font-semibold text-gray-500">
+                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(selected.created_at, it.day, it.time ?? "13:00")}`}
+                                  </span>
+                                  {it.sent_at ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span> : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
+                                </div>
+                                {ch === "email" && it.subject && <p className="text-[11px] text-gray-400 font-medium truncate">Subject: {it.subject}</p>}
+                                <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">{it.message}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {automationOn ? (
+                            <p className="text-gray-600 text-[10px] mt-2">To stop this, turn off <strong className="text-gray-500">Automated follow-ups</strong> below.</p>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 mt-2">
+                              <p className="text-gray-600 text-[10px]">Paused — turn Automated follow-ups on to resume.</p>
+                              <button onClick={() => startDraft(ch)} disabled={!can} className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors disabled:opacity-40 shrink-0">Set up again</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* COMPLETED — all sent; allow setting up a fresh one */}
+                      {!isDrafting && allSent && (
+                        <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
+                          <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>
+                          <button onClick={() => startDraft(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Set up again</button>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex items-start gap-2">
-                      <p className="text-gray-400 text-sm whitespace-pre-wrap flex-1">
-                        {selected.convo_details || <span className="text-gray-600 italic">No details yet</span>}
-                      </p>
-                      <button
-                        onClick={() => { setConvoText(selected.convo_details ?? ""); setEditingConvo(true); }}
-                        className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
+
+              {aiUpgrade && (
+                <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
+                  <p className="text-blue-200 text-sm">{aiUpgrade}</p>
+                  <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
+                </div>
+              )}
             </div>
 
-            {/* AI follow-up preview */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            {/* Master pause — stops ALL automated follow-ups for this contact */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-6 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-gray-200 text-sm font-medium">Automated follow-ups</p>
+                <p className="text-gray-500 text-xs mt-0.5">{automationOn ? "On — runs the Email and Text automations above. Turn off to stop them and choose again." : "Off — your Email & Text automations are stopped. Turn on to run them, or set up new ones above."}</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAutomation}
+                role="switch"
+                aria-checked={automationOn}
+                className="relative w-11 h-6 rounded-full transition-colors shrink-0"
+                style={{ background: automationOn ? "#2563eb" : "#374151" }}
+              >
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: automationOn ? "22px" : "2px" }} />
+              </button>
+            </div>
+
+            </div>{/* end Contact info / Presets tab */}
+
+            {/* ── CONVERSATION TAB ── */}
+            <div className={detailTab === "conversation" ? "" : "hidden"}>
+
+            {/* Activity & messages — read-only log of what this contact did and what was auto-sent */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">AI Follow-up Preview</p>
-                  <p className="text-gray-600 text-xs mt-0.5">Generate message ideas for this contact</p>
-                </div>
-                <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
-                  {(["friendly", "professional", "direct"] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => { setAiTone(t); setAiMessages(null); }}
-                      className={`text-[10px] font-semibold px-2 py-1 rounded-md transition-colors capitalize ${aiTone === t ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Activity &amp; Messages</p>
+                <span className="text-[10px] text-gray-600">Auto-tracked · read-only</span>
               </div>
-
-              {aiMessages === null && !aiLoading && (
-                <button
-                  onClick={generateAiMessages}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: "#1D4ED8", color: "#fff" }}
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
-                  </svg>
-                  Generate message ideas
-                </button>
-              )}
-
-              {aiLoading && (
-                <div className="flex items-center justify-center gap-2 py-4 text-gray-500 text-sm">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Writing messages…
-                </div>
-              )}
-
-              {aiMessages !== null && aiMessages.length > 0 && (
-                <div className="space-y-3">
-                  {aiMessages.map((msg, i) => (
-                    <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3.5">
-                      <p className="text-gray-200 text-sm leading-relaxed mb-2">{msg}</p>
-                      <button
-                        onClick={() => copyAiMessage(i, msg)}
-                        className="text-[10px] font-semibold text-gray-500 hover:text-blue-400 transition-colors"
-                      >
-                        {aiCopied === i ? "✓ Copied!" : "Copy"}
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={generateAiMessages}
-                    className="w-full text-xs text-gray-500 hover:text-gray-300 transition-colors py-1.5"
-                  >
-                    Regenerate ↺
-                  </button>
-                </div>
-              )}
-
-              {aiMessages !== null && aiMessages.length === 0 && (
-                <p className="text-gray-600 text-sm text-center py-2">Could not generate messages. Try adding context above.</p>
-              )}
-            </div>
-
-            {/* Activity timeline */}
-            <div>
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">Activity</p>
 
               {loadingEvents ? (
                 <p className="text-gray-600 text-sm">Loading activity…</p>
-              ) : events.length > 0 ? (
-                <div className="relative">
-                  <div className="absolute left-[18px] top-0 bottom-0 w-px bg-gray-800" />
-                  <div className="space-y-4">
-                    {events.map((ev) => {
-                      const meta = EVENT_LABELS[ev.event_type] ?? { label: ev.event_type.replace(/_/g, " "), icon: "·" };
-                      return (
-                        <div key={ev.id} className="flex items-start gap-4 relative">
-                          <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">
-                            {meta.icon}
-                          </div>
-                          <div className="pt-1.5">
-                            <p className="text-gray-200 text-sm font-medium">{meta.label}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {ev.source && ev.source !== "direct_link" && (
-                                <span className="text-[10px] text-blue-400">via {getSourceLabel(ev.source)}</span>
-                              )}
-                              <span className="text-gray-600 text-[11px]">{formatShort(ev.created_at)}</span>
+              ) : (() => {
+                const fname = selected.name.split(" ")[0] || "They";
+                const items: { at: string; key: string; kind: "event" | "in" | "out"; icon?: string; text?: string; source?: string | null; body?: string; channel?: string | null; status?: string | null }[] = [];
+                for (const ev of events) {
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                }
+                items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });
+                if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
+                for (const m of convoMessages) {
+                  items.push(m.direction === "in"
+                    ? { at: m.created_at, key: `m-${m.id}`, kind: "in", body: m.body }
+                    : { at: m.created_at, key: `m-${m.id}`, kind: "out", body: m.body, channel: m.channel, status: m.status });
+                }
+                items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+                return (
+                  <div className="space-y-3">
+                    {items.map((it) => {
+                      if (it.kind === "out") {
+                        const isSms = it.channel === "sms";
+                        return (
+                          <div key={it.key} className="flex flex-col items-end">
+                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
+                              {it.body}
                             </div>
+                            <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
+                              <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
+                                {isSms ? "💬 Text" : "✉ Email"}
+                              </span>
+                              <span>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
+                            </span>
                           </div>
+                        );
+                      }
+                      if (it.kind === "in") {
+                        return (
+                          <div key={it.key} className="flex flex-col items-start">
+                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                              {it.body}
+                            </div>
+                            <span className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={it.key} className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs shrink-0">{it.icon}</div>
+                          <p className="text-gray-300 text-[13px]">{it.text}</p>
+                          {it.source && it.source !== "direct_link" && (
+                            <span className="text-[10px] text-blue-400">via {getSourceLabel(it.source)}</span>
+                          )}
+                          <span className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
                         </div>
                       );
                     })}
-                    {/* Final event: shared info */}
-                    <div className="flex items-start gap-4 relative">
-                      <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">
-                        ✅
-                      </div>
-                      <div className="pt-1.5">
-                        <p className="text-gray-200 text-sm font-medium">Shared their info with you</p>
-                        <p className="text-gray-600 text-[11px] mt-0.5">{formatShort(selected.created_at)}</p>
-                      </div>
-                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-[18px] top-0 bottom-0 w-px bg-gray-800" />
-                  <div className="flex items-start gap-4 relative">
-                    <div className="w-9 h-9 rounded-full bg-gray-900 border border-gray-700 flex items-center justify-center text-base shrink-0 relative z-10">✅</div>
-                    <div className="pt-1.5">
-                      <p className="text-gray-200 text-sm font-medium">Shared their info with you</p>
-                      {selected.source && selected.source !== "direct_link" && (
-                        <span className="text-[10px] text-blue-400">via {getSourceLabel(selected.source)}</span>
-                      )}
-                      <p className="text-gray-600 text-[11px] mt-0.5">{formatShort(selected.created_at)}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
+
+            </div>{/* end Conversation tab */}
 
             {/* Delete contact */}
             <div className="mt-6 pt-4 border-t border-gray-800">
@@ -807,6 +1162,7 @@ export default function ContactsClient({
               )}
             </div>
           </div>
+          </>
         )}
       </div>
     </div>

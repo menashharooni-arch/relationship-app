@@ -13,11 +13,13 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
   const admin = getAdminSupabase();
   const [{ data: card }, { data: profile }] = await Promise.all([
     admin.from("cards").select("*").eq("id", id).eq("user_id", user.id).single(),
-    admin.from("profiles").select("photo_url").eq("id", user.id).single(),
+    admin.from("profiles").select("photo_url, plan").eq("id", user.id).single(),
   ]);
 
 
   if (!card) notFound();
+
+  const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://relationship-app-alpha.vercel.app";
 
@@ -47,7 +49,7 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>
 
-        <CardEditForm card={card} photoUrl={profile?.photo_url ?? null} logoUrl={card.logo_url ?? null} />
+        <CardEditForm card={card} photoUrl={profile?.photo_url ?? null} logoUrl={card.logo_url ?? null} isPro={isPro} />
       </div>
     </main>
   );

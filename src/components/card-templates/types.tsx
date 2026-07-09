@@ -9,13 +9,56 @@ export type CardTestimonial = {
   text: string;
 };
 
+export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials";
+export type CustomField = "name" | "title" | "company" | "phone" | "email" | "website";
+
+export type CustomElement = {
+  id: string;
+  type: CustomElementType;
+  field?: CustomField;   // for type "field"
+  text?: string;         // for type "text"
+  x: number;             // left, % of card width (0-100)
+  y: number;             // top, % of card height (0-100)
+  fontSize?: number;     // px (text/field/socials)
+  color?: string;        // overrides layout text color
+  bold?: boolean;        // text/field
+  size?: number;         // px (logo/headshot)
+};
+
+export type CustomLayout = {
+  background: string;
+  fontFamily: string;
+  textColor: string;
+  elements: CustomElement[];
+};
+
+export type CardAddress = {
+  street?: string;
+  unit?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+};
+
+export type PhoneLabel = "mobile" | "office";
+
+export type CardPhone = {
+  number: string;
+  label: PhoneLabel;
+  showOnCard: boolean;
+};
+
 export type CardCustomization = {
   accentColor?: string;
   font?: string;
   snapchat?: string;
   about?: string;
+  address?: CardAddress;
   links?: CardLink[];
   testimonials?: CardTestimonial[];
+  customLayout?: CustomLayout;
+  phones?: CardPhone[];
+  fax?: string;
 };
 
 export type CardData = {
@@ -39,6 +82,12 @@ export type CardData = {
   customization?: CardCustomization;
 };
 
+// Socials are shown in the "Swift Links" section, not on the card design itself.
+// Strip them from the data given to the standard templates.
+export function withoutSocials(data: CardData): CardData {
+  return { ...data, instagram: "", twitter: "", tiktok: "", linkedin: "", snapchat: "" };
+}
+
 export const SAMPLE_DATA: CardData = {
   name: "Alex Morgan",
   title: "Founder & CEO",
@@ -60,7 +109,7 @@ export const SAMPLE_DATA: CardData = {
 export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827" }: { size?: number; bg?: string; fg?: string }) {
   const p = size * 0.055;
   return (
-    <div style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
+    <div data-qr="1" style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
       <svg viewBox="0 0 21 21" style={{ width: "100%", height: "100%", display: "block" }}>
         {/* Finder top-left */}
         <rect x="0" y="0" width="7" height="7" fill={fg} />

@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { formatPhone, IcoPhone, IcoMail, IcoGlobe } from "./shared";
+import { formatPhone, cardPhones, cardFax, IcoPhone, IcoMail, IcoGlobe, webHref } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -52,15 +52,15 @@ export default function LocalBusiness({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-xl object-contain"
-              style={{ width: 46, height: 46, background: "rgba(255,255,255,0.15)", padding: 4 }}
+              style={{ width: 58, height: 58, background: "rgba(255,255,255,0.15)", padding: 5 }}
             />
           ) : (
             <div
               className="rounded-xl flex items-center justify-center font-black text-amber-800"
               style={{
-                width: 46, height: 46,
+                width: 58, height: 58,
                 background: "rgba(255,255,255,0.92)",
-                fontSize: "clamp(15px, 3.5vw, 20px)",
+                fontSize: "clamp(18px, 4vw, 24px)",
               }}
             >
               {initials}
@@ -92,47 +92,56 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         {/* Left: company + contact info */}
         <div className="flex-1 flex flex-col justify-between">
           {/* Company name */}
-          <div>
-            <p className="font-black" style={{ fontSize: 10.5, color: WARM, letterSpacing: "0.04em" }}>
+          <div className="min-w-0">
+            <p className="font-black truncate" style={{ fontSize: 13, color: WARM, letterSpacing: "0.02em" }}>
               {data.company}
             </p>
             <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
           </div>
 
           {/* Contacts: phone is HERO */}
-          <div className="flex flex-col gap-[6px]">
-            {data.phone && (
-              <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-[5px]">
+            {cardPhones(data).map((p, i) => (
+              <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoPhone /></span>
-                <span className="font-bold" style={{ fontSize: 12, color: WARM }}>{formatPhone(data.phone)}</span>
-              </div>
-            )}
+                <span className="font-bold" style={{ fontSize: 15, color: WARM }}>
+                  {formatPhone(p.number)}
+                  {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+                </span>
+              </a>
+            ))}
             {data.email && (
-              <div className="flex items-center gap-2 min-w-0">
+              <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoMail /></span>
-                <span className="truncate" style={{ fontSize: 10, color: "#78350f" }}>{data.email}</span>
-              </div>
+                <span className="truncate font-semibold" style={{ fontSize: 13, color: "#78350f" }}>{data.email}</span>
+              </a>
             )}
             {data.website && (
-              <div className="flex items-center gap-2">
+              <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ textDecoration: "none" }}>
                 <span style={{ color: AMBER }}><IcoGlobe /></span>
-                <span style={{ fontSize: 10, color: "#78350f" }}>{data.website}</span>
+                <span className="truncate" style={{ fontSize: 10, color: "#92400e" }}>{data.website}</span>
+              </a>
+            )}
+            {cardFax(data) && (
+              <div className="flex items-center gap-2">
+                <span style={{ color: AMBER }}><IcoPhone /></span>
+                <span style={{ fontSize: 10, color: "#92400e" }}>
+                  {formatPhone(cardFax(data))}
+                  <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+                </span>
               </div>
             )}
           </div>
 
           {/* Address if set */}
           {data.address && (
-            <p style={{ fontSize: 8.5, color: "#a16207" }}>{data.address}</p>
+            <p style={{ fontSize: 9, color: "#a16207", lineHeight: 1.2, whiteSpace: "pre-line" }}>{data.address}</p>
           )}
         </div>
 
         {/* Right: QR */}
         <div className="flex flex-col items-end justify-end gap-1 pl-4 shrink-0">
-          <p style={{ fontSize: 6.5, color: "#d97706", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            Scan to save contact
-          </p>
-          <QR size={92} bg="#fff8e6" fg={AMBER} />
+          <QR size={66} bg="#fff8e6" fg={AMBER} />
         </div>
       </div>
 

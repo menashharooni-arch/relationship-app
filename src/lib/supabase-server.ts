@@ -13,9 +13,16 @@ export async function createClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
+          // In a Server Component cookies can't be written — the middleware
+          // refreshes the session there. Swallow so getUser() never throws
+          // on public pages (e.g. /card, /links) for logged-in visitors.
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            /* called from a Server Component — safe to ignore */
+          }
         },
       },
     }
