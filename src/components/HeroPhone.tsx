@@ -1,31 +1,103 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 // Hero demo card — PhotoFirst template with a real headshot.
 const HERO_DATA = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/headshot.jpg" };
 
-// Crisp, front-facing phone that gently floats and tilts toward the cursor in 3D.
-// At rest it's perfectly flat (no blur / no fixed angle); the tilt only happens
-// on hover and eases back to flat.
-export default function HeroPhone() {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+// How far the phone flips at full scroll progress.
+const FLIP_Y = 34;   // deg — main outward rotation around the Y axis
+const FLIP_X = 7;    // deg — slight backward lean for depth
+const LIFT_Z = 46;   // px — comes toward the viewer as it turns
+const HOVER_MAX = 7; // deg — cursor tilt, layered on top of the scroll flip
 
-  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
-    const el = stageRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 … 0.5
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    const MAX = 7; // degrees — subtle
-    setTilt({ rx: +(-py * MAX).toFixed(2), ry: +(px * MAX).toFixed(2) });
-  }
+// Crisp, front-facing phone that (1) gently floats, (2) tilts toward the cursor,
+// and (3) flips outward in 3D as the page scrolls — driven directly by scroll
+// position and smoothed with a critically-damped lerp, so scrolling back up
+// returns it to dead-front just as fluidly. All transform writes happen
+// imperatively in one rAF loop (no re-render per frame).
+export default function HeroPhone() {
+  const wrapRef = useRef<HTMLDivElement>(null);  // measures scroll progress
+  const stageRef = useRef<HTMLDivElement>(null); // receives the transform
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const stage = stageRef.current;
+    if (!wrap || !stage) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Targets (set by scroll + mouse) and currents (eased toward targets).
+    let targetP = 0, curP = 0;        // scroll flip progress 0..1
+    let targetRx = 0, targetRy = 0;   // hover tilt
+    let curRx = 0, curRy = 0;
+    let raf: number | null = null;
+    let running = true;
+
+    // Scroll progress: 0 with the hero at rest at the top of the page → 1 once
+    // the user has scrolled ~70% of a viewport. Reading scrollY directly (not a
+    // one-shot observer) is what ties the flip to the scroll position both ways.
+    const progress = () => {
+      const range = window.innerHeight * 0.7;
+      const y = window.scrollY || 0;
+      return Math.min(1, Math.max(0, y / range));
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const r = stage.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const px = (e.clientX - r.left) / r.width - 0.5; // -0.5 … 0.5
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      targetRx = -py * HOVER_MAX;
+      targetRy = px * HOVER_MAX;
+    };
+    const onLeave = () => { targetRx = 0; targetRy = 0; };
+
+    const frame = () => {
+      if (!running) return;
+      targetP = reduced ? 0 : progress();
+
+      // Ease each value toward its target — high enough to feel connected to
+      // the scroll, low enough to feel weighty and premium (not 1:1 jitter).
+      curP += (targetP - curP) * 0.14;
+      curRx += (targetRx - curRx) * 0.12;
+      curRy += (targetRy - curRy) * 0.12;
+
+      // Snap sub-pixel noise so the phone is PERFECTLY flat at rest (crisp text).
+      if (Math.abs(curP - targetP) < 0.0005) curP = targetP;
+      if (Math.abs(curRx - targetRx) < 0.01) curRx = targetRx;
+      if (Math.abs(curRy - targetRy) < 0.01) curRy = targetRy;
+
+      // Scroll flip: rotate outward around Y, lean back slightly, and bring the
+      // phone toward the viewer — the "flipping toward you" read.
+      const ry = curP * FLIP_Y + curRy;
+      const rx = curP * -FLIP_X + curRx;
+      const tz = curP * LIFT_Z;
+      const scale = 1 - curP * 0.02;
+
+      stage.style.transform =
+        `translateZ(${tz.toFixed(1)}px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+
+      raf = requestAnimationFrame(frame);
+    };
+
+    stage.addEventListener("mousemove", onMove);
+    stage.addEventListener("mouseleave", onLeave);
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      running = false;
+      if (raf != null) cancelAnimationFrame(raf);
+      stage.removeEventListener("mousemove", onMove);
+      stage.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
 
   return (
     <div
+      ref={wrapRef}
       className="sc-fade-in relative hidden lg:flex items-center justify-center"
       style={{ perspective: "1300px" }}
     >
@@ -35,17 +107,11 @@ export default function HeroPhone() {
         style={{ background: "radial-gradient(circle, rgba(29,78,216,0.30) 0%, transparent 70%)", filter: "blur(48px)" }}
       />
 
-      {/* Tilt stage — front-facing at rest, follows the cursor on hover */}
+      {/* 3D stage — scroll flip + cursor tilt are composed here each frame */}
       <div
         ref={stageRef}
-        onMouseMove={handleMove}
-        onMouseLeave={() => setTilt({ rx: 0, ry: 0 })}
         className="relative"
-        style={{
-          width: "320px",
-          transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
-          transition: "transform .4s cubic-bezier(.2,.7,.2,1)",
-        }}
+        style={{ width: "320px", transformStyle: "preserve-3d", willChange: "transform" }}
       >
         {/* Bob — gentle vertical float (translateY only, stays crisp) */}
         <div className="sc-phone-bob relative">
