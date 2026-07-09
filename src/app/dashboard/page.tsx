@@ -7,7 +7,6 @@ import CopyButton from "@/components/CopyButton";
 import LeadPipeline from "@/components/LeadPipeline";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
-import CardScanner from "@/components/CardScanner";
 import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
@@ -457,7 +456,6 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <CardScanner cardOwner={activeUsername} />{/* Free: 3 scans/mo · Pro: unlimited */}
             {isEnterprise && <CSVImport />}
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
