@@ -16,29 +16,8 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst,
   "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
 };
-const NATURAL = 460;
-const FONT_SCALE = 1.22; // gentle: bigger wording that still sits comfortably in each template
-
-// Scale the wording up uniformly (so each template keeps its own hierarchy and looks
-// organized) and release truncation so nothing gets cut off. The card grows in height
-// to absorb the bigger text instead of clipping it.
-function enlargeForSignature(root: HTMLElement) {
-  root.querySelectorAll<HTMLElement>("*").forEach((node) => {
-    const cs = getComputedStyle(node);
-    const fs = parseFloat(cs.fontSize);
-    if (fs) node.style.fontSize = `${(fs * FONT_SCALE).toFixed(2)}px`;
-    if (cs.whiteSpace === "nowrap") {
-      node.style.whiteSpace = "normal";
-      node.style.maxWidth = "none";
-      node.style.minWidth = "0";
-      node.style.textOverflow = "clip";
-      node.style.overflow = "visible";
-    }
-  });
-  root.style.height = "auto";
-  root.style.minHeight = "0";
-  root.style.overflow = "visible";
-}
+const NATURAL = 460;       // same natural card width the public page renders at
+const CARD_BG = "#FAF7F2"; // the public card page background (shows at the card's rounded corners)
 
 type Props = {
   cardData: CardData;
@@ -108,7 +87,7 @@ function buildSignatureHtml(name: string, company: string, cardUrl: string, imgU
   const header = `<div style="font-size:14px;color:#111827;margin-bottom:6px;"><strong>${name}</strong>${company ? ` | ${company}` : ""}</div>`;
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
 ${header}
-<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="340" style="display:block;border:0;border-radius:12px;" /></a>
+<a href="${cardUrl}" target="_blank" style="text-decoration:none;"><img src="${imgUrl}" alt="${name} — business card" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;" /></a>
 <div style="margin-top:8px;font-size:14px;"><a href="${cardUrl}" target="_blank" style="color:#2563eb;text-decoration:none;font-weight:bold;">Contact me</a></div>
 </td></tr></table>`;
 }
@@ -127,8 +106,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v8" bump = auto-fit template layout change.
-  const contentSig = "v9|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // card's image. "v10" bump = signature is now a pixel-exact copy of the card (no
+  // font enlarging, QR kept, card-page background) — forces everyone to re-capture.
+  const contentSig = "v10|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
@@ -155,18 +135,15 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // what makes the signature a faithful copy of the real card).
       await inlineImages(el);
 
-      // Hide the QR for the signature (done in the DOM, not via context, so the
-      // templates stay server-renderable on the public card page).
-      el.querySelectorAll<HTMLElement>("[data-qr]").forEach((q) => { q.style.display = "none"; });
+      // NO modifications to the card here — the signature is a PIXEL-EXACT copy of
+      // the real SwiftCard: same fonts, sizes, placement, photo, logo, and the QR
+      // (all rendered by the identical template at the identical NATURAL width the
+      // public card page uses). The wording is deliberately NOT enlarged and the QR
+      // is deliberately NOT hidden, so it matches the card the visitor sees 1:1.
 
-      // Enlarge the wording once, in place. The hidden card is off-screen so this is
-      // invisible; the flag stops repeat captures from compounding the scale. Skip the
-      // user-designed "custom" template (absolute-positioned elements would overlap).
-      if (template !== "custom" && !el.dataset.enlarged) {
-        enlargeForSignature(el);
-        el.dataset.enlarged = "1";
-        await new Promise((r) => setTimeout(r, 200)); // let the reflow settle
-      }
+      // Let fonts + reflow settle so text metrics are identical on every capture
+      // (deterministic output — the signature looks the same every time).
+      await new Promise((r) => setTimeout(r, 200));
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it
       // supports Tailwind v4's oklch() colors — html2canvas does not and was throwing.
@@ -182,7 +159,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         height: h * SCALE,
         pixelRatio: 1,
         cacheBust: false, // images are already inlined; cache-busting was dropping the photo
-        backgroundColor: "#ffffff",
+        backgroundColor: CARD_BG, // the card page's background, so corners match exactly
         style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
       });
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
@@ -254,11 +231,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   return (
     <>
-      {/* Hidden full-size render of the selected card. The QR is removed at capture time
-          (DOM), then the wording is enlarged; html-to-image reads it via the browser engine. */}
+      {/* Hidden full-size render of the selected card — captured AS-IS (no font
+          scaling, QR kept) so the signature image is a pixel-exact copy of the card.
+          html-to-image reads it via the browser engine. */}
       {mounted && (
         <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
-          <div ref={cardRef} style={{ width: NATURAL }}>
+          <div ref={cardRef} style={{ width: NATURAL, background: CARD_BG }}>
             <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
         </div>
