@@ -77,8 +77,8 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
   return (
     <div className="px-4 pt-2 pb-8" style={{ background: "#FAF7F2" }}>
       <div className="mx-auto max-w-[300px] flex flex-col gap-4">
-        {/* The real card template */}
-        <div className="rounded-2xl overflow-hidden">
+        {/* The real card template — contact links are display-only in the demo */}
+        <div className="rounded-2xl overflow-hidden" style={{ pointerEvents: "none" }}>
           <CardScaler><Component data={data} /></CardScaler>
         </div>
 
@@ -133,7 +133,9 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
             </div>
             <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
           </div>
-          <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
+          <div style={{ pointerEvents: "none" }}>
+            <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
+          </div>
         </div>
 
         {/* 4 — Share this card (the real card components) */}
@@ -142,8 +144,10 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
             <SectionNum n={4} />
             <p className="text-slate-900 font-semibold text-[13px]">Share this card</p>
           </div>
-          <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-          <QRCodeModal url={DEMO_URL} firstName={FIRST} />
+          <div style={{ pointerEvents: "none" }}>
+            <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
+            <QRCodeModal url={DEMO_URL} firstName={FIRST} />
+          </div>
           <a href="https://swiftcard.me/?src=card" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
             Create your card · swiftcard.me
           </a>
@@ -201,6 +205,9 @@ export default function TemplateGallery() {
                     outlineOffset: 3,
                     boxShadow: on ? "0 18px 36px -16px rgba(37,99,235,0.55)" : "0 8px 20px -14px rgba(8,10,18,0.4)",
                     transform: on ? "translateY(-3px)" : undefined,
+                    // Card contact links (phone/email/website) are display-only here —
+                    // pointer events pass through to the selector button.
+                    pointerEvents: "none",
                   }}
                 >
                   <CardScaler><t.Component data={t.data ?? CARD} /></CardScaler>
