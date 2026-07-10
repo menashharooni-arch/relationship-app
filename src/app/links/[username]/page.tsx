@@ -7,7 +7,6 @@ import { isPaidPlan } from "@/lib/plan";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
-import SignupNudgeHost from "@/components/SignupNudgeHost";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -104,7 +103,6 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   return (
     <>
       {!isEmbed && !isOwnerView && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
-      {!isEmbed && <SignupNudgeHost />}
       <SwiftLinkProfile
         name={profile.name || username}
         username={username}

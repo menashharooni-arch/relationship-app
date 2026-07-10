@@ -7,7 +7,6 @@ import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
-import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import CardActionLinks from "@/components/CardActionLinks";
@@ -256,7 +255,6 @@ export default async function CardPage({
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
-      {!isEmbed && <SignupNudgeHost />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
@@ -360,6 +358,10 @@ export default async function CardPage({
           label="Share this card"
         />
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
+        {/* Faint viewer CTA — turns people who receive a card into signups. */}
+        <a href={`${APP_URL}/?src=card`} className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
+          Create your card · swiftcard.me
+        </a>
       </div>
 
       {/* "Powered by SwiftCard.me" badge (links to site) — Free only, removed on Pro/Office */}

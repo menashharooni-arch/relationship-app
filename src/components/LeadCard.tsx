@@ -471,8 +471,17 @@ export default function LeadCard({
                   <button onClick={() => { setEditingContact(false); setEditForm({ name: lead.name, email: lead.email || "", phone: lead.phone || "", company: lead.company || "", company_description: (lead as { company_description?: string }).company_description || "" }); }} className="text-[10px] text-gray-600 hover:text-gray-300 transition-colors">
                     Cancel
                   </button>
-                  <button onClick={saveContactEdit} disabled={editSaving || !editForm.name.trim()} className="text-[10px] font-bold px-2 py-1 rounded-lg bg-blue-600 text-white disabled:opacity-40 transition-opacity">
-                    {editSaving ? "Saving…" : "Save"}
+                  <button
+                    onClick={saveContactEdit}
+                    disabled={editSaving || !editForm.name.trim()}
+                    className={`font-bold rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-40 shadow-lg shadow-blue-900/40 transition-all active:scale-95 ${editSaving ? "text-sm px-5 py-2.5 scale-110 ring-2 ring-blue-400 shadow-blue-500/50" : "text-xs px-4 py-2"}`}
+                  >
+                    {editSaving ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Saving…
+                      </span>
+                    ) : "Save"}
                   </button>
                 </div>
               )}

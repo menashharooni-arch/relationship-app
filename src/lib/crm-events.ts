@@ -17,14 +17,18 @@ export async function dispatchCrmEvent(ownerUsername: string | null | undefined,
   try {
     const admin = getAdminSupabase();
     const cols = "zapier_webhook_url, customization, plan";
-    // Common case (primary card / legacy): the username IS a profile username —
-    // a single query. Only fall back to a card lookup for secondary cards.
-    let { data: p } = await admin.from("profiles").select(cols).eq("username", base).maybeSingle();
-    if (!p) {
-      const { data: card } = await admin.from("cards").select("user_id").eq("username", base).maybeSingle();
-      if (card?.user_id) {
-        ({ data: p } = await admin.from("profiles").select(cols).eq("id", card.user_id).maybeSingle());
-      }
+    // Resolve the owner CARDS-FIRST, matching every other resolver in the app
+    // (card page, resolveCardSender, resolve-card, leads route). A card slug is
+    // user-chosen and could collide with a DIFFERENT user's auto-generated
+    // profile username — resolving profiles-first would then POST this card's
+    // lead PII to the wrong user's Zapier webhook. The card row is authoritative;
+    // fall back to a legacy profile username only when no card owns the slug.
+    let p: { zapier_webhook_url: string | null; customization: unknown; plan: string | null } | null = null;
+    const { data: card } = await admin.from("cards").select("user_id").eq("username", base).maybeSingle();
+    if (card?.user_id) {
+      ({ data: p } = await admin.from("profiles").select(cols).eq("id", card.user_id).maybeSingle());
+    } else {
+      ({ data: p } = await admin.from("profiles").select(cols).eq("username", base).maybeSingle());
     }
 
     // Send-time allowlist too — a URL stored before validation existed must not
