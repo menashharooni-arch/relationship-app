@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 560" width="400" height="560" role="img" aria-label="Illustrated sample avatar of a young professional woman with blonde hair. Fictional placeholder — not a real person.">
+  <title>Illustrated sample avatar — fictional placeholder</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9eefc"/>
+      <stop offset="1" stop-color="#c7d4f5"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6d98a"/>
+      <stop offset="1" stop-color="#e3b95c"/>
+    </linearGradient>
+    <linearGradient id="blazer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f4a86"/>
+      <stop offset="1" stop-color="#22386a"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="400" height="560"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <!-- Backdrop -->
+    <rect width="400" height="560" fill="url(#bg)"/>
+    <circle cx="200" cy="250" r="170" fill="#ffffff" opacity="0.25"/>
+
+    <!-- Shoulders / blazer -->
+    <path d="M70 560 C70 430 120 380 200 380 C280 380 330 430 330 560 Z" fill="url(#blazer)"/>
+    <!-- Blazer lapels -->
+    <path d="M200 380 L168 470 L200 452 Z" fill="#26406f"/>
+    <path d="M200 380 L232 470 L200 452 Z" fill="#1d3157"/>
+    <!-- Blouse -->
+    <path d="M200 388 C182 388 170 402 170 424 L200 452 L230 424 C230 402 218 388 200 388 Z" fill="#f4f7fb"/>
+
+    <!-- Neck -->
+    <path d="M178 350 C178 384 222 384 222 350 L222 320 L178 320 Z" fill="#f0c19c"/>
+    <path d="M178 350 C178 366 222 366 222 350 L222 340 L178 340 Z" fill="#e2ad86" opacity="0.6"/>
+
+    <!-- Hair back -->
+    <path d="M118 250 C112 150 150 92 200 92 C250 92 288 150 282 250 C280 300 274 340 262 372 L250 356 C262 300 262 250 262 232 L138 232 C138 250 138 300 150 356 L138 372 C126 340 120 300 118 250 Z" fill="url(#hair)"/>
+
+    <!-- Face -->
+    <path d="M138 240 C138 300 164 342 200 342 C236 342 262 300 262 240 C262 190 236 158 200 158 C164 158 138 190 138 240 Z" fill="#f6c9a4"/>
+    <!-- Cheek blush -->
+    <ellipse cx="166" cy="268" rx="15" ry="10" fill="#f2a98a" opacity="0.45"/>
+    <ellipse cx="234" cy="268" rx="15" ry="10" fill="#f2a98a" opacity="0.45"/>
+
+    <!-- Eyebrows -->
+    <path d="M158 222 Q174 214 190 221" stroke="#c99a54" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M210 221 Q226 214 242 222" stroke="#c99a54" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <!-- Eyes -->
+    <ellipse cx="174" cy="240" rx="7" ry="8" fill="#3d3730"/>
+    <ellipse cx="226" cy="240" rx="7" ry="8" fill="#3d3730"/>
+    <circle cx="176" cy="237" r="2" fill="#ffffff"/>
+    <circle cx="228" cy="237" r="2" fill="#ffffff"/>
+    <!-- Nose -->
+    <path d="M200 250 L195 272 Q200 276 205 272" stroke="#e0a074" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Smile -->
+    <path d="M180 292 Q200 312 220 292" stroke="#b5654e" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M186 297 Q200 305 214 297" fill="#ffffff"/>
+
+    <!-- Hair front / side sweep -->
+    <path d="M138 232 C138 176 166 140 200 140 C234 140 262 176 262 232 C262 214 250 196 236 190 C246 206 244 224 240 236 C232 210 214 196 200 196 C176 196 156 214 150 244 C146 224 148 206 158 190 C146 198 138 214 138 232 Z" fill="url(#hair)"/>
+    <path d="M262 232 C266 300 258 356 246 392 L232 378 C246 340 250 300 250 250 Z" fill="#e3b95c" opacity="0.7"/>
+  </g>
+</svg>

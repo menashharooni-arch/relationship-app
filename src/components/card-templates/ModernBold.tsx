@@ -6,14 +6,16 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
 const DIM          = "#1e3a5f";
 
 export default function ModernBold({ data }: { data: CardData }) {
-  const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
+  const style = templateStyle(data);
+  const BLUE = style.accentColor ?? BLUE_DEFAULT;
+  const bg = style.bgColor ?? BG;
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
@@ -27,7 +29,8 @@ export default function ModernBold({ data }: { data: CardData }) {
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data),
-        background: BG,
+        background: bg,
+        fontFamily: style.fontFamily,
         boxShadow: "0 4px 20px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)",
       }}
     >
@@ -74,7 +77,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: fitPx(28 * heroGrow(f), data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em" }}
+            style={{ fontSize: fitPx(28 * heroGrow(f), data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
           >
             {data.name}
           </h2>

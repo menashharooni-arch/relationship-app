@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\); console.log\\('--- deps ---'\\); console.log\\(Object.keys\\(p.dependencies||{}\\).join\\(', '\\)\\); console.log\\('--- devDeps ---'\\); console.log\\(Object.keys\\(p.devDependencies||{}\\).join\\(', '\\)\\)\")",
+      "WebSearch",
+      "WebFetch(domain:docs.logo.dev)",
+      "WebFetch(domain:www.logo.dev)",
+      "Bash(git rm *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm test *)",
+      "Bash(echo \"=== EXIT $? ===\")",
+      "Bash(node -e \"require\\('@babel/core'\\)\")",
+      "Bash(pkill -f \"next dev -p 3999\")",
+      "Bash(echo \"eslint exit $?\")",
+      "Bash(awk '{print $2}')",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(echo \"ESLINT EXIT: $?\")",
+      "Bash(npm run *)",
+      "Bash(echo \"BUILD_EXIT=$?\")",
+      "Read(//tmp/claude-501/**)",
+      "Bash(grep -rn \"export.*function getOwnerUsernames\\\\|export const getOwnerUsernames\\\\|async function getOwnerUsernames\" .)",
+      "Bash(grep -rln \"function requireAdmin\\\\|const requireAdmin\\\\|export.*requireAdmin\" .)",
+      "Bash(grep -rln \"function getAdminSupabase\\\\|const getAdminSupabase\" .)",
+      "Bash(ls lib/)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"=== eslint exit: $? ===\")",
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(echo \"ESLINT_EXIT=$?\")",
+      "Bash(npx next *)"
+    ]
+  }
+}

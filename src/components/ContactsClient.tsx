@@ -198,6 +198,9 @@ export default function ContactsClient({
   const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ name: "", company: "", email: "", phone: "" });
+  // Dedicated state machine for the "Contact Info / Presets" Save button so it
+  // can show clear Default/Saving/Success/Error feedback and never fire twice.
+  const [contactSaveStatus, setContactSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
 
   // Guided tour: when the tour reaches the Contacts page, auto-open the sample
@@ -218,7 +221,10 @@ export default function ContactsClient({
   }, []);
 
   async function saveContact() {
-    if (!selected) return;
+    // In-flight guard: a second tap while saving must not fire a duplicate PATCH.
+    if (!selected || contactSaveStatus === "saving") return;
+    if (!contactDraft.name.trim()) return;
+    setContactSaveStatus("saving");
     setFieldSaving("contact");
     let ok = false;
     try {
@@ -229,13 +235,19 @@ export default function ContactsClient({
       });
       ok = res.ok;
     } catch { /* network error — leave the editor open with the draft intact */ }
+    setFieldSaving(null);
     if (ok) {
       const patch = { ...contactDraft };
       setSelected((prev) => (prev ? { ...prev, ...patch } : prev));
       setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, ...patch } : l)));
-      setEditingContact(false);
+      // Flash a success confirmation, then close the editor.
+      setContactSaveStatus("saved");
+      setTimeout(() => { setEditingContact(false); setContactSaveStatus("idle"); }, 900);
+    } else {
+      // Keep the editor open with the draft intact so nothing is lost.
+      setContactSaveStatus("error");
+      setTimeout(() => setContactSaveStatus("idle"), 2500);
     }
-    setFieldSaving(null);
   }
 
   // Download this contact as a vCard so the user can save it to their phone.
@@ -835,7 +847,7 @@ export default function ContactsClient({
                 <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Contact Info</p>
                 {!editingContact && (
                   <button
-                    onClick={() => { setContactDraft({ name: selected.name ?? "", company: selected.company ?? "", email: selected.email ?? "", phone: selected.phone ?? "" }); setEditingContact(true); }}
+                    onClick={() => { setContactDraft({ name: selected.name ?? "", company: selected.company ?? "", email: selected.email ?? "", phone: selected.phone ?? "" }); setContactSaveStatus("idle"); setEditingContact(true); }}
                     className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
                   >
                     Edit
@@ -848,9 +860,50 @@ export default function ContactsClient({
                   <input type="text" value={contactDraft.company} onChange={(e) => setContactDraft((d) => ({ ...d, company: e.target.value }))} placeholder="Company" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                   <input type="email" value={contactDraft.email} onChange={(e) => setContactDraft((d) => ({ ...d, email: e.target.value }))} placeholder="Email" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                   <input type="tel" value={contactDraft.phone} onChange={(e) => setContactDraft((d) => ({ ...d, phone: e.target.value }))} placeholder="Phone" className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-                  <div className="flex gap-2">
-                    <button onClick={() => setEditingContact(false)} className="text-xs text-gray-500 hover:text-gray-300">Cancel</button>
-                    <button onClick={saveContact} disabled={fieldSaving === "contact"} className="text-xs text-blue-400 hover:text-blue-300 font-medium disabled:opacity-40">{fieldSaving === "contact" ? "Saving…" : "Save"}</button>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setEditingContact(false); setContactSaveStatus("idle"); }}
+                      disabled={contactSaveStatus === "saving"}
+                      className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-400 border border-gray-700 hover:border-gray-500 hover:text-gray-200 transition-colors disabled:opacity-40"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveContact}
+                      disabled={contactSaveStatus === "saving" || contactSaveStatus === "saved" || !contactDraft.name.trim()}
+                      aria-busy={contactSaveStatus === "saving"}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed"
+                      style={{
+                        background:
+                          contactSaveStatus === "saved" ? "#16a34a"
+                          : contactSaveStatus === "error" ? "#dc2626"
+                          : "#2563eb",
+                        opacity: contactSaveStatus === "idle" && !contactDraft.name.trim() ? 0.5 : 1,
+                      }}
+                    >
+                      {contactSaveStatus === "saving" ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Saving…
+                        </>
+                      ) : contactSaveStatus === "saved" ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          Saved!
+                        </>
+                      ) : contactSaveStatus === "error" ? (
+                        "Error — try again"
+                      ) : (
+                        "Save changes"
+                      )}
+                    </button>
                   </div>
                 </div>
               )}

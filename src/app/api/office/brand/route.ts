@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
 
 // Office admin sets the uniform brand (logo / company / website / template).
 // Saves it on the office AND propagates it to every existing card under the
@@ -36,16 +37,18 @@ export async function PATCH(req: NextRequest) {
     .eq("office_id", office.id)
     .eq("status", "active");
   const memberIds = (members ?? []).map((m) => m.user_id).filter(Boolean) as string[];
-  let verifiedMemberIds: string[] = [];
+  let verifiedInOffice: string[] = [];
   if (memberIds.length) {
     const { data: stillHere } = await admin
       .from("profiles")
       .select("id")
       .in("id", memberIds)
       .eq("office_id", office.id);
-    verifiedMemberIds = (stillHere ?? []).map((p) => p.id as string);
+    verifiedInOffice = (stillHere ?? []).map((p) => p.id as string);
   }
-  const userIds = [user.id, ...verifiedMemberIds];
+  // Owner + members still verifiably in this office (intersection). A stale
+  // office_members row alone never grants a rebrand — see office-brand-targets.
+  const userIds = resolveBrandTargetIds(user.id, memberIds, verifiedInOffice);
 
   const cardUpdate: Record<string, unknown> = {};
   if (brand.brand_logo_url) cardUpdate.logo_url = brand.brand_logo_url;

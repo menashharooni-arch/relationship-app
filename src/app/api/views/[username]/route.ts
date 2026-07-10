@@ -4,6 +4,7 @@ import { dispatchCrmEvent } from "@/lib/crm-events";
 import { checkViewMilestone } from "@/lib/milestones";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
+import { isOwnerRequest } from "@/lib/self-traffic";
 
 export async function POST(
   req: NextRequest,
@@ -35,17 +36,10 @@ export async function POST(
   // Owner self-views NEVER count as traffic. The pages already skip the tracker
   // for a logged-in owner, but this closes every other path (stale tabs, direct
   // calls, future components): if the caller's session owns this card, skip.
-  try {
-    const { createClient } = await import("@/lib/supabase-server");
-    const { data: { user: viewer } } = await (await createClient()).auth.getUser();
-    if (viewer) {
-      const admin0 = getAdminSupabase();
-      const { data: owned } = await admin0.from("cards").select("user_id").eq("username", baseSlug).maybeSingle();
-      const ownerId = owned?.user_id
-        ?? (await admin0.from("profiles").select("id").eq("username", baseSlug).maybeSingle()).data?.id;
-      if (ownerId && ownerId === viewer.id) return NextResponse.json({ ok: true, self: true });
-    }
-  } catch { /* no session context (e.g. cron) — treat as a visitor */ }
+  // Shared, identity-based check — never IP-based (see self-traffic.ts).
+  if (await isOwnerRequest(getAdminSupabase(), username)) {
+    return NextResponse.json({ ok: true, self: true });
+  }
 
   const city = req.headers.get("x-vercel-ip-city");
   const country = req.headers.get("x-vercel-ip-country");
