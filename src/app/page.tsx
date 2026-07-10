@@ -81,18 +81,21 @@ export default function Home() {
         {/* ═══════════════ HOW IT WORKS ═══════════════ */}
         <section className="rd-dark relative py-20 border-y border-white/8">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
-            <div className="grid md:grid-cols-3 gap-4">
-              {[
-                { n: "01", t: "Share in one tap", d: "Tap a phone, show your QR, or drop your link. Your card opens instantly — no app, no friction." },
-                { n: "02", t: "They save you", d: "Your name, number, email and photo land in their contacts. You share theirs back, too." },
-                { n: "03", t: "You see everything", d: "Every view, save, and location — in a dashboard built to turn moments into relationships." },
-              ].map((s, i) => (
-                <div key={s.n} className="rd-glass p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
-                  <span className="rd-aurora-text text-[15px] font-bold tracking-widest">{s.n}</span>
-                  <p className="text-white font-semibold text-[19px] mt-3">{s.t}</p>
-                  <p className="text-white/50 text-[14.5px] mt-2 leading-relaxed">{s.d}</p>
-                </div>
-              ))}
+            <div className="rd-steps">
+              <div className="rd-steps-line" aria-hidden="true" />
+              <div className="grid md:grid-cols-3 gap-4">
+                {[
+                  { n: "01", t: "Share in one tap", d: "Tap a phone, show your QR, or drop your link. Your card opens instantly — no app, no friction." },
+                  { n: "02", t: "They save you", d: "Your name, number, email and photo land in their contacts. You share theirs back, too." },
+                  { n: "03", t: "You see everything", d: "Every view, save, and location — in a dashboard built to turn moments into relationships." },
+                ].map((s, i) => (
+                  <div key={s.n} className="rd-step rd-glass p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
+                    <span className="rd-step-num rd-aurora-text text-[15px] font-bold tracking-widest">{s.n}</span>
+                    <p className="text-white font-semibold text-[19px] mt-3">{s.t}</p>
+                    <p className="text-white/50 text-[14.5px] mt-2 leading-relaxed">{s.d}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
