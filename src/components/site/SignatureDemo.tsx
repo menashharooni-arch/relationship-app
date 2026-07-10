@@ -7,7 +7,6 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
-import LeadCaptureForm from "@/components/LeadCaptureForm";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
@@ -77,8 +76,6 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[90] overflow-y-auto" style={{ background: "rgba(4,7,15,0.72)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="min-h-full flex items-start justify-center py-8 px-4">
         <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-          <button onClick={onClose} aria-label="Close" className="absolute -top-1 -right-1 z-20 w-9 h-9 rounded-full bg-black/55 text-white flex items-center justify-center text-lg leading-none shadow-lg">✕</button>
-
           <div className="flex flex-col items-center gap-5 rounded-3xl px-4 py-6" style={{ background: "#FAF7F2" }}>
             {/* The SwiftCard — identical PhotoFirst card as the signature */}
             <div className="w-full" style={showOnly}>
@@ -99,7 +96,15 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
               <div className="flex items-center gap-3 mb-1"><SectionNumber n={2} /><p className="text-slate-900 font-semibold text-sm">Share your info with {FIRST}</p></div>
               <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
               <div style={showOnly}>
-                <LeadCaptureForm cardOwner="alex-morgan" source="signature_demo" />
+                {/* Blank form — a faithful copy of the real LeadCaptureForm, empty. */}
+                <div className="w-full space-y-3">
+                  <input type="text" placeholder="Your name *" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
+                  <input type="tel" placeholder="Your phone number *" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
+                  <input type="email" placeholder="Your email (optional)" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
+                  <textarea placeholder="Quick message (optional)" rows={2} readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm resize-none" />
+                  <button type="button" className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm" style={{ background: "#1D4ED8" }}>Share My Info</button>
+                  <p className="text-slate-600 text-[8px] text-center leading-snug">By sharing your info you agree to receive follow-up messages by email or text. Reply STOP to a text anytime to opt out.</p>
+                </div>
               </div>
             </div>
 
