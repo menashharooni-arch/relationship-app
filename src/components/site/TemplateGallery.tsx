@@ -9,6 +9,10 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
+import SocialLinkIntercept from "@/components/SocialLinkIntercept";
+import ShareButton from "@/components/ShareButton";
+import QRCodeModal from "@/components/QRCodeModal";
+import { buildConnectLinks } from "@/lib/social-url";
 
 // Interactive template gallery for the homepage. It renders the REAL card
 // templates (same components, same sample data as /templates and the live
@@ -20,13 +24,26 @@ import type { CardData } from "@/components/card-templates/types";
 
 const CARD: CardData = withoutSocials(SAMPLE_DATA);
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
+const DEMO_URL = "https://swiftcard.me/card/alexmorgan";
 
-type Tmpl = { id: string; name: string; Component: React.ComponentType<{ data: CardData }> };
+// Photo First is face-forward, so it gets a real headshot (royalty-free portrait).
+const PHOTO_FIRST_DATA: CardData = { ...CARD, photoUrl: "/marketing/demo-girl.jpg" };
+
+// Same connect links the live card builds (Website, LinkedIn, Instagram, TikTok, X).
+const CONNECT_LINKS = buildConnectLinks({
+  website: SAMPLE_DATA.website,
+  linkedin: SAMPLE_DATA.linkedin,
+  instagram: SAMPLE_DATA.instagram,
+  tiktok: SAMPLE_DATA.tiktok,
+  twitter: SAMPLE_DATA.twitter,
+});
+
+type Tmpl = { id: string; name: string; Component: React.ComponentType<{ data: CardData }>; data?: CardData };
 
 const TEMPLATES: Tmpl[] = [
   { id: "classic-pro", name: "Classic Professional", Component: ClassicPro },
   { id: "modern-bold", name: "Modern Bold", Component: ModernBold },
-  { id: "photo-first", name: "Photo First", Component: PhotoFirst },
+  { id: "photo-first", name: "Photo First", Component: PhotoFirst, data: PHOTO_FIRST_DATA },
   { id: "local-business", name: "Local Business", Component: LocalBusiness },
   { id: "luxury-minimal", name: "Luxury Minimal", Component: LuxuryMinimal },
 ];
@@ -53,7 +70,7 @@ const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
 
 // The full "what you get when you open the link" experience for one template.
 // Keyed on the template id by the parent, so switching templates resets state.
-function LinkExperience({ Component }: { Component: Tmpl["Component"] }) {
+function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; data: CardData }) {
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
 
@@ -62,7 +79,7 @@ function LinkExperience({ Component }: { Component: Tmpl["Component"] }) {
       <div className="mx-auto max-w-[300px] flex flex-col gap-4">
         {/* The real card template */}
         <div className="rounded-2xl overflow-hidden">
-          <CardScaler><Component data={CARD} /></CardScaler>
+          <CardScaler><Component data={data} /></CardScaler>
         </div>
 
         {/* 1 — Save contact */}
@@ -107,29 +124,29 @@ function LinkExperience({ Component }: { Component: Tmpl["Component"] }) {
           )}
         </div>
 
-        {/* 3 — Swift Links */}
+        {/* 3 — Swift Links (the real card component) */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-3">
-            <SectionNum n={3} />
-            <p className="text-slate-900 font-semibold text-[13px]">Swift Links</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <SectionNum n={3} />
+              <p className="text-slate-900 font-semibold text-[13px]">Swift Links</p>
+            </div>
+            <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {[["Website", "#2563EB"], ["LinkedIn", "#0A66C2"], ["Instagram", "#E1306C"], ["TikTok", "#111827"]].map(([label, color]) => (
-              <div key={label} className="h-9 rounded-xl flex items-center justify-center text-[11px] font-bold" style={{ background: `${color}12`, color, border: `1px solid ${color}2e` }}>{label}</div>
-            ))}
-          </div>
+          <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
         </div>
 
-        {/* 4 — Share this card */}
+        {/* 4 — Share this card (the real card components) */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-3">
+          <div className="flex items-center gap-2.5 mb-4">
             <SectionNum n={4} />
             <p className="text-slate-900 font-semibold text-[13px]">Share this card</p>
           </div>
-          <div className="w-full rounded-full py-2.5 text-[12.5px] font-bold flex items-center justify-center gap-1.5 text-slate-700" style={{ background: "#F1ECE3", border: "1px solid #E4DDD4" }}>
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 12v8h16v-8M12 3v13M8 7l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            Share · QR code
-          </div>
+          <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
+          <QRCodeModal url={DEMO_URL} firstName={FIRST} />
+          <a href="https://swiftcard.me/?src=card" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
+            Create your card · swiftcard.me
+          </a>
         </div>
       </div>
     </div>
@@ -149,7 +166,7 @@ export default function TemplateGallery() {
             <div className="rd-notch" />
             <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
               <StatusBar />
-              <LinkExperience key={activeT.id} Component={activeT.Component} />
+              <LinkExperience key={activeT.id} Component={activeT.Component} data={activeT.data ?? CARD} />
             </div>
             <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 26%)" }} />
           </div>
@@ -186,7 +203,7 @@ export default function TemplateGallery() {
                     transform: on ? "translateY(-3px)" : undefined,
                   }}
                 >
-                  <CardScaler><t.Component data={CARD} /></CardScaler>
+                  <CardScaler><t.Component data={t.data ?? CARD} /></CardScaler>
                 </div>
               </button>
             );
