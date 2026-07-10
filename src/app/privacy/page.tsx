@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <nav className="border-b border-warm-border bg-cream/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/"><SwiftCardLogo size={26} /></Link>
-          <Link href="/login?mode=signup" className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors">Get started</Link>
+          <Link href="/cards/new" className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors">Get started</Link>
         </div>
       </nav>
 
