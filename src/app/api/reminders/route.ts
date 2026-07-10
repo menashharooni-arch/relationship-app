@@ -10,6 +10,7 @@ import { trialEndingSoonEmail, trialEndedEmail, neverSharedNudgeEmail } from "@/
 import { aiComplete } from "@/lib/ai";
 import { escapeHtml } from "@/lib/escape";
 import { contactUnsubUrl } from "@/lib/messaging";
+import { reportError } from "@/lib/report-error";
 
 type FlowDay = { enabled: boolean; time: string };
 type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
@@ -253,11 +254,12 @@ export async function GET(req: NextRequest) {
         delete rest._paymentFailedAt;
         await supabase.from("profiles").update({ customization: rest }).eq("id", u.id);
       } catch (e) {
-        console.error("[reminders] grace-period subscription cancel failed:", e, { profileId: u.id });
+        // A stuck cancel means a non-paying customer keeps paid access — alert.
+        await reportError("reminders.grace-period.cancel", e, { profileId: u.id });
       }
     }
   } catch (e) {
-    console.error("[reminders] grace-period expiry check failed:", e);
+    await reportError("reminders.grace-period.sweep", e);
   }
 
   for (const step of SEQUENCE) {

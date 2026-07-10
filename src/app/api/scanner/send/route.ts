@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   // Sends to an arbitrary attacker-chosen address — without a cap this is an
   // unthrottled mail relay via SwiftCard's own sending reputation.
-  if (isRateLimited(`scanner-send:${user.id}`, 20, 10 * 60 * 1000)) {
+  if (await isRateLimited(`scanner-send:${user.id}`, 20, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 

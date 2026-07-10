@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     // card_owner is normalized so "Alice " vs "alice" can't mint fresh buckets.
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rateKey = `${ip}:${card_owner.trim().toLowerCase()}`;
-    if (isRateLimited(rateKey)) {
+    if (await isRateLimited(rateKey)) {
       return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });
     }
 

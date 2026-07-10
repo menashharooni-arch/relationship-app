@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   // Every send is a real Twilio charge — cap per account so a compromised or
   // scripted session can't run up an unbounded SMS bill.
-  if (isRateLimited(`sms-send:${user.id}`, 30, 10 * 60 * 1000)) {
+  if (await isRateLimited(`sms-send:${user.id}`, 30, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "rate_limited", message: "Too many texts sent — try again in a few minutes." }, { status: 429 });
   }
 
