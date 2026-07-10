@@ -2,6 +2,12 @@
 
 import type { CardData } from "./types";
 
+// Preset-template style overrides (accent/background/text/typography). The pure
+// logic lives in src/lib/template-style.ts so it's node-testable; re-exported
+// here so templates keep importing it from "./shared".
+export { templateStyle, CARD_FONT_OPTIONS } from "@/lib/template-style";
+export type { TemplateStyle } from "@/lib/template-style";
+
 export function formatPhone(raw: string): string {
   const d = raw.replace(/\D/g, "");
   if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;

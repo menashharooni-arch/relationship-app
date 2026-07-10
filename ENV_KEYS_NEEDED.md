@@ -46,6 +46,51 @@ Register these **redirect URIs** in each OAuth app (must match `NEXT_PUBLIC_APP_
 
 ---
 
+## Needed for LinkedIn Profile-Photo Import (optional)
+
+Lets a signed-in user import their **own** LinkedIn profile photo onto a card.
+Uses official LinkedIn OAuth (OpenID Connect) with explicit consent; the photo is
+clearly labelled LinkedIn-sourced and the user must **approve** it before it's
+applied. No scraping, no matching photos by name. **The Connect button stays
+hidden until BOTH vars below are set AND the LinkedIn app is approved** — the
+architecture is built but is not operational until you complete the app setup.
+
+| Variable | Where to get it |
+|---|---|
+| `LINKEDIN_CLIENT_ID` | linkedin.com/developers → your app → **Auth** tab → Client ID. |
+| `LINKEDIN_CLIENT_SECRET` | Same LinkedIn app → **Auth** tab → Client Secret. |
+| `OAUTH_SECRET` | Reused from the CRM section above — required to encrypt stored LinkedIn tokens and sign OAuth state. |
+
+**External setup steps you must still perform:**
+1. Create an app at **linkedin.com/developers** (associate it with a Company Page — LinkedIn requires one).
+2. On the **Products** tab, add **"Sign In with LinkedIn using OpenID Connect"** and wait for it to be **approved/granted**.
+3. On the **Auth** tab, add the redirect URL: `https://swiftcard.me/api/integrations/linkedin/callback` (must match `NEXT_PUBLIC_APP_URL` exactly).
+4. Confirm the granted **scopes** include `openid`, `profile`, `email`.
+5. Copy the Client ID / Secret into the env vars above (local + Vercel).
+
+Without these, `isLinkedInEnabled()` is false → the card is hidden and the connect route redirects back with `status=error` instead of hitting a broken LinkedIn page.
+
+---
+
+## Needed for Company Logo Suggestion (optional)
+
+Suggests a company's **official** logo/name/domain when a user types a company
+name, business email, or domain while building a card — provider API only (no
+Google/image scraping), and the user must **confirm** a match (never auto-applied).
+
+| Variable | Where to get it |
+|---|---|
+| `LOGO_DEV_TOKEN` | **Logo.dev** Brand Search API secret key (format `sk_...`). Sign up at **logo.dev** → Dashboard → API key. |
+
+**External setup steps you must still perform:**
+1. Sign up at **https://www.logo.dev** (free tier available).
+2. Copy your **secret key** (`sk_...`) from the dashboard — this is the Brand Search key, used server-side only.
+3. Set `LOGO_DEV_TOKEN` (local + Vercel).
+
+Without it, `/api/logo-suggest` returns `{ status: "not_configured" }` and the "Suggest my company logo" helper renders nothing — no errors. Personal email domains (gmail/outlook/etc) are skipped automatically. Provider is behind an interface (`src/lib/logo-provider.ts`) so it can be swapped later.
+
+---
+
 ## Needed Later (payments)
 
 See **`STRIPE_TWILIO_SETUP.md`** for the full dashboard walkthrough (products, prices, webhook events, test vs. live mode).

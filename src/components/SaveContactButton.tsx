@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 
 interface Person {
   name: string;
@@ -18,11 +19,39 @@ interface Person {
   instagram?: string;
   twitter?: string;
   tiktok?: string;
+  /** THIS card owner's headshot — embedded in the saved contact when present. */
+  photoUrl?: string | null;
 }
 
-function normalizeUrl(url: string): string {
-  if (!url) return "";
-  return url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+// Fetch the card owner's headshot and base64-encode it for embedding. Routed
+// through the SSRF-guarded same-origin image proxy so cross-origin Supabase /
+// avatar URLs read cleanly (and CORS-taint can't block the read). Best-effort:
+// any failure (offline, non-image, timeout) resolves to null so the contact
+// still saves — just without the photo. Capped so a slow image never hangs the
+// save.
+async function fetchHeadshotPhoto(url: string): Promise<VCardPhoto | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`/api/img-proxy?url=${encodeURIComponent(url)}`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) return null;
+    // ~700KB embedded ceiling — keeps the .vcf importable on iOS/Android.
+    if (blob.size > 700_000) return null;
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(new Error("read failed"));
+      fr.readAsDataURL(blob);
+    });
+    const m = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,([\s\S]*)$/i);
+    if (!m || !m[2]) return null;
+    return { base64: m[2], mime: m[1] || blob.type };
+  } catch {
+    return null;
+  }
 }
 
 function trackEvent(username: string, eventType: string, source: string) {
@@ -52,6 +81,7 @@ export default function SaveContactButton({
   suppressTracking?: boolean;
 }) {
   const [saved, setSaved] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
@@ -74,50 +104,42 @@ export default function SaveContactButton({
     triggerSignupNudge("vcard");
   }
 
-  function downloadVCard() {
+  async function downloadVCard() {
+    // Guard against a double-tap while the headshot is still fetching — one save
+    // per click, no duplicate downloads or duplicate activity entries.
+    if (downloading) return;
+    setDownloading(true);
+    try {
     // One action = one activity entry. We record the save once (below, as
     // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
     // event was creating a duplicate line in each contact's conversation timeline.
-    // vCard escaping (RFC 6350): a ";" or "," in a name/company would otherwise
-    // shift field boundaries and corrupt the saved contact.
-    const esc = (v?: string | null) => String(v ?? "").replace(/[\r\n]+/g, " ").replace(/([,;\\])/g, "\\$1").trim();
-    const lines = [
-      "BEGIN:VCARD",
-      "VERSION:3.0",
-      `FN:${esc(person.name)}`,
-      `N:${esc(person.name.split(" ").slice(1).join(" "))};${esc(person.name.split(" ")[0])};;;`,
-    ];
-    if (person.title)    lines.push(`TITLE:${esc(person.title)}`);
-    if (person.company)  lines.push(`ORG:${esc(person.company)}`);
-    if (person.email)    lines.push(`EMAIL;TYPE=WORK:${esc(person.email)}`);
+    // Escaping + field ordering live in the shared buildVCard (src/lib/vcard.ts),
+    // used by the server lead export too so contacts save identically everywhere.
 
-    // All phone numbers, typed (mobile → CELL, office → WORK), then fax.
-    const phones = (person.phones ?? []).filter((p) => p.number?.trim());
-    if (phones.length) {
-      for (const p of phones) {
-        const type = p.label === "office" ? "WORK,VOICE" : "CELL,VOICE";
-        lines.push(`TEL;TYPE=${type}:${esc(p.number)}`);
-      }
-    } else if (person.phone) {
-      lines.push(`TEL:${esc(person.phone)}`);
-    }
-    if (person.fax?.trim()) lines.push(`TEL;TYPE=FAX:${esc(person.fax)}`);
+    // Embed THIS card owner's headshot when they have one. Best-effort — a failed
+    // fetch just omits the photo and the contact still saves.
+    const photo = person.photoUrl ? await fetchHeadshotPhoto(person.photoUrl) : null;
 
-    if (person.website)  lines.push(`URL:${esc(normalizeUrl(person.website))}`);
+    const vcard = buildVCard(
+      {
+        name: person.name,
+        title: person.title,
+        company: person.company,
+        email: person.email,
+        phone: person.phone,
+        phones: person.phones,
+        fax: person.fax,
+        website: person.website,
+        address: person.address,
+        linkedin: person.linkedin,
+        instagram: person.instagram,
+        twitter: person.twitter,
+        tiktok: person.tiktok,
+      },
+      photo,
+    );
 
-    // Postal address (structured ADR: ;;street;city;state;zip;)
-    const addr = person.address;
-    if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
-      const street = [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(" ");
-      lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
-    }
-    if (person.linkedin)   lines.push(`URL;type=LinkedIn:${esc(normalizeUrl(person.linkedin))}`);
-    if (person.instagram)  lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
-    if (person.twitter)    lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
-    if (person.tiktok)     lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);
-    lines.push("END:VCARD");
-
-    const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });
+    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -148,6 +170,9 @@ export default function SaveContactButton({
       setTimeout(() => setShowSheet(true), 900);
     } else {
       setTimeout(() => triggerSignupNudge("vcard"), 900);
+    }
+    } finally {
+      setDownloading(false);
     }
   }
 

@@ -5,13 +5,15 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
 
 export default function ClassicPro({ data }: { data: CardData }) {
-  const BLUE = data.customization?.accentColor ?? BLUE_DEFAULT;
+  const style = templateStyle(data);
+  const BLUE = style.accentColor ?? BLUE_DEFAULT;
+  const panelBg = style.bgColor ?? `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`;
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
@@ -26,6 +28,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data),
         background: "#fff",
+        fontFamily: style.fontFamily,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
@@ -34,7 +37,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         className="relative flex flex-col justify-between"
         style={{
           width: "40%",
-          background: `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`,
+          background: panelBg,
           padding: "18px 16px 16px",
         }}
       >
@@ -83,7 +86,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(24 * heroGrow(f), data.name, 16), lineHeight: 1.12 }}
+            style={{ fontSize: fitPx(24 * heroGrow(f), data.name, 16), lineHeight: 1.12, color: style.textColor }}
           >
             {data.name}
           </h2>

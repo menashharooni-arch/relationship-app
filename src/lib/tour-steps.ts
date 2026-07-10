@@ -19,6 +19,13 @@ export type TourStep = {
   placement?: "top" | "bottom" | "left" | "right";
   /** Let the visitor click the highlighted element to advance (Next still works). */
   clickToAdvance?: boolean;
+  /**
+   * Keep the spotlighted element fully clickable WITHOUT advancing the tour, so
+   * the visitor can genuinely interact with it (e.g. open a live preview) and
+   * then continue with Next. Unlike clickToAdvance, a click here does nothing to
+   * the tour — the real control runs.
+   */
+  interactive?: boolean;
 };
 
 const DASH = "/dashboard";
@@ -89,10 +96,10 @@ export const TOUR_STEPS: TourStep[] = [
     id: "your-card",
     path: DASH,
     anchor: "your-card",
-    title: "Your SwiftCard — tap it",
-    body: "Exactly what people see when you share. Tap to preview it; hit Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
+    title: "Your SwiftCard — try it",
+    body: "Exactly what people see when you share. Tap “See your card live” to open the real card in action, then come back and hit Next. Use Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
     placement: "right",
-    clickToAdvance: true,
+    interactive: true,
   },
   {
     id: "share",

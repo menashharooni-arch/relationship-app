@@ -9,12 +9,28 @@ type Props = {
   field: "photo" | "logo";
   currentUrl: string | null;
   label: string;
+  /** Optional small helper text rendered directly under the label. */
+  hint?: string;
   shape?: "circle" | "square";
   cardId?: string;
   defer?: boolean;
   large?: boolean;
+  /** Guest mode: a signed-out user can't POST /api/upload (401). Instead of
+      uploading, we hand the cropped image back as a base64 data: URL — it renders
+      as the preview and rides along in the guest draft's `images` map until the
+      draft is claimed and the real upload happens under the new account. */
+  guest?: boolean;
   onUploaded: (url: string) => void;
 };
+
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result));
+    fr.onerror = () => reject(new Error("read failed"));
+    fr.readAsDataURL(blob);
+  });
+}
 
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   const image = new Image();
@@ -60,7 +76,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   });
 }
 
-export default function ImageUpload({ field, currentUrl, label, shape = "square", cardId, defer, large, onUploaded }: Props) {
+export default function ImageUpload({ field, currentUrl, label, hint, shape = "square", cardId, defer, large, guest, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
@@ -100,6 +116,18 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
 
     try {
       const blob = await getCroppedImg(rawSrc, croppedAreaPixels);
+
+      // Guest: no server upload — keep the image as a base64 data URL locally.
+      if (guest) {
+        const dataUrl = await blobToDataURL(blob);
+        setPreview(dataUrl);
+        if (rawSrc) URL.revokeObjectURL(rawSrc);
+        setRawSrc(null);
+        setUploadStatus("idle");
+        onUploaded(dataUrl);
+        return;
+      }
+
       const file = new File([blob], `${field}.jpg`, { type: "image/jpeg" });
       const form = new FormData();
       form.append("file", file);
@@ -134,8 +162,9 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   }
 
   async function handleRemove() {
-    // Persisted images (account photo/logo, or a saved card logo) are cleared server-side.
-    if (!defer) {
+    // Persisted images (account photo/logo, or a saved card logo) are cleared
+    // server-side. Guest images were never uploaded, so just clear locally.
+    if (!defer && !guest) {
       try {
         await fetch("/api/upload", {
           method: "DELETE",
@@ -256,7 +285,8 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
 
       {/* Normal upload widget */}
       <div>
-        <label className="text-xs text-gray-500 block mb-2">{label}</label>
+        <label className="text-xs text-gray-500 block mb-1">{label}</label>
+        {hint && <p className="text-[11px] text-gray-500 mb-2 leading-snug">{hint}</p>}
         <div className="flex items-center gap-4">
           <button
             type="button"
