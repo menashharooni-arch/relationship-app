@@ -349,7 +349,7 @@ export default function HomePage() {
 
           <div className="sc-rise sc-rise-4 flex flex-col sm:flex-row gap-3">
             <Link
-              href="/login?mode=signup"
+              href="/cards/new"
               className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-7 py-3.5 rounded-full text-sm text-center"
             >
               Create your free card
@@ -649,7 +649,7 @@ export default function HomePage() {
             Set up your digital card in 30 seconds. Free to start, no credit card needed.
           </p>
           <Link
-            href="/login?mode=signup"
+            href="/cards/new"
             className="btn-cta inline-block bg-white hover:bg-cream text-brand font-semibold px-8 py-3.5 rounded-full text-sm"
           >
             Create your free card
@@ -666,7 +666,7 @@ export default function HomePage() {
             <Link href="/pricing" className="nav-link hover:text-slate-900 transition-colors">Pricing</Link>
             <Link href="/contact" className="nav-link hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="nav-link hover:text-slate-900 transition-colors">Sign in</Link>
-            <Link href="/login?mode=signup" className="nav-link hover:text-slate-900 transition-colors">Get started</Link>
+            <Link href="/cards/new" className="nav-link hover:text-slate-900 transition-colors">Get started</Link>
             <Link href="/privacy" className="nav-link hover:text-slate-900 transition-colors">Privacy</Link>
             <Link href="/terms" className="nav-link hover:text-slate-900 transition-colors">Terms</Link>
           </div>

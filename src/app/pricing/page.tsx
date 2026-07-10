@@ -152,7 +152,7 @@ export default function PricingPage() {
               Sign in
             </Link>
             <Link
-              href="/login?mode=signup"
+              href="/cards/new"
               className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
@@ -259,7 +259,7 @@ export default function PricingPage() {
             ))}
           </ul>
           <Link
-            href="/login?mode=signup"
+            href="/cards/new"
             className="w-full text-center border border-[#C8BFB3] hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold py-3 rounded-full transition-colors text-sm bg-[#FAF7F2]"
           >
             Get Started Free →

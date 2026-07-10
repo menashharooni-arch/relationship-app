@@ -23,7 +23,7 @@ export default function NotFound() {
         The link you followed might be mistyped or the card may have moved. But you can make your own SwiftCard in about 30 seconds.
       </p>
       <Link
-        href="/login?mode=signup"
+        href="/cards/new"
         className="bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors"
       >
         Create your free card →

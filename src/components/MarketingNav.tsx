@@ -51,14 +51,14 @@ export default function MarketingNav() {
           <Link href="/pricing" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors">Pricing</Link>
           <Link href="/contact" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors">Contact</Link>
           <Link href="/login" className="nav-link text-sm text-slate-500 hover:text-slate-900 transition-colors">Sign in</Link>
-          <Link href="/login?mode=signup" className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm">
+          <Link href="/cards/new" className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm">
             Get started free
           </Link>
         </div>
 
         {/* Mobile: Get started + animated hamburger */}
         <div className="flex sm:hidden items-center gap-3">
-          <Link href="/login?mode=signup" className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-full text-[13px]">
+          <Link href="/cards/new" className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-4 py-2 rounded-full text-[13px]">
             Get started
           </Link>
           <button
