@@ -63,7 +63,7 @@ function Dot({ tone }: { tone: "muted" | "aurora" | "on" }) {
   return (
     <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: tone === "on" ? "rgba(255,255,255,0.18)" : "transparent" }}>
       <svg viewBox="0 0 20 20" className="w-3.5 h-3.5" fill="none" stroke={tone === "aurora" ? "url(#g)" : bg} strokeWidth={2.4}>
-        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7A5CFF" /><stop offset="1" stopColor="#22D3EE" /></linearGradient></defs>
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2563EB" /><stop offset="1" stopColor="#4DA8F5" /></linearGradient></defs>
         <path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
@@ -150,7 +150,7 @@ export default function PricingPage() {
             {/* Monthly / Annual toggle */}
             <div className="mt-8 inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-white/12 bg-white/[0.04]" data-reveal="fade">
               <span className={`text-sm font-medium transition-colors ${!annual ? "text-white" : "text-white/40"}`}>Monthly</span>
-              <button onClick={() => setAnnual(!annual)} className="relative w-11 h-6 rounded-full transition-colors duration-200" style={{ background: annual ? "#5D6BFF" : "rgba(255,255,255,0.18)" }}>
+              <button onClick={() => setAnnual(!annual)} className="relative w-11 h-6 rounded-full transition-colors duration-200" style={{ background: annual ? "#2563EB" : "rgba(255,255,255,0.18)" }}>
                 <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(22px)" : "translateX(2px)" }} />
               </button>
               <span className={`text-sm font-medium transition-colors ${annual ? "text-white" : "text-white/40"}`}>
@@ -231,10 +231,10 @@ export default function PricingPage() {
 
           {/* Office */}
           <div data-reveal style={{ transitionDelay: "180ms" }} className="rd-glass p-8 flex flex-col">
-            <p className="rd-eyebrow mb-3" style={{ color: "#8B96FF" }}>Office Plan</p>
+            <p className="rd-eyebrow mb-3" style={{ color: "#7CA0FF" }}>Office Plan</p>
             <div className="mb-1">
               <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-white leading-none">${annual ? "3.59" : OFFICE_PER_USER}</span><span className="text-white/40 text-sm mb-1">/ mo per user</span></div>
-              <p className="text-cyan-300/80 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
+              <p className="text-sky-300/80 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
               <p className="text-white font-bold text-[13px] mt-1">{seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}</p>
             </div>
             <div className="mt-4 mb-6">
@@ -242,7 +242,7 @@ export default function PricingPage() {
               <div className="flex gap-2 flex-wrap">
                 {[2, 5, 10, 25, 50].map((n) => (
                   <button key={n} onClick={() => setSeats(n)} className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
-                    style={{ background: seats === n ? "#5D6BFF" : "rgba(255,255,255,0.04)", color: seats === n ? "#fff" : "rgba(255,255,255,0.5)", border: seats === n ? "none" : "1px solid rgba(255,255,255,0.12)" }}>{n} users</button>
+                    style={{ background: seats === n ? "#2563EB" : "rgba(255,255,255,0.04)", color: seats === n ? "#fff" : "rgba(255,255,255,0.5)", border: seats === n ? "none" : "1px solid rgba(255,255,255,0.12)" }}>{n} users</button>
                 ))}
               </div>
               <div className="mt-2 flex items-center gap-2">

@@ -10,10 +10,10 @@ function HeroCardMockup() {
   return (
     <div className="relative flex justify-center pt-6 pb-4" aria-hidden="true">
       {/* Soft glow the card floats on */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-28 rounded-full bg-gradient-to-r from-blue-500/25 via-violet-500/25 to-fuchsia-400/20 blur-2xl" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-28 rounded-full bg-gradient-to-r from-blue-600/25 via-blue-500/25 to-sky-400/20 blur-2xl" />
 
       {/* Sparkles */}
-      <svg viewBox="0 0 24 24" className="absolute left-[18%] top-3 w-3.5 h-3.5 text-violet-400 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+      <svg viewBox="0 0 24 24" className="absolute left-[18%] top-3 w-3.5 h-3.5 text-blue-400 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
       <svg viewBox="0 0 24 24" className="absolute right-[16%] top-10 w-2.5 h-2.5 text-blue-400 sc-twinkle" style={{ animationDelay: "0.7s" }}><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
 
       {/* The card */}
@@ -23,10 +23,10 @@ function HeroCardMockup() {
         <div className="relative rounded-2xl bg-white border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(30,41,99,0.35)] overflow-hidden">
           {/* shine sweep */}
           <div className="sc-shine pointer-events-none absolute inset-0 z-10" />
-          <div className="h-11 bg-gradient-to-r from-blue-600 via-blue-500 to-violet-500" />
+          <div className="h-11 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500" />
           <div className="px-3.5 pb-3.5">
             <div className="w-11 h-11 -mt-5 rounded-full bg-gradient-to-br from-white to-slate-100 border-[3px] border-white shadow-md flex items-center justify-center">
-              <span className="text-[10px] font-black bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">YOU</span>
+              <span className="text-[10px] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
             </div>
             <p className="mt-1.5 text-[11px] font-extrabold text-slate-900 leading-tight tracking-tight">Your Name</p>
             <p className="text-[8.5px] text-slate-400 font-medium">Your Business</p>
@@ -132,8 +132,8 @@ export default function SignupNudgeHost() {
 
           <a
             href={`/cards/new?src=${encodeURIComponent(source)}`}
-            className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 transition-all active:scale-[0.98] hover:brightness-110"
-            style={{ boxShadow: "0 10px 26px -6px rgba(79,70,229,0.55)" }}
+            className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
+            style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
           >
             <span className="sc-shine pointer-events-none absolute inset-0" />
             {copy.cta}

@@ -44,7 +44,12 @@ export default function Home() {
 
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[1.05fr_0.95fr] gap-14 items-center">
             <div>
-              <div data-reveal="fade"><Eyebrow>Digital business cards, reimagined</Eyebrow></div>
+              <div data-reveal="fade">
+                <span className="rd-green-badge">
+                  <span className="rd-green-dot" />
+                  Free to start — no credit card required
+                </span>
+              </div>
               <h1 className="rd-display text-white mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares itself.</span>
@@ -54,15 +59,11 @@ export default function Home() {
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
                 <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-                <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">
-                  See it live
-                  <svg viewBox="0 0 20 20" className="w-4 h-4" fill="currentColor"><path d="M6 4l10 6-10 6V4z" /></svg>
-                </Link>
               </div>
               <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/40 text-[13px]" data-reveal="fade">
                 {["No app to download", "Works on every phone", "Free to start"].map((t) => (
                   <span key={t} className="flex items-center gap-1.5">
-                    <svg viewBox="0 0 20 20" className="w-4 h-4 text-cyan-300/70" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                    <svg viewBox="0 0 20 20" className="w-4 h-4 text-sky-300/80" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     {t}
                   </span>
                 ))}
@@ -149,8 +150,8 @@ export default function Home() {
                   "Matches your brand, updates in real time",
                 ].map((t) => (
                   <li key={t} className="flex items-center gap-3 text-white/75 text-[15px]">
-                    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(34,211,238,0.14)" }}>
-                      <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-cyan-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.14)" }}>
+                      <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
                     {t}
                   </li>

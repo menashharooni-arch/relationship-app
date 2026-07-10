@@ -501,7 +501,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           hides while a full-screen preview (which has its own CTA) is open */}
       {!embedded && engaged && !ctaHidden && !modal && (
         <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pointer-events-none">
-          <div className="pointer-events-auto max-w-sm mx-auto rounded-full p-[1.5px] bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_35px_rgba(79,70,229,0.45)] sc-cta-rise">
+          <div className="pointer-events-auto max-w-sm mx-auto rounded-full p-[1.5px] bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400 shadow-[0_10px_35px_rgba(37,99,235,0.45)] sc-cta-rise">
             <div className="flex items-center gap-1 rounded-full bg-gray-950/95 backdrop-blur p-1.5">
               <Link
                 href="/join?src=preview"
