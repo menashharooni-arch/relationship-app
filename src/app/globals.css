@@ -298,3 +298,50 @@ body {
 [data-sc-theme="light"] .sc-app :is(.text-emerald-200, .text-emerald-300, .text-emerald-400, .text-green-400) { color: #047857 !important; }
 [data-sc-theme="light"] .sc-app .bg-red-950\/40 { background-color: #FEF2F2 !important; }
 [data-sc-theme="light"] .sc-app .border-red-800\/40 { border-color: #FECACA !important; }
+
+/* ── Homepage redesign FX ──────────────────────────────────────────────── */
+
+/* Infinite marquee */
+.sc-marquee { overflow: hidden; position: relative; }
+.sc-marquee-track { display: flex; width: max-content; animation: sc-marquee-scroll linear infinite; }
+.sc-marquee-group { display: flex; align-items: center; flex-shrink: 0; }
+.sc-marquee:hover .sc-marquee-track { animation-play-state: paused; }
+@keyframes sc-marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Edge fade for marquees */
+.sc-marquee-fade { -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); }
+
+/* 3D tilt cards */
+.sc-tilt { transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s ease; transform-style: preserve-3d; will-change: transform; }
+
+/* Shimmer gradient text (hero accent word) */
+.sc-shimmer-text {
+  background: linear-gradient(100deg, #1D4ED8 20%, #7c3aed 40%, #1D4ED8 60%);
+  background-size: 200% auto;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation: sc-shimmer-slide 3.2s linear infinite;
+}
+@keyframes sc-shimmer-slide { to { background-position: -200% center; } }
+
+/* Accordion open/close (grid rows trick = smooth auto-height) */
+.sc-acc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.2,.7,.2,1); }
+.sc-acc-open { grid-template-rows: 1fr; }
+
+/* Scroll-snap share carousel */
+.sc-snap { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.sc-snap::-webkit-scrollbar { display: none; }
+.sc-snap > * { scroll-snap-align: start; }
+
+/* Slow pulse glow (CTA orb) */
+@keyframes sc-glow-pulse { 0%,100% { opacity:.55; transform: scale(1); } 50% { opacity:.9; transform: scale(1.12); } }
+.sc-glow-pulse { animation: sc-glow-pulse 4.5s ease-in-out infinite; }
+
+/* Floating chips around the hero phone */
+@keyframes sc-chip-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.sc-chip-float { animation: sc-chip-float 4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-marquee-track, .sc-shimmer-text, .sc-glow-pulse, .sc-chip-float { animation: none !important; }
+  .sc-tilt { transition: none; }
+}
