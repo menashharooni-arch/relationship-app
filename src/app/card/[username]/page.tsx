@@ -25,6 +25,7 @@ import CardScaler from "@/components/CardScaler";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { cardHeadshot } from "@/lib/card-media";
 import { buildConnectLinks } from "@/lib/social-url";
+import SignupNudgeHost from "@/components/SignupNudgeHost";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro,
@@ -258,6 +259,7 @@ export default async function CardPage({
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
+      {!isEmbed && !isOwnerView && <SignupNudgeHost />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">
