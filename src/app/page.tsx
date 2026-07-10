@@ -5,7 +5,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import HeroImage from "@/components/site/HeroImage";
-import PhoneShowcase from "@/components/site/PhoneShowcase";
+import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
 import WalletScene from "@/components/site/WalletScene";
@@ -126,7 +126,7 @@ export default function Home() {
             <div>
               <div data-reveal><Eyebrow>SwiftLinks</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5" data-reveal>
-                One link for <span className="rd-aurora-text">everything</span> you are.
+                Everything to do. <span className="rd-aurora-text">One SwiftLink.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
                 Your bio, your socials, your booking link, your latest drop — one beautiful page that lives in your Instagram, TikTok, or email. Separate from your card, powered by the same profile.
@@ -147,7 +147,7 @@ export default function Home() {
               </ul>
             </div>
             <div className="flex justify-center" data-reveal="scale">
-              <PhoneShowcase variant="link" />
+              <SwiftLinksPhone />
             </div>
           </div>
         </section>
