@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // POST /api/promo/redeem — user redeems a promo code
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Promo codes are short admin-typed strings, not high-entropy tokens —
+  // cap guesses per account.
+  if (isRateLimited(`promo-redeem:${user.id}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many attempts — try again in a few minutes." }, { status: 429 });
+  }
 
   const { code } = await req.json();
   if (!code) return NextResponse.json({ error: "code required" }, { status: 400 });

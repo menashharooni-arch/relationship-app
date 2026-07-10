@@ -8,6 +8,8 @@ type Integration = "google" | "hubspot";
 type Props = {
   googleConnected: boolean;
   hubspotConnected: boolean;
+  googleSyncError?: string | null;
+  hubspotSyncError?: string | null;
   isPro: boolean;
   /** HubSpot OAuth env keys present — hide the card entirely when not configured
       so users never hit a broken Connect redirect. */
@@ -19,6 +21,7 @@ function IntegrationCard({
   description,
   logo,
   connected: initialConnected,
+  syncError,
   connectUrl,
   disconnectUrl,
   isPro,
@@ -28,6 +31,7 @@ function IntegrationCard({
   description: string;
   logo: React.ReactNode;
   connected: boolean;
+  syncError?: string | null;
   connectUrl: string;
   disconnectUrl: string;
   isPro: boolean;
@@ -46,9 +50,11 @@ function IntegrationCard({
     }
   }
 
+  const needsReconnect = connected && !!syncError;
+
   return (
     <div className={`bg-[#EDE5D8] border rounded-2xl px-5 py-4 shadow-sm ${!isPro ? "opacity-60" : ""}`}
-      style={{ borderColor: connected ? "#86efac" : "#D4C8B8" }}>
+      style={{ borderColor: needsReconnect ? "#fcd34d" : connected ? "#86efac" : "#D4C8B8" }}>
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#F0EBE1] border border-[#D4C8B8] flex items-center justify-center shrink-0">
           {logo}
@@ -56,15 +62,24 @@ function IntegrationCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-slate-900 font-semibold text-sm">{name}</p>
-            {connected && (
+            {needsReconnect ? (
+              <span className="text-xs bg-amber-100 text-amber-700 font-medium px-2 py-0.5 rounded-full">Reconnect needed</span>
+            ) : connected ? (
               <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">Connected</span>
-            )}
+            ) : null}
           </div>
           <p className="text-slate-400 text-xs mt-0.5">{description}</p>
         </div>
 
         {isPro ? (
-          connected ? (
+          needsReconnect ? (
+            <a
+              href={connectUrl}
+              className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0"
+            >
+              Reconnect
+            </a>
+          ) : connected ? (
             <button
               onClick={disconnect}
               disabled={disconnecting}
@@ -85,6 +100,9 @@ function IntegrationCard({
         )}
       </div>
 
+      {needsReconnect && (
+        <p className="text-xs text-amber-700 mt-2">{syncError}</p>
+      )}
       {flashStatus === "connected" && (
         <p className="text-xs text-green-600 font-medium mt-2">Successfully connected!</p>
       )}
@@ -95,7 +113,7 @@ function IntegrationCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, isPro, hubspotEnabled = false }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro, hubspotEnabled = false }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -104,6 +122,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
     const integration = searchParams.get("integration") as Integration | null;
     const status = searchParams.get("status");
     if (integration && status) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of OAuth callback query params
       setFlashIntegration(integration);
       setFlashStatus(status);
       setTimeout(() => { setFlashIntegration(null); setFlashStatus(null); }, 5000);
@@ -124,6 +143,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
           </svg>
         }
         connected={googleConnected}
+        syncError={googleSyncError}
         connectUrl="/api/integrations/google/connect"
         disconnectUrl="/api/integrations/google"
         isPro={isPro}
@@ -140,6 +160,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
           </svg>
         }
         connected={hubspotConnected}
+        syncError={hubspotSyncError}
         connectUrl="/api/integrations/hubspot/connect"
         disconnectUrl="/api/integrations/hubspot"
         isPro={isPro}

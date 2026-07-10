@@ -37,7 +37,7 @@ export default async function FlowSettingsPage() {
 
   const admin = getAdminSupabase();
   const [{ data: integrations }, { data: cards }] = await Promise.all([
-    admin.from("integrations").select("provider").eq("user_id", user.id),
+    admin.from("integrations").select("provider, sync_error").eq("user_id", user.id),
     admin
       .from("cards")
       .select("id, username, name, title, label")
@@ -46,8 +46,12 @@ export default async function FlowSettingsPage() {
   ]);
 
   const referral = await getReferralProgress(user.id);
-  const googleConnected = integrations?.some((i) => i.provider === "google") ?? false;
-  const hubspotConnected = integrations?.some((i) => i.provider === "hubspot") ?? false;
+  const googleIntegration = integrations?.find((i) => i.provider === "google");
+  const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
+  const googleConnected = !!googleIntegration;
+  const hubspotConnected = !!hubspotIntegration;
+  const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
+  const hubspotSyncError = (hubspotIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
@@ -122,6 +126,8 @@ export default async function FlowSettingsPage() {
                 <IntegrationsSettings
                   googleConnected={googleConnected}
                   hubspotConnected={hubspotConnected}
+                  googleSyncError={googleSyncError}
+                  hubspotSyncError={hubspotSyncError}
                   isPro={isPro}
                   hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
                 />

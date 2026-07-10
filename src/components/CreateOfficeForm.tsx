@@ -13,20 +13,25 @@ export default function CreateOfficeForm() {
     setStatus("loading");
     setError("");
 
-    const res = await fetch("/api/office", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const json = await res.json();
+    try {
+      const res = await fetch("/api/office", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const json = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      setError(json.error ?? "Something went wrong.");
+      if (!res.ok) {
+        setError(json.error ?? "Something went wrong.");
+        setStatus("error");
+        return;
+      }
+
+      window.location.reload();
+    } catch {
+      setError("Couldn't reach the server — check your connection and try again.");
       setStatus("error");
-      return;
     }
-
-    window.location.reload();
   }
 
   return (

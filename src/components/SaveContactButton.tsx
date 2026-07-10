@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
+import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 interface Person {
@@ -59,7 +59,9 @@ export default function SaveContactButton({
 
   useEffect(() => {
     if (!cardOwner) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     if (hasSharedWith(cardOwner)) setAlreadyShared(true);
+    if (hasSavedContact(cardOwner)) setSaved(true);
     // Pre-fill from an earlier share anywhere on SwiftCard — never ask twice.
     const v = getVisitorInfo();
     if (v) setForm({ name: v.name, phone: v.phone, email: v.email });
@@ -126,6 +128,7 @@ export default function SaveContactButton({
     URL.revokeObjectURL(url);
 
     setSaved(true);
+    markSavedContact(cardOwner);
 
     // Owners testing their own card still get the download, but nothing is
     // recorded — no "saved your contact" event/notification to themselves.
@@ -153,17 +156,25 @@ export default function SaveContactButton({
     if (!form.name.trim() || !form.phone.trim() || !cardOwner) return;
     setStatus("loading");
 
-    await fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        email: form.email || null,
-        card_owner: cardOwner,
-        source: "save_contact_conversion",
-      }),
-    });
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email || null,
+          card_owner: cardOwner,
+          source: "save_contact_conversion",
+        }),
+      });
+      if (!res.ok) throw new Error("lead capture failed");
+    } catch {
+      // Don't mark as shared or advance the UI on a failed capture — the
+      // visitor's info would otherwise be silently lost.
+      setStatus("idle");
+      return;
+    }
 
     markSharedWith(cardOwner, form);
     setAlreadyShared(true);
@@ -246,7 +257,6 @@ export default function SaveContactButton({
                   <input
                     type="text"
                     placeholder="Your name *"
-                    required
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
@@ -254,7 +264,6 @@ export default function SaveContactButton({
                   <input
                     type="tel"
                     placeholder="Your phone *"
-                    required
                     value={form.phone}
                     onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"

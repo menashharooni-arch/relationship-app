@@ -35,7 +35,9 @@ export default function NotificationBell({
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const openRef = useRef(open);
-  openRef.current = open;
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   const unread = notifications.filter((n) => !n.read).length;
   const readCount = notifications.filter((n) => n.read).length;

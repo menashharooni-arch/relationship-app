@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { requireAdmin as requireAdminShared } from "@/lib/admin";
-
-// Shared gate (lib/admin) — one source of truth for ADMIN_EMAILS parsing.
-async function requireAdmin(_req: NextRequest) {
-  return requireAdminShared();
-}
+import { requireAdmin } from "@/lib/admin";
 
 // POST /api/admin/promo-codes — create a new promo code
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const {
@@ -77,8 +72,8 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/admin/promo-codes — list all promo codes
-export async function GET(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+export async function GET() {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const admin = getAdminSupabase();
   const { data, error } = await admin
@@ -92,7 +87,7 @@ export async function GET(req: NextRequest) {
 
 // DELETE /api/admin/promo-codes?id=<id> — delete a promo code
 export async function DELETE(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

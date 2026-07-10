@@ -12,6 +12,19 @@ export const PLAN_LIMITS = {
   OFFICE_MIN_SEATS: 2,         // minimum seats for the Office plan
 } as const;
 
+// Displayed prices on /pricing, in cents (USD) — the ONE source of truth for
+// what SwiftCard charges. The checkout route fetches the actual Stripe Price
+// object for whatever priceId is requested and refuses to check out if its
+// unit_amount doesn't match here, so a mispriced Stripe Product can never
+// silently charge someone something different from what they saw on the page.
+// Change a number here AND in Stripe's dashboard together — never one without the other.
+export const PLAN_PRICES = {
+  PRO_MONTHLY_CENTS: 499,               // $4.99/mo
+  PRO_ANNUAL_CENTS: 5400,                // $54.00/yr (~$4.50/mo, 10% off monthly)
+  OFFICE_MONTHLY_PER_SEAT_CENTS: 399,    // $3.99/mo per seat
+  OFFICE_ANNUAL_PER_SEAT_CENTS: 4309,    // $43.09/yr per seat (399 * 12 * 0.9, 10% off)
+} as const;
+
 // Internal lead tag: a lead captured beyond the free monthly cap. Stored on the
 // lead, hidden from the owner (blurred) until they upgrade — never deleted, and
 // unlocked automatically the moment the account is paid.

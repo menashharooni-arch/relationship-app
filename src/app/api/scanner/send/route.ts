@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isRateLimited } from "@/lib/rate-limit";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -9,6 +10,12 @@ export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
   const { data: { user } } = await userSupabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // Sends to an arbitrary attacker-chosen address — without a cap this is an
+  // unthrottled mail relay via SwiftCard's own sending reputation.
+  if (isRateLimited(`scanner-send:${user.id}`, 20, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   const { toEmail } = await request.json() as { toEmail?: string };
   if (!toEmail) return NextResponse.json({ error: "no_email" }, { status: 400 });

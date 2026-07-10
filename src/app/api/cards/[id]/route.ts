@@ -22,7 +22,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Enforce Pro-only features on the backend: custom template, Pro-only design
   // keys (accent/font), and the link-button cap — all stripped for non-paid.
-  const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
+  const { data: planRow } = await admin.from("profiles").select("plan, customization").eq("id", user.id).single();
+
+  // A soft-deleted account's access token stays valid for its remaining
+  // lifetime (signOut only revokes the refresh token) — block writes here too.
+  if ((planRow?.customization as Record<string, unknown> | null)?._deleted === true) {
+    return NextResponse.json({ error: "This account has been deleted." }, { status: 403 });
+  }
+
   if (!isPaidPlan(planRow?.plan)) {
     // Grandfathering: a downgraded user keeps every card, but only the first
     // FREE_CARD_LIMIT stay editable — extras are view-only (still live publicly).

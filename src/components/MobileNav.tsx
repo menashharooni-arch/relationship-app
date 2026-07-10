@@ -49,6 +49,7 @@ export default function MobileNav() {
   // Carry the selected card across tabs so the view doesn't reset to the picker.
   useEffect(() => {
     const fromUrl = searchParams.get("card");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of URL/localStorage on mount
     if (fromUrl) { setCard(fromUrl); return; }
     try { setCard(localStorage.getItem(ACTIVE_CARD_KEY)); } catch { /* ignore */ }
   }, [searchParams]);

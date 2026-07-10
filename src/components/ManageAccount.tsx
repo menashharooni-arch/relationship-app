@@ -45,12 +45,13 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
   async function stayWithOffer() {
     setLoading(true);
     try {
-      await fetch("/api/account/retain", { method: "POST" });
+      const res = await fetch("/api/account/retain", { method: "POST" });
+      if (!res.ok) throw new Error("retain failed");
+      setStep("done");
     } catch {
-      /* ignore */
+      setError("Something went wrong applying your offer — please try again.");
     }
     setLoading(false);
-    setStep("done");
   }
 
   async function finalizeDelete() {

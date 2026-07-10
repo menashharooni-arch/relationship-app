@@ -16,6 +16,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   useEffect(() => {
     try {
       if (new URLSearchParams(window.location.search).get("error") === "oauth") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after mount, avoids SSR mismatch
         setErrorMsg("Google sign-in didn't complete — please try again.");
       }
     } catch { /* ignore */ }
@@ -73,10 +74,14 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       setStatus("error");
       return;
     }
-    await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback`,
     });
-    setErrorMsg("Password reset link sent — check your email.");
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setErrorMsg("Password reset link sent — check your email.");
+    }
     setStatus("error");
   }
 

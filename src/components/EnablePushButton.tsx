@@ -32,6 +32,7 @@ export function usePushState(): [State, () => Promise<boolean>] {
   useEffect(() => {
     const { supported, iosNeedsInstall } = detectEnv();
     if (!supported) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
       setState(iosNeedsInstall ? "ios-install" : "unsupported");
       return;
     }

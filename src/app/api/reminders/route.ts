@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getStripe } from "@/lib/stripe";
 import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead, resolveSignatureImageUrl } from "@/lib/messaging";
 import { expireFreeMonths } from "@/lib/referral-server";
 import { insertNotification } from "@/lib/notify";
-import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
+import { trialEndingSoonEmail, trialEndedEmail, neverSharedNudgeEmail } from "@/lib/email-templates";
 import { aiComplete } from "@/lib/ai";
 import { escapeHtml } from "@/lib/escape";
 import { contactUnsubUrl } from "@/lib/messaging";
@@ -179,6 +180,84 @@ export async function GET(req: NextRequest) {
     }
   } catch (e) {
     console.error("[reminders] trial-ending warn failed:", e);
+  }
+
+  // Nudge anyone who created a card ~1 day ago but never actually shared it
+  // (zero recorded card views) — the easiest revival: download the QR code or
+  // drop the card into an email signature. Fires once per account.
+  try {
+    const nowMs = Date.now();
+    const windowStart = new Date(nowMs - 2 * 86400000).toISOString();
+    const windowEnd = new Date(nowMs - 1 * 86400000).toISOString();
+    const { data: newSignups } = await supabase
+      .from("profiles")
+      .select("id, username, name, email, customization, created_at")
+      .gte("created_at", windowStart)
+      .lt("created_at", windowEnd)
+      .not("username", "is", null);
+
+    for (const u of newSignups ?? []) {
+      const cust = (u.customization ?? {}) as Record<string, unknown>;
+      if (cust._deleted || cust._neverSharedNudgeSent || !u.email || !u.username) continue;
+
+      const { count } = await supabase
+        .from("card_views")
+        .select("id", { count: "exact", head: true })
+        .eq("username", u.username as string);
+
+      if (!count) {
+        const cardUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/card/${u.username}`;
+        const tpl = neverSharedNudgeEmail({ firstName: (u.name as string)?.split(" ")[0] || "there", cardUrl });
+        await resend.emails.send({ ...tpl, to: u.email as string }).catch(() => {});
+      }
+      // Mark sent either way — this is a one-time nudge, not a recurring check.
+      await supabase.from("profiles").update({ customization: { ...cust, _neverSharedNudgeSent: true } }).eq("id", u.id);
+    }
+  } catch (e) {
+    console.error("[reminders] never-shared nudge failed:", e);
+  }
+
+  // Grace-period expiry: a failed renewal (invoice.payment_failed, in the Stripe
+  // webhook) stamps customization._paymentFailedAt and keeps full access for 7
+  // days. If payment is still unresolved once that window passes, cancel the
+  // Stripe subscription here — Stripe then fires customer.subscription.deleted,
+  // and the webhook's existing handler does the actual downgrade (including the
+  // Office seat cascade), so there's one single source of truth for that logic
+  // rather than duplicating it. A recovered payment clears _paymentFailedAt
+  // (invoice.payment_succeeded, in the webhook) before this ever runs.
+  try {
+    // Filter to rows that actually HAVE the flag set, not every paid profile —
+    // this keeps the result well under PostgREST's default page cap regardless
+    // of total paid-user count (a plain .in("plan",...) fetch with no filter on
+    // the flag itself would silently truncate at scale, letting payment-failed
+    // users past the cap keep paid access forever).
+    const { data: paidProfiles } = await supabase
+      .from("profiles")
+      .select("id, plan, customization, stripe_subscription_id")
+      .in("plan", ["pro", "enterprise"])
+      .not("stripe_subscription_id", "is", null)
+      .not("customization->>_paymentFailedAt", "is", null);
+
+    const stripe = getStripe();
+    for (const u of paidProfiles ?? []) {
+      const cust = (u.customization ?? {}) as Record<string, unknown>;
+      const failedAt = cust._paymentFailedAt as string | undefined;
+      if (!failedAt) continue;
+      if (Date.now() - new Date(failedAt).getTime() < 7 * 86400000) continue; // still within the grace period
+
+      try {
+        await stripe.subscriptions.cancel(u.stripe_subscription_id as string);
+        // Clear the marker so a FUTURE subscription (if they resubscribe later)
+        // starts its own grace period instead of inheriting this expired one.
+        const rest = { ...cust };
+        delete rest._paymentFailedAt;
+        await supabase.from("profiles").update({ customization: rest }).eq("id", u.id);
+      } catch (e) {
+        console.error("[reminders] grace-period subscription cancel failed:", e, { profileId: u.id });
+      }
+    }
+  } catch (e) {
+    console.error("[reminders] grace-period expiry check failed:", e);
   }
 
   for (const step of SEQUENCE) {
@@ -409,7 +488,8 @@ export async function GET(req: NextRequest) {
     {
       const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
       if (owner.ownerId && cust._seqPaused === true) {
-        const { _seqPaused: _drop, ...rest } = cust;
+        const rest = { ...cust };
+        delete rest._seqPaused;
         await supabase.from("profiles").update({ customization: rest }).eq("id", owner.ownerId);
         (owner.profile as { customization?: unknown }).customization = rest; // keep cache coherent
       }

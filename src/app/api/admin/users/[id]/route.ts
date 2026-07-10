@@ -28,7 +28,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const now = Date.now();
   const DAY = 86_400_000;
-  const since30 = new Date(now - 30 * DAY).toISOString();
 
   const [{ data: leads }, { data: views }, { data: refRows }] = await Promise.all([
     usernames.length

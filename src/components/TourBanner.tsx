@@ -11,6 +11,7 @@ export default function TourBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     if (!tourCompleted()) setShow(true);
     // If the tour finishes/skips elsewhere, hide the banner too.
     const onEnd = () => setShow(false);

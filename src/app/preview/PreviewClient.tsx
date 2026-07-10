@@ -129,6 +129,7 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
   // right where they are; locking body scroll keeps the page put underneath.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- portal only mounts client-side
     setMounted(true);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -154,12 +155,12 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
       <div className="shrink-0 border-t border-gray-800 bg-gray-950/95 backdrop-blur px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-3">
           <p className="text-gray-400 text-sm flex-1 hidden sm:block">Like what you see? Yours takes about a minute.</p>
-          <a
+          <Link
             href="/join?src=preview"
             className="flex-1 sm:flex-none text-center text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-6 py-3 rounded-full transition-colors shadow-lg shadow-blue-900/40"
           >
             Create Your Card for Free →
-          </a>
+          </Link>
         </div>
       </div>
     </div>,
@@ -196,6 +197,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   const [engaged, setEngaged] = useState(false);
   const [ctaHidden, setCtaHidden] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from sessionStorage
     try { if (sessionStorage.getItem("sc_preview_cta")) setCtaHidden(true); } catch { /* ignore */ }
   }, []);
   function openDemo(m: "card" | "links" | "signature") {
@@ -501,12 +503,12 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pointer-events-none">
           <div className="pointer-events-auto max-w-sm mx-auto rounded-full p-[1.5px] bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_35px_rgba(79,70,229,0.45)] sc-cta-rise">
             <div className="flex items-center gap-1 rounded-full bg-gray-950/95 backdrop-blur p-1.5">
-              <a
+              <Link
                 href="/join?src=preview"
                 className="flex-1 text-center text-[13px] font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-5 py-2.5 rounded-full transition-colors"
               >
                 Create Your Card for Free →
-              </a>
+              </Link>
               <button onClick={hideStickyCta} aria-label="Dismiss" className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors shrink-0">
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
               </button>

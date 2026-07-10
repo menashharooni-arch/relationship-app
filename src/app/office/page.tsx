@@ -58,18 +58,26 @@ export default async function OfficePage() {
   if (office) {
     const admin = getAdminSupabase();
     const members = (office.office_members ?? []) as Member[];
-    const memberUserIds = members.filter((m) => m.status === "active" && m.user_id).map((m) => m.user_id!);
-    const allUserIds = [user.id, ...memberUserIds];
+    const candidateIds = members.filter((m) => m.status === "active" && m.user_id).map((m) => m.user_id!);
 
-    const [{ data: teamProfiles }, { data: teamCards }] = await Promise.all([
-      admin.from("profiles").select("username").in("id", allUserIds),
-      admin.from("cards").select("username").in("user_id", allUserIds),
-    ]);
+    // Cross-check profiles.office_id, not just office_members.status='active' —
+    // a member who switched teams or lost their seat (subscription cancelled,
+    // seats reduced) must not have their current leads pulled into this office's
+    // Team Leads just because a stale office_members row lingered.
+    const [{ data: teamProfiles }, { data: teamCards }] = candidateIds.length
+      ? await Promise.all([
+          admin.from("profiles").select("id, username").in("id", candidateIds).eq("office_id", office.id),
+          admin.from("cards").select("username, user_id").in("user_id", candidateIds),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+    const verifiedIds = new Set((teamProfiles ?? []).map((p) => p.id as string));
+    const verifiedCards = (teamCards ?? []).filter((c) => verifiedIds.has(c.user_id as string));
 
     const memberUsernames = Array.from(new Set([
       profile.username,
       ...(teamProfiles ?? []).map((p) => p.username as string),
-      ...(teamCards ?? []).map((c) => c.username as string),
+      ...verifiedCards.map((c) => c.username as string),
     ].filter(Boolean))) as string[];
 
     const { data: leads } = await admin

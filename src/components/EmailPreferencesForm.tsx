@@ -15,14 +15,19 @@ export default function EmailPreferencesForm({ initialMarketing, initialReceipts
 
   async function save() {
     setSaving(true);
-    await fetch("/api/settings/email-preferences", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ marketing_emails: marketing, receipt_emails: receipts }),
-    });
+    try {
+      const res = await fetch("/api/settings/email-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketing_emails: marketing, receipt_emails: receipts }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      /* silently keep the toggles as-is; button just stops showing "Saving…" */
+    }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }
 
   return (

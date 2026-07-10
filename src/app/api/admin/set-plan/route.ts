@@ -26,6 +26,10 @@ export async function PATCH(req: NextRequest) {
   delete cust._trialEnded;
   delete cust._proWarnedFor;
   delete cust._seqPaused;
+  // A stale grace-period clock must not survive an admin-set plan change —
+  // otherwise the reminders cron can auto-cancel a subscription an admin just
+  // manually restored (e.g. as a support courtesy), undoing the fix.
+  delete cust._paymentFailedAt;
 
   // Downgrading to free must ALSO stop the billing — otherwise the user shows
   // as free in the app while Stripe keeps charging them every month.

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getSourceLabel } from "@/lib/source-labels";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -23,6 +24,16 @@ export async function POST(req: NextRequest) {
 
     if (!card_owner_username || !event_type) {
       return NextResponse.json({ ok: true });
+    }
+
+    // Public, unauthenticated, and "downloaded_vcard" fires a real notification
+    // to the card owner — cap per (IP, card) so a known/guessed username can't
+    // be looped to flood that owner's notifications.
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? req.headers.get("x-real-ip")
+      ?? "unknown";
+    if (isRateLimited(`card-events:${ip}:${card_owner_username}`, 20, 10 * 60 * 1000)) {
+      return NextResponse.json({ ok: true, rateLimited: true });
     }
 
     const admin = getAdminSupabase();

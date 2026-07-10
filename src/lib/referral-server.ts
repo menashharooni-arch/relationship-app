@@ -180,7 +180,11 @@ export async function applyReferralOnSignup(
 
   // Attribution update — kept SEPARATE from referral-code assignment so a (rare)
   // code collision can never abort it and silently drop referred_by/source/ip.
-  const grantsFreeMonth = sourceGrantsFreeMonth(source) || !!referrer;
+  // Only a clean, non-fraud referral grants the free month — a "flagged"
+  // signup (same IP/device as the referrer, or high signup volume from one IP)
+  // must NOT still grant it, or someone can farm unlimited free Pro months by
+  // signing up disposable emails from their own referral link on one device.
+  const grantsFreeMonth = sourceGrantsFreeMonth(source) || (!!referrer && status === "signed_up");
   const { error: attrErr } = await admin
     .from("profiles")
     .update({

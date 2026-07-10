@@ -236,9 +236,41 @@ const SOURCE_BADGE_COLORS: Record<string, string> = {
   G2: "#FF492C",
 };
 
+const SOFTWARE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "SwiftCard",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web, iOS, Android",
+  description: "Digital business card and lead CRM — share your contact info with a tap, capture leads instantly, and follow up automatically.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+};
+
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_JSON_LD) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
       <ScrollProgress />
       <ScrollReveal />
       <StickyMobileCTA />

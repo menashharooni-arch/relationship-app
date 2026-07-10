@@ -155,6 +155,7 @@ export default function ShareCardCapture({
   // On load / whenever this card's content changes, regenerate so the share
   // preview always matches the current card.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- image capture only runs client-side
     setMounted(true);
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }

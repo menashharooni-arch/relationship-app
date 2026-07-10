@@ -60,6 +60,10 @@ function sendDate(createdAt: string, dayOffset: number): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function isOverdue(createdAt: string, dayOffset: number): boolean {
+  return new Date(createdAt).getTime() + dayOffset * 86400000 < Date.now();
+}
+
 const DEFAULT_PRESETS: FlowPresets = {
   "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
   "2": { name: "Standard", days: [1, 4, 10, 21, 45] },
@@ -167,12 +171,16 @@ export default function LeadCard({
   );
 
   async function patchLead(fields: Record<string, unknown>) {
-    const res = await fetch(`/api/leads/${lead.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fields),
-    });
-    return res.ok;
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   async function saveNotes() {
@@ -188,14 +196,18 @@ export default function LeadCard({
   }
 
   async function cycleStatus() {
+    const prev = status;
     const next = nextStatus(status);
     setStatus(next);
-    await patchLead({ status: next });
+    const ok = await patchLead({ status: next });
+    if (!ok) setStatus(prev); // roll back — the DB never changed
   }
 
   async function updateTags(next: string[]) {
+    const prev = tags;
     setTags(next);
-    await patchLead({ tags: next });
+    const ok = await patchLead({ tags: next });
+    if (!ok) setTags(prev); // roll back — the DB never changed
   }
 
   async function addTag(raw: string) {
@@ -237,8 +249,14 @@ export default function LeadCard({
 
   async function handleDelete() {
     setDeleting(true);
-    await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+      router.refresh();
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   }
 
   async function saveContactEdit() {
@@ -692,7 +710,7 @@ export default function LeadCard({
                               {sendDate(lead.created_at, day)}
                             </span>
                           </span>
-                          {i === 0 && new Date(lead.created_at).getTime() + day * 86400000 < Date.now() && (
+                          {i === 0 && isOverdue(lead.created_at, day) && (
                             <span className="text-[9px] bg-amber-900/60 text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-800/50 ml-auto">
                               overdue
                             </span>
@@ -841,15 +859,18 @@ export default function LeadCard({
                                   const kept = savedSequence.filter((s) => !generated.has(s.channel ?? "email"));
                                   const seq = [...kept, ...pendingSequence.map((s) => ({ ...s, sent_at: null, anchor: nowIso }))];
                                   try {
-                                    await fetch(`/api/leads/${lead.id}`, {
+                                    const res = await fetch(`/api/leads/${lead.id}`, {
                                       method: "PATCH",
                                       headers: { "Content-Type": "application/json" },
                                       body: JSON.stringify({ follow_up_sequence: seq }),
                                     });
+                                    if (!res.ok) throw new Error("save failed");
                                     setSavedSequence(seq);
                                     setPendingSequence(null);
                                     setShowSeqGenerator(false);
-                                  } catch { /* fail silently */ }
+                                  } catch {
+                                    setSeqError("Couldn't save the sequence just now — try again.");
+                                  }
                                 }}
                                 className="flex-1 py-2 text-[11px] bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-medium"
                               >

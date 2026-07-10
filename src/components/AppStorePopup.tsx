@@ -14,6 +14,7 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
     if (!trigger) return;
     let seen = false;
     try { seen = localStorage.getItem("sc_appstore_seen") === "1"; } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     if (!seen) setOpen(true);
   }, [trigger]);
 

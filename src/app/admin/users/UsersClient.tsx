@@ -87,6 +87,7 @@ export default function UsersClient() {
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time data fetch on mount
   useEffect(() => { load(); }, [load]);
 
   const filtered = users
@@ -116,20 +117,25 @@ export default function UsersClient() {
     e.preventDefault();
     setCreating(true);
     setCreateResult(null);
-    const res = await fetch("/api/admin/create-card", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setCreateResult({ cardUrl: data.cardUrl });
-      setForm({ name: "", email: "", company: "", title: "", phone: "", username: "", plan: "pro", template: "classic-pro", accentColor: "#2563eb" });
-      load();
-    } else {
-      setCreateResult({ error: data.error });
+    try {
+      const res = await fetch("/api/admin/create-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCreateResult({ cardUrl: data.cardUrl });
+        setForm({ name: "", email: "", company: "", title: "", phone: "", username: "", plan: "pro", template: "classic-pro", accentColor: "#2563eb" });
+        load();
+      } else {
+        setCreateResult({ error: data.error });
+      }
+    } catch {
+      setCreateResult({ error: "Network error — please try again." });
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   }
 
   return (
@@ -140,7 +146,9 @@ export default function UsersClient() {
           <p className="text-gray-500 text-sm mt-1">Every account — click a user to see everything about them.</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Full directory as CSV (plan, source, cards, leads, views) */}
+          {/* Full directory as CSV (plan, source, cards, leads, views) — a file
+              download, not a page nav, so a plain <a> is correct here. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/admin/users/export"
             className="border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"

@@ -39,7 +39,11 @@ export default function CardEventTracker({
       }),
     }).catch(() => {});
 
-    fetch(`/api/views/${encodeURIComponent(viewsKey)}`, { method: "POST" }).catch(() => {});
+    fetch(`/api/views/${encodeURIComponent(viewsKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId }),
+    }).catch(() => {});
   }, [username, source, viewSurface]);
 
   return null;
