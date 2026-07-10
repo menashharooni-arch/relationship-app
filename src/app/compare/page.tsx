@@ -100,7 +100,7 @@ export default function ComparePage() {
 
         <div className="mt-10 text-center">
           <Link
-            href="/login?mode=signup"
+            href="/cards/new"
             className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block"
           >
             Try SwiftCard free →

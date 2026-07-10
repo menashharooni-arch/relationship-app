@@ -32,7 +32,7 @@ export default function StickyMobileCTA() {
       }`}
     >
       <Link
-        href="/login?mode=signup"
+        href="/cards/new"
         className="btn-cta flex items-center justify-center gap-2 w-full rounded-full bg-brand text-white font-semibold text-[15px] py-3.5 shadow-lg shadow-brand/30"
       >
         Create your free card

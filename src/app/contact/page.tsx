@@ -45,7 +45,7 @@ export default function ContactPage() {
               Sign in
             </Link>
             <Link
-              href="/login?mode=signup"
+              href="/cards/new"
               className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
             >
               Get started free
