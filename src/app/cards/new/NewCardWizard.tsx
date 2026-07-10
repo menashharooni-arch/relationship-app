@@ -215,42 +215,49 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
     setStatus("loading");
     setError("");
 
-    const res = await fetch("/api/cards", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        label: cardLabel,
-        name: name.trim(),
-        company: company.trim(),
-        title: title.trim(),
-        phone: primaryPhone,
-        email: email.trim(),
-        website: website.trim(),
-        linkedin: socials.linkedin.trim(),
-        instagram: socials.instagram.trim(),
-        tiktok: socials.tiktok.trim(),
-        twitter: socials.twitter.trim(),
-        template,
-        logo_url: logoUrl,
-        customization: {
-          bio: bio.trim(),
-          facebook: socials.facebook.trim(),
-          snapchat: socials.snapchat.trim(),
-          youtube: socials.youtube.trim(),
-          links,
-          address,
-          phones: cleanPhones,
-          fax: fax.trim(),
-          // Headshot is per-card (explicit key, null when none) — never inherits
-          // another card's photo.
-          photoUrl: headshotUrl ?? null,
-          ...(template === "custom" ? { customLayout } : {}),
-        },
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          label: cardLabel,
+          name: name.trim(),
+          company: company.trim(),
+          title: title.trim(),
+          phone: primaryPhone,
+          email: email.trim(),
+          website: website.trim(),
+          linkedin: socials.linkedin.trim(),
+          instagram: socials.instagram.trim(),
+          tiktok: socials.tiktok.trim(),
+          twitter: socials.twitter.trim(),
+          template,
+          logo_url: logoUrl,
+          customization: {
+            bio: bio.trim(),
+            facebook: socials.facebook.trim(),
+            snapchat: socials.snapchat.trim(),
+            youtube: socials.youtube.trim(),
+            links,
+            address,
+            phones: cleanPhones,
+            fax: fax.trim(),
+            // Headshot is per-card (explicit key, null when none) — never inherits
+            // another card's photo.
+            photoUrl: headshotUrl ?? null,
+            ...(template === "custom" ? { customLayout } : {}),
+          },
+        }),
+      });
+    } catch {
+      setError("Couldn't reach the server — check your connection and try again.");
+      setStatus("error");
+      return;
+    }
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       if (data.error === "limit" || data.error === "upgrade") {
         router.push("/pricing");

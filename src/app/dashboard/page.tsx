@@ -37,6 +37,13 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 const FREE_LIMIT = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
 
+function daysUntil(iso: string) {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+}
+function daysAgoISO(days: number) {
+  return new Date(Date.now() - days * 86400000).toISOString();
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -98,9 +105,7 @@ export default async function DashboardPage({
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.
   const proExpiresAt = profile.plan_expires_at as string | null;
   const onAppGrant = profile.plan === "pro" && !!proExpiresAt && !profile.stripe_subscription_id;
-  const trialDaysLeft = onAppGrant
-    ? Math.max(0, Math.ceil((new Date(proExpiresAt as string).getTime() - Date.now()) / 86400000))
-    : 0;
+  const trialDaysLeft = onAppGrant ? daysUntil(proExpiresAt as string) : 0;
   const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
   // No cards yet → show the "create your card" empty state.
@@ -188,8 +193,8 @@ export default async function DashboardPage({
   // Traffic box: SwiftCard (card link) + SwiftLink (links page) views for the
   // chosen window (today / week / month).
   const viewsCutoff = (() => {
-    if (viewsRange === "month") return new Date(Date.now() - 30 * 86400000).toISOString();
-    if (viewsRange === "week") return new Date(Date.now() - 7 * 86400000).toISOString();
+    if (viewsRange === "month") return daysAgoISO(30);
+    if (viewsRange === "week") return daysAgoISO(7);
     const d = new Date();
     d.setUTCHours(0, 0, 0, 0);
     return d.toISOString();
@@ -217,7 +222,7 @@ export default async function DashboardPage({
       .from("card_views")
       .select("viewed_at")
       .in("username", [analyticsUsername, linkUsername])
-      .gte("viewed_at", new Date(Date.now() - 30 * 86400000).toISOString()),
+      .gte("viewed_at", daysAgoISO(30)),
     viewsRange === "locations"
       ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
       : Promise.resolve({ data: null }),
@@ -295,11 +300,11 @@ export default async function DashboardPage({
   const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
   const dateThreshold = filterDate === "today"
-    ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    ? daysAgoISO(1)
     : filterDate === "week"
-    ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    ? daysAgoISO(7)
     : filterDate === "month"
-    ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    ? daysAgoISO(30)
     : null;
 
   const filteredLeads = visibleLeads.filter((l) => {

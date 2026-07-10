@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -16,6 +16,16 @@ const OFFICE_PRICE_IDS = [
   process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
   process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID,
 ].filter(Boolean) as string[];
+
+// Expected unit_amount (cents) per configured price ID, so a Stripe Product
+// mispriced in the dashboard (typo, forgot to update it, wrong catalog) can
+// never silently charge someone something other than what /pricing showed them.
+const EXPECTED_CENTS: Record<string, number> = {};
+if (process.env.STRIPE_PRICE_ID) EXPECTED_CENTS[process.env.STRIPE_PRICE_ID] = PLAN_PRICES.PRO_MONTHLY_CENTS;
+if (process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID) EXPECTED_CENTS[process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID] = PLAN_PRICES.PRO_MONTHLY_CENTS;
+if (process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID) EXPECTED_CENTS[process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID] = PLAN_PRICES.PRO_ANNUAL_CENTS;
+if (process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID) EXPECTED_CENTS[process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID] = PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS;
+if (process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID) EXPECTED_CENTS[process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID] = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS;
 
 export async function POST(req: NextRequest) {
   try {
@@ -56,6 +66,18 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
+
+    // Verify the real Stripe Price still matches what /pricing shows before
+    // charging anyone — catches a mispriced or archived Product in the dashboard.
+    const expectedCents = EXPECTED_CENTS[priceId];
+    if (expectedCents !== undefined) {
+      const price = await stripe.prices.retrieve(priceId);
+      if (!price.active || price.currency !== "usd" || price.unit_amount !== expectedCents) {
+        console.error("Stripe price mismatch:", { priceId, expectedCents, unitAmount: price.unit_amount, currency: price.currency, active: price.active });
+        return NextResponse.json({ error: "This plan's price is temporarily unavailable. Please try again shortly or contact support." }, { status: 409 });
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       client_reference_id: user.id,
       // Reuse the existing Stripe customer so re-subscribing doesn't create duplicates.

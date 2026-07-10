@@ -123,7 +123,7 @@ export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { siz
   const target = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : "https://swiftcard.me";
 
   let count = 0;
-  const rects: ReactElement[] = [];
+  const runs: { r: number; c: number; w: number }[] = [];
   try {
     const qr = QRCode.create(target, { errorCorrectionLevel: "M" });
     count = qr.modules.size;
@@ -134,7 +134,7 @@ export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { siz
         if (cells[r * count + c]) {
           let w = 1;
           while (c + w < count && cells[r * count + (c + w)]) w++;
-          rects.push(<rect key={`${r}-${c}`} x={c} y={r} width={w} height={1} fill={fg} />);
+          runs.push({ r, c, w });
           c += w;
         } else {
           c++;
@@ -144,6 +144,9 @@ export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { siz
   } catch {
     count = 0;
   }
+  const rects: ReactElement[] = runs.map(({ r, c, w }) => (
+    <rect key={`${r}-${c}`} x={c} y={r} width={w} height={1} fill={fg} />
+  ));
 
   return (
     <div data-qr="1" style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>

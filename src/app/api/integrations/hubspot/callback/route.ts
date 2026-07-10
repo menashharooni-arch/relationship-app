@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
       expires_at: Date.now() + tokens.expires_in * 1000,
       updated_at: new Date().toISOString(),
+      sync_error: null, // upsert only touches listed columns — must clear explicitly on reconnect
     }, { onConflict: "user_id,provider" });
     if (error) throw error;
   } catch (e) {

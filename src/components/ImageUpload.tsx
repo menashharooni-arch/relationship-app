@@ -82,6 +82,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (rawSrc) URL.revokeObjectURL(rawSrc);
     setRawSrc(URL.createObjectURL(file));
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -116,6 +117,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
       }
 
       setPreview(json.url);
+      if (rawSrc) URL.revokeObjectURL(rawSrc);
       setRawSrc(null);
       setUploadStatus("idle");
       onUploaded(json.url);
@@ -126,6 +128,7 @@ export default function ImageUpload({ field, currentUrl, label, shape = "square"
   }
 
   function cancelCrop() {
+    if (rawSrc) URL.revokeObjectURL(rawSrc);
     setRawSrc(null);
     setUploadStatus("idle");
   }

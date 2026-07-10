@@ -125,13 +125,17 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     setStatus("loading");
     // Save through the server so Pro-only design gates (accent/font + link cap)
     // are enforced — the browser can't write straight to the profiles table.
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, template, customization: { ...customization, links, testimonials } }),
-    });
-    setStatus(res.ok ? "saved" : "error");
-    if (res.ok) setTimeout(() => setStatus("idle"), 2000);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, template, customization: { ...customization, links, testimonials } }),
+      });
+      setStatus(res.ok ? "saved" : "error");
+      if (res.ok) setTimeout(() => setStatus("idle"), 2000);
+    } catch {
+      setStatus("error");
+    }
   }
 
   function addLink() {

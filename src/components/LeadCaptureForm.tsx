@@ -2,39 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
-
-// The post-share sales moment: a rich "make your own card" panel whose button
-// goes straight to the create-account page (/join?src → /login?mode=signup).
-function CreateCardCTA() {
-  const APP_URL = typeof window !== "undefined" ? window.location.origin : "";
-  const signupUrl = `${APP_URL}/join?src=share_info`;
-
-  return (
-    <div className="rounded-3xl p-[1.5px] bg-gradient-to-br from-blue-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_40px_rgba(79,70,229,0.35)]">
-      <div className="rounded-[calc(1.5rem-1.5px)] px-5 pt-5 pb-4" style={{ background: "#0B1120" }}>
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-lg leading-none">✨</span>
-          <p className="text-white font-extrabold text-[15px]">Want a smart card like this?</p>
-        </div>
-        <p className="text-slate-400 text-xs leading-relaxed mb-4">
-          Share your contact in one tap, capture every lead, and follow up on autopilot.
-          Free to start — no credit card needed.
-        </p>
-        <a
-          href={signupUrl}
-          className="flex items-center justify-center gap-1.5 w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-colors shadow-lg shadow-blue-900/40"
-        >
-          Create Your Free Card →
-        </a>
-        <p className="text-slate-500 text-[10px] text-center mt-2.5">
-          Free to start · No credit card · See a live demo first
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default function LeadCaptureForm({
   cardOwner,
@@ -50,6 +20,7 @@ export default function LeadCaptureForm({
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     setAlreadyShared(hasSharedWith(cardOwner));
     const v = getVisitorInfo();
     if (v) setForm((prev) => ({ ...prev, name: v.name, phone: v.phone, email: v.email }));
@@ -61,18 +32,25 @@ export default function LeadCaptureForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.name.trim() || !form.phone.trim()) return;
     setStatus("loading");
 
-    const res = await fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        card_owner: cardOwner,
-        source,
-        visitor_id: getVisitorId(),
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          card_owner: cardOwner,
+          source,
+          visitor_id: getVisitorId(),
+        }),
+      });
+    } catch {
+      setStatus("error");
+      return;
+    }
 
     if (res.status === 402) {
       setStatus("limit");
@@ -80,6 +58,8 @@ export default function LeadCaptureForm({
       // Remember the share so nothing on this owner's pages asks again.
       markSharedWith(cardOwner, form);
       setStatus("done");
+      // Same signup popup as every other "shared their info" moment on the card.
+      setTimeout(() => triggerSignupNudge("share_info"), 900);
     } else {
       setStatus("error");
     }
@@ -87,18 +67,13 @@ export default function LeadCaptureForm({
 
   if (status === "done") {
     return (
-      <div className="space-y-4">
-        {/* Success confirmation */}
-        <div className="text-center py-3">
-          <div className="w-12 h-12 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <p className="text-slate-900 font-bold text-base">Info shared!</p>
+      <div className="text-center py-3">
+        <div className="w-12 h-12 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
         </div>
-
-        <CreateCardCTA />
+        <p className="text-slate-900 font-bold text-base">Info shared!</p>
       </div>
     );
   }
@@ -106,12 +81,9 @@ export default function LeadCaptureForm({
   // They already shared with this owner — never ask for their info twice.
   if (alreadyShared) {
     return (
-      <div className="space-y-4">
-        <div className="text-center py-2">
-          <p className="text-slate-900 font-semibold text-sm">✓ You&apos;ve already shared your info</p>
-          <p className="text-slate-500 text-xs mt-1">They have your details — no need to send them again.</p>
-        </div>
-        <CreateCardCTA />
+      <div className="text-center py-2">
+        <p className="text-slate-900 font-semibold text-sm">✓ You&apos;ve already shared your info</p>
+        <p className="text-slate-500 text-xs mt-1">They have your details — no need to send them again.</p>
       </div>
     );
   }
@@ -132,7 +104,6 @@ export default function LeadCaptureForm({
         type="text"
         name="name"
         placeholder="Your name *"
-        required
         value={form.name}
         onChange={handleChange}
         className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"
@@ -141,7 +112,6 @@ export default function LeadCaptureForm({
         type="tel"
         name="phone"
         placeholder="Your phone number *"
-        required
         value={form.phone}
         onChange={handleChange}
         className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors shadow-sm"

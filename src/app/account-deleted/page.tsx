@@ -4,6 +4,11 @@ import ReopenAccount from "@/components/ReopenAccount";
 
 const GRACE_DAYS = 30;
 
+function daysLeftToReopen(deletedAt: string) {
+  const used = Math.floor((Date.now() - new Date(deletedAt).getTime()) / 86_400_000);
+  return Math.max(0, GRACE_DAYS - used);
+}
+
 export default async function AccountDeletedPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,8 +20,7 @@ export default async function AccountDeletedPage() {
     const { data: profile } = await supabase.from("profiles").select("customization").eq("id", user.id).single();
     const c = (profile?.customization ?? {}) as { _deleted?: boolean; _deletion?: { at?: string } };
     if (c._deleted && c._deletion?.at) {
-      const used = Math.floor((Date.now() - new Date(c._deletion.at).getTime()) / 86_400_000);
-      daysLeft = Math.max(0, GRACE_DAYS - used);
+      daysLeft = daysLeftToReopen(c._deletion.at);
       canReopen = daysLeft > 0;
     }
   }

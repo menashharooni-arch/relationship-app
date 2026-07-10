@@ -187,6 +187,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   // image always matches the currently-selected card. Keyed to username+content hash, so
   // it never reuses or is triggered by a different card.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- image capture only runs client-side
     setMounted(true);
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }

@@ -70,8 +70,7 @@ function Contact({ value, dot, color, fs = 27 }: { value: string; dot: string; c
 
 function Photo({ url, name, size: s, radius, border, bg = "#334155" }: { url: string | null; name: string; size: number; radius: number; border: string; bg?: string }) {
   if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={url} width={s} height={s} style={{ borderRadius: radius, objectFit: "cover", border }} />;
+    return <img src={url} alt="" width={s} height={s} style={{ borderRadius: radius, objectFit: "cover", border }} />;
   }
   return (
     <div style={{ width: s, height: s, borderRadius: radius, border, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: s * 0.36, fontWeight: 800, color: "#fff" }}>
@@ -91,8 +90,7 @@ function ModernBoldOG(p: Meta) {
       {/* Company */}
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
         {p.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.logoUrl} width={56} height={56} style={{ borderRadius: 12, objectFit: "contain" }} />
+          <img src={p.logoUrl} alt="" width={56} height={56} style={{ borderRadius: 12, objectFit: "contain" }} />
         ) : null}
         {p.company ? <div style={{ fontSize: 26, letterSpacing: 5, color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase" }}>{p.company}</div> : null}
       </div>
@@ -123,8 +121,7 @@ function ClassicProOG(p: Meta) {
       <div style={{ width: "37%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 26, background: "linear-gradient(160deg, #0e1b35 0%, #162947 100%)" }}>
         <Photo url={p.photoUrl} name={p.name ?? ""} size={220} radius={220} border="7px solid rgba(255,255,255,0.18)" bg={BLUE} />
         {p.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.logoUrl} width={54} height={54} style={{ borderRadius: 12, objectFit: "contain" }} />
+          <img src={p.logoUrl} alt="" width={54} height={54} style={{ borderRadius: 12, objectFit: "contain" }} />
         ) : null}
       </div>
       {/* Right white panel */}
@@ -178,8 +175,7 @@ function LocalBusinessOG(p: Meta) {
       <div style={{ height: "33%", display: "flex", alignItems: "center", gap: 24, padding: "0 56px", background: `linear-gradient(100deg, ${AMBER} 0%, #92400e 60%, #f59e0b 100%)` }}>
         {p.logoUrl ? (
           <div style={{ width: 96, height: 96, borderRadius: 96, background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.logoUrl} width={68} height={68} style={{ objectFit: "contain" }} />
+            <img src={p.logoUrl} alt="" width={68} height={68} style={{ objectFit: "contain" }} />
           </div>
         ) : null}
         <div style={{ fontSize: 48, fontWeight: 800, color: "#fff" }}>{p.company || p.name}</div>

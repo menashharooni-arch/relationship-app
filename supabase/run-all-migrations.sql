@@ -140,6 +140,10 @@ CREATE TABLE IF NOT EXISTS public.card_views (
 ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS location  text;
 ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS viewed_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS ip        text;
+-- visitor_id: lets the API dedupe repeat views from the same visitor (e.g. a
+-- page reload) within a 24h window instead of counting every page load.
+ALTER TABLE public.card_views ADD COLUMN IF NOT EXISTS visitor_id text;
+CREATE INDEX IF NOT EXISTS idx_card_views_username_visitor_id ON public.card_views (username, visitor_id, viewed_at);
 
 -- ── 5) Performance indexes ──────────────────────────────────────────────────
 -- If your DB is ALREADY large and under traffic, swap each `CREATE INDEX` below

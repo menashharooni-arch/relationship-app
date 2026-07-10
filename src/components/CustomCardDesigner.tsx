@@ -54,6 +54,9 @@ function clamp(n: number, min: number, max: number) {
 function isHex(v: string) {
   return /^#[0-9a-fA-F]{6}$/.test(v);
 }
+function newElementId(seq: number) {
+  return `el-${Date.now().toString(36)}-${seq}`;
+}
 
 export default function CustomCardDesigner({
   layout,
@@ -79,7 +82,7 @@ export default function CustomCardDesigner({
   }
   function addEl(el: Omit<CustomElement, "id">) {
     idRef.current += 1;
-    const id = `el-${Date.now().toString(36)}-${idRef.current}`;
+    const id = newElementId(idRef.current);
     onChange({ ...layout, elements: [...layout.elements, { ...el, id }] });
     setSelectedId(id);
   }

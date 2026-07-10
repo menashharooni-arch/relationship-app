@@ -27,7 +27,10 @@ async function getValidToken(userId: string): Promise<string | null> {
 
   // Refresh if expiring within 5 minutes
   if (data.expires_at && now > data.expires_at - 5 * 60 * 1000) {
-    if (!data.refresh_token) return null;
+    if (!data.refresh_token) {
+      await admin.from("integrations").update({ sync_error: "No refresh token on file — reconnect Google Contacts." }).eq("user_id", userId).eq("provider", "google");
+      return null;
+    }
     const refreshToken = decryptToken(data.refresh_token);
 
     const res = await fetch(GOOGLE_TOKEN_URL, {
@@ -41,13 +44,23 @@ async function getValidToken(userId: string): Promise<string | null> {
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Silent before: sync would just stop working forever with "Connected"
+      // still showing in Settings. Now it's visible and prompts a reconnect.
+      const detail = await res.text().catch(() => "");
+      console.warn("[sync-google] token refresh failed:", res.status, detail);
+      await admin.from("integrations").update({
+        sync_error: `Token refresh failed (${res.status}) — reconnect Google Contacts to resume syncing.`,
+      }).eq("user_id", userId).eq("provider", "google");
+      return null;
+    }
     const tokens = await res.json() as { access_token: string; expires_in: number };
 
     await admin.from("integrations").update({
       access_token: encryptToken(tokens.access_token),
       expires_at: now + tokens.expires_in * 1000,
       updated_at: new Date().toISOString(),
+      sync_error: null,
     }).eq("user_id", userId).eq("provider", "google");
 
     return tokens.access_token;

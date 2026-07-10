@@ -26,7 +26,10 @@ async function getValidToken(userId: string): Promise<string | null> {
   const accessToken = decryptToken(data.access_token);
 
   if (data.expires_at && now > data.expires_at - 5 * 60 * 1000) {
-    if (!data.refresh_token) return null;
+    if (!data.refresh_token) {
+      await admin.from("integrations").update({ sync_error: "No refresh token on file — reconnect HubSpot." }).eq("user_id", userId).eq("provider", "hubspot");
+      return null;
+    }
     const refreshToken = decryptToken(data.refresh_token);
 
     const res = await fetch(HUBSPOT_TOKEN_URL, {
@@ -40,7 +43,16 @@ async function getValidToken(userId: string): Promise<string | null> {
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Silent before: sync would just stop working forever with "Connected"
+      // still showing in Settings. Now it's visible and prompts a reconnect.
+      const detail = await res.text().catch(() => "");
+      console.warn("[sync-hubspot] token refresh failed:", res.status, detail);
+      await admin.from("integrations").update({
+        sync_error: `Token refresh failed (${res.status}) — reconnect HubSpot to resume syncing.`,
+      }).eq("user_id", userId).eq("provider", "hubspot");
+      return null;
+    }
     const tokens = await res.json() as { access_token: string; refresh_token: string; expires_in: number };
 
     await admin.from("integrations").update({
@@ -48,6 +60,7 @@ async function getValidToken(userId: string): Promise<string | null> {
       refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : data.refresh_token,
       expires_at: now + tokens.expires_in * 1000,
       updated_at: new Date().toISOString(),
+      sync_error: null,
     }).eq("user_id", userId).eq("provider", "hubspot");
 
     return tokens.access_token;
@@ -74,9 +87,25 @@ export async function syncLeadToHubSpot(lead: LeadData, userId: string): Promise
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ properties }),
   });
-  // 409 = a contact with this email already exists in HubSpot — that's fine, not
-  // a failure. Log anything else so sync problems are diagnosable.
-  if (!res.ok && res.status !== 409) {
-    console.warn("[sync-hubspot] createContact failed:", res.status, await res.text().catch(() => ""));
+
+  if (res.ok) return;
+
+  // 409 = a contact with this email already exists in HubSpot. Previously this
+  // was treated as "done, nothing to do" — meaning a repeat lead's updated
+  // phone/company/message never actually reached HubSpot after the first
+  // capture. Update the existing contact by email instead of silently no-oping.
+  if (res.status === 409 && lead.email) {
+    const updateUrl = `${HUBSPOT_CONTACTS_URL}/${encodeURIComponent(lead.email)}?idProperty=email`;
+    const updateRes = await fetch(updateUrl, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ properties }),
+    });
+    if (!updateRes.ok) {
+      console.warn("[sync-hubspot] updateContact failed:", updateRes.status, await updateRes.text().catch(() => ""));
+    }
+    return;
   }
+
+  console.warn("[sync-hubspot] createContact failed:", res.status, await res.text().catch(() => ""));
 }

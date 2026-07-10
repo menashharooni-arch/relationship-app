@@ -21,10 +21,10 @@ export default function UnsubscribeContent() {
           <span className="text-2xl">✓</span>
         </div>
         <h1 className="text-xl font-bold mb-2" style={{ color: "#0f172a" }}>
-          You've been unsubscribed
+          You&apos;ve been unsubscribed
         </h1>
         <p className="text-sm mb-6" style={{ color: "#64748b" }}>
-          You won't receive any more marketing emails from SwiftCard.
+          You won&apos;t receive any more marketing emails from SwiftCard.
           Transactional emails (receipts, security notices) are unaffected.
         </p>
         <Link

@@ -13,6 +13,7 @@ export default function FirstLeadNudge({ leadCount, isPro }: { leadCount: number
     try {
       if (localStorage.getItem("sc_firstlead_nudge")) return;
     } catch { /* private mode */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     setShow(true);
   }, [leadCount, isPro]);
 

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { deliverToLead } from "@/lib/messaging";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // Send a one-off text to a contact (the "Send SMS" button on AI messages).
 // Goes through the shared delivery path so STOP opt-outs are respected, the
@@ -12,6 +13,12 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Every send is a real Twilio charge — cap per account so a compromised or
+  // scripted session can't run up an unbounded SMS bill.
+  if (isRateLimited(`sms-send:${user.id}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "rate_limited", message: "Too many texts sent — try again in a few minutes." }, { status: 429 });
+  }
 
   const { leadId, message } = await req.json();
   if (!message?.trim()) return NextResponse.json({ error: "No message" }, { status: 400 });

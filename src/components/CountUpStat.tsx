@@ -28,6 +28,7 @@ export default function CountUpStat({
     if (!el) return;
 
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
     if (reduce || !("IntersectionObserver" in window)) { setVal(to); return; }
 
     const run = () => {

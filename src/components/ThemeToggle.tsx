@@ -13,6 +13,7 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
       setTheme(localStorage.getItem("sc_theme") === "light" ? "light" : "dark");
     } catch {
       setTheme("dark");

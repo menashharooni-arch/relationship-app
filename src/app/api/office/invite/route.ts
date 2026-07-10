@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { isRateLimited } from "@/lib/rate-limit";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -10,6 +11,12 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Cap invite emails per owner — otherwise this endpoint is an unthrottled
+  // spam-email relay (loop with different target emails, never accept any).
+  if (isRateLimited(`office-invite:${user.id}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many invites sent — try again in a few minutes." }, { status: 429 });
+  }
 
   // Verify user owns an office
   const { data: office } = await supabase
@@ -23,7 +30,10 @@ export async function POST(req: Request) {
   // Seats is required for the math; fall back to the minimum for legacy rows.
   const seatCap = (office.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
 
-  // Check seat limit (active members already occupy seats).
+  // Check seat limit (active members already occupy seats). This is a soft,
+  // courtesy check at send-time only — the hard guarantee against overflow is
+  // the active-count recheck in /api/join at ACCEPT time, so pending invites
+  // not being counted here can't actually let seats overflow.
   const { count } = await supabase
     .from("office_members")
     .select("*", { count: "exact", head: true })

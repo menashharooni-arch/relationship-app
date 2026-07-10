@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nudgeCopy } from "@/lib/referral";
-
-// True if a SwiftCard session cookie is present — we never nudge logged-in users.
-function isLoggedIn(): boolean {
-  if (typeof document === "undefined") return false;
-  // Match the Supabase auth cookie, including chunked variants (…-auth-token.0).
-  // The trailing "=" is intentionally omitted so the ".0" suffix doesn't break it.
-  return /(?:^|;\s*)sb-[^=;]*-auth-token/.test(document.cookie);
-}
 
 // The hero: a tilted, floating "your card" mockup with a shine sweep — the
 // popup SHOWS the product (the Blinq loop: you just used a card this smooth,
@@ -61,7 +53,10 @@ function HeroCardMockup() {
 
 // Mounted once on public pages. Listens for `triggerSignupNudge(source)` events
 // and shows ONE friendly signup popup per visitor per session, never blocking
-// the action that triggered it and never to logged-in users.
+// the action that triggered it. Deliberately does NOT gate on whether a
+// SwiftCard session cookie is present — that check used to suppress the popup
+// for anyone with a stale/leftover cookie (including the site owner testing
+// their own card), which is why it only ever seemed to work in incognito.
 // Exception: "share_info" (the connect/share follow-up) is a deliberate moment
 // with its own once-per-session slot, so it still fires after a generic nudge.
 //
@@ -70,11 +65,11 @@ function HeroCardMockup() {
 export default function SignupNudgeHost() {
   const [source, setSource] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     function onNudge(e: Event) {
       const src = (e as CustomEvent).detail?.source ?? "default";
-      if (isLoggedIn()) return;
       try {
         const guard = src === "share_info" ? "sc_nudged_share" : "sc_nudged";
         if (sessionStorage.getItem(guard)) return;
@@ -82,11 +77,20 @@ export default function SignupNudgeHost() {
         // A share_info popup also uses up the generic slot — no double nudging.
         sessionStorage.setItem("sc_nudged", "1");
       } catch { /* private mode — show once anyway */ }
+      // A newer nudge can arrive while an older one's dismiss-fade is still
+      // scheduled — cancel that stale timer so it can't clear the new popup.
+      if (dismissTimer.current) {
+        clearTimeout(dismissTimer.current);
+        dismissTimer.current = null;
+      }
       setClosing(false);
       setSource(src);
     }
     window.addEventListener("sc:nudge", onNudge as EventListener);
-    return () => window.removeEventListener("sc:nudge", onNudge as EventListener);
+    return () => {
+      window.removeEventListener("sc:nudge", onNudge as EventListener);
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    };
   }, []);
 
   if (!source) return null;
@@ -94,7 +98,7 @@ export default function SignupNudgeHost() {
 
   function dismiss() {
     setClosing(true);
-    setTimeout(() => setSource(null), 220);
+    dismissTimer.current = setTimeout(() => setSource(null), 220);
   }
 
   return (

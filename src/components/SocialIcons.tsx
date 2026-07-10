@@ -45,6 +45,10 @@ function appScheme(label: string, href: string): string | null {
   }
 }
 
+function navigateTo(url: string) {
+  window.location.href = url;
+}
+
 export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -52,6 +56,7 @@ export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
     const ua = navigator.userAgent || "";
     const mobile = /Android|iPhone|iPad|iPod/i.test(ua) ||
       (navigator.platform === "MacIntel" && (navigator.maxTouchPoints || 0) > 1); // iPadOS reports as Mac
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
     setIsMobile(mobile);
   }, []);
 
@@ -61,10 +66,10 @@ export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
     const scheme = appScheme(s.label, s.href);
     if (!scheme) return; // no app scheme: normal web behavior
     e.preventDefault();
-    const fallback = setTimeout(() => { window.location.href = s.href; }, 1200);
+    const fallback = setTimeout(() => navigateTo(s.href), 1200);
     const onHide = () => { if (document.hidden) clearTimeout(fallback); }; // app opened → cancel
     document.addEventListener("visibilitychange", onHide, { once: true });
-    window.location.href = scheme;
+    navigateTo(scheme);
   }
 
   if (!socials.length) return null;

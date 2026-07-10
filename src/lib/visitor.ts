@@ -17,6 +17,7 @@ export function getVisitorId(): string {
 // hide themselves or pre-fill.
 const SHARED_KEY = "swiftcard_shared";   // { [ownerSlug]: true } — kept for back-compat
 const INFO_KEY = "swiftcard_visitor";    // { name, phone, email } — the visitor's own details
+const SAVED_KEY = "swiftcard_saved";     // { [ownerSlug]: true } — has this visitor saved this card to contacts before
 
 export type VisitorInfo = { name: string; phone: string; email: string };
 
@@ -47,6 +48,27 @@ export function markSharedWith(owner: string | null | undefined, info?: Partial<
   // Broadcast so any other share surface on the page (e.g. the social-link
   // intercept) updates live — once the visitor has shared, nothing re-asks.
   try { window.dispatchEvent(new CustomEvent("sc:shared", { detail: { owner } })); } catch { /* ignore */ }
+}
+
+// Has this visitor already saved this card to their contacts? Persisted the
+// same way as hasSharedWith, so returning visitors see a confirmation instead
+// of the plain "Save Contact" button again.
+export function hasSavedContact(owner: string | null | undefined): boolean {
+  if (!owner || typeof window === "undefined") return false;
+  try {
+    return !!JSON.parse(localStorage.getItem(SAVED_KEY) ?? "{}")[owner];
+  } catch {
+    return false;
+  }
+}
+
+export function markSavedContact(owner: string | null | undefined): void {
+  if (!owner || typeof window === "undefined") return;
+  try {
+    const map = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "{}");
+    map[owner] = true;
+    localStorage.setItem(SAVED_KEY, JSON.stringify(map));
+  } catch { /* private mode */ }
 }
 
 export function getVisitorInfo(): VisitorInfo | null {

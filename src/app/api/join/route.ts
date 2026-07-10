@@ -25,6 +25,26 @@ export async function POST(req: Request) {
   if (!member) return NextResponse.json({ error: "Invalid or expired invite link." }, { status: 404 });
   if (member.status === "active") return NextResponse.json({ error: "This invite has already been used." }, { status: 400 });
 
+  // Invites expire after 7 days (matches the deadline stated in the invite
+  // email) — otherwise a leaked/forwarded link would work indefinitely.
+  const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  if (member.created_at && Date.now() - new Date(member.created_at as string).getTime() > INVITE_TTL_MS) {
+    return NextResponse.json({ error: "This invite has expired. Ask the team admin to send a new one." }, { status: 410 });
+  }
+
+  // The invite is only valid for the email it was sent to — without this, anyone
+  // who obtains the token (forwarded email, leaked link, shared inbox) could
+  // accept it under a DIFFERENT account and consume the seat instead of the
+  // person actually invited, regardless of whether their own email matches.
+  const inviteEmail = (member.invite_email as string | null)?.trim().toLowerCase();
+  const userEmail = user.email?.trim().toLowerCase();
+  if (inviteEmail && userEmail && inviteEmail !== userEmail) {
+    return NextResponse.json(
+      { error: `This invite was sent to ${member.invite_email}. Sign in with that email address to accept it.` },
+      { status: 403 }
+    );
+  }
+
   const officeId = (member.offices as { id: string } | null)?.id ?? member.office_id;
 
   // HARD seat guard at accept time. The invite-send check only counts ACTIVE
@@ -44,6 +64,19 @@ export async function POST(req: Request) {
       { status: 409 }
     );
   }
+
+  // Remove any membership this user still holds in a DIFFERENT office first
+  // (same as the owner's "Remove member" action). Without this, a user who
+  // switches teams keeps an "active" row in their old office forever, and
+  // every place that trusts office_members.status as "who's currently on this
+  // team" (Team Leads, brand propagation) keeps leaking the old office's data
+  // to them / their card to the old office.
+  await admin
+    .from("office_members")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .neq("office_id", officeId);
 
   // Accept: mark active, link user_id
   const { error: updateError } = await admin

@@ -25,13 +25,27 @@ export async function PATCH(req: NextRequest) {
   const { error } = await admin.from("offices").update(brand).eq("id", office.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Propagate to all cards owned by the admin + every active member.
+  // Propagate to all cards owned by the admin + every active member. Cross-check
+  // profiles.office_id too, not just office_members.status='active' — a member
+  // who switched teams or whose office's subscription lapsed must not have their
+  // live card overwritten with this office's branding just because a stale
+  // office_members row wasn't cleaned up somewhere.
   const { data: members } = await admin
     .from("office_members")
     .select("user_id")
     .eq("office_id", office.id)
     .eq("status", "active");
-  const userIds = [user.id, ...(members ?? []).map((m) => m.user_id).filter(Boolean) as string[]];
+  const memberIds = (members ?? []).map((m) => m.user_id).filter(Boolean) as string[];
+  let verifiedMemberIds: string[] = [];
+  if (memberIds.length) {
+    const { data: stillHere } = await admin
+      .from("profiles")
+      .select("id")
+      .in("id", memberIds)
+      .eq("office_id", office.id);
+    verifiedMemberIds = (stillHere ?? []).map((p) => p.id as string);
+  }
+  const userIds = [user.id, ...verifiedMemberIds];
 
   const cardUpdate: Record<string, unknown> = {};
   if (brand.brand_logo_url) cardUpdate.logo_url = brand.brand_logo_url;

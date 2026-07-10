@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
 import AddContactModal from "@/components/AddContactModal";
 
@@ -160,6 +160,7 @@ export default function ContactsClient({
     try {
       const saved = localStorage.getItem(ACTIVE_CARD_KEY);
       if (saved && userCards.some((c) => c.username === saved)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
         setCardFilter(saved);
       }
     } catch {
@@ -168,6 +169,10 @@ export default function ContactsClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selected, setSelected] = useState<Lead | null>(null);
+  // Guards against out-of-order responses: if the user clicks a second contact
+  // before the first contact's message/events fetch resolves, the stale fetch
+  // must not overwrite the panel with the wrong contact's data.
+  const selectSeq = useRef(0);
   const [events, setEvents] = useState<CardEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
@@ -204,6 +209,7 @@ export default function ContactsClient({
     if (!touring) return;
     const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
     if (demo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time tour bootstrap read from sessionStorage
       setSelected(demo);
       setDetailTab("info");
       setWhereMetText(demo.where_met ?? "");
@@ -476,6 +482,7 @@ export default function ContactsClient({
   const letters = Object.keys(grouped).sort();
 
   async function selectLead(lead: Lead) {
+    const seq = ++selectSeq.current;
     setSelected(lead);
     setEvents([]);
     setDetailTab("conversation");
@@ -492,21 +499,23 @@ export default function ContactsClient({
     setDraftLoading(false);
     setSeqSaving("idle");
     setConvoMessages([]);
-    // Load the message thread (degrades to empty if not yet migrated).
+    // Load the message thread (degrades to empty if not yet migrated). Guarded
+    // by `seq` so a slow response for a contact the user already navigated
+    // away from can't overwrite the currently-selected contact's messages.
     fetch(`/api/leads/${lead.id}/message`)
       .then((r) => r.json())
-      .then((d) => setConvoMessages(Array.isArray(d.messages) ? d.messages : []))
-      .catch(() => setConvoMessages([]));
+      .then((d) => { if (selectSeq.current === seq) setConvoMessages(Array.isArray(d.messages) ? d.messages : []); })
+      .catch(() => { if (selectSeq.current === seq) setConvoMessages([]); });
     if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
       const res = await fetch(`/api/card-events?visitor_id=${lead.visitor_id}`);
       const data = await res.json();
-      setEvents(Array.isArray(data) ? data : []);
+      if (selectSeq.current === seq) setEvents(Array.isArray(data) ? data : []);
     } catch {
-      setEvents([]);
+      if (selectSeq.current === seq) setEvents([]);
     } finally {
-      setLoadingEvents(false);
+      if (selectSeq.current === seq) setLoadingEvents(false);
     }
   }
 

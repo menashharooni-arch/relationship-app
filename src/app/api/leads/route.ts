@@ -123,8 +123,8 @@ export async function POST(req: NextRequest) {
     // Sync to Google Contacts + HubSpot (non-blocking)
     if (ownerProfile?.id) {
       const leadData = { name, email: email || null, phone: phone || null, company: company || null };
-      syncLeadToGoogle(leadData, ownerProfile.id).catch(() => {});
-      syncLeadToHubSpot(leadData, ownerProfile.id).catch(() => {});
+      syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e));
+      syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e));
     }
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so

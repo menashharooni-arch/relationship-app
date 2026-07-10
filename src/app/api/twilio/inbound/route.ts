@@ -26,13 +26,10 @@ export async function POST(req: NextRequest) {
   const sig = req.headers.get("x-twilio-signature");
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const url = `https://${host}/api/twilio/inbound`;
-  if (
-    process.env.TWILIO_SKIP_VALIDATION !== "true" &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    sig &&
-    !twilio.validateRequest(process.env.TWILIO_AUTH_TOKEN, sig, url, params)
-  ) {
-    return new NextResponse("Invalid signature", { status: 403 });
+  if (process.env.TWILIO_SKIP_VALIDATION !== "true" && process.env.TWILIO_AUTH_TOKEN) {
+    if (!sig || !twilio.validateRequest(process.env.TWILIO_AUTH_TOKEN, sig, url, params)) {
+      return new NextResponse("Invalid signature", { status: 403 });
+    }
   }
 
   const from = params.From || "";

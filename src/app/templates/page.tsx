@@ -55,6 +55,7 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("kontact_template");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     if (stored) setSelected(stored);
   }, []);
 

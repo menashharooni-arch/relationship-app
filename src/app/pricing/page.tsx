@@ -5,25 +5,26 @@ import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
 const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
 
-// Display prices (USD). Must match the amounts on your Stripe Price objects.
-const PRO_MONTHLY = 4.99;              // $/month
-const PRO_ANNUAL = 54;                 // $/year — ~$4.50/mo, ~10% off $4.99
-const OFFICE_PER_USER = 3.99;          // $/user/month
-const OFFICE_PER_USER_YEAR = OFFICE_PER_USER * 12 * 0.9;  // ~$43.09/user/year, 10% off
+// Display prices (USD) — sourced from PLAN_PRICES (src/lib/plan.ts), the same
+// constants the checkout route validates the real Stripe price against.
+const PRO_MONTHLY = PLAN_PRICES.PRO_MONTHLY_CENTS / 100;              // $/month
+const PRO_ANNUAL = PLAN_PRICES.PRO_ANNUAL_CENTS / 100;                // $/year
+const OFFICE_PER_USER = PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100;      // $/user/month
+const OFFICE_PER_USER_YEAR = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100;  // $/user/year
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
 const features = {
   free: [
     "1 digital business card",
-    "5 new leads a month",
+    "5 new leads a month (then locked until you upgrade)",
     "All 5 card templates",
     "QR code, shareable link & NFC",
     "Unlimited Swift Links buttons",
@@ -261,14 +262,15 @@ export default function PricingPage() {
             href="/login?mode=signup"
             className="w-full text-center border border-[#C8BFB3] hover:border-slate-400 text-slate-700 hover:text-slate-900 font-semibold py-3 rounded-full transition-colors text-sm bg-[#FAF7F2]"
           >
-            Get started free →
+            Get Started Free →
           </Link>
         </div>
 
-        {/* Pro */}
-        <div data-reveal style={{ transitionDelay: "90ms" }} className="card-premium relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-xl shadow-blue-200">
-          <div className="absolute top-5 right-5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
-            POPULAR
+        {/* Pro — visually elevated above Free/Office: lifted, bigger shadow, ring */}
+        <div data-reveal style={{ transitionDelay: "90ms" }} className="card-premium relative bg-[#1D4ED8] rounded-3xl p-8 flex flex-col shadow-2xl shadow-blue-300/60 ring-2 ring-blue-400/40 md:-mt-3 md:mb-3 z-10">
+          <div className="absolute top-5 right-5 bg-white text-[#1D4ED8] text-xs font-black px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            MOST POPULAR
           </div>
           <p className="text-[11px] font-bold tracking-[0.2em] text-blue-200 uppercase mb-3">Pro</p>
           {annual ? (
@@ -285,7 +287,7 @@ export default function PricingPage() {
               <span className="text-blue-200 text-sm mb-1.5">/ month</span>
             </div>
           )}
-          <p className="text-blue-200 text-sm mb-8 mt-2">For serious networkers.</p>
+          <p className="text-blue-200 text-sm mb-8 mt-2">Never lose a lead to the free plan&apos;s cap.</p>
           <ul className="space-y-3 mb-10 flex-1">
             {features.pro.map((f) => (
               <li key={f} className="flex items-center gap-3 text-sm text-blue-100">
@@ -304,9 +306,10 @@ export default function PricingPage() {
             {loading === "pro"
               ? "Loading…"
               : promo.status === "valid"
-              ? `Upgrade to Pro · ${promo.discountLabel} →`
-              : `Upgrade to Pro${annual ? ` · $${PRO_ANNUAL}/yr` : ` · $${PRO_MONTHLY}/mo`} →`}
+              ? `Get Pro · ${promo.discountLabel} →`
+              : `Get Pro${annual ? ` · $${PRO_ANNUAL}/yr` : ` · $${PRO_MONTHLY}/mo`} →`}
           </button>
+          <p className="text-center text-blue-200 text-xs mt-3">Cancel anytime — no contracts.</p>
         </div>
 
         {/* Office Plan */}
@@ -321,7 +324,7 @@ export default function PricingPage() {
           </div>
           <div className="mb-1">
             <div className="flex items-end gap-1">
-              <span className="text-4xl font-bold text-slate-900">${annual ? "3.59" : OFFICE_PER_USER}</span>
+              <span className="text-4xl font-bold text-slate-900">${annual ? (OFFICE_PER_USER_YEAR / 12).toFixed(2) : OFFICE_PER_USER}</span>
               <span className="text-slate-400 text-sm mb-1.5">/ month per user</span>
             </div>
             <p className="text-purple-700 text-xs font-semibold mt-1">
@@ -384,10 +387,10 @@ export default function PricingPage() {
           >
             {loading === "enterprise"
               ? "Loading…"
-              : `Get Office Plan · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
+              : `Get Office · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
           </button>
           <p className="text-center text-slate-400 text-xs mt-3">
-            {annual ? "Billed annually per seat (10% off)." : "Billed monthly per seat."} Minimum {OFFICE_MIN_SEATS} users · cancel anytime.
+            {annual ? "Billed annually per seat (10% off)." : "Billed monthly per seat."} Cancel anytime.
           </p>
         </div>
       </section>

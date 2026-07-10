@@ -64,12 +64,17 @@ export default function MarketingClient() {
     if (!promoSend) return;
     setPromoSending(true);
     setPromoSendResult(null);
-    const res = await fetch("/api/admin/promo-codes/send", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(promoSend),
-    });
-    const d = await res.json();
-    setPromoSendResult(res.ok ? `Sent to ${d.sent} users · ${d.skipped} skipped` : d.error || "Send failed");
-    setPromoSending(false);
+    try {
+      const res = await fetch("/api/admin/promo-codes/send", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(promoSend),
+      });
+      const d = await res.json();
+      setPromoSendResult(res.ok ? `Sent to ${d.sent} users · ${d.skipped} skipped` : d.error || "Send failed");
+    } catch {
+      setPromoSendResult("Network error — please try again.");
+    } finally {
+      setPromoSending(false);
+    }
   }
 
   useEffect(() => {
@@ -91,6 +96,7 @@ export default function MarketingClient() {
       setPromosReady(false);
     }
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time data fetch on mount
   useEffect(() => { loadPromos(); }, [loadPromos]);
 
   const recipientCount = counts ? counts[form.segment as keyof Counts] ?? 0 : null;
@@ -98,44 +104,54 @@ export default function MarketingClient() {
   async function send(test: boolean) {
     setSending(test ? "test" : "real");
     setResult(null);
-    const res = await fetch("/api/admin/broadcast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, ctaUrl: form.ctaUrl || undefined, test }),
-    });
-    const d = await res.json();
-    if (res.ok) {
-      setResult({ ok: test ? `Test sent to ${d.to} — check your inbox before the real send.` : `Sent to ${d.sent} users · ${d.skipped} skipped (unsubscribed or no email)` });
-    } else {
-      setResult({ error: d.error || "Send failed" });
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, ctaUrl: form.ctaUrl || undefined, test }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setResult({ ok: test ? `Test sent to ${d.to} — check your inbox before the real send.` : `Sent to ${d.sent} users · ${d.skipped} skipped (unsubscribed or no email)` });
+      } else {
+        setResult({ error: d.error || "Send failed" });
+      }
+    } catch {
+      setResult({ error: "Network error — please try again." });
+    } finally {
+      setSending("");
+      setConfirming(false);
     }
-    setSending("");
-    setConfirming(false);
   }
 
   async function createPromo(e: React.FormEvent) {
     e.preventDefault();
     setPromoBusy(true);
     setPromoError(null);
-    const res = await fetch("/api/admin/promo-codes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...promoForm,
-        discount_percent: promoForm.discount_percent ? Number(promoForm.discount_percent) : null,
-        max_uses: promoForm.max_uses ? Number(promoForm.max_uses) : null,
-        expires_at: promoForm.expires_at || null,
-      }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setPromoForm({ code: "", description: "", discount_percent: "20", max_uses: "", expires_at: "", plan_target: "free" });
-      setPromoError(data.stripeWarning ?? null); // honest warning if Stripe rejected the code
-      loadPromos();
-    } else {
-      setPromoError(data.error);
+    try {
+      const res = await fetch("/api/admin/promo-codes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...promoForm,
+          discount_percent: promoForm.discount_percent ? Number(promoForm.discount_percent) : null,
+          max_uses: promoForm.max_uses ? Number(promoForm.max_uses) : null,
+          expires_at: promoForm.expires_at || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPromoForm({ code: "", description: "", discount_percent: "20", max_uses: "", expires_at: "", plan_target: "free" });
+        setPromoError(data.stripeWarning ?? null); // honest warning if Stripe rejected the code
+        loadPromos();
+      } else {
+        setPromoError(data.error);
+      }
+    } catch {
+      setPromoError("Network error — please try again.");
+    } finally {
+      setPromoBusy(false);
     }
-    setPromoBusy(false);
   }
 
   const inputCls = "w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500";

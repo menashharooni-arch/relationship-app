@@ -18,6 +18,14 @@ export async function PATCH(req: Request) {
   // Enforce Pro-only design gates server-side (accent/font + link cap + custom
   // template), so the legacy profile-card editor can't bypass them.
   const { data: planRow } = await supabase.from("profiles").select("plan, customization").eq("id", user.id).single();
+
+  // A soft-deleted account's access token stays valid for its remaining
+  // lifetime (signOut only revokes the refresh token) — block writes here too,
+  // not just the page-level redirect.
+  if ((planRow?.customization as Record<string, unknown> | null)?._deleted === true) {
+    return NextResponse.json({ error: "This account has been deleted." }, { status: 403 });
+  }
+
   if (!isPaidPlan(planRow?.plan)) {
     if (updates.template === "custom") updates.template = "classic-pro";
     if ("customization" in updates) {

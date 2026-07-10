@@ -84,6 +84,7 @@ export default function SocialLinkIntercept({
     // Reflect shared-state on mount, AND update live when the visitor shares via
     // any surface on the page (Save Contact, "Share your info", the connect form)
     // — after they've shared once, these links open without asking again.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     setAlreadyShared(hasSharedWith(cardOwner));
     const onShared = (e: Event) => {
       const owner = (e as CustomEvent).detail?.owner;
@@ -120,17 +121,26 @@ export default function SocialLinkIntercept({
     if (!form.name.trim() || !form.phone.trim()) return;
     setStatus("loading");
 
-    await fetch("/api/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        email: form.email || null,
-        card_owner: cardOwner,
-        source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
-      }),
-    });
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email || null,
+          card_owner: cardOwner,
+          source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
+        }),
+      });
+      if (!res.ok) throw new Error("lead capture failed");
+    } catch {
+      // Don't mark as shared or advance the UI on a failed capture — the
+      // visitor's info would otherwise be silently lost while every other
+      // share-gate on the site treats them as already captured.
+      setStatus("idle");
+      return;
+    }
 
     // Record the share the shared way (stores their info for pre-fill + broadcasts
     // so every other surface stops asking).
@@ -224,7 +234,6 @@ export default function SocialLinkIntercept({
                   <input
                     type="text"
                     placeholder="Your name *"
-                    required
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
@@ -232,7 +241,6 @@ export default function SocialLinkIntercept({
                   <input
                     type="tel"
                     placeholder="Your phone *"
-                    required
                     value={form.phone}
                     onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"

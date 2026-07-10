@@ -50,6 +50,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
     setCodeInput(d.user.referral_code ?? "");
   }, [userId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time data fetch on mount
   useEffect(() => { load(); }, [load]);
 
   async function patch(body: Record<string, unknown>, busyKey: string) {

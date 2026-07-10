@@ -1,3 +1,5 @@
+import { escapeHtml, safeUrlAttr } from "./escape";
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
 
@@ -61,19 +63,22 @@ export function welcomeEmail(opts: {
   cardUrl: string;
   unsubscribeUrl: string;
 }) {
+  const safeName = escapeHtml(opts.firstName);
+  const safeCardUrl = safeUrlAttr(opts.cardUrl);
+  const cardUrlText = escapeHtml(opts.cardUrl);
   const body = `
-    ${h1(`Your SwiftCard is live, ${opts.firstName}! 🎉`)}
+    ${h1(`Your SwiftCard is live, ${safeName}! 🎉`)}
     ${p("Share it anywhere — a link, a QR code, or tap your phone. Every time someone shares their info back, they land in your dashboard automatically.")}
     ${card(`
       <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#94a3b8;text-transform:uppercase;">Your card link</p>
-      <a href="${opts.cardUrl}" style="color:#1D4ED8;font-size:15px;font-weight:600;text-decoration:none;">${opts.cardUrl}</a>
+      <a href="${safeCardUrl}" style="color:#1D4ED8;font-size:15px;font-weight:600;text-decoration:none;">${cardUrlText}</a>
     `)}
-    ${btn(opts.cardUrl, "See my live card →")}
+    ${btn(safeCardUrl, "See my live card →")}
     ${card(`
       <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">3 ways to share your card</p>
       <p style="margin:0 0 8px;font-size:13px;color:#475569;">📱 <strong>Text the link</strong> — paste into any chat</p>
       <p style="margin:0 0 8px;font-size:13px;color:#475569;">📸 <strong>QR code</strong> — download from your dashboard and add to your email signature or slide deck</p>
-      <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Email signature</strong> — add "Save my contact → ${opts.cardUrl}"</p>
+      <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Email signature</strong> — add "Save my contact → ${cardUrlText}"</p>
     `)}
   `;
   return {
@@ -104,9 +109,10 @@ export function trialEndingSoonEmail(opts: {
 }) {
   const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
   const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
+  const safeName = escapeHtml(opts.firstName);
   const body = `
     ${h1(`${day} left of your ${what}`)}
-    ${p(`Hey ${opts.firstName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just $4.99/mo).`)}
+    ${p(`Hey ${safeName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just $4.99/mo).`)}
     ${proLossCard()}
     ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
     ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
@@ -124,9 +130,10 @@ export function trialEndedEmail(opts: {
   isTrial: boolean;
 }) {
   const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
+  const safeName = escapeHtml(opts.firstName);
   const body = `
     ${h1(what)}
-    ${p(`Hey ${opts.firstName} — you're now on the Free plan. Thanks for trying Pro! Your card, contacts, and links are all exactly where you left them.`)}
+    ${p(`Hey ${safeName} — you're now on the Free plan. Thanks for trying Pro! Your card, contacts, and links are all exactly where you left them.`)}
     ${proLossCard()}
     ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
     ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
@@ -134,6 +141,35 @@ export function trialEndedEmail(opts: {
   return {
     from: FROM,
     subject: what,
+    html: layout(body),
+  };
+}
+
+// Sent ~1 day after signup to anyone who made a card but never actually
+// shared it (zero card views) — nudges them toward the easiest ways to start:
+// download the QR code, or drop the card into their email signature.
+export function neverSharedNudgeEmail(opts: {
+  firstName: string;
+  cardUrl: string;
+}) {
+  const safeName = escapeHtml(opts.firstName);
+  const safeCardUrl = safeUrlAttr(opts.cardUrl);
+  const cardUrlText = escapeHtml(opts.cardUrl.replace(/^https?:\/\//, ""));
+  const body = `
+    ${h1(`Your card's ready — let's get it in front of someone`)}
+    ${p(`Hey ${safeName} — you built your SwiftCard, but it looks like it hasn't been shared yet. Here are the two fastest ways to start:`)}
+    ${card(`
+      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">📱 Download your QR code</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Print it, stick it on your desk or a card, and anyone can scan it straight to your card.</p>
+      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">✉️ Add it to your email signature</p>
+      <p style="margin:0;font-size:13px;color:#64748b;">One click copies your live card into your signature — it's in every email you send from then on.</p>
+    `)}
+    ${btn(safeCardUrl, "Open my card →")}
+    ${p(`Both take under a minute from your dashboard. Your card is already live at ${cardUrlText} — it just needs to get in front of people.`)}
+  `;
+  return {
+    from: FROM,
+    subject: `Your SwiftCard is ready — here's how to start sharing it`,
     html: layout(body),
   };
 }
@@ -146,18 +182,19 @@ export function promoEmail(opts: {
   body: string;
   unsubscribeUrl: string;
 }) {
+  const safeCode = escapeHtml(opts.code);
   const body = `
     <div style="background:#1D4ED8;border-radius:12px;padding:4px 14px;display:inline-block;margin-bottom:20px;">
       <span style="color:#bfdbfe;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Exclusive offer</span>
     </div>
-    ${h1(opts.headline)}
-    ${p(opts.body)}
+    ${h1(escapeHtml(opts.headline))}
+    ${p(escapeHtml(opts.body))}
     ${card(`
       <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#94a3b8;text-transform:uppercase;">Your promo code</p>
-      <p style="margin:0 0 4px;font-size:28px;font-weight:900;color:#1D4ED8;letter-spacing:0.06em;">${opts.code}</p>
-      <p style="margin:0;font-size:13px;color:#64748b;">${opts.discountText}</p>
+      <p style="margin:0 0 4px;font-size:28px;font-weight:900;color:#1D4ED8;letter-spacing:0.06em;">${safeCode}</p>
+      <p style="margin:0;font-size:13px;color:#64748b;">${escapeHtml(opts.discountText)}</p>
     `)}
-    ${btn(`${APP_URL}/pricing?code=${opts.code}`, `Apply code & upgrade →`)}
+    ${btn(safeUrlAttr(`${APP_URL}/pricing?code=${encodeURIComponent(opts.code)}`), `Apply code & upgrade →`)}
     ${p(`Apply it at checkout on the pricing page. If you have any questions, just reply to this email.`)}
   `;
   return {
@@ -178,12 +215,14 @@ export function receiptEmail(opts: {
   invoiceUrl?: string;
   manageUrl: string;
 }) {
+  const safeName = escapeHtml(opts.firstName);
+  const safePlanName = escapeHtml(opts.planName);
   const tableRows = [
-    row("Plan", opts.planName),
-    row("Amount", opts.amount),
-    row("Billing", opts.interval),
-    row("Date", opts.paymentDate),
-    row("Receipt #", opts.invoiceNumber),
+    row("Plan", safePlanName),
+    row("Amount", escapeHtml(opts.amount)),
+    row("Billing", escapeHtml(opts.interval)),
+    row("Date", escapeHtml(opts.paymentDate)),
+    row("Receipt #", escapeHtml(opts.invoiceNumber)),
   ].join("");
 
   const body = `
@@ -192,28 +231,61 @@ export function receiptEmail(opts: {
         <span style="font-size:22px;">✅</span>
       </div>
       ${h1(`Payment confirmed`)}
-      ${p(`Thank you, ${opts.firstName}. Your payment was processed successfully. Here's your receipt.`)}
+      ${p(`Thank you, ${safeName}. Your payment was processed successfully. Here's your receipt.`)}
     </div>
     <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
       <div style="background:#0f172a;padding:16px 24px;">
         <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.15em;color:#64748b;text-transform:uppercase;">Receipt</p>
-        <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:#fff;">SwiftCard ${opts.planName}</p>
+        <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:#fff;">SwiftCard ${safePlanName}</p>
       </div>
       <div style="padding:0 24px;">
         <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
       </div>
     </div>
-    ${opts.invoiceUrl ? btn(opts.invoiceUrl, "Download invoice PDF →") : ""}
+    ${opts.invoiceUrl ? btn(safeUrlAttr(opts.invoiceUrl), "Download invoice PDF →") : ""}
     ${card(`
       <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Manage your subscription</p>
       <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Cancel, change plan, or update payment info at any time.</p>
-      <a href="${opts.manageUrl}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Manage billing →</a>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Manage billing →</a>
     `)}
     ${p(`If you have any questions about this charge, just reply to this email.`)}
   `;
   return {
     from: FROM,
     subject: `Your SwiftCard receipt — ${opts.amount}`,
+    html: layout(body),
+  };
+}
+
+// Sent when a renewal charge fails (card expired, declined, insufficient funds).
+// Stripe's own Smart Retries will try again automatically; this just prompts
+// the customer to fix their payment method before access is eventually lost.
+export function paymentFailedEmail(opts: {
+  firstName: string;
+  planName: string;
+  amount: string;
+  manageUrl: string;
+}) {
+  const safeName = escapeHtml(opts.firstName);
+  const safePlanName = escapeHtml(opts.planName);
+  const body = `
+    <div style="margin-bottom:24px;">
+      <div style="width:48px;height:48px;background:#FEF2F2;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <span style="font-size:22px;">⚠️</span>
+      </div>
+      ${h1(`Your payment didn't go through`)}
+      ${p(`Hey ${safeName} — we tried to charge ${escapeHtml(opts.amount)} for your SwiftCard ${safePlanName} plan, but the payment failed. This can happen with an expired card, insufficient funds, or a bank decline.`)}
+    </div>
+    ${card(`
+      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">You have 7 days to update your payment method</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Your plan stays fully active during that window while we retry the charge. If it's still unresolved after 7 days, your account will automatically move to the Free plan.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Update billing →</a>
+    `)}
+    ${p(`If you have any questions, just reply to this email.`)}
+  `;
+  return {
+    from: FROM,
+    subject: `Action needed: your SwiftCard payment failed`,
     html: layout(body),
   };
 }
@@ -228,9 +300,9 @@ export function marketingEmail(opts: {
   unsubscribeUrl: string;
 }) {
   const emailBody = `
-    ${h1(opts.headline)}
-    ${p(opts.body)}
-    ${btn(opts.ctaUrl, opts.ctaLabel)}
+    ${h1(escapeHtml(opts.headline))}
+    ${p(escapeHtml(opts.body))}
+    ${btn(safeUrlAttr(opts.ctaUrl), escapeHtml(opts.ctaLabel))}
   `;
   return {
     from: FROM,

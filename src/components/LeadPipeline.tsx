@@ -37,14 +37,23 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   async function moveToColumn(leadId: string, newStatus: string) {
+    const prevStatus = leads.find((l) => l.id === leadId)?.status ?? "new_contact";
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, status: newStatus } : l))
     );
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("move failed");
+    } catch {
+      // Roll back — the drag looked like it worked but the DB never changed.
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, status: prevStatus } : l))
+      );
+    }
   }
 
   function onDragStart(e: React.DragEvent, id: string) {
@@ -72,16 +81,23 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
 
   async function saveEdit(leadId: string) {
     if (!editForm.name.trim()) return;
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: editForm.name.trim(),
-        email: editForm.email.trim() || null,
-        phone: editForm.phone.trim() || null,
-        company: editForm.company.trim() || null,
-      }),
-    });
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          email: editForm.email.trim() || null,
+          phone: editForm.phone.trim() || null,
+          company: editForm.company.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      // Don't commit the edit locally — the DB never changed, and leaving
+      // editingId set keeps the edit form open so the user can retry.
+      return;
+    }
     setLeads((prev) =>
       prev.map((l) =>
         l.id === leadId
@@ -93,7 +109,13 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
   }
 
   async function deleteLead(leadId: string) {
-    await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      setConfirmDeleteId(null);
+      return;
+    }
     setLeads((prev) => prev.filter((l) => l.id !== leadId));
     setConfirmDeleteId(null);
   }

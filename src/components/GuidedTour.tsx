@@ -96,7 +96,6 @@ export default function GuidedTour() {
     dirRef.current = next >= idxRef.current ? 1 : -1;
     persist(next);
     setIdx(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persist, finish]);
 
   // ── Start / resume: read sessionStorage on mount and on the start event ───
@@ -135,6 +134,7 @@ export default function GuidedTour() {
     // Centered message (no anchor) — nothing to find.
     if (!cur.anchor) {
       targetRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- forces a re-render to re-resolve the anchorless step
       forceTick((n) => n + 1);
       startLoop();
       return () => stopLoop();
@@ -281,6 +281,7 @@ export default function GuidedTour() {
     return () => window.removeEventListener("keydown", onKey);
   }, [running, idx, go, finish]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- stopLoop is redefined each render but only its cleanup-on-unmount behavior matters here
   useEffect(() => () => stopLoop(), []);
 
   if (!step) return null;

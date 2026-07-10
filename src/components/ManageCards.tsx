@@ -31,7 +31,14 @@ export default function ManageCards({ cards }: { cards: Card[] }) {
     setDeletingId(card.id);
     setError(null);
 
-    const res = await fetch(`/api/cards/${card.id}`, { method: "DELETE" });
+    let res: Response;
+    try {
+      res = await fetch(`/api/cards/${card.id}`, { method: "DELETE" });
+    } catch {
+      setError("Couldn't reach the server — check your connection and try again.");
+      setDeletingId(null);
+      return;
+    }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error || "Couldn't delete the card. Try again.");
