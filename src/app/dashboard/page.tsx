@@ -10,6 +10,8 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
+import CardLivePreview from "@/components/CardLivePreview";
+import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
@@ -387,13 +389,19 @@ export default async function DashboardPage({
     <>
       {/* Your card */}
       <div data-tour="your-card" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-4">Your Card</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Your Card</p>
+          <Link href={`/cards/${activeCard.id}/edit`} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            Edit
+          </Link>
+        </div>
+        <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share — tap below to see it live.</p>
         <CardPreviewDownload
           data={cardData}
           template={activeTemplate}
           username={activeUsername}
-          previewUrl={cardUrl}
         />
+        <CardLivePreview cardUrl={cardUrl} className="mt-2" />
         {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>
 
@@ -413,6 +421,9 @@ export default async function DashboardPage({
   return (
     <>
       <AppStorePopup trigger={params.welcome === "1"} />
+      {/* Backstop for the guest-signup flow: claims a still-pending localStorage
+          draft if a guest lands here post-auth. No-ops when there's no draft. */}
+      <GuestDraftClaim />
       <Suspense>
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>
@@ -480,6 +491,29 @@ export default async function DashboardPage({
           {/* First-run guided-tour invitation */}
           <TourBanner />
 
+          {/* Page header — orientation + quick jump to the live card */}
+          <div className="flex items-end justify-between gap-4 mb-5">
+            <div className="min-w-0">
+              <h1 className="text-white font-bold text-xl sm:text-2xl tracking-tight">Dashboard</h1>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 truncate">
+                {activeCard.label || activeCard.name || activeUsername}
+                <span className="text-gray-600"> · /{activeUsername}</span>
+              </p>
+            </div>
+            <a
+              href={cardUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-4 py-2 transition-colors"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden>
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+              View live card
+            </a>
+          </div>
+
           {/* My Cards — full width, top of dashboard */}
           <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
             <div className="flex items-center justify-between mb-3">
@@ -495,7 +529,7 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select a card">
               {allCards.map((card, cardIdx) => {
                 const isActive = activeUsername === card.username;
                 // Mirrors the public kill-switch (lib/card-active): on Free,

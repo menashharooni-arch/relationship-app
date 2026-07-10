@@ -49,7 +49,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/account-deleted", origin));
       }
       if (!profile) {
-        return NextResponse.redirect(new URL("/onboarding", origin));
+        // Brand-new account: preserve a same-origin ?next through onboarding so a
+        // guest who signed up mid-edit returns to the editor and their draft is
+        // claimed (rather than getting stranded on the dashboard).
+        const onboardingUrl = new URL("/onboarding", origin);
+        if (safeNext) onboardingUrl.searchParams.set("next", safeNext);
+        return NextResponse.redirect(onboardingUrl);
       }
     }
 

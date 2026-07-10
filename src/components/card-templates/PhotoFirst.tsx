@@ -6,12 +6,15 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
+const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
 
 export default function PhotoFirst({ data }: { data: CardData }) {
-  const ACCENT = data.customization?.accentColor ?? ACCENT_DEFAULT;
+  const style = templateStyle(data);
+  const ACCENT = style.accentColor ?? ACCENT_DEFAULT;
+  const photoBg = style.bgColor ?? PHOTO_BG_DEFAULT;
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
@@ -26,6 +29,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data),
         background: "#fff",
+        fontFamily: style.fontFamily,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
@@ -34,7 +38,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         className="relative flex flex-col justify-end shrink-0"
         style={{
           width: "40%",
-          background: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)",
+          background: photoBg,
           overflow: "hidden",
         }}
       >
@@ -80,7 +84,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div className="relative px-3.5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}
+            style={{ fontSize: fitPx(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
           >
             {data.name}
           </h2>

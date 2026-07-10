@@ -12,10 +12,19 @@ function accountHandle(email: string | undefined, userId: string): string {
 
 // Account provisioning: create an account-only profile (no card). Cards are created
 // from the dashboard, where a "Create your card" empty state guides new users.
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Only honour a same-origin relative redirect (no open-redirect). Used to send
+  // a brand-new signup back to the guest editor so their pending draft is claimed.
+  const { next } = await searchParams;
+  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
 
   const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
 
@@ -59,9 +68,10 @@ export default async function OnboardingPage() {
       console.error("[onboarding] referral apply failed:", e);
     }
 
-    // Brand-new account → land on the dashboard with the App Store prompt.
-    redirect("/dashboard?welcome=1");
+    // Brand-new account → return to a pending guest editor (to claim the draft)
+    // if we have one, otherwise the dashboard with the App Store prompt.
+    redirect(safeNext ?? "/dashboard?welcome=1");
   }
 
-  redirect("/dashboard");
+  redirect(safeNext ?? "/dashboard");
 }

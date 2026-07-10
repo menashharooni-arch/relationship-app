@@ -58,6 +58,12 @@ export type CardPhone = {
 export type CardCustomization = {
   accentColor?: string;
   font?: string;
+  // ── Preset-template style overrides (Pro) ──────────────────────────────────
+  // Optional. When absent, each template falls back to its own baked-in design,
+  // so cards saved before these existed render exactly as before.
+  bgColor?: string;      // primary branding surface (navy panel, dark bg, stripe…)
+  textColor?: string;    // hero/name text color
+  fontFamily?: string;   // card typography (a full CSS font stack)
   snapchat?: string;
   about?: string;
   address?: CardAddress;

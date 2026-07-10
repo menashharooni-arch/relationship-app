@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -15,8 +15,11 @@ const TEXT   = "#1c1612";
 const MUTED  = "#8c7b60";
 
 export default function LuxuryMinimal({ data }: { data: CardData }) {
-  const GOLD  = data.customization?.accentColor ?? GOLD_DEFAULT;
-  const GOLD2 = data.customization?.accentColor ?? GOLD2_DEFAULT;
+  const style = templateStyle(data);
+  const GOLD  = style.accentColor ?? GOLD_DEFAULT;
+  const GOLD2 = style.accentColor ?? GOLD2_DEFAULT;
+  const bg = style.bgColor ?? IVORY;
+  const nameColor = style.textColor ?? TEXT;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
 
@@ -25,7 +28,8 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       className="relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data),
-        background: IVORY,
+        background: bg,
+        fontFamily: style.fontFamily,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
@@ -84,7 +88,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
               fontSize: fitPx(23 * heroGrow(f), data.name, 17),
               fontWeight: 400,
               letterSpacing: "0.01em",
-              color: TEXT,
+              color: nameColor,
               lineHeight: 1.18,
             }}
           >

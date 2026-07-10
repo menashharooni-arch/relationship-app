@@ -5,6 +5,7 @@ import { getSourceLabel } from "@/lib/source-labels";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isRateLimited } from "@/lib/rate-limit";
+import { isOwnerRequest } from "@/lib/self-traffic";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -41,15 +42,10 @@ export async function POST(req: NextRequest) {
     // Owner self-activity never records — an owner tapping around their own
     // card must not create events or "saved your contact" notifications to
     // themselves. (Client components also suppress this; server closes it.)
-    try {
-      const { data: { user: viewer } } = await (await createClient()).auth.getUser();
-      if (viewer) {
-        const { data: owned } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
-        const ownerId = owned?.user_id
-          ?? (await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle()).data?.id;
-        if (ownerId && ownerId === viewer.id) return NextResponse.json({ ok: true, self: true });
-      }
-    } catch { /* no session — treat as a visitor */ }
+    // Shared, identity-based check — never IP-based (see self-traffic.ts).
+    if (await isOwnerRequest(admin, card_owner_username)) {
+      return NextResponse.json({ ok: true, self: true });
+    }
 
     await admin.from("card_events").insert({
       card_owner_username,

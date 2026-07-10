@@ -45,9 +45,15 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
 
   async function handleGoogle() {
     if (mode === "signup") await clearExistingSession();
+    // Carry a same-origin `next` (e.g. the guest editor) through the OAuth
+    // round-trip so the callback can return the user to where they left off.
+    const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+    const callback = safeNext
+      ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
+      : `${APP_URL}/auth/callback`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${APP_URL}/auth/callback` },
+      options: { redirectTo: callback },
     });
   }
 
@@ -71,7 +77,11 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         setErrorMsg(error.message);
         setStatus("error");
       } else {
-        window.location.href = redirectTo ?? "/onboarding";
+        // New accounts must pass through /onboarding (profile provisioning +
+        // referral). Carry a same-origin `next` (e.g. the guest editor) so
+        // onboarding returns them there afterwards to claim their draft.
+        const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+        window.location.href = safeNext ? `/onboarding?next=${encodeURIComponent(safeNext)}` : "/onboarding";
       }
     }
   }

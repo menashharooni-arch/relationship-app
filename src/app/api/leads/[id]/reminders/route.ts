@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { ownsLead } from "@/lib/lead-access";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     admin.from("leads").select("card_owner").eq("id", id).single(),
     getOwnerUsernames(user.id),
   ]);
-  if (!lead || !usernames.includes(lead.card_owner)) {
+  if (!ownsLead(usernames, lead)) {
     return NextResponse.json({ reminders: [] });
   }
 

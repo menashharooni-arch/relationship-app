@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { ownsLead } from "@/lib/lead-access";
 import { deliverToLead } from "@/lib/messaging";
 
 // GET — the conversation thread (outbound messages you've sent this contact).
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     admin.from("leads").select("card_owner").eq("id", id).single(),
     getOwnerUsernames(user.id),
   ]);
-  if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Table may not exist before the migration is run — degrade to empty thread.
   const { data: messages } = await admin
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     admin.from("leads").select("name, email, phone, card_owner").eq("id", id).single(),
     getOwnerUsernames(user.id),
   ]);
-  if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Sender identity = the card that captured this lead (fall back to profile).
   const { data: card } = await admin

@@ -4,8 +4,10 @@ import { useEffect, useRef } from "react";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
-// Hero demo card — PhotoFirst template with a real headshot.
-const HERO_DATA = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/headshot.jpg" };
+// Hero demo card — PhotoFirst template with a clearly-fictional ILLUSTRATED
+// avatar (not a real person). To use a real photo later, drop a licensed image
+// into public/demo/ and point photoUrl at it instead.
+const HERO_DATA = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/avatar.svg" };
 
 // How far the phone folds down at full scroll progress.
 const FOLD_X = 74;   // deg — tips forward around the X axis, falling onto its screen

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
-type Integration = "google" | "hubspot";
+type Integration = "google" | "hubspot" | "linkedin";
 
 type Props = {
   googleConnected: boolean;
@@ -14,6 +14,11 @@ type Props = {
   /** HubSpot OAuth env keys present — hide the card entirely when not configured
       so users never hit a broken Connect redirect. */
   hubspotEnabled?: boolean;
+  /** LinkedIn OAuth env keys present — hide the card when not configured (the
+      app isn't approved yet), mirroring how HubSpot is gated. */
+  linkedinEnabled?: boolean;
+  linkedinConnected?: boolean;
+  linkedinSyncError?: string | null;
 };
 
 function IntegrationCard({
@@ -26,6 +31,7 @@ function IntegrationCard({
   disconnectUrl,
   isPro,
   flashStatus,
+  proGated = true,
 }: {
   name: string;
   description: string;
@@ -36,7 +42,12 @@ function IntegrationCard({
   disconnectUrl: string;
   isPro: boolean;
   flashStatus?: string | null;
+  /** When false the card ignores plan gating (available to all signed-in users).
+      LinkedIn photo import is a card-building aid, not a Pro CRM sync. */
+  proGated?: boolean;
 }) {
+  // Treat a non-Pro-gated card as always "unlocked" regardless of plan.
+  const unlocked = isPro || !proGated;
   const [connected, setConnected] = useState(initialConnected);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -53,7 +64,7 @@ function IntegrationCard({
   const needsReconnect = connected && !!syncError;
 
   return (
-    <div className={`bg-[#EDE5D8] border rounded-2xl px-5 py-4 shadow-sm ${!isPro ? "opacity-60" : ""}`}
+    <div className={`bg-[#EDE5D8] border rounded-2xl px-5 py-4 shadow-sm ${!unlocked ? "opacity-60" : ""}`}
       style={{ borderColor: needsReconnect ? "#fcd34d" : connected ? "#86efac" : "#D4C8B8" }}>
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#F0EBE1] border border-[#D4C8B8] flex items-center justify-center shrink-0">
@@ -71,7 +82,7 @@ function IntegrationCard({
           <p className="text-slate-400 text-xs mt-0.5">{description}</p>
         </div>
 
-        {isPro ? (
+        {unlocked ? (
           needsReconnect ? (
             <a
               href={connectUrl}
@@ -113,7 +124,7 @@ function IntegrationCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro, hubspotEnabled = false }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro, hubspotEnabled = false, linkedinEnabled = false, linkedinConnected = false, linkedinSyncError = null }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -165,6 +176,25 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         disconnectUrl="/api/integrations/hubspot"
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
+      />
+      )}
+
+      {linkedinEnabled && (
+      <IntegrationCard
+        name="LinkedIn"
+        description="Import your LinkedIn profile photo onto your card — you approve it before it's applied"
+        proGated={false}
+        logo={
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#0A66C2">
+            <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/>
+          </svg>
+        }
+        connected={linkedinConnected}
+        syncError={linkedinSyncError}
+        connectUrl="/api/integrations/linkedin/connect"
+        disconnectUrl="/api/integrations/linkedin"
+        isPro={isPro}
+        flashStatus={flashIntegration === "linkedin" ? flashStatus : null}
       />
       )}
     </div>

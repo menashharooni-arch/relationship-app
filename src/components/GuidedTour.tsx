@@ -234,11 +234,13 @@ export default function GuidedTour() {
       ring.current.style.borderRadius = cs.borderRadius && cs.borderRadius !== "0px" ? cs.borderRadius : "12px";
       ring.current.style.opacity = "1";
     }
-    // Click blocker over the hole — present unless this step invites a click.
+    // Click blocker over the hole — present unless this step invites a click
+    // (clickToAdvance) or lets the visitor genuinely use the control (interactive).
     if (holeCover.current) {
+      const clickable = !!(step?.clickToAdvance || step?.interactive);
       setBox(holeCover.current, x0, y0, hw, hh);
-      holeCover.current.style.opacity = step?.clickToAdvance ? "0" : "1";
-      holeCover.current.style.pointerEvents = step?.clickToAdvance ? "none" : "auto";
+      holeCover.current.style.opacity = clickable ? "0" : "1";
+      holeCover.current.style.pointerEvents = clickable ? "none" : "auto";
     }
 
     // Tooltip: try the preferred side, fall back to whatever fits.
@@ -305,7 +307,7 @@ export default function GuidedTour() {
       {/* Spotlight ring */}
       <div
         ref={ring}
-        className={`fixed z-[9999] ${step.clickToAdvance ? "sc-tour-pulse" : ""}`}
+        className={`fixed z-[9999] ${step.clickToAdvance || step.interactive ? "sc-tour-pulse" : ""}`}
         style={{ opacity: 0, pointerEvents: "none", boxShadow: "0 0 0 3px rgba(96,165,250,0.95), 0 0 0 9999px rgba(0,0,0,0), 0 8px 40px rgba(37,99,235,0.35)" }}
       />
 
@@ -323,6 +325,9 @@ export default function GuidedTour() {
         <p className="text-gray-300 text-[13px] leading-relaxed">{step.body}</p>
         {step.clickToAdvance && (
           <p className="text-blue-300 text-[12px] font-medium mt-2">👆 Tap the highlighted card, or press Next.</p>
+        )}
+        {step.interactive && (
+          <p className="text-blue-300 text-[12px] font-medium mt-2">👆 Go ahead — try it. Then press Next to continue.</p>
         )}
 
         {/* Progress dots */}

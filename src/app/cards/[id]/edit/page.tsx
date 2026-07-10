@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
+import GuestDraftClaim from "@/components/GuestDraftClaim";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
 import type { CardData } from "@/components/card-templates/types";
@@ -61,6 +62,9 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
+      {/* Backstop: resolves any still-pending guest draft claim that landed on an
+          edit URL. No-ops once the draft is cleared. */}
+      <GuestDraftClaim />
       <div className="max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">

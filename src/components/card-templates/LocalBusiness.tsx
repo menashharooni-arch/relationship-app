@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -14,8 +14,10 @@ const CREAM  = "#fffbf0";
 const WARM   = "#92400e";
 
 export default function LocalBusiness({ data }: { data: CardData }) {
-  const AMBER  = data.customization?.accentColor ?? AMBER_DEFAULT;
-  const AMBER2 = data.customization?.accentColor ?? AMBER2_DEFAULT;
+  const style = templateStyle(data);
+  const AMBER  = style.accentColor ?? AMBER_DEFAULT;
+  const AMBER2 = style.accentColor ?? AMBER2_DEFAULT;
+  const stripeBg = style.bgColor ?? `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
 
@@ -25,6 +27,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data, 6.5),
         background: CREAM,
+        fontFamily: style.fontFamily,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
@@ -32,7 +35,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       <div
         style={{
           height: `${36 - (1 - f) * 14}%`,
-          background: `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`,
+          background: stripeBg,
           position: "relative",
           flexShrink: 0,
         }}
@@ -73,7 +76,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="absolute bottom-0 left-0 px-5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(20 * heroGrow(f), data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+            style={{ fontSize: fitPx(20 * heroGrow(f), data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
           >
             {data.name}
           </h2>

@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import LogoSuggest from "@/components/LogoSuggest";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -18,8 +19,10 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
+import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
+import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 
@@ -61,10 +64,14 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; fontFamily?: string };
 };
 
 type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean };
+
+// Note: editing is auth-only — a guest has no existing card to edit — so per the
+// guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
+// Guest mode lives in NewCardWizard.
 
 export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
@@ -116,6 +123,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT);
+  // Preset-template styling (Pro). Undefined fields fall back to each template's
+  // baked-in design, so a card saved before this feature is unchanged.
+  const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({
+    accentColor: card.customization?.accentColor ?? undefined,
+    bgColor: card.customization?.bgColor ?? undefined,
+    textColor: card.customization?.textColor ?? undefined,
+    fontFamily: card.customization?.fontFamily ?? undefined,
+  });
+  function patchTemplateStyle(patch: Partial<TemplateStyle>) {
+    setTemplateStyleState((prev) => ({ ...prev, ...patch }));
+  }
 
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -188,7 +206,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim() },
+    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim(), ...templateStyleState },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
@@ -228,6 +246,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             customLayout,
             phones: cleanPhones,
             fax: fax.trim(),
+            // Preset-template style overrides (Pro; stripped server-side on Free).
+            // Sent explicitly (undefined → key cleared to the template default).
+            accentColor: templateStyleState.accentColor ?? null,
+            bgColor: templateStyleState.bgColor ?? null,
+            textColor: templateStyleState.textColor ?? null,
+            fontFamily: templateStyleState.fontFamily ?? null,
             // Headshot is per-card (explicit key, null when removed).
             photoUrl: photoState ?? null,
           },
@@ -520,13 +544,23 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
             <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
+            {/* Suggest an official company logo (Agent 4 contract). Fails safe —
+                renders nothing when the provider isn't configured. */}
+            <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
             {!isPrimary && <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-            <ImageUpload field="photo" currentUrl={photoState} label="Upload your headshot" shape="circle" defer onUploaded={(url) => setPhotoState(url || null)} />
-            <p className="text-[11px] text-gray-600 mt-1">This headshot is just for this card.</p>
+            <ImageUpload
+              field="photo"
+              currentUrl={photoState}
+              label="Upload your headshot"
+              hint="Recommended. This will also be used for your SwiftLink."
+              shape="circle"
+              defer
+              onUploaded={(url) => setPhotoState(url || null)}
+            />
           </div>
 
           {/* Design */}
@@ -590,6 +624,24 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </button>
               ))}
             </div>
+
+            {/* Restyle the chosen preset — colors & typography (Pro) */}
+            {!customSelected && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-medium text-gray-400">
+                    Customize colors &amp; font
+                    <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
+                  </label>
+                </div>
+                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} locked={!isPro} />
+                {!isPro && (
+                  <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                    Unlock custom colors &amp; fonts with Pro →
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
 
           {error && <p className="text-red-400 text-sm">{error}</p>}

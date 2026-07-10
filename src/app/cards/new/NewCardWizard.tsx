@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import LogoSuggest from "@/components/LogoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -13,10 +14,14 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
+import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
+import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl } from "@/lib/social-url";
+import { useGuestDraft, saveDraft } from "@/lib/guest-draft";
+import GuestGateModal from "@/components/GuestGateModal";
 
 function slugify(str: string): string {
   return str
@@ -86,8 +91,15 @@ const TEMPLATES = [
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
 
-export default function NewCardWizard({ isPro }: { isPro: boolean }) {
+// Guest mode: a signed-out visitor can build a full card without an account. The
+// server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
+// snapshotted to a localStorage draft; the "Create card" action is gated behind
+// auth (requireAuth) and the draft is claimed → real card after they sign in.
+export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean; guest?: boolean }) {
   const router = useRouter();
+  // Only requireAuth from the hook (stable). Autosave uses the raw debounced
+  // saveDraft so it never triggers a setState → re-render → save loop.
+  const { requireAuth } = useGuestDraft();
   const [step, setStep] = useState(1);
 
   // Advancing (or going back) a step should start the user at the top of the
@@ -120,6 +132,11 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
   const [template, setTemplate] = useState("classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(DEFAULT_CUSTOM_LAYOUT);
+  // Preset-template styling (Pro). All fields optional → template defaults apply.
+  const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({});
+  function patchTemplateStyle(patch: Partial<TemplateStyle>) {
+    setTemplateStyleState((prev) => ({ ...prev, ...patch }));
+  }
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
@@ -201,10 +218,43 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim() },
+    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim(), ...templateStyleState },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
+
+  // Guest autosave: snapshot the exact shape we'd POST to /api/cards into the
+  // localStorage draft on every change. The claim route mirrors /api/cards'
+  // allow-list, so extra keys are harmless and missing ones default. Logo +
+  // headshot ride in `images` as data URLs (guest can't upload) and are pushed to
+  // storage + rewritten to real URLs at claim time. saveDraft is debounced.
+  useEffect(() => {
+    if (!guest) return;
+    saveDraft({
+      step,
+      payload: {
+        username, label: cardLabel, name, company, title,
+        phone: primaryPhone, email, website,
+        linkedin: socials.linkedin, instagram: socials.instagram,
+        tiktok: socials.tiktok, twitter: socials.twitter,
+        template,
+        logo_url: null,
+        customization: {
+          bio, facebook: socials.facebook, snapchat: socials.snapchat,
+          youtube: socials.youtube, links, address, phones: cleanPhones, fax: fax.trim(),
+          ...templateStyleState,
+          photoUrl: null,
+          ...(template === "custom" ? { customLayout } : {}),
+        },
+      },
+      images: {
+        ...(logoUrl ? { logo: logoUrl } : {}),
+        ...(headshotUrl ? { photo: headshotUrl } : {}),
+      },
+    });
+  }, [guest, step, username, cardLabel, name, company, title, primaryPhone, email, website,
+      socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
+      customLayout, logoUrl, headshotUrl]);
 
   async function handleCreate() {
     if (!name.trim() || !username) {
@@ -244,6 +294,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
             address,
             phones: cleanPhones,
             fax: fax.trim(),
+            // Preset-template style overrides (Pro; stripped server-side on Free).
+            // Only fields the user actually set are present here.
+            ...templateStyleState,
             // Headshot is per-card (explicit key, null when none) — never inherits
             // another card's photo.
             photoUrl: headshotUrl ?? null,
@@ -275,6 +328,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
   }
 
   return (
+    <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className="max-w-sm mx-auto">
         <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
@@ -579,13 +633,24 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer onUploaded={(url) => setLogoUrl(url || null)} />
+              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer guest={guest} onUploaded={(url) => setLogoUrl(url || null)} />
+              {/* Suggest an official company logo (Agent 4 contract). Fails safe —
+                  renders nothing when the provider isn't configured. */}
+              <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-              <ImageUpload field="photo" currentUrl={headshotUrl} label="Upload your headshot" shape="circle" defer onUploaded={(url) => setHeadshotUrl(url || null)} />
-              <p className="text-[11px] text-gray-600 mt-1">This headshot is just for this card.</p>
+              <ImageUpload
+                field="photo"
+                currentUrl={headshotUrl}
+                label="Upload your headshot"
+                hint="Recommended. This will also be used for your SwiftLink."
+                shape="circle"
+                defer
+                guest={guest}
+                onUploaded={(url) => setHeadshotUrl(url || null)}
+              />
             </div>
 
             {/* Design */}
@@ -649,6 +714,24 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                   </button>
                 ))}
               </div>
+
+              {/* Restyle the chosen preset — colors & typography (Pro) */}
+              {!customSelected && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-medium text-gray-400">
+                      Customize colors &amp; font
+                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
+                    </label>
+                  </div>
+                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} locked={!isPro} />
+                  {!isPro && (
+                    <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                      Unlock custom colors &amp; fonts with Pro →
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -658,7 +741,7 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
                 ← Back
               </button>
               <button
-                onClick={handleCreate}
+                onClick={() => requireAuth("save", handleCreate)}
                 disabled={status === "loading"}
                 className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
               >
@@ -669,5 +752,9 @@ export default function NewCardWizard({ isPro }: { isPro: boolean }) {
         )}
       </div>
     </main>
+    {/* Self-contained auth gate — the useGuestDraft hook opens it via a window
+        event when a guest triggers a protected action. */}
+    <GuestGateModal />
+    </>
   );
 }

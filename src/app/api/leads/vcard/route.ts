@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { buildVCard } from "@/lib/vcard";
 
 export async function GET(req: NextRequest) {
   const leadId = req.nextUrl.searchParams.get("id");
@@ -24,25 +25,20 @@ export async function GET(req: NextRequest) {
 
   if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // vCard escaping (RFC 6350): these fields are VISITOR-supplied — a name with
-  // an embedded newline or ";" could otherwise inject arbitrary vCard fields
-  // into the contact saved on the owner's phone.
-  const esc = (v: string | null | undefined) =>
-    String(v ?? "").replace(/[\r\n]+/g, " ").replace(/([,;\\])/g, "\\$1").trim();
-
-  const lines = [
-    "BEGIN:VCARD",
-    "VERSION:3.0",
-    `FN:${esc(lead.name)}`,
-    lead.phone ? `TEL;TYPE=CELL:${esc(lead.phone)}` : null,
-    lead.email ? `EMAIL:${esc(lead.email)}` : null,
-    lead.company ? `ORG:${esc(lead.company)}` : null,
-    "END:VCARD",
-  ].filter(Boolean).join("\r\n");
+  // Shared builder handles RFC 6350 escaping — these fields are VISITOR-supplied,
+  // so a name with an embedded newline or ";" could otherwise inject arbitrary
+  // vCard fields into the contact saved on the owner's phone. A captured lead has
+  // no headshot, so PHOTO is simply omitted.
+  const vcard = buildVCard({
+    name: lead.name,
+    company: lead.company,
+    email: lead.email,
+    phones: lead.phone ? [{ number: lead.phone, label: "mobile" }] : undefined,
+  });
 
   const slug = lead.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-  return new NextResponse(lines, {
+  return new NextResponse(vcard, {
     headers: {
       "Content-Type": "text/vcard; charset=utf-8",
       "Content-Disposition": `attachment; filename="${slug}.vcf"`,

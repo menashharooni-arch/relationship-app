@@ -1,6 +1,10 @@
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import HeroPhone from "@/components/HeroPhone";
+import LiveDemo from "@/components/LiveDemo";
+import DashboardPhonePreview from "@/components/DashboardPhonePreview";
+import SwiftLinkPhonePreview from "@/components/SwiftLinkPhonePreview";
+import WalletMockup from "@/components/WalletMockup";
 import PreviewClient from "@/app/preview/PreviewClient";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -267,12 +271,9 @@ type Testimonial = (typeof TESTIMONIALS)[number];
 function TestimonialCard({ t }: { t: Testimonial }) {
   return (
     <div className="card-premium bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm w-[330px] shrink-0 mr-5 whitespace-normal">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex gap-0.5">
-          {[...Array(5)].map((_, i) => (
-            <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-          ))}
-        </div>
+      {/* No star rating shown: SwiftCard has no genuine aggregate ratings yet, so
+          we don't display unsupported per-testimonial star ratings. */}
+      <div className="flex items-center justify-end mb-5">
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: SOURCE_BADGE_COLORS[t.source] }}>{t.source}</span>
       </div>
       <p className="text-slate-600 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
@@ -363,12 +364,8 @@ export default function HomePage() {
 
           <div className="sc-rise sc-rise-4 flex items-center gap-4 mt-6 text-xs text-slate-400">
             <span className="flex items-center gap-1.5">
-              <span className="flex gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3 h-3"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                ))}
-              </span>
-              4.9 / 5 rating
+              <svg viewBox="0 0 20 20" fill="#16a34a" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 111.4-1.4l2.8 2.79 6.8-6.79a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+              No credit card required
             </span>
             <span className="w-px h-3.5 bg-warm-border" />
             <span>Set up in 30 seconds — no design skills needed</span>
@@ -455,6 +452,23 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* A share, start to finish — reuses the interactive LiveDemo (received in
+          Messages → card opens → contact saved → lead in your dashboard) */}
+      <section className="border-t border-warm-border bg-cream py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12" data-reveal>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">See a share, live</p>
+            <h2 className="text-3xl font-bold text-slate-900">What happens when you share your card</h2>
+            <p className="text-slate-500 mt-3 max-w-lg mx-auto text-sm">
+              From the text you send to the new lead landing in your dashboard — watch it play, or click any step.
+            </p>
+          </div>
+          <div data-reveal style={{ transitionDelay: "80ms" }}>
+            <LiveDemo />
+          </div>
+        </div>
+      </section>
+
       {/* Interactive live demo — the real dashboard, embedded */}
       <section id="demo" className="bg-gray-950 py-20 px-4 scroll-mt-16">
         <div className="max-w-5xl mx-auto text-center mb-8" data-reveal>
@@ -466,6 +480,66 @@ export default function HomePage() {
         </div>
         <div data-reveal style={{ transitionDelay: "80ms" }}>
           <PreviewClient embedded />
+        </div>
+      </section>
+
+      {/* See it on your phone — live, interactive dashboard + Swift Links inside
+          phone mockups. Scrolling/tapping stays contained within each phone. */}
+      <section className="border-t border-warm-border bg-cream-dark py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14" data-reveal>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">On your phone</p>
+            <h2 className="text-3xl font-bold text-slate-900">See it on your phone</h2>
+            <p className="text-slate-500 mt-3 max-w-lg mx-auto text-sm">
+              Your dashboard and your Swift Links page — both fully interactive. Scroll and tap right inside the phone.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-14 justify-items-center">
+            <div className="flex flex-col items-center gap-5" data-reveal>
+              <DashboardPhonePreview />
+              <p className="text-slate-500 text-sm text-center max-w-[300px] leading-relaxed">
+                <strong className="text-slate-800">Your dashboard.</strong> Switch cards, watch your traffic, and work your contacts.
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-5" data-reveal style={{ transitionDelay: "90ms" }}>
+              <SwiftLinkPhonePreview />
+              <p className="text-slate-500 text-sm text-center max-w-[300px] leading-relaxed">
+                <strong className="text-slate-800">Your Swift Links.</strong> A link-in-bio for your Instagram, TikTok, or other social bios.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Apple Wallet — SwiftCard pass alongside the cards people already carry.
+          The example payment cards are clearly labelled illustrations only. */}
+      <section className="border-t border-warm-border bg-cream py-24 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-14 items-center">
+          <div data-reveal>
+            <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Apple Wallet</p>
+            <h2 className="text-3xl font-bold text-slate-900 leading-tight">Right next to the cards they already carry</h2>
+            <p className="text-slate-500 mt-4 text-base leading-relaxed max-w-md">
+              Add your SwiftCard to Apple Wallet so it&apos;s always a tap away — sitting alongside everything else in their wallet.
+            </p>
+            <ul className="mt-6 space-y-3 max-w-md">
+              {[
+                "One tap from the lock screen — no app to open",
+                "Always shows your latest card, updated live",
+                "Share by link, QR, or NFC tap",
+              ].map((t) => (
+                <li key={t} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 20 20" fill="#1D4ED8" className="w-3 h-3"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 111.4-1.4l2.8 2.79 6.8-6.79a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                  </span>
+                  <span className="text-slate-700 text-[15px] leading-snug">{t}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-slate-400 text-xs mt-6">The sample payment cards shown are illustrations only — not real cards.</p>
+          </div>
+          <div data-reveal style={{ transitionDelay: "80ms" }}>
+            <WalletMockup />
+          </div>
         </div>
       </section>
 

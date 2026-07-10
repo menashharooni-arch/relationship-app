@@ -48,10 +48,13 @@ export default async function FlowSettingsPage() {
   const referral = await getReferralProgress(user.id);
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
+  const linkedinIntegration = integrations?.find((i) => i.provider === "linkedin");
   const googleConnected = !!googleIntegration;
   const hubspotConnected = !!hubspotIntegration;
+  const linkedinConnected = !!linkedinIntegration;
   const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const hubspotSyncError = (hubspotIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
+  const linkedinSyncError = (linkedinIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
@@ -130,6 +133,9 @@ export default async function FlowSettingsPage() {
                   hubspotSyncError={hubspotSyncError}
                   isPro={isPro}
                   hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
+                  linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
+                  linkedinConnected={linkedinConnected}
+                  linkedinSyncError={linkedinSyncError}
                 />
               </Suspense>
               <CrmEventSettings

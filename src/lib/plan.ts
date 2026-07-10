@@ -41,7 +41,7 @@ export const FREE_MONTH_DAYS = 30;
 // non-paid accounts so a downgraded or hand-crafted request can't keep them.
 // (Free baseline customization — about, address, bio, socials, testimonials,
 // links up to the cap — is never touched.)
-export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font"] as const;
+export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "fontFamily"] as const;
 
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
 export function isPaidPlan(plan?: string | null): boolean {

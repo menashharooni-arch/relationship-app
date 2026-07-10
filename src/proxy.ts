@@ -26,7 +26,16 @@ export async function proxy(request: NextRequest) {
   const protectedPaths = ["/dashboard", "/onboarding", "/profile", "/templates", "/cards", "/settings", "/office", "/contacts"];
   const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p));
 
-  if (!user && isProtected) {
+  // Guest card builder: /cards/new is deliberately open with NO login wall — a
+  // guest builds a full card here and is only gated on protected actions
+  // (publish/save/share) inside the wizard. Every other /cards/* route (e.g.
+  // editing an existing card) still requires auth. Signed-in users fall through
+  // to the deleted-account check below like any other protected page.
+  const isGuestCardBuilder =
+    request.nextUrl.pathname === "/cards/new" ||
+    request.nextUrl.pathname.startsWith("/cards/new/");
+
+  if (!user && isProtected && !isGuestCardBuilder) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

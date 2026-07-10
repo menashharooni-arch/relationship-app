@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { ownsLead } from "@/lib/lead-access";
 import { isPaidPlan } from "@/lib/plan";
 import { aiComplete } from "@/lib/ai";
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     getOwnerUsernames(user.id),
   ]);
 
-  if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // The contact belongs to a specific card — prefer THAT card's About (what the
   // user does for this audience), falling back to the profile-level About so the
