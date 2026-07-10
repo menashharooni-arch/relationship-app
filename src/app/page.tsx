@@ -31,7 +31,6 @@ export default function Home() {
   return (
     <>
       <ScrollProgress />
-      <div className="sc-scroll-progress" />
       <ScrollReveal />
       <SiteNav />
 
@@ -52,21 +51,24 @@ export default function Home() {
               </div>
               <h1 className="rd-display text-white mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
-                <span className="rd-aurora-text rd-aurora-anim">shares itself.</span>
+                <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
               </h1>
-              <p className="mt-6 text-white/60 text-[clamp(1.05rem,1.6vw,1.28rem)] leading-relaxed max-w-[540px]" data-reveal>
-                One tap, and you&apos;re in their phone — your card, your links, and everything you do. No app to download. Works on every phone. Beautiful on all of them.
-              </p>
+              <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
+                {[
+                  "Share by link, QR code, or NFC tap",
+                  "They save you in one tap — nothing to download",
+                  "Every share becomes a lead + automatic follow-up",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-3 text-white/75 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.16)" }}>
+                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
                 <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              </div>
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/40 text-[13px]" data-reveal="fade">
-                {["No app to download", "Works on every phone", "Free to start"].map((t) => (
-                  <span key={t} className="flex items-center gap-1.5">
-                    <svg viewBox="0 0 20 20" className="w-4 h-4 text-sky-300/80" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-                    {t}
-                  </span>
-                ))}
               </div>
             </div>
 

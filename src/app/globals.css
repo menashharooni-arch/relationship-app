@@ -156,9 +156,10 @@ body {
 
 /* ── Scroll progress bar (top of viewport) ─────────────────────────────────── */
 .sc-scroll-progress {
-  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 60;
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80;
   transform: scaleX(var(--sc-progress, 0)); transform-origin: 0 50%;
-  background: linear-gradient(90deg, var(--color-brand), #7c3aed 60%, #ec4899);
+  background: linear-gradient(90deg, #1D3FB8 0%, #2563EB 50%, #4DA8F5 100%);
+  box-shadow: 0 0 12px rgba(37,99,235,0.55);
   will-change: transform;
 }
 
