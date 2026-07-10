@@ -115,13 +115,13 @@ export default function Home() {
                 <p className="text-slate-400 text-[13px] font-semibold uppercase tracking-wide mb-4" data-reveal="fade">Five designer templates — fully customizable</p>
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & Principal", company: "Coastline Realty", initials: "AM", photo: "/demo/headshot.jpg" as string | null },
-                    { accent: "#0EA5A0", name: "Priya Shah", title: "Creative Director", company: "Northlight Studio", initials: "PS", photo: null },
-                    { accent: "#B08D57", name: "Marcus Lee", title: "Partner", company: "Lee & Co.", initials: "ML", photo: null },
-                    { accent: "#F65B9E", name: "Dana Ruiz", title: "Head of Growth", company: "Everbloom", initials: "DR", photo: null },
+                    { accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & Principal", company: "Coastline Realty", initials: "AM", photo: "/demo/headshot.jpg" as string | null, phone: "(415) 555-0188", email: "alex@coastlinerealty.com", website: "coastlinehomes.com" },
+                    { accent: "#0EA5A0", name: "Priya Shah", title: "Creative Director", company: "Northlight Studio", initials: "PS", photo: null, phone: "(212) 555-0142", email: "priya@northlight.studio", website: "northlight.studio" },
+                    { accent: "#B08D57", name: "Marcus Lee", title: "Partner", company: "Lee & Co.", initials: "ML", photo: null, phone: "(310) 555-0119", email: "marcus@leeandco.com", website: "leeandco.com" },
+                    { accent: "#F65B9E", name: "Dana Ruiz", title: "Head of Growth", company: "Everbloom", initials: "DR", photo: null, phone: "(737) 555-0164", email: "dana@everbloom.io", website: "everbloom.io" },
                   ].map((c, i) => (
                     <div key={c.name} data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
-                      <SwiftCardVisual accent={c.accent} name={c.name} title={c.title} company={c.company} initials={c.initials} photoUrl={c.photo} />
+                      <SwiftCardVisual accent={c.accent} name={c.name} title={c.title} company={c.company} initials={c.initials} photoUrl={c.photo} phone={c.phone} email={c.email} website={c.website} qrUrl="https://swiftcard.me" />
                     </div>
                   ))}
                 </div>
