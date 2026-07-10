@@ -6,19 +6,20 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: "Product",
     links: [
-      { label: "Digital Cards", href: "/#cards" },
-      { label: "SwiftLinks", href: "/#swiftlinks" },
-      { label: "Email Signatures", href: "/#signature" },
-      { label: "Lead Capture", href: "/#leads" },
-      { label: "Analytics", href: "/#analytics" },
+      { label: "Digital Cards", href: "/products/digital-cards" },
+      { label: "SwiftLinks", href: "/products/swiftlinks" },
+      { label: "Email Signatures", href: "/products/email-signatures" },
+      { label: "Lead Capture", href: "/products/lead-capture" },
+      { label: "Dashboard & Analytics", href: "/products/analytics" },
     ],
   },
   {
     title: "Solutions",
     links: [
-      { label: "Teams & Offices", href: "/#teams" },
-      { label: "Apple Wallet", href: "/#wallet" },
-      { label: "Apple Watch", href: "/#watch" },
+      { label: "Teams & Offices", href: "/products/teams" },
+      { label: "Apple Wallet", href: "/products/wallet" },
+      { label: "Apple Watch", href: "/products/watch" },
+      { label: "Integrations", href: "/products/integrations" },
       { label: "Pricing", href: "/pricing" },
     ],
   },

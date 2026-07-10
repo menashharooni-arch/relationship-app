@@ -222,11 +222,11 @@ export default function Home() {
             <div className="flex justify-center order-2 lg:order-1" data-reveal="scale"><WatchScene /></div>
             <div className="order-1 lg:order-2">
               <div data-reveal><Eyebrow dark={false}>Apple Watch</Eyebrow></div>
-              <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5" data-reveal>
-                A tappable business card <span className="rd-aurora-text">on your wrist.</span>
+              <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-slate-900 mt-5" data-reveal>
+                Make your Apple Watch into a <span className="rd-aurora-text">tappable business card</span> you take with you everywhere.
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                Make your Apple Watch into a business card you take everywhere. Raise your wrist, show your code, and share your details hands-free — no phone required.
+                Raise your wrist, show your code, and share your details hands-free — no phone required. Your card goes wherever you go.
               </p>
               <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 max-w-[440px]" data-reveal="fade">
                 <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="#5D6BFF" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>

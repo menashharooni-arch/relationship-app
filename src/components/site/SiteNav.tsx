@@ -12,16 +12,17 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 type Item = { label: string; href: string; desc: string };
 
 const PRODUCTS: Item[] = [
-  { label: "Digital Cards", href: "/#cards", desc: "Your tap-to-share business card" },
-  { label: "SwiftLinks", href: "/#swiftlinks", desc: "One link for everything you are" },
-  { label: "Email Signatures", href: "/#signature", desc: "A live card in every email" },
-  { label: "Lead Capture", href: "/#leads", desc: "Turn every scan into a contact" },
+  { label: "Digital Cards", href: "/products/digital-cards", desc: "Your tap-to-share business card" },
+  { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
+  { label: "Email Signatures", href: "/products/email-signatures", desc: "A live card in every email" },
+  { label: "Lead Capture", href: "/products/lead-capture", desc: "Turn every scan into a contact" },
 ];
 const SOLUTIONS: Item[] = [
-  { label: "Analytics", href: "/#analytics", desc: "See who's viewing and saving" },
-  { label: "Teams & Offices", href: "/#teams", desc: "One brand across everyone" },
-  { label: "Apple Wallet", href: "/#wallet", desc: "Your card, always in your pocket" },
-  { label: "Apple Watch", href: "/#watch", desc: "Share from your wrist" },
+  { label: "Dashboard & Analytics", href: "/products/analytics", desc: "See who's viewing and saving" },
+  { label: "Teams & Offices", href: "/products/teams", desc: "One brand across everyone" },
+  { label: "Apple Wallet", href: "/products/wallet", desc: "Your card, always in your pocket" },
+  { label: "Apple Watch", href: "/products/watch", desc: "Share from your wrist" },
+  { label: "Integrations", href: "/products/integrations", desc: "Zapier, Google, HubSpot & CSV" },
 ];
 const RESOURCES: Item[] = [
   { label: "See it live", href: "/preview", desc: "Interact with a real SwiftCard" },
