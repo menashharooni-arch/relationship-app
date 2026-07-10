@@ -1,15 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import SocialIcons from "@/components/SocialIcons";
 
-// Marketing phone for the SwiftLinks section. The screen replicates the REAL
-// SwiftLink profile (SwiftLinkProfile) — full-bleed hero photo, a dark sheet
-// that scrolls up over it, name + verified badge, @handle, socials, connect,
-// and link.me-style featured tiles — and scrolls inside the phone exactly like
-// the live page. The phone itself gets a restrained glow, floor shadow, a faint
-// backing layer, and a subtle cursor tilt so it doesn't sit flat. All controls
-// are display-only (pointer-events:none); only scrolling is live.
+// Marketing phone for the SwiftLinks section. A plain phone frame whose screen
+// replicates the REAL SwiftLink profile (SwiftLinkProfile) — full-bleed hero
+// photo, a dark sheet that scrolls up over it, name + verified badge, @handle,
+// socials, connect, and link.me-style featured tiles (including a video tile) —
+// and scrolls inside the phone exactly like the live page. Everything is
+// display-only (pointer-events:none); only scrolling is live.
 
 const SHEET = "#191a1a";
 const PAGE = "#09090B";
@@ -22,13 +21,22 @@ const SOCIALS = [
   { label: "X / Twitter", href: "#", color: "#000000" },
 ];
 
-// link.me-style featured tiles (odd count → first tile goes full-width + taller).
 const FALLBACK = [
   "linear-gradient(135deg, #1d4ed8 0%, #4338ca 55%, #7c3aed 100%)",
   "linear-gradient(135deg, #0e7490 0%, #2563eb 60%, #4f46e5 100%)",
-  "linear-gradient(135deg, #0369a1 0%, #0d9488 60%, #0284c7 100%)",
 ];
-const LINKS = ["Book a viewing", "See current listings", "Watch neighborhood tour"];
+
+// Sample featured links — mix of a video, image previews, and gradient tiles,
+// so the section shows how videos and rich links render (link.me album grid:
+// odd count → first tile goes full-width + taller).
+type Tile = { label: string; kind: "video" | "image" | "gradient"; img?: string; gi?: number; icon: string };
+const TILES: Tile[] = [
+  { label: "Neighborhood tour", kind: "video", img: "/marketing/ll-video.jpg", icon: "🎬" },
+  { label: "See current listings", kind: "image", img: "/marketing/ll-listings.jpg", icon: "🏠" },
+  { label: "From the blog", kind: "image", img: "/marketing/ll-blog.jpg", icon: "✍️" },
+  { label: "Book a viewing", kind: "gradient", gi: 0, icon: "📅" },
+  { label: "Read client reviews", kind: "gradient", gi: 1, icon: "⭐" },
+];
 
 function VerifiedBadge({ className = "w-[22px] h-[22px]" }: { className?: string }) {
   return (
@@ -36,6 +44,39 @@ function VerifiedBadge({ className = "w-[22px] h-[22px]" }: { className?: string
       <path d="M12 1.5l2.35 2.03 3.08-.45 1.07 2.92 2.92 1.07-.45 3.08L23 12l-2.03 2.35.45 3.08-2.92 1.07-1.07 2.92-3.08-.45L12 23l-2.35-2.03-3.08.45-1.07-2.92-2.92-1.07.45-3.08L1 12l2.03-2.35-.45-3.08 2.92-1.07 1.07-2.92 3.08.45L12 1.5z" fill="#2196F3" />
       <path d="M7.5 12.2l3 3 6-6.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
+  );
+}
+
+function FeaturedTile({ t, big }: { t: Tile; big: boolean }) {
+  const hasImg = t.kind === "video" || t.kind === "image";
+  return (
+    <div className={`relative overflow-hidden rounded-[14px] mb-2.5 ${big ? "w-full h-[190px]" : "w-[calc(50%-6px)] h-[148px]"}`} style={{ background: "#242526" }}>
+      {hasImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={t.img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      ) : (
+        <div className="absolute inset-0" style={{ background: FALLBACK[(t.gi ?? 0) % FALLBACK.length] }} />
+      )}
+      {/* bottom gradient so the title reads over any image */}
+      <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
+      {/* favicon circle, top-left */}
+      <span className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full bg-white/95 shadow flex items-center justify-center">
+        <span className="text-[15px] leading-none">{t.icon}</span>
+      </span>
+      {/* play button for video */}
+      {t.kind === "video" && (
+        <span className="absolute inset-0 z-[6] flex items-center justify-center">
+          <span className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="#fff" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+        </span>
+      )}
+      {/* centered title */}
+      <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
+        <span className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[15px]"}`} style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{t.label}</span>
+      </span>
+      <span className="rd-ll-shine" aria-hidden="true" />
+    </div>
   );
 }
 
@@ -64,7 +105,7 @@ function Profile() {
           <SocialIcons socials={SOCIALS} />
         </div>
 
-        {/* Connect (lead capture) */}
+        {/* Connect (display-only) */}
         <div className="w-full mt-6" style={{ pointerEvents: "none" }}>
           <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm text-white shadow-sm" style={{ background: "#1D4ED8" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -72,28 +113,16 @@ function Profile() {
           </div>
         </div>
 
-        {/* Featured links — link.me album grid */}
+        {/* Featured links — link.me album grid (display-only) */}
         <div className="w-full mt-6 flex flex-wrap justify-between" style={{ pointerEvents: "none" }}>
-          {LINKS.map((label, i) => {
-            const big = i === 0; // odd count → first tile full-width
-            return (
-              <div key={label} className={`relative overflow-hidden rounded-[14px] mb-2.5 ${big ? "w-full h-[190px]" : "w-[calc(50%-6px)] h-[148px]"}`} style={{ background: "#242526" }}>
-                <div className="absolute inset-0" style={{ background: FALLBACK[i % FALLBACK.length] }} />
-                <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
-                <span className="absolute inset-x-0 bottom-[7px] px-2 flex justify-center">
-                  <span className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[15px]"}`} style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{label}</span>
-                </span>
-                <span className="rd-ll-shine" aria-hidden="true" />
-              </div>
-            );
-          })}
+          {TILES.map((t, i) => (
+            <FeaturedTile key={t.label} t={t} big={i === 0} />
+          ))}
         </div>
 
-        {/* Faint link to the full SwiftCard */}
         <div className="flex justify-center mt-8">
           <span className="inline-block px-4 py-2 text-white/40 text-xs">View SwiftCard →</span>
         </div>
-        {/* Attribution badge (Free) */}
         <div className="flex justify-center mt-2">
           <span className="flex items-center gap-1.5 text-white/40 text-[11px]">
             <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
@@ -106,67 +135,26 @@ function Profile() {
 }
 
 export default function SwiftLinksPhone() {
-  const stage = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  function onMove(e: React.MouseEvent<HTMLDivElement>) {
-    const el = stage.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    const MAX = 5; // very subtle
-    el.style.transform = `rotateY(${px * MAX}deg) rotateX(${-py * MAX}deg)`;
-  }
-  function onLeave() {
-    const el = stage.current;
-    if (el) el.style.transform = "rotateY(0) rotateX(0)";
-  }
-
   return (
-    <div className="relative flex justify-center lg:justify-end" style={{ perspective: 1500 }}>
-      <div className="relative" style={{ width: 340 }}>
-        {/* restrained glow */}
-        <div className="rd-glow rd-glow-cyan rd-drift-b" style={{ width: 380, height: 380, right: "-14%", top: "2%", opacity: 0.32, zIndex: 0 }} />
-        {/* faint backing second-screen */}
-        <div
-          className="absolute rounded-[46px] border border-white/10"
-          style={{ inset: 0, transform: "translate(22px, 18px) rotate(3deg)", background: "linear-gradient(160deg, rgba(77,168,245,0.10), rgba(34,211,238,0.04) 60%, transparent)", zIndex: 0 }}
-          aria-hidden="true"
-        />
-        {/* soft floor shadow (grounded — outside the tilt) */}
-        <div
-          className="absolute left-1/2 -translate-x-1/2 rounded-[50%]"
-          style={{ bottom: -22, width: "76%", height: 34, background: "radial-gradient(ellipse, rgba(0,0,0,0.6), transparent 70%)", filter: "blur(12px)", zIndex: 0 }}
-          aria-hidden="true"
-        />
-
-        {/* tilt stage */}
-        <div
-          ref={stage}
-          onMouseMove={onMove}
-          onMouseLeave={onLeave}
-          className="relative"
-          style={{ transformStyle: "preserve-3d", transition: "transform .5s cubic-bezier(.2,.7,.2,1)", willChange: "transform", zIndex: 1 }}
-        >
-          <div className="rd-phone w-[340px]">
-            <div className="rd-phone-screen h-[610px]" style={{ background: PAGE }}>
-              <div className="rd-notch" />
-              {/* Sticky mini header — fades in once the hero scrolls away */}
-              <div className="absolute top-0 inset-x-0 z-30 h-[50px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0 }}>
-                <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />
-                </div>
-                <span className="text-white font-bold text-[14px] truncate">Alex Morgan</span>
-                <VerifiedBadge className="w-4 h-4" />
-              </div>
-              <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none" onScroll={(e) => setScrolled((e.target as HTMLDivElement).scrollTop > 190)}>
-                <Profile />
-              </div>
-              <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 26%)" }} />
+    <div className="flex justify-center lg:justify-end">
+      <div className="rd-phone w-[340px]">
+        <div className="rd-phone-screen h-[610px]" style={{ background: PAGE }}>
+          <div className="rd-notch" />
+          {/* Sticky mini header — fades in once the hero scrolls away */}
+          <div className="absolute top-0 inset-x-0 z-30 h-[50px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0, pointerEvents: "none" }}>
+            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />
             </div>
+            <span className="text-white font-bold text-[14px] truncate">Alex Morgan</span>
+            <VerifiedBadge className="w-4 h-4" />
           </div>
+          <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none" onScroll={(e) => setScrolled((e.target as HTMLDivElement).scrollTop > 190)}>
+            <Profile />
+          </div>
+          <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 26%)" }} />
         </div>
       </div>
     </div>
