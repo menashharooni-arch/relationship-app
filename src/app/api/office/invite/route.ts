@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   // Cap invite emails per owner — otherwise this endpoint is an unthrottled
   // spam-email relay (loop with different target emails, never accept any).
-  if (isRateLimited(`office-invite:${user.id}`, 10, 10 * 60 * 1000)) {
+  if (await isRateLimited(`office-invite:${user.id}`, 10, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many invites sent — try again in a few minutes." }, { status: 429 });
   }
 

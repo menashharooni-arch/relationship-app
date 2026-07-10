@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   // Promo codes are short admin-typed strings, not high-entropy tokens —
   // cap guesses per account.
-  if (isRateLimited(`promo-redeem:${user.id}`, 10, 10 * 60 * 1000)) {
+  if (await isRateLimited(`promo-redeem:${user.id}`, 10, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many attempts — try again in a few minutes." }, { status: 429 });
   }
 

@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
+import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -101,6 +102,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  // Everything past signature verification runs inside a guard: an unexpected
+  // failure while provisioning a plan / cascading a downgrade is a money-and-
+  // access event, so we alert AND return 500 so Stripe retries the delivery
+  // rather than dropping it silently.
+  try {
   // ── First checkout / upgrade ─────────────────────────────────────────────────
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -362,6 +368,10 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+  }
+  } catch (e) {
+    await reportError("stripe.webhook", e, { eventType: event.type, eventId: event.id });
+    return NextResponse.json({ error: "webhook handler failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

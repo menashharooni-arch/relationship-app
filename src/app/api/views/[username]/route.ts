@@ -18,7 +18,7 @@ export async function POST(
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? req.headers.get("x-real-ip")
     ?? "unknown";
-  if (isRateLimited(`views:${ip}:${username}`, 20, 10 * 60 * 1000)) {
+  if (await isRateLimited(`views:${ip}:${username}`, 20, 10 * 60 * 1000)) {
     return NextResponse.json({ ok: true, rateLimited: true });
   }
 

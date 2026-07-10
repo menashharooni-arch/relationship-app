@@ -9,6 +9,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
   // ?error=oauth) instead of silently landing the visitor back on the form.
@@ -74,15 +75,48 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       setStatus("error");
       return;
     }
+    setStatus("loading");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      // Straight to the "set a new password" page, which exchanges the code
+      // itself — NOT /auth/callback?next=..., which depends on Supabase's
+      // redirect-URL allowlist preserving that extra query param (it doesn't
+      // reliably), silently falling back to the dashboard instead.
+      redirectTo: `${window.location.origin}/auth/reset-password`,
     });
     if (error) {
       setErrorMsg(error.message);
+      setStatus("error");
     } else {
-      setErrorMsg("Password reset link sent — check your email.");
+      // A dedicated confirmation screen, not an inline message styled like an
+      // error — this was a real success, not a validation failure.
+      setForgotSent(true);
+      setStatus("idle");
     }
-    setStatus("error");
+  }
+
+  if (forgotSent) {
+    return (
+      <div className="w-full text-center space-y-5">
+        <div className="w-14 h-14 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto">
+          <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-slate-900 font-semibold text-base">Check your email</p>
+          <p className="text-slate-500 text-sm mt-1.5">
+            We sent a password reset link to <span className="font-medium text-slate-700">{email}</span>. Click it to set a new password.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setForgotSent(false); setErrorMsg(""); }}
+          className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -143,9 +177,10 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         <button
           type="button"
           onClick={handleForgot}
-          className="w-full text-center text-slate-400 hover:text-slate-600 text-xs transition-colors"
+          disabled={status === "loading"}
+          className="w-full text-center text-slate-400 hover:text-slate-600 text-xs transition-colors disabled:opacity-50"
         >
-          Forgot password?
+          {status === "loading" ? "Sending…" : "Forgot password?"}
         </button>
       )}
 

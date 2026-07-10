@@ -404,6 +404,7 @@ export default function PricingPage() {
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
           </div>
           <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY · All prices in USD</p>
         </div>

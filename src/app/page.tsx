@@ -586,6 +586,7 @@ export default function HomePage() {
             <Link href="/login" className="nav-link hover:text-slate-900 transition-colors">Sign in</Link>
             <Link href="/login?mode=signup" className="nav-link hover:text-slate-900 transition-colors">Get started</Link>
             <Link href="/privacy" className="nav-link hover:text-slate-900 transition-colors">Privacy</Link>
+            <Link href="/terms" className="nav-link hover:text-slate-900 transition-colors">Terms</Link>
           </div>
           <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY. All rights reserved.</p>
         </div>

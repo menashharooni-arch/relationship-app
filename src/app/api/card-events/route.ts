@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       ?? req.headers.get("x-real-ip")
       ?? "unknown";
-    if (isRateLimited(`card-events:${ip}:${card_owner_username}`, 20, 10 * 60 * 1000)) {
+    if (await isRateLimited(`card-events:${ip}:${card_owner_username}`, 20, 10 * 60 * 1000)) {
       return NextResponse.json({ ok: true, rateLimited: true });
     }
 
