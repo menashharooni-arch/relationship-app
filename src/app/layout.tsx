@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import GuidedTour from "@/components/GuidedTour";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -47,6 +48,7 @@ export default function RootLayout({
           }}
         />
         <ServiceWorkerRegistrar />
+        <AnalyticsProvider />
         {children}
         <GuidedTour />
       </body>
