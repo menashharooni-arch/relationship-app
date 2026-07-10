@@ -55,7 +55,7 @@ export default function HeroCard3D() {
           style={{ transform: "translateZ(48px)" }}
         >
           <div className="flex items-center gap-2 text-white">
-            <svg viewBox="0 0 24 24" className="w-4 h-4 text-cyan-300" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M6 8a8 8 0 000 8M9.5 6a12 12 0 000 12M13 4.5a16 16 0 000 15" strokeLinecap="round" /></svg>
+            <svg viewBox="0 0 24 24" className="w-4 h-4 text-sky-300" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M6 8a8 8 0 000 8M9.5 6a12 12 0 000 12M13 4.5a16 16 0 000 15" strokeLinecap="round" /></svg>
             <span className="text-[12px] font-semibold">One tap</span>
           </div>
         </div>
