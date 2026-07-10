@@ -131,6 +131,14 @@ body {
 .sc-notif-in { animation: sc-notif-in .22s cubic-bezier(.2,.7,.2,1); }
 @media (prefers-reduced-motion: reduce) { .sc-notif-in { animation: none; } }
 
+/* Notifications dropdown — drops straight down from under the bell icon. */
+@keyframes sc-drop-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sc-drop-in { animation: sc-drop-in .16s cubic-bezier(.2,.7,.2,1); transform-origin: top right; }
+@media (prefers-reduced-motion: reduce) { .sc-drop-in { animation: none; } }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    PREMIUM MOTION SYSTEM — one cohesive animation language for the marketing
    site. Everything here is GPU-friendly (transform/opacity/filter only), runs

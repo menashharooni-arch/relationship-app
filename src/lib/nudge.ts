@@ -1,6 +1,6 @@
-// Fire-and-forget trigger for the shared signup nudge. Call this AFTER the
-// visitor's own action (save, share, download, tap) has finished — never before.
-export function triggerSignupNudge(source: string): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source } }));
+// The signup "follow-up" nudge popup was removed from the product. This is kept
+// as an inert no-op so the existing call sites (save / share / tap flows)
+// compile unchanged and simply do nothing — the popup never appears anywhere.
+export function triggerSignupNudge(_source: string): void {
+  /* removed — no popup */
 }

@@ -126,17 +126,21 @@ export default function NotificationBell({
 
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — click anywhere outside to close. */}
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
 
-          {/* Right-side pop-up banner — fixed to the screen's right edge, same on
-              mobile and web, slides in from the right. */}
+          {/* Dropdown menu — anchored directly under the bell and right-aligned
+              with it (the bell sits near the right edge of the nav, so the panel
+              opens downward and extends leftward to stay on-screen). */}
           <div
             role="dialog"
             aria-label="Notifications"
-            className="sc-notif-in fixed z-[61] top-16 right-3 w-[min(360px,calc(100vw-1.5rem))] max-h-[75vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            className="sc-drop-in absolute z-[61] right-0 top-full mt-2 w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+            {/* Caret pointing up at the bell, so the menu visually connects to it. */}
+            <div className="absolute -top-1.5 right-4 w-3 h-3 bg-gray-900 border-l border-t border-gray-800 rotate-45" />
+
+            <div className="relative flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <p className="text-sm font-bold text-white">Notifications</p>
               <div className="flex items-center gap-3">
                 {unread > 0 && (
@@ -205,6 +209,15 @@ export default function NotificationBell({
                 ))
               )}
             </div>
+
+            {/* Footer — jump to the full notifications list on the dashboard. */}
+            <a
+              href="/dashboard?view=notifications"
+              onClick={() => setOpen(false)}
+              className="shrink-0 border-t border-gray-800 px-4 py-2.5 text-center text-xs font-semibold text-blue-400 hover:text-blue-300 hover:bg-gray-800/50 transition-colors"
+            >
+              View all notifications
+            </a>
           </div>
         </>
       )}

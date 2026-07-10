@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
+// Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
+// Origin-based redirects break sign-in if the form is ever loaded on a Vercel
+// preview host (Supabase would reject the non-allowlisted redirect and the PKCE
+// exchange would fail cross-host). Every login / signup / Google / reset flow
+// therefore routes through swiftcard.me.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
 export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
@@ -40,7 +47,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
     if (mode === "signup") await clearExistingSession();
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${APP_URL}/auth/callback` },
     });
   }
 
@@ -59,7 +66,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       }
     } else {
       await clearExistingSession();
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${APP_URL}/auth/callback` } });
       if (error) {
         setErrorMsg(error.message);
         setStatus("error");
@@ -81,7 +88,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       // itself — NOT /auth/callback?next=..., which depends on Supabase's
       // redirect-URL allowlist preserving that extra query param (it doesn't
       // reliably), silently falling back to the dashboard instead.
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${APP_URL}/auth/reset-password`,
     });
     if (error) {
       setErrorMsg(error.message);

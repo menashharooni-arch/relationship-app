@@ -47,14 +47,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // If dissolving, clear automation tags and follow_up_sequence
+  // If dissolving, clear automation tags and follow_up_sequence. Both the read
+  // and the write are scoped to the caller's own cards (`.in("card_owner", ...)`)
+  // — an unscoped update returns error:null even on a zero-row match, so without
+  // this filter a user could POST another user's lead id and wipe THEIR
+  // automation. Ownership must be re-checked here, not assumed from the update above.
   if (body.status === "dissolved") {
-    const { data: lead } = await admin.from("leads").select("tags").eq("id", id).single();
+    const { data: lead } = await admin
+      .from("leads")
+      .select("tags")
+      .eq("id", id)
+      .in("card_owner", usernames)
+      .maybeSingle();
     if (lead?.tags) {
       const cleanTags = (lead.tags as string[]).filter(
         (t: string) => !t.startsWith("preset-") && t !== "flow-paused"
       );
-      await admin.from("leads").update({ tags: cleanTags, follow_up_sequence: [] }).eq("id", id);
+      await admin
+        .from("leads")
+        .update({ tags: cleanTags, follow_up_sequence: [] })
+        .eq("id", id)
+        .in("card_owner", usernames);
     }
   }
 
