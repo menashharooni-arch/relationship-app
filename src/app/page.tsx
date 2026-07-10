@@ -260,6 +260,33 @@ const FAQ_JSON_LD = {
   })),
 };
 
+type Testimonial = (typeof TESTIMONIALS)[number];
+
+// One testimonial card — shared by both moving rows. Fixed width so the cards
+// line up in the horizontal marquee; the card lifts on hover (card-premium).
+function TestimonialCard({ t }: { t: Testimonial }) {
+  return (
+    <div className="card-premium bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm w-[330px] shrink-0 mr-5 whitespace-normal">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex gap-0.5">
+          {[...Array(5)].map((_, i) => (
+            <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+          ))}
+        </div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: SOURCE_BADGE_COLORS[t.source] }}>{t.source}</span>
+      </div>
+      <p className="text-slate-600 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#1D4ED8" }}>{t.initial}</div>
+        <div>
+          <p className="text-slate-900 font-semibold text-sm leading-tight">{t.name}</p>
+          <p className="text-slate-500 text-xs">{t.role}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
@@ -493,48 +520,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="border-t border-warm-border bg-cream-dark py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16" data-reveal>
+      {/* Testimonials — two rows that auto-scroll opposite ways; hover to pause */}
+      <section className="border-t border-warm-border bg-cream-dark py-28 overflow-hidden">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-14" data-reveal>
             <p className="text-xs font-semibold tracking-widest text-brand uppercase mb-3">Testimonials</p>
             <h2 className="text-3xl font-bold text-slate-900">What our users say</h2>
-            <p className="text-slate-500 mt-3 text-sm max-w-md mx-auto">Join thousands of professionals who never lose a lead again.</p>
+            <p className="text-slate-500 mt-3 text-sm max-w-md mx-auto">Join thousands of professionals who never lose a lead again. Hover to pause and read.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={t.name} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }}
-                className="card-premium bg-warm-card border border-warm-card-border rounded-2xl p-7 flex flex-col shadow-sm">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <svg key={i} viewBox="0 0 20 20" fill="#d97706" className="w-3.5 h-3.5">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                  </div>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
-                    style={{ background: SOURCE_BADGE_COLORS[t.source] }}
-                  >
-                    {t.source}
-                  </span>
-                </div>
-                <p className="text-slate-600 text-sm leading-relaxed flex-1 mb-6">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: "#1D4ED8" }}
-                  >
-                    {t.initial}
-                  </div>
-                  <div>
-                    <p className="text-slate-900 font-semibold text-sm leading-tight">{t.name}</p>
-                    <p className="text-slate-500 text-xs">{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+        </div>
+        <div className="space-y-5" data-reveal="fade">
+          <div className="sc-tmarq">
+            <div className="sc-tmarq-row">
+              {[...TESTIMONIALS.slice(0, 3), ...TESTIMONIALS.slice(0, 3)].map((t, i) => (
+                <TestimonialCard key={`a-${i}`} t={t} />
+              ))}
+            </div>
+          </div>
+          <div className="sc-tmarq">
+            <div className="sc-tmarq-row rev">
+              {[...TESTIMONIALS.slice(3), ...TESTIMONIALS.slice(3)].map((t, i) => (
+                <TestimonialCard key={`b-${i}`} t={t} />
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -298,3 +298,18 @@ body {
 [data-sc-theme="light"] .sc-app :is(.text-emerald-200, .text-emerald-300, .text-emerald-400, .text-green-400) { color: #047857 !important; }
 [data-sc-theme="light"] .sc-app .bg-red-950\/40 { background-color: #FEF2F2 !important; }
 [data-sc-theme="light"] .sc-app .border-red-800\/40 { border-color: #FECACA !important; }
+
+/* ── Testimonials marquee: two rows auto-scroll opposite ways, pause on hover ── */
+.sc-tmarq {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.sc-tmarq-row { display: flex; width: max-content; animation: marquee 52s linear infinite; will-change: transform; }
+.sc-tmarq-row.rev { animation-direction: reverse; }
+/* Pause the whole strip while the visitor reads/interacts with it. */
+.sc-tmarq:hover .sc-tmarq-row { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-tmarq { -webkit-mask-image: none; mask-image: none; overflow-x: auto; }
+  .sc-tmarq-row { animation: none !important; }
+}
