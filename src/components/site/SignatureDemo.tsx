@@ -1,100 +1,134 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import CardScaler from "@/components/CardScaler";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
+import SaveContactButton from "@/components/SaveContactButton";
+import LeadCaptureForm from "@/components/LeadCaptureForm";
+import SocialLinkIntercept from "@/components/SocialLinkIntercept";
+import ShareButton from "@/components/ShareButton";
+import QRCodeModal from "@/components/QRCodeModal";
+import { buildConnectLinks } from "@/lib/social-url";
 
 // Email Signature showcase: a wide, realistic email whose signature is the REAL
 // SwiftCard — the PhotoFirst template rendered exactly as we ship it, with the
-// person's photo. Clicking the signature pops up that same SwiftCard (identical
-// card + the real card-page experience: save, share, links).
+// person's photo. Clicking the signature pops up that same SwiftCard exactly as
+// a recipient sees it: the identical card plus the real card-page boxes
+// (Save contact, Share your info, Swift Links, Share this card) built from the
+// same components the live /card page uses. Display-only here (no downloads,
+// posts, or nav) — just an accurate preview.
 
-const CARD_DATA: CardData = withoutSocials({
+const IDENTITY = {
   name: "Alex Morgan",
   title: "Realtor",
   company: "Coastline Realty",
   phone: "(415) 555-0188",
   email: "alex@coastlinerealty.com",
   website: "coastlinehomes.com",
+  linkedin: "linkedin.com/in/alexmorgan",
+  instagram: "@coastlinehomes",
+  tiktok: "@coastlinehomes",
+  twitter: "@alexmorgan",
+};
+const FIRST = "Alex";
+const CARD_URL = "https://swiftcard.me/card/alex-morgan";
+
+const CARD_DATA: CardData = withoutSocials({
+  name: IDENTITY.name,
+  title: IDENTITY.title,
+  company: IDENTITY.company,
+  phone: IDENTITY.phone,
+  email: IDENTITY.email,
+  website: IDENTITY.website,
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,
   cardUrl: "swiftcard.me/card/alex-morgan",
 });
-const FIRST = "Alex";
 
-function SectionNum({ n }: { n: number }) {
-  return <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
+const PERSON = {
+  name: IDENTITY.name, title: IDENTITY.title, company: IDENTITY.company,
+  email: IDENTITY.email, phone: IDENTITY.phone, website: IDENTITY.website,
+  linkedin: IDENTITY.linkedin, instagram: IDENTITY.instagram, twitter: IDENTITY.twitter, tiktok: IDENTITY.tiktok,
+  photoUrl: "/marketing/demo-girl.jpg",
+};
+
+const CONNECT_LINKS = buildConnectLinks({
+  website: IDENTITY.website, linkedin: IDENTITY.linkedin,
+  instagram: IDENTITY.instagram, tiktok: IDENTITY.tiktok, twitter: IDENTITY.twitter,
+});
+
+function SectionNumber({ n }: { n: number }) {
+  return <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
 }
-const PANEL = "w-full rounded-2xl p-4 shadow-sm";
+const PANEL = "w-full rounded-2xl p-5 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
+// The boxes are a faithful preview — disable interaction so the marketing page
+// never triggers a vCard download, a lead POST, or a stacked full-screen modal.
+const showOnly = { pointerEvents: "none" as const };
 
-// The SwiftCard exactly as a recipient gets it — same card, plus the real
-// card-page sections.
+// The SwiftCard exactly as a recipient gets it — the same card and the same
+// card-page boxes, built from the live components.
 function SwiftCardPopup({ onClose }: { onClose: () => void }) {
-  const [saved, setSaved] = useState(false);
-  const [shared, setShared] = useState(false);
   return (
-    <div className="fixed inset-0 z-[90] flex items-start sm:items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(4,7,15,0.7)", backdropFilter: "blur(4px)" }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-full max-w-sm my-6 rounded-3xl overflow-hidden shadow-2xl" style={{ background: "#FAF7F2" }}>
-        <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/45 text-white flex items-center justify-center text-lg leading-none">✕</button>
-        <div className="px-4 pt-4 pb-6 flex flex-col gap-4">
-          {/* The SwiftCard — identical PhotoFirst card as the signature */}
-          <div className="rounded-2xl overflow-hidden shadow-sm">
-            <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>
-          </div>
+    <div className="fixed inset-0 z-[90] overflow-y-auto" style={{ background: "rgba(4,7,15,0.72)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+      <div className="min-h-full flex items-start justify-center py-8 px-4">
+        <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onClose} aria-label="Close" className="absolute -top-1 -right-1 z-20 w-9 h-9 rounded-full bg-black/55 text-white flex items-center justify-center text-lg leading-none shadow-lg">✕</button>
 
-          {/* 1 — Save contact */}
-          <div className={PANEL} style={panelStyle}>
-            <div className="flex items-center gap-2.5 mb-2"><SectionNum n={1} /><p className="text-slate-900 font-semibold text-[13px]">Save {FIRST}&apos;s contact</p></div>
-            <button onClick={() => setSaved(true)} className="w-full rounded-full py-2.5 text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors" style={{ background: saved ? "#16a34a" : "#2563EB" }}>
-              {saved ? (<><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>Saved to Contacts</>) : (<><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21v-8H5v8M5 3h11l3 3v3M9 3v4h6" strokeLinecap="round" strokeLinejoin="round" /></svg>Save {FIRST}&apos;s contact</>)}
-            </button>
-          </div>
+          <div className="flex flex-col items-center gap-5 rounded-3xl px-4 py-6" style={{ background: "#FAF7F2" }}>
+            {/* The SwiftCard — identical PhotoFirst card as the signature */}
+            <div className="w-full" style={showOnly}>
+              <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>
+            </div>
 
-          {/* 2 — Share your info */}
-          <div className={PANEL} style={panelStyle}>
-            <div className="flex items-center gap-2.5 mb-2"><SectionNum n={2} /><p className="text-slate-900 font-semibold text-[13px]">Share your info with {FIRST}</p></div>
-            {shared ? (
-              <div className="py-3 text-center">
-                <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-green-100 flex items-center justify-center"><svg viewBox="0 0 24 24" className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-                <p className="text-slate-900 font-bold text-[13px]">Info shared!</p>
+            {/* Save contact */}
+            <div className={PANEL} style={panelStyle}>
+              <div className="flex items-center gap-3 mb-1"><SectionNumber n={1} /><p className="text-slate-900 font-semibold text-sm">Save {FIRST}&apos;s contact</p></div>
+              <p className="text-slate-400 text-xs mb-4 ml-9">One tap adds them to your phone contacts — no app needed.</p>
+              <div style={showOnly}>
+                <SaveContactButton person={PERSON} username="alex-morgan" source="signature_demo" cardOwner="alex-morgan" ownerFirstName={FIRST} suppressTracking />
               </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {["Full name", "Email address", "Phone number"].map((ph) => (<div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[12px] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>))}
-                <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center" style={{ background: "#2563EB" }}>Share my info →</button>
+            </div>
+
+            {/* Share your info */}
+            <div className={PANEL} style={panelStyle}>
+              <div className="flex items-center gap-3 mb-1"><SectionNumber n={2} /><p className="text-slate-900 font-semibold text-sm">Share your info with {FIRST}</p></div>
+              <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
+              <div style={showOnly}>
+                <LeadCaptureForm cardOwner="alex-morgan" source="signature_demo" />
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* 3 — Swift Links */}
-          <div className={PANEL} style={panelStyle}>
-            <div className="flex items-center gap-2.5 mb-3"><SectionNum n={3} /><p className="text-slate-900 font-semibold text-[13px]">Swift Links</p></div>
-            <div className="flex flex-col gap-2">
-              {[["Website", "#1D4ED8"], ["LinkedIn", "#0A66C2"], ["Instagram", "#E1306C"], ["TikTok", "#010101"]].map(([label, color]) => (
-                <div key={label} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium" style={{ background: `${color}12`, color, border: `1px solid ${color}22` }}>
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                  <span className="flex-1">{label}</span>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 opacity-50"><path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" /></svg>
-                </div>
-              ))}
+            {/* Swift Links */}
+            <div className={PANEL} style={panelStyle}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3 min-w-0"><SectionNumber n={3} /><p className="text-slate-900 font-semibold text-sm">Swift Links</p></div>
+                <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
+              </div>
+              <div style={showOnly}>
+                <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alex-morgan" ownerFirstName={FIRST} />
+              </div>
             </div>
-          </div>
 
-          {/* 4 — Share this card */}
-          <div className={PANEL} style={panelStyle}>
-            <div className="flex items-center gap-2.5 mb-3"><SectionNum n={4} /><p className="text-slate-900 font-semibold text-[13px]">Share this card</p></div>
-            <div className="w-full flex items-center justify-center gap-2 font-semibold py-2.5 rounded-full text-white text-[12.5px]" style={{ background: "linear-gradient(to right, #2563eb, #7c3aed)" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path d="M7.2 10.9a2.25 2.25 0 100 2.2m0-2.2l9.6-5.3m-9.6 7.5l9.6 5.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              Share this card
+            {/* Share this card */}
+            <div className={PANEL} style={panelStyle}>
+              <div className="flex items-center gap-3 mb-4"><SectionNumber n={4} /><p className="text-slate-900 font-semibold text-sm">Share this card</p></div>
+              <div style={showOnly}>
+                <ShareButton url={CARD_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
+                <QRCodeModal url={CARD_URL} firstName={FIRST} />
+              </div>
+              <span className="block text-center text-slate-400 text-[11px] mt-3">Create your card · swiftcard.me</span>
             </div>
-            <div className="w-full flex items-center justify-center gap-2 font-semibold py-2.5 mt-2 rounded-full text-[12.5px]" style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", color: "#475569" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></svg>
-              Show QR Code
-            </div>
+
+            {/* Powered by badge */}
+            <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+              <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
+              Powered by SwiftCard.me
+            </span>
           </div>
         </div>
       </div>
@@ -152,7 +186,7 @@ export default function SignatureDemo() {
         </div>
       </div>
 
-      {open && <SwiftCardPopup onClose={() => setOpen(false)} />}
+      {open && typeof document !== "undefined" && createPortal(<SwiftCardPopup onClose={() => setOpen(false)} />, document.body)}
     </div>
   );
 }
