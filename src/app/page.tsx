@@ -4,7 +4,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
-import HeroScene from "@/components/site/HeroScene";
+import HeroImage from "@/components/site/HeroImage";
 import PhoneShowcase from "@/components/site/PhoneShowcase";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
@@ -73,7 +73,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center lg:justify-end" data-reveal="scale">
-              <HeroScene />
+              <HeroImage />
             </div>
           </div>
         </section>
