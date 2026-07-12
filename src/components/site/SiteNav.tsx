@@ -11,6 +11,15 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Item = { label: string; href: string; desc: string };
 
+const HOME: Item[] = [
+  { label: "Overview", href: "/", desc: "Back to the top of the homepage" },
+  { label: "Swift Cards", href: "/#cards", desc: "The card that shares everything" },
+  { label: "SwiftLinks", href: "/#swiftlinks", desc: "One link for everything you are" },
+  { label: "Email Signatures", href: "/#signature", desc: "A live card in every email" },
+  { label: "Analytics", href: "/#analytics", desc: "See who's looking, never lose a lead" },
+  { label: "Teams", href: "/#teams", desc: "One brand across everyone" },
+];
+
 const PRODUCTS: Item[] = [
   { label: "Digital Cards", href: "/products/digital-cards", desc: "Your tap-to-share business card" },
   { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
@@ -93,6 +102,7 @@ export default function SiteNav() {
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
+            <Dropdown label="Home" items={HOME} />
             <Dropdown label="Products" items={PRODUCTS} />
             <Dropdown label="Solutions" items={SOLUTIONS} />
             <Dropdown label="Resources" items={RESOURCES} />
@@ -125,7 +135,7 @@ export default function SiteNav() {
               </button>
             </div>
             <div className="space-y-5 max-h-[70vh] overflow-y-auto rd-scrollbar-none">
-              {[["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", RESOURCES]].map(([title, items]) => (
+              {[["Home", HOME], ["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", RESOURCES]].map(([title, items]) => (
                 <div key={title as string}>
                   <p className="rd-eyebrow text-white/40 mb-2">{title as string}</p>
                   <div className="grid grid-cols-1 gap-0.5">
