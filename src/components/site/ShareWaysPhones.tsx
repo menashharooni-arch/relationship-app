@@ -71,26 +71,29 @@ function WalletPhone() {
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </span>
       </div>
-      <div className="px-3.5 pt-4 flex-1">
-        {/* The real SwiftCard on top */}
+      {/* The real SwiftCard on top */}
+      <div className="px-3.5 pt-4">
         <div className="rounded-[16px] overflow-hidden shadow-[0_12px_28px_-10px_rgba(15,23,42,0.45)] relative z-30" style={{ background: "#FAF7F2" }}>
           <CardScaler><ClassicPro data={CARD_DATA} /></CardScaler>
         </div>
-        {/* Credit cards tucked below (Apple Wallet stacked look) */}
-        <div className="relative">
-          {TUCKED.map((c, i) => (
-            <div
-              key={c.tail}
-              className="rounded-[16px] px-4 pt-3 shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.35)]"
-              style={{ background: c.grad, marginTop: i === 0 ? -14 : -46, height: 66, zIndex: 20 - i }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-white/90 text-[11px] font-semibold tracking-wide">Card</span>
-                <span className="text-white/55 text-[10px]">•••• {c.tail}</span>
-              </div>
+      </div>
+
+      <div className="flex-1" />
+
+      {/* Credit cards tucked away at the bottom (Apple Wallet stacked look) */}
+      <div className="px-3.5 pb-5 relative">
+        {TUCKED.map((c, i) => (
+          <div
+            key={c.tail}
+            className="rounded-[16px] px-4 pt-3 shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.35)]"
+            style={{ background: c.grad, marginTop: i === 0 ? 0 : -46, height: 66, zIndex: 20 - i }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-white/90 text-[11px] font-semibold tracking-wide">Card</span>
+              <span className="text-white/55 text-[10px]">•••• {c.tail}</span>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </>
   );
