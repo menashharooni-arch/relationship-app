@@ -22,6 +22,8 @@ import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayo
 import { socialUrl } from "@/lib/social-url";
 import { useGuestDraft, saveDraft } from "@/lib/guest-draft";
 import { consumePrefill } from "@/lib/prefill";
+import { writePlanIntent } from "@/lib/plan-intent";
+import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
 function slugify(str: string): string {
@@ -165,6 +167,16 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  // Guest flow: after building the card, pick a plan BEFORE creating the account.
+  // The choice is stashed (plan-intent) and honored on /welcome after signup —
+  // Free → dashboard, Pro/Office → checkout. Authed users skip this (they already
+  // have an account/plan) and create the card directly.
+  const [showPlan, setShowPlan] = useState(false);
+
+  function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
+    writePlanIntent(intent);
+    requireAuth("save", handleCreate);
+  }
 
   // Card URL auto-fills from full name + company (e.g. "john-smith-acme-corp"),
   // or just the full name when there's no company.
@@ -766,17 +778,41 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
                 ← Back
               </button>
               <button
-                onClick={() => requireAuth("save", handleCreate)}
+                onClick={() => (guest ? setShowPlan(true) : requireAuth("save", handleCreate))}
                 disabled={status === "loading"}
                 className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
               >
-                {status === "loading" ? "Creating…" : "Create card →"}
+                {status === "loading" ? "Creating…" : guest ? "Continue to plans →" : "Create card →"}
               </button>
             </div>
           </div>
         )}
       </div>
     </main>
+    {/* Guest plan step — after the card is built, pick a plan, THEN create the
+        account. The choice is stashed and finalized on /welcome post-signup. */}
+    {showPlan && guest && (
+      <div className="fixed inset-0 z-[90] overflow-y-auto bg-gray-950/97 backdrop-blur-sm">
+        <div className="min-h-full flex items-start justify-center py-10 px-5">
+          <div className="w-full max-w-4xl">
+            <div className="text-center mb-6">
+              <button onClick={() => setShowPlan(false)} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                Back to your card
+              </button>
+              <h2 className="text-white font-bold text-2xl">Choose your plan</h2>
+              <p className="text-gray-400 text-sm mt-1.5">Pick a plan, then create your free account. Free to start — upgrade anytime.</p>
+            </div>
+            <PlanCards
+              onFree={() => pickPlanThenSignUp({ plan: "free" })}
+              onPaid={(plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats })}
+              busy={null}
+              freeLabel="Start free →"
+            />
+          </div>
+        </div>
+      </div>
+    )}
     {/* Self-contained auth gate — the useGuestDraft hook opens it via a window
         event when a guest triggers a protected action. */}
     <GuestGateModal />
