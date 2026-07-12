@@ -8,9 +8,11 @@ import ScrollProgress from "@/components/ScrollProgress";
 import PhoneShowcase from "@/components/site/PhoneShowcase";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
-import WalletScene from "@/components/site/WalletScene";
-import WatchScene from "@/components/site/WatchScene";
-import SwiftCardVisual from "@/components/site/SwiftCardVisual";
+import TemplateGallery from "@/components/site/TemplateGallery";
+import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
+import ShareWaysPhones from "@/components/site/ShareWaysPhones";
+import WatchShareImage from "@/components/site/WatchShareImage";
+import TeamsDashboard from "@/components/site/TeamsDashboard";
 
 type Feature = { t: string; d: string };
 type Product = {
@@ -34,7 +36,12 @@ const PRODUCTS: Record<string, Product> = {
     title: <>A card so good, people <A>want</A> to keep it.</>,
     titlePlain: "Digital Cards",
     subtitle: "Designer templates, your colors, your photo, your logo — a scannable QR and a Save Contact button built in. Share it with a tap, a QR, or a link, and land straight in their phone.",
-    demo: <PhoneShowcase variant="card" />,
+    demo: (
+      <div className="w-full rounded-[28px] bg-[#FBF8F0] p-5 sm:p-7 shadow-2xl">
+        <TemplateGallery />
+      </div>
+    ),
+    wide: true,
     features: [
       { t: "Five designer templates", d: "Photo-first, classic, bold, minimal — all fully customizable to your brand in seconds." },
       { t: "Tap, QR, or link", d: "Works on every phone with no app. NFC tap, a scannable QR, or a simple shareable link." },
@@ -45,10 +52,10 @@ const PRODUCTS: Record<string, Product> = {
   },
   swiftlinks: {
     eyebrow: "SwiftLinks",
-    title: <>One link for <A>everything</A> you are.</>,
+    title: <>Everything to do. <A>One SwiftLink.</A></>,
     titlePlain: "SwiftLinks",
     subtitle: "Your bio, your socials, your booking link, your latest drop — one beautiful page that lives in your Instagram, TikTok, or email. Separate from your card, powered by the same profile.",
-    demo: <PhoneShowcase variant="link" />,
+    demo: <SwiftLinksPhone />,
     features: [
       { t: "Unlimited links & socials", d: "Add as many buttons and platforms as you like, reorder anytime." },
       { t: "Capture leads on the page", d: "A built-in connect form turns visitors into saved contacts." },
@@ -62,7 +69,11 @@ const PRODUCTS: Record<string, Product> = {
     title: <>Every email you send, <A>advertising you.</A></>,
     titlePlain: "Email Signatures",
     subtitle: "Drop your live SwiftCard into your signature once. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.",
-    demo: <SignatureDemo />,
+    demo: (
+      <div className="w-full rounded-[28px] bg-[#F5F0E3] p-5 sm:p-8 shadow-2xl">
+        <SignatureDemo />
+      </div>
+    ),
     wide: true,
     features: [
       { t: "Copy once, paste anywhere", d: "Works in Gmail, Outlook, Apple Mail — any client that supports HTML signatures." },
@@ -106,7 +117,7 @@ const PRODUCTS: Record<string, Product> = {
     title: <>One brand. <A>Everyone on it.</A></>,
     titlePlain: "Teams & Offices",
     subtitle: "Roll out cards across your whole team with consistent branding, shared templates, and one place to manage seats. Every rep looks sharp — and every lead is accounted for.",
-    demo: <DashboardDemo />,
+    demo: <TeamsDashboard />,
     wide: true,
     features: [
       { t: "Uniform branding", d: "Lock the logo, colors, and template so every card is unmistakably on-brand." },
@@ -117,19 +128,11 @@ const PRODUCTS: Record<string, Product> = {
     metaDesc: "Roll out on-brand digital cards across your whole team, with shared templates, seat management, and team analytics.",
   },
   wallet: {
-    eyebrow: "Apple Wallet",
+    eyebrow: "Ways to share",
     title: <>Your card, always <A>in your pocket.</A></>,
     titlePlain: "Apple Wallet",
-    subtitle: "Add your SwiftCard to Apple Wallet and it's a swipe away — right next to your boarding passes and payment cards. Pull it up, let them scan, done. No signal, no app, no fumbling.",
-    demo: (
-      <div className="flex flex-wrap items-center justify-center gap-8">
-        <WalletScene />
-        <div className="text-center">
-          <p className="text-white/40 text-[12px] font-semibold uppercase tracking-wide mb-3">What they see when they scan</p>
-          <PhoneShowcase variant="card" />
-        </div>
-      </div>
-    ),
+    subtitle: "However you meet someone, there's a way to hand them your card in a second — Apple Wallet, a QR code, or the share sheet. No app, no signal, no fumbling.",
+    demo: <ShareWaysPhones />,
     wide: true,
     features: [
       { t: "One tap to add", d: "Save your card to Wallet and reach it from your lock screen instantly." },
@@ -142,17 +145,17 @@ const PRODUCTS: Record<string, Product> = {
   watch: {
     eyebrow: "Apple Watch",
     // Exact message requested by the owner.
-    title: <>Make your Apple Watch into a <A>tappable business card</A> you take with you everywhere.</>,
+    title: <>Make your Apple Watch into a <A>scannable business card</A> you take with you everywhere.</>,
     titlePlain: "Apple Watch",
     subtitle: "Raise your wrist, show your code, and share your details hands-free — no phone required. Your card goes wherever you go.",
-    demo: <WatchScene />,
+    demo: <WatchShareImage />,
     features: [
       { t: "Hands-free sharing", d: "Show your card from your wrist — perfect for events, gyms, and on the move." },
       { t: "Always with you", d: "No reaching for your phone. Your details are one glance away." },
       { t: "Scannable code", d: "A crisp QR your Watch displays so anyone can open your full card." },
       { t: "Powered by your card", d: "Everything stays in sync with the card and profile you already have." },
     ],
-    metaDesc: "Make your Apple Watch a tappable business card you take everywhere — share your details hands-free.",
+    metaDesc: "Make your Apple Watch a scannable business card you take everywhere — share your details hands-free.",
   },
   integrations: {
     eyebrow: "Integrations",
