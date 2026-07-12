@@ -11,6 +11,7 @@ import DashboardDemo from "@/components/site/DashboardDemo";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
+import TeamsDashboard from "@/components/site/TeamsDashboard";
 
 export const metadata: Metadata = {
   title: "SwiftCard — The digital business card that shares itself",
@@ -270,6 +271,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            <div className="mt-8" data-reveal="fade"><TeamsDashboard /></div>
           </div>
         </section>
 
