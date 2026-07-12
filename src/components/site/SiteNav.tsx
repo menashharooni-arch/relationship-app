@@ -27,6 +27,7 @@ const SOLUTIONS: Item[] = [
 const RESOURCES: Item[] = [
   { label: "See it live", href: "/preview", desc: "Interact with a real SwiftCard" },
   { label: "Templates", href: "/templates", desc: "Beautiful, ready-to-use designs" },
+  { label: "Testimonials", href: "/testimonials", desc: "What professionals say about us" },
   { label: "Contact", href: "/contact", desc: "Talk to the team" },
   { label: "Privacy", href: "/privacy", desc: "How we protect your data" },
 ];
