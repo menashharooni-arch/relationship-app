@@ -384,6 +384,13 @@ body {
 .rd-aurora-anim { animation: rd-aurora-pan 9s ease-in-out infinite; }
 @keyframes rd-aurora-pan { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
+/* Glistening sweep — used on the Pro pricing card */
+.rd-glisten-sweep { position: absolute; top: -60%; bottom: -60%; left: -70%; width: 45%; z-index: 3; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+  transform: skewX(-18deg);
+  animation: rd-glisten-sweep 4.2s ease-in-out infinite; }
+@keyframes rd-glisten-sweep { 0% { left: -70%; } 55%, 100% { left: 130%; } }
+
 /* SwiftLink featured-tile shine — mirrors the live SwiftLinkButtons sweep */
 .rd-ll-shine { position: absolute; top: -10%; bottom: -10%; left: 0; width: 45%; pointer-events: none; z-index: 5;
   background: linear-gradient(105deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.25) 50%, rgba(255,255,255,0) 100%);
@@ -511,4 +518,5 @@ body {
   .rd-green-badge, .rd-green-badge::before, .rd-green-dot { animation: none !important; }
   .rd-steps-line::after { animation: none !important; opacity: 0 !important; }
   .rd-ll-shine { animation: none !important; opacity: 0 !important; }
+  .rd-glisten-sweep { animation: none !important; opacity: 0 !important; }
 }
