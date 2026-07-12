@@ -9,7 +9,7 @@ import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
-import WatchScene from "@/components/site/WatchScene";
+import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
 
 export const metadata: Metadata = {
@@ -223,7 +223,7 @@ export default function Home() {
         {/* ═══════════════ APPLE WATCH ═══════════════ */}
         <section id="watch" className="rd-light relative py-24 sm:py-28">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
-            <div className="flex justify-center order-2 lg:order-1" data-reveal="scale"><WatchScene /></div>
+            <div className="flex justify-center order-2 lg:order-1" data-reveal="scale"><WatchShareImage /></div>
             <div className="order-1 lg:order-2">
               <div data-reveal><Eyebrow dark={false}>Apple Watch</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-slate-900 mt-5" data-reveal>
