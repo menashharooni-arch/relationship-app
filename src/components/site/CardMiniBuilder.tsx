@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
+import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -14,10 +15,11 @@ import { writePrefill } from "@/lib/prefill";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
-// "+" that opens a 60-second builder. It collects only what a card preview
-// needs (name/title/company, phone/email, template + accent), shows the real
-// template rendering live, then hands off to /cards/new with everything
-// prefilled so the visitor just finishes the details.
+// "+" that opens a real card builder. It collects everything a card actually
+// needs — name/title/company, phone/email/address, headshot + logo, template +
+// accent — and skips only what isn't on the card itself (socials live in Swift
+// Links). The real template renders live; "Make it live" hands off to
+// /cards/new with everything (including the cropped images) prefilled.
 
 const TEMPLATES = [
   { id: "classic-pro", label: "Classic", Component: ClassicPro },
@@ -52,10 +54,17 @@ export default function CardMiniBuilder() {
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
+  const [zip, setZip] = useState("");
+  const [headshot, setHeadshot] = useState<string | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
   const [template, setTemplate] = useState("classic-pro");
   const [accent, setAccent] = useState("");
 
   const Preview = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
+  const addressStr = [street, city, [stateRegion, zip].filter(Boolean).join(" ")].filter(Boolean).join("\n");
   const data: CardData = withoutSocials({
     name: name || "Your Name",
     title: title || "Your Title",
@@ -63,9 +72,10 @@ export default function CardMiniBuilder() {
     phone: phone || "(555) 000-0000",
     email: email || "you@email.com",
     website: "",
+    address: addressStr,
     initials: (name || "Y")[0].toUpperCase(),
-    photoUrl: null,
-    logoUrl: null,
+    photoUrl: headshot,
+    logoUrl: logo,
     cardUrl: "swiftcard.me/card/your-card",
     customization: accent ? { accentColor: accent } : {},
   });
@@ -78,8 +88,11 @@ export default function CardMiniBuilder() {
       company: company.trim(),
       phone: phone.trim(),
       email: email.trim(),
+      address: { street: street.trim(), city: city.trim(), state: stateRegion.trim(), zip: zip.trim() },
       template,
       accentColor: accent || undefined,
+      headshotUrl: headshot,
+      logoUrl: logo,
       step: 1,
     });
     router.push("/cards/new");
@@ -100,12 +113,28 @@ export default function CardMiniBuilder() {
     },
     {
       title: "How do people reach you?",
-      subtitle: "These show up on the card with a tap-to-call and tap-to-email.",
+      subtitle: "Phone and email get tap-to-call and tap-to-email on the card.",
       content: (
         <>
           <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
           <Field label="Email" type="email" placeholder="alex@morganco.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Field label="Street address" placeholder="123 Main Street" value={street} onChange={(e) => setStreet(e.target.value)} />
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="City" placeholder="New York" value={city} onChange={(e) => setCity(e.target.value)} />
+            <Field label="State" placeholder="NY" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} />
+            <Field label="ZIP" placeholder="10001" value={zip} onChange={(e) => setZip(e.target.value)} />
+          </div>
         </>
+      ),
+    },
+    {
+      title: "Add your photo & logo",
+      subtitle: "A headshot and a company logo make the card unmistakably yours.",
+      content: (
+        <div className="space-y-5">
+          <ImageUpload guest field="photo" shape="circle" currentUrl={headshot} label="Headshot" onUploaded={(u) => setHeadshot(u || null)} />
+          <ImageUpload guest field="logo" shape="square" currentUrl={logo} label="Company logo" onUploaded={(u) => setLogo(u || null)} />
+        </div>
       ),
     },
     {
