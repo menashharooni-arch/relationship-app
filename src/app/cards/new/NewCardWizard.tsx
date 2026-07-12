@@ -21,6 +21,7 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl } from "@/lib/social-url";
 import { useGuestDraft, saveDraft } from "@/lib/guest-draft";
+import { consumePrefill } from "@/lib/prefill";
 import GuestGateModal from "@/components/GuestGateModal";
 
 function slugify(str: string): string {
@@ -137,6 +138,27 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
   }
+
+  // Autofill from a homepage "mini builder": if the visitor sketched a card /
+  // SwiftLink / signature on the marketing site and hit "Make it live", carry
+  // everything they typed into the wizard. Consumed once, then cleared.
+  useEffect(() => {
+    const p = consumePrefill();
+    if (!p) return;
+    if (p.name) setName(p.name);
+    if (p.title) setTitle(p.title);
+    if (p.company) setCompany(p.company);
+    if (p.email) setEmail(p.email);
+    if (p.phone) setPhones([{ number: p.phone, label: "mobile", showOnCard: true }]);
+    if (p.bio) setBio(p.bio);
+    if (p.website) setWebsite(p.website);
+    if (p.socials) setSocials((prev) => ({ ...prev, ...p.socials }));
+    if (p.links?.length) setLinks(p.links.map((l) => ({ label: l.label, url: l.url })));
+    if (p.template) setTemplate(p.template);
+    if (p.accentColor) setTemplateStyleState((prev) => ({ ...prev, accentColor: p.accentColor }));
+    if (p.step) setStep(Math.min(Math.max(p.step, 1), 3));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
