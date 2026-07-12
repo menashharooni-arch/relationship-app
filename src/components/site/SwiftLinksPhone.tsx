@@ -138,7 +138,7 @@ export default function SwiftLinksPhone() {
   const [scrolled, setScrolled] = useState(false);
 
   return (
-    <div className="flex flex-col items-center lg:items-end gap-3">
+    <div className="flex flex-col items-center gap-3">
       <div className="flex items-center gap-1.5 text-white/45 text-[12px] font-medium">
         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Scroll on phone to view
