@@ -45,6 +45,15 @@ export async function POST(req: NextRequest) {
     const priceId = body.priceId || process.env.STRIPE_PRICE_ID!;
     const couponId: string | undefined = typeof body.couponId === "string" ? body.couponId : undefined;
 
+    // Optional post-payment landing (used by the onboarding /welcome flow to send
+    // paid users straight into the dashboard + tour). Restricted to a safe,
+    // same-origin relative path so it can't be turned into an open redirect.
+    const rawSuccess = typeof body.successPath === "string" ? body.successPath : "";
+    const successPath =
+      rawSuccess.startsWith("/") && !rawSuccess.startsWith("//") && /^\/[a-zA-Z0-9?=&_.\-/]*$/.test(rawSuccess)
+        ? rawSuccess
+        : "/dashboard?upgraded=true";
+
     // Only sell prices we actually offer.
     const isOffice = OFFICE_PRICE_IDS.includes(priceId);
     const isPro = PRO_PRICE_IDS.includes(priceId);
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       // Record the seat count so the webhook provisions the office reliably.
       ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
-      success_url: `${APP_URL}/dashboard?upgraded=true`,
+      success_url: `${APP_URL}${successPath}`,
       cancel_url: `${APP_URL}/pricing`,
       // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):
       // with no coupon, customers can type admin-created promo codes at checkout.
