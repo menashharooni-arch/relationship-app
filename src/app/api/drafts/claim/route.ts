@@ -119,7 +119,9 @@ export async function POST(req: NextRequest) {
   // ── Idempotency: was this exact draft already claimed? ────────────────────
   const already = findClaimedCard(existingCards ?? [], safeDraftId);
   if (already) {
-    return NextResponse.json({ slug: already.username, id: already.id, step: safeStep });
+    // A re-claim of a card that already exists — they've been here before, so
+    // this is not a first-time signup (no onboarding plan step).
+    return NextResponse.json({ slug: already.username, id: already.id, step: safeStep, first: false });
   }
 
   // ── Plan gating (mirror api/cards) ────────────────────────────────────────
@@ -195,7 +197,7 @@ export async function POST(req: NextRequest) {
         .eq("user_id", user.id)
         .eq("username", insert.username)
         .maybeSingle();
-      if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep });
+      if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep, first: count === 0 });
       return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -210,5 +212,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ slug: card.username, id: card.id, step: safeStep });
+  // `first` tells the client this is the account's first card → send them
+  // through the onboarding plan-selection step (/welcome) instead of the editor.
+  return NextResponse.json({ slug: card.username, id: card.id, step: safeStep, first: count === 0 });
 }

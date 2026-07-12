@@ -21,6 +21,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
+import TourAutoStart from "@/components/TourAutoStart";
 import TrialBanner from "@/components/TrialBanner";
 import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
@@ -421,6 +422,9 @@ export default async function DashboardPage({
   return (
     <>
       <AppStorePopup trigger={params.welcome === "1"} />
+      {/* Auto-start the guided tour for a new account arriving from onboarding
+          (?tour=1). No-ops if the tour was already taken. */}
+      <Suspense><TourAutoStart /></Suspense>
       {/* Backstop for the guest-signup flow: claims a still-pending localStorage
           draft if a guest lands here post-auth. No-ops when there's no draft. */}
       <GuestDraftClaim />

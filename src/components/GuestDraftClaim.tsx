@@ -75,7 +75,15 @@ export default function GuestDraftClaim() {
         // Success — the card exists under this account now.
         clearDraft();
         const id = (data as { id: string }).id;
-        router.replace(`/cards/${id}/edit?claimed=1`);
+        const slug = (data as { slug?: string }).slug;
+        const first = (data as { first?: boolean }).first;
+        if (first) {
+          // Brand-new account: send them through onboarding — choose a plan
+          // (pay if Pro/Office), turn on notifications, then the dashboard + tour.
+          router.replace(`/welcome${slug ? `?card=${encodeURIComponent(slug)}` : ""}`);
+        } else {
+          router.replace(`/cards/${id}/edit?claimed=1`);
+        }
       } catch {
         if (cancelled) return;
         // Network error — keep the draft (they can retry by reloading) but don't
