@@ -37,11 +37,7 @@ export default function Home() {
 
       <main className="overflow-clip">
         {/* ═══════════════ HERO ═══════════════ */}
-        <section className="rd-dark2 relative pt-32 pb-24 sm:pt-40 sm:pb-32">
-          <div className="rd-grid absolute inset-0 opacity-[0.5]" />
-          <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 560, height: 560, left: "-8%", top: "-14%" }} />
-          <div className="rd-glow rd-glow-blue rd-drift-b" style={{ width: 460, height: 460, right: "-6%", top: "4%", opacity: 0.4 }} />
-
+        <section className="rd-light relative pt-32 pb-24 sm:pt-40 sm:pb-32">
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[1.05fr_0.95fr] gap-14 items-center">
             <div>
               <div data-reveal="fade">
@@ -50,7 +46,7 @@ export default function Home() {
                   Free to start — no credit card required
                 </span>
               </div>
-              <h1 className="rd-display text-white mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
+              <h1 className="rd-display text-slate-900 mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
               </h1>
@@ -60,9 +56,9 @@ export default function Home() {
                   "They save you in one tap — nothing to download",
                   "Every share becomes a lead + automatic follow-up",
                 ].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-white/75 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
-                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.16)" }}>
-                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                  <li key={t} className="flex items-start gap-3 text-slate-600 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
+                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
                     {t}
                   </li>
@@ -188,14 +184,14 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ APPLE WALLET ═══════════════ */}
-        <section id="wallet" className="rd-dark relative py-24 sm:py-28 border-y border-white/8 overflow-hidden">
+        <section id="wallet" className="rd-light relative py-24 sm:py-28 border-y border-slate-200 overflow-hidden">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[0.85fr_1.15fr] gap-14 items-center">
             <div>
-              <div data-reveal><Eyebrow>Ways to share</Eyebrow></div>
-              <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5" data-reveal>
+              <div data-reveal><Eyebrow dark={false}>Ways to share</Eyebrow></div>
+              <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5" data-reveal>
                 Your card, always <span className="rd-aurora-text">in your pocket.</span>
               </h2>
-              <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
+              <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
                 However you meet someone, there&apos;s a way to hand them your card in a second — no app, no signal, no fumbling.
               </p>
               <ul className="mt-7 space-y-3.5" data-reveal>
@@ -205,9 +201,9 @@ export default function Home() {
                   "Share sheet — text, email, AirDrop, or any app",
                   "NFC tap, a link, or your email signature",
                 ].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-white/75 text-[15px] leading-snug">
-                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.16)" }}>
-                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                  <li key={t} className="flex items-start gap-3 text-slate-600 text-[15px] leading-snug">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
+                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
                     {t}
                   </li>
@@ -217,26 +213,26 @@ export default function Home() {
                 <Link href="/cards/new" className="rd-btn rd-btn-primary">Add SwiftCard to Wallet</Link>
               </div>
             </div>
-            <div className="flex justify-center" data-reveal="scale"><ShareWaysPhones /></div>
+            <div className="flex justify-center" data-reveal="scale"><ShareWaysPhones light /></div>
           </div>
         </section>
 
         {/* ═══════════════ APPLE WATCH ═══════════════ */}
-        <section id="watch" className="rd-light relative py-24 sm:py-28">
+        <section id="watch" className="rd-dark relative py-24 sm:py-28 border-y border-white/8">
           <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
             <div className="flex justify-center order-2 lg:order-1" data-reveal="scale"><WatchShareImage /></div>
             <div className="order-1 lg:order-2">
-              <div data-reveal><Eyebrow dark={false}>Apple Watch</Eyebrow></div>
-              <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-slate-900 mt-5" data-reveal>
+              <div data-reveal><Eyebrow>Apple Watch</Eyebrow></div>
+              <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-white mt-5" data-reveal>
                 Make your Apple Watch into a <span className="rd-aurora-text">scannable business card</span> you take with you everywhere.
               </h2>
-              <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
+              <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
                 Raise your wrist, show your code, and share your details hands-free — no phone required. Your card goes wherever you go.
               </p>
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 max-w-[440px]" data-reveal="fade">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="#5D6BFF" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>
-                <p className="text-slate-500 text-[13.5px] leading-relaxed">
-                  <span className="font-semibold text-slate-700">On the roadmap.</span> Today you can add your card to Apple Wallet and reach it from your Watch. A dedicated native watchOS app is in development — we&apos;ll only ship it once it&apos;s fully approved by Apple.
+              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 max-w-[440px]" data-reveal="fade">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="#7CA0FF" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>
+                <p className="text-white/55 text-[13.5px] leading-relaxed">
+                  <span className="font-semibold text-white/85">On the roadmap.</span> Today you can add your card to Apple Wallet and reach it from your Watch. A dedicated native watchOS app is in development — we&apos;ll only ship it once it&apos;s fully approved by Apple.
                 </p>
               </div>
             </div>
@@ -244,15 +240,14 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ TEAMS ═══════════════ */}
-        <section id="teams" className="rd-dark2 relative py-24 sm:py-28 overflow-hidden">
-          <div className="rd-glow rd-glow-blue rd-drift-b" style={{ width: 460, height: 460, right: "-10%", top: "-10%", opacity: 0.3 }} />
+        <section id="teams" className="rd-light relative py-24 sm:py-28 overflow-hidden">
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl" data-reveal>
-              <Eyebrow>Teams & Offices</Eyebrow>
-              <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5">
+              <Eyebrow dark={false}>Teams & Offices</Eyebrow>
+              <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5">
                 One brand. <span className="rd-aurora-text">Everyone on it.</span>
               </h2>
-              <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed">
+              <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed">
                 Roll out cards across your whole team with consistent branding, shared templates, and one place to manage seats. Every rep looks sharp — and every lead is accounted for.
               </p>
             </div>
@@ -262,12 +257,12 @@ export default function Home() {
                 { t: "Lead capture, built in", d: "Every card and page captures contacts straight to your CRM." },
                 { t: "Seats & roles", d: "Add or remove people in seconds. One bill, full control." },
               ].map((f, i) => (
-                <div key={f.t} className="rd-glass p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
+                <div key={f.t} className="rd-card-l p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
                     <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" strokeLinecap="round" /></svg>
                   </div>
-                  <p className="text-white font-semibold text-[17px]">{f.t}</p>
-                  <p className="text-white/50 text-[14px] mt-1.5 leading-relaxed">{f.d}</p>
+                  <p className="text-slate-900 font-semibold text-[17px]">{f.t}</p>
+                  <p className="text-slate-500 text-[14px] mt-1.5 leading-relaxed">{f.d}</p>
                 </div>
               ))}
             </div>
