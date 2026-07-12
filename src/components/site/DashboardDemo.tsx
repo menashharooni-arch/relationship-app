@@ -25,17 +25,19 @@ function formatShort(iso: string) {
 
 type Ev = { id: string; event_type: string; source: string | null; created_at: string };
 type Msg = { id: string; direction: "in" | "out"; channel: string | null; body: string; status: string | null; created_at: string };
+type Status = "new_contact" | "touch" | "dissolved";
 type Contact = {
   id: string; name: string; email: string; initials: string; source: string;
-  created_at: string; message?: string; status: "new_contact" | "touch";
+  created_at: string; message?: string; status: Status;
   last: string; time: string; events: Ev[]; messages: Msg[];
 };
 
 const STATUS_STYLES: Record<string, string> = {
   new_contact: "bg-gray-800 text-gray-400",
   touch: "bg-blue-950 text-blue-400",
+  dissolved: "bg-gray-900 text-gray-600",
 };
-const STATUS_LABEL: Record<string, string> = { new_contact: "New", touch: "In touch" };
+const STATUS_LABEL: Record<string, string> = { new_contact: "New", touch: "In touch", dissolved: "Dissolved" };
 
 const CONTACTS: Contact[] = [
   {
@@ -68,6 +70,35 @@ const CONTACTS: Contact[] = [
     created_at: "2026-07-10T11:02:00", status: "new_contact", last: "Viewed your card · 2h ago", time: "2h",
     events: [
       { id: "e4", event_type: "viewed_card", source: "swift_links", created_at: "2026-07-10T11:02:00" },
+    ],
+    messages: [],
+  },
+  {
+    id: "c4", name: "Tom Farrell", email: "tom@farrell.dev", initials: "TF", source: "qr_code",
+    created_at: "2026-07-07T10:20:00", status: "touch", last: "Emailed · 3d ago", time: "3d",
+    message: "Following up on the office space downtown — is it still available?",
+    events: [
+      { id: "e5", event_type: "viewed_card", source: "qr_code", created_at: "2026-07-07T10:18:00" },
+      { id: "e6", event_type: "downloaded_vcard", source: "qr_code", created_at: "2026-07-07T10:20:00" },
+    ],
+    messages: [
+      { id: "m5", direction: "out", channel: "email", body: "Hi Tom — great meeting you at the expo! I'll send over a few options for the downtown space this week.", status: "sent", created_at: "2026-07-07T10:25:00" },
+    ],
+  },
+  {
+    id: "c5", name: "Jordan Kim", email: "jordan@kimco.io", initials: "JK", source: "direct_link",
+    created_at: "2026-07-10T08:30:00", status: "new_contact", last: "Shared their info · 6h ago", time: "6h",
+    message: "Would love to chat about a partnership.",
+    events: [
+      { id: "e7", event_type: "viewed_card", source: "direct_link", created_at: "2026-07-10T08:28:00" },
+    ],
+    messages: [],
+  },
+  {
+    id: "c6", name: "Priya Shah", email: "priya@northlight.studio", initials: "PS", source: "nfc_tap",
+    created_at: "2026-06-28T15:00:00", status: "dissolved", last: "Viewed · 2w ago", time: "2w",
+    events: [
+      { id: "e8", event_type: "viewed_card", source: "nfc_tap", created_at: "2026-06-28T15:00:00" },
     ],
     messages: [],
   },
@@ -146,33 +177,187 @@ function LocationsPanel() {
   );
 }
 
+// ── Contacts box — a faithful copy of the real dashboard's Contacts section ──
+// Same header (count + "Total leads"), the same Notifications / List / Pipeline
+// view toggle, the same status + date filters, and the same three views:
+// a list of leads, a drag-style pipeline kanban, and a notifications feed.
+// Clicking any contact drives the Activity & Messages panel to its right.
+type View = "notifications" | "list" | "pipeline";
+const VIEW_TABS: { id: View; label: string }[] = [
+  { id: "notifications", label: "Notifications" },
+  { id: "list", label: "List" },
+  { id: "pipeline", label: "Pipeline" },
+];
+const STATUS_TABS = [
+  { id: "all", label: "All" },
+  { id: "new_contact", label: "New Contact" },
+  { id: "touch", label: "Touch" },
+  { id: "dissolved", label: "Dissolved" },
+];
+const DATE_TABS = ["All", "30d", "7d", "Today"];
+const PIPE_COLUMNS: { id: Status; label: string; color: string }[] = [
+  { id: "new_contact", label: "New Contact", color: "#94a3b8" },
+  { id: "touch", label: "Touch", color: "#60a5fa" },
+  { id: "dissolved", label: "Dissolved", color: "#6b7280" },
+];
+
+function Avatar({ initials, size = 36 }: { initials: string; size?: number }) {
+  return <span className="rounded-full flex items-center justify-center font-bold text-white shrink-0" style={{ background: "var(--rd-aurora)", width: size, height: size, fontSize: size >= 36 ? 12 : 10 }}>{initials}</span>;
+}
+
+function EmptyState({ label }: { label: string }) {
+  return <div className="rounded-xl border border-dashed border-gray-800 py-8 text-center text-gray-600 text-[12px]">{label}</div>;
+}
+
+function ListView({ contacts, selectedId, onSelect }: { contacts: Contact[]; selectedId: string; onSelect: (id: string) => void }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2 rounded-lg bg-gray-950/50 border border-gray-800 px-3 py-2">
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-gray-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" strokeLinecap="round" /></svg>
+        <span className="text-gray-500 text-[11px]">Search contacts…</span>
+      </div>
+      {contacts.length === 0 ? <EmptyState label="No contacts match this filter" /> : (
+        <div className="space-y-2">
+          {contacts.map((c) => {
+            const on = c.id === selectedId;
+            return (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all text-left"
+                style={{ background: on ? "rgba(37,99,235,0.12)" : "rgba(255,255,255,0.02)", borderColor: on ? "rgba(37,99,235,0.5)" : "rgba(255,255,255,0.06)" }}
+              >
+                <Avatar initials={c.initials} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-white text-[13px] font-semibold truncate">{c.name}</span>
+                  <span className="block text-blue-400 text-[11px] truncate">{c.email}</span>
+                </span>
+                <span className="shrink-0 text-white/25 text-[10px]">{c.time}</span>
+                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status]}`}>{STATUS_LABEL[c.status]}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PipelineView({ contacts, selectedId, onSelect }: { contacts: Contact[]; selectedId: string; onSelect: (id: string) => void }) {
+  return (
+    <div className="flex gap-2.5 overflow-x-auto rd-scrollbar-none pb-1">
+      {PIPE_COLUMNS.map((col) => {
+        const cards = contacts.filter((c) => c.status === col.id);
+        return (
+          <div key={col.id} className="w-[150px] shrink-0 rounded-2xl bg-gray-950/40 border border-gray-800 p-2">
+            <div className="flex items-center gap-1.5 px-1 mb-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: col.color }} />
+              <span className="text-white/80 text-[11px] font-semibold">{col.label}</span>
+              <span className="ml-auto text-white/30 text-[10px]">{cards.length}</span>
+            </div>
+            <div className="space-y-2">
+              {cards.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-800 py-5 text-center text-gray-600 text-[10px]">Drop here</div>
+              ) : cards.map((c) => {
+                const on = c.id === selectedId;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => onSelect(c.id)}
+                    className="w-full text-left rounded-xl p-2.5 border transition-all cursor-grab"
+                    style={{ background: on ? "rgba(37,99,235,0.12)" : "#111827", borderColor: on ? "rgba(37,99,235,0.5)" : "#1f2937" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar initials={c.initials} size={7} />
+                      <span className="text-white text-[12px] font-semibold truncate">{c.name}</span>
+                    </div>
+                    <p className="text-blue-400 text-[10px] mt-1.5 truncate">{c.email}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NotificationsView({ contacts, onSelect }: { contacts: Contact[]; onSelect: (id: string) => void }) {
+  const feed = [...contacts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  if (feed.length === 0) return <EmptyState label="No notifications" />;
+  return (
+    <div className="space-y-2">
+      {feed.map((c, i) => (
+        <button
+          key={c.id}
+          onClick={() => onSelect(c.id)}
+          className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 border border-gray-800 bg-gray-950/40 hover:bg-gray-800/50 text-left transition-colors"
+        >
+          <span className="relative shrink-0">
+            <Avatar initials={c.initials} />
+            {i < 2 && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-gray-900" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-white text-[13px] font-semibold truncate">{c.name}</span>
+            <span className="block text-white/40 text-[11px] truncate">{c.last}</span>
+          </span>
+          {c.source && c.source !== "direct_link" && <span className="shrink-0 text-[10px] text-blue-400">via {getSourceLabel(c.source)}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ContactsPanel({ contacts, selectedId, onSelect }: { contacts: Contact[]; selectedId: string; onSelect: (id: string) => void }) {
+  const [view, setView] = useState<View>("list");
+  const [status, setStatus] = useState("all");
+  const [date, setDate] = useState("All");
+  const shown = status === "all" ? contacts : contacts.filter((c) => c.status === status);
+
   return (
     <div className={PANEL}>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-white font-semibold text-[15px]">Contacts</p>
-        <span className="text-white/40 text-[11px]">{contacts.length} people</span>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <p className="text-white font-semibold text-[15px]">Contacts</p>
+          <span className="text-white font-bold text-[15px] tabular-nums">{contacts.length}</span>
+          <span className="text-white/35 text-[11px]">Total leads</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold px-2.5 py-1.5">
+            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
+            Add
+          </span>
+          <span className="rounded-lg border border-gray-700 text-gray-300 text-[11px] font-medium px-2.5 py-1.5">Export</span>
+        </div>
       </div>
-      <div className="space-y-2">
-        {contacts.map((c) => {
-          const on = c.id === selectedId;
-          return (
-            <button
-              key={c.id}
-              onClick={() => onSelect(c.id)}
-              className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all text-left"
-              style={{ background: on ? "rgba(37,99,235,0.12)" : "rgba(255,255,255,0.02)", borderColor: on ? "rgba(37,99,235,0.5)" : "rgba(255,255,255,0.06)" }}
-            >
-              <span className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: "var(--rd-aurora)" }}>{c.initials}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-white text-[13px] font-semibold truncate">{c.name}</span>
-                <span className="block text-white/40 text-[11px] truncate">{c.last}</span>
-              </span>
-              <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status]}`}>{STATUS_LABEL[c.status]}</span>
-            </button>
-          );
-        })}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
+          {VIEW_TABS.map((t) => (
+            <button key={t.id} onClick={() => setView(t.id)} className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${view === t.id ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-200"}`}>{t.label}</button>
+          ))}
+        </div>
+        {STATUS_TABS.map((t) => (
+          <button key={t.id} onClick={() => setStatus(t.id)} className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${status === t.id ? "bg-blue-600 text-white" : "bg-gray-800/60 text-gray-400 hover:text-gray-200"}`}>{t.label}</button>
+        ))}
+        <div className="ml-auto flex items-center bg-gray-800/50 rounded-lg p-0.5">
+          {DATE_TABS.map((d) => (
+            <button key={d} onClick={() => setDate(d)} className={`px-2 py-1 rounded-md text-[10.5px] font-medium transition-colors ${date === d ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>{d}</button>
+          ))}
+        </div>
       </div>
+
+      {/* Content */}
+      {view === "notifications" ? (
+        <NotificationsView contacts={shown} onSelect={onSelect} />
+      ) : view === "pipeline" ? (
+        <PipelineView contacts={shown} selectedId={selectedId} onSelect={onSelect} />
+      ) : (
+        <ListView contacts={shown} selectedId={selectedId} onSelect={onSelect} />
+      )}
     </div>
   );
 }
