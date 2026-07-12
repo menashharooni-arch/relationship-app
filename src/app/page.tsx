@@ -101,7 +101,7 @@ export default function Home() {
         <section id="cards" className="rd-light relative py-24 sm:py-28">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl" data-reveal>
-              <Eyebrow dark={false}>Digital Cards</Eyebrow>
+              <Eyebrow dark={false}>Swift Cards</Eyebrow>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5">
                 A card so good, people <span className="rd-aurora-text">want</span> to keep it.
               </h2>
