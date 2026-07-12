@@ -46,7 +46,7 @@ function StatusBar() {
   );
 }
 
-function Phone({ label, children }: { label: string; children: React.ReactNode }) {
+function Phone({ label, labelClass, children }: { label: string; labelClass: string; children: React.ReactNode }) {
   return (
     <div className="shrink-0 flex flex-col items-center gap-3.5">
       <div className="rd-phone w-[212px]">
@@ -55,7 +55,7 @@ function Phone({ label, children }: { label: string; children: React.ReactNode }
           <div className="absolute inset-0 flex flex-col">{children}</div>
         </div>
       </div>
-      <span className="text-white/60 text-[13px] font-semibold">{label}</span>
+      <span className={`${labelClass} text-[13px] font-semibold`}>{label}</span>
     </div>
   );
 }
@@ -181,12 +181,13 @@ function SharePhone() {
   );
 }
 
-export default function ShareWaysPhones() {
+export default function ShareWaysPhones({ light = false }: { light?: boolean }) {
+  const labelClass = light ? "text-slate-500" : "text-white/60";
   return (
     <div className="flex gap-4 justify-start lg:justify-center overflow-x-auto rd-scrollbar-none pb-2 -mx-2 px-2">
-      <Phone label="Apple Wallet"><WalletPhone /></Phone>
-      <Phone label="QR code"><QrPhone /></Phone>
-      <Phone label="Share sheet"><SharePhone /></Phone>
+      <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
+      <Phone label="QR code" labelClass={labelClass}><QrPhone /></Phone>
+      <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>
     </div>
   );
 }
