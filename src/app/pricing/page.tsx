@@ -131,8 +131,6 @@ export default function PricingPage() {
       <main className="overflow-clip">
         {/* Hero */}
         <section className="relative pt-32 pb-14 sm:pt-40 sm:pb-16 text-center">
-          {/* subtle dark scrim so the nav stays readable over the white page */}
-          <div className="absolute top-0 inset-x-0 h-28 pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(11,16,34,0.9), rgba(11,16,34,0))" }} />
           <div className="relative max-w-3xl mx-auto px-5 sm:px-6">
             <h1 className="rd-display text-slate-900 text-[clamp(2.4rem,5.5vw,4rem)]" data-reveal>
               Simple, honest <span className="rd-aurora-text rd-aurora-anim">pricing.</span>

@@ -65,15 +65,7 @@ function Dropdown({ label, items }: { label: string; items: Item[] }) {
 }
 
 export default function SiteNav() {
-  const [stuck, setStuck] = useState(false);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setStuck(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -82,13 +74,15 @@ export default function SiteNav() {
 
   return (
     <>
+      {/* Always the dark glass state so the header is visible on every page,
+          including light/cream sections at the very top. */}
       <header
-        className="fixed top-0 inset-x-0 z-[70] transition-all duration-300"
+        className="fixed top-0 inset-x-0 z-[70]"
         style={{
-          background: stuck ? "rgba(10,11,16,0.72)" : "transparent",
-          backdropFilter: stuck ? "saturate(1.4) blur(14px)" : "none",
-          WebkitBackdropFilter: stuck ? "saturate(1.4) blur(14px)" : "none",
-          borderBottom: `1px solid ${stuck ? "var(--rd-line-dark)" : "transparent"}`,
+          background: "rgba(10,11,16,0.82)",
+          backdropFilter: "saturate(1.4) blur(14px)",
+          WebkitBackdropFilter: "saturate(1.4) blur(14px)",
+          borderBottom: "1px solid var(--rd-line-dark)",
         }}
       >
         <nav className="max-w-7xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between gap-4">
