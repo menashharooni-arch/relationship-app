@@ -227,7 +227,7 @@ export default function Home() {
             <div className="order-1 lg:order-2">
               <div data-reveal><Eyebrow dark={false}>Apple Watch</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-slate-900 mt-5" data-reveal>
-                Make your Apple Watch into a <span className="rd-aurora-text">tappable business card</span> you take with you everywhere.
+                Make your Apple Watch into a <span className="rd-aurora-text">scannable business card</span> you take with you everywhere.
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
                 Raise your wrist, show your code, and share your details hands-free — no phone required. Your card goes wherever you go.
