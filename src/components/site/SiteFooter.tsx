@@ -28,6 +28,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: "See it live", href: "/preview" },
       { label: "Templates", href: "/templates" },
+      { label: "Testimonials", href: "/testimonials" },
       { label: "Contact", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
@@ -72,7 +73,6 @@ export default function SiteFooter() {
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Privacy</Link>
             <Link href="/contact" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Contact</Link>
-            <span className="text-white/30 text-[13px]">Made for people who network.</span>
           </div>
         </div>
       </div>
