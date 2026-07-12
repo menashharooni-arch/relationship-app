@@ -12,18 +12,23 @@ export type PrefillSocials = Partial<
   Record<"linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube", string>
 >;
 
+export type PrefillAddress = Partial<Record<"street" | "unit" | "city" | "state" | "zip", string>>;
+
 export type CardPrefill = {
   name?: string;
   title?: string;
   company?: string;
   email?: string;
   phone?: string;
+  address?: PrefillAddress;
   bio?: string;
   website?: string;
   socials?: PrefillSocials;
   links?: { label: string; url: string }[];
   template?: string;
   accentColor?: string;
+  logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
+  headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   step?: number; // which wizard step to open on (1 details · 2 links · 3 design)
 };
 

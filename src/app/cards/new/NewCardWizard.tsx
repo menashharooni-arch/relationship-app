@@ -150,12 +150,15 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     if (p.company) setCompany(p.company);
     if (p.email) setEmail(p.email);
     if (p.phone) setPhones([{ number: p.phone, label: "mobile", showOnCard: true }]);
+    if (p.address) setAddress((prev) => ({ ...prev, ...p.address }));
     if (p.bio) setBio(p.bio);
     if (p.website) setWebsite(p.website);
     if (p.socials) setSocials((prev) => ({ ...prev, ...p.socials }));
     if (p.links?.length) setLinks(p.links.map((l) => ({ label: l.label, url: l.url })));
     if (p.template) setTemplate(p.template);
     if (p.accentColor) setTemplateStyleState((prev) => ({ ...prev, accentColor: p.accentColor }));
+    if (p.logoUrl) setLogoUrl(p.logoUrl);
+    if (p.headshotUrl) setHeadshotUrl(p.headshotUrl);
     if (p.step) setStep(Math.min(Math.max(p.step, 1), 3));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
