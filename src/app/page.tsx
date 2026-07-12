@@ -8,7 +8,7 @@ import HeroImage from "@/components/site/HeroImage";
 import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
-import WalletScene from "@/components/site/WalletScene";
+import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchScene from "@/components/site/WatchScene";
 import TemplateGallery from "@/components/site/TemplateGallery";
 
@@ -188,20 +188,35 @@ export default function Home() {
 
         {/* ═══════════════ APPLE WALLET ═══════════════ */}
         <section id="wallet" className="rd-dark relative py-24 sm:py-28 border-y border-white/8 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
+          <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[0.85fr_1.15fr] gap-14 items-center">
             <div>
-              <div data-reveal><Eyebrow>Apple Wallet</Eyebrow></div>
+              <div data-reveal><Eyebrow>Ways to share</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5" data-reveal>
                 Your card, always <span className="rd-aurora-text">in your pocket.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                Add your SwiftCard to Apple Wallet and it&apos;s a swipe away — right next to your boarding passes and payment cards. Pull it up, let them scan, done. No signal, no app, no fumbling.
+                However you meet someone, there&apos;s a way to hand them your card in a second — no app, no signal, no fumbling.
               </p>
+              <ul className="mt-7 space-y-3.5" data-reveal>
+                {[
+                  "Apple Wallet — a swipe away, next to your passes",
+                  "QR code — they scan, your card opens instantly",
+                  "Share sheet — text, email, AirDrop, or any app",
+                  "NFC tap, a link, or your email signature",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-3 text-white/75 text-[15px] leading-snug">
+                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.16)" }}>
+                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
               <div className="mt-7" data-reveal>
-                <Link href="/cards/new" className="rd-btn rd-btn-primary">Add yours to Wallet</Link>
+                <Link href="/cards/new" className="rd-btn rd-btn-primary">Add SwiftCard to Wallet</Link>
               </div>
             </div>
-            <div className="flex justify-center" data-reveal="scale"><WalletScene /></div>
+            <div className="flex justify-center" data-reveal="scale"><ShareWaysPhones /></div>
           </div>
         </section>
 
