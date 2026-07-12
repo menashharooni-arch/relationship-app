@@ -13,6 +13,7 @@ import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
 import { buildConnectLinks } from "@/lib/social-url";
+import CardMiniBuilder from "./CardMiniBuilder";
 
 // Interactive template gallery for the homepage. It renders the REAL card
 // templates (same components, same sample data as /templates and the live
@@ -219,6 +220,9 @@ export default function TemplateGallery() {
               </button>
             );
           })}
+
+          {/* 6th tile — build your own in 60 seconds */}
+          <CardMiniBuilder />
         </div>
       </div>
     </div>

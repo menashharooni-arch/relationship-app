@@ -6,7 +6,9 @@ import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import HeroImage from "@/components/site/HeroImage";
 import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
+import SwiftLinkMiniBuilder from "@/components/site/SwiftLinkMiniBuilder";
 import SignatureDemo from "@/components/site/SignatureDemo";
+import SignatureMiniBuilder from "@/components/site/SignatureMiniBuilder";
 import DashboardDemo from "@/components/site/DashboardDemo";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
@@ -142,6 +144,7 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <SwiftLinkMiniBuilder />
             </div>
             <div className="flex justify-center" data-reveal="scale">
               <SwiftLinksPhone />
@@ -162,6 +165,7 @@ export default function Home() {
               </p>
             </div>
             <div data-reveal="fade"><SignatureDemo /></div>
+            <SignatureMiniBuilder />
           </div>
         </section>
 
