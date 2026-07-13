@@ -613,14 +613,26 @@ export default async function DashboardPage({
                     { id: "locations", label: "Locations" },
                   ] as const).map((r) => (
                     <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors inline-flex items-center gap-1 ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                       {r.label}
+                      {r.id === "locations" && !isPro && (
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-70"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
+                      )}
                     </Link>
                   ))}
                 </div>
               </div>
               {viewsRange === "locations" ? (
-                topLocations.length > 0 ? (
+                !isPro ? (
+                  <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-600/15 border border-blue-500/30 flex items-center justify-center mx-auto mb-3">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                    </div>
+                    <p className="text-white text-sm font-semibold">See where your views come from</p>
+                    <p className="text-gray-500 text-xs mt-1 mb-4 leading-relaxed max-w-[280px] mx-auto">Top locations are part of full analytics on Pro — see which cities are opening your card and links.</p>
+                    <Link href="/pricing" className="inline-block text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-colors">Upgrade to Pro →</Link>
+                  </div>
+                ) : topLocations.length > 0 ? (
                   <div className="space-y-2">
                     {topLocations.map((loc) => (
                       <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">

@@ -8,6 +8,25 @@ import AnalyticsProvider from "@/components/AnalyticsProvider";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+// Organization structured data (schema.org). Feeds Google's brand knowledge
+// panel with the correct name, logo, operator, and founder — the highest-impact
+// Google Search signal for a SaaS. Only verifiable facts; no invented profiles.
+const ORG_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "SwiftCard",
+  legalName: "ORION RE SERVICES INC",
+  url: APP_URL,
+  logo: `${APP_URL}/brand-icon.png`,
+  description:
+    "SwiftCard is a digital business card that shares itself — build your card once and share it by tap, QR code, Apple Wallet, or link, with built-in lead capture and automatic follow-up.",
+  founder: { "@type": "Person", name: "Aaron Lavi", jobTitle: "Co-Founder & CEO" },
+  foundingLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "New York", addressRegion: "NY", addressCountry: "US" } },
+  contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${APP_URL}/contact` },
+};
+
 export const metadata: Metadata = {
   // Required so file-based opengraph-image URLs resolve to ABSOLUTE links on the
   // production domain — otherwise share previews (iMessage, WhatsApp, social)
@@ -46,6 +65,12 @@ export default function RootLayout({
             __html:
               "try{document.documentElement.classList.add('sc-js');if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
           }}
+        />
+        {/* Brand structured data for Google Search (JSON-LD). Server-rendered
+            static markup — safe as a raw <script> in a Server Component. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
         />
         <ServiceWorkerRegistrar />
         <AnalyticsProvider />
