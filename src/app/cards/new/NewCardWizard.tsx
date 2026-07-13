@@ -14,6 +14,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
+import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -367,13 +368,18 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   return (
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
-      <div className="max-w-sm mx-auto">
+      <div className={step === 4 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
         <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
           Dashboard
         </Link>
+
+        {/* Steps 1–3: form on the left, a live card preview pinned alongside
+            (right on desktop, top on mobile). Step 4 (success) is full-width. */}
+        <div className={step === 4 ? "" : "grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start"}>
+        <div className={step === 4 ? "" : "min-w-0 order-2 lg:order-1"}>
 
         {/* Step indicator (hidden on the post-create success screen) */}
         {step <= 3 && (
@@ -694,44 +700,18 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-2">Choose your design</label>
 
-              {/* Preview (or custom designer when custom + Pro) */}
-              {customSelected && isPro ? (
+              {/* Custom designer is the editing surface for the custom template;
+                  the standard card preview lives in the pinned preview column. */}
+              {customSelected && isPro && (
                 <div className="mb-3">
                   <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
                 </div>
-              ) : (
-                <div className="rounded-2xl overflow-hidden border border-gray-800 mb-3">
-                  {/* Scale from the 460px natural width (same as the published
-                      card) so a long name/title/company never clips in-preview. */}
-                  <CardScaler>
-                    <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
-                  </CardScaler>
-                </div>
               )}
 
-              {/* Custom design — first option */}
-              <button
-                type="button"
-                onClick={() => { if (isPro) setTemplate("custom"); }}
-                disabled={!isPro}
-                className="w-full flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl border transition-colors disabled:opacity-60 mb-2"
-                style={{
-                  background: customSelected ? "#1D4ED8" : "#111827",
-                  borderColor: customSelected ? "#1D4ED8" : "#374151",
-                  color: customSelected ? "#fff" : "#9ca3af",
-                }}
-              >
-                <span>
-                  Custom design
-                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
-                </span>
-                <span>{customSelected ? "Selected" : isPro ? "Select" : "🔒"}</span>
-              </button>
-              {!isPro && (
-                <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mb-2">
-                  Upgrade to Pro to design your own card →
-                </Link>
-              )}
+              {/* Custom design — the freeform "edit every element" path */}
+              <div className="mb-2">
+                <CustomDesignCard isPro={isPro} selected={customSelected} onSelect={() => setTemplate("custom")} />
+              </div>
 
               {/* Standard templates */}
               <div className="grid grid-cols-2 gap-2">
@@ -787,6 +767,21 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
             </div>
           </div>
         )}
+        </div>{/* editor column */}
+
+        {/* Live preview — pinned alongside on desktop, above the form on mobile */}
+        {step !== 4 && (
+          <div className="order-1 lg:order-2 lg:sticky lg:top-6">
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+            <div className="rounded-2xl overflow-hidden border border-gray-800">
+              <CardScaler>
+                <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+              </CardScaler>
+            </div>
+            <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
+          </div>
+        )}
+        </div>{/* grid */}
       </div>
     </main>
     {/* Guest plan step — after the card is built, pick a plan, THEN create the
