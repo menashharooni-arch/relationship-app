@@ -108,7 +108,7 @@ export default function Home() {
                 A card so good, people <span className="rd-aurora-text">want</span> to keep it.
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed">
-                Designer templates, your colors, your photo, your logo — a scannable QR and a Save Contact button built in. It looks like you spent a fortune. You spent a minute.
+                Designer templates, your colors, your photo, your logo — a scannable QR and a Save Contact button built in. It looks like you spent a fortune. You spent 60 seconds.
               </p>
             </div>
 
@@ -283,7 +283,7 @@ export default function Home() {
               Be the one they <span className="rd-aurora-text rd-aurora-anim">remember.</span>
             </h2>
             <p className="text-white/60 text-[1.15rem] mt-5 max-w-[520px] mx-auto" data-reveal>
-              Your free SwiftCard is a minute away. Share it today and watch your contacts roll in.
+              Your free SwiftCard is 60 seconds away. Share it today and watch your contacts roll in.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>

@@ -41,7 +41,7 @@ STRICT RULES
 - Keep answers short (2-5 sentences), plain language, no pressure. End with a light pointer to /cards/new or /pricing when it fits naturally.`;
 
 const FALLBACK =
-  "I can help with questions about SwiftCard — what it is, pricing, and how it works. For anything else, reach the team at swiftcard.me/contact. Want to see it in action? You can build a free card in about a minute at swiftcard.me/cards/new.";
+  "I can help with questions about SwiftCard — what it is, pricing, and how it works. For anything else, reach the team at swiftcard.me/contact. Want to see it in action? You can build a free card in about 60 seconds at swiftcard.me/cards/new.";
 
 // ── Instant answers (free, work with no AI provider) ────────────────────────
 type KbEntry = { triggers: string[]; answer: string };
@@ -55,7 +55,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["what is swiftcard", "what is this", "what does swiftcard do", "how does it work", "what do you sell"],
     answer:
-      "SwiftCard is a digital business card. Build your card once, then share it by link, QR code, Apple Wallet, or NFC — the other person needs no app; it opens in their browser and saves to their phone in one tap. Everyone who shares their info back lands in your contacts with automatic follow-up. You can build one free in about a minute at swiftcard.me/cards/new.",
+      "SwiftCard is a digital business card. Build your card once, then share it by link, QR code, Apple Wallet, or NFC — the other person needs no app; it opens in their browser and saves to their phone in one tap. Everyone who shares their info back lands in your contacts with automatic follow-up. You can build one free in about 60 seconds at swiftcard.me/cards/new.",
   },
   {
     triggers: ["price", "pricing", "cost", "how much", "expensive", "plans", "subscription"],
@@ -100,7 +100,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["review", "reviews", "testimonial", "rating", "legit", "trust", "scam", "who uses"],
     answer:
-      "Honest answer: SwiftCard is new, and we don't publish reviews we don't have — no invented ratings here. The best way to judge it is to try it: the free plan takes about a minute to set up at swiftcard.me/cards/new. You can also see what it does for different professions at swiftcard.me/testimonials.",
+      "Honest answer: SwiftCard is new, and we don't publish reviews we don't have — no invented ratings here. The best way to judge it is to try it: the free plan takes about 60 seconds to set up at swiftcard.me/cards/new. You can also see what it does for different professions at swiftcard.me/testimonials.",
   },
   {
     triggers: ["privacy", "data", "secure", "security", "gdpr", "sell my data"],

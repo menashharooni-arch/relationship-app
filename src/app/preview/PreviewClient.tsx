@@ -155,7 +155,7 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
       {/* Peak-interest CTA — they're literally holding the product right now */}
       <div className="shrink-0 border-t border-gray-800 bg-gray-950/95 backdrop-blur px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-3">
-          <p className="text-gray-400 text-sm flex-1 hidden sm:block">Like what you see? Yours takes about a minute.</p>
+          <p className="text-gray-400 text-sm flex-1 hidden sm:block">Like what you see? Yours is 60 seconds away.</p>
           <Link
             href="/join?src=preview"
             className="flex-1 sm:flex-none text-center text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-6 py-3 rounded-full transition-colors shadow-lg shadow-blue-900/40"

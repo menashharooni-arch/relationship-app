@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 type Props = {
   url: string;
@@ -21,6 +22,9 @@ export default function ShareButton({
   const [status, setStatus] = useState<"idle" | "copied" | "menu">("idle");
 
   async function handleShare() {
+    // Conversion moment for logged-out visitors on public pages — the popup
+    // host only mounts there, so this is a no-op on the owner's dashboard.
+    triggerSignupNudge("share_card");
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         // Share ONLY the link. iMessage (and most messengers) render the rich
