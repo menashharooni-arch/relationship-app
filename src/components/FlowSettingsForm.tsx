@@ -22,18 +22,10 @@ const DEFAULT_PRESETS = {
   "3": { name: "Long-term", days: [1, 30, 90, 180, 365] },
 };
 
-const GLOBAL_DAYS: { key: keyof Omit<FlowSettings, "presets" | "customNote">; label: string; desc: string }[] = [
-  { key: "day1",  label: "Day 1 Email",  desc: "Sent the day after someone scans your card" },
-  { key: "day15", label: "Day 15 Email", desc: "Mid-month reminder to follow up with new leads" },
-  { key: "day30", label: "Day 30 Email", desc: "End-of-month check-in for older leads" },
-];
-
 export default function FlowSettingsForm({
   initialSettings,
-  isPro,
 }: {
   initialSettings: FlowSettings;
-  isPro: boolean;
 }) {
   const [settings, setSettings] = useState<FlowSettings>({
     ...initialSettings,
@@ -41,20 +33,6 @@ export default function FlowSettingsForm({
     customNote: initialSettings.customNote ?? "",
   });
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-
-  function toggleDay(key: keyof Omit<FlowSettings, "presets" | "customNote">) {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: { ...(prev[key] as FlowDay), enabled: !(prev[key] as FlowDay).enabled },
-    }));
-  }
-
-  function setTime(key: keyof Omit<FlowSettings, "presets" | "customNote">, time: string) {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: { ...(prev[key] as FlowDay), time },
-    }));
-  }
 
   function setPresetName(preset: "1" | "2" | "3", name: string) {
     setSettings((prev) => ({
@@ -100,55 +78,16 @@ export default function FlowSettingsForm({
   return (
     <div className="space-y-6">
 
-      {/* Global reminder emails */}
-      <div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Global Reminder Emails</p>
-        <div className="bg-[#F0EBE1] border border-[#E4DDD4] rounded-2xl px-4 py-3 mb-3">
-          <p className="text-slate-600 text-sm leading-relaxed">
-            These emails go to <strong>you</strong> reminding you to follow up with new leads.
-          </p>
-        </div>
-        <div className="space-y-3">
-          {GLOBAL_DAYS.map(({ key, label, desc }) => {
-            const day = settings[key] as FlowDay;
-            const locked = !isPro && key !== "day1";
-            return (
-              <div key={key} className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl px-4 py-4" style={{ opacity: locked ? 0.5 : 1 }}>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-slate-900 font-semibold text-sm">{label}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">{desc}</p>
-                  </div>
-                  <button
-                    onClick={() => { if (!locked) toggleDay(key); }}
-                    disabled={locked}
-                    className="relative w-10 h-5.5 rounded-full transition-colors duration-200 shrink-0"
-                    style={{ background: day.enabled ? "#1D4ED8" : "#D1C9BC", width: "42px", height: "22px" }}
-                  >
-                    <div
-                      className="absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform duration-200"
-                      style={{ width: "18px", height: "18px", transform: day.enabled ? "translateX(21px)" : "translateX(2px)" }}
-                    />
-                  </button>
-                </div>
-                {day.enabled && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500">Send at</label>
-                    <input
-                      type="time"
-                      value={day.time}
-                      onChange={(e) => { if (!locked) setTime(key, e.target.value); }}
-                      disabled={locked}
-                      className="bg-[#F0EBE1] border border-[#E4DDD4] text-slate-900 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
-                    />
-                    <span className="text-xs text-slate-400">UTC</span>
-                  </div>
-                )}
-                {locked && <p className="text-[11px] text-[#1D4ED8] mt-1.5">Pro plan required</p>}
-              </div>
-            );
-          })}
-        </div>
+      {/* How automations work — nothing sends automatically unless YOU set up a
+          follow-up sequence on a contact. SwiftCard never sends you reminder
+          emails, and never messages your contacts on its own. */}
+      <div className="bg-[#F0EBE1] border border-[#E4DDD4] rounded-2xl px-4 py-3.5">
+        <p className="text-slate-700 text-sm font-semibold mb-1">You&apos;re in full control</p>
+        <p className="text-slate-600 text-[13px] leading-relaxed">
+          SwiftCard never emails you follow-up reminders, and never messages a contact on its own.
+          A message only goes out when <strong>you</strong> add a follow-up sequence to a contact —
+          using one of the presets below.
+        </p>
       </div>
 
       {/* Follow-up presets */}

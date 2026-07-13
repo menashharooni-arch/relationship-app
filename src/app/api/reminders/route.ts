@@ -3,17 +3,12 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { isPaidPlan } from "@/lib/plan";
-import { deliverToLead, resolveSignatureImageUrl } from "@/lib/messaging";
+import { deliverToLead } from "@/lib/messaging";
 import { expireFreeMonths } from "@/lib/referral-server";
 import { insertNotification } from "@/lib/notify";
-import { trialEndingSoonEmail, trialEndedEmail, neverSharedNudgeEmail } from "@/lib/email-templates";
-import { aiComplete } from "@/lib/ai";
-import { escapeHtml } from "@/lib/escape";
-import { contactUnsubUrl } from "@/lib/messaging";
+import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
 
-type FlowDay = { enabled: boolean; time: string };
-type FlowSettings = { day1: FlowDay; day15: FlowDay; day30: FlowDay; customNote?: string };
 
 // Automations send AS the card the contact came through: each card has its own
 // name/title/company/email, so the sender identity (and the reply-to address)
@@ -50,76 +45,6 @@ function channelPaused(tags: string[] | null | undefined, channel: "email" | "sm
   return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
 }
 
-const DEFAULT_FLOW: FlowSettings = {
-  day1:  { enabled: true, time: "13:00" },
-  day15: { enabled: true, time: "13:00" },
-  day30: { enabled: true, time: "13:00" },
-};
-
-const SEQUENCE: {
-  day: 1 | 15 | 30;
-  key: "day1" | "day15" | "day30";
-  subject: (n: string) => string;
-  intro: string;
-  leadSubject: (ownerFirst: string) => string;
-  leadPrompt: (ownerName: string, ownerTitle: string, ownerCompany: string, leadFirst: string, leadMessage: string) => string;
-  leadFallback: (ownerFirst: string) => string;
-}[] = [
-  {
-    day: 1,
-    key: "day1",
-    subject: (name) => `Follow up with ${name} today`,
-    intro: "just shared their info with you. The best time to reach out is now.",
-    leadSubject: (ownerFirst) => `${ownerFirst} following up`,
-    leadPrompt: (ownerName, ownerTitle, ownerCompany, leadFirst, leadMessage) =>
-      `Write a short, warm 2-3 sentence follow-up email body from ${ownerName}${ownerTitle ? ` (${ownerTitle})` : ""}${ownerCompany ? ` at ${ownerCompany}` : ""} to ${leadFirst}, who saved their contact info with them yesterday.${leadMessage ? `\n${leadFirst} mentioned: "${leadMessage}"` : ""}
-
-Rules:
-- Sound like a real person, not a template
-- Warm but not over the top
-- End with one natural next step (offer to chat, answer questions, etc.)
-- Do NOT start with "Hey" or "Hi ${leadFirst}"
-- Do NOT mention "digital business card" or "networking"
-- Return only the body text (2-3 sentences, no subject, no sign-off)`,
-    leadFallback: () => "It was great connecting with you! Just wanted to make sure you have my contact info — feel free to reach out anytime.",
-  },
-  {
-    day: 15,
-    key: "day15",
-    subject: (name) => `15-day check-in: ${name}`,
-    intro: "connected with you 15 days ago. A quick message keeps the relationship warm.",
-    leadSubject: (ownerFirst) => `Checking in — ${ownerFirst}`,
-    leadPrompt: (ownerName, ownerTitle, ownerCompany, leadFirst, leadMessage) =>
-      `Write a brief, natural 2-3 sentence check-in email from ${ownerName}${ownerTitle ? ` (${ownerTitle})` : ""}${ownerCompany ? ` at ${ownerCompany}` : ""} to ${leadFirst}, who connected with them about 2 weeks ago.${leadMessage ? `\n${leadFirst} originally mentioned: "${leadMessage}"` : ""}
-
-Rules:
-- Sound genuinely interested, not salesy
-- Reference the time that has passed naturally
-- End with a soft, low-pressure next step
-- Do NOT start with "Hey" or "Hi ${leadFirst}"
-- Do NOT mention "digital business card" or "networking"
-- Return only the body text (2-3 sentences, no subject, no sign-off)`,
-    leadFallback: (ownerFirst) => `Just checking in — it's been a couple of weeks since we connected and I wanted to see how things are going. Don't hesitate to reach out if there's anything I can help with. — ${ownerFirst}`,
-  },
-  {
-    day: 30,
-    key: "day30",
-    subject: (name) => `Don't lose ${name}`,
-    intro: "shared their info 30 days ago. One message now could turn this into real business.",
-    leadSubject: (ownerFirst) => `One more thing — ${ownerFirst}`,
-    leadPrompt: (ownerName, ownerTitle, ownerCompany, leadFirst, leadMessage) =>
-      `Write a concise, genuine 2-3 sentence final touchpoint email from ${ownerName}${ownerTitle ? ` (${ownerTitle})` : ""}${ownerCompany ? ` at ${ownerCompany}` : ""} to ${leadFirst}, who they met about a month ago.${leadMessage ? `\n${leadFirst} originally mentioned: "${leadMessage}"` : ""}
-
-Rules:
-- Acknowledge it's been a while without making it awkward
-- Keep it brief and human
-- Make the call to action easy to say yes to
-- Do NOT start with "Hey" or "Hi ${leadFirst}"
-- Do NOT mention "digital business card" or "networking"
-- Return only the body text (2-3 sentences, no subject, no sign-off)`,
-    leadFallback: (ownerFirst) => `It's been about a month since we connected — I just wanted to circle back in case the timing is better now. Would love to reconnect when you're ready. — ${ownerFirst}`,
-  },
-];
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
@@ -183,40 +108,8 @@ export async function GET(req: NextRequest) {
     console.error("[reminders] trial-ending warn failed:", e);
   }
 
-  // Nudge anyone who created a card ~1 day ago but never actually shared it
-  // (zero recorded card views) — the easiest revival: download the QR code or
-  // drop the card into an email signature. Fires once per account.
-  try {
-    const nowMs = Date.now();
-    const windowStart = new Date(nowMs - 2 * 86400000).toISOString();
-    const windowEnd = new Date(nowMs - 1 * 86400000).toISOString();
-    const { data: newSignups } = await supabase
-      .from("profiles")
-      .select("id, username, name, email, customization, created_at")
-      .gte("created_at", windowStart)
-      .lt("created_at", windowEnd)
-      .not("username", "is", null);
-
-    for (const u of newSignups ?? []) {
-      const cust = (u.customization ?? {}) as Record<string, unknown>;
-      if (cust._deleted || cust._neverSharedNudgeSent || !u.email || !u.username) continue;
-
-      const { count } = await supabase
-        .from("card_views")
-        .select("id", { count: "exact", head: true })
-        .eq("username", u.username as string);
-
-      if (!count) {
-        const cardUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/card/${u.username}`;
-        const tpl = neverSharedNudgeEmail({ firstName: (u.name as string)?.split(" ")[0] || "there", cardUrl });
-        await resend.emails.send({ ...tpl, to: u.email as string }).catch(() => {});
-      }
-      // Mark sent either way — this is a one-time nudge, not a recurring check.
-      await supabase.from("profiles").update({ customization: { ...cust, _neverSharedNudgeSent: true } }).eq("id", u.id);
-    }
-  } catch (e) {
-    console.error("[reminders] never-shared nudge failed:", e);
-  }
+  // (Removed) The "you haven't shared your card yet" nudge email — users should
+  // not receive engagement/reminder emails from SwiftCard.
 
   // Grace-period expiry: a failed renewal (invoice.payment_failed, in the Stripe
   // webhook) stamps customization._paymentFailedAt and keeps full access for 7
@@ -262,182 +155,6 @@ export async function GET(req: NextRequest) {
     await reportError("reminders.grace-period.sweep", e);
   }
 
-  for (const step of SEQUENCE) {
-    const now = Date.now();
-    const windowStart = new Date(now - (step.day + 1) * 86400000).toISOString();
-    const windowEnd   = new Date(now - step.day       * 86400000).toISOString();
-
-    const { data: candidates } = await supabase
-      .from("leads")
-      .select("id, name, email, phone, message, notes, card_owner, tags, follow_up_sequence")
-      .gte("created_at", windowStart)
-      .lt("created_at", windowEnd);
-
-    if (!candidates?.length) continue;
-
-    const ids = candidates.map((l) => l.id);
-    const { data: alreadySent } = await supabase
-      .from("lead_reminders")
-      .select("lead_id")
-      .in("lead_id", ids)
-      .eq("day_trigger", step.day);
-
-    const sentSet = new Set(alreadySent?.map((r) => r.lead_id) ?? []);
-    // Skip the default Day-1/15/30 flow for leads that have a custom follow-up
-    // sequence — that sequence takes over, so we never double-send.
-    const pending = candidates.filter((l) => {
-      if (sentSet.has(l.id) || (l.tags ?? []).includes("flow-paused")) return false;
-      const seq = (l as { follow_up_sequence?: unknown[] }).follow_up_sequence;
-      if (Array.isArray(seq) && seq.length > 0) return false;
-      return true;
-    });
-    if (!pending.length) continue;
-
-    // Group by card_owner
-    const byOwner: Record<string, typeof pending> = {};
-    for (const lead of pending) {
-      byOwner[lead.card_owner] = byOwner[lead.card_owner] ?? [];
-      byOwner[lead.card_owner].push(lead);
-    }
-
-    for (const [username, leads] of Object.entries(byOwner)) {
-      // Sender = the CARD's identity; profile = account (plan/settings/owner email).
-      const resolved = await resolveCardSender(supabase, username);
-      if (!resolved?.profile?.email) continue;
-      const { profile, sender } = resolved;
-      const ownerAbout = ((profile.customization as { about?: string } | null)?.about ?? "").trim();
-
-      // Free gets only the Day-1 reminder; multi-day automation is Pro/Office.
-      if (step.key !== "day1" && !isPaidPlan(profile.plan)) continue;
-
-      // Respect the user's flow settings
-      const flow: FlowSettings = (profile.flow_settings as FlowSettings) ?? DEFAULT_FLOW;
-      const dayConfig: FlowDay = flow[step.key] ?? DEFAULT_FLOW[step.key];
-
-      // Skip if this reminder day is disabled
-      if (!dayConfig.enabled) continue;
-      // NOTE: not gated to the configured hour — the cron runs once a day, so a
-      // due step fires on that run regardless of its set time (time-of-day is
-      // best-effort). lead_reminders dedup below prevents a repeat next day.
-
-      const ownerFirst = profile.name?.split(" ")[0] ?? "there";
-      const isPlural = leads.length > 1;
-      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
-      // Mark this batch BEFORE sending. A crash mid-send then SKIPS the batch on
-      // the next run instead of re-emailing everyone who already got one —
-      // a missed reminder is recoverable, a duplicate blast to leads is not.
-      await supabase.from("lead_reminders").insert(
-        leads.map((l) => ({ lead_id: l.id, day_trigger: step.day }))
-      );
-
-      // Every lead-supplied field is escaped — this is visitor-controlled data
-      // going into HTML delivered to the owner's trusted inbox.
-      const leadRows = leads.map((l) => `
-        <tr>
-          <td style="padding:12px 0;border-bottom:1px solid #1f2937;">
-            <p style="margin:0;font-weight:600;color:#ffffff;">${escapeHtml(l.name)}</p>
-            <a href="mailto:${escapeHtml(l.email ?? "")}" style="color:#60a5fa;font-size:13px;">${escapeHtml(l.email ?? "")}</a>
-            ${l.phone ? `<p style="margin:4px 0 0;color:#6b7280;font-size:13px;">${escapeHtml(l.phone)}</p>` : ""}
-            ${l.notes ? `<p style="margin:4px 0 0;color:#9ca3af;font-size:12px;font-style:italic;">${escapeHtml(l.notes)}</p>` : ""}
-          </td>
-        </tr>`).join("");
-
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-        to: profile.email,
-        subject: step.subject(isPlural ? `${leads.length} leads` : leads[0].name),
-        html: `
-          <div style="background:#030712;min-height:100vh;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-            <div style="max-width:520px;margin:0 auto;">
-              <p style="font-size:11px;font-weight:700;letter-spacing:0.2em;color:#4b5563;text-transform:uppercase;margin:0 0 32px;">SWIFTCARD</p>
-              <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0 0 8px;">Hey ${ownerFirst}</h1>
-              <p style="color:#9ca3af;font-size:15px;margin:0 0 32px;">
-                ${isPlural ? `${leads.length} people` : escapeHtml(leads[0].name)} ${step.intro}
-              </p>
-              <table style="width:100%;border-collapse:collapse;">${leadRows}</table>
-              <div style="margin-top:32px;">
-                <a href="${APP_URL}/dashboard"
-                   style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:99px;font-size:14px;font-weight:600;">
-                  Open Dashboard →
-                </a>
-              </div>
-              <p style="color:#374151;font-size:12px;margin-top:40px;border-top:1px solid #111827;padding-top:20px;">
-                You're receiving this because you enabled day-${step.day} reminders in SwiftCard.
-                <a href="${APP_URL}/settings/flows" style="color:#4b5563;">Manage settings</a>
-              </p>
-            </div>
-          </div>`,
-      });
-
-      // Send personalized AI follow-up to each lead — AS the card's identity,
-      // respecting the contact's per-channel switches (email/text toggles).
-      {
-        const senderFirst = sender.name?.split(" ")[0] ?? ownerFirst;
-        // Sign every automated email with the sender's ACTUAL Swift Signature
-        // card image — the exact one they paste from the dashboard — resolved
-        // once per owner. Falls back to a text card block if they haven't
-        // generated their signature yet (or for image-blocked email clients).
-        const cardLink = `${APP_URL}/card/${username}`;
-        const sigUrl = await resolveSignatureImageUrl(username);
-        const signatureBlock = sigUrl
-          ? `<a href="${cardLink}" style="text-decoration:none;"><img src="${sigUrl}" alt="${sender.name ?? ""}${sender.company ? `, ${sender.company}` : ""} — SwiftCard" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:12px;margin-bottom:24px;" /></a>`
-          : `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
-                    <p style="margin:0 0 6px;font-weight:700;color:#111827;font-size:15px;">${sender.name ?? ""}</p>
-                    ${sender.title ? `<p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${sender.title}</p>` : ""}
-                    ${sender.company ? `<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">${sender.company}</p>` : ""}
-                    ${sender.email ? `<a href="mailto:${sender.email}" style="display:block;color:#2563eb;font-size:13px;margin:0 0 4px;">${sender.email}</a>` : ""}
-                    ${sender.phone ? `<a href="tel:${sender.phone}" style="display:block;color:#2563eb;font-size:13px;">${sender.phone}</a>` : ""}
-                  </div>`;
-        for (const lead of leads) {
-          // Which channel would this go out on? Email first, SMS only when the
-          // contact has no email. Skip entirely when that channel is switched off.
-          const effective: "email" | "sms" | null = lead.email ? "email" : lead.phone ? "sms" : null;
-          if (!effective || channelPaused(lead.tags, effective)) continue;
-
-          const leadFirst = lead.name.split(" ")[0];
-
-          const aiPrompt = `${step.leadPrompt(
-            sender.name ?? senderFirst,
-            sender.title ?? "",
-            sender.company ?? "",
-            leadFirst,
-            lead.message ?? ""
-          )}${ownerAbout ? `\n\nWhat I do/offer (reference naturally, speak to the right things): ${ownerAbout}` : ""}`;
-          const aiBody = (await aiComplete(aiPrompt, { maxTokens: 200 })) ?? "";
-
-          const emailBody = aiBody || step.leadFallback(senderFirst);
-          const customNote = flow.customNote?.trim();
-          const fullBody = customNote ? `${emailBody}\n\n${customNote}` : emailBody;
-
-          await deliverToLead({
-            leadId: lead.id,
-            cardOwner: username,
-            lead: { email: lead.email, phone: lead.phone, name: lead.name },
-            sender: { name: sender.name, company: sender.company, phone: sender.phone, email: sender.email, website: null },
-            text: fullBody,
-            cardUsername: username,
-            channel: effective,
-            email: {
-              subject: step.leadSubject(senderFirst),
-              html: `
-              <div style="background:#ffffff;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                <div style="max-width:480px;margin:0 auto;">
-                  <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 24px;">Hey ${escapeHtml(leadFirst)},<br/><br/>${escapeHtml(fullBody).replace(/\n/g, "<br/>")}</p>
-                  ${signatureBlock}
-                  <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;">
-                    <p style="color:#d1d5db;font-size:11px;margin:0;">Sent via SwiftCard${lead.email ? ` · <a href="${contactUnsubUrl(lead.email)}" style="color:#d1d5db;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
-                  </div>
-                </div>
-              </div>`,
-            },
-          });
-        }
-      }
-
-      totalSent++;
-    }
-  }
 
   // === PRESET-BASED SEQUENCE PROCESSING ===
   const todayStart = new Date();
@@ -501,6 +218,9 @@ export async function GET(req: NextRequest) {
     // Sender = the CARD's identity (name/company/email of the card this contact
     // came through), so replies go to the right inbox.
     const seqSender = owner.sender;
+    // Optional personal note the owner set (a calendar link, sign-off, etc.),
+    // appended to every step of THIS user-built sequence.
+    const customNote = ((owner.profile.flow_settings as { customNote?: string } | null)?.customNote ?? "").trim();
 
     // Working copy that ACCUMULATES sent_at stamps across this run. Stamping
     // against the original `seq` snapshot each time meant that when TWO steps
@@ -540,7 +260,9 @@ export async function GET(req: NextRequest) {
         cardOwner: seqLead.card_owner,
         lead: { email: seqLead.email, phone: seqLead.phone, name: seqLead.name },
         sender: { name: seqSender.name, company: seqSender.company, phone: seqSender.phone, email: seqSender.email, website: null },
-        text: asEmail ? `Hi ${leadFirst},\n\n${item.message}` : item.message,
+        text: asEmail
+          ? `Hi ${leadFirst},\n\n${item.message}${customNote ? `\n\n${customNote}` : ""}`
+          : `${item.message}${customNote ? `\n\n${customNote}` : ""}`,
         subject: item.subject?.trim() || `${ownerFirst} following up`,
         cardUsername: seqLead.card_owner,
         channel: itemChannel,
