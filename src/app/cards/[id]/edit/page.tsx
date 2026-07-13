@@ -65,7 +65,7 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
       {/* Backstop: resolves any still-pending guest draft claim that landed on an
           edit URL. No-ops once the draft is cleared. */}
       <GuestDraftClaim />
-      <div className="max-w-sm mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
