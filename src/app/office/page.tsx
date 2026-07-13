@@ -4,7 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import OfficeDashboard from "@/components/OfficeDashboard";
 import OfficeBranding from "@/components/OfficeBranding";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
-import Link from "next/link";
+import DashboardLink from "@/components/DashboardLink";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -99,9 +99,9 @@ export default async function OfficePage() {
             <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-1">SwiftCard</p>
             <h1 className="text-2xl font-bold text-slate-900">Team Dashboard</h1>
           </div>
-          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+          <DashboardLink className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
             ← My card
-          </Link>
+          </DashboardLink>
         </div>
 
         {!office ? (

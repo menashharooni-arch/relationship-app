@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import DashboardLink from "@/components/DashboardLink";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -84,12 +84,12 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="px-5 pt-10 pb-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Link href="/dashboard" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
+          <DashboardLink className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
             Dashboard
-          </Link>
+          </DashboardLink>
           <SwiftCardLogo size={28} />
         </div>
 

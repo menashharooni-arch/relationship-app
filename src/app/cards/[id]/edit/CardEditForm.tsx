@@ -8,6 +8,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import DashboardLink from "@/components/DashboardLink";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import CardScaler from "@/components/CardScaler";
@@ -262,8 +263,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       });
       if (res.ok) {
         setStatus("saved");
-        // Show the "Saved" confirmation briefly, then return to the dashboard.
-        setTimeout(() => { router.push("/dashboard"); }, 1000);
+        // Show the "Saved" confirmation briefly, then return to THIS card's
+        // dashboard (not the bare picker).
+        setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(card.username)}`); }, 1000);
       } else {
         setStatus("error");
         setTimeout(() => setStatus("idle"), 2500);
@@ -587,9 +589,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
         {/* Actions */}
         <div className="flex gap-3 mt-6">
-          <Link href="/dashboard" className="flex-1 text-center border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
+          <DashboardLink card={card.username} className="flex-1 text-center border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
             Cancel
-          </Link>
+          </DashboardLink>
           <button
             onClick={handleSave}
             disabled={status === "saving"}
