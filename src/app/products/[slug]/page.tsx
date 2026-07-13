@@ -271,7 +271,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(80% 120% at 50% 120%, rgba(93,107,255,0.32), transparent 60%)" }} />
           <div className="relative max-w-2xl mx-auto px-5 sm:px-6 text-center">
             <h2 className="rd-h2 text-white text-[clamp(2rem,4.4vw,3.2rem)]" data-reveal>Ready to be unforgettable?</h2>
-            <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>Your free SwiftCard is a minute away.</p>
+            <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>Your free SwiftCard is 60 seconds away.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
               <Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link>

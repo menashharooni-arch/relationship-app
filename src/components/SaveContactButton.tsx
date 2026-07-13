@@ -108,6 +108,10 @@ export default function SaveContactButton({
     // Guard against a double-tap while the headshot is still fetching — one save
     // per click, no duplicate downloads or duplicate activity entries.
     if (downloading) return;
+    // Conversion moment: the visitor just engaged — show the "create your free
+    // card" popup right away (once per session). The save still completes
+    // behind it, so the card owner never loses the contact save.
+    triggerSignupNudge("vcard");
     setDownloading(true);
     try {
     // One action = one activity entry. We record the save once (below, as
