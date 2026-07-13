@@ -176,6 +176,7 @@ export default function CustomCard({ data }: { data: CardData }) {
   const layout = data.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT;
   return (
     <div
+      className="sc-card"
       style={{
         position: "relative",
         width: "100%",

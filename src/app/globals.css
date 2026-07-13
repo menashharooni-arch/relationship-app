@@ -303,7 +303,7 @@ body {
 [data-sc-theme="light"] .sc-app .hover\:text-gray-300:hover { color: #44403C !important; }
 
 /* Accent panels: dark tints → light tints so text stays readable */
-[data-sc-theme="light"] .sc-app :is(.bg-blue-950\/30, .bg-blue-950\/40) { background-color: #EFF6FF !important; }
+[data-sc-theme="light"] .sc-app :is(.bg-blue-950, .bg-blue-950\/30, .bg-blue-950\/40) { background-color: #EFF6FF !important; }
 [data-sc-theme="light"] .sc-app .border-blue-800\/40 { border-color: #BFDBFE !important; }
 [data-sc-theme="light"] .sc-app :is(.text-blue-200, .text-blue-200\/90, .text-blue-300, .text-blue-300\/80) { color: #1D4ED8 !important; }
 [data-sc-theme="light"] .sc-app :is(.bg-amber-950\/30, .bg-amber-950\/40) { background-color: #FFFBEB !important; }
@@ -514,3 +514,16 @@ body {
   .rd-ll-shine { animation: none !important; opacity: 0 !important; }
   .rd-glisten-sweep { animation: none !important; opacity: 0 !important; }
 }
+
+/* ── Public card templates are theme-EXEMPT ─────────────────────────────────
+   Card designs are fixed (they render the public card), so the app's light
+   mode must never recolor their text — otherwise previews, downloads, and the
+   hidden signature/OG captures get dark names on dark panels. Restore the
+   templates' own colors inside any .sc-card, at higher specificity than the
+   light-mode remaps above. */
+[data-sc-theme="light"] .sc-app .sc-card .text-white { color: #ffffff !important; }
+[data-sc-theme="light"] .sc-app .sc-card .text-gray-200 { color: #e5e7eb !important; }
+[data-sc-theme="light"] .sc-app .sc-card .text-gray-300 { color: #d1d5db !important; }
+[data-sc-theme="light"] .sc-app .sc-card .text-gray-400 { color: #9ca3af !important; }
+[data-sc-theme="light"] .sc-app .sc-card .text-gray-500 { color: #6b7280 !important; }
+[data-sc-theme="light"] .sc-app .sc-card .text-gray-600 { color: #4b5563 !important; }

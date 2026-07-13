@@ -26,7 +26,7 @@ export default function ModernBold({ data }: { data: CardData }) {
 
   return (
     <div
-      className="relative w-full flex rounded-2xl overflow-hidden"
+      className="sc-card relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data),
         background: bg,
