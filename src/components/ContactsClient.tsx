@@ -144,11 +144,14 @@ export default function ContactsClient({
   primaryUsername,
   userCards = [],
   initialCardFilter = null,
+  initialSelectedId = null,
 }: {
   leads: Lead[];
   primaryUsername?: string;
   userCards?: { username: string; name: string }[];
   initialCardFilter?: string | null;
+  /** Deep link (?lead=) — open this contact's detail panel on load. */
+  initialSelectedId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   // Default to the card currently selected on the dashboard so only its contacts show.
@@ -168,7 +171,9 @@ export default function ContactsClient({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [selected, setSelected] = useState<Lead | null>(null);
+  const [selected, setSelected] = useState<Lead | null>(
+    initialSelectedId ? initialLeads.find((l) => l.id === initialSelectedId) ?? null : null,
+  );
   // Guards against out-of-order responses: if the user clicks a second contact
   // before the first contact's message/events fetch resolves, the stale fetch
   // must not overwrite the panel with the wrong contact's data.

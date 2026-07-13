@@ -26,13 +26,28 @@ function timeAgo(iso: string) {
 // active card's contacts ("shared their info" and "saved your contact").
 const CONTACT_TYPES = new Set(["new_lead", "contact_saved"]);
 
-export default function NotificationsPanel({ initial, card }: { initial: Notification[]; card?: string }) {
+export default function NotificationsPanel({
+  initial,
+  card,
+  leads = [],
+}: {
+  initial: Notification[];
+  card?: string;
+  leads?: { id: string; name: string }[];
+}) {
   const router = useRouter();
 
-  // A "new contact" notification is about a lead — clicking it takes the owner
-  // to their contacts (for the active card) where they can open that contact.
-  function openContacts() {
-    router.push(card ? `/contacts?card=${encodeURIComponent(card)}` : "/contacts");
+  // A contact notification is about a lead — clicking it opens THAT contact on
+  // the Contacts page. Notifications only store text, so match the lead by name
+  // against the title/body (longest name wins, so "Ann" can't shadow "Ann Lee").
+  // No match → the card's contacts list.
+  function openContactFor(n: Notification) {
+    const hay = `${n.title} ${n.body ?? ""}`.toLowerCase();
+    const match = leads
+      .filter((l) => l.name.trim() && hay.includes(l.name.trim().toLowerCase()))
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    const base = card ? `/contacts?card=${encodeURIComponent(card)}` : "/contacts?";
+    router.push(match ? `${base}${card ? "&" : ""}lead=${match.id}` : (card ? base : "/contacts"));
   }
   const [items, setItems] = useState<Notification[]>(initial);
   const [claiming, setClaiming] = useState<string | null>(null);
@@ -134,7 +149,7 @@ export default function NotificationsPanel({ initial, card }: { initial: Notific
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
             <div
               className={`min-w-0 flex-1 ${CONTACT_TYPES.has(n.type) ? "cursor-pointer" : ""}`}
-              onClick={CONTACT_TYPES.has(n.type) ? openContacts : undefined}
+              onClick={CONTACT_TYPES.has(n.type) ? () => openContactFor(n) : undefined}
               role={CONTACT_TYPES.has(n.type) ? "button" : undefined}
             >
               <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${CONTACT_TYPES.has(n.type) ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>

@@ -49,11 +49,12 @@ describe("hero cover image is the illustrated placeholder, not a real photo", ()
 });
 
 describe("no follow-up popup/modal was reintroduced", () => {
-  it("dashboard keeps the data-driven banner, not a popup", () => {
+  it("dashboard has no follow-up reminder surface at all", () => {
     const dash = read("src/app/dashboard/page.tsx");
-    // The real, data-driven banner copy stays.
-    expect(dash).toMatch(/follow-ups due today/);
-    // No modal/popup component is wired around follow-ups.
+    // The follow-up reminder banner was intentionally removed from the
+    // dashboard (July 2026) — no banner copy…
+    expect(dash).not.toMatch(/follow-ups due today/);
+    // …and no modal/popup component wired around follow-ups.
     expect(dash).not.toMatch(/FollowUpPopup|FollowUpModal/);
   });
 });
