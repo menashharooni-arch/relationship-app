@@ -17,7 +17,11 @@ const SUGGESTIONS = [
   "How do I upgrade to Pro?",
 ];
 
-export default function HelpWidget() {
+// Two presentations of the same assistant:
+//   default  — the full-width "Need help?" button used inline on Settings.
+//   floating — a chatbot bubble pinned bottom-right on app pages (sits above
+//              the mobile bottom nav; the open panel overlays it).
+export default function HelpWidget({ floating = false }: { floating?: boolean }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -53,18 +57,35 @@ export default function HelpWidget() {
 
   return (
     <>
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-2xl py-3 transition-colors"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 17h.008v.008H12V17z" />
-          <circle cx="12" cy="12" r="9" />
-        </svg>
-        Need help? Ask the assistant
-      </button>
+      {/* Trigger — floating chatbot bubble, or the inline Settings button */}
+      {floating ? (
+        !open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            title="Chat with the SwiftCard assistant"
+            aria-label="Open chat assistant"
+            className="fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/40 flex items-center justify-center transition-all hover:scale-105"
+            style={{ width: 52, height: 52 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.9} className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+          </button>
+        )
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-2xl py-3 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 17h.008v.008H12V17z" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          Need help? Ask the assistant
+        </button>
+      )}
 
       {/* Chat bubble */}
       {open && (
@@ -109,7 +130,7 @@ export default function HelpWidget() {
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="text-[11px] text-gray-300 bg-gray-800/80 hover:bg-gray-700 border border-gray-700 rounded-full px-2.5 py-1 transition-colors"
+                    className="text-[11px] text-gray-300 bg-gray-800/60 hover:bg-gray-700 border border-gray-700 rounded-full px-2.5 py-1 transition-colors"
                   >
                     {s}
                   </button>

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
+import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import GrowLinkButton from "@/components/GrowLinkButton";
@@ -64,6 +65,7 @@ export default async function ContactsPage({
   return (
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNav />
+      <HelpWidget floating />
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 

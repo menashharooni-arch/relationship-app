@@ -28,6 +28,7 @@ import AddContactModal from "@/components/AddContactModal";
 import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
+import HelpWidget from "@/components/HelpWidget";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -462,6 +463,7 @@ export default async function DashboardPage({
       </nav>
 
       <MobileNav />
+      <HelpWidget floating />
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 

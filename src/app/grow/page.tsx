@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getReferralProgress } from "@/lib/referral-server";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import MobileNav from "@/components/MobileNav";
+import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
 import RateUsCard from "@/components/RateUsCard";
 import GrowShare from "@/components/GrowShare";
@@ -55,6 +56,7 @@ export default async function GrowPage() {
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
       <MobileNav />
+      <HelpWidget floating />
 
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
