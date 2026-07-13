@@ -168,7 +168,7 @@ export function useGuestDraft(): {
   draft: GuestDraft | null;
   save: (p: Partial<GuestDraft>) => void;
   clear: () => void;
-  requireAuth: (action: string, run: () => void) => void;
+  requireAuth: (action: string, run: () => void, opts?: { forceGate?: boolean }) => void;
 } {
   const [draft, setDraft] = useState<GuestDraft | null>(null);
 
@@ -189,10 +189,15 @@ export function useGuestDraft(): {
     setDraft(null);
   }, []);
 
-  const requireAuth = useCallback((action: string, run: () => void) => {
+  const requireAuth = useCallback((action: string, run: () => void, opts?: { forceGate?: boolean }) => {
     // Logged in → just do it. Guest → persist and pop the gate; the action is
     // retried after they come back and the draft is claimed.
-    if (isAuthenticated()) {
+    //
+    // forceGate: ALWAYS pop the account gate, even when a session cookie is
+    // present. The marketing "new card" flow uses this so a card is never
+    // silently saved into whatever account happens to be logged in — the visitor
+    // must explicitly log in or sign up (with a different email → a new account).
+    if (!opts?.forceGate && isAuthenticated()) {
       run();
       return;
     }

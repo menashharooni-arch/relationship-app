@@ -131,7 +131,7 @@ export default async function DashboardPage({
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Let&apos;s create your first card</h1>
           <p className="text-gray-400 text-sm mb-8 max-w-sm">Your digital business card — add your info, socials, and design in about 60 seconds.</p>
-          <Link href="/cards/new" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
+          <Link href="/cards/new?add=1" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
             Create your card →
           </Link>
         </main>
@@ -503,7 +503,7 @@ export default async function DashboardPage({
               </div>
               <div className="flex items-center gap-3">
                 {(isPro || allCards.length < PLAN_LIMITS.FREE_CARD_LIMIT) && (
-                  <Link href="/cards/new" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+                  <Link href="/cards/new?add=1" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
                   </Link>
                 )}
