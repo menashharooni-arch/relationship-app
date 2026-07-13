@@ -17,6 +17,7 @@ export const PLAN_FEATURES = {
     "All 5 card templates",
     "QR code, shareable link & NFC",
     "1 Swift Links button",
+    "Swift Signature — your live card in every email",
     "Save to contacts (vCard), socials, bio, address",
     "Contacts CRM: statuses, notes, read/unread",
     "Analytics: views, best day & saves",
