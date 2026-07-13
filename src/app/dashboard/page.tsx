@@ -25,10 +25,9 @@ import TrialBanner from "@/components/TrialBanner";
 import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import AddContactModal from "@/components/AddContactModal";
-import LeadListClient from "@/components/LeadListClient";
+import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
-import type { FlowPresets } from "@/components/LeadCard";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -299,14 +298,6 @@ export default async function DashboardPage({
   const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
   const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
-
-  const rawFlowSettings = (profile.flow_settings ?? {}) as Record<string, unknown>;
-  const defaultPresets: FlowPresets = {
-    "1": { name: "Warm Touch", days: [1, 2, 4, 7] },
-    "2": { name: "Standard",   days: [1, 4, 10, 21, 45] },
-    "3": { name: "Long-term",  days: [1, 30, 90, 180, 365] },
-  };
-  const flowPresets: FlowPresets = (rawFlowSettings.presets as FlowPresets) ?? defaultPresets;
 
   const atLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT;
   const nearLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT - 2;
@@ -743,7 +734,11 @@ export default async function DashboardPage({
 
                 {/* Lead list */}
                 {view === "notifications" ? (
-                  <NotificationsPanel initial={(panelNotifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]} card={activeUsername} />
+                  <NotificationsPanel
+                    initial={(panelNotifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]}
+                    card={activeUsername}
+                    leads={visibleLeads.map((l) => ({ id: l.id as string, name: (l.name as string) || "" }))}
+                  />
                 ) : visibleLeads.length === 0 ? (
                   <div className="border border-dashed border-gray-800 rounded-2xl p-8">
                     <div className="text-center mb-6">
@@ -777,12 +772,16 @@ export default async function DashboardPage({
                     </div>
                   </div>
                 ) : (
-                  <LeadListClient
-                    leads={visibleLeads}
-                    flowPresets={flowPresets}
-                    sortBy={sortBy}
-                    totalCount={visibleLeads.length}
-                    isPro={isPro}
+                  <QuickContactList
+                    leads={visibleLeads.map((l) => ({
+                      id: l.id as string,
+                      name: (l.name as string) || "Contact",
+                      email: (l.email as string) ?? "",
+                      phone: (l.phone as string | null) ?? null,
+                      company: (l.company as string | null) ?? null,
+                      created_at: l.created_at as string,
+                    }))}
+                    card={activeUsername}
                   />
                 )}
               </div>

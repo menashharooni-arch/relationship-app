@@ -12,13 +12,13 @@ import Link from "next/link";
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string }>;
+  searchParams: Promise<{ card?: string; lead?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { card: selectedCardParam } = await searchParams;
+  const { card: selectedCardParam, lead: selectedLeadParam } = await searchParams;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -133,6 +133,7 @@ export default async function ContactsPage({
           leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]}
           primaryUsername={cardList[0]?.username}
           initialCardFilter={selectedCardParam ?? null}
+          initialSelectedId={selectedLeadParam ?? null}
           userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}
         />
       </div>
