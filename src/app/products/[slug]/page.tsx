@@ -5,7 +5,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
-import PhoneShowcase from "@/components/site/PhoneShowcase";
+import LeadCapturePhone from "@/components/site/LeadCapturePhone";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
 import TemplateGallery from "@/components/site/TemplateGallery";
@@ -88,7 +88,7 @@ const PRODUCTS: Record<string, Product> = {
     title: <>Turn every scan into a <A>relationship.</A></>,
     titlePlain: "Lead Capture",
     subtitle: "When someone opens your card, they can share their info right back — straight into your contacts, with where and when you met. No more lost napkins or half-typed numbers.",
-    demo: <PhoneShowcase variant="card" />,
+    demo: <LeadCapturePhone />,
     features: [
       { t: "Two-way exchange", d: "They save you, you capture them — the whole handshake in one tap." },
       { t: "Context that sticks", d: "Every lead is tagged with the card, time, and location they came from." },
