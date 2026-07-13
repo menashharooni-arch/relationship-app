@@ -4,7 +4,6 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
-import LeadPipeline from "@/components/LeadPipeline";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import CSVImport from "@/components/CSVImport";
@@ -50,14 +49,12 @@ function daysAgoISO(days: number) {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; status?: string; date?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
   const sortBy = params.sort ?? "newest";
   const view = params.view ?? "notifications";
-  const filterStatus = params.status ?? "all";
-  const filterDate = params.date ?? "all";
   const selectedCard = params.card ?? null;
   const viewsRange: "today" | "week" | "month" | "locations" =
     params.vrange === "week" || params.vrange === "month" || params.vrange === "locations" ? params.vrange : "today";
@@ -302,19 +299,6 @@ export default async function DashboardPage({
   const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
   const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
-  const dateThreshold = filterDate === "today"
-    ? daysAgoISO(1)
-    : filterDate === "week"
-    ? daysAgoISO(7)
-    : filterDate === "month"
-    ? daysAgoISO(30)
-    : null;
-
-  const filteredLeads = visibleLeads.filter((l) => {
-    if (filterStatus !== "all" && (l.status || "new_contact") !== filterStatus) return false;
-    if (dateThreshold && l.created_at < dateThreshold) return false;
-    return true;
-  });
 
   const rawFlowSettings = (profile.flow_settings ?? {}) as Record<string, unknown>;
   const defaultPresets: FlowPresets = {
@@ -544,7 +528,7 @@ export default async function DashboardPage({
                   <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
                     <Link
                       scroll={false}
-                      href={`?card=${card.username}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}`}
+                      href={`?card=${card.username}&view=${view}&sort=${sortBy}`}
                       role="radio"
                       aria-checked={isActive}
                       className="flex items-center gap-3 flex-1 min-w-0"
@@ -637,7 +621,7 @@ export default async function DashboardPage({
                     { id: "month", label: "Month" },
                     { id: "locations", label: "Locations" },
                   ] as const).map((r) => (
-                    <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                    <Link key={r.id} scroll={false} href={`?vrange=${r.id}&view=${view}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                       className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${viewsRange === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                       {r.label}
                     </Link>
@@ -713,7 +697,7 @@ export default async function DashboardPage({
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-baseline gap-2.5">
-                    <h2 className="text-white font-semibold text-sm">Contacts</h2>
+                    <h2 className="text-white font-semibold text-sm">Quick Contacts</h2>
                     <span className="text-white font-bold text-lg tabular-nums">{visibleLeads.length}</span>
                     <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
                   </div>
@@ -738,51 +722,23 @@ export default async function DashboardPage({
                   </div>
                 </div>
 
-                {/* Filters */}
+                {/* View toggle — Notifications / Contacts. Filtering, the pipeline,
+                    and status management live on the full Contacts page. */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
-                  {/* View toggle */}
                   <div data-tour="contact-views" className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
                     {[
                       { id: "notifications", label: "Notifications" },
-                      { id: "list", label: "List" },
-                      { id: "pipeline", label: "Pipeline" },
+                      { id: "list", label: "Contacts" },
                     ].map((v) => (
-                      <Link key={v.id} scroll={false} href={`?view=${v.id}&status=${filterStatus}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
+                      <Link key={v.id} scroll={false} href={`?view=${v.id}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
                         className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${view === v.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
                         {v.label}
                       </Link>
                     ))}
                   </div>
-
-                  {/* Status filters */}
-                  <div data-tour="contact-filters" className="flex items-center gap-1 flex-wrap">
-                    {[
-                      { id: "all",         label: "All" },
-                      { id: "new_contact", label: "New Contact" },
-                      { id: "touch",       label: "Touch" },
-                      { id: "dissolved",   label: "Dissolved" },
-                    ].map((s) => (
-                      <Link key={s.id} scroll={false} href={`?view=${view}&status=${s.id}&date=${filterDate}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
-                        className={`text-xs px-2.5 py-1 rounded-full transition-colors ${filterStatus === s.id ? "bg-blue-600 text-white font-medium" : "text-gray-500 hover:text-gray-300 bg-gray-800/60"}`}>
-                        {s.label}
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* Date filter */}
-                  <div className="ml-auto flex items-center gap-1">
-                    {[
-                      { id: "all", label: "All" },
-                      { id: "month", label: "30d" },
-                      { id: "week", label: "7d" },
-                      { id: "today", label: "Today" },
-                    ].map((d) => (
-                      <Link key={d.id} scroll={false} href={`?view=${view}&status=${filterStatus}&date=${d.id}&sort=${sortBy}${selectedCard ? `&card=${selectedCard}` : ""}`}
-                        className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${filterDate === d.id ? "bg-gray-700 text-white" : "text-gray-600 hover:text-gray-300"}`}>
-                        {d.label}
-                      </Link>
-                    ))}
-                  </div>
+                  <Link href={`/contacts${selectedCard ? `?card=${selectedCard}` : ""}`} className="ml-auto text-xs text-gray-500 hover:text-white transition-colors">
+                    View all in Contacts →
+                  </Link>
                 </div>
 
                 {/* Lead list */}
@@ -820,11 +776,9 @@ export default async function DashboardPage({
                       </a>
                     </div>
                   </div>
-                ) : view === "pipeline" ? (
-                  <LeadPipeline initialLeads={filteredLeads} />
                 ) : (
                   <LeadListClient
-                    leads={filteredLeads}
+                    leads={visibleLeads}
                     flowPresets={flowPresets}
                     sortBy={sortBy}
                     totalCount={visibleLeads.length}
