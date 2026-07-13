@@ -4,6 +4,7 @@
 // component reads from this file.
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
+  FREE_MAX_LINKS: 1,           // max Swift Links (action-link buttons) on Free; Pro/Office: unlimited
   // ── Monthly free meters (refresh on the 1st; counted per-ACCOUNT via
   //    profiles.customization._usage so deleting a card can never reset them).
   FREE_LEADS_PER_MONTH: 5,     // new leads/month before extras soft-lock behind Pro
@@ -61,9 +62,12 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
 ): T {
   const cust = { ...(customization ?? {}) } as Record<string, unknown>;
   if (paid) return cust as T;
-  // Free now gets UNLIMITED Swift Links / action-link buttons (matches the plan
-  // sheet). Pro is differentiated by presentation (custom theme colors/fonts,
-  // video previews, featured tiles) — so we still strip the Pro-only design keys.
+  // Free is capped at FREE_MAX_LINKS Swift Links (action-link buttons); extras
+  // are trimmed. Pro/Office get unlimited links plus the Pro-only design keys,
+  // which we strip here for Free.
+  if (Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_MAX_LINKS) {
+    cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
+  }
   for (const key of PRO_CUSTOMIZATION_KEYS) delete cust[key];
   return cust as T;
 }

@@ -50,13 +50,19 @@ describe("PLAN_PRICES sanity (guards against a silent pricing drift)", () => {
 });
 
 describe("sanitizeCustomizationForPlan", () => {
-  it("strips Pro-only design keys for a free account", () => {
+  it("strips Pro-only design keys and caps Swift Links for a free account", () => {
     const input = { accentColor: "#ff0000", font: "serif", about: "hi", links: [1, 2] };
     const out = sanitizeCustomizationForPlan(input, false);
     for (const k of PRO_CUSTOMIZATION_KEYS) expect(out).not.toHaveProperty(k);
-    // Free-baseline keys survive.
+    // Free-baseline keys survive; Swift Links are trimmed to the Free cap.
     expect(out.about).toBe("hi");
-    expect(out.links).toEqual([1, 2]);
+    expect(out.links).toEqual([1].slice(0, PLAN_LIMITS.FREE_MAX_LINKS));
+    expect(out.links).toHaveLength(PLAN_LIMITS.FREE_MAX_LINKS);
+  });
+
+  it("keeps all Swift Links for a paid account", () => {
+    const out = sanitizeCustomizationForPlan({ links: [1, 2, 3] }, true);
+    expect(out.links).toEqual([1, 2, 3]);
   });
 
   it("passes a paid account's customization through untouched", () => {

@@ -19,7 +19,7 @@ const OFFICE_MO = (PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100).toFixed(2);
 const OFFICE_YR = (PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100).toFixed(2);
 
 const PRICING_FACTS = `PRICING (USD, the only prices that exist — never invent discounts or other numbers):
-- Free: $0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, ${PLAN_LIMITS.FREE_SCANS_PER_MONTH} AI card scans/month, ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI drafts/month, all templates, unlimited Swift Links buttons, view analytics, a "Powered by SwiftCard" badge on the card.
+- Free: $0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, ${PLAN_LIMITS.FREE_SCANS_PER_MONTH} AI card scans/month, ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI drafts/month, all templates, ${PLAN_LIMITS.FREE_MAX_LINKS} Swift Links button, view analytics, a "Powered by SwiftCard" badge on the card.
 - Pro: $${PRO_MO}/month, or $${PRO_YR}/year (~10% off). Unlimited cards, leads, scans and drafts; custom card designer; automated email + text follow-up sequences; premium Swift Links; full analytics; CSV export; integrations (Zapier, Google Contacts, HubSpot); no SwiftCard branding.
 - Office (teams): $${OFFICE_MO}/month per seat, or $${OFFICE_YR}/year per seat — everything in Pro for each seat, minimum ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats, with an admin who manages the team's cards and brand.
 - Every new signup gets a ${TRIAL_DAYS}-day free trial of full Pro — no credit card needed to start. Cancel anytime; payments are handled by Stripe.`;
@@ -90,7 +90,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["swift links", "link in bio", "linktree", "bio link", "instagram bio"],
     answer:
-      "Every card includes a Swift Links page — your photo, bio, socials, and custom buttons on one link. Drop it in your Instagram or TikTok bio; it's included even on Free with unlimited buttons.",
+      "Every card includes a Swift Links page — your photo, bio, socials, and a custom button on one link. Drop it in your Instagram or TikTok bio; Free includes 1 Swift Links button, and Pro unlocks unlimited buttons plus premium tiles.",
   },
   {
     triggers: ["cancel", "refund", "lock in", "lock-in", "commitment", "contract"],

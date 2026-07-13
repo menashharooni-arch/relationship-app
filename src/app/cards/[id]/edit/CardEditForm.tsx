@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
+import { PLAN_LIMITS } from "@/lib/plan";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import CardScaler from "@/components/CardScaler";
@@ -173,7 +174,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
   }
 
-  const atLinkCap = false; // Free now gets unlimited Swift Links buttons.
+  // Free is limited to FREE_MAX_LINKS Swift Links; Pro/Office get unlimited.
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_MAX_LINKS;
   function addLink() {
     if (atLinkCap) return;
     const linkLabel = newLink.label.trim();
@@ -548,39 +550,45 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   ))}
                 </div>
               )}
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Link name (e.g. Leave a review)"
-                  value={newLink.label}
-                  onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
-                  className={inputCls}
-                />
-                <input
-                  type="text"
-                  placeholder="https://…"
-                  value={newLink.url}
-                  onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
-                  className={inputCls}
-                />
-                {(() => {
-                  const readyToAdd = !atLinkCap && !!newLink.label.trim() && !!newLink.url.trim();
-                  return (
-                    <button
-                      type="button"
-                      onClick={addLink}
-                      disabled={!readyToAdd}
-                      className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
-                        readyToAdd
-                          ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
-                          : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
-                      }`}
-                    >
-                      + Add link
-                    </button>
-                  );
-                })()}
-              </div>
+              {atLinkCap ? (
+                <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/pricing" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> for unlimited links.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Link name (e.g. Leave a review)"
+                    value={newLink.label}
+                    onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <input
+                    type="text"
+                    placeholder="https://…"
+                    value={newLink.url}
+                    onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
+                    className={inputCls}
+                  />
+                  {(() => {
+                    const readyToAdd = !!newLink.label.trim() && !!newLink.url.trim();
+                    return (
+                      <button
+                        type="button"
+                        onClick={addLink}
+                        disabled={!readyToAdd}
+                        className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                          readyToAdd
+                            ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                            : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
+                        }`}
+                      >
+                        + Add link
+                      </button>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         )}

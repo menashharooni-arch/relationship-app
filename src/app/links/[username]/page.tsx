@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
@@ -84,9 +84,11 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     links?: { emoji: string; label: string; url: string }[];
   };
   const bio = customization.bio || "";
-  // Every plan shows all Swift Links buttons now (Pro is differentiated by
-  // presentation — video previews, featured tiles, themes — not button count).
-  const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
+  // Free is capped at FREE_MAX_LINKS Swift Links buttons; paid plans get
+  // unlimited. Trimmed here so the cap applies to existing accounts on view,
+  // not only after their next save.
+  const allActionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
+  const actionLinks = ownerPaid ? allActionLinks : allActionLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   const socials = buildConnectLinks({
     website: profile.website,

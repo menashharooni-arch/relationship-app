@@ -13,7 +13,7 @@ const PLANS = [
 const FEATURES: { label: string; free: string; pro: string; office: string }[] = [
   { label: "Cards", free: "1", pro: "Unlimited", office: "Unlimited" },
   { label: "Contacts / leads", free: "25", pro: "Unlimited", office: "Unlimited" },
-  { label: "Swift Links buttons", free: "2", pro: "Unlimited", office: "Unlimited" },
+  { label: "Swift Links buttons", free: "1", pro: "Unlimited", office: "Unlimited" },
   { label: "AI follow-up drafts", free: "3 total", pro: "Unlimited", office: "Unlimited" },
   { label: "Custom card designer", free: "—", pro: "✓", office: "✓" },
   { label: "Automated follow-up sequences", free: "Day-1 email only", pro: "✓", office: "✓" },

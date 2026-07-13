@@ -22,8 +22,9 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl } from "@/lib/social-url";
 import { useGuestDraft, saveDraft } from "@/lib/guest-draft";
-import { consumePrefill } from "@/lib/prefill";
+import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefill";
 import { writePlanIntent } from "@/lib/plan-intent";
+import { PLAN_LIMITS } from "@/lib/plan";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
@@ -142,14 +143,21 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
   }
 
-  // Autofill from a homepage "mini builder": if the visitor sketched a card /
-  // SwiftLink / signature on the marketing site and hit "Make it live", carry
-  // everything they typed into the wizard. Consumed once, then cleared.
+  // The card starts EMPTY. If the visitor sketched a card / SwiftLink /
+  // signature on the marketing site, we stash it here and offer a one-tap
+  // "Autofill" — nothing is filled in until they explicitly choose it.
+  const [pendingPrefill, setPendingPrefill] = useState<CardPrefill | null>(null);
   useEffect(() => {
     const p = consumePrefill();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a localStorage handoff after mount
+    if (p && hasSketchContent(p)) setPendingPrefill(p);
+  }, []);
+
+  // Apply the stashed sketch into the form — only ever called from the explicit
+  // "Autofill" action. Leaves the current step where it is.
+  function applyPrefill() {
+    const p = pendingPrefill;
     if (!p) return;
-    /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from a
-       localStorage handoff after mount; can't run during render (client-only). */
     if (p.name) setName(p.name);
     if (p.title) setTitle(p.title);
     if (p.company) setCompany(p.company);
@@ -164,9 +172,8 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     if (p.accentColor) setTemplateStyleState((prev) => ({ ...prev, accentColor: p.accentColor }));
     if (p.logoUrl) setLogoUrl(p.logoUrl);
     if (p.headshotUrl) setHeadshotUrl(p.headshotUrl);
-    if (p.step) setStep(Math.min(Math.max(p.step, 1), 3));
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+    setPendingPrefill(null);
+  }
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
@@ -212,7 +219,8 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     setSocials((prev) => ({ ...prev, [key]: normalizeSocial(prev[key], key) }));
   }
 
-  const atLinkCap = false; // Free now gets unlimited Swift Links buttons.
+  // Free is limited to FREE_MAX_LINKS Swift Links; Pro/Office get unlimited.
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_MAX_LINKS;
   function addLink() {
     if (atLinkCap) return;
     const label = newLink.label.trim();
@@ -414,6 +422,25 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
               <p className="text-gray-400 text-sm mt-1">Start with the basics.</p>
             </div>
 
+            {/* Explicit autofill — the form stays empty unless the visitor
+                chooses to pull in what they sketched on the homepage. */}
+            {pendingPrefill && (
+              <div className="rounded-xl border border-blue-700/50 bg-blue-950/40 px-4 py-3.5">
+                <p className="text-blue-100 text-sm font-semibold">Use what you already entered?</p>
+                <p className="text-blue-300/80 text-xs mt-1 leading-relaxed">
+                  We saved the details you sketched on the homepage. Autofill them, or start with a blank card.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button type="button" onClick={applyPrefill} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 rounded-full transition-colors">
+                    Autofill my details
+                  </button>
+                  <button type="button" onClick={() => setPendingPrefill(null)} className="px-4 text-gray-400 hover:text-white text-xs font-medium transition-colors">
+                    Start blank
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-start gap-2.5 rounded-xl border border-blue-800/40 bg-blue-950/30 px-3.5 py-3">
               <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8} className="w-4 h-4 shrink-0 mt-0.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
@@ -596,39 +623,45 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
                   ))}
                 </div>
               )}
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Link name (e.g. Leave a review)"
-                  value={newLink.label}
-                  onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
-                  className={inputCls}
-                />
-                <input
-                  type="text"
-                  placeholder="https://…"
-                  value={newLink.url}
-                  onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
-                  className={inputCls}
-                />
-                {(() => {
-                  const readyToAdd = !atLinkCap && !!newLink.label.trim() && !!newLink.url.trim();
-                  return (
-                    <button
-                      type="button"
-                      onClick={addLink}
-                      disabled={!readyToAdd}
-                      className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
-                        readyToAdd
-                          ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
-                          : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
-                      }`}
-                    >
-                      + Add link
-                    </button>
-                  );
-                })()}
-              </div>
+              {atLinkCap ? (
+                <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <span className="text-blue-400 font-semibold">Upgrade to Pro</span> for unlimited links.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Link name (e.g. Leave a review)"
+                    value={newLink.label}
+                    onChange={(e) => setNewLink((n) => ({ ...n, label: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <input
+                    type="text"
+                    placeholder="https://…"
+                    value={newLink.url}
+                    onChange={(e) => setNewLink((n) => ({ ...n, url: e.target.value }))}
+                    className={inputCls}
+                  />
+                  {(() => {
+                    const readyToAdd = !!newLink.label.trim() && !!newLink.url.trim();
+                    return (
+                      <button
+                        type="button"
+                        onClick={addLink}
+                        disabled={!readyToAdd}
+                        className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                          readyToAdd
+                            ? "sc-btn-glow bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                            : "border border-dashed border-gray-700 text-gray-400 disabled:opacity-40"
+                        }`}
+                      >
+                        + Add link
+                      </button>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 mt-2">

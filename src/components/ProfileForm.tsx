@@ -8,6 +8,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { PLAN_LIMITS } from "@/lib/plan";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
 
@@ -138,7 +139,10 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     }
   }
 
+  // Free is limited to FREE_MAX_LINKS Swift Links; Pro/Office get unlimited.
+  const atLinkCap = !isPro && links.length >= PLAN_LIMITS.FREE_MAX_LINKS;
   function addLink() {
+    if (atLinkCap) return;
     if (!newLink.label.trim() || !newLink.url.trim()) return;
     const url = newLink.url.startsWith("http") ? newLink.url : `https://${newLink.url}`;
     setLinks((prev) => [...prev, { ...newLink, url }]);
@@ -363,6 +367,10 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             </button>
           </div>
         </div>
+      ) : atLinkCap ? (
+        <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
+          Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> for unlimited links.
+        </p>
       ) : (
         <button
           type="button"
