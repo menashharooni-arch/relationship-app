@@ -23,7 +23,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
   return (
     <div
-      className="relative w-full flex flex-col rounded-2xl overflow-hidden"
+      className="sc-card relative w-full flex flex-col rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data, 6.5),
         background: CREAM,

@@ -8,34 +8,84 @@ interface Props {
   compact?: boolean;
 }
 
+// Inline every <img> src as a data URL before capturing — html-to-image
+// re-fetches images while rasterizing and can drop them otherwise. Falls back
+// to the same-origin image proxy when a remote host blocks the direct fetch.
+async function inlineImages(el: HTMLElement): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.all(imgs.map(async (img) => {
+    const src = img.currentSrc || img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:")) return;
+    const candidates = [src];
+    if (/^https?:\/\//.test(src)) candidates.push(`/api/img-proxy?url=${encodeURIComponent(src)}`);
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, { cache: "force-cache" });
+        if (!res.ok) continue;
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onloadend = () => resolve(r.result as string);
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = dataUrl;
+          setTimeout(resolve, 3000);
+        });
+        return;
+      } catch { /* try next candidate */ }
+    }
+  }));
+}
+
 export default function DownloadCardButton({ cardRef, filename = "swiftcard.png", compact = false }: Props) {
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
+  const loading = status === "working";
 
   async function handleDownload() {
     const el = cardRef.current;
-    if (!el) return;
-    setLoading(true);
+    if (!el || loading) return;
+    setStatus("working");
     // Neutralize any display scaling so the capture is full resolution.
     const prevTransform = el.style.transform;
     try {
       el.style.transform = "none";
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
-        scale: 3,
-        useCORS: true,
-        backgroundColor: null,
-        logging: false,
-      });
-      const url = canvas.toDataURL("image/png");
+      await inlineImages(el);
+      await new Promise((r) => setTimeout(r, 120)); // let reflow settle
+
+      // Same proven recipe as the share/signature captures: html-to-image
+      // (handles Tailwind 4's oklch colors, which html2canvas chokes on) with
+      // the node rendered natively larger — pixelRatio-only upscaling is blurry.
+      const { toPng } = await import("html-to-image");
+      const w = el.offsetWidth || 460;
+      const h = el.offsetHeight || 263;
+      const SCALE = 3;
+      const dataUrl = await Promise.race([
+        toPng(el, {
+          width: w * SCALE,
+          height: h * SCALE,
+          pixelRatio: 1,
+          cacheBust: false,
+          style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
+      ]);
+      if (!dataUrl || dataUrl.length < 5000) throw new Error("blank capture");
+
       const a = document.createElement("a");
-      a.href = url;
+      a.href = dataUrl;
       a.download = filename;
       a.click();
+      setStatus("idle");
     } catch {
-      // silently fail — user still has other share options
+      // Show it failed instead of silently doing nothing.
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 2500);
     } finally {
       el.style.transform = prevTransform;
-      setLoading(false);
     }
   }
 
@@ -50,16 +100,21 @@ export default function DownloadCardButton({ cardRef, filename = "swiftcard.png"
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   );
+  const label = loading ? "Saving…" : status === "error" ? "Couldn't save — retry" : compact ? "Download" : "Download card as image";
 
   if (compact) {
     return (
       <button
         onClick={handleDownload}
         disabled={loading}
-        className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors disabled:opacity-50"
+        className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold border rounded-full py-2 transition-colors disabled:opacity-50 ${
+          status === "error"
+            ? "text-amber-300 bg-amber-950/40 border-amber-800/50"
+            : "text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border-gray-700"
+        }`}
       >
         {loading ? spinner : icon}
-        {loading ? "Saving…" : "Download"}
+        {label}
       </button>
     );
   }
@@ -68,10 +123,14 @@ export default function DownloadCardButton({ cardRef, filename = "swiftcard.png"
     <button
       onClick={handleDownload}
       disabled={loading}
-      className="flex items-center gap-2 w-full justify-center border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white font-semibold py-2.5 rounded-full transition-colors text-sm disabled:opacity-50"
+      className={`flex items-center gap-2 w-full justify-center border font-semibold py-2.5 rounded-full transition-colors text-sm disabled:opacity-50 ${
+        status === "error"
+          ? "text-amber-300 border-amber-800/60"
+          : "border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white"
+      }`}
     >
       {loading ? spinner : icon}
-      {loading ? "Saving…" : "Download card as image"}
+      {label}
     </button>
   );
 }

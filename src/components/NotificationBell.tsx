@@ -129,16 +129,15 @@ export default function NotificationBell({
           {/* Backdrop — click anywhere outside to close. */}
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
 
-          {/* Dropdown menu — anchored directly under the bell and right-aligned
-              with it (the bell sits near the right edge of the nav, so the panel
-              opens downward and extends leftward to stay on-screen). */}
+          {/* Dropdown menu — pinned to the VIEWPORT (below the nav bar, inset
+              from the right edge) rather than anchored to the bell. Anchoring
+              right-0 to the bell pushed the panel's left side off-screen on
+              phones, since the bell isn't at the screen edge. */}
           <div
             role="dialog"
             aria-label="Notifications"
-            className="sc-drop-in absolute z-[61] right-0 top-full mt-2 w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
+            className="sc-drop-in fixed z-[61] right-3 top-16 w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
           >
-            {/* Caret pointing up at the bell, so the menu visually connects to it. */}
-            <div className="absolute -top-1.5 right-4 w-3 h-3 bg-gray-900 border-l border-t border-gray-800 rotate-45" />
 
             <div className="relative flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <p className="text-sm font-bold text-white">Notifications</p>
