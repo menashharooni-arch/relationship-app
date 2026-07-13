@@ -32,15 +32,15 @@ const FONTS = [
 ];
 
 type Role = "Admin" | "Manager" | "Member";
-type Member = { id: string; name: string; title: string; initials: string; email: string; phone: string; role: Role; office: string; leads: number };
+type Member = { id: string; name: string; title: string; initials: string; email: string; phone: string; role: Role; office: string; leads: number; avatar: number };
 
 const OFFICES = ["San Francisco", "New York", "Austin"];
 const SEED: Member[] = [
-  { id: "alex", name: "Alex Morgan", title: "Managing Broker", initials: "AM", email: "alex@meridianrealty.com", phone: "(415) 555-0188", role: "Admin", office: "San Francisco", leads: 128 },
-  { id: "priya", name: "Priya Shah", title: "Senior Agent", initials: "PS", email: "priya@meridianrealty.com", phone: "(415) 555-0142", role: "Manager", office: "San Francisco", leads: 94 },
-  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@meridianrealty.com", phone: "(212) 555-0119", role: "Member", office: "New York", leads: 61 },
-  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@meridianrealty.com", phone: "(212) 555-0164", role: "Manager", office: "New York", leads: 47 },
-  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@meridianrealty.com", phone: "(737) 555-0155", role: "Member", office: "Austin", leads: 52 },
+  { id: "alex", name: "Alex Morgan", title: "Managing Broker", initials: "AM", email: "alex@meridianrealty.com", phone: "(415) 555-0188", role: "Admin", office: "San Francisco", leads: 128, avatar: 0 },
+  { id: "priya", name: "Priya Shah", title: "Senior Agent", initials: "PS", email: "priya@meridianrealty.com", phone: "(415) 555-0142", role: "Manager", office: "San Francisco", leads: 94, avatar: 1 },
+  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@meridianrealty.com", phone: "(212) 555-0119", role: "Member", office: "New York", leads: 61, avatar: 2 },
+  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@meridianrealty.com", phone: "(212) 555-0164", role: "Manager", office: "New York", leads: 47, avatar: 3 },
+  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@meridianrealty.com", phone: "(737) 555-0155", role: "Member", office: "Austin", leads: 52, avatar: 4 },
 ];
 
 const ROLE_STYLES: Record<Role, string> = {
@@ -53,6 +53,45 @@ const PERMS: Record<Role, { brand: boolean; members: boolean; leads: boolean }> 
   Manager: { brand: false, members: true, leads: true },
   Member: { brand: false, members: false, leads: false },
 };
+
+
+// Illustrated teammate portraits — flat vector busts as data URIs. Clearly
+// fictional (no stock photos of real people), diverse, and consistent with the
+// demo's "sample company" framing.
+type AvatarSpec = { bg: string; skin: string; hair: string; shirt: string; style: "short" | "long" | "bun" | "beard" | "curly" | "crop" };
+const AVATARS: AvatarSpec[] = [
+  { bg: "#DBEAFE", skin: "#E8B48E", hair: "#2F2A26", shirt: "#1D4ED8", style: "short" },
+  { bg: "#FCE7F3", skin: "#AD7D52", hair: "#141210", shirt: "#0F766E", style: "long"  },
+  { bg: "#ECFDF5", skin: "#F2C9A4", hair: "#6B4A2B", shirt: "#7C3AED", style: "beard" },
+  { bg: "#FEF3C7", skin: "#8A5A3B", hair: "#0E0C0A", shirt: "#DC2626", style: "bun"   },
+  { bg: "#E0E7FF", skin: "#D9A075", hair: "#3B2417", shirt: "#EA580C", style: "curly" },
+  { bg: "#F1F5F9", skin: "#C68A5B", hair: "#4A3524", shirt: "#059669", style: "crop"  },
+];
+function avatarUri(i: number): string {
+  const a = AVATARS[i % AVATARS.length];
+  const hair =
+    a.style === "long"
+      ? `<path d='M28 40c0-13 9-21 20-21s20 8 20 21v16c0 4-4 6-6 3v-16H34v16c-2 3-6 1-6-3z' fill='${a.hair}'/>`
+      : a.style === "bun"
+        ? `<circle cx='48' cy='16' r='7' fill='${a.hair}'/><path d='M31 38c1-11 8-17 17-17s16 6 17 17c0 2-3 3-4 1-2-5-7-8-13-8s-11 3-13 8c-1 2-4 1-4-1z' fill='${a.hair}'/>`
+        : a.style === "curly"
+          ? `<path d='M30 36c0-10 8-17 18-17s18 7 18 17c0 3-4 4-5 1a6 6 0 0 0-4-4 7 7 0 0 1-9-2 7 7 0 0 1-9 2 6 6 0 0 0-4 4c-1 3-5 2-5-1z' fill='${a.hair}'/><circle cx='31' cy='34' r='4' fill='${a.hair}'/><circle cx='65' cy='34' r='4' fill='${a.hair}'/>`
+          : a.style === "crop"
+            ? `<path d='M32 36c1-9 7-15 16-15s15 6 16 15c0 2-2 2-3 1-3-4-8-6-13-6s-10 2-13 6c-1 1-3 1-3-1z' fill='${a.hair}'/>`
+            : `<path d='M31 37c0-11 8-18 17-18s17 7 17 18c0 2-3 3-4 1-2-5-7-8-13-8s-11 3-13 8c-1 2-4 1-4-1z' fill='${a.hair}'/>`;
+  const beard = a.style === "beard"
+    ? `<path d='M36 46c0 8 5 13 12 13s12-5 12-13c0 11-4 17-12 17s-12-6-12-17z' fill='${a.hair}'/>`
+    : "";
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'>`
+    + `<rect width='96' height='96' rx='14' fill='${a.bg}'/>`
+    + `<path d='M14 96c3-19 17-27 34-27s31 8 34 27z' fill='${a.shirt}'/>`
+    + `<circle cx='48' cy='40' r='17' fill='${a.skin}'/>`
+    + hair + beard
+    + `<circle cx='42' cy='40' r='1.7' fill='#1f2937'/><circle cx='54' cy='40' r='1.7' fill='#1f2937'/>`
+    + `<path d='M43 48q5 4 10 0' stroke='#1f2937' stroke-width='1.6' fill='none' stroke-linecap='round'/>`
+    + `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
 
 // Company logo mark as an SVG data URI (recolored by the brand accent).
 function logoUri(shape: string, color: string): string {
@@ -72,7 +111,7 @@ export default function TeamsDashboard() {
   const [group, setGroup] = useState<string>("All");
   const [selectedId, setSelectedId] = useState<string>(SEED[0].id);
   // Brand kit — changing any of these updates EVERY card at once.
-  const [template, setTemplate] = useState<TemplateId>("classic-pro");
+  const [template, setTemplate] = useState<TemplateId>("photo-first");
   const [accent, setAccent] = useState<string>(ACCENTS[0]);
   const [logo, setLogo] = useState<string>("mono");
   const [font, setFont] = useState<string>(FONTS[0].value);
@@ -93,7 +132,7 @@ export default function TeamsDashboard() {
   function cardData(m: Member): CardData {
     return withoutSocials({
       name: m.name, title: m.title, company: COMPANY, phone: m.phone, email: m.email, website: WEBSITE,
-      initials: m.initials, photoUrl: null, logoUrl,
+      initials: m.initials, photoUrl: avatarUri(m.avatar), logoUrl,
       customization: { accentColor: accent, fontFamily: font },
       cardUrl: `swiftcard.me/card/${m.id}`,
     });
@@ -102,7 +141,7 @@ export default function TeamsDashboard() {
   function addMember() {
     const n = members.length + 1;
     const office = group === "All" ? "San Francisco" : group;
-    const nm: Member = { id: `new-${n}-${office}`, name: "New Teammate", title: "Agent", initials: "NT", email: `new${n}@meridianrealty.com`, phone: "(000) 000-0000", role: "Member", office, leads: 0 };
+    const nm: Member = { id: `new-${n}-${office}`, name: "New Teammate", title: "Agent", initials: "NT", email: `new${n}@meridianrealty.com`, phone: "(000) 000-0000", role: "Member", office, leads: 0, avatar: n % AVATARS.length };
     setMembers((ms) => [...ms, nm]);
     setSelectedId(nm.id);
   }
@@ -165,7 +204,7 @@ export default function TeamsDashboard() {
             <div className="space-y-1">
               {visible.map((m) => (
                 <div key={m.id} className={`group flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${m.id === selectedId ? "bg-white/[0.07]" : "hover:bg-white/[0.03]"}`} onClick={() => setSelectedId(m.id)}>
-                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: accent }}>{m.initials}</span>
+                  <img src={avatarUri(m.avatar)} alt="" className="w-7 h-7 rounded-full shrink-0 object-cover" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-white text-[12px] font-semibold truncate leading-tight">{m.name}</span>
                     <span className="block text-white/40 text-[10px] truncate">{m.leads} leads</span>
@@ -232,7 +271,7 @@ export default function TeamsDashboard() {
           <div className={PANEL}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <span className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: accent }}>{selected.initials}</span>
+                <img src={avatarUri(selected.avatar)} alt="" className="w-9 h-9 rounded-full shrink-0 object-cover" />
                 <div className="min-w-0">
                   <p className="text-white font-semibold text-[14px] leading-tight truncate">{selected.name}</p>
                   <p className="text-white/40 text-[11px] truncate">{selected.title} · {selected.office}</p>
