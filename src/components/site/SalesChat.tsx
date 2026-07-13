@@ -8,6 +8,7 @@
 // use the app's light/dark theme system.
 
 import { useEffect, useRef, useState } from "react";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -84,11 +85,7 @@ export default function SalesChat() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: "#0F162E", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#2563eb" }}>
-                <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4">
-                  <path d="M13 2L4.5 12.5h5L9.5 22 18 11.5h-5L13 2z" />
-                </svg>
-              </div>
+              <SwiftCardIcon size={28} />
               <div>
                 <p className="text-white text-sm font-semibold leading-none">SwiftCard</p>
                 <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Ask us anything</p>

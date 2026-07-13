@@ -11,17 +11,8 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Item = { label: string; href: string; desc: string };
 
-// Every item is a real standalone page — never a scroll anchor into the
-// homepage sections (owner decision: subheaders live on their own pages).
-const HOME: Item[] = [
-  { label: "Overview", href: "/", desc: "Back to the top of the homepage" },
-  { label: "Swift Cards", href: "/products/digital-cards", desc: "The card that shares everything" },
-  { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
-  { label: "Swift Signature", href: "/products/email-signatures", desc: "A live card in every email" },
-  { label: "Analytics", href: "/products/analytics", desc: "See who's looking, never lose a lead" },
-  { label: "Teams", href: "/products/teams", desc: "One brand across everyone" },
-];
-
+// "Home" is a plain button back to the front page — no dropdown/subheaders
+// (owner decision, Jul 2026). Product pages live under Products/Solutions.
 const PRODUCTS: Item[] = [
   { label: "Digital Cards", href: "/products/digital-cards", desc: "Your tap-to-share business card" },
   { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
@@ -117,7 +108,16 @@ export default function SiteNav() {
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
-            <Dropdown label="Home" items={HOME} />
+            <Link
+              href="/"
+              onClick={(e) => {
+                // Already on the homepage → a same-route Link no-ops, so scroll to top.
+                if (window.location.pathname === "/") { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+              }}
+              className="px-3 py-2 text-[14px] font-medium text-white/70 hover:text-white transition-colors"
+            >
+              Home
+            </Link>
             <Dropdown label="Products" items={PRODUCTS} />
             <Dropdown label="Solutions" items={SOLUTIONS} />
             <Dropdown label="Resources" items={RESOURCES} />
@@ -150,7 +150,17 @@ export default function SiteNav() {
               </button>
             </div>
             <div className="space-y-5 max-h-[70vh] overflow-y-auto rd-scrollbar-none">
-              {[["Home", HOME], ["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", RESOURCES]].map(([title, items]) => (
+              <Link
+                href="/"
+                onClick={() => {
+                  setOpen(false);
+                  if (window.location.pathname === "/") window.scrollTo(0, 0);
+                }}
+                className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]"
+              >
+                Home
+              </Link>
+              {[["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", RESOURCES]].map(([title, items]) => (
                 <div key={title as string}>
                   <p className="rd-eyebrow text-white/40 mb-2">{title as string}</p>
                   <div className="grid grid-cols-1 gap-0.5">
