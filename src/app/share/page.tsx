@@ -129,7 +129,6 @@ export default async function SharePage({
         <div className="mb-6">
           <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Share</h1>
-          <p className="text-gray-500 text-sm mt-1 leading-relaxed">Your Swift Links page and email signature — everything you drop into a bio or the bottom of an email.</p>
         </div>
 
         {/* Card switcher (only with multiple cards) */}
