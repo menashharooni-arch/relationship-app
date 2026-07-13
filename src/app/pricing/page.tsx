@@ -42,6 +42,7 @@ export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
+  const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
 
   async function applyPromo() {
@@ -68,6 +69,7 @@ export default function PricingPage() {
 
   async function handleUpgrade(plan: "pro" | "enterprise") {
     setLoading(plan);
+    setCheckoutErr(null);
     try {
       const priceId = plan === "enterprise"
         ? (annual ? (ENTERPRISE_ANNUAL_PRICE_ID ?? ENTERPRISE_PRICE_ID) : ENTERPRISE_PRICE_ID)
@@ -82,10 +84,11 @@ export default function PricingPage() {
         }),
       });
       if (res.status === 401) { window.location.href = "/login"; return; }
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const { url, error } = await res.json();
+      if (url) { window.location.href = url; return; }
+      setCheckoutErr(error || "Couldn't start checkout. Please try again or contact support.");
     } catch {
-      setLoading(null);
+      setCheckoutErr("Couldn't reach checkout. Check your connection and try again.");
     }
     setLoading(null);
   }
@@ -157,6 +160,9 @@ export default function PricingPage() {
               <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
                 First-time subscribers get 7 days free. Card required — billing starts automatically after the trial unless you cancel.
               </p>
+              {checkoutErr && loading === null && (
+                <p className="text-center text-[12px] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
+              )}
             </div>
             <span className="rd-glisten-sweep" aria-hidden="true" />
           </div>

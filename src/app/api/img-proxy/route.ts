@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { safeFetch } from "@/lib/safe-fetch";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // Node runtime — the SSRF guard uses node:dns / node:net to resolve + vet IPs.
 export const runtime = "nodejs";
@@ -11,6 +12,14 @@ export const runtime = "nodejs";
 // a public host that redirects to 169.254.169.254 / DNS-rebinds to a private IP).
 
 export async function GET(req: NextRequest) {
+  // Even with SSRF fully guarded, this is an outbound fetch/bandwidth relay if
+  // left unthrottled — cap per client IP like the other public ingest routes.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (await isRateLimited(`imgproxy:${ip}`, 120, 10 * 60 * 1000)) {
+    return new NextResponse("rate_limited", { status: 429 });
+  }
+
   const raw = req.nextUrl.searchParams.get("url");
   if (!raw) return new NextResponse("missing url", { status: 400 });
 

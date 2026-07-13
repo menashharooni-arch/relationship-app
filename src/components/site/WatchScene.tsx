@@ -22,7 +22,7 @@ export default function WatchScene() {
             <div>
               <div className="w-12 h-12 mx-auto rounded-full overflow-hidden border-2 border-white/70 mb-1.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/demo/headshot.jpg" alt="Alex Morgan" className="w-full h-full object-cover" />
+                <img src="/marketing/demo-girl.jpg" alt="Alex Morgan" className="w-full h-full object-cover" />
               </div>
               <p className="text-white text-[14px] font-extrabold leading-tight">Alex Morgan</p>
               <p className="text-white/80 text-[10px]">Tap to share</p>

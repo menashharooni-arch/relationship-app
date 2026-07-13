@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
+import { escapeHtml } from "@/lib/escape";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
 
   const cardUrl = `${APP_URL}/card/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "Someone";
+  const safeFirstName = escapeHtml(firstName);
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
@@ -43,11 +45,11 @@ export async function POST(request: NextRequest) {
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
         <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hi,</p>
         <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 24px;">
-          ${firstName} shared their digital business card with you. Save their contact in one tap:
+          ${safeFirstName} shared their digital business card with you. Save their contact in one tap:
         </p>
         <a href="${cardUrl}"
            style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:13px 28px;border-radius:99px;font-size:14px;font-weight:600;">
-          View ${firstName}&apos;s card
+          View ${safeFirstName}&apos;s card
         </a>
         <p style="font-size:12px;color:#94a3b8;margin-top:32px;">
           Sent via <a href="${APP_URL}" style="color:#94a3b8;">SwiftCard</a>

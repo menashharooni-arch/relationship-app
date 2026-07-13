@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { safeFetch } from "@/lib/safe-fetch";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // Node runtime — the SSRF guard uses node:dns / node:net.
 export const runtime = "nodejs";
@@ -50,6 +51,13 @@ function extractTitle(html: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
+  // SSRF-guarded, but cap per IP so it can't be used as an outbound fetch relay.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (await isRateLimited(`linkpreview:${ip}`, 120, 10 * 60 * 1000)) {
+    return NextResponse.json({ image: null, favicon: null, title: null }, { status: 429 });
+  }
+
   const raw = req.nextUrl.searchParams.get("url");
   if (!raw) return NextResponse.json({ image: null, favicon: null, title: null });
 

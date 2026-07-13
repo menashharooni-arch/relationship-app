@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
@@ -43,20 +43,45 @@ function Caret() {
 }
 
 function Dropdown({ label, items }: { label: string; items: Item[] }) {
+  // Opens on hover (desktop pointer) AND on click/keyboard — the CSS-only
+  // hover version was unreachable by keyboard and by tap on touch laptops.
+  const [pinned, setPinned] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pinned) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setPinned(false);
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setPinned(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [pinned]);
+
   return (
-    <div className="group relative">
-      <button className="inline-flex items-center gap-1.5 px-3 py-2 text-[14px] font-medium text-white/70 hover:text-white transition-colors">
+    <div ref={ref} className="group relative">
+      <button
+        onClick={() => setPinned((v) => !v)}
+        aria-expanded={pinned}
+        aria-haspopup="true"
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-[14px] font-medium text-white/70 hover:text-white transition-colors"
+      >
         {label}
         <Caret />
       </button>
-      {/* hover bridge + panel */}
-      <div className="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 absolute left-1/2 -translate-x-1/2 top-full pt-3 w-[340px]">
+      {/* hover bridge + panel — visible on group-hover OR when click-pinned */}
+      <div className={`${pinned ? "visible opacity-100 translate-y-0" : "invisible opacity-0 translate-y-1"} group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 absolute left-1/2 -translate-x-1/2 top-full pt-3 w-[340px]`}>
         <div className="rounded-2xl border border-white/10 bg-[#0E1017]/95 backdrop-blur-xl p-2 shadow-[0_40px_80px_-32px_rgba(0,0,0,0.8)]">
           {items.map((it) => (
             <Link
               key={it.label}
               href={it.href}
               onClick={(e) => {
+                setPinned(false);
                 // "Overview" (href "/") should always land at the top of the
                 // homepage. If we're already there, a same-route Link does
                 // nothing — so scroll to top ourselves.

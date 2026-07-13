@@ -35,7 +35,7 @@ export default function SwiftCardVisual({
   email = "alex@coastlinerealty.com",
   website = "coastlinehomes.com",
   accent = "#5D6BFF",
-  photoUrl = "/demo/headshot.jpg",
+  photoUrl = "/marketing/demo-girl.jpg",
   initials = "AM",
   qrUrl = "https://swiftcard.me/card/alexmorgan",
   className = "",
