@@ -34,10 +34,11 @@ export const DEMO_LINK_SOCIALS = [
   { label: "YouTube", href: "#", color: "#FF0000" },
 ];
 
-// Gallery variety — same data, different accents/templates to show customization.
+// Gallery variety — same sample person (Alex Morgan), different accents /
+// templates / roles to show how one card looks across every design.
 export const GALLERY = [
   { template: "photo-first", accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & Principal", company: "Coastline Realty" },
-  { template: "classic-pro", accent: "#0EA5A0", name: "Priya Shah", title: "Creative Director", company: "Northlight Studio" },
-  { template: "luxury-minimal", accent: "#B08D57", name: "Marcus Lee", title: "Partner", company: "Lee & Co." },
-  { template: "modern-bold", accent: "#F65B9E", name: "Dana Ruiz", title: "Head of Growth", company: "Everbloom" },
+  { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Creative Director", company: "Northlight Studio" },
+  { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Partner", company: "Morgan & Co." },
+  { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Head of Growth", company: "Everbloom" },
 ] as const;
