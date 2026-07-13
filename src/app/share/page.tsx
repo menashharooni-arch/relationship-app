@@ -9,15 +9,17 @@ import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
 import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
+import ShareCardResolver from "@/components/ShareCardResolver";
 import { cardHeadshot } from "@/lib/card-media";
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-// "Share" — the Swift Links link and the Email Signature generator, per card.
-// These used to live on the dashboard; grouped here as their own destination
-// between Contacts and Settings. Both are card-scoped, so a card switcher shows
-// when the user has more than one.
+// "Share" — the Swift Links link and the Email Signature generator for the
+// CURRENTLY SELECTED card only. The card comes from ?card= (carried by the
+// dashboard nav); ShareCardResolver backfills it from the card the user last
+// selected on the dashboard when the URL doesn't name one, so this page always
+// mirrors the card they're working on rather than showing a picker.
 export default async function SharePage({
   searchParams,
 }: {
@@ -127,30 +129,21 @@ export default async function SharePage({
         </div>
       </nav>
 
+      {/* Ensure the page reflects the currently selected card when the URL
+          didn't carry one. */}
+      <ShareCardResolver current={activeUsername} />
+
       <div className="max-w-md mx-auto pt-20">
-        {/* Header */}
+        {/* Header — names the card these belong to, so it's unambiguous which
+            card's Swift Links / signature are shown. */}
         <div className="mb-6">
           <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Share</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            For <span className="text-gray-300 font-medium">{(activeCard.label || activeCard.name || activeUsername) as string}</span>
+            <span className="text-gray-600"> · /{activeUsername}</span>
+          </p>
         </div>
-
-        {/* Card switcher (only with multiple cards) */}
-        {allCards.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            {allCards.map((c) => {
-              const on = c.username === activeUsername;
-              return (
-                <Link
-                  key={c.id}
-                  href={`/share?card=${c.username}`}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${on ? "bg-blue-600/15 border-blue-600/50 text-blue-200" : "bg-gray-800/60 border-gray-700/60 text-gray-400 hover:text-white"}`}
-                >
-                  {(c.label || c.name || c.username) as string}
-                </Link>
-              );
-            })}
-          </div>
-        )}
 
         <div className="space-y-6">
           {/* Swift Links */}

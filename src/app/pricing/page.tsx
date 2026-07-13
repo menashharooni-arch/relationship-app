@@ -7,6 +7,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
+import { PLAN_FEATURES, money } from "@/lib/plan-content";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
@@ -20,43 +21,10 @@ const PRO_ANNUAL = PLAN_PRICES.PRO_ANNUAL_CENTS / 100;
 const OFFICE_PER_USER = PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100;
 const OFFICE_PER_USER_YEAR = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100;
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
-const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
 
-const features = {
-  free: [
-    "1 digital business card",
-    "5 new leads a month",
-    "All 5 card templates",
-    "QR code, shareable link & NFC",
-    "Unlimited Swift Links buttons",
-    "Save to contacts (vCard), socials, bio, address",
-    "Contacts CRM: statuses, notes, read/unread",
-    "Analytics: views, best day, saves & top locations",
-    "Day-1 follow-up email",
-    "3 AI drafts + 3 card scans a month",
-    "“Powered by SwiftCard” badge",
-  ],
-  pro: [
-    "Everything in Free, plus:",
-    "Unlimited leads & contacts",
-    "Unlimited cards + custom card designer",
-    "No SwiftCard branding",
-    "Automated follow-up sequences — email + text",
-    "Unlimited AI drafts & card scans",
-    "Premium Swift Links: video previews, featured tiles & themes",
-    "Full analytics: who viewed, when & where",
-    "CSV export + Zapier, Google & HubSpot sync",
-  ],
-  enterprise: [
-    "Everything in Pro, for every seat",
-    "Shared office/team dashboard",
-    "Individual card per member",
-    "Admin seat controls & invites",
-    "Unlimited seats (minimum 2)",
-    "Bulk CSV import of contacts",
-    "Priority support",
-  ],
-};
+// Feature lists + descriptions come from the shared plan-content module so the
+// Pricing page and the in-product plan chooser never drift apart.
+const features = { free: PLAN_FEATURES.free, pro: PLAN_FEATURES.pro, enterprise: PLAN_FEATURES.office };
 
 function Check({ pro }: { pro?: boolean }) {
   return (

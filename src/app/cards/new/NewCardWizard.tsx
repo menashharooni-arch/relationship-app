@@ -794,7 +794,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     {showPlan && guest && (
       <div className="fixed inset-0 z-[90] overflow-y-auto bg-gray-950/97 backdrop-blur-sm">
         <div className="min-h-full flex items-start justify-center py-10 px-5">
-          <div className="w-full max-w-4xl">
+          <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
               <button onClick={() => setShowPlan(false)} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
