@@ -50,8 +50,9 @@ export default function GuestDraftClaim() {
 
         if (res.status === 401) {
           // Session vanished between landing and claim — send them to log in,
-          // KEEPING the draft so nothing is lost.
-          const next = encodeURIComponent("/cards/new");
+          // KEEPING the draft so nothing is lost. claim=1 so the editor re-runs
+          // the claim on the post-auth return (a bare /cards/new never claims).
+          const next = encodeURIComponent("/cards/new?claim=1");
           window.location.href = `/login?next=${next}&draft=1`;
           return;
         }

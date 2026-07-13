@@ -16,7 +16,7 @@ const Wizard = NewCardWizard as ComponentType<{ isPro: boolean; guest?: boolean 
 export default async function NewCardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ add?: string }>;
+  searchParams: Promise<{ add?: string; claim?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -42,12 +42,17 @@ export default async function NewCardPage({
     isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   }
 
+  // The pending draft is claimed ONLY on an explicit signal:
+  //  • `claim=1` — the post-auth return from the account gate (GuestGateModal
+  //    stamps it on the redirect URL), i.e. the visitor just chose an account.
+  //  • `add=1`  — a signed-in user deliberately adding a card to their account.
+  // Never on a bare marketing landing: a lingering session + a leftover draft
+  // from an earlier visit must not silently merge into that account.
+  const claimHere = !!user && (sp.claim === "1" || authedAdd);
+
   return (
     <>
-      {/* Claim a pending draft (guest → signup round-trip, or an authed add) only
-          once a session exists. On the new-account flow the draft is claimed after
-          the visitor explicitly authenticates, never on a bare marketing landing. */}
-      {user && <GuestDraftClaim />}
+      {claimHere && <GuestDraftClaim />}
       <Wizard isPro={isPro} guest={!authedAdd} />
     </>
   );

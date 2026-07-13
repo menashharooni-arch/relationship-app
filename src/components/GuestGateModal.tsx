@@ -15,11 +15,15 @@ export default function GuestGateModal() {
   useEffect(() => {
     function onGate() {
       // Capture the exact editor URL so the user returns to where they left off
-      // after authenticating.
+      // after authenticating. Stamp `claim=1` on it: the editor only claims the
+      // pending draft on this explicit post-auth return — never on a bare
+      // marketing landing (where a lingering session would silently swallow a
+      // leftover draft into the wrong account).
       try {
-        setNext(window.location.pathname + window.location.search);
+        const base = window.location.pathname + window.location.search;
+        setNext(base + (base.includes("?") ? "&" : "?") + "claim=1");
       } catch {
-        setNext("/cards/new");
+        setNext("/cards/new?claim=1");
       }
       setOpen(true);
     }

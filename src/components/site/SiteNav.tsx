@@ -155,7 +155,17 @@ export default function SiteNav() {
                   <p className="rd-eyebrow text-white/40 mb-2">{title as string}</p>
                   <div className="grid grid-cols-1 gap-0.5">
                     {(items as Item[]).map((it) => (
-                      <Link key={it.label} href={it.href} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]">
+                      <Link
+                        key={it.label}
+                        href={it.href}
+                        onClick={() => {
+                          setOpen(false);
+                          // Same as the desktop dropdown: "Overview" on the
+                          // homepage scrolls to the top (a same-route Link no-ops).
+                          if (it.href === "/" && window.location.pathname === "/") window.scrollTo(0, 0);
+                        }}
+                        className="flex items-center justify-between rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]"
+                      >
                         <span className="text-[15px] font-medium">{it.label}</span>
                         <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/30" fill="currentColor"><path fillRule="evenodd" d="M7.3 4.3a1 1 0 011.4 0l5 5a1 1 0 010 1.4l-5 5a1 1 0 01-1.4-1.4L11.6 10 7.3 5.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
                       </Link>
