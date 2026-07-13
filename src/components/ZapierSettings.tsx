@@ -59,7 +59,7 @@ export default function ZapierSettings({
           <p className="text-slate-400 text-xs">Send new leads to 6,000+ apps automatically</p>
         </div>
         {!isPro && (
-          <span className="ml-auto text-xs bg-[#D4C8B8] text-[#6B5F52] font-medium px-2 py-0.5 rounded-full">Pro</span>
+          <a href="/pricing" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
         )}
       </div>
 

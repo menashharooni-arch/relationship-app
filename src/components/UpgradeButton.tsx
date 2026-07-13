@@ -9,7 +9,16 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
   async function handleUpgrade() {
     setLoading(true);
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      // Send an explicit Pro monthly price so checkout doesn't depend on a
+      // server-side default env var; fall back to the server default if the
+      // public price id isn't configured.
+      const priceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(priceId ? { priceId } : {}),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const { url, error } = await res.json();
       if (url) {
         window.location.href = url;
