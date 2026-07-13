@@ -148,6 +148,8 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   useEffect(() => {
     const p = consumePrefill();
     if (!p) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from a
+       localStorage handoff after mount; can't run during render (client-only). */
     if (p.name) setName(p.name);
     if (p.title) setTitle(p.title);
     if (p.company) setCompany(p.company);
@@ -163,7 +165,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     if (p.logoUrl) setLogoUrl(p.logoUrl);
     if (p.headshotUrl) setHeadshotUrl(p.headshotUrl);
     if (p.step) setStep(Math.min(Math.max(p.step, 1), 3));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -176,7 +178,10 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
 
   function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
     writePlanIntent(intent);
-    requireAuth("save", handleCreate);
+    // forceGate: always make the visitor pick an account (log in, or sign up with
+    // a different email → a NEW account). Never silently save into a session that
+    // just happens to be in this browser.
+    requireAuth("save", handleCreate, { forceGate: true });
   }
 
   // Card URL auto-fills from full name + company (e.g. "john-smith-acme-corp"),

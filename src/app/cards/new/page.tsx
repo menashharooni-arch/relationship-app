@@ -13,9 +13,24 @@ const Wizard = NewCardWizard as ComponentType<{ isPro: boolean; guest?: boolean 
 // QR / signature / analytics / leads), which the wizard gates via requireAuth.
 // When a signed-in user lands here with a pending guest draft, GuestDraftClaim
 // converts it into a real card and moves them into the editor.
-export default async function NewCardPage() {
+export default async function NewCardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ add?: string }>;
+}) {
+  const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Two very different intents share this route:
+  //  • `?add=1` — a SIGNED-IN user adding another card to THEIR account (linked
+  //    from the dashboard). Build straight into the current account.
+  //  • anything else — the marketing "Get started / Create your free card" entry.
+  //    This is a NEW-account flow: even if a session happens to be in the browser
+  //    (e.g. a returning user), the card must NOT silently merge into that
+  //    account. The visitor builds as a guest and explicitly chooses an account
+  //    (log in, or sign up with a different email) before it's saved.
+  const authedAdd = sp.add === "1" && !!user;
 
   let isPro = false;
   if (user) {
@@ -29,8 +44,11 @@ export default async function NewCardPage() {
 
   return (
     <>
+      {/* Claim a pending draft (guest → signup round-trip, or an authed add) only
+          once a session exists. On the new-account flow the draft is claimed after
+          the visitor explicitly authenticates, never on a bare marketing landing. */}
       {user && <GuestDraftClaim />}
-      <Wizard isPro={isPro} guest={!user} />
+      <Wizard isPro={isPro} guest={!authedAdd} />
     </>
   );
 }
