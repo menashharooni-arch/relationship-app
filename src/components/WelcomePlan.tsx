@@ -70,7 +70,7 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-12">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto mb-4">

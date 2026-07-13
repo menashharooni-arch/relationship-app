@@ -429,7 +429,7 @@ export default async function DashboardPage({
             {[
               { href: `/dashboard?card=${activeUsername}`, label: "Dashboard", active: true },
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
-              { href: "/share", label: "Share", active: false },
+              { href: `/share?card=${activeUsername}`, label: "Share", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
