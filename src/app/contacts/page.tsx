@@ -5,6 +5,7 @@ import ContactsClient from "@/components/ContactsClient";
 import MobileNav from "@/components/MobileNav";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import GrowLinkButton from "@/components/GrowLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
 import Link from "next/link";
 
@@ -86,12 +87,10 @@ export default async function ContactsPage({
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Settings
             </Link>
-            <Link href="/grow" className="text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors">
-              <span aria-hidden className="mr-1">❤</span>Grow
-            </Link>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <GrowLinkButton />
             <Link href={dashHref} className="text-sm text-gray-400 hover:text-white transition-colors">
               ← Dashboard
             </Link>

@@ -69,14 +69,13 @@ export default async function GrowPage() {
 
           <div className="hidden md:flex items-center gap-0.5">
             {[
-              { href: "/dashboard", label: "Dashboard", active: false, accent: false },
-              { href: "/contacts", label: "Contacts", active: false, accent: false },
-              { href: "/settings/flows", label: "Settings", active: false, accent: false },
-              { href: "/grow", label: "Grow", active: true, accent: true },
-            ].map(({ href, label, active, accent }) => (
+              { href: "/dashboard", label: "Dashboard" },
+              { href: "/contacts", label: "Contacts" },
+              { href: "/settings/flows", label: "Settings" },
+            ].map(({ href, label }) => (
               <Link key={href} href={href}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${accent ? (active ? "text-rose-300 font-medium bg-rose-500/15" : "text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 font-medium") : active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
-                {accent && <span aria-hidden className="mr-1">❤</span>}{label}
+                className="text-sm px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors">
+                {label}
               </Link>
             ))}
           </div>

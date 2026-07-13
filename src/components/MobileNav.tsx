@@ -30,16 +30,6 @@ const TABS = [
     ),
   },
   {
-    href: "/grow",
-    tour: "nav-grow",
-    label: "Grow",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-      </svg>
-    ),
-  },
-  {
     href: "/settings/flows",
     tour: "nav-settings",
     label: "Settings",
@@ -72,16 +62,13 @@ export default function MobileNav() {
       <div className="flex items-center justify-around px-2 py-2">
         {TABS.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          // Grow gets a rose accent (matching the heart) so it pops from the blue.
-          const isGrow = href === "/grow";
-          const color = isGrow ? (active ? "#f43f5e" : "#fb7185") : active ? "#3b82f6" : "#6b7280";
           return (
             <Link
               key={href}
               href={withCard(href)}
               data-tour={tour}
               className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0"
-              style={{ color }}
+              style={{ color: active ? "#3b82f6" : "#6b7280" }}
             >
               {icon}
               <span className="text-[10px] font-semibold">{label}</span>

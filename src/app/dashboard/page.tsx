@@ -16,6 +16,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
+import GrowLinkButton from "@/components/GrowLinkButton";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
@@ -457,11 +458,10 @@ export default async function DashboardPage({
               { href: `/dashboard?card=${activeUsername}`, label: "Dashboard", active: true },
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
-              { href: "/grow", label: "Grow", active: false, accent: true },
-            ].map(({ href, label, active, accent }) => (
+            ].map(({ href, label, active }) => (
               <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${accent ? "text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 font-medium" : active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
-                {accent && <span aria-hidden className="mr-1">❤</span>}{label}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                {label}
               </Link>
             ))}
             {ownedOffice && (
@@ -478,6 +478,7 @@ export default async function DashboardPage({
 
           <div className="flex items-center gap-2 shrink-0">
             {isEnterprise && <CSVImport />}
+            <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
