@@ -78,6 +78,7 @@ export default async function FlowSettingsPage() {
               { href: "/dashboard", label: "Dashboard" },
               { href: "/contacts",  label: "Contacts" },
               { href: "/settings/flows", label: "Settings", active: true },
+              { href: "/grow", label: "Grow" },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
