@@ -13,14 +13,14 @@ import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/c
 
 
 const LINK_PRESETS: { emoji: string; label: string }[] = [
-  { emoji: "📅", label: "Book a call" },
-  { emoji: "🌐", label: "Visit website" },
-  { emoji: "💼", label: "View portfolio" },
-  { emoji: "⭐", label: "Leave a review" },
-  { emoji: "💸", label: "Pay me" },
-  { emoji: "📋", label: "View menu" },
-  { emoji: "📄", label: "Download" },
-  { emoji: "🎥", label: "Watch video" },
+  { emoji: "", label: "Book a call" },
+  { emoji: "", label: "Visit website" },
+  { emoji: "", label: "View portfolio" },
+  { emoji: "", label: "Leave a review" },
+  { emoji: "", label: "Pay me" },
+  { emoji: "", label: "View menu" },
+  { emoji: "", label: "Download" },
+  { emoji: "", label: "Watch video" },
 ];
 
 function parseSocial(raw: string, platform: "instagram" | "twitter" | "tiktok" | "linkedin" | "snapchat"): string {
@@ -98,7 +98,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
   const [customization, setCustomization] = useState<CardCustomization>(profile.customization ?? {});
   const [links, setLinks] = useState<CardLink[]>((profile.customization as CardCustomization)?.links ?? []);
   const [addingLink, setAddingLink] = useState(false);
-  const [newLink, setNewLink] = useState<CardLink>({ emoji: "🌐", label: "", url: "" });
+  const [newLink, setNewLink] = useState<CardLink>({ emoji: "", label: "", url: "" });
   const [testimonials, setTestimonials] = useState<CardTestimonial[]>((profile.customization as CardCustomization)?.testimonials ?? []);
   const [addingTestimonial, setAddingTestimonial] = useState(false);
   const [newTestimonial, setNewTestimonial] = useState<CardTestimonial>({ name: "", text: "" });
@@ -142,7 +142,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
     if (!newLink.label.trim() || !newLink.url.trim()) return;
     const url = newLink.url.startsWith("http") ? newLink.url : `https://${newLink.url}`;
     setLinks((prev) => [...prev, { ...newLink, url }]);
-    setNewLink({ emoji: "🌐", label: "", url: "" });
+    setNewLink({ emoji: "", label: "", url: "" });
     setAddingLink(false);
   }
 
@@ -356,7 +356,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
             </button>
             <button
               type="button"
-              onClick={() => { setAddingLink(false); setNewLink({ emoji: "🌐", label: "", url: "" }); }}
+              onClick={() => { setAddingLink(false); setNewLink({ emoji: "", label: "", url: "" }); }}
               className="px-4 text-xs text-slate-500 hover:text-slate-700"
             >
               Cancel

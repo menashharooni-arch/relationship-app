@@ -138,7 +138,7 @@ export default function EnablePushButton({
   if (state === "ios-install") {
     return (
       <div className="w-full rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left">
-        <p className="text-blue-200 text-sm font-semibold">📱 Turn on notifications on iPhone</p>
+        <p className="text-blue-200 text-sm font-semibold">Turn on notifications on iPhone</p>
         <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
           Tap the <strong>Share</strong> button, choose <strong>Add to Home Screen</strong>, then open SwiftCard from your home screen and switch notifications on here.
         </p>
@@ -175,7 +175,7 @@ export default function EnablePushButton({
     <div className="space-y-2">
       <div className="w-full flex items-center justify-between gap-3 bg-gray-800/50 border border-gray-700/60 rounded-2xl py-2.5 px-4">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-100">🔔 Push notifications</p>
+          <p className="text-sm font-semibold text-gray-100">Push notifications</p>
           <p className="text-[11px] text-gray-500">
             {busy ? "One moment…" : isOn ? "On for this device" : "Get a buzz when someone shares their info"}
           </p>

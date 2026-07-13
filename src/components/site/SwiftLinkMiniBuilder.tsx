@@ -128,7 +128,7 @@ export default function SwiftLinkMiniBuilder() {
           <textarea
             className={inputCls + " resize-none"}
             rows={3}
-            placeholder="Founder & CEO at Morgan & Co. Helping brands grow 🚀"
+            placeholder="Founder & CEO at Morgan & Co. Helping brands grow"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             autoFocus

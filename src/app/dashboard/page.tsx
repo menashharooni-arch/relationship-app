@@ -587,7 +587,7 @@ export default async function DashboardPage({
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <p className="text-sm font-medium text-amber-400">
                     {lockedCount > 0
-                      ? `🔒 ${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
+                      ? `${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
                       : atLimit
                         ? `You've used your ${FREE_LIMIT} free leads this month. Upgrade to Pro for unlimited.`
                         : `${monthlyLeadsUsed}/${FREE_LIMIT} free leads used this month`}
@@ -625,7 +625,7 @@ export default async function DashboardPage({
                     {topLocations.map((loc) => (
                       <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <p className="text-gray-100 text-sm font-semibold truncate">📍 {loc.location}</p>
+                          <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
                           <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
                         </div>
                         <div className="flex items-center gap-4 text-[11px]">

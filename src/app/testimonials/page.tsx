@@ -28,40 +28,34 @@ function A({ children }: { children: React.ReactNode }) {
 // Truthful, product-grounded use cases — written in the second person as
 // marketing copy about what the product DOES, never framed as a quote from a
 // customer. Every claim maps to a real shipped feature.
-const USE_CASES: { role: string; emoji: string; title: string; body: string }[] = [
+const USE_CASES: { role: string; title: string; body: string }[] = [
   {
     role: "Real estate",
-    emoji: "🏡",
     title: "Every open-house visitor, captured",
     body: "Show your QR at the door. Each scan opens your card, and anyone who shares their info lands in your dashboard — with automatic follow-up so no lead goes cold.",
   },
   {
     role: "Sales teams",
-    emoji: "📈",
     title: "One brand, every rep in sync",
     body: "Office accounts put your whole team on matching cards. Update the brand kit once and every card changes; leads route to the rep who made the connection.",
   },
   {
     role: "Recruiters",
-    emoji: "🤝",
     title: "Stay top of mind after one meeting",
     body: "Set a follow-up cadence once. SwiftCard sends the emails and texts for you — each one signed with your live card.",
   },
   {
     role: "Creators & freelancers",
-    emoji: "🎨",
     title: "Portfolio, booking, socials — one link",
     body: "Your Swift Links page holds your bio, links, and socials in one place. Drop it in your Instagram or TikTok bio and let clients reach you from anywhere.",
   },
   {
     role: "Consultants",
-    emoji: "💼",
     title: "Share from your phone, wallet, or watch",
     body: "Your card lives in Apple Wallet and on your wrist. Tap, scan, or text it — the other person needs no app to receive it.",
   },
   {
     role: "Anyone who networks",
-    emoji: "⚡",
     title: "See what's working",
     body: "Views, locations, and sources for your card and links — networking becomes something you can measure instead of guess at.",
   },
@@ -110,10 +104,7 @@ export default function WhySwiftCardPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {USE_CASES.map((u, i) => (
                 <div key={u.role} className="rd-card-l p-6 flex flex-col" data-reveal style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl" aria-hidden>{u.emoji}</span>
-                    <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500">{u.role}</p>
-                  </div>
+                  <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500">{u.role}</p>
                   <p className="text-slate-900 font-semibold text-[16px] mt-3">{u.title}</p>
                   <p className="text-slate-600 text-[14.5px] leading-relaxed mt-2 flex-1">{u.body}</p>
                 </div>

@@ -127,7 +127,7 @@ export default async function FlowSettingsPage() {
               href="/grow"
               className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
             >
-              ❤️ More ways to help us grow
+              More ways to help us grow
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
             </Link>
           </div>
@@ -171,7 +171,7 @@ export default async function FlowSettingsPage() {
             {/* Push notifications toggle — the wizard offers opt-in once at card
                 creation; this is the permanent on/off switch for this device. */}
             <div className="mt-3">
-              <EnablePushButton label="🔔 Turn on push notifications" allowDisable />
+              <EnablePushButton label="Turn on push notifications" allowDisable />
             </div>
           </div>
 

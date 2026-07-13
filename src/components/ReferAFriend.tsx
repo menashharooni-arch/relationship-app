@@ -54,7 +54,7 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
       const res = await fetch("/api/referrals/claim", { method: "POST" });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setClaimMsg({ ok: true, text: "🎉 Pro is active for the next month — enjoy!" });
+        setClaimMsg({ ok: true, text: "Pro is active for the next month — enjoy!" });
         // Refresh local progress + the page (plan badge etc.).
         const fresh = await fetch("/api/referrals/claim").then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (fresh) setP(fresh);
@@ -89,7 +89,7 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
               disabled={claiming}
               className="w-full mb-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-sm font-bold py-3 transition-colors"
             >
-              {claiming ? "Activating…" : `🎉 Claim your free month of Pro${p.claimable > 1 ? ` (${p.claimable} ready)` : ""}`}
+              {claiming ? "Activating…" : `Claim your free month of Pro${p.claimable > 1 ? ` (${p.claimable} ready)` : ""}`}
             </button>
           )}
           {claimMsg && (
@@ -107,7 +107,7 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
               </div>
               <p className="text-[11px] text-gray-500">
                 {p.capReached
-                  ? "You've earned all 3 referral months — thanks for spreading the word! 🙌"
+                  ? "You've earned all 3 referral months — thanks for spreading the word!"
                   : p.claimable > 0
                   ? "3 of 3 complete — claim your month above!"
                   : `${p.progressInBatch} of ${per} signups toward your next free month`}

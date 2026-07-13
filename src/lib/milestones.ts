@@ -6,17 +6,17 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // View-count achievements — game-like nudges that pull owners back into the
 // app as their card gains traction. Fired from the view-tracking API.
 const MILESTONES: Record<number, { title: string; body: string }> = {
-  5:     { title: "🎉 First 5 views!", body: "People are checking out your card. Share it once more to keep the momentum." },
-  10:    { title: "🔟 10 views — you're getting noticed!", body: "Double digits! Add your card to your email signature to keep it climbing." },
-  25:    { title: "🚀 25 views and climbing!", body: "Your card is doing the networking for you. Next stop: 50." },
-  50:    { title: "🔥 50 views — on fire!", body: "Fifty people have seen your card. Keep sharing!" },
-  100:   { title: "💯 100 views!", body: "Triple digits — your card is officially working the room." },
-  250:   { title: "⭐ 250 views!", body: "You're building serious reach. 500 is in sight." },
-  500:   { title: "🏆 500 views!", body: "Most cards never see this. Yours just did." },
-  1000:  { title: "👑 1,000 views!", body: "Four digits. Your card is a networking machine." },
-  2500:  { title: "🌟 2,500 views!", body: "Legendary reach — your network sees you everywhere." },
-  5000:  { title: "🚀 5,000 views!", body: "Halfway to five figures. Unstoppable." },
-  10000: { title: "🎇 10,000 views!", body: "Ten. Thousand. Views. Take a bow." },
+  5:     { title: "First 5 views!", body: "People are checking out your card. Share it once more to keep the momentum." },
+  10:    { title: "10 views — you're getting noticed!", body: "Double digits! Add your card to your email signature to keep it climbing." },
+  25:    { title: "25 views and climbing!", body: "Your card is doing the networking for you. Next stop: 50." },
+  50:    { title: "50 views — on fire!", body: "Fifty people have seen your card. Keep sharing!" },
+  100:   { title: "100 views!", body: "Triple digits — your card is officially working the room." },
+  250:   { title: "250 views!", body: "You're building serious reach. 500 is in sight." },
+  500:   { title: "500 views!", body: "Most cards never see this. Yours just did." },
+  1000:  { title: "1,000 views!", body: "Four digits. Your card is a networking machine." },
+  2500:  { title: "2,500 views!", body: "Legendary reach — your network sees you everywhere." },
+  5000:  { title: "5,000 views!", body: "Halfway to five figures. Unstoppable." },
+  10000: { title: "10,000 views!", body: "Ten. Thousand. Views. Take a bow." },
 };
 
 // Called after each recorded view. Counts the card's combined SwiftCard +

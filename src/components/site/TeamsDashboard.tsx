@@ -189,7 +189,7 @@ export default function TeamsDashboard() {
             <div className="space-y-1">
               {["All", ...OFFICES].map((o) => (
                 <button key={o} onClick={() => setGroup(o)} className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[12.5px] transition-colors ${group === o ? "bg-white/10 text-white" : "text-white/50 hover:text-white/80"}`}>
-                  <span className="flex items-center gap-2">{o !== "All" && "📍"} {o}</span>
+                  <span className="flex items-center gap-2">{o}</span>
                   <span className="text-white/30 text-[11px]">{o === "All" ? members.length : members.filter((m) => m.office === o).length}</span>
                 </button>
               ))}

@@ -15,7 +15,7 @@ export async function seedDemoContact(cardOwner: string): Promise<void> {
       location: "Austin, TX",
       where_met: "Austin Founders Mixer",
       notes:
-        "👋 Sample contact — feel free to delete anytime. Interested in a Q3 rebrand and comparing a couple of vendors. Prefers email; best reached weekday mornings.",
+        "Sample contact — feel free to delete anytime. Interested in a Q3 rebrand and comparing a couple of vendors. Prefers email; best reached weekday mornings.",
       message: "Great meeting you — would love to see some of your recent work!",
       status: "new_contact",
       source: "qr_code",
