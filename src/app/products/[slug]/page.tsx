@@ -198,6 +198,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = PRODUCTS[slug];
   if (!p) notFound();
 
+  // The "Preview" (see-it-live) CTA is hidden on these product pages per owner
+  // request — they showcase the real thing inline instead.
+  const showPreview = !["digital-cards", "swiftlinks", "email-signatures"].includes(slug);
+
   return (
     <div className="rd-dark2">
       <ScrollProgress />
@@ -220,7 +224,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[620px]" data-reveal>{p.subtitle}</p>
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
                   <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-                  <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>
+                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
                 </div>
               </div>
               <div className="mt-14 flex justify-center" data-reveal="fade">{p.demo}</div>
@@ -233,7 +237,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]" data-reveal>{p.subtitle}</p>
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
                   <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-                  <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>
+                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
                 </div>
               </div>
               <div className="flex justify-center" data-reveal="scale">{p.demo}</div>
