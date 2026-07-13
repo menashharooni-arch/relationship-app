@@ -62,7 +62,20 @@ function Dropdown({ label, items }: { label: string; items: Item[] }) {
       <div className="invisible opacity-0 translate-y-1 group-hover:visible group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 absolute left-1/2 -translate-x-1/2 top-full pt-3 w-[340px]">
         <div className="rounded-2xl border border-white/10 bg-[#0E1017]/95 backdrop-blur-xl p-2 shadow-[0_40px_80px_-32px_rgba(0,0,0,0.8)]">
           {items.map((it) => (
-            <Link key={it.label} href={it.href} className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.06] transition-colors">
+            <Link
+              key={it.label}
+              href={it.href}
+              onClick={(e) => {
+                // "Overview" (href "/") should always land at the top of the
+                // homepage. If we're already there, a same-route Link does
+                // nothing — so scroll to top ourselves.
+                if (it.href === "/" && window.location.pathname === "/") {
+                  e.preventDefault();
+                  window.scrollTo(0, 0);
+                }
+              }}
+              className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-white/[0.06] transition-colors"
+            >
               <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--rd-aurora)" }} />
               <span className="min-w-0">
                 <span className="block text-[14px] font-semibold text-white">{it.label}</span>
