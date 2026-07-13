@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -115,7 +115,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-0.5">
-          <ContactRows data={data} f={f} palette={{ strong: NAVY, mid: "#334155", soft: "#475569", muted: "#64748b" }} />
+          <ContactRows data={data} f={f} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : { strong: NAVY, mid: "#334155", soft: "#475569", muted: "#64748b" }} />
         </div>
 
         {/* Social handles (compact, if space) */}

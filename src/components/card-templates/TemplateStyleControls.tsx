@@ -35,6 +35,7 @@ type TemplateMeta = {
   looks: Look[];
   bg: StyleField;
   text: StyleField;
+  info: StyleField;
 };
 
 // Per-template descriptions, curated looks, and tailored fine-tune palettes.
@@ -62,6 +63,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#ffffff", "#f8fafc", "#d4af7a", "#bfdbfe"],
       fallback: "#ffffff",
     },
+    info: {
+      label: "Details color",
+      help: "Your phone, email, and address on the white info panel — a dark ink reads best.",
+      presets: ["#0e1b35", "#111827", "#334155", "#1c1612"],
+      fallback: "#0e1b35",
+    },
   },
   "modern-bold": {
     name: "Modern Bold",
@@ -86,6 +93,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#ffffff", "#f8fafc", "#60a5fa", "#a78bfa"],
       fallback: "#ffffff",
     },
+    info: {
+      label: "Details color",
+      help: "Your contact details sit on the dark card — keep them light so they stay legible.",
+      presets: ["#f1f5f9", "#ffffff", "#cbd5e1", "#94a3b8"],
+      fallback: "#f1f5f9",
+    },
   },
   "luxury-minimal": {
     name: "Luxury Minimal",
@@ -107,6 +120,12 @@ const META: Record<string, TemplateMeta> = {
       label: "Name color",
       help: "Your name in the serif headline. A deep charcoal, ink, or gold keeps it elegant on ivory.",
       presets: ["#1c1612", "#0e1b35", "#3f2d1a", "#8c6c34"],
+      fallback: "#1c1612",
+    },
+    info: {
+      label: "Details color",
+      help: "Your contact details — deep ink on ivory, or a soft light or gold on the charcoal look.",
+      presets: ["#1c1612", "#3f2d1a", "#8c6c34", "#d4af7a", "#e7dcc8"],
       fallback: "#1c1612",
     },
   },
@@ -133,6 +152,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#ffffff", "#fffbf0", "#fde68a"],
       fallback: "#ffffff",
     },
+    info: {
+      label: "Details color",
+      help: "Your contact details on the warm cream body — a rich brown or near-black reads best.",
+      presets: ["#7c2d12", "#78350f", "#92400e", "#1c1612"],
+      fallback: "#7c2d12",
+    },
   },
   "photo-first": {
     name: "Photo First",
@@ -157,6 +182,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#ffffff", "#f8fafc", "#d4af7a"],
       fallback: "#ffffff",
     },
+    info: {
+      label: "Details color",
+      help: "Your contact details on the info panel. They adapt to the panel color, or set your own here.",
+      presets: ["#111827", "#1e1b4b", "#ffffff", "#e5e7eb"],
+      fallback: "#111827",
+    },
   },
 };
 
@@ -179,6 +210,12 @@ const FALLBACK_META: TemplateMeta = {
     help: "The color of your name / headline text.",
     presets: ["#ffffff", "#f8fafc", "#1c1612", "#0e1b35"],
     fallback: "#ffffff",
+  },
+  info: {
+    label: "Details color",
+    help: "The color of your contact details (phone, email, address).",
+    presets: ["#111827", "#334155", "#ffffff", "#e5e7eb"],
+    fallback: "#111827",
   },
 };
 
@@ -373,7 +410,14 @@ export default function TemplateStyleControls({
         <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} />
       </div>
 
-      {/* 3) Font */}
+      {/* 3) Details color — the actual contact information text */}
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>{meta.info.label}</p>
+        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.info.help}</p>
+        <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} />
+      </div>
+
+      {/* 4) Font */}
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Font</p>
         <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>

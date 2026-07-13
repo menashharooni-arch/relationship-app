@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -20,6 +20,14 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
   const GOLD2 = style.accentColor ?? GOLD2_DEFAULT;
   const bg = style.bgColor ?? IVORY;
   const nameColor = style.textColor ?? TEXT;
+  // Info text sits on the card, so on a dark canvas (e.g. Charcoal Luxe) it
+  // defaults to a soft light tone; an explicit infoColor overrides it.
+  const darkCard = isDarkBg(bg);
+  const infoPal = style.infoColor
+    ? infoPaletteFrom(style.infoColor)
+    : darkCard
+      ? { strong: "#f2ead9", mid: "#e7dcc8", soft: "#c9bda6", muted: "#a89a86" }
+      : { strong: TEXT, mid: TEXT, soft: MUTED, muted: MUTED };
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
 
@@ -125,7 +133,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         </p>
 
         {/* Contact rows — shared block, auto-fits; lighter phone weight keeps the refined feel */}
-        <ContactRows data={data} f={f} palette={{ accent: GOLD, strong: TEXT, mid: TEXT, soft: MUTED, muted: MUTED, phoneWeight: 600 }} />
+        <ContactRows data={data} f={f} palette={{ accent: GOLD, ...infoPal, phoneWeight: 600 }} />
 
         {/* QR — always on the card; gives up a little room when dense */}
         <div className="flex flex-col items-end gap-1">

@@ -77,7 +77,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; fontFamily?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string };
 };
 
 type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean };
@@ -142,6 +142,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     accentColor: card.customization?.accentColor ?? undefined,
     bgColor: card.customization?.bgColor ?? undefined,
     textColor: card.customization?.textColor ?? undefined,
+    infoColor: card.customization?.infoColor ?? undefined,
     fontFamily: card.customization?.fontFamily ?? undefined,
   });
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
@@ -256,6 +257,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             accentColor: templateStyleState.accentColor ?? null,
             bgColor: templateStyleState.bgColor ?? null,
             textColor: templateStyleState.textColor ?? null,
+            infoColor: templateStyleState.infoColor ?? null,
             fontFamily: templateStyleState.fontFamily ?? null,
             // Headshot is per-card (explicit key, null when removed).
             photoUrl: photoState ?? null,

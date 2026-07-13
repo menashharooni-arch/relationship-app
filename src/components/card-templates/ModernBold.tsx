@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -16,6 +16,15 @@ export default function ModernBold({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const BLUE = style.accentColor ?? BLUE_DEFAULT;
   const bg = style.bgColor ?? BG;
+  // Info text sits on the card background, so it defaults to light on a dark
+  // card and dark on a light one; an explicit infoColor overrides either way.
+  const darkCard = isDarkBg(bg);
+  const infoPal = style.infoColor
+    ? infoPaletteFrom(style.infoColor)
+    : darkCard
+      ? { strong: "#f1f5f9", mid: "#e2e8f0", soft: "#94a3b8", muted: "#94a3b8" }
+      : { strong: "#0f172a", mid: "#1e293b", soft: "#475569", muted: "#64748b" };
+  const companyColor = style.infoColor ?? (darkCard ? "#cbd5e1" : "#475569");
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
@@ -66,7 +75,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           )}
           <p
             className="min-w-0 leading-tight"
-            style={{ fontSize: fitPx(12, data.company, 18), letterSpacing: "0.16em", color: "#cbd5e1", fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
+            style={{ fontSize: fitPx(12, data.company, 18), letterSpacing: "0.16em", color: companyColor, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>
@@ -117,7 +126,7 @@ export default function ModernBold({ data }: { data: CardData }) {
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-1">
-          <ContactRows data={data} f={f} palette={{ accent: BLUE, strong: "#f1f5f9", mid: "#e2e8f0", soft: "#94a3b8", muted: "#94a3b8" }} />
+          <ContactRows data={data} f={f} palette={{ accent: BLUE, ...infoPal }} />
         </div>
 
         {/* QR + label — always on the card; gives up a little room when dense */}
