@@ -46,7 +46,7 @@ async function sendReceiptForUser(opts: {
     invoiceUrl: opts.invoiceId
       ? `https://dashboard.stripe.com/invoices/${opts.invoiceId}`
       : undefined,
-    manageUrl: `${APP_URL}/settings`,
+    manageUrl: `${APP_URL}/settings/flows?billing=1`,
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -80,7 +80,7 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
     firstName,
     planName,
     amount: `$${(opts.amountCents / 100).toFixed(2)}`,
-    manageUrl: `${APP_URL}/settings/flows`,
+    manageUrl: `${APP_URL}/settings/flows?billing=1`,
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);

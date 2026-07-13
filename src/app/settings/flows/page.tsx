@@ -20,10 +20,18 @@ import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
 import Link from "next/link";
 
-export default async function FlowSettingsPage() {
+export default async function FlowSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ billing?: string }>;
+}) {
+  const { billing } = await searchParams;
+  const openBilling = billing === "1";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Preserve the destination (e.g. the "Manage billing" link in a receipt email)
+  // so the visitor lands back on this page — with billing open — after signing in.
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/settings/flows${openBilling ? "?billing=1" : ""}`)}`);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -170,6 +178,7 @@ export default async function FlowSettingsPage() {
               cardCount={cards?.length ?? 0}
               plan={profile.plan ?? "free"}
               isPro={isPro}
+              defaultOpen={openBilling}
             />
             {/* Push notifications toggle — the wizard offers opt-in once at card
                 creation; this is the permanent on/off switch for this device. */}
