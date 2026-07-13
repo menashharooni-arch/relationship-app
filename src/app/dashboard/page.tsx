@@ -601,24 +601,6 @@ export default async function DashboardPage({
             </div>
           )}
 
-          {/* Follow-up due today */}
-          {(() => {
-            const today = new Date().toISOString().split("T")[0];
-            const due = visibleLeads.filter((l) => l.follow_up_date && l.follow_up_date.slice(0, 10) <= today);
-            if (!due.length) return null;
-            return (
-              <div className="flex items-center justify-between gap-4 rounded-2xl px-5 py-3.5 mb-5 bg-blue-950/40 border border-blue-800/40">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base">📅</span>
-                  <p className="text-blue-300 text-sm font-medium">
-                    {due.length === 1 ? `Follow up with ${due[0].name} today` : `${due.length} follow-ups due today`}
-                  </p>
-                </div>
-                <Link scroll={false} href={`?status=all&date=all&sort=newest${selectedCard ? `&card=${selectedCard}` : ""}`} className="text-xs text-blue-400 hover:text-blue-200 font-semibold whitespace-nowrap">View →</Link>
-              </div>
-            );
-          })()}
-
           {/* Free plan limit banner */}
           <FirstLeadNudge leadCount={visibleLeads.length} isPro={isPro} />
 
@@ -643,8 +625,8 @@ export default async function DashboardPage({
             </div>
           )}
 
-          {/* Top row: Traffic (wider) + Swift Links + Email signature (skinnier) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.85fr_0.72fr_0.7fr] gap-4 mb-5">
+          {/* Top row: Traffic (wider) + Swift Links (thin) + Email signature (skinnier) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_0.58fr_0.7fr] gap-4 mb-5 lg:mb-3">
 
             {/* Traffic — SwiftCard & SwiftLink views */}
             <div data-tour="traffic" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
@@ -714,19 +696,19 @@ export default async function DashboardPage({
             </div>
 
             {/* Swift Links — a separate link from the business card */}
-            <div data-tour="swift-links" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
-              <p className="text-gray-600 text-[11px] mb-2 leading-relaxed">
-                Your Swift Links is a separate link from your card — your bio, all your socials, and your links in one place. Drop it in your Instagram, TikTok, or other social bios — anywhere.
+            <div data-tour="swift-links" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+              <p className="text-gray-500 text-[11px] font-semibold uppercase tracking-wide mb-2">Swift Links</p>
+              <p className="text-gray-600 text-[11px] mb-2.5 leading-snug">
+                A separate link from your card — your bio, socials, and links in one place. Drop it in any social bio.
               </p>
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Swift Links</p>
-              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-2.5 py-2">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                 </svg>
                 <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
                 <CopyButton text={swiftUrl} />
               </div>
-              <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+              <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-1.5 transition-colors">
                 Open Swift Links →
               </a>
             </div>
