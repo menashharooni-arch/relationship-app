@@ -527,3 +527,42 @@ body {
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-400 { color: #9ca3af !important; }
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-500 { color: #6b7280 !important; }
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-600 { color: #4b5563 !important; }
+
+/* ── Orbiting outline for the hero CTA ──────────────────────────────────────
+   A bright comet endlessly circles the button's border. Implemented as a spun
+   conic-gradient ring masked to the outline (padding-box XOR), so only the
+   ring shows and the button itself is untouched. */
+@property --sc-orbit {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.sc-btn-orbit { position: relative; isolation: isolate; overflow: visible !important; }
+.sc-btn-orbit::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--sc-orbit),
+    transparent 0deg,
+    transparent 250deg,
+    rgba(125, 211, 252, 0.0) 255deg,
+    rgba(96, 165, 250, 0.75) 300deg,
+    rgba(186, 230, 253, 1) 335deg,
+    #ffffff 352deg,
+    transparent 360deg
+  );
+  filter: drop-shadow(0 0 6px rgba(125, 211, 252, 0.8));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: sc-orbit-spin 2.8s linear infinite;
+  pointer-events: none;
+}
+@keyframes sc-orbit-spin { to { --sc-orbit: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .sc-btn-orbit::after { animation: none; opacity: 0.45; }
+}

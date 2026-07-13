@@ -67,7 +67,7 @@ export default function Home() {
                 ))}
               </ul>
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
-                <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
+                <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg sc-btn-orbit">Create your free card</Link>
               </div>
             </div>
 
