@@ -1,20 +1,27 @@
 "use client";
 
-// Pro control for restyling the FIVE preset templates. Deliberately scoped to
-// exactly three things — BACKGROUND surface, NAME/text color, and FONT — because
-// everything else (layout, accents, textures) is what gives each template its
-// signature look. Each template exposes these three differently: what the
-// "background" actually is (a side panel vs. the whole card vs. a header stripe)
-// and where the name text sits changes per template, so the labels, helper copy,
-// and preset palettes below are tailored to each one.
+// Pro control for restyling the FIVE preset templates. Scoped to what actually
+// keeps a card looking professional — BACKGROUND surface, NAME/text color, and
+// FONT — because layout, accents and textures are each template's signature.
+//
+// Two tiers so it's powerful without being overwhelming:
+//   1. "Looks" — one-tap curated themes (coordinated background + name + font),
+//      tailored to each template. This is where most people should live.
+//   2. "Fine-tune" — the granular background / name color / font controls,
+//      collapsed by default.
 //
 // Purely presentational — the parent owns the TemplateStyle value and persists
-// it on customization. Every field is optional; clearing one ("Default") returns
-// that property to the template's baked-in design. Consumed by NewCardWizard and
+// it on customization. Clearing a fine-tune field ("Default") returns that
+// property to the template's baked-in design. Consumed by NewCardWizard and
 // CardEditForm.
 
+import { useState } from "react";
 import { CARD_FONT_OPTIONS } from "./shared";
 import type { TemplateStyle } from "./shared";
+
+const SERIF = "Georgia, 'Times New Roman', serif";
+
+type Look = { name: string; bg: string; text: string; font?: string };
 
 type StyleField = {
   label: string;
@@ -26,16 +33,24 @@ type StyleField = {
 type TemplateMeta = {
   name: string;
   blurb: string;
+  looks: Look[];
   bg: StyleField;
   text: StyleField;
 };
 
-// Per-template descriptions + tailored palettes. Presets are chosen to suit each
-// template's character (dark panels vs. cream canvases vs. warm stripes).
+// Per-template descriptions, curated looks, and tailored fine-tune palettes.
 const META: Record<string, TemplateMeta> = {
   "classic-pro": {
     name: "Classic Pro",
     blurb: "A two-panel executive card — a colored branding panel on the left, clean white info on the right.",
+    looks: [
+      { name: "Executive Navy", bg: "linear-gradient(160deg, #0e1b35 0%, #162947 100%)", text: "#ffffff" },
+      { name: "Onyx", bg: "#070d1c", text: "#ffffff" },
+      { name: "Graphite", bg: "#111827", text: "#e5e7eb" },
+      { name: "Forest", bg: "#052e2b", text: "#ffffff" },
+      { name: "Burgundy", bg: "#3f1d2e", text: "#f3d9c6" },
+      { name: "Sky", bg: "linear-gradient(160deg, #0e1b35 0%, #2563eb 100%)", text: "#ffffff" },
+    ],
     bg: {
       label: "Branding panel",
       help: "The colored left panel behind your logo and name. The right info panel always stays white.",
@@ -52,6 +67,14 @@ const META: Record<string, TemplateMeta> = {
   "modern-bold": {
     name: "Modern Bold",
     blurb: "A full-bleed dark card with an oversized name and electric accents.",
+    looks: [
+      { name: "Electric Dark", bg: "#070d1c", text: "#ffffff" },
+      { name: "Pure Black", bg: "#0a0a0a", text: "#ffffff" },
+      { name: "Violet Night", bg: "linear-gradient(135deg, #111827 0%, #6d28d9 100%)", text: "#ffffff" },
+      { name: "Deep Blue", bg: "linear-gradient(135deg, #0e1b35 0%, #2563eb 100%)", text: "#ffffff" },
+      { name: "Emerald", bg: "#052e2b", text: "#6ee7b7" },
+      { name: "Ember", bg: "#1c1010", text: "#fca5a5" },
+    ],
     bg: {
       label: "Card background",
       help: "The entire card surface. Modern Bold is built for deep, dark tones — lighter colors will wash out the accents.",
@@ -68,6 +91,13 @@ const META: Record<string, TemplateMeta> = {
   "luxury-minimal": {
     name: "Luxury Minimal",
     blurb: "An ivory editorial card with a gold accent strip and a refined serif feel.",
+    looks: [
+      { name: "Ivory & Gold", bg: "#fafaf6", text: "#1c1612", font: SERIF },
+      { name: "Warm Cream", bg: "#fffbf0", text: "#3f2d1a", font: SERIF },
+      { name: "Pearl", bg: "#ffffff", text: "#0e1b35", font: SERIF },
+      { name: "Sand", bg: "#f5efe3", text: "#1c1612", font: SERIF },
+      { name: "Charcoal Luxe", bg: "#1c1612", text: "#d4af7a", font: SERIF },
+    ],
     bg: {
       label: "Card background",
       help: "The ivory canvas of the whole card. Choose a soft, light tone to keep the premium look.",
@@ -84,6 +114,14 @@ const META: Record<string, TemplateMeta> = {
   "local-business": {
     name: "Local Business",
     blurb: "A warm card with a bold header stripe and the phone number as the hero.",
+    looks: [
+      { name: "Warm Amber", bg: "linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)", text: "#ffffff" },
+      { name: "Forest", bg: "#166534", text: "#ffffff" },
+      { name: "Teal", bg: "#0f766e", text: "#ffffff" },
+      { name: "Midnight", bg: "#0e1b35", text: "#ffffff" },
+      { name: "Cherry", bg: "#be123c", text: "#ffffff" },
+      { name: "Slate", bg: "#334155", text: "#ffffff" },
+    ],
     bg: {
       label: "Header stripe",
       help: "The colored banner across the top. The body below always stays warm cream.",
@@ -100,9 +138,17 @@ const META: Record<string, TemplateMeta> = {
   "photo-first": {
     name: "Photo First",
     blurb: "A full-height photo on the left, a clean white info panel on the right.",
+    looks: [
+      { name: "Royal Violet", bg: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", text: "#ffffff" },
+      { name: "Indigo", bg: "#4f46e5", text: "#ffffff" },
+      { name: "Rose", bg: "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", text: "#ffffff" },
+      { name: "Emerald", bg: "linear-gradient(145deg, #064e3b 0%, #10b981 100%)", text: "#ffffff" },
+      { name: "Slate", bg: "#334155", text: "#ffffff" },
+      { name: "Onyx", bg: "#0a0a0a", text: "#ffffff" },
+    ],
     bg: {
       label: "Photo panel",
-      help: "The color behind your photo on the left — it shows through if you have no photo and tints the edges. The right info panel stays white.",
+      help: "The color behind your photo on the left — it shows if you have no photo and tints the edges. The right info panel stays white.",
       presets: ["linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", "linear-gradient(145deg, #064e3b 0%, #10b981 100%)", "#334155", "#0a0a0a"],
       fallback: "#6d28d9",
     },
@@ -118,6 +164,11 @@ const META: Record<string, TemplateMeta> = {
 const FALLBACK_META: TemplateMeta = {
   name: "This template",
   blurb: "Restyle the background, name color, and font to make it yours.",
+  looks: [
+    { name: "Navy", bg: "#0e1b35", text: "#ffffff" },
+    { name: "Onyx", bg: "#070d1c", text: "#ffffff" },
+    { name: "Ivory", bg: "#fafaf6", text: "#1c1612" },
+  ],
   bg: {
     label: "Background",
     help: "The card's main background surface.",
@@ -137,6 +188,50 @@ function isHex(v?: string): v is string {
 }
 
 const rowLabel = "text-[11px] font-semibold text-gray-300 uppercase tracking-wide";
+
+function looksActive(value: TemplateStyle, look: Look): boolean {
+  const fontMatch = (value.fontFamily ?? undefined) === (look.font ?? undefined);
+  return value.bgColor === look.bg && value.textColor === look.text && fontMatch;
+}
+
+function LooksGallery({
+  looks,
+  value,
+  onPick,
+}: {
+  looks: Look[];
+  value: TemplateStyle;
+  onPick: (look: Look) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {looks.map((look) => {
+        const active = looksActive(value, look);
+        return (
+          <button
+            key={look.name}
+            type="button"
+            onClick={() => onPick(look)}
+            className="group text-left"
+            aria-pressed={active}
+          >
+            <div
+              className="h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
+              style={{
+                background: look.bg,
+                border: active ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)",
+                boxShadow: active ? "0 0 0 2px rgba(59,130,246,0.25)" : undefined,
+              }}
+            >
+              <span className="text-sm font-bold leading-none" style={{ color: look.text, fontFamily: look.font }}>Aa</span>
+            </div>
+            <p className={`mt-1 text-[10px] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-500"}`}>{look.name}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function Swatches({
   presets,
@@ -158,11 +253,7 @@ function Swatches({
           onClick={() => onPick(p)}
           aria-label="Color preset"
           className="w-7 h-7 rounded-lg transition-transform hover:scale-110"
-          style={{
-            background: p,
-            border: value === p ? "2px solid #3b82f6" : "1px solid #374151",
-            boxShadow: value === p ? "0 0 0 2px rgba(59,130,246,0.25)" : undefined,
-          }}
+          style={{ background: p, border: value === p ? "2px solid #3b82f6" : "1px solid #374151" }}
         />
       ))}
       <label className="flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 cursor-pointer">
@@ -178,9 +269,7 @@ function Swatches({
         type="button"
         onClick={() => onPick(undefined)}
         className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
-          value === undefined
-            ? "border-blue-600 text-blue-300"
-            : "border-gray-700 text-gray-500 hover:text-gray-300"
+          value === undefined ? "border-blue-600 text-blue-300" : "border-gray-700 text-gray-500 hover:text-gray-300"
         }`}
       >
         Default
@@ -225,6 +314,7 @@ export default function TemplateStyleControls({
   locked?: boolean;
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
+  const [showFineTune, setShowFineTune] = useState(false);
 
   return (
     <div
@@ -233,19 +323,14 @@ export default function TemplateStyleControls({
       }`}
       aria-disabled={locked}
     >
-      {/* Per-template intro + live preview */}
+      {/* Per-template intro + live preview swatch */}
       <div className="flex items-start gap-3">
         <div
           className="w-14 h-9 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-gray-700"
           style={{ background: value.bgColor ?? meta.bg.fallback }}
           aria-hidden
         >
-          <span
-            className="text-[13px] font-bold leading-none"
-            style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}
-          >
-            Aa
-          </span>
+          <span className="text-[13px] font-bold leading-none" style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}>Aa</span>
         </div>
         <div className="min-w-0">
           <p className="text-white text-sm font-semibold leading-tight">{meta.name}</p>
@@ -253,29 +338,49 @@ export default function TemplateStyleControls({
         </div>
       </div>
 
-      <p className="text-[10px] text-gray-500 leading-relaxed border-l-2 border-gray-800 pl-2">
-        You can restyle the <span className="text-gray-300">background</span>, <span className="text-gray-300">name color</span>, and <span className="text-gray-300">font</span>. Everything else keeps {meta.name}&apos;s signature design.
-      </p>
-
-      {/* Background */}
+      {/* Looks — one-tap curated themes */}
       <div>
-        <p className={`${rowLabel} mb-0.5`}>{meta.bg.label}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.bg.help}</p>
-        <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} />
+        <div className="flex items-center justify-between mb-2">
+          <p className={rowLabel}>Looks</p>
+          <span className="text-[10px] text-gray-600">Tap to apply</span>
+        </div>
+        <LooksGallery looks={meta.looks} value={value} onPick={(look) => onChange({ bgColor: look.bg, textColor: look.text, fontFamily: look.font })} />
       </div>
 
-      {/* Name / text color */}
-      <div>
-        <p className={`${rowLabel} mb-0.5`}>{meta.text.label}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.text.help}</p>
-        <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} />
-      </div>
+      {/* Fine-tune — collapsed by default so the panel stays simple */}
+      <div className="border-t border-gray-800 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowFineTune((s) => !s)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <span className="text-xs font-medium text-gray-300">Fine-tune background, name &amp; font</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 text-gray-500 transition-transform ${showFineTune ? "rotate-180" : ""}`}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
 
-      {/* Font */}
-      <div>
-        <p className={`${rowLabel} mb-0.5`}>Font</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
-        <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
+        {showFineTune && (
+          <div className="space-y-4 mt-3">
+            <div>
+              <p className={`${rowLabel} mb-0.5`}>{meta.bg.label}</p>
+              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.bg.help}</p>
+              <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} />
+            </div>
+
+            <div>
+              <p className={`${rowLabel} mb-0.5`}>{meta.text.label}</p>
+              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.text.help}</p>
+              <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} />
+            </div>
+
+            <div>
+              <p className={`${rowLabel} mb-0.5`}>Font</p>
+              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
+              <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
