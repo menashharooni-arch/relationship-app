@@ -21,6 +21,9 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
   function close() {
     setOpen(false);
     try { localStorage.setItem("sc_appstore_seen", "1"); } catch { /* ignore */ }
+    // Let the guided tour know this screen is dismissed so it can start now
+    // (the tour waits for "Continue on the web" / "Download on the App Store").
+    try { window.dispatchEvent(new CustomEvent("sc:appstore-done")); } catch { /* ignore */ }
   }
 
   if (!open) return null;

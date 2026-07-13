@@ -16,7 +16,7 @@ export const PLAN_FEATURES = {
     "5 new leads a month",
     "All 5 card templates",
     "QR code, shareable link & NFC",
-    "Unlimited Swift Links buttons",
+    "1 Swift Links button",
     "Save to contacts (vCard), socials, bio, address",
     "Contacts CRM: statuses, notes, read/unread",
     "Analytics: views, best day, saves & top locations",
