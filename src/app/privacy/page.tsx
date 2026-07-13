@@ -8,9 +8,18 @@ export const metadata: Metadata = {
 };
 
 // Plain-language privacy policy reflecting what the product actually does.
+// Keep this accurate: every processor listed here must actually be in use, and
+// every data practice (analytics, fraud-prevention signals, retention) must
+// match the code. Update LAST_UPDATED whenever the policy meaningfully changes
+// (CalOPPA requires an effective date).
+
+const LAST_UPDATED = "July 12, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
+}
+function H3({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[15px] font-bold text-slate-800 mt-6 mb-2">{children}</h3>;
 }
 function P({ children }: { children: React.ReactNode }) {
   return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
@@ -30,12 +39,15 @@ export default function PrivacyPage() {
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Privacy Policy</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
+        <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
           SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;) provides digital business cards, link-in-bio pages,
-          and contact-management tools at swiftcard.me. This policy explains what information we collect,
-          how we use it, and the choices you have. We keep it in plain English on purpose.
+          and contact-management tools at swiftcard.me (the &quot;Service&quot;). This policy explains what information
+          we collect, how we use it, and the choices and rights you have. We keep it in plain English on purpose.
+          For personal information of account holders, SwiftCard is the data controller; for the contacts you collect
+          through your card, you are the controller and we process that data on your instructions.
         </P>
 
         <H2>Information you give us</H2>
@@ -45,12 +57,15 @@ export default function PrivacyPage() {
           <LI><strong>Contacts you collect</strong> — when someone fills out the &quot;share your info&quot; form on your card, their name, phone, email, company, and message are stored in your account&apos;s contact list.</LI>
           <LI><strong>Payment details</strong> — handled entirely by Stripe. We never see or store your card number.</LI>
           <LI><strong>Business-card photos</strong> — if you use the AI card scanner, the photo you take is sent to our AI provider to extract the contact details, then used only to create the contact.</LI>
+          <LI><strong>Messages to us</strong> — anything you send through the contact form, feedback, or support.</LI>
         </ul>
 
         <H2>Information collected automatically</H2>
         <ul className="mb-3">
           <LI><strong>View analytics</strong> — when someone opens a card or Swift Links page, we record the view with an approximate location (city/country derived from IP address by our hosting provider), the source (QR code, link, etc.), and basic device info. We do not store visitors&apos; IP addresses with these views.</LI>
-          <LI><strong>Usage basics</strong> — standard logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers.</LI>
+          <LI><strong>Product analytics</strong> — we use PostHog to understand how the app is used (pages visited, features used, general device/browser info) so we can improve it. We use this for product improvement only, not third-party advertising.</LI>
+          <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). We use these solely to detect abuse of our referral program (for example, one person inviting themselves repeatedly) and rate-limit abuse.</LI>
+          <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
         </ul>
 
         <H2>How we use information</H2>
@@ -59,17 +74,26 @@ export default function PrivacyPage() {
           <LI>To send messages you set up: follow-up emails (and, where enabled, texts) to your contacts, sent on your behalf with your name.</LI>
           <LI>To notify you: new-contact alerts by email, in-app notification, and push notification if you turn push on.</LI>
           <LI>To bill you (Stripe) and to send service emails like receipts. Marketing emails are optional — every one includes an unsubscribe link.</LI>
-          <LI>We <strong>never sell your data</strong>, and we never sell your contacts&apos; data. Your contact list is yours.</LI>
+          <LI>To keep the Service secure, prevent fraud and abuse, and comply with law.</LI>
+          <LI>We <strong>never sell your personal information</strong>, we don&apos;t &quot;share&quot; it for cross-context behavioral advertising (as those terms are defined in the California Consumer Privacy Act), and we never sell your contacts&apos; data. Your contact list is yours.</LI>
         </ul>
+        <P>
+          Where the GDPR or UK GDPR applies, our legal bases are: <strong>performance of a contract</strong> (running
+          the Service you signed up for), <strong>legitimate interests</strong> (security, fraud prevention, product
+          analytics, and improving the Service), <strong>consent</strong> (optional marketing and push notifications —
+          withdrawable anytime), and <strong>legal obligation</strong> (tax and accounting records).
+        </P>
 
         <H2>Who we share it with</H2>
-        <P>Only the service providers needed to run SwiftCard, under their own privacy commitments:</P>
+        <P>Only the service providers needed to run SwiftCard, under contracts limiting them to processing on our instructions:</P>
         <ul className="mb-3">
-          <LI><strong>Supabase</strong> — database and authentication.</LI>
+          <LI><strong>Supabase</strong> — database, file storage, and authentication.</LI>
           <LI><strong>Vercel</strong> — hosting and content delivery.</LI>
           <LI><strong>Stripe</strong> — payments and subscriptions.</LI>
           <LI><strong>Resend</strong> — sending email.</LI>
           <LI><strong>Twilio</strong> — sending text messages (where SMS features are enabled).</LI>
+          <LI><strong>PostHog</strong> — product analytics.</LI>
+          <LI><strong>Upstash</strong> — rate limiting (helps stop abuse of our forms and APIs).</LI>
           <LI><strong>AI providers</strong> (e.g. Google Gemini) — only for features you actively use, like the card scanner or AI-drafted follow-ups.</LI>
         </ul>
         <P>
@@ -78,41 +102,92 @@ export default function PrivacyPage() {
           information received from Google APIs adheres to the Google API Services User Data Policy, including the
           Limited Use requirements.
         </P>
-
-        <H2>Your contacts&apos; choices</H2>
         <P>
-          People who share their info through your card can opt out of messages at any time: replying STOP to a text
-          suppresses texts to that number across SwiftCard, and every automated email includes an unsubscribe link.
+          We may also disclose information if required by law or legal process, to protect the rights, safety, or
+          property of SwiftCard or others, or as part of a merger, acquisition, or sale of assets (in which case this
+          policy continues to apply and we&apos;ll notify you of any successor).
+        </P>
+
+        <H2>International transfers</H2>
+        <P>
+          We are based in the United States and our providers process data primarily in the U.S. If you use SwiftCard
+          from outside the U.S. (including the EEA, UK, or Switzerland), your information is transferred to the U.S.
+          Where required, we rely on our processors&apos; safeguards for those transfers, such as Standard Contractual
+          Clauses and Data Privacy Framework certifications.
+        </P>
+
+        <H2>Your privacy rights</H2>
+        <P>
+          Everyone can access, correct, export, or delete their information — most of it directly in the app
+          (Settings → Manage account, and CSV export for contacts), or by contacting us via the{" "}
+          <Link href="/contact" className="text-brand underline">contact page</Link>. We respond to verifiable requests
+          within the time required by applicable law, and we never discriminate against you for exercising a privacy right.
+        </P>
+        <H3>If you&apos;re in California</H3>
+        <P>
+          The CCPA/CPRA gives you the right to know what personal information we collect and how it&apos;s used (this
+          policy), to access it, correct it, delete it, and to opt out of &quot;sale&quot; or &quot;sharing&quot; of
+          personal information. <strong>We do not sell or share personal information</strong> (including that of anyone
+          under 16), and we do not use or disclose sensitive personal information for purposes requiring a right to
+          limit. You may designate an authorized agent to make requests for you. Because we don&apos;t sell or share
+          data, browser opt-out signals such as Global Privacy Control and &quot;Do Not Track&quot; don&apos;t change how
+          we process your data; we treat all visitors by the standards in this policy.
+        </P>
+        <H3>If you&apos;re in the EEA, UK, or Switzerland</H3>
+        <P>
+          You have the rights of access, rectification, erasure, restriction, portability, and objection (including to
+          processing based on legitimate interests), and the right to withdraw consent at any time without affecting
+          prior processing. You can also lodge a complaint with your local supervisory authority, though we&apos;d
+          appreciate the chance to resolve any concern directly first.
+        </P>
+        <H3>Contacts collected through cards</H3>
+        <P>
+          If your information was collected by a SwiftCard user (you filled out someone&apos;s card form), that user
+          controls it — contact them directly, or contact us and we&apos;ll assist. You can opt out of their messages at
+          any time: replying STOP to a text suppresses texts to your number across SwiftCard, and every automated email
+          includes an unsubscribe link.
         </P>
 
         <H2>Data retention &amp; deleting your account</H2>
         <P>
           We keep your data while your account is active. You can delete your account in Settings → Manage account —
-          after deletion you have one month to reopen it by logging back in; after that the deletion is permanent.
-          You can export your contacts to CSV before deleting.
+          after deletion you have one month to reopen it by logging back in; after that the deletion is permanent and
+          your data is removed from our production systems (residual copies in encrypted backups expire on their
+          normal rotation). We retain billing records as required by tax law. You can export your contacts to CSV
+          before deleting.
         </P>
 
         <H2>Security</H2>
         <P>
           Data is encrypted in transit (HTTPS everywhere) and at rest by our database provider. Integration tokens
           (like your Google connection) are stored encrypted. No system is 100% secure, but we design so that a
-          visitor can only ever see what you chose to make public.
+          visitor can only ever see what you chose to make public. If a breach affecting your personal information
+          occurs, we&apos;ll notify you and regulators as required by law.
         </P>
 
         <H2>Children</H2>
-        <P>SwiftCard is not directed to children under 13, and we don&apos;t knowingly collect their information.</P>
+        <P>
+          SwiftCard is a professional networking tool. It is not directed to children, and{" "}
+          <strong>you must be at least 16 years old to create an account</strong> (see our{" "}
+          <Link href="/terms" className="text-brand underline">Terms of Service</Link>). We do not knowingly collect
+          personal information from anyone under 16 — and never from children under 13, consistent with the
+          U.S. Children&apos;s Online Privacy Protection Act (COPPA). If we learn that an account belongs to someone
+          under 16, we will terminate it and delete the associated personal information. If you believe a child has
+          provided us personal information, contact us via the{" "}
+          <Link href="/contact" className="text-brand underline">contact page</Link> and we&apos;ll delete it promptly.
+        </P>
 
         <H2>Changes</H2>
         <P>
-          If we make meaningful changes to this policy we&apos;ll update the date above and, for significant changes,
-          notify you by email or in the app.
+          If we make meaningful changes to this policy we&apos;ll update the &quot;Last updated&quot; date above and,
+          for significant changes, notify you by email or in the app before they take effect.
         </P>
 
         <H2>Contact us</H2>
         <P>
-          Questions or requests (including data access or deletion): reach us through the{" "}
+          Questions or requests (including data access, correction, or deletion): reach us through the{" "}
           <Link href="/contact" className="text-brand underline">contact page</Link>.
-          SwiftCard · New York, NY.
+          SwiftCard · New York, NY, USA.
         </P>
       </div>
 
