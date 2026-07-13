@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
 import { IcoInsta, IcoLinkedIn, IcoX, IcoTikTok } from "@/components/card-templates/shared";
-import { writePrefill } from "@/lib/prefill";
+import { writePrefill, stashSketch } from "@/lib/prefill";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // "See how your SwiftLink would look" builder for the homepage SwiftLinks
@@ -80,22 +80,32 @@ export default function SwiftLinkMiniBuilder() {
     setNewLink({ label: "", url: "" });
   }
 
+  const sketch = () => ({
+    name: name.trim(),
+    company: business.trim(),
+    bio: bio.trim(),
+    headshotUrl: photo,
+    socials: {
+      ...(instagram.trim() ? { instagram: instagram.trim() } : {}),
+      ...(tiktok.trim() ? { tiktok: tiktok.trim() } : {}),
+      ...(linkedin.trim() ? { linkedin: linkedin.trim() } : {}),
+      ...(twitter.trim() ? { twitter: twitter.trim() } : {}),
+    },
+    links,
+  });
+
+  // Keep the sketch stashed as they type, so a generic "Get started" /
+  // "Create your free card" click elsewhere carries it too.
+  useEffect(() => {
+    if (open) stashSketch(sketch());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, name, business, bio, photo, instagram, tiktok, linkedin, twitter, links]);
+
   function launch() {
     setLaunching(true);
-    writePrefill({
-      name: name.trim(),
-      company: business.trim(),
-      bio: bio.trim(),
-      headshotUrl: photo,
-      socials: {
-        ...(instagram.trim() ? { instagram: instagram.trim() } : {}),
-        ...(tiktok.trim() ? { tiktok: tiktok.trim() } : {}),
-        ...(linkedin.trim() ? { linkedin: linkedin.trim() } : {}),
-        ...(twitter.trim() ? { twitter: twitter.trim() } : {}),
-      },
-      links,
-      step: 2,
-    });
+    // Land on the first info step (name/details); the sketched bio, socials and
+    // links are autofilled and appear on the Swift Links step.
+    writePrefill({ ...sketch(), step: 1 });
     router.push("/cards/new");
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import ImageUpload from "@/components/ImageUpload";
@@ -11,7 +11,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import { writePrefill } from "@/lib/prefill";
+import { writePrefill, stashSketch } from "@/lib/prefill";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
@@ -80,21 +80,31 @@ export default function CardMiniBuilder() {
     customization: accent ? { accentColor: accent } : {},
   });
 
+  // What the visitor has sketched so far, in wizard-prefill shape.
+  const sketch = () => ({
+    name: name.trim(),
+    title: title.trim(),
+    company: company.trim(),
+    phone: phone.trim(),
+    email: email.trim(),
+    address: { street: street.trim(), city: city.trim(), state: stateRegion.trim(), zip: zip.trim() },
+    template,
+    accentColor: accent || undefined,
+    headshotUrl: headshot,
+    logoUrl: logo,
+  });
+
+  // Keep the sketch stashed as they type, so a generic "Get started" /
+  // "Create your free card" click elsewhere carries it too (lands on step 1).
+  useEffect(() => {
+    if (open) stashSketch(sketch());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, name, title, company, phone, email, street, city, stateRegion, zip, template, accent, headshot, logo]);
+
   function launch() {
     setLaunching(true);
-    writePrefill({
-      name: name.trim(),
-      title: title.trim(),
-      company: company.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      address: { street: street.trim(), city: city.trim(), state: stateRegion.trim(), zip: zip.trim() },
-      template,
-      accentColor: accent || undefined,
-      headshotUrl: headshot,
-      logoUrl: logo,
-      step: 1,
-    });
+    // Explicit "Make it live" → jump straight to the first info step, prefilled.
+    writePrefill({ ...sketch(), step: 1 });
     router.push("/cards/new");
   }
 

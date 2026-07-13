@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import ImageUpload from "@/components/ImageUpload";
@@ -11,7 +11,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import { writePrefill } from "@/lib/prefill";
+import { writePrefill, stashSketch } from "@/lib/prefill";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // "See how your signature would look" builder for the homepage signature
@@ -70,19 +70,27 @@ export default function SignatureMiniBuilder() {
     customization: {},
   });
 
+  const sketch = () => ({
+    name: name.trim(),
+    title: title.trim(),
+    company: company.trim(),
+    email: email.trim(),
+    phone: phone.trim(),
+    template,
+    headshotUrl: headshot,
+    logoUrl: logo,
+  });
+
+  // Keep the sketch stashed as they type, so a generic "Get started" /
+  // "Create your free card" click elsewhere carries it too (lands on step 1).
+  useEffect(() => {
+    if (open) stashSketch(sketch());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, name, title, company, email, phone, template, headshot, logo]);
+
   function launch() {
     setLaunching(true);
-    writePrefill({
-      name: name.trim(),
-      title: title.trim(),
-      company: company.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      template,
-      headshotUrl: headshot,
-      logoUrl: logo,
-      step: 1,
-    });
+    writePrefill({ ...sketch(), step: 1 });
     router.push("/cards/new");
   }
 
