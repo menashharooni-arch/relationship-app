@@ -9,7 +9,6 @@ import NotificationsPanel from "@/components/NotificationsPanel";
 import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
-import CardLivePreview from "@/components/CardLivePreview";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
@@ -371,13 +370,12 @@ export default async function DashboardPage({
             Edit
           </Link>
         </div>
-        <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share — tap below to see it live.</p>
+        <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
         <CardPreviewDownload
           data={cardData}
           template={activeTemplate}
           username={activeUsername}
         />
-        <CardLivePreview cardUrl={cardUrl} className="mt-2" />
         {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>
 

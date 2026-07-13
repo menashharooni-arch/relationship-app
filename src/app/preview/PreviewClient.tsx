@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import SiteNav from "@/components/site/SiteNav";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
@@ -251,20 +252,9 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   const Wrapper = embedded ? "div" : "main";
   return (
     <Wrapper className={embedded ? "text-white" : "min-h-screen bg-gray-950 text-white"}>
-      {!embedded && (
-        <header className="sticky top-0 z-30 bg-gray-950/90 backdrop-blur border-b border-gray-800">
-          <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <SwiftCardLogo size={26} wordmark={false} onDark />
-              <span className="font-bold text-sm">SwiftCard</span>
-              <span className="text-gray-600 text-xs hidden sm:inline">· See it live</span>
-            </Link>
-            <Link href="/join?src=preview" className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-full transition-colors">Start free →</Link>
-          </div>
-        </header>
-      )}
+      {!embedded && <SiteNav />}
 
-      <div className="max-w-5xl mx-auto px-5 py-7">
+      <div className={embedded ? "max-w-5xl mx-auto px-5 py-7" : "max-w-5xl mx-auto px-5 pt-24 pb-7"}>
         {!embedded && (
           <div className="mb-6">
             <h1 className="text-2xl font-bold">This is your dashboard — try it out</h1>

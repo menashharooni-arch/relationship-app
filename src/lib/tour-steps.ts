@@ -114,7 +114,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "your-card",
     title: "Your SwiftCard — try it",
-    body: "Exactly what people see when you share. Tap “See your card live” to open the real card in action, then come back and hit Next. Use Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
+    body: "Exactly what people see when you share. Use Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
     placement: "right",
     interactive: true,
   },

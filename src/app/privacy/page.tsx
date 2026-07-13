@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 
@@ -31,14 +32,9 @@ function LI({ children }: { children: React.ReactNode }) {
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
-      <nav className="border-b border-warm-border bg-cream/90 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/"><SwiftCardLogo size={26} /></Link>
-          <Link href="/cards/new" className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors">Get started</Link>
-        </div>
-      </nav>
+      <SiteNav />
 
-      <div className="max-w-3xl mx-auto px-6 py-14 w-full">
+      <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
         <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
+import SiteNav from "@/components/site/SiteNav";
 import type { Metadata } from "next";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
-import MarketingNav from "@/components/MarketingNav";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 
@@ -44,9 +44,9 @@ export default function ComparePage() {
     <main className="min-h-screen bg-cream flex flex-col">
       <ScrollProgress />
       <ScrollReveal />
-      <MarketingNav />
+      <SiteNav />
 
-      <section className="text-center px-6 pt-16 pb-10">
+      <section className="text-center px-6 pt-28 pb-10">
         <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Comparison</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
         <p className="text-slate-500 text-lg max-w-xl mx-auto mb-2">

@@ -34,7 +34,7 @@ const SOLUTIONS: Item[] = [
   { label: "Integrations", href: "/products/integrations", desc: "Zapier, Google, HubSpot & CSV" },
 ];
 const RESOURCES: Item[] = [
-  { label: "See it live", href: "/preview", desc: "Interact with a real SwiftCard" },
+  { label: "Preview", href: "/preview", desc: "Interact with a real SwiftCard" },
   { label: "Templates", href: "/templates", desc: "Beautiful, ready-to-use designs" },
   { label: "Why SwiftCard", href: "/testimonials", desc: "What SwiftCard does for people like you" },
   { label: "Contact", href: "/contact", desc: "Talk to the team" },

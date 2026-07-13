@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 
@@ -30,31 +31,9 @@ export default function ContactPage() {
 
   return (
     <main className="min-h-screen bg-cream flex flex-col">
+      <SiteNav />
 
-      {/* Nav */}
-      <nav className="border-b border-warm-border bg-cream/90 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto w-full">
-          <Link href="/">
-            <SwiftCardLogo size={30} />
-          </Link>
-          <div className="flex items-center gap-8">
-            <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
-              Pricing
-            </Link>
-            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-              Sign in
-            </Link>
-            <Link
-              href="/cards/new"
-              className="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-2 rounded-full text-sm transition-colors"
-            >
-              Get started free
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <section className="max-w-5xl mx-auto w-full px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+      <section className="max-w-5xl mx-auto w-full px-6 pt-28 pb-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
         {/* Left: info */}
         <div>
