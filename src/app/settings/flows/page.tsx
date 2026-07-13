@@ -78,11 +78,11 @@ export default async function FlowSettingsPage() {
               { href: "/dashboard", label: "Dashboard" },
               { href: "/contacts",  label: "Contacts" },
               { href: "/settings/flows", label: "Settings", active: true },
-              { href: "/grow", label: "Grow" },
-            ].map(({ href, label, active }) => (
+              { href: "/grow", label: "Grow", accent: true },
+            ].map(({ href, label, active, accent }) => (
               <Link key={href} href={href}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
-                {label}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${accent ? "text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 font-medium" : active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                {accent && <span aria-hidden className="mr-1">❤</span>}{label}
               </Link>
             ))}
           </div>
