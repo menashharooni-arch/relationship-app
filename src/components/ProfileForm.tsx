@@ -581,6 +581,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
           <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
           <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
+          <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</a>
         </div>
       )}
 

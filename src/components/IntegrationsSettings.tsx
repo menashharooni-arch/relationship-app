@@ -107,7 +107,7 @@ function IntegrationCard({
             </a>
           )
         ) : (
-          <span className="text-xs bg-[#D4C8B8] text-[#6B5F52] font-medium px-2 py-0.5 rounded-full shrink-0">Pro</span>
+          <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
         )}
       </div>
 
