@@ -19,7 +19,7 @@ export const PLAN_FEATURES = {
     "1 Swift Links button",
     "Save to contacts (vCard), socials, bio, address",
     "Contacts CRM: statuses, notes, read/unread",
-    "Analytics: views, best day, saves & top locations",
+    "Analytics: views, best day & saves",
     "Day-1 follow-up email",
     "3 AI drafts + 3 card scans a month",
     "“Powered by SwiftCard” badge",
@@ -32,7 +32,7 @@ export const PLAN_FEATURES = {
     "Automated follow-up sequences — email + text",
     "Unlimited AI drafts & card scans",
     "Premium Swift Links: video previews, featured tiles & themes",
-    "Full analytics: who viewed, when & where",
+    "Full analytics: top locations, who viewed, when & where",
     "CSV export + Zapier, Google & HubSpot sync",
   ],
   office: [
