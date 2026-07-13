@@ -457,11 +457,11 @@ export default async function DashboardPage({
               { href: `/dashboard?card=${activeUsername}`, label: "Dashboard", active: true },
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
-              { href: "/grow", label: "Grow", active: false },
-            ].map(({ href, label, active }) => (
+              { href: "/grow", label: "Grow", active: false, accent: true },
+            ].map(({ href, label, active, accent }) => (
               <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
-                {label}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${accent ? "text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 font-medium" : active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                {accent && <span aria-hidden className="mr-1">❤</span>}{label}
               </Link>
             ))}
             {ownedOffice && (

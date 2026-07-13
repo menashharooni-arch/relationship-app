@@ -72,13 +72,16 @@ export default function MobileNav() {
       <div className="flex items-center justify-around px-2 py-2">
         {TABS.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          // Grow gets a rose accent (matching the heart) so it pops from the blue.
+          const isGrow = href === "/grow";
+          const color = isGrow ? (active ? "#f43f5e" : "#fb7185") : active ? "#3b82f6" : "#6b7280";
           return (
             <Link
               key={href}
               href={withCard(href)}
               data-tour={tour}
               className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0"
-              style={{ color: active ? "#3b82f6" : "#6b7280" }}
+              style={{ color }}
             >
               {icon}
               <span className="text-[10px] font-semibold">{label}</span>

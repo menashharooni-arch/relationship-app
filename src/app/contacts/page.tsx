@@ -86,8 +86,8 @@ export default async function ContactsPage({
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Settings
             </Link>
-            <Link href="/grow" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
-              Grow
+            <Link href="/grow" className="text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg transition-colors">
+              <span aria-hidden className="mr-1">❤</span>Grow
             </Link>
           </div>
 
