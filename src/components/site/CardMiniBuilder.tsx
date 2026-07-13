@@ -182,6 +182,11 @@ export default function CardMiniBuilder() {
                   style={{ background: c, outline: accent === c ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }}
                 />
               ))}
+              {/* Custom — pick any color, not just the presets */}
+              <label className="relative w-8 h-8 rounded-full cursor-pointer overflow-hidden shrink-0" title="Custom color"
+                style={{ background: accent && !ACCENTS.includes(accent) ? accent : "conic-gradient(from 0deg, #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ef4444)", outline: accent && !ACCENTS.includes(accent) ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }}>
+                <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2563EB"} onChange={(e) => setAccent(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Custom accent color" />
+              </label>
             </div>
           </div>
         </>
