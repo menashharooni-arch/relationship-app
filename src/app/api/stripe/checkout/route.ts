@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
-import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -76,6 +76,24 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
+    // Opt-in 7-day Pro trial for FIRST-TIME subscribers only. The card is
+    // collected at checkout and Stripe bills automatically when the trial ends
+    // unless they cancel. A customer who has ever had a subscription (active,
+    // canceled, or trialing) gets no second trial.
+    let trialDays: number | undefined;
+    if (isPro) {
+      let hadSub = false;
+      if (profile.stripe_customer_id) {
+        try {
+          const prior = await stripe.subscriptions.list({ customer: profile.stripe_customer_id as string, status: "all", limit: 1 });
+          hadSub = prior.data.length > 0;
+        } catch {
+          hadSub = true; // can't verify → err on the side of not granting a trial
+        }
+      }
+      if (!hadSub) trialDays = TRIAL_DAYS;
+    }
+
     // Verify the real Stripe Price still matches what /pricing shows before
     // charging anyone — catches a mispriced or archived Product in the dashboard.
     const expectedCents = EXPECTED_CENTS[priceId];
@@ -95,6 +113,8 @@ export async function POST(req: NextRequest) {
         : { customer_email: profile.email }),
       line_items: [{ price: priceId, quantity }],
       mode: "subscription",
+      // First-time Pro subscribers start with a free trial, then auto-bill.
+      ...(trialDays ? { subscription_data: { trial_period_days: trialDays } } : {}),
       // Record the seat count so the webhook provisions the office reliably.
       ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
       success_url: `${APP_URL}${successPath}`,

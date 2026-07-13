@@ -152,8 +152,11 @@ export default function PricingPage() {
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
               </ul>
               <button onClick={() => handleUpgrade("pro")} disabled={loading !== null} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : "Get Pro Plan →"}
+                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : "Start 7-day free trial →"}
               </button>
+              <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
+                First-time subscribers get 7 days free. Card required — billing starts automatically after the trial unless you cancel.
+              </p>
             </div>
             <span className="rd-glisten-sweep" aria-hidden="true" />
           </div>

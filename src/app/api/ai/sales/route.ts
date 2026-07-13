@@ -22,7 +22,7 @@ const PRICING_FACTS = `PRICING (USD, the only prices that exist — never invent
 - Free: $0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, ${PLAN_LIMITS.FREE_SCANS_PER_MONTH} AI card scans/month, ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI drafts/month, all templates, ${PLAN_LIMITS.FREE_MAX_LINKS} Swift Links button, view analytics, a "Powered by SwiftCard" badge on the card.
 - Pro: $${PRO_MO}/month, or $${PRO_YR}/year (~10% off). Unlimited cards, leads, scans and drafts; custom card designer; automated email + text follow-up sequences; premium Swift Links; full analytics; CSV export; integrations (Zapier, Google Contacts, HubSpot); no SwiftCard branding.
 - Office (teams): $${OFFICE_MO}/month per seat, or $${OFFICE_YR}/year per seat — everything in Pro for each seat, minimum ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats, with an admin who manages the team's cards and brand.
-- Every new signup gets a ${TRIAL_DAYS}-day free trial of full Pro — no credit card needed to start. Cancel anytime; payments are handled by Stripe.`;
+- Free is free forever — it does NOT include Pro features. Subscribing to Pro starts with a ${TRIAL_DAYS}-day free trial (card required at checkout; billing starts automatically when the trial ends unless you cancel). Payments are handled by Stripe; cancel anytime.`;
 
 const SYSTEM_PROMPT = `You are the friendly sales assistant on the SwiftCard marketing site (swiftcard.me). Visitors are NOT logged in. Your job: answer questions about what SwiftCard is, what it costs, and how it works — accurately and concisely — and invite them to try it free at /cards/new (no account needed to start building).
 
@@ -60,12 +60,12 @@ const KB: KbEntry[] = [
   {
     triggers: ["price", "pricing", "cost", "how much", "expensive", "plans", "subscription"],
     answer:
-      `Three plans: Free ($0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, all templates), Pro ($${PRO_MO}/month or $${PRO_YR}/year — unlimited everything, custom designer, automated email + text follow-ups, integrations, no branding), and Office for teams ($${OFFICE_MO}/month per seat, min ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats). Every new signup starts with a ${TRIAL_DAYS}-day free Pro trial — no credit card needed. Full details at swiftcard.me/pricing.`,
+      `Three plans: Free ($0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, all templates), Pro ($${PRO_MO}/month or $${PRO_YR}/year — unlimited everything, custom designer, automated email + text follow-ups, integrations, no branding), and Office for teams ($${OFFICE_MO}/month per seat, min ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats). Subscribing to Pro starts with a ${TRIAL_DAYS}-day free trial — card required, and it renews automatically after the trial unless you cancel. Full details at swiftcard.me/pricing.`,
   },
   {
     triggers: ["free plan", "free tier", "is it free", "free trial", "trial"],
     answer:
-      `Yes — Free gets you a full card with every template, a Swift Links page, analytics, and ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads a month. New signups also get ${TRIAL_DAYS} days of full Pro free, no credit card required. Start at swiftcard.me/cards/new.`,
+      `Yes — Free gets you a full card with every template, a Swift Links page, analytics, and ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads a month. If you want to try Pro, subscribing starts with a ${TRIAL_DAYS}-day free trial (card required; auto-renews unless you cancel). Start free at swiftcard.me/cards/new.`,
   },
   {
     triggers: ["need an app", "download", "do they need", "receive my card", "no app", "without an app", "app required"],

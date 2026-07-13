@@ -131,9 +131,13 @@ export default function TermsPage() {
 
         <H2>Free trials and promotional offers</H2>
         <P>
-          New accounts may receive a trial of paid features or promotional free months. When a trial or promotional
-          period ends, the account returns to the Free plan unless you&apos;ve started a paid subscription. Referral and
-          promotional rewards have no cash value and may be changed or withdrawn if abused.
+          When you subscribe to Pro for the first time, your subscription starts with a free trial (currently 7 days).
+          You provide a payment method at checkout, and <strong>when the trial ends your subscription begins and your
+          payment method is charged automatically</strong> at the price shown, unless you cancel before the trial ends.
+          You can cancel anytime from Settings or the billing portal — cancel during the trial and you won&apos;t be
+          charged. One trial per customer. Promotional free months work similarly: when they end, the account returns
+          to the Free plan unless a paid subscription is active. Referral and promotional rewards have no cash value
+          and may be changed or withdrawn if abused.
         </P>
 
         <H2>Third-party services</H2>

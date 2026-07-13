@@ -31,9 +31,15 @@ export const PLAN_PRICES = {
 // unlocked automatically the moment the account is paid.
 export const LOCKED_LEAD_TAG = "sc-locked";
 
-// Every NEW signup gets a full-Pro reverse trial for this many days, then the
+// Opt-in Pro trial: when someone SUBSCRIBES to Pro they get this many days
+// free first (card collected at checkout; Stripe bills automatically when the
+// trial ends unless they cancel). One trial per customer — enforced in the
+// checkout route. Free signups get Free only; there is no automatic trial.
+// (The legacy comment below describes the discontinued reverse trial; the
+// cron that expires old grants still reads this value for those accounts.)
+// Legacy: every NEW signup got a full-Pro reverse trial for this many days, then the
 // daily cron downgrades them to Free (never touches a real paying subscriber).
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 7;
 
 // Length of one app-level "free month" grant, in days (referral/promo rewards).
 export const FREE_MONTH_DAYS = 30;
