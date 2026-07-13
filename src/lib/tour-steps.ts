@@ -29,6 +29,7 @@ export type TourStep = {
 };
 
 const DASH = "/dashboard";
+const SHARE = "/share";
 const CONTACTS = "/contacts";
 const SETTINGS = "/settings/flows";
 
@@ -121,7 +122,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "swift-links",
-    path: DASH,
+    path: SHARE,
     anchor: "swift-links",
     title: "Swift Links",
     body: "Your link-in-bio — bio, socials, and links in one page. Drop it in your Instagram or TikTok bio.",
@@ -129,7 +130,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "email-signature",
-    path: DASH,
+    path: SHARE,
     anchor: "email-signature",
     title: "Swift Signature",
     body: "Puts your live card in every email. Copy it once, paste into Gmail or Outlook.",
@@ -141,16 +142,8 @@ export const TOUR_STEPS: TourStep[] = [
     id: "contact-views",
     path: DASH,
     anchor: "contact-views",
-    title: "Three ways to see leads",
-    body: "Notifications (newest first), a sortable List, or a drag-and-drop Pipeline.",
-    placement: "top",
-  },
-  {
-    id: "contact-filters",
-    path: DASH,
-    anchor: "contact-filters",
-    title: "Filter leads",
-    body: "Narrow by status or how recently they came in — great for 'who did I meet this week?'",
+    title: "Your leads at a glance",
+    body: "Notifications shows the newest activity; Contacts is your quick list. The full Contacts page has filters and the pipeline.",
     placement: "top",
   },
   {
@@ -236,7 +229,7 @@ export const TOUR_STEPS: TourStep[] = [
 // Dashboard/Contacts steps should stay on the card the tour started with, so the
 // dashboard doesn't bounce to the card picker mid-tour.
 export function resolveTourPath(step: TourStep, card: string | null): string {
-  if ((step.path === "/dashboard" || step.path === "/contacts") && card) {
+  if ((step.path === "/dashboard" || step.path === "/contacts" || step.path === "/share") && card) {
     return `${step.path}?card=${encodeURIComponent(card)}`;
   }
   return step.path;

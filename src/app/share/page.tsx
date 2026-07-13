@@ -150,7 +150,7 @@ export default async function SharePage({
 
         <div className="space-y-6">
           {/* Swift Links */}
-          <div>
+          <div data-tour="swift-links">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Links</p>
             <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
               <p className="text-gray-500 text-xs mb-3 leading-relaxed">
@@ -170,7 +170,7 @@ export default async function SharePage({
           </div>
 
           {/* Email signature */}
-          <div id="signature" className="scroll-mt-24">
+          <div id="signature" data-tour="email-signature" className="scroll-mt-24">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Email signature</p>
             <EmailSignatureBox
               key={activeUsername}
