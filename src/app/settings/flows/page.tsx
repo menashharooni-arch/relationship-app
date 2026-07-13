@@ -13,6 +13,7 @@ import EnablePushButton from "@/components/EnablePushButton";
 import HelpWidget from "@/components/HelpWidget";
 import TakeTourButton from "@/components/TakeTourButton";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import GrowLinkButton from "@/components/GrowLinkButton";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import { Suspense } from "react";
@@ -78,18 +79,20 @@ export default async function FlowSettingsPage() {
               { href: "/dashboard", label: "Dashboard" },
               { href: "/contacts",  label: "Contacts" },
               { href: "/settings/flows", label: "Settings", active: true },
-              { href: "/grow", label: "Grow", accent: true },
-            ].map(({ href, label, active, accent }) => (
+            ].map(({ href, label, active }) => (
               <Link key={href} href={href}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${accent ? "text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 font-medium" : active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
-                {accent && <span aria-hidden className="mr-1">❤</span>}{label}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                {label}
               </Link>
             ))}
           </div>
 
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-white transition-colors">
-            ← Dashboard
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <GrowLinkButton />
+            <Link href="/dashboard" className="text-sm text-gray-500 hover:text-white transition-colors">
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </nav>
 
