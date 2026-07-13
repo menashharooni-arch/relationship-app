@@ -11,13 +11,15 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Item = { label: string; href: string; desc: string };
 
+// Every item is a real standalone page — never a scroll anchor into the
+// homepage sections (owner decision: subheaders live on their own pages).
 const HOME: Item[] = [
   { label: "Overview", href: "/", desc: "Back to the top of the homepage" },
-  { label: "Swift Cards", href: "/#cards", desc: "The card that shares everything" },
-  { label: "SwiftLinks", href: "/#swiftlinks", desc: "One link for everything you are" },
-  { label: "Email Signatures", href: "/#signature", desc: "A live card in every email" },
-  { label: "Analytics", href: "/#analytics", desc: "See who's looking, never lose a lead" },
-  { label: "Teams", href: "/#teams", desc: "One brand across everyone" },
+  { label: "Swift Cards", href: "/products/digital-cards", desc: "The card that shares everything" },
+  { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
+  { label: "Email Signatures", href: "/products/email-signatures", desc: "A live card in every email" },
+  { label: "Analytics", href: "/products/analytics", desc: "See who's looking, never lose a lead" },
+  { label: "Teams", href: "/products/teams", desc: "One brand across everyone" },
 ];
 
 const PRODUCTS: Item[] = [
