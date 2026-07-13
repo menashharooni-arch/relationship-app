@@ -324,10 +324,10 @@ export default function GuidedTour() {
         <p className="text-white font-bold text-[15px] leading-snug mb-1.5">{step.title}</p>
         <p className="text-gray-300 text-[13px] leading-relaxed">{step.body}</p>
         {step.clickToAdvance && (
-          <p className="text-blue-300 text-[12px] font-medium mt-2">👆 Tap the highlighted card, or press Next.</p>
+          <p className="text-blue-300 text-[12px] font-medium mt-2">Tap the highlighted card, or press Next.</p>
         )}
         {step.interactive && (
-          <p className="text-blue-300 text-[12px] font-medium mt-2">👆 Go ahead — try it. Then press Next to continue.</p>
+          <p className="text-blue-300 text-[12px] font-medium mt-2">Go ahead — try it. Then press Next to continue.</p>
         )}
 
         {/* Progress dots */}
@@ -349,7 +349,7 @@ export default function GuidedTour() {
             onClick={() => (isLast ? finish(true) : go(idx + 1))}
             className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 px-5 py-2.5 rounded-full transition-colors shadow-lg shadow-blue-900/40"
           >
-            {isLast ? "Finish 🎉" : "Next →"}
+            {isLast ? "Finish" : "Next →"}
           </button>
         </div>
       </div>

@@ -38,10 +38,10 @@ type CardEvent = {
 };
 
 const EVENT_LABELS: Record<string, { label: string; icon: string }> = {
-  viewed_card:           { label: "Viewed your card",       icon: "👁" },
-  clicked_save_contact:  { label: "Clicked Save Contact",   icon: "👆" },
-  downloaded_vcard:      { label: "Downloaded your contact", icon: "💾" },
-  shared_info:           { label: "Shared their info",       icon: "✅" },
+  viewed_card:           { label: "Viewed your card",       icon: "·" },
+  clicked_save_contact:  { label: "Clicked Save Contact",   icon: "·" },
+  downloaded_vcard:      { label: "Downloaded your contact", icon: "·" },
+  shared_info:           { label: "Shared their info",       icon: "✓" },
 };
 
 // Natural-language phrases for the read-only conversation/activity log,
@@ -133,7 +133,7 @@ function FlowBadge({ tags }: { tags: string[] | null }) {
   );
   if (preset) return (
     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/40">
-      Preset {preset} ⚡
+      Preset {preset}
     </span>
   );
   return <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">no flow</span>;
@@ -636,7 +636,7 @@ export default function ContactsClient({
                 <span className="text-[10px] text-gray-600">/{lead.card_owner}</span>
               )}
               {isOverdue && (
-                <span className="text-[10px] font-semibold text-amber-400">📅 follow-up due</span>
+                <span className="text-[10px] font-semibold text-amber-400">follow-up due</span>
               )}
             </div>
           </div>
@@ -1067,14 +1067,14 @@ export default function ContactsClient({
               <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
 
               <p className="text-[11px] text-gray-500 bg-gray-800/40 border border-gray-700/60 rounded-lg px-3 py-2 mb-4 leading-relaxed">
-                💡 The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive.
+                The AI writes each message from this contact&apos;s <strong className="text-gray-300">where you met</strong> and <strong className="text-gray-300">notes</strong> — for a great, human response make those descriptive.
               </p>
 
               <div className="space-y-3">
                 {([
-                  { ch: "email" as const, label: "Email", icon: "✉", can: !!selected.email, word: "email", noun: "emails" },
-                  { ch: "sms" as const,   label: "Text",  icon: "💬", can: !!selected.phone, word: "text",  noun: "texts" },
-                ]).map(({ ch, label, icon, can, word, noun }) => {
+                  { ch: "email" as const, label: "Email", can: !!selected.email, word: "email", noun: "emails" },
+                  { ch: "sms" as const,   label: "Text",  can: !!selected.phone, word: "text",  noun: "texts" },
+                ]).map(({ ch, label, can, word, noun }) => {
                   const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[])
                     .filter((i) => (i.channel ?? "email") === ch)
                     .sort((a, b) => a.day - b.day);
@@ -1091,7 +1091,7 @@ export default function ContactsClient({
                       {/* Header + on/off toggle */}
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-100">{icon} {label} automation</p>
+                          <p className="text-sm font-semibold text-gray-100">{label} automation</p>
                           <p className="text-gray-600 text-[11px] mt-0.5">
                             {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
                               : running && chPaused ? `Off — remaining ${noun} won't send. Switch on to resume.`
@@ -1287,7 +1287,7 @@ export default function ContactsClient({
                   if (ev.event_type === "clicked_save_contact") continue;
                   items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
-                items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });
+                items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
                 if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
                 for (const m of convoMessages) {
                   items.push(m.direction === "in"
@@ -1307,7 +1307,7 @@ export default function ContactsClient({
                             </div>
                             <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
                               <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
-                                {isSms ? "💬 Text" : "✉ Email"}
+                                {isSms ? "Text" : "Email"}
                               </span>
                               <span>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
                             </span>

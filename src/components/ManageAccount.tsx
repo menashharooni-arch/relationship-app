@@ -145,7 +145,6 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
             {step === "retain" && (
               <>
                 <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mx-auto mb-3 text-2xl">🎁</div>
                   <p className="text-white font-bold text-base mb-1">Wait — here&apos;s a month on us</p>
                   <p className="text-gray-400 text-sm mb-5 leading-relaxed">
                     We&apos;d hate to see you go. Stay and your next month of Pro is <span className="text-white font-semibold">free</span>.
@@ -193,7 +192,6 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
 
             {step === "done" && (
               <div className="text-center py-2">
-                <div className="w-12 h-12 rounded-full bg-green-600/15 border border-green-600/30 flex items-center justify-center mx-auto mb-3 text-2xl">🎉</div>
                 <p className="text-white font-bold text-base mb-1">Glad you&apos;re staying!</p>
                 <p className="text-gray-400 text-sm mb-5">Your free month has been applied to your account.</p>
                 <button type="button" onClick={() => setModal(false)} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">

@@ -240,7 +240,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         <button type="button" onClick={() => openDemo("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
           <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
         </button>
-        <button type="button" onClick={() => openDemo("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">👆 Preview SwiftCard →</button>
+        <button type="button" onClick={() => openDemo("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">Preview SwiftCard →</button>
       </Box>
       <Box className="space-y-2">
         <ShareButton url={cardUrl} title="My SwiftCard" text="Save my contact and connect with me instantly." label="Share" />
@@ -264,7 +264,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
 
         {/* Plain-language guide so a first-time visitor knows what this is and what to tap */}
         <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-4 sm:p-5 mb-5">
-          <p className="text-blue-100 text-sm font-bold mb-3">👋 New here? Start with these three:</p>
+          <p className="text-blue-100 text-sm font-bold mb-3">New here? Start with these three:</p>
           <div className="grid sm:grid-cols-3 gap-2.5">
             {[
               { n: "1", t: "See your SwiftCard", d: "Tap Preview SwiftCard to open the real card people get." },
@@ -336,7 +336,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 {card.locations.map((loc) => (
                   <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <p className="text-gray-100 text-sm font-semibold truncate">📍 {loc.location}</p>
+                      <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
                       <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
                     </div>
                     <div className="flex items-center gap-4 text-[11px]">

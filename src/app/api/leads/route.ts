@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         user_id: ownerProfile.id,
         card_owner,
         type: "new_lead",
-        title: locked ? "🔒 New lead locked" : `New contact: ${name}`,
+        title: locked ? "New lead locked" : `New contact: ${name}`,
         body: locked
           ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
           : `${name} shared their info with you${sourceStr}.`,
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
       if (insertedLead?.id) {
         const vcardUrl = `${APP_URL}/api/leads/vcard?id=${insertedLead.id}`;
         sendPushToUser(ownerProfile.id, {
-          title: locked ? "🔒 New lead locked" : `New contact: ${name}`,
+          title: locked ? "New lead locked" : `New contact: ${name}`,
           body: locked
             ? "Upgrade to Pro to unlock this lead."
             : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
@@ -204,13 +204,13 @@ export async function POST(req: NextRequest) {
       // in-app notification gets — revealing the details in the email would
       // bypass the lock entirely.
       const detailsCard = locked
-        ? `<p style="margin:0;font-size:14px;font-weight:700;color:#f1f5f9;">🔒 This lead is locked</p>
+        ? `<p style="margin:0;font-size:14px;font-weight:700;color:#f1f5f9;">This lead is locked</p>
       <p style="margin:8px 0 0;font-size:13px;color:#94a3b8;">You've hit your 5 free leads this month. Upgrade to Pro to unlock it — and never miss the next one.</p>`
         : `<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#f1f5f9;">${eName}</p>
       ${eCompany ? `<p style="margin:0 0 6px;font-size:13px;color:#94a3b8;">${eCompany}</p>` : ""}
       ${eEmail ? `<a href="${emailHref}" style="display:block;font-size:13px;color:#60a5fa;margin:0 0 4px;text-decoration:none;">${eEmail}</a>` : ""}
       ${ePhone ? `<a href="${telHref}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${ePhone}</a>` : ""}
-      ${locStr ? `<p style="margin:8px 0 0;font-size:12px;color:#4b5563;">📍${locStr}</p>` : ""}
+      ${locStr ? `<p style="margin:8px 0 0;font-size:12px;color:#4b5563;">${locStr}</p>` : ""}
       ${eMessage ? `<p style="margin:10px 0 0;font-size:13px;color:#94a3b8;font-style:italic;border-top:1px solid #334155;padding-top:10px;">"${eMessage}"</p>` : ""}`;
       resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
 <tr><td>
   <div style="background:#0f172a;border-radius:16px;padding:28px 28px 8px;margin-bottom:20px;">
     <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.15em;color:#4b5563;text-transform:uppercase;">New Contact</p>
-    <span style="display:inline-block;background:#1d4ed81f;border:1px solid #1d4ed855;color:#93c5fd;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin:0 0 10px;">💳 ${cardTag}</span>
+    <span style="display:inline-block;background:#1d4ed81f;border:1px solid #1d4ed855;color:#93c5fd;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin:0 0 10px;">${cardTag}</span>
     <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">Hey ${ownerFirst}, you have a new lead</h1>
     <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone just shared their info with you on your <strong style="color:#9ca3af;">${cardTag}</strong> card.</p>
     <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px 20px;margin-bottom:24px;">

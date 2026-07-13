@@ -209,7 +209,7 @@ export default function LeadPipeline({ initialLeads }: { initialLeads: Lead[] })
                       </p>
                       {hasFlow ? (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/50">
-                          P{preset} ⚡
+                          P{preset}
                         </span>
                       ) : flowPaused ? (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-600">

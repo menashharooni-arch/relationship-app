@@ -29,13 +29,13 @@ const FALLBACK = [
 // Sample featured links — mix of a video, image previews, and gradient tiles,
 // so the section shows how videos and rich links render (link.me album grid:
 // odd count → first tile goes full-width + taller).
-type Tile = { label: string; kind: "video" | "image" | "gradient"; img?: string; gi?: number; icon: string };
+type Tile = { label: string; kind: "video" | "image" | "gradient"; img?: string; gi?: number };
 const TILES: Tile[] = [
-  { label: "Neighborhood tour", kind: "video", img: "/marketing/ll-video.jpg", icon: "🎬" },
-  { label: "See current listings", kind: "image", img: "/marketing/ll-listings.jpg", icon: "🏠" },
-  { label: "From the blog", kind: "image", img: "/marketing/ll-blog.jpg", icon: "✍️" },
-  { label: "Book a viewing", kind: "gradient", gi: 0, icon: "📅" },
-  { label: "Read client reviews", kind: "gradient", gi: 1, icon: "⭐" },
+  { label: "Neighborhood tour", kind: "video", img: "/marketing/ll-video.jpg" },
+  { label: "See current listings", kind: "image", img: "/marketing/ll-listings.jpg" },
+  { label: "From the blog", kind: "image", img: "/marketing/ll-blog.jpg" },
+  { label: "Book a viewing", kind: "gradient", gi: 0 },
+  { label: "Read client reviews", kind: "gradient", gi: 1 },
 ];
 
 function VerifiedBadge({ className = "w-[22px] h-[22px]" }: { className?: string }) {
@@ -59,10 +59,6 @@ function FeaturedTile({ t, big }: { t: Tile; big: boolean }) {
       )}
       {/* bottom gradient so the title reads over any image */}
       <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
-      {/* favicon circle, top-left */}
-      <span className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full bg-white/95 shadow flex items-center justify-center">
-        <span className="text-[15px] leading-none">{t.icon}</span>
-      </span>
       {/* play button for video */}
       {t.kind === "video" && (
         <span className="absolute inset-0 z-[6] flex items-center justify-center">
@@ -98,7 +94,7 @@ function Profile() {
         </div>
         <p className="text-white/50 text-[14px] mt-0.5">@alexmorgan</p>
         <p className="text-white/60 text-[12.5px] font-medium mt-2">Founder &amp; CEO&nbsp;&nbsp;·&nbsp;&nbsp;Morgan &amp; Co.</p>
-        <p className="text-white/75 text-[13px] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look 👇</p>
+        <p className="text-white/75 text-[13px] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look</p>
 
         {/* Social icons (display-only) */}
         <div style={{ pointerEvents: "none" }}>

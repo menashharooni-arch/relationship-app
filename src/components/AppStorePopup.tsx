@@ -33,7 +33,7 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
             <path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.75.84-1.98 1.49-3.02 1.4-.13-1.09.42-2.24 1.09-2.98.76-.85 2.07-1.47 3.04-1.4zM20.5 17.02c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.01-1.93-1-4.02-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.06-1.78-4.05-3.35-2.77-4.38-3.06-9.52-1.35-12.25 1.21-1.94 3.13-3.08 4.94-3.08 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.19-3.34 7.88.1 9.25z" />
           </svg>
         </div>
-        <h2 className="text-white font-bold text-lg mb-1.5">Your account is ready! 🎉</h2>
+        <h2 className="text-white font-bold text-lg mb-1.5">Your account is ready!</h2>
         <p className="text-gray-400 text-sm mb-6 leading-relaxed">
           Get the SwiftCard app to build cards, capture leads, and send follow-ups on the go — with instant notifications the moment someone connects.
         </p>

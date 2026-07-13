@@ -18,7 +18,6 @@ export default function TrialBanner({ daysLeft, isTrial }: { daysLeft: number; i
       }
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="text-base shrink-0">{urgent ? "⏳" : "⚡"}</span>
         <p className={`text-sm font-medium ${urgent ? "text-amber-300" : "text-blue-200"}`}>
           {label} — <span className="font-bold">{days}</span>
           <span className="hidden sm:inline text-gray-400 font-normal">

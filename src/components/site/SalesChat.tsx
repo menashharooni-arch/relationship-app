@@ -14,7 +14,7 @@ type Msg = { role: "user" | "assistant"; content: string };
 const GREETING: Msg = {
   role: "assistant",
   content:
-    "Hi! 👋 I can answer anything about SwiftCard — what it is, pricing, and how it works. What would you like to know?",
+    "Hi! I can answer anything about SwiftCard — what it is, pricing, and how it works. What would you like to know?",
 };
 
 const SUGGESTIONS = [

@@ -143,7 +143,7 @@ export default async function GrowPage() {
           </div>
 
           <p className="text-center text-gray-600 text-xs pt-2 pb-4">
-            Thank you for helping SwiftCard grow. 💙
+            Thank you for helping SwiftCard grow.
           </p>
         </div>
       </div>

@@ -356,12 +356,12 @@ async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
 
   if (p.validSignups > cap * per) {
     // Past the lifetime cap — appreciative, no reward implied.
-    title = "Another friend joined through your link! 🙌";
+    title = "Another friend joined through your link!";
     body = `You've already earned the maximum ${cap} referral months — thanks for spreading the word.`;
   } else if (p.progressInBatch === 0 && p.claimable > 0) {
     // This signup completed a batch of 3 → a month is ready to claim.
     type = "referral_claim";
-    title = "3 of 3 referrals complete! 🎉";
+    title = "3 of 3 referrals complete!";
     body = "Congratulations — you've got Pro free for one month. Tap here to get it.";
   } else {
     const left = per - p.progressInBatch;

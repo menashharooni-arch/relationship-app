@@ -76,7 +76,7 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
           <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto mb-4">
             <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h1 className="text-white font-bold text-2xl sm:text-3xl">Your card is live! 🎉</h1>
+          <h1 className="text-white font-bold text-2xl sm:text-3xl">Your card is live!</h1>
           {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/card/{cardSlug}</p>}
           <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">One quick thing, then you&apos;re all set.</p>
         </div>
@@ -84,7 +84,7 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
         {/* Notifications — always offered */}
         <div className="max-w-md mx-auto mb-10">
           <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 mb-3 text-center">
-            <p className="text-blue-200 font-semibold text-sm">🔔 Turn on notifications</p>
+            <p className="text-blue-200 font-semibold text-sm">Turn on notifications</p>
             <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">Get an instant alert the moment someone shares their info through your card.</p>
           </div>
           <EnablePushButton />

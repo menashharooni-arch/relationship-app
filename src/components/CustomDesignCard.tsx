@@ -39,7 +39,7 @@ export default function CustomDesignCard({
           </p>
         </div>
         <span className={`text-xs font-semibold shrink-0 self-center ${selected ? "text-blue-400" : "text-gray-400"}`}>
-          {selected ? "Selected" : isPro ? "Design →" : "🔒"}
+          {selected ? "Selected" : isPro ? "Design →" : "Pro"}
         </span>
       </button>
       {!isPro && (

@@ -643,12 +643,12 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Your card is live! 🎉</h1>
+              <h1 className="text-2xl font-bold text-white">Your card is live!</h1>
               <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{username}</p>
             </div>
 
             <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
-              <p className="text-blue-200 font-semibold text-sm">🔔 Press here to turn on notifications</p>
+              <p className="text-blue-200 font-semibold text-sm">Press here to turn on notifications</p>
               <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
                 Get an instant alert the moment someone shares their info through your card.
               </p>

@@ -13,7 +13,7 @@ import { getSourceLabel } from "@/lib/source-labels";
 // fictional; nothing is fetched.
 
 // ── Conversation helpers, mirrored from the real ContactsClient ──────────────
-const EVENT_ICONS: Record<string, string> = { viewed_card: "👁", downloaded_vcard: "💾", shared_info: "✅" };
+const EVENT_ICONS: Record<string, string> = { viewed_card: "·", downloaded_vcard: "·", shared_info: "✓" };
 const ACTIVITY_PHRASES: Record<string, string> = {
   viewed_card: "viewed your card",
   downloaded_vcard: "saved your contact",
@@ -163,7 +163,7 @@ function LocationsPanel() {
         {LOCATIONS.map((l) => (
           <div key={l.city}>
             <div className="flex items-center justify-between text-[12.5px] mb-1.5">
-              <span className="text-white/80">📍 {l.city}</span>
+              <span className="text-white/80">{l.city}</span>
               <span className="text-white/40 tabular-nums">{l.card + l.link}</span>
             </div>
             <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden flex">
@@ -369,7 +369,7 @@ function ConversationPanel({ selected }: { selected: Contact }) {
   for (const ev of selected.events) {
     items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_ICONS[ev.event_type] ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
   }
-  items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✅", text: `${fname} shared their info with you`, source: selected.source });
+  items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
   if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
   for (const m of selected.messages) {
     items.push(m.direction === "in"
@@ -392,7 +392,7 @@ function ConversationPanel({ selected }: { selected: Contact }) {
               <div key={it.key} className="flex flex-col items-end">
                 <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>{it.body}</div>
                 <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
-                  <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>{isSms ? "💬 Text" : "✉ Email"}</span>
+                  <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>{isSms ? "Text" : "Email"}</span>
                   <span>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
                 </span>
               </div>

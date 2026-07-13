@@ -91,7 +91,6 @@ export default function LeadCaptureForm({
   if (status === "limit") {
     return (
       <div className="text-center py-6">
-        <p className="text-2xl mb-2">📨</p>
         <p className="text-slate-900 font-semibold">Card at capacity</p>
         <p className="text-slate-500 text-sm mt-1">This person&apos;s card is full. Ask them to upgrade to SwiftCard Pro.</p>
       </div>

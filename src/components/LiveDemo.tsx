@@ -36,7 +36,7 @@ function ShareScreen() {
       <div className="flex flex-col gap-3 flex-1">
         <div className="self-start max-w-[85%]">
           <div className="rounded-2xl rounded-tl-sm px-3 py-2.5" style={{ background: "#E8E8ED" }}>
-            <p className="text-[11px] text-slate-800 leading-snug">Hey! Great meeting you at the conference 🤝</p>
+            <p className="text-[11px] text-slate-800 leading-snug">Hey! Great meeting you at the conference</p>
           </div>
           <p className="text-[9px] text-slate-400 mt-1 ml-1">Alex · 2:14 PM</p>
         </div>
@@ -218,7 +218,6 @@ function NotifyScreen() {
         }}
       >
         <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-          <span className="text-sm">🎉</span>
         </div>
         <div className="min-w-0">
           <p className="text-white font-bold text-[10px]">New lead captured!</p>

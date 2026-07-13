@@ -38,7 +38,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     path: DASH,
-    title: "Welcome to SwiftCard 👋",
+    title: "Welcome to SwiftCard",
     body: "A quick lap around your dashboard. Use Next and Back, or Skip anytime — you can replay this from Settings.",
   },
 
@@ -79,7 +79,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "nav-grow",
     path: DASH,
     anchor: "nav-grow",
-    title: "Help us grow ❤",
+    title: "Help us grow",
     body: "Rate us, invite friends (you earn free Pro months), and spread the word — all in one place.",
     placement: "bottom",
   },
@@ -246,7 +246,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "finish",
     path: SETTINGS,
-    title: "You're all set 🎉",
+    title: "You're all set",
     body: "That's the whole app. Now go share your card and watch your contacts roll in.",
   },
 ];

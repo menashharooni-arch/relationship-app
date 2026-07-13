@@ -62,7 +62,7 @@ export default function NotificationsPanel({
       const res = await fetch("/api/referrals/claim", { method: "POST" });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: "🎉 Pro is active for the next month — enjoy!" } }));
+        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: "Pro is active for the next month — enjoy!" } }));
         setRead(id, true);
         router.refresh(); // update the plan badge etc.
       } else {
@@ -166,7 +166,7 @@ export default function NotificationsPanel({
                     disabled={claiming === n.id}
                     className="mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
                   >
-                    {claiming === n.id ? "Activating…" : "🎁 Claim my free month of Pro"}
+                    {claiming === n.id ? "Activating…" : "Claim my free month of Pro"}
                   </button>
                 )
               )}

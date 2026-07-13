@@ -397,7 +397,7 @@ export default function LeadCard({
             )}
             {followUpDate && !followUpOverdue && (
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 shrink-0">
-                📅 {new Date(followUpDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {new Date(followUpDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </span>
             )}
           </div>
@@ -645,8 +645,8 @@ export default function LeadCard({
                 {/* Per-channel switches — each one shuts its own automation down */}
                 <div className="grid grid-cols-2 gap-2">
                   {([
-                    { which: "email" as const, label: "📧 Email automation", paused: emailPaused, missing: !lead.email && "no email on contact" },
-                    { which: "sms" as const, label: "💬 Text automation", paused: smsPaused, missing: !lead.phone && "no phone on contact" },
+                    { which: "email" as const, label: "Email automation", paused: emailPaused, missing: !lead.email && "no email on contact" },
+                    { which: "sms" as const, label: "Text automation", paused: smsPaused, missing: !lead.phone && "no phone on contact" },
                   ]).map(({ which, label, paused, missing }) => (
                     <div key={which} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: "#1f2937", border: "1px solid #374151", opacity: missing ? 0.55 : 1 }}>
                       <div className="min-w-0">
@@ -748,7 +748,7 @@ export default function LeadCard({
                           const paused = isSms ? smsPaused : emailPaused;
                           return (
                             <div key={`${item.day}-${item.channel ?? "email"}-${idx}`} className="flex items-start gap-2 text-[11px]">
-                              <span className="text-gray-500 shrink-0 mt-0.5">Day {item.day} {isSms ? "💬" : "📧"}</span>
+                              <span className="text-gray-500 shrink-0 mt-0.5">Day {item.day}</span>
                               <span className={item.sent_at ? "text-green-400" : paused ? "text-amber-500/80" : "text-gray-400"}>
                                 {item.sent_at ? "✓ Sent" : paused ? `Paused (${isSms ? "text" : "email"} off)` : "Scheduled"}
                               </span>
@@ -842,7 +842,7 @@ export default function LeadCard({
                             {pendingSequence.map((item, idx) => (
                               <div key={`${item.day}-${item.channel ?? "email"}-${idx}`} className="space-y-1">
                                 <p className="text-[10px] text-gray-500 font-medium">
-                                  Day {item.day} · {item.channel === "sms" ? "💬 Text" : "📧 Email"}
+                                  Day {item.day} · {item.channel === "sms" ? "Text" : "Email"}
                                 </p>
                                 <textarea
                                   value={item.message}

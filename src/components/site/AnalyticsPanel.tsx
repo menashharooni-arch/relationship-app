@@ -53,7 +53,7 @@ export default function AnalyticsPanel() {
               {LOCATIONS.map((l) => (
                 <div key={l.city}>
                   <div className="flex items-center justify-between text-[12px] mb-1">
-                    <span className="text-white/80">📍 {l.city}</span>
+                    <span className="text-white/80">{l.city}</span>
                     <span className="text-white/40 tabular-nums">{l.card + l.link}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden flex">
