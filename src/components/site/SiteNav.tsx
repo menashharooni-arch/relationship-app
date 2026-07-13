@@ -31,7 +31,7 @@ const PRODUCTS: Item[] = [
 const SOLUTIONS: Item[] = [
   { label: "Dashboard & Analytics", href: "/products/analytics", desc: "See who's viewing and saving" },
   { label: "Teams & Offices", href: "/products/teams", desc: "One brand across everyone" },
-  { label: "Apple Wallet", href: "/products/wallet", desc: "Your card, always in your pocket" },
+  { label: "Ways to share", href: "/products/wallet", desc: "Wallet, QR, and the share sheet" },
   { label: "Apple Watch", href: "/products/watch", desc: "Share from your wrist" },
   { label: "Integrations", href: "/products/integrations", desc: "Zapier, Google, HubSpot & CSV" },
 ];
