@@ -60,11 +60,27 @@ export const TOUR_STEPS: TourStep[] = [
     placement: "bottom",
   },
   {
+    id: "nav-share",
+    path: DASH,
+    anchor: "nav-share",
+    title: "Share",
+    body: "Your Swift Links link and email signature live here — everything you drop into a bio or the bottom of an email.",
+    placement: "bottom",
+  },
+  {
     id: "nav-settings",
     path: DASH,
     anchor: "nav-settings",
     title: "Settings",
     body: "Cards, integrations, referrals, and your account. The tour ends here.",
+    placement: "bottom",
+  },
+  {
+    id: "nav-grow",
+    path: DASH,
+    anchor: "nav-grow",
+    title: "Help us grow ❤",
+    body: "Rate us, invite friends (you earn free Pro months), and spread the word — all in one place.",
     placement: "bottom",
   },
   {
@@ -120,6 +136,33 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Views of your card and Swift Links. Switch Today / Week / Month, or tap Locations for top places.",
     placement: "bottom",
   },
+  // ── Contacts on the dashboard ─────────────────────────────────────────────
+  {
+    id: "contact-views",
+    path: DASH,
+    anchor: "contact-views",
+    title: "Two quick views",
+    body: "Notifications shows the newest activity — tap one to jump straight to that contact. Contacts is your quick list.",
+    placement: "top",
+  },
+  {
+    id: "quick-contacts",
+    path: DASH,
+    anchor: "quick-contacts",
+    title: "Quick Contacts",
+    body: "One row per contact with Call, Text, and Email buttons — each opens your phone's own dialer, Messages, or mail app with their info filled in. Tap a name to open the full contact.",
+    placement: "top",
+  },
+  {
+    id: "add-contact",
+    path: DASH,
+    anchor: "add-contact",
+    title: "Add a contact",
+    body: "Met someone offline? Add them here — or scan their business card and it auto-fills. Card taps show up on their own.",
+    placement: "left",
+  },
+
+  // ── Share page — Swift Links + the email signature ────────────────────────
   {
     id: "swift-links",
     path: SHARE,
@@ -134,24 +177,6 @@ export const TOUR_STEPS: TourStep[] = [
     anchor: "email-signature",
     title: "Swift Signature",
     body: "Puts your live card in every email. Copy it once, paste into Gmail or Outlook.",
-    placement: "left",
-  },
-
-  // ── Contacts on the dashboard ─────────────────────────────────────────────
-  {
-    id: "contact-views",
-    path: DASH,
-    anchor: "contact-views",
-    title: "Your leads at a glance",
-    body: "Notifications shows the newest activity; Contacts is your quick list. The full Contacts page has filters and the pipeline.",
-    placement: "top",
-  },
-  {
-    id: "add-contact",
-    path: DASH,
-    anchor: "add-contact",
-    title: "Add a contact",
-    body: "Met someone offline? Add them here — or scan their business card and it auto-fills. Card taps show up on their own.",
     placement: "left",
   },
 

@@ -684,7 +684,7 @@ export default async function DashboardPage({
             <div className="space-y-5 order-2 lg:order-none">
 
               {/* Contacts section */}
-              <div>
+              <div data-tour="quick-contacts">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-baseline gap-2.5">
