@@ -427,12 +427,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     key={id}
                     type="button"
                     onClick={() => setTemplate(id)}
-                    className="text-xs font-semibold py-2 rounded-xl border transition-colors"
-                    style={{
-                      background: template === id ? "#1D4ED8" : "#111827",
-                      borderColor: template === id ? "#1D4ED8" : "#374151",
-                      color: template === id ? "#fff" : "#9ca3af",
-                    }}
+                    className={`text-xs font-semibold py-2 rounded-xl border transition-colors ${
+                      template === id ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                    }`}
                   >
                     {tplLabel}
                   </button>
