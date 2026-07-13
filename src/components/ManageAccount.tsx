@@ -12,9 +12,12 @@ const REASONS = [
   "Other",
 ];
 
-type Step = "survey" | "retain" | "confirm" | "done";
+type Step = "survey" | "retain" | "confirm" | "done" | "downgraded";
 
-export default function ManageAccount({ isPro }: { isPro: boolean }) {
+export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean; plan?: string }) {
+  // Individual Pro can self-downgrade to Free (keep the account, cancel billing).
+  // Office/enterprise is managed from office settings, so we don't offer it here.
+  const canDowngrade = plan === "pro";
   const [expanded, setExpanded] = useState(false);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState<Step>("survey");
@@ -50,6 +53,24 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
       setStep("done");
     } catch {
       setError("Something went wrong applying your offer — please try again.");
+    }
+    setLoading(false);
+  }
+
+  async function downgradeToFree() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/account/downgrade", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Couldn't switch to Free — please try again.");
+        setLoading(false);
+        return;
+      }
+      setStep("downgraded");
+    } catch {
+      setError("Couldn't switch to Free — please try again.");
     }
     setLoading(false);
   }
@@ -153,7 +174,18 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
                 <button type="button" onClick={stayWithOffer} disabled={loading} className="w-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-full py-3 transition-colors mb-2">
                   {loading ? "…" : "Keep my account & get 1 month free"}
                 </button>
-                <button type="button" onClick={() => setStep("confirm")} className="w-full text-xs text-gray-500 hover:text-gray-300 py-1.5 transition-colors">
+                {canDowngrade && (
+                  <button type="button" onClick={downgradeToFree} disabled={loading} className="w-full text-sm font-semibold text-gray-200 bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:opacity-50 rounded-full py-2.5 transition-colors mb-2">
+                    {loading ? "…" : "Switch to Free instead — keep my account"}
+                  </button>
+                )}
+                {canDowngrade && (
+                  <p className="text-gray-500 text-[11px] text-center mb-2 leading-relaxed">
+                    Downgrading keeps your account, cards, and contacts — it just cancels Pro billing. No deletion.
+                  </p>
+                )}
+                {error && <p className="text-red-400 text-xs text-center mb-2">{error}</p>}
+                <button type="button" onClick={() => { setError(""); setStep("confirm"); }} className="w-full text-xs text-gray-500 hover:text-gray-300 py-1.5 transition-colors">
                   No thanks, continue deleting
                 </button>
               </>
@@ -195,6 +227,16 @@ export default function ManageAccount({ isPro }: { isPro: boolean }) {
                 <p className="text-white font-bold text-base mb-1">Glad you&apos;re staying!</p>
                 <p className="text-gray-400 text-sm mb-5">Your free month has been applied to your account.</p>
                 <button type="button" onClick={() => setModal(false)} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">
+                  Done
+                </button>
+              </div>
+            )}
+
+            {step === "downgraded" && (
+              <div className="text-center py-2">
+                <p className="text-white font-bold text-base mb-1">You&apos;re on the Free plan</p>
+                <p className="text-gray-400 text-sm mb-5 leading-relaxed">Pro billing is cancelled and your account, cards, and contacts are all still here. Upgrade again anytime.</p>
+                <button type="button" onClick={() => window.location.reload()} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">
                   Done
                 </button>
               </div>

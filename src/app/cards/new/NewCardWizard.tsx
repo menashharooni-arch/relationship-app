@@ -625,7 +625,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
               )}
               {atLinkCap ? (
                 <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <span className="text-blue-400 font-semibold">Upgrade to Pro</span> for unlimited links.
+                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/pricing" className="text-blue-400 font-semibold hover:text-blue-300 underline">Upgrade to Pro</a> for unlimited links.
                 </p>
               ) : (
                 <div className="space-y-2">
