@@ -78,6 +78,7 @@ export default async function FlowSettingsPage() {
             {[
               { href: "/dashboard", label: "Dashboard" },
               { href: "/contacts",  label: "Contacts" },
+              { href: "/share", label: "Share" },
               { href: "/settings/flows", label: "Settings", active: true },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
