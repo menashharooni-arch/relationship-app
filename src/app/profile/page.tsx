@@ -6,7 +6,7 @@ import FlowSettingsForm from "@/components/FlowSettingsForm";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import MobileNav from "@/components/MobileNav";
 import CopyButton from "@/components/CopyButton";
-import Link from "next/link";
+import DashboardLink from "@/components/DashboardLink";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -41,9 +41,9 @@ export default async function ProfilePage() {
             <p className="text-[11px] font-bold tracking-[0.25em] text-slate-400 uppercase mb-1">SwiftCard</p>
             <h1 className="text-2xl font-bold text-slate-900">Edit Card</h1>
           </div>
-          <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+          <DashboardLink className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
             ← Dashboard
-          </Link>
+          </DashboardLink>
         </div>
         {/* Live card link */}
         <div className="mb-6 flex items-center gap-2 bg-white border border-warm-card-border rounded-2xl px-4 py-3 shadow-sm">

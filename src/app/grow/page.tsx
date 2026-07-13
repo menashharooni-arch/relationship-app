@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { getReferralProgress } from "@/lib/referral-server";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import DashboardLink from "@/components/DashboardLink";
 import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
@@ -64,14 +65,16 @@ export default async function GrowPage() {
       {/* Sticky nav */}
       <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+          <DashboardLink className="flex items-center gap-2 shrink-0">
             <SwiftCardIcon size={28} />
             <span className="font-bold text-white text-sm tracking-tight hidden sm:block">SwiftCard</span>
-          </Link>
+          </DashboardLink>
 
           <div className="hidden md:flex items-center gap-0.5">
+            <DashboardLink className="text-sm px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors">
+              Dashboard
+            </DashboardLink>
             {[
-              { href: "/dashboard", label: "Dashboard" },
               { href: "/contacts", label: "Contacts" },
               { href: "/share", label: "Share" },
               { href: "/settings/flows", label: "Settings" },
@@ -83,9 +86,9 @@ export default async function GrowPage() {
             ))}
           </div>
 
-          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-white transition-colors">
+          <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">
             ← Dashboard
-          </Link>
+          </DashboardLink>
         </div>
       </nav>
 
