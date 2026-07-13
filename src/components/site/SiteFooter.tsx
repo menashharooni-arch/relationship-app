@@ -28,7 +28,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
     links: [
       { label: "See it live", href: "/preview" },
       { label: "Templates", href: "/templates" },
-      { label: "Testimonials", href: "/testimonials" },
+      { label: "Why SwiftCard", href: "/testimonials" },
       { label: "Contact", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Terms", href: "/terms" },

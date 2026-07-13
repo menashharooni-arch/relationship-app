@@ -33,7 +33,8 @@ export default function TermsPage() {
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-8">Terms of Service</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
+        <p className="text-slate-500 text-sm mb-8">Last updated: July 12, 2026</p>
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -44,9 +45,16 @@ export default function TermsPage() {
 
         <H2>Who can use SwiftCard</H2>
         <P>
-          You must be at least 16 years old and able to form a binding contract. If you use SwiftCard on behalf
-          of a company or team (for example, an Office account), you confirm you&apos;re authorized to accept these
-          terms for that organization.
+          <strong>You must be at least 16 years old to use SwiftCard.</strong> The Service is not directed to
+          children, and people under 13 may not use it under any circumstances. If you are under the age of legal
+          majority where you live (for example, under 18 in most U.S. states), you may only use SwiftCard with the
+          permission and supervision of a parent or legal guardian who agrees to these terms on your behalf. By
+          creating an account you represent that you meet these requirements and are able to form a binding
+          contract. We may suspend or terminate any account we reasonably believe belongs to an underage user, and
+          we will delete its personal information as described in our{" "}
+          <Link href="/privacy" className="text-brand underline">Privacy Policy</Link>. If you use SwiftCard on
+          behalf of a company or team (for example, an Office account), you confirm you&apos;re authorized to accept
+          these terms for that organization.
         </P>
 
         <H2>Your account</H2>
