@@ -30,7 +30,7 @@ export default function TermsPage() {
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: July 12, 2026</p>
+        <p className="text-slate-500 text-sm mb-8">Last updated: July 13, 2026</p>
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -152,27 +152,85 @@ export default function TermsPage() {
           take effect means you accept the updated terms.
         </P>
 
-        <H2>Disclaimers and limitation of liability</H2>
+        <H2>Our intellectual property</H2>
         <P>
-          To the fullest extent permitted by law, SwiftCard disclaims all warranties not expressly stated here, and we
-          are not liable for indirect, incidental, or consequential damages, or for lost profits, data, or goodwill. Our
-          total liability for any claim relating to the Service is limited to the amount you paid us in the 12 months
-          before the claim. Some jurisdictions don&apos;t allow certain limitations, so some of these may not apply to you.
+          The Service itself — the software, design, templates, logos, and everything that makes SwiftCard work — is
+          owned by ORION RE SERVICES INC and its licensors, and is protected by copyright, trademark, and other laws.
+          These terms give you a limited, revocable, non-exclusive, non-transferable right to use the Service; they
+          don&apos;t give you any ownership of it. If you send us ideas or feedback, we may use them freely, without
+          any obligation or payment to you.
         </P>
+
+        <H2>Disclaimers</H2>
+        <P>
+          The Service is provided <strong>&quot;as is&quot; and &quot;as available.&quot;</strong> To the fullest
+          extent permitted by law, we disclaim all warranties, express or implied — including implied warranties of
+          merchantability, fitness for a particular purpose, and non-infringement. We don&apos;t warrant that the
+          Service will be uninterrupted, error-free, or secure, that defects will be corrected, or that the Service
+          will produce any particular business result. SwiftCard is a networking tool — we make no promise that you
+          will gain leads, contacts, or revenue from using it. Content on other users&apos; cards belongs to those
+          users; we don&apos;t verify it and aren&apos;t responsible for it.
+        </P>
+
+        <H2>Limitation of liability</H2>
+        <P>
+          To the fullest extent permitted by law: (a) we are not liable for indirect, incidental, special,
+          consequential, exemplary, or punitive damages, or for lost profits, revenue, data, goodwill, or business
+          opportunities, even if we&apos;ve been advised such damages are possible; (b) we are not liable for the
+          conduct or content of any user or third party, or for events beyond our reasonable control; and (c) our
+          total, cumulative liability for all claims relating to the Service is limited to the greater of{" "}
+          <strong>$50</strong> or the amount you paid us in the <strong>12 months</strong> before the event giving
+          rise to the claim. These limits apply regardless of the theory of liability (contract, tort, negligence,
+          statute, or otherwise) and even if a remedy fails of its essential purpose. Some jurisdictions don&apos;t
+          allow certain limitations, so some of these may not apply to you; in that case our liability is limited to
+          the smallest amount the law allows.
+        </P>
+
+        <H2>Indemnification</H2>
+        <P>
+          You agree to defend, indemnify, and hold harmless ORION RE SERVICES INC, SwiftCard, and their officers,
+          employees, and agents from any claims, damages, liabilities, and expenses (including reasonable
+          attorneys&apos; fees) arising out of: your content; the contacts you collect and the messages you send
+          through the Service; your use of the Service in violation of these terms or of applicable law (including
+          privacy and anti-spam laws); or your infringement of anyone else&apos;s rights.
+        </P>
+
+        <H2>Dispute resolution — arbitration &amp; class-action waiver</H2>
+        <P>
+          <strong>Please read this section carefully — it affects your legal rights.</strong> If you have a dispute
+          with us, contact us first through the{" "}
+          <Link href="/contact" className="text-brand underline">Contact page</Link>; most issues can be resolved
+          informally, and we&apos;ll try in good faith for 30 days before either side starts formal proceedings.
+        </P>
+        <ul className="mb-3">
+          <LI><strong>Binding arbitration.</strong> Any dispute that isn&apos;t resolved informally will be settled by binding individual arbitration administered by the American Arbitration Association under its Consumer Arbitration Rules, rather than in court. The Federal Arbitration Act governs this section. Either party may instead bring an individual claim in small-claims court, and either party may seek injunctive relief in court for infringement or misuse of intellectual property.</LI>
+          <LI><strong>Class-action waiver.</strong> Disputes will be resolved only on an individual basis. <strong>You and SwiftCard each waive the right to a jury trial and to participate in a class action, class arbitration, or representative proceeding.</strong> If this waiver is found unenforceable for a particular claim, that claim (and only that claim) proceeds in court.</LI>
+          <LI><strong>Time limit.</strong> Any claim must be filed within <strong>one year</strong> after it arises, or it is permanently barred, unless a longer period is required by law.</LI>
+          <LI><strong>Opt-out.</strong> You may opt out of this arbitration agreement within 30 days of first accepting these terms by telling us through the Contact page with the subject &quot;Arbitration opt-out&quot; and the email on your account. Opting out doesn&apos;t affect any other part of these terms.</LI>
+        </ul>
 
         <H2>Termination</H2>
         <P>
           You can stop using SwiftCard and delete your account at any time from your settings. We may suspend or
           terminate your account if you violate these terms or if we&apos;re required to by law. After deletion, we remove
           your data as described in our Privacy Policy, subject to a short recovery window and any records we&apos;re
-          legally required to keep.
+          legally required to keep. Sections that by their nature should survive termination (including Your content,
+          Disclaimers, Limitation of liability, Indemnification, and Dispute resolution) survive.
         </P>
 
         <H2>Governing law</H2>
         <P>
-          These terms are governed by the laws of the State of New York, without regard to its conflict-of-laws rules,
-          and any disputes will be handled in the state or federal courts located in New York, unless applicable law
-          requires otherwise.
+          These terms are governed by the laws of the State of New York, without regard to its conflict-of-laws rules.
+          Any dispute not subject to arbitration will be handled in the state or federal courts located in New York,
+          and both parties consent to their jurisdiction, unless applicable law requires otherwise.
+        </P>
+
+        <H2>Miscellaneous</H2>
+        <P>
+          These terms (with the Privacy Policy) are the entire agreement between you and us about the Service. If any
+          part is found unenforceable, the rest remains in effect. Our not enforcing a provision isn&apos;t a waiver
+          of it. You may not assign these terms; we may assign them in connection with a merger, acquisition, or sale
+          of assets. Nothing in these terms creates a partnership, employment, or agency relationship.
         </P>
 
         <H2>Contact</H2>
