@@ -31,7 +31,6 @@ export default async function ProfilePage() {
     day30: { enabled: true, time: "13:00" },
   };
   const settings = (profile.flow_settings as typeof defaults) ?? defaults;
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
   return (
     <main className="min-h-screen bg-cream px-5 py-10 pb-24 md:pb-10">
@@ -71,7 +70,7 @@ export default async function ProfilePage() {
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Follow-up Automation</h2>
-          <FlowSettingsForm initialSettings={settings} isPro={isPro} />
+          <FlowSettingsForm initialSettings={settings} />
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200">
