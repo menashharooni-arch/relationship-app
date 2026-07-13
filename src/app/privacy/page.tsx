@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 // match the code. Update LAST_UPDATED whenever the policy meaningfully changes
 // (CalOPPA requires an effective date).
 
-const LAST_UPDATED = "July 12, 2026";
+const LAST_UPDATED = "July 13, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -39,12 +39,33 @@ export default function PrivacyPage() {
         <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
-          SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;) provides digital business cards, link-in-bio pages,
-          and contact-management tools at swiftcard.me (the &quot;Service&quot;). This policy explains what information
-          we collect, how we use it, and the choices and rights you have. We keep it in plain English on purpose.
-          For personal information of account holders, SwiftCard is the data controller; for the contacts you collect
-          through your card, you are the controller and we process that data on your instructions.
+          SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;), a brand operated by ORION RE SERVICES INC,
+          provides digital business cards, link-in-bio pages, and contact-management tools at swiftcard.me and in our
+          mobile app (together, the &quot;Service&quot;). This policy explains what information we collect, how we use
+          it, and the choices and rights you have. We keep it in plain English on purpose. For personal information of
+          account holders, SwiftCard is the data controller; for the contacts you collect through your card, you are
+          the controller and we process that data on your instructions.
         </P>
+
+        {/* At-a-glance summary — the four promises people actually care about */}
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
+          <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500 mb-3">Privacy at a glance</p>
+          <ul className="space-y-2">
+            {[
+              "We never sell your personal information — or your contacts' — to anyone.",
+              "No third-party advertising trackers, and no cross-app \"tracking\" as Apple defines it.",
+              "Your card shows only what you choose to make public. Everything else stays private.",
+              "You can export or permanently delete your data anytime from Settings.",
+            ].map((t) => (
+              <li key={t} className="flex items-start gap-2.5 text-slate-700 text-[14px] leading-relaxed">
+                <span className="mt-1 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(5,150,105,.12)" }}>
+                  <svg viewBox="0 0 20 20" className="w-2.5 h-2.5" fill="none" stroke="#059669" strokeWidth={3}><path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <H2>Information you give us</H2>
         <ul className="mb-3">
@@ -64,11 +85,49 @@ export default function PrivacyPage() {
           <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
         </ul>
 
+        <H2>App privacy — what our app collects (Apple disclosure)</H2>
+        <P>
+          Apple requires apps to disclose the categories of data they collect. Whether you use SwiftCard in the
+          browser or in our iOS app, the data practices are identical, and here they are in Apple&apos;s categories.
+          None of this data is used for &quot;tracking&quot; as Apple defines it — we do not link your data with
+          third-party data for advertising, and we do not share it with data brokers.
+        </P>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white/70 my-4">
+          <table className="w-full text-[13.5px]" style={{ minWidth: 560 }}>
+            <thead>
+              <tr className="text-left text-slate-500 text-[11px] uppercase tracking-wide border-b border-slate-200">
+                <th className="px-4 py-3 font-semibold">Category</th>
+                <th className="px-4 py-3 font-semibold">What it includes</th>
+                <th className="px-4 py-3 font-semibold">Linked to you?</th>
+                <th className="px-4 py-3 font-semibold">Used to track you?</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {[
+                ["Contact info", "Name, email, phone number you add to your account or card", "Yes", "No"],
+                ["User content", "Card content, photos & logo, bio, the contacts you collect, messages to support", "Yes", "No"],
+                ["Identifiers", "Your account ID", "Yes", "No"],
+                ["Purchases", "Subscription/purchase history (payments handled by Stripe)", "Yes", "No"],
+                ["Usage data", "Pages visited and features used (product analytics)", "Yes", "No"],
+                ["Diagnostics", "Standard server logs used for security and reliability", "Yes", "No"],
+                ["Coarse location", "City/country of card views, derived from IP (visitor IPs not stored with views)", "No", "No"],
+              ].map(([cat, what, linked, track]) => (
+                <tr key={cat}>
+                  <td className="px-4 py-2.5 font-semibold text-slate-900 whitespace-nowrap">{cat}</td>
+                  <td className="px-4 py-2.5">{what}</td>
+                  <td className="px-4 py-2.5">{linked}</td>
+                  <td className="px-4 py-2.5">{track}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <H2>How we use information</H2>
         <ul className="mb-3">
           <LI>To run the product: host your card, deliver your Swift Links page, store your contacts, and show you your analytics.</LI>
           <LI>To send messages you set up: follow-up emails (and, where enabled, texts) to your contacts, sent on your behalf with your name.</LI>
-          <LI>To notify you: new-contact alerts by email, in-app notification, and push notification if you turn push on.</LI>
+          <LI>To notify you: new-contact alerts by in-app notification, and by push notification if you turn push on.</LI>
           <LI>To bill you (Stripe) and to send service emails like receipts. Marketing emails are optional — every one includes an unsubscribe link.</LI>
           <LI>To keep the Service secure, prevent fraud and abuse, and comply with law.</LI>
           <LI>We <strong>never sell your personal information</strong>, we don&apos;t &quot;share&quot; it for cross-context behavioral advertising (as those terms are defined in the California Consumer Privacy Act), and we never sell your contacts&apos; data. Your contact list is yours.</LI>
@@ -183,7 +242,7 @@ export default function PrivacyPage() {
         <P>
           Questions or requests (including data access, correction, or deletion): reach us through the{" "}
           <Link href="/contact" className="text-brand underline">contact page</Link>.
-          SwiftCard · New York, NY, USA.
+          SwiftCard, a brand operated by ORION RE SERVICES INC · New York, NY, USA.
         </P>
       </div>
 
