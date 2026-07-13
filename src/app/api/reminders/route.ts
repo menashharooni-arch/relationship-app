@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
+import { getAccountEmail } from "@/lib/account-email";
 import { expireFreeMonths } from "@/lib/referral-server";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
@@ -66,9 +67,12 @@ export async function GET(req: NextRequest) {
     const downgradedUsers = await expireFreeMonths();
     downgraded = downgradedUsers.length;
     for (const u of downgradedUsers) {
-      if (!u.email) continue;
+      // Owner-directed mail goes to the ACCOUNT (auth) email, never profiles.email
+      // (which can be the card's public contact address).
+      const to = await getAccountEmail(u.id, u.email);
+      if (!to) continue;
       const tpl = trialEndedEmail({ firstName: u.name?.split(" ")[0] || "there", isTrial: u.wasTrial });
-      await resend.emails.send({ ...tpl, to: u.email }).catch(() => {});
+      await resend.emails.send({ ...tpl, to }).catch(() => {});
     }
   } catch (e) {
     console.error("[reminders] expireFreeMonths failed:", e);
@@ -94,13 +98,14 @@ export async function GET(req: NextRequest) {
       const expiresAt = u.plan_expires_at as string;
       if (cust._proWarnedFor === expiresAt) continue; // already warned for this expiry
       const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
-      if (u.email) {
+      const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
+      if (to) {
         const tpl = trialEndingSoonEmail({
           firstName: (u.name as string)?.split(" ")[0] || "there",
           daysLeft,
           isTrial: cust._trial === true,
         });
-        await resend.emails.send({ ...tpl, to: u.email as string }).catch(() => {});
+        await resend.emails.send({ ...tpl, to }).catch(() => {});
       }
       await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
     }

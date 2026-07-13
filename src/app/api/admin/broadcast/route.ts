@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
 import { marketingEmail, unsubUrl } from "@/lib/email-templates";
 import { getMarketingFrom } from "@/lib/resend-domain";
+import { getAccountEmailMap } from "@/lib/account-email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -90,12 +91,17 @@ export async function POST(req: NextRequest) {
   const { data: profiles, error } = await segmentQuery(admin, segment);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Send to the ACCOUNT (auth) email of each user, not profiles.email (which can
+  // be the card's public contact address). One listUsers page → id→auth-email map.
+  const authEmails = await getAccountEmailMap();
+
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
 
   for (const profile of profiles ?? []) {
-    if (!profile.email) { skipped++; continue; }
+    const recipient = authEmails.get(profile.id) ?? profile.email;
+    if (!recipient) { skipped++; continue; }
 
     const { data: prefs } = await admin
       .from("email_preferences")
@@ -122,14 +128,14 @@ export async function POST(req: NextRequest) {
       const { data: emailData, error: sendErr } = await resend.emails.send({
         ...template,
         from,
-        to: profile.email,
+        to: recipient,
         headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
       });
-      if (sendErr) { errors.push(`${profile.email}: ${sendErr.message}`); continue; }
+      if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
 
       await admin.from("email_logs").insert({
         user_id: profile.id,
-        email: profile.email,
+        email: recipient,
         type: "marketing",
         subject,
         resend_id: emailData?.id,
@@ -137,7 +143,7 @@ export async function POST(req: NextRequest) {
 
       sent++;
     } catch (e) {
-      errors.push(`${profile.email}: ${e}`);
+      errors.push(`${recipient}: ${e}`);
     }
   }
 

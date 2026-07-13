@@ -20,7 +20,10 @@ export async function POST() {
       .eq("id", user.id)
       .single();
 
-    if (!profile?.email) return NextResponse.json({ error: "No profile" }, { status: 404 });
+    // Owner mail goes to the ACCOUNT (auth) email, not profiles.email (which can
+    // be the card's public contact address).
+    const accountEmail = user.email;
+    if (!profile || !accountEmail) return NextResponse.json({ error: "No profile" }, { status: 404 });
 
     // Ensure email_preferences row exists for this user
     await admin
@@ -46,12 +49,12 @@ export async function POST() {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { data: sent } = await resend.emails.send({
       ...template,
-      to: profile.email,
+      to: accountEmail,
     });
 
     await admin.from("email_logs").insert({
       user_id: user.id,
-      email: profile.email,
+      email: accountEmail,
       type: "welcome",
       subject: template.subject,
       resend_id: sent?.id,

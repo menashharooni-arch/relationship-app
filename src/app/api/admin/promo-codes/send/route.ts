@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { promoEmail, unsubUrl } from "@/lib/email-templates";
 import { requireAdmin } from "@/lib/admin";
 import { getMarketingFrom } from "@/lib/resend-domain";
+import { getAccountEmailMap } from "@/lib/account-email";
 
 // POST /api/admin/promo-codes/send — email a promo code to targeted users.
 // Same session-based admin gate as the rest of the console.
@@ -49,12 +50,16 @@ export async function POST(req: NextRequest) {
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const from = await getMarketingFrom();
+  // Send to each user's ACCOUNT (auth) email, not profiles.email (which can be
+  // the card's public contact address).
+  const authEmails = await getAccountEmailMap();
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
 
   for (const profile of profiles ?? []) {
-    if (!profile.email) { skipped++; continue; }
+    const recipient = authEmails.get(profile.id) ?? profile.email;
+    if (!recipient) { skipped++; continue; }
 
     const { data: prefs } = await admin
       .from("email_preferences")
@@ -80,14 +85,14 @@ export async function POST(req: NextRequest) {
       const { data: emailData, error: sendErr } = await resend.emails.send({
         ...template,
         from,
-        to: profile.email,
+        to: recipient,
         headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
       });
-      if (sendErr) { errors.push(`${profile.email}: ${sendErr.message}`); continue; }
+      if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
 
       await admin.from("email_logs").insert({
         user_id: profile.id,
-        email: profile.email,
+        email: recipient,
         type: "promo",
         subject: template.subject,
         resend_id: emailData?.id,
@@ -95,7 +100,7 @@ export async function POST(req: NextRequest) {
 
       sent++;
     } catch (e) {
-      errors.push(`${profile.email}: ${e}`);
+      errors.push(`${recipient}: ${e}`);
     }
   }
 

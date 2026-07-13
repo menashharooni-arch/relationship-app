@@ -1,21 +1,22 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { useRouter } from "next/navigation";
 
 export default function SignOutButton() {
-  const router = useRouter();
-
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   async function handleSignOut() {
-    await supabase.auth.signOut();
-    // Send users to the marketing front page after signing out.
-    router.replace("/");
-    router.refresh();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* clear locally + navigate anyway */
+    }
+    // HARD navigation to the marketing front page — a full reload guarantees no
+    // stale client state or in-memory session survives the sign-out.
+    window.location.href = "/";
   }
 
   return (
