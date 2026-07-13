@@ -17,7 +17,7 @@ const HOME: Item[] = [
   { label: "Overview", href: "/", desc: "Back to the top of the homepage" },
   { label: "Swift Cards", href: "/products/digital-cards", desc: "The card that shares everything" },
   { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
-  { label: "Email Signatures", href: "/products/email-signatures", desc: "A live card in every email" },
+  { label: "Swift Signature", href: "/products/email-signatures", desc: "A live card in every email" },
   { label: "Analytics", href: "/products/analytics", desc: "See who's looking, never lose a lead" },
   { label: "Teams", href: "/products/teams", desc: "One brand across everyone" },
 ];
@@ -25,7 +25,7 @@ const HOME: Item[] = [
 const PRODUCTS: Item[] = [
   { label: "Digital Cards", href: "/products/digital-cards", desc: "Your tap-to-share business card" },
   { label: "SwiftLinks", href: "/products/swiftlinks", desc: "One link for everything you are" },
-  { label: "Email Signatures", href: "/products/email-signatures", desc: "A live card in every email" },
+  { label: "Swift Signature", href: "/products/email-signatures", desc: "A live card in every email" },
   { label: "Lead Capture", href: "/products/lead-capture", desc: "Turn every scan into a contact" },
 ];
 const SOLUTIONS: Item[] = [

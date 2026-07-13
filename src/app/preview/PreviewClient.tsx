@@ -544,7 +544,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               </div>
             </div>
             <button onClick={copySig} className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
-              {copied ? "Copied ✓ — paste it into your email signature" : "Copy signature"}
+              {copied ? "Copied ✓ — paste it into your email signature" : "Copy Swift Signature"}
             </button>
             <p className="text-gray-600 text-[11px] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
           </div>

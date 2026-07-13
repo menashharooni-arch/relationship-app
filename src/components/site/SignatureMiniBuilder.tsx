@@ -14,7 +14,7 @@ import type { CardData } from "@/components/card-templates/types";
 import { writePrefill, stashSketch } from "@/lib/prefill";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
-// "See how your signature would look" builder for the homepage signature
+// "See how your Swift Signature would look" builder for the homepage signature
 // section. Your signature IS your card rendered under your name, so it needs the
 // same details a card does — name/title/company, email/phone, headshot + logo,
 // and a template. Shows the live signature, then hands off to /cards/new
@@ -97,7 +97,7 @@ export default function SignatureMiniBuilder() {
   const steps: MiniStep[] = [
     {
       title: "Who's signing off?",
-      subtitle: "Your signature is your card under your name — start with the basics.",
+      subtitle: "Your Swift Signature is your card under your name — start with the basics.",
       canAdvance: name.trim().length > 0,
       content: (
         <>
@@ -119,7 +119,7 @@ export default function SignatureMiniBuilder() {
     },
     {
       title: "Add your photo & logo",
-      subtitle: "A headshot and logo make your signature unmistakably yours.",
+      subtitle: "A headshot and logo make your Swift Signature unmistakably yours.",
       content: (
         <div className="space-y-5">
           <ImageUpload guest field="photo" shape="circle" currentUrl={headshot} label="Headshot" onUploaded={(u) => setHeadshot(u || null)} />
@@ -161,14 +161,14 @@ export default function SignatureMiniBuilder() {
           onClick={() => { setStep(0); setOpen(true); }}
           className="rd-btn rd-btn-primary rd-btn-lg"
         >
-          See how your signature would look
+          See how your Swift Signature would look
         </button>
       </div>
 
       <MiniBuilderModal
         open={open}
         onClose={() => setOpen(false)}
-        eyebrow="Build your signature"
+        eyebrow="Build your Swift Signature"
         step={step}
         setStep={setStep}
         steps={steps}

@@ -65,10 +65,10 @@ const PRODUCTS: Record<string, Product> = {
     metaDesc: "SwiftLinks — one beautiful link-in-bio page for your bio, socials, and links, with lead capture built in.",
   },
   "email-signatures": {
-    eyebrow: "Email Signatures",
+    eyebrow: "Swift Signature",
     title: <>Every email you send, <A>advertising you.</A></>,
-    titlePlain: "Email Signatures",
-    subtitle: "Drop your live SwiftCard into your signature once. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.",
+    titlePlain: "Swift Signature",
+    subtitle: "Drop your live SwiftCard into your email signature once with Swift Signature. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.",
     demo: (
       <div className="w-full rounded-[28px] bg-[#F5F0E3] p-5 sm:p-8 shadow-2xl">
         <SignatureDemo />
@@ -81,7 +81,7 @@ const PRODUCTS: Record<string, Product> = {
       { t: "Clickable, not decorative", d: "One tap opens your card, saves your contact, or reaches you directly." },
       { t: "A tiny billboard", d: "Every reply becomes a professional advertisement for you and your brand." },
     ],
-    metaDesc: "Turn your email signature into a live, clickable SwiftCard — recipients open, save, and reach out in one tap.",
+    metaDesc: "Swift Signature turns your email signature into a live, clickable SwiftCard — recipients open, save, and reach out in one tap.",
   },
   "lead-capture": {
     eyebrow: "Lead Capture",

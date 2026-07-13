@@ -30,7 +30,7 @@ WHAT SWIFTCARD IS
 - A digital business card. You build a card once; share it by link, QR code, Apple Wallet pass, or NFC. The other person needs NO app — the card opens in their browser and saves to their contacts in one tap.
 - Every card also gets a Swift Links page (link-in-bio with photo, bio, socials, and custom buttons — great for Instagram/TikTok bios).
 - When someone shares their info through your card, they land in your contacts with automatic follow-up (email and, on Pro, texts) so leads never go cold.
-- Analytics show views, sources, and locations. An email-signature generator puts your live card in every email.
+- Analytics show views, sources, and locations. Swift Signature puts your live card in every email.
 
 ${PRICING_FACTS}
 

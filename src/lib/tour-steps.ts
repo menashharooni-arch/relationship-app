@@ -64,7 +64,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "nav-share",
     title: "Share",
-    body: "Your Swift Links link and email signature live here — everything you drop into a bio or the bottom of an email.",
+    body: "Your Swift Links link and Swift Signature live here — everything you drop into a bio or the bottom of an email.",
     placement: "bottom",
   },
   {

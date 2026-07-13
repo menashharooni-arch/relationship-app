@@ -166,9 +166,9 @@ export default async function SharePage({
             </div>
           </div>
 
-          {/* Email signature */}
+          {/* Swift Signature (email signature) */}
           <div id="signature" data-tour="email-signature" className="scroll-mt-24">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Email signature</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Signature</p>
             <EmailSignatureBox
               key={activeUsername}
               cardData={cardData}

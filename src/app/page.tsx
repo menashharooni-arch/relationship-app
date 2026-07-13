@@ -156,7 +156,7 @@ export default function Home() {
         <section id="signature" className="rd-light2 relative py-24 sm:py-28">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl mb-12" data-reveal>
-              <Eyebrow dark={false}>Email Signatures</Eyebrow>
+              <Eyebrow dark={false}>Swift Signature</Eyebrow>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5">
                 Every email you send, <span className="rd-aurora-text">advertising you.</span>
               </h2>
