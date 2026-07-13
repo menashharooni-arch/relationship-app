@@ -13,8 +13,22 @@ export type TemplateStyle = {
   accentColor?: string;
   bgColor?: string;
   textColor?: string;
+  infoColor?: string; // color of the contact/details text (phone, email, address…)
   fontFamily?: string;
 };
+
+// Shades of one chosen info color for ContactRows' four levels (phone → address).
+export function infoPaletteFrom(color: string): { strong: string; mid: string; soft: string; muted: string } {
+  return { strong: color, mid: withAlpha(color, 0.92), soft: withAlpha(color, 0.75), muted: withAlpha(color, 0.62) };
+}
+
+// #rrggbb → rgba(...) with the given alpha. Non-hex input is returned as-is.
+export function withAlpha(color: string, alpha: number): string {
+  const m = color.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return color;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
 
 // Treat only non-empty strings as a real override. `null`, `undefined`, and
 // `""` (a value the editor may send when a field is cleared) all resolve to
@@ -29,6 +43,7 @@ export function templateStyle(data: Pick<CardData, "customization">): TemplateSt
     accentColor: pick(c.accentColor),
     bgColor: pick(c.bgColor),
     textColor: pick(c.textColor),
+    infoColor: pick((c as { infoColor?: unknown }).infoColor),
     fontFamily: pick(c.fontFamily),
   };
 }

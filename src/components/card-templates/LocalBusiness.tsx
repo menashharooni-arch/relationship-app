@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -104,7 +104,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           </div>
 
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
-          <ContactRows data={data} f={f} palette={{ accent: AMBER, strong: WARM, mid: "#78350f", soft: "#92400e", muted: "#a16207" }} />
+          <ContactRows data={data} f={f} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, strong: WARM, mid: "#78350f", soft: "#92400e", muted: "#a16207" }} />
         </div>
 
         {/* Right: QR — always on the card; gives up a little room when dense */}
