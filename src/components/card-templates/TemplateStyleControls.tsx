@@ -15,8 +15,7 @@
 // property to the template's baked-in design. Consumed by NewCardWizard and
 // CardEditForm.
 
-import { useState } from "react";
-import { CARD_FONT_OPTIONS } from "./shared";
+import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
 
 const SERIF = "Georgia, 'Times New Roman', serif";
@@ -137,20 +136,20 @@ const META: Record<string, TemplateMeta> = {
   },
   "photo-first": {
     name: "Photo First",
-    blurb: "A full-height photo on the left, a clean white info panel on the right.",
+    blurb: "A full-height photo on the left, and the info panel on the right whose background you set here.",
     looks: [
+      { name: "Clean White", bg: "#ffffff", text: "#ffffff" },
       { name: "Royal Violet", bg: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", text: "#ffffff" },
       { name: "Indigo", bg: "#4f46e5", text: "#ffffff" },
       { name: "Rose", bg: "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", text: "#ffffff" },
       { name: "Emerald", bg: "linear-gradient(145deg, #064e3b 0%, #10b981 100%)", text: "#ffffff" },
-      { name: "Slate", bg: "#334155", text: "#ffffff" },
       { name: "Onyx", bg: "#0a0a0a", text: "#ffffff" },
     ],
     bg: {
-      label: "Photo panel",
-      help: "The color behind your photo on the left — it shows if you have no photo and tints the edges. The right info panel stays white.",
-      presets: ["linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", "linear-gradient(145deg, #064e3b 0%, #10b981 100%)", "#334155", "#0a0a0a"],
-      fallback: "#6d28d9",
+      label: "Info panel background",
+      help: "The panel behind your contact details on the right. A dark shade flips the text to light automatically; the photo stays on the left.",
+      presets: ["#ffffff", "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", "#064e3b", "#0a0a0a"],
+      fallback: "#ffffff",
     },
     text: {
       label: "Name color",
@@ -219,11 +218,12 @@ function LooksGallery({
               className="h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
               style={{
                 background: look.bg,
-                border: active ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.08)",
+                border: active ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.12)",
                 boxShadow: active ? "0 0 0 2px rgba(59,130,246,0.25)" : undefined,
               }}
             >
-              <span className="text-sm font-bold leading-none" style={{ color: look.text, fontFamily: look.font }}>Aa</span>
+              {/* Aa uses a legible color for the picker even on light themes */}
+              <span className="text-sm font-bold leading-none" style={{ color: isDarkBg(look.bg) ? look.text : "#111827", fontFamily: look.font }}>Aa</span>
             </div>
             <p className={`mt-1 text-[10px] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-500"}`}>{look.name}</p>
           </button>
@@ -314,11 +314,10 @@ export default function TemplateStyleControls({
   locked?: boolean;
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
-  const [showFineTune, setShowFineTune] = useState(false);
 
   return (
     <div
-      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4 ${
+      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5 ${
         locked ? "opacity-60 pointer-events-none select-none" : ""
       }`}
       aria-disabled={locked}
@@ -338,49 +337,47 @@ export default function TemplateStyleControls({
         </div>
       </div>
 
-      {/* Looks — one-tap curated themes */}
+      {/* 1) Background — the ONE place for the card's surface. Tapping a theme
+          also coordinates the name color + font; the custom picker and Default
+          adjust just the background. */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className={rowLabel}>Looks</p>
-          <span className="text-[10px] text-gray-600">Tap to apply</span>
-        </div>
+        <p className={`${rowLabel} mb-0.5`}>{meta.bg.label}</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">{meta.bg.help}</p>
         <LooksGallery looks={meta.looks} value={value} onPick={(look) => onChange({ bgColor: look.bg, textColor: look.text, fontFamily: look.font })} />
+        <div className="flex items-center gap-2 mt-2">
+          <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+            Custom color
+            <input
+              type="color"
+              value={isHex(value.bgColor) ? value.bgColor : meta.bg.fallback}
+              onChange={(e) => onChange({ bgColor: e.target.value })}
+              className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => onChange({ bgColor: undefined })}
+            className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+              value.bgColor === undefined ? "border-blue-600 text-blue-300" : "border-gray-700 text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            Default
+          </button>
+        </div>
       </div>
 
-      {/* Fine-tune — collapsed by default so the panel stays simple */}
-      <div className="border-t border-gray-800 pt-3">
-        <button
-          type="button"
-          onClick={() => setShowFineTune((s) => !s)}
-          className="w-full flex items-center justify-between text-left"
-        >
-          <span className="text-xs font-medium text-gray-300">Fine-tune background, name &amp; font</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 text-gray-500 transition-transform ${showFineTune ? "rotate-180" : ""}`}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-          </svg>
-        </button>
+      {/* 2) Name color */}
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>{meta.text.label}</p>
+        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.text.help}</p>
+        <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} />
+      </div>
 
-        {showFineTune && (
-          <div className="space-y-4 mt-3">
-            <div>
-              <p className={`${rowLabel} mb-0.5`}>{meta.bg.label}</p>
-              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.bg.help}</p>
-              <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} />
-            </div>
-
-            <div>
-              <p className={`${rowLabel} mb-0.5`}>{meta.text.label}</p>
-              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.text.help}</p>
-              <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} />
-            </div>
-
-            <div>
-              <p className={`${rowLabel} mb-0.5`}>Font</p>
-              <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
-              <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
-            </div>
-          </div>
-        )}
+      {/* 3) Font */}
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Font</p>
+        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
+        <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
       </div>
     </div>
   );
