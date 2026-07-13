@@ -5,7 +5,7 @@ import type { CardData } from "./types";
 // Preset-template style overrides (accent/background/text/typography). The pure
 // logic lives in src/lib/template-style.ts so it's node-testable; re-exported
 // here so templates keep importing it from "./shared".
-export { templateStyle, CARD_FONT_OPTIONS } from "@/lib/template-style";
+export { templateStyle, CARD_FONT_OPTIONS, isDarkBg } from "@/lib/template-style";
 export type { TemplateStyle } from "@/lib/template-style";
 
 export function formatPhone(raw: string): string {

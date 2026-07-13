@@ -33,6 +33,19 @@ export function templateStyle(data: Pick<CardData, "customization">): TemplateSt
   };
 }
 
+// Is a background color/gradient dark enough to need light text on top? Reads
+// the first #rrggbb in the string (works for solid colors and gradients) and
+// compares its perceived brightness. Unknown/absent color → treated as light.
+export function isDarkBg(bg?: string): boolean {
+  if (!bg) return false;
+  const m = bg.match(/#([0-9a-f]{6})/i);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  // Perceived brightness (YIQ). < 150 reads as dark.
+  return (r * 299 + g * 587 + b * 114) / 1000 < 150;
+}
+
 // Typography choices offered in the editor. One shared list for the control and
 // any tests.
 export const CARD_FONT_OPTIONS: { label: string; value: string }[] = [

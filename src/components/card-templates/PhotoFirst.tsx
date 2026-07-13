@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./types";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -14,7 +14,15 @@ const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28
 export default function PhotoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const ACCENT = style.accentColor ?? ACCENT_DEFAULT;
-  const photoBg = style.bgColor ?? PHOTO_BG_DEFAULT;
+  // The photo panel keeps a fixed brand backdrop (only visible with no photo).
+  const photoBg = PHOTO_BG_DEFAULT;
+  // bgColor now tints the INFO PANEL — the surface behind the contact text.
+  // Default is the clean white panel; a dark choice flips the text to light.
+  const infoBg = style.bgColor ?? "#ffffff";
+  const darkInfo = isDarkBg(infoBg);
+  const infoPalette = darkInfo
+    ? { company: "#ffffff", strong: "#ffffff", mid: "#e5e7eb", soft: "#d1d5db", muted: "#9ca3af", border: "rgba(255,255,255,0.14)", qrBg: "#ffffff" }
+    : { company: "#111827", strong: "#1e1b4b", mid: "#374151", soft: "#4b5563", muted: "#6b7280", border: "#f0ebff", qrBg: "#f5f0ff" };
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
@@ -96,10 +104,10 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         </div>
       </div>
 
-      {/* ── Right: info panel ──────────────────────────── */}
+      {/* ── Right: info panel — background follows bgColor ──────────── */}
       <div
         className="flex-1 flex flex-col justify-between"
-        style={{ padding: "15px 17px 13px", borderLeft: "1px solid #f0ebff" }}
+        style={{ padding: "15px 17px 13px", background: infoBg, borderLeft: `1px solid ${infoPalette.border}` }}
       >
         {/* Company header */}
         <div>
@@ -108,7 +116,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 36, { maxWidth: data.company ? "48%" : "88%" })} />
             )}
-            <p className="font-extrabold text-gray-900 min-w-0 leading-tight" style={{ fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
+            <p className="font-extrabold min-w-0 leading-tight" style={{ color: infoPalette.company, fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
               {data.company}
             </p>
           </div>
@@ -117,7 +125,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
 
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
-          <ContactRows data={data} f={f} palette={{ accent: ACCENT, strong: "#1e1b4b", mid: "#374151", soft: "#4b5563", muted: "#6b7280" }} />
+          <ContactRows data={data} f={f} palette={{ accent: ACCENT, strong: infoPalette.strong, mid: infoPalette.mid, soft: infoPalette.soft, muted: infoPalette.muted }} />
           {socials.length > 0 && (
             <div className="flex items-center gap-2.5 mt-0.5">
               {socials.map((s, i) => <span key={i} style={{ color: s.color }}>{s.icon}</span>)}
@@ -128,7 +136,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         {/* QR + scan label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={qrSize(f)} bg="#f5f0ff" fg={ACCENT} url={data.cardUrl} />
+            <QR size={qrSize(f)} bg={infoPalette.qrBg} fg={darkInfo ? "#1e1b4b" : ACCENT} url={data.cardUrl} />
           </div>
         </div>
       </div>
