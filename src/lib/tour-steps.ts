@@ -88,7 +88,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "notif-bell",
     title: "Notifications",
-    body: "Every new contact, save, and milestone across ALL your cards lands here — each tagged with the card it came from, and emailed to you too. They stay unread until you mark them read.",
+    body: "Every new contact, save, and milestone across ALL your cards lands here — each tagged with the card it came from. They stay unread until you mark them read.",
     placement: "bottom",
   },
   {
