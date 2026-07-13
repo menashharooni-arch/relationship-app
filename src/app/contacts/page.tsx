@@ -84,6 +84,9 @@ export default async function ContactsPage({
             <Link href="/contacts" className="text-sm text-white font-medium px-3 py-1.5 rounded-lg bg-gray-800">
               Contacts
             </Link>
+            <Link href="/share" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
+              Share
+            </Link>
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Settings
             </Link>
