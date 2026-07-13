@@ -14,7 +14,7 @@ export const DEMO_CARD: CardData = {
   instagram: "@coastline.homes",
   linkedin: "in/alexmorgan",
   initials: "AM",
-  photoUrl: "/demo/headshot.jpg",
+  photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,
   cardUrl: "swiftcard.me/card/alexmorgan",
   customization: {

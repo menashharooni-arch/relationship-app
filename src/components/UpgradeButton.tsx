@@ -5,9 +5,11 @@ import Link from "next/link";
 
 export default function UpgradeButton({ variant = "banner" }: { variant?: "banner" | "inline" }) {
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function handleUpgrade() {
     setLoading(true);
+    setErr(null);
     try {
       // Send an explicit Pro monthly price so checkout doesn't depend on a
       // server-side default env var; fall back to the server default if the
@@ -23,10 +25,11 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
       if (url) {
         window.location.href = url;
       } else {
-        console.error("Checkout error:", error);
+        setErr(error || "Couldn't start checkout. Please try again or contact support.");
         setLoading(false);
       }
     } catch {
+      setErr("Couldn't reach checkout. Check your connection and try again.");
       setLoading(false);
     }
   }
@@ -52,19 +55,23 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
         >
           {loading ? "Loading…" : "Upgrade to Pro · $5/mo →"}
         </button>
+        {err && <p className="text-center text-red-300 text-[11px] mt-2">{err}</p>}
         <p className="text-center text-blue-400/60 text-[10px] mt-2">Cancel anytime · No contracts</p>
       </div>
     );
   }
 
   return (
-    <button
-      onClick={handleUpgrade}
-      disabled={loading}
-      className="bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
-    >
-      {loading ? "…" : "Upgrade · $5/mo →"}
-    </button>
+    <span className="inline-flex flex-col items-center">
+      <button
+        onClick={handleUpgrade}
+        disabled={loading}
+        className="bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+      >
+        {loading ? "…" : "Upgrade · $5/mo →"}
+      </button>
+      {err && <span className="text-red-500 text-[10px] mt-1 max-w-[180px] text-center">{err}</span>}
+    </span>
   );
 }
 

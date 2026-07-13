@@ -88,7 +88,7 @@ function LinkExperience() {
       <div className="px-5 -mt-10">
         <div className="w-[80px] h-[80px] rounded-full border-[3px] border-[#0E1017] overflow-hidden bg-slate-800 shadow-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/demo/headshot.jpg" alt="Alex Morgan" className="w-full h-full object-cover" />
+          <img src="/marketing/demo-girl.jpg" alt="Alex Morgan" className="w-full h-full object-cover" />
         </div>
         <p className="mt-3 text-white text-[19px] font-extrabold tracking-tight">Alex Morgan</p>
         <p className="text-white/50 text-[13px]">Founder & Principal · Coastline Realty</p>
