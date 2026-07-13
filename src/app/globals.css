@@ -285,9 +285,16 @@ body {
 [data-sc-theme="light"] .sc-app .border-gray-700\/60 { border-color: #E4DDD4 !important; }
 [data-sc-theme="light"] .sc-app :is(.divide-gray-800, .divide-gray-800\/60) > :not([hidden]) ~ :not([hidden]) { border-color: #EBE4D9 !important; }
 
-[data-sc-theme="light"] .sc-app .text-white { color: #1E293B !important; }
+/* Primary text → near-black so headings, names and labels read clearly on the
+   cream surface. text-gray-100 was previously unmapped (stayed near-white and
+   became invisible in light mode). */
+[data-sc-theme="light"] .sc-app .text-white,
+[data-sc-theme="light"] .sc-app .text-gray-100 { color: #111827 !important; }
+/* …but keep white text white on colored buttons/badges, where the background
+   class and text-white sit on the same element (higher specificity → wins). */
+[data-sc-theme="light"] .sc-app :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-indigo-600, .bg-violet-600, .bg-purple-600, .bg-green-500, .bg-green-600, .bg-emerald-600, .bg-red-500, .bg-red-600).text-white { color: #FFFFFF !important; }
 [data-sc-theme="light"] .sc-app .text-gray-200,
-[data-sc-theme="light"] .sc-app .text-gray-300 { color: #374151 !important; }
+[data-sc-theme="light"] .sc-app .text-gray-300 { color: #1F2937 !important; }
 [data-sc-theme="light"] .sc-app .text-gray-400 { color: #57534E !important; }
 [data-sc-theme="light"] .sc-app .text-gray-500 { color: #78716C !important; }
 [data-sc-theme="light"] .sc-app .text-gray-600 { color: #A29D93 !important; }
