@@ -733,7 +733,7 @@ export default async function DashboardPage({
 
             {/* Email signature generator — shows the hosted card image instantly,
                 captures the real card pixel-perfect in the background */}
-            <div data-tour="email-signature">
+            <div id="signature" data-tour="email-signature" className="scroll-mt-24">
               <EmailSignatureBox
                 key={activeUsername}
                 cardData={cardData}
