@@ -18,7 +18,7 @@ const FEATURES: { label: string; free: string; pro: string; office: string }[] =
   { label: "Custom card designer", free: "—", pro: "✓", office: "✓" },
   { label: "Automated follow-up sequences", free: "Day-1 email only", pro: "✓", office: "✓" },
   { label: "CRM integrations", free: "—", pro: "✓", office: "✓" },
-  { label: "Email signature", free: "✓", pro: "✓", office: "✓" },
+  { label: "Swift Signature", free: "✓", pro: "✓", office: "✓" },
   { label: "SwiftCard branding badge", free: "Shown", pro: "Removed", office: "Removed" },
   { label: "Team / office seats", free: "—", pro: "—", office: "✓" },
 ];

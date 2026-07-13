@@ -244,9 +244,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       )}
 
       <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
-        <p className="text-white font-semibold text-sm">Email signature</p>
+        <p className="text-white font-semibold text-sm">Swift Signature</p>
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-          Copy and use this as your email signature — a clickable link to your card, right in your signature. A new way to do things.
+          Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
         </p>
         <button
           type="button"
@@ -264,7 +264,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
               overflowing off-screen; header (with the X) stays pinned. */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
-              <p className="text-white font-semibold text-sm">Your email signature</p>
+              <p className="text-white font-semibold text-sm">Your Swift Signature</p>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close and return to dashboard"

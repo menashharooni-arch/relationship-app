@@ -8,7 +8,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   nfc_card: "NFC tap",
   direct_link: "Card link",       // opened the card's plain URL (sent by text/DM/etc.)
   text_message: "Text message",
-  email_signature: "Email signature",
+  email_signature: "Swift Signature",
   manual: "Added by hand",        // the user typed the contact in themselves
   imported: "CSV import",
   scanner: "Card scanner",

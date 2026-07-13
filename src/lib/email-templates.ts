@@ -78,7 +78,7 @@ export function welcomeEmail(opts: {
       <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">3 ways to share your card</p>
       <p style="margin:0 0 8px;font-size:13px;color:#475569;">📱 <strong>Text the link</strong> — paste into any chat</p>
       <p style="margin:0 0 8px;font-size:13px;color:#475569;">📸 <strong>QR code</strong> — download from your dashboard and add to your email signature or slide deck</p>
-      <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Email signature</strong> — add "Save my contact → ${cardUrlText}"</p>
+      <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Swift Signature</strong> — add "Save my contact → ${cardUrlText}" to the bottom of your emails</p>
     `)}
   `;
   return {
