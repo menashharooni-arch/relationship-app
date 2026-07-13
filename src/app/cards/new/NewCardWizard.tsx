@@ -374,13 +374,14 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className={step === 4 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
-        {/* Guests have no account yet — send them back to the marketing site, not
-            into a (nonexistent) dashboard. Signed-in users get the real Dashboard link. */}
-        <Link href={guest ? "/" : "/dashboard"} className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
+        {/* Always a plain "Home" back-link — never a Dashboard shortcut. The
+            card builder must never offer a jump into an account (a lingering
+            session would otherwise open the dashboard without a fresh sign-in). */}
+        <Link href="/" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
-          {guest ? "Home" : "Dashboard"}
+          Home
         </Link>
 
         {/* Steps 1–3: form on the left, a live card preview pinned alongside
