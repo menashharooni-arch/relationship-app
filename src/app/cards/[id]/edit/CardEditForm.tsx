@@ -18,6 +18,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
+import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -414,29 +415,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
             <div>
               <p className={`${sectionLabel} mb-2`}>Template</p>
-              {/* Custom design — first option */}
-              <button
-                type="button"
-                onClick={() => { if (isPro) setTemplate("custom"); }}
-                disabled={!isPro}
-                className="w-full flex items-center justify-between text-xs font-semibold py-2.5 px-3 rounded-xl border transition-colors disabled:opacity-60 mb-2"
-                style={{
-                  background: customSelected ? "#1D4ED8" : "#111827",
-                  borderColor: customSelected ? "#1D4ED8" : "#374151",
-                  color: customSelected ? "#fff" : "#9ca3af",
-                }}
-              >
-                <span>
-                  Custom design
-                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
-                </span>
-                <span>{customSelected ? "Selected" : isPro ? "Select" : "🔒"}</span>
-              </button>
-              {!isPro && (
-                <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mb-2">
-                  Make it unmistakably yours — unlock the custom designer with Pro →
-                </Link>
-              )}
+              {/* Custom design — the freeform "edit every element" path */}
+              <div className="mb-2">
+                <CustomDesignCard isPro={isPro} selected={customSelected} onSelect={() => setTemplate("custom")} />
+              </div>
 
               {/* Standard templates */}
               <div className="grid grid-cols-2 gap-2">
