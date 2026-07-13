@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
+import { getAccountEmail } from "@/lib/account-email";
 import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -23,7 +24,10 @@ async function sendReceiptForUser(opts: {
     admin.from("email_preferences").select("receipt_emails").eq("user_id", opts.userId).single(),
   ]);
 
-  if (!profile?.email || prefs?.receipt_emails === false) return;
+  // Receipt goes to the ACCOUNT (auth) email, not profiles.email (which can be
+  // the card's public contact address).
+  const accountEmail = await getAccountEmail(opts.userId, profile?.email ?? null);
+  if (!profile || !accountEmail || prefs?.receipt_emails === false) return;
 
   const firstName = profile.name?.split(" ")[0] || "there";
   const amount = `$${(opts.amountCents / 100).toFixed(2)}`;
@@ -31,7 +35,7 @@ async function sendReceiptForUser(opts: {
 
   const template = receiptEmail({
     firstName,
-    email: profile.email,
+    email: accountEmail,
     planName: opts.planName,
     amount,
     interval: opts.interval,
@@ -46,11 +50,11 @@ async function sendReceiptForUser(opts: {
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data: sent } = await resend.emails.send({ ...template, to: profile.email });
+  const { data: sent } = await resend.emails.send({ ...template, to: accountEmail });
 
   await admin.from("email_logs").insert({
     user_id: opts.userId,
-    email: profile.email,
+    email: accountEmail,
     type: "receipt",
     subject: template.subject,
     resend_id: sent?.id,
@@ -65,7 +69,10 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
     .eq("stripe_customer_id", opts.customerId)
     .single();
 
-  if (!profile?.email) return;
+  if (!profile) return;
+  // Owner mail goes to the ACCOUNT (auth) email, not profiles.email.
+  const accountEmail = await getAccountEmail(profile.id as string, (profile.email as string) ?? null);
+  if (!accountEmail) return;
 
   const firstName = (profile.name as string)?.split(" ")[0] || "there";
   const planName = ((profile.plan as string) || "Pro").charAt(0).toUpperCase() + ((profile.plan as string) || "pro").slice(1);
@@ -77,11 +84,11 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data: sent } = await resend.emails.send({ ...template, to: profile.email as string });
+  const { data: sent } = await resend.emails.send({ ...template, to: accountEmail });
 
   await admin.from("email_logs").insert({
     user_id: profile.id,
-    email: profile.email,
+    email: accountEmail,
     type: "payment_failed",
     subject: template.subject,
     resend_id: sent?.id,
