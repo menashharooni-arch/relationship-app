@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
@@ -8,7 +7,6 @@ import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
-import { escapeHtml, safeUrlAttr } from "@/lib/escape";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 
@@ -171,76 +169,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // This is a PUBLIC endpoint — every visitor-supplied field below is escaped
-    // before it touches the notification email's HTML, so a crafted name/message
-    // can't inject markup or a phishing link into the owner's trusted inbox.
-    const eName = escapeHtml(name);
-    const eCompany = escapeHtml(company);
-    const eEmail = escapeHtml(email);
-    const ePhone = escapeHtml(phone);
-    const eMessage = escapeHtml(message);
-    const eLocation = escapeHtml(location);
-    const emailHref = safeUrlAttr(email ? `mailto:${email}` : "");
-    const telHref = safeUrlAttr(phone ? `tel:${phone}` : "");
-
-    // Send email to the card owner about the new lead (non-blocking). ALL cards
-    // alert the ONE email the account was created with (the auth email — the
-    // inbox the owner actually checks), and the email is tagged with which card
-    // the lead came through. Falls back to profiles.email only if the auth
-    // lookup fails.
-    const authRes = await admin.auth.admin.getUserById(ownerProfile.id).catch(() => null);
-    const accountEmail = authRes?.data?.user?.email || ownerProfile.email || null;
-    if (accountEmail) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const locStr = eLocation ? ` · ${eLocation}` : "";
-      const ownerFirst = escapeHtml((ownerProfile.name || cardIdentity.name || "there").split(" ")[0]);
-      const dashboardUrl = `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner)}`;
-      // Which card this lead came through — label first, then the card's name,
-      // then the slug (legacy profile-cards fall back to the profile name).
-      const cardTag = escapeHtml(
-        (cardRow?.label as string) || (cardRow?.name as string) || (cardRow ? card_owner : (ownerProfile.name as string) || card_owner)
-      );
-      // A locked lead (over the free monthly cap) gets the same TEASER the
-      // in-app notification gets — revealing the details in the email would
-      // bypass the lock entirely.
-      const detailsCard = locked
-        ? `<p style="margin:0;font-size:14px;font-weight:700;color:#f1f5f9;">This lead is locked</p>
-      <p style="margin:8px 0 0;font-size:13px;color:#94a3b8;">You've hit your 5 free leads this month. Upgrade to Pro to unlock it — and never miss the next one.</p>`
-        : `<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#f1f5f9;">${eName}</p>
-      ${eCompany ? `<p style="margin:0 0 6px;font-size:13px;color:#94a3b8;">${eCompany}</p>` : ""}
-      ${eEmail ? `<a href="${emailHref}" style="display:block;font-size:13px;color:#60a5fa;margin:0 0 4px;text-decoration:none;">${eEmail}</a>` : ""}
-      ${ePhone ? `<a href="${telHref}" style="display:block;font-size:13px;color:#60a5fa;text-decoration:none;">${ePhone}</a>` : ""}
-      ${locStr ? `<p style="margin:8px 0 0;font-size:12px;color:#4b5563;">${locStr}</p>` : ""}
-      ${eMessage ? `<p style="margin:10px 0 0;font-size:13px;color:#94a3b8;font-style:italic;border-top:1px solid #334155;padding-top:10px;">"${eMessage}"</p>` : ""}`;
-      resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
-        to: accountEmail,
-        subject: locked ? `New lead on your SwiftCard (locked) · ${(cardRow?.label as string) || (cardRow?.name as string) || card_owner}` : `New lead: ${name} · ${(cardRow?.label as string) || (cardRow?.name as string) || card_owner}`,
-        html: `<!DOCTYPE html>
-<html><body style="margin:0;padding:0;background:#FAF7F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;padding:40px 16px;">
-<tr><td align="center"><table width="100%" style="max-width:520px;">
-<tr><td style="padding-bottom:28px;">
-  <span style="font-size:11px;font-weight:800;letter-spacing:0.2em;color:#94a3b8;text-transform:uppercase;">SwiftCard</span>
-</td></tr>
-<tr><td>
-  <div style="background:#0f172a;border-radius:16px;padding:28px 28px 8px;margin-bottom:20px;">
-    <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.15em;color:#4b5563;text-transform:uppercase;">New Contact</p>
-    <span style="display:inline-block;background:#1d4ed81f;border:1px solid #1d4ed855;color:#93c5fd;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;margin:0 0 10px;">${cardTag}</span>
-    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">Hey ${ownerFirst}, you have a new lead</h1>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Someone just shared their info with you on your <strong style="color:#9ca3af;">${cardTag}</strong> card.</p>
-    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-      ${detailsCard}
-    </div>
-    <a href="${locked ? `${APP_URL}/pricing` : dashboardUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:99px;font-size:14px;font-weight:700;margin-bottom:28px;">${locked ? "Upgrade to Pro →" : "Open Dashboard →"}</a>
-  </div>
-  <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">SwiftCard · You're receiving this because someone connected with you.</p>
-</td></tr>
-</table></td></tr>
-</table>
-</body></html>`,
-      }).catch(() => {});
-    }
 
     // NOTE: the instant "Great connecting with you" confirmation email to the
     // LEAD was removed on purpose — the owner's real follow-up (manual or the
