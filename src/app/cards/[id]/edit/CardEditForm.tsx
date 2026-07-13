@@ -55,9 +55,9 @@ const inputCls =
 
 type TabId = "content" | "design" | "sharing";
 const TABS: { id: TabId; label: string; hint: string }[] = [
-  { id: "content", label: "Content", hint: "Name, contact details & photos" },
+  { id: "content", label: "Card", hint: "Name, contact details & photos" },
   { id: "design", label: "Design", hint: "Template, colors & fonts" },
-  { id: "sharing", label: "Sharing", hint: "Your Swift Links page" },
+  { id: "sharing", label: "Socials", hint: "Socials, bio & Swift Links" },
 ];
 
 const sectionLabel = "text-xs font-semibold text-gray-400 uppercase tracking-wider";
