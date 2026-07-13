@@ -634,7 +634,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
                   </label>
                 </div>
-                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} locked={!isPro} />
+                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
                 {!isPro && (
                   <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
                     Unlock custom colors &amp; fonts with Pro →
