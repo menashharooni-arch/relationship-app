@@ -28,6 +28,14 @@ export async function POST(req: Request) {
 
   if (!office) return NextResponse.json({ error: "No office found. Create one first." }, { status: 404 });
 
+  // …AND is currently on a paid Office plan. The offices row survives a
+  // subscription cancel; without this recheck a downgraded ex-owner could keep
+  // inviting people, and each accept mints a free enterprise account.
+  const { data: ownerProfile } = await supabase.from("profiles").select("plan, name").eq("id", user.id).maybeSingle();
+  if (ownerProfile?.plan !== "enterprise") {
+    return NextResponse.json({ error: "An active Office subscription is required to invite members." }, { status: 403 });
+  }
+
   // Seats is required for the math; fall back to the minimum for legacy rows.
   const seatCap = (office.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
 
@@ -63,11 +71,14 @@ export async function POST(req: Request) {
   // Upsert: re-send invite if pending
   let token: string;
   if (existing) {
-    // Resend existing invite
+    // Resend existing invite. Reset created_at so the 7-day acceptance window
+    // restarts — otherwise a resend of an EXPIRED invite mails out the same
+    // already-dead link and that email can never be re-invited.
     const { data: member } = await supabase
       .from("office_members")
-      .select("invite_token")
+      .update({ created_at: new Date().toISOString() })
       .eq("id", existing.id)
+      .select("invite_token")
       .maybeSingle();
     token = member!.invite_token;
   } else {
@@ -79,12 +90,6 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     token = member!.invite_token;
   }
-
-  const { data: ownerProfile } = await supabase
-    .from("profiles")
-    .select("name")
-    .eq("id", user.id)
-    .single();
 
   const inviteUrl = `${APP_URL}/join/${token}`;
   const ownerFirst = (ownerProfile?.name ?? "Your team").split(" ")[0];

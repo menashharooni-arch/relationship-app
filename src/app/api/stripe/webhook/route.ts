@@ -6,6 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
+import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -324,10 +325,17 @@ export async function POST(req: NextRequest) {
             .not("user_id", "is", null)
             .order("created_at", { ascending: true });
           const overflow = (activeMembers ?? []).slice(quantity);
+          const trimBrand = overflow.length ? await getOfficeBrand(office.id).catch(() => null) : null;
           for (const m of overflow) {
             if (m.user_id) {
-              await admin.from("profiles").update({ plan: "free", office_id: null }).eq("id", m.user_id);
+              // Members with their own live subscription revert to Pro, not
+              // free — being trimmed from a team must not clobber a plan
+              // they're still paying for. And their cards drop the office
+              // brand (only fields still matching it).
+              const fallback = await memberFallbackPlan(m.user_id);
+              await admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id);
               await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id);
+              await stripBrandFromUserCards(m.user_id, trimBrand).catch(() => {});
             }
             await admin.from("office_members").delete().eq("id", m.id);
           }
@@ -361,10 +369,15 @@ export async function POST(req: NextRequest) {
           .eq("status", "active")
           .not("user_id", "is", null);
 
+        const cascadeBrand = (activeMembers ?? []).length ? await getOfficeBrand(office.id).catch(() => null) : null;
         for (const m of activeMembers ?? []) {
           if (m.user_id) {
-            await admin.from("profiles").update({ plan: "free", office_id: null }).eq("id", m.user_id);
+            // Same rules as removal: own-subscription members land on Pro,
+            // and the office brand comes off their cards.
+            const fallback = await memberFallbackPlan(m.user_id);
+            await admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id);
             await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id); // best-effort
+            await stripBrandFromUserCards(m.user_id, cascadeBrand).catch(() => {});
           }
           // Remove the membership row itself (same as the owner's "Remove
           // member" action) — without this it stays status='active' forever,

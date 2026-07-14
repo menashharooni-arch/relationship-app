@@ -12,7 +12,18 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminSupabase();
-  const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
+  // Office ownership AND a currently-paid plan. The offices row survives a
+  // subscription cancel, so without the plan recheck a downgraded ex-owner
+  // could keep rewriting former members' live cards through this API.
+  const { data: ownerProfile } = await admin.from("profiles").select("plan").eq("id", user.id).maybeSingle();
+  if (ownerProfile?.plan !== "enterprise") {
+    return NextResponse.json({ error: "An active Office subscription is required." }, { status: 403 });
+  }
+  const { data: office } = await admin
+    .from("offices")
+    .select("id, brand_logo_url, brand_company, brand_website, brand_template")
+    .eq("owner_id", user.id)
+    .maybeSingle();
   if (!office) return NextResponse.json({ error: "Only the office owner can set branding." }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
@@ -58,6 +69,20 @@ export async function PATCH(req: NextRequest) {
 
   if (Object.keys(cardUpdate).length && userIds.length) {
     await admin.from("cards").update(cardUpdate).in("user_id", userIds);
+  }
+
+  // A brand field the owner just CLEARED must also come off the cards —
+  // additive-only propagation left the old logo/company on every member card
+  // forever. Only clear cards whose value still equals the OLD brand value, so
+  // a personal value a member set themselves is never wiped.
+  if (userIds.length) {
+    const cleared: Array<{ column: "logo_url" | "company" | "website"; old: string; to: string | null }> = [];
+    if (!brand.brand_logo_url && office.brand_logo_url) cleared.push({ column: "logo_url", old: office.brand_logo_url as string, to: null });
+    if (!brand.brand_company && office.brand_company) cleared.push({ column: "company", old: office.brand_company as string, to: "" });
+    if (!brand.brand_website && office.brand_website) cleared.push({ column: "website", old: office.brand_website as string, to: "" });
+    for (const c of cleared) {
+      await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq(c.column, c.old);
+    }
   }
 
   return NextResponse.json({ ok: true });

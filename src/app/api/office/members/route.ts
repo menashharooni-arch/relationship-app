@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import { NextResponse } from "next/server";
 
 // DELETE ?id=<member_id> — remove a member from the office
@@ -20,7 +21,7 @@ export async function DELETE(req: Request) {
 
   if (!office) return NextResponse.json({ error: "No office found" }, { status: 404 });
 
-  // Revert member's plan to free and clear office_id
+  // Revert the member's plan and clear office_id
   const { data: member } = await supabase
     .from("office_members")
     .select("user_id")
@@ -29,10 +30,22 @@ export async function DELETE(req: Request) {
     .single();
 
   if (member?.user_id) {
+    // A member who still pays for their OWN subscription goes back to Pro, not
+    // free — removal from a team must not clobber a plan they're paying for.
+    const plan = await memberFallbackPlan(member.user_id);
     await supabase
       .from("profiles")
-      .update({ plan: "free", office_id: null })
+      .update({ plan, office_id: null })
       .eq("id", member.user_id);
+    // Best-effort, separate like the webhook paths (column may not exist in
+    // older schemas — must never block the critical plan revert above).
+    await supabase.from("profiles").update({ plan_expires_at: null }).eq("id", member.user_id);
+    // De-brand: the ex-member's live cards must not keep the office logo /
+    // company (only fields still matching the office brand are cleared).
+    try {
+      const brand = await getOfficeBrand(office.id);
+      await stripBrandFromUserCards(member.user_id, brand);
+    } catch { /* best-effort */ }
   }
 
   const { error } = await supabase
