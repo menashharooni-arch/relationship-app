@@ -5,6 +5,7 @@ import ZapierSettings from "@/components/ZapierSettings";
 import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
+import BillingManager from "@/components/BillingManager";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
 import { getReferralProgress } from "@/lib/referral-server";
@@ -187,9 +188,16 @@ export default async function FlowSettingsPage({
             </div>
           </div>
 
-          {/* Manage account */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Manage account</p>
+          {/* Billing — the subscription manager (Change Plan / Cancel / Keep,
+              plus Office seats and the Stripe portal for payment method). */}
+          <div id="billing" data-tour="settings-billing" className="scroll-mt-24">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Billing</p>
+            <BillingManager />
+          </div>
+
+          {/* Account — profile-level actions incl. the Danger Zone (delete). */}
+          <div data-tour="settings-account">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Account</p>
             <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} />
             <p className="text-center mt-4">
               <a href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</a>

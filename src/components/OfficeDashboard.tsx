@@ -123,8 +123,8 @@ export default function OfficeDashboard({
         {activeCount >= office.seats && (
           <p className="text-amber-600 text-xs mt-2">
             Seat limit reached.{" "}
-            <a href="/settings/flows?billing=1" className="underline font-semibold hover:text-amber-500">
-              Add seats in billing →
+            <a href="/settings/flows?billing=1#billing" className="underline font-semibold hover:text-amber-500">
+              Add seats in Billing →
             </a>
           </p>
         )}

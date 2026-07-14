@@ -15,7 +15,7 @@ KEY PLACES
 - Create a card: dashboard "+ Add card" → 3 steps (details + address → Swift Links bio/socials/links → logo, headshot, design).
 - Edit a card: My Cards → Edit, or Settings → Your cards → Edit. Tabs: Card info, Design (templates + Pro custom designer).
 - Contacts: everyone who saved your card or messaged you; read/unread, conversation, notes, status, AI follow-up, SMS, export.
-- Settings: Your cards, Need help, Integrations, Manage account (delete + 1-month reopen), General (account/plan/billing).
+- Settings: Your cards, Need help, Integrations, General (email/cards), Billing (change plan, cancel, keep subscription, seats, payment method), Account → Danger Zone (delete + 1-month reopen).
 
 Keep answers short. Use plain language.`;
 
@@ -81,27 +81,27 @@ const KB: KbEntry[] = [
   {
     triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
     answer:
-      "Free includes 1 card and 5 new leads a month (plus 3 AI drafts and 3 card scans a month, all resetting on the 1st). Pro removes those monthly limits — unlimited leads, drafts and scans — and adds unlimited cards, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → General, or the Pricing page.",
+      "Free includes 1 card and 5 new leads a month (plus 3 AI drafts and 3 card scans a month, all resetting on the 1st). Pro removes those monthly limits — unlimited leads, drafts and scans — and adds unlimited cards, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → Billing, or the Pricing page.",
   },
   {
     triggers: ["upgrade", "go pro", "buy pro", "subscribe"],
     answer:
-      "Go to Settings → General (click to expand) and choose \"Upgrade to Pro\", or use the Pricing page. Pro unlocks unlimited cards & contacts, the custom designer, analytics, integrations, and removes branding.",
+      "Go to Settings → Billing → \"Change Plan\" (or \"Upgrade to Pro\" if you're on Free), or use the Pricing page. Pro unlocks unlimited cards & contacts, the custom designer, analytics, integrations, and removes branding.",
   },
   {
-    triggers: ["billing", "manage subscription", "cancel", "cancel subscription", "invoice", "payment", "change card", "update payment", "refund"],
+    triggers: ["billing", "manage subscription", "cancel", "cancel subscription", "invoice", "payment", "change card", "update payment", "refund", "change plan", "keep subscription", "reactivate", "seats", "add seats"],
     answer:
-      "Go to Settings → General (click to expand) → \"Manage subscription & payment\". That opens the billing portal where you can update your payment method, view invoices, or cancel anytime.",
+      "Everything is in Settings → Billing. \"Change Plan\" switches between Free, Pro and Office (and monthly/annual). \"Cancel subscription\" schedules it to end at your billing date — you keep Pro until then, and if you change your mind a \"Keep Subscription\" button brings it back. \"Manage subscription & payment\" opens the Stripe portal for your payment method and invoices. Office plans can change seats there too.",
   },
   {
     triggers: ["settings", "where is settings", "account settings", "where are settings"],
     answer:
-      "Settings is in the top navigation. Its sections, top to bottom: Your cards, Need help, Integrations, Manage account, and General (your email, plan, and billing).",
+      "Settings is in the top navigation. Its sections, top to bottom: Your cards, Need help, Integrations, General (email & cards), Billing (your plan and subscription), and Account (which has the Danger Zone for deleting your account).",
   },
   {
     triggers: ["delete account", "close account", "delete my account", "remove account", "reopen", "reopen account", "undo delete", "restore account"],
     answer:
-      "Go to Settings → Manage account → Delete account (you'll answer a couple of quick questions). After deleting you have 1 month to reopen by logging back in; after that it's permanent.",
+      "Go to Settings → Account → Danger Zone → Delete account (you'll answer a couple of quick questions). After deleting you have 1 month to reopen by logging back in; after that it's permanent. If you only want to stop paying, use Settings → Billing to cancel or switch to Free instead — that keeps your account.",
   },
   {
     triggers: ["integration", "integrations", "zapier", "google contacts", "hubspot", "crm", "sync", "connect crm"],

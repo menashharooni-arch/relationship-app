@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getStripe } from "@/lib/stripe";
+import type Stripe from "stripe";
+
+// POST /api/stripe/subscription/cancel
+// Schedules the paid plan to end at the period boundary (cancel_at_period_end),
+// so paid features stay active until the displayed billing-period end. Records
+// the (optional) reason. Does NOT downgrade now — the webhook flips the account
+// to Free when Stripe actually ends the subscription at the period end.
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const reason = typeof body.reason === "string" ? body.reason.slice(0, 120) : "";
+  const comment = typeof body.comment === "string" ? body.comment.slice(0, 1000) : "";
+
+  const admin = getAdminSupabase();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("plan, stripe_subscription_id, customization")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.stripe_subscription_id) {
+    return NextResponse.json({ error: "No active paid subscription to cancel." }, { status: 400 });
+  }
+
+  let periodEnd: string | null = null;
+  try {
+    const sub = (await getStripe().subscriptions.update(profile.stripe_subscription_id, {
+      cancel_at_period_end: true,
+      cancellation_details: reason ? { comment: `${reason}${comment ? ` — ${comment}` : ""}`.slice(0, 500) } : undefined,
+    })) as Stripe.Subscription;
+    const endUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
+    periodEnd = endUnix ? new Date(endUnix * 1000).toISOString() : null;
+  } catch {
+    return NextResponse.json({ error: "Couldn't schedule the cancellation. Please try again." }, { status: 502 });
+  }
+
+  // Mirror the scheduled-cancel state so the UI shows "cancels on <date>" and the
+  // Keep Subscription button without a Stripe round-trip. plan_expires_at is left
+  // untouched (that field means app-grant expiry; a real subscriber keeps access
+  // via plan + stripe_subscription_id until the webhook deletes it at period end).
+  const cust = (profile.customization as Record<string, unknown> | null) ?? {};
+  await admin
+    .from("profiles")
+    .update({
+      customization: { ...cust, _cancelAtPeriodEnd: true, _cancelAt: periodEnd, _cancelReason: reason || null },
+    })
+    .eq("id", user.id);
+
+  return NextResponse.json({ ok: true, cancelAt: periodEnd });
+}
