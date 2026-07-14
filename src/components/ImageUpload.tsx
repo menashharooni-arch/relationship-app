@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
@@ -81,6 +81,18 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
   const [preview, setPreview] = useState<string | null>(currentUrl);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Reflect an image applied from OUTSIDE this component in the tile — e.g. the
+  // "Suggest my company logo" picker sets the parent's logo URL, which arrives
+  // here as a new `currentUrl`. Without this the tile kept its mount-time value
+  // and still showed "Upload / Tap to select" even though the card preview had
+  // the logo, so it looked like nothing applied. Skip while a local upload/crop
+  // is in flight so we never clobber the user's in-progress choice.
+  useEffect(() => {
+    if (uploadStatus === "uploading" || rawSrc) return;
+    setPreview(currentUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync ONLY on external currentUrl changes; the guards are read as current-render snapshots.
+  }, [currentUrl]);
 
   // Crop state
   const [rawSrc, setRawSrc] = useState<string | null>(null);
