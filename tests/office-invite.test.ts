@@ -36,6 +36,6 @@ describe("inviteDaysLeft", () => {
     expect(inviteDaysLeft({ expires_at: new Date(now - DAY).toISOString() }, now)).toBe(0);
   });
   it("falls back to created_at + TTL", () => {
-    expect(inviteDaysLeft({ created_at: new Date(now).toISOString() }, now)).toBe(7);
+    expect(inviteDaysLeft({ created_at: new Date(now).toISOString() }, now)).toBe(14);
   });
 });

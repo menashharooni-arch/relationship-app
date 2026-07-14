@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getOfficeBrand } from "@/lib/office-brand";
 import JoinButton from "@/components/JoinButton";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import Link from "next/link";
@@ -12,7 +13,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const admin = getAdminSupabase();
   const { data: invite } = await admin
     .from("office_members")
-    .select("*, offices(name)")
+    .select("*, offices(id, name)")
     .eq("invite_token", token)
     .single();
 
@@ -21,8 +22,10 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
           <SwiftCardLogo size={32} onDark />
-          <h1 className="text-2xl font-bold text-white mt-8 mb-3">Invite not found</h1>
-          <p className="text-gray-500 text-sm mb-6">This invite link is invalid or has expired.</p>
+          <h1 className="text-2xl font-bold text-white mt-8 mb-3">This link doesn&apos;t work anymore</h1>
+          <p className="text-gray-500 text-sm mb-6">
+            The invite may have expired or been canceled. Ask whoever invited you to send a fresh one.
+          </p>
           <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
             Go to sign in →
           </Link>
@@ -36,17 +39,19 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
           <SwiftCardLogo size={32} onDark />
-          <h1 className="text-2xl font-bold text-white mt-8 mb-3">Already accepted</h1>
+          <h1 className="text-2xl font-bold text-white mt-8 mb-3">You&apos;re already on the team</h1>
           <p className="text-gray-500 text-sm mb-6">This invite has already been used.</p>
           <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
-            Go to dashboard →
+            Go to my dashboard →
           </Link>
         </div>
       </main>
     );
   }
 
-  const officeName = (invite.offices as { name: string } | null)?.name ?? "a team";
+  const officeRef = invite.offices as { id?: string; name?: string } | null;
+  const officeName = officeRef?.name ?? "your team";
+  const brand = await getOfficeBrand(officeRef?.id ?? (invite.office_id as string)).catch(() => null);
 
   // Check if user is logged in
   const supabase = await createClient();
@@ -61,32 +66,32 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <SwiftCardLogo size={32} onDark />
+            {brand?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-cover bg-gray-900" />
+            ) : (
+              <SwiftCardLogo size={32} onDark />
+            )}
           </div>
-          <div className="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-800/40 rounded-full px-4 py-1.5 mb-5">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            <span className="text-blue-300 text-xs font-medium">Team Invitation</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Join {officeName}</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Create your {officeName} card</h1>
           <p className="text-gray-400 text-sm">
-            You&apos;ve been invited to join <strong className="text-white">{officeName}</strong>
-            {" "}on SwiftCard. You&apos;ll get your own digital business card and access to the
-            team dashboard.
+            Your company logo and design are already set up. You just add your
+            name, photo and contact info — it takes about 2 minutes.
           </p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 mb-5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs">Invited email</span>
+            <span className="text-gray-500 text-xs">Invite sent to</span>
             <span className="text-gray-300 text-xs font-medium">{invite.invite_email}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs">Your account</span>
+            <span className="text-gray-500 text-xs">You&apos;re signed in as</span>
             <span className="text-gray-300 text-xs font-medium">{user.email}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-gray-500 text-xs">Plan you&apos;ll receive</span>
-            <span className="text-xs font-bold text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded-full">Enterprise</span>
+            <span className="text-gray-500 text-xs">Cost to you</span>
+            <span className="text-xs font-bold text-green-400">Free — {officeName} covers it</span>
           </div>
         </div>
 

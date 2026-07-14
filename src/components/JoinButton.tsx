@@ -42,7 +42,9 @@ export default function JoinButton({ token }: { token: string }) {
         return;
       }
       setStatus("done");
-      setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+      // Straight into the 2-minute card setup — the whole point of accepting.
+      // (The setup page sends people who already have a card to the dashboard.)
+      setTimeout(() => { window.location.href = "/welcome/team"; }, 900);
     } catch {
       setError("Network error — please try again.");
       setStatus("error");
@@ -52,7 +54,7 @@ export default function JoinButton({ token }: { token: string }) {
   if (status === "done") {
     return (
       <div className="w-full bg-green-900/30 border border-green-700/50 text-green-300 font-semibold py-3 rounded-full text-sm text-center">
-        Joined! Redirecting to your dashboard…
+        You&apos;re in! Let&apos;s build your card…
       </div>
     );
   }
