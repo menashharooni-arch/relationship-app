@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 
@@ -69,8 +69,10 @@ export async function POST(req: NextRequest) {
     if (brand.logoUrl) finalLogo = brand.logoUrl;
     if (brand.company) finalCompany = brand.company;
     if (brand.website) finalWebsite = brand.website;
-    if (brand.template) safeTemplate = brand.template;
-    if (brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
+    if (brand.lockTemplate && brand.template) safeTemplate = brand.template;
+    if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
+    // Company phone/fax/address (spec §8) — uniform on every member card.
+    if (brand.phone || brand.fax || brand.address) cust = overlayOfficeContact(cust, brand);
   }
 
   const { data, error } = await admin
