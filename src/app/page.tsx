@@ -206,39 +206,43 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ APPLE WALLET ═══════════════ */}
+        {/* Stacked layout: three 240px phones (~720px) never fit a 2-column
+            text|visual grid track (which tops out ~660px even on a laptop), so
+            the third phone was clipped. Full-width below the copy, they fit and
+            center on desktop, and swipe on mobile. */}
         <section id="wallet" className="rd-light relative py-24 sm:py-28 border-y border-slate-200 overflow-hidden">
-          {/* min-w-0 on both grid children: without it, the phones row's intrinsic
-              width (3 fixed-width phones) inflates the implicit mobile grid track
-              to ~670px and the whole section — text included — gets clipped. */}
-          <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[0.85fr_1.15fr] gap-14 items-center">
-            <div className="min-w-0">
-              <div data-reveal><Eyebrow dark={false}>Ways to share</Eyebrow></div>
+          <div className="max-w-7xl mx-auto px-5 sm:px-6">
+            <div className="max-w-2xl mx-auto text-center">
+              <div data-reveal className="flex justify-center"><Eyebrow dark={false}>Ways to share</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5" data-reveal>
                 Your card, always <span className="rd-aurora-text">in your pocket.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
                 However you meet someone, there&apos;s a way to hand them your card in a second — no app, no signal, no fumbling.
               </p>
-              <ul className="mt-7 space-y-3.5" data-reveal>
-                {[
-                  "Apple Wallet — a swipe away, next to your passes",
-                  "QR code — they scan, your card opens instantly",
-                  "Share sheet — text, email, AirDrop, or any app",
-                  "NFC tap, a link, or your email signature",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-slate-600 text-[15px] leading-snug">
-                    <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
-                      <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-7" data-reveal>
-                <Link href="/cards/new" className="rd-btn rd-btn-primary">Add SwiftCard to Wallet</Link>
-              </div>
             </div>
-            <div className="min-w-0 w-full flex justify-center" data-reveal="scale"><ShareWaysPhones light /></div>
+
+            <div className="mt-14 flex justify-center" data-reveal="scale"><ShareWaysPhones light /></div>
+
+            <ul className="mt-12 flex flex-wrap justify-center gap-x-8 gap-y-3 max-w-3xl mx-auto" data-reveal>
+              {[
+                "Apple Wallet — next to your passes",
+                "QR code — they scan, it opens",
+                "Share sheet — text, email, AirDrop",
+                "NFC tap, a link, or your signature",
+              ].map((t) => (
+                <li key={t} className="flex items-center gap-2 text-slate-600 text-[15px] leading-snug">
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
+                    <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                  </span>
+                  {t}
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-9 flex justify-center" data-reveal>
+              <Link href="/cards/new" className="rd-btn rd-btn-primary">Add SwiftCard to Wallet</Link>
+            </div>
           </div>
         </section>
 
