@@ -41,6 +41,13 @@ const CANCEL_REASONS = [
   "Other",
 ];
 
+// A price cut only changes a price-driven decision. Offering 50% off to someone
+// leaving over a missing feature or "just testing" burns margin on people it
+// won't keep, so the discount is reserved for genuinely price-sensitive reasons.
+// (The Office→Pro save below is offered to every Office canceller — it's a real
+// downgrade to a cheaper plan, not a giveaway.)
+const PRICE_SENSITIVE_REASONS = ["Too expensive", "Found a better alternative"];
+
 function fmtDate(iso: string | null): string {
   if (!iso) return "";
   try {
@@ -458,11 +465,36 @@ function CancelModal({ sub, onClose, onDone }: {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // What we can offer to keep them, decided by plan + reason:
+  //  • Office → downgrade to Pro instead of churning to $0 (keeps their card +
+  //    their money, just drops the team). Offered to every Office canceller.
+  //  • 50% off for 3 months → only for price-sensitive reasons, once per customer.
+  const canOfferPro = sub.plan === "office";
+  const canOfferDiscount = !sub.retentionUsed && PRICE_SENSITIVE_REASONS.includes(reason);
+
+  const proCents = (sub.interval ?? "monthly") === "annual" ? PLAN_PRICES.PRO_ANNUAL_CENTS : PLAN_PRICES.PRO_MONTHLY_CENTS;
+  const proLabel = `${formatUsd(proCents)}/${(sub.interval ?? "monthly") === "annual" ? "yr" : "mo"}`;
+
   function next() {
     if (!reason) { setErr("Please pick a reason so we can improve."); return; }
     setErr(null);
-    // Show the retention offer unless it's already been used.
-    setStep(sub.retentionUsed ? "confirming" : "offer");
+    // Only interrupt with the save step if we actually have something to offer.
+    setStep(canOfferPro || canOfferDiscount ? "offer" : "confirming");
+  }
+
+  async function switchToPro() {
+    setBusy("pro"); setErr(null);
+    try {
+      const res = await fetch("/api/stripe/subscription/change-plan", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "pro", interval: sub.interval ?? "monthly" }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Couldn't switch to Pro. Please try again."); return; }
+      await onDone(`You're now on Pro (${proLabel}) — your own card stays active. Your team's seats have ended and their cards revert to their own plans.`);
+    } catch {
+      setErr("Couldn't reach the server.");
+    } finally { setBusy(null); }
   }
 
   async function acceptOffer() {
@@ -518,24 +550,45 @@ function CancelModal({ sub, onClose, onDone }: {
 
       {step === "offer" && (
         <>
-          <div className="text-center mb-4">
-            <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-              <span className="text-emerald-300 font-black text-lg">50%</span>
+          {/* Office → Pro: keep your own card on a cheaper plan instead of losing
+              everything to Free. The strongest save for a single owner who no
+              longer needs a whole team. */}
+          {canOfferPro && (
+            <div className="rounded-2xl border border-blue-700/40 bg-blue-950/30 p-4 mb-3">
+              <p className="text-white font-bold text-base">Don&apos;t need the team? Switch to Pro</p>
+              <p className="text-gray-300 text-sm mt-1">Keep your own card and every Pro feature for just <span className="text-white font-semibold">{proLabel}</span> — instead of dropping all the way to Free.</p>
+              <p className="text-gray-500 text-[11px] mt-1.5">Your team&apos;s seats end and their cards revert to their own plans. Prorated — you&apos;re only charged the difference.</p>
+              <button onClick={switchToPro} disabled={busy !== null}
+                className="mt-3 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full">
+                {busy === "pro" ? "Switching…" : `Switch to Pro · ${proLabel}`}
+              </button>
             </div>
-            <p className="text-white font-bold text-base">Stay for 50% off — 3 months</p>
-            <p className="text-gray-400 text-sm mt-1">Keep every {sub.plan === "office" ? "Office" : "Pro"} feature at half price for your next three billing cycles. One-time offer.</p>
-          </div>
+          )}
+
+          {/* 50% off — only surfaced for price-sensitive reasons (see next()). */}
+          {canOfferDiscount && (
+            <div className="rounded-2xl border border-emerald-600/30 bg-emerald-950/20 p-4 mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+                  <span className="text-emerald-300 font-black text-sm">50%</span>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{canOfferPro ? "Or keep it at 50% off" : "Stay for 50% off — 3 months"}</p>
+                  <p className="text-gray-400 text-xs mt-0.5">Half price on {sub.plan === "office" ? "Office" : "Pro"} for your next 3 billing cycles. One-time offer.</p>
+                </div>
+              </div>
+              <button onClick={acceptOffer} disabled={busy !== null}
+                className="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full">
+                {busy === "offer" ? "Applying…" : "Apply 50% off & keep my plan"}
+              </button>
+            </div>
+          )}
+
           {err && <p className="text-red-400 text-xs mb-3 text-center">{err}</p>}
-          <div className="space-y-2.5">
-            <button onClick={acceptOffer} disabled={busy !== null}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full">
-              {busy === "offer" ? "Applying…" : "Apply 50% off & keep my plan"}
-            </button>
-            <button onClick={() => { setStep("confirming"); setErr(null); }} disabled={busy !== null}
-              className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold text-sm py-3 rounded-full">
-              Continue canceling
-            </button>
-          </div>
+          <button onClick={() => { setStep("confirming"); setErr(null); }} disabled={busy !== null}
+            className="w-full text-gray-500 hover:text-gray-300 disabled:opacity-50 font-semibold text-xs py-1.5">
+            No thanks, continue canceling
+          </button>
         </>
       )}
 
