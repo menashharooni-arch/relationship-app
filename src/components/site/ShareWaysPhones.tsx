@@ -204,7 +204,7 @@ function SharePhone() {
 export default function ShareWaysPhones({ light = false }: { light?: boolean }) {
   const labelClass = light ? "text-slate-500" : "text-white/60";
   return (
-    <div className="flex gap-4 justify-start lg:justify-center overflow-x-auto rd-scrollbar-none pb-2 -mx-2 px-2">
+    <div className="max-w-full flex gap-4 justify-start lg:justify-center overflow-x-auto rd-scrollbar-none pb-2 px-2">
       <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
       <Phone label="QR code" labelClass={labelClass}><QrPhone /></Phone>
       <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>

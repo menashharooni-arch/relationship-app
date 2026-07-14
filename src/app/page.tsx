@@ -189,8 +189,11 @@ export default function Home() {
 
         {/* ═══════════════ APPLE WALLET ═══════════════ */}
         <section id="wallet" className="rd-light relative py-24 sm:py-28 border-y border-slate-200 overflow-hidden">
+          {/* min-w-0 on both grid children: without it, the phones row's intrinsic
+              width (3 fixed-width phones) inflates the implicit mobile grid track
+              to ~670px and the whole section — text included — gets clipped. */}
           <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[0.85fr_1.15fr] gap-14 items-center">
-            <div>
+            <div className="min-w-0">
               <div data-reveal><Eyebrow dark={false}>Ways to share</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5" data-reveal>
                 Your card, always <span className="rd-aurora-text">in your pocket.</span>
@@ -217,7 +220,7 @@ export default function Home() {
                 <Link href="/cards/new" className="rd-btn rd-btn-primary">Add SwiftCard to Wallet</Link>
               </div>
             </div>
-            <div className="flex justify-center" data-reveal="scale"><ShareWaysPhones light /></div>
+            <div className="min-w-0 w-full flex justify-center" data-reveal="scale"><ShareWaysPhones light /></div>
           </div>
         </section>
 
