@@ -7,6 +7,7 @@ import { deliverToLead } from "@/lib/messaging";
 import { getAccountEmail } from "@/lib/account-email";
 import { expireFreeMonths } from "@/lib/referral-server";
 import { purgeExpiredDeletedAccounts } from "@/lib/account-purge";
+import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
@@ -70,6 +71,14 @@ export async function GET(req: NextRequest) {
     purged = await purgeExpiredDeletedAccounts();
   } catch (e) {
     await reportError("reminders.purge-deleted-accounts", e);
+  }
+
+  // Apply any Office seat reductions whose billing-period end has passed (spec §5).
+  let seatReductionsApplied = 0;
+  try {
+    seatReductionsApplied = await applyDueSeatReductions();
+  } catch (e) {
+    await reportError("reminders.apply-seat-reductions", e);
   }
 
   // Expire finished trial / free-month grants → back to Free, unless the user
@@ -302,5 +311,5 @@ export async function GET(req: NextRequest) {
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===
 
-  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded, purged });
+  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded, purged, seatReductionsApplied });
 }
