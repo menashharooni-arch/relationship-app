@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getMarketingFrom } from "@/lib/resend-domain";
@@ -8,6 +9,7 @@ import { escapeHtml } from "@/lib/escape";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import { writeAudit } from "@/lib/audit";
 import { INVITE_TTL_MS } from "@/lib/office-invite";
+import { requireOfficeCapability } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -16,25 +18,29 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Cap invite emails per owner — otherwise this endpoint is an unthrottled
+  // Cap invite emails per caller — otherwise this endpoint is an unthrottled
   // spam-email relay (loop with different target emails, never accept any).
   if (await isRateLimited(`office-invite:${user.id}`, 10, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many invites sent — try again in a few minutes." }, { status: 429 });
   }
 
-  // Verify user owns an office
-  const { data: office } = await supabase
+  // Server-side authorization: the caller must have the invite_members capability
+  // in an office (owner or admin). Never trust the UI. Returns the office context.
+  const ctx = await requireOfficeCapability(user.id, "invite_members");
+  if (!ctx) return NextResponse.json({ error: "You don't have permission to invite members." }, { status: 403 });
+
+  const admin = getAdminSupabase();
+  const { data: office } = await admin
     .from("offices")
     .select("id, name, seats")
-    .eq("owner_id", user.id)
+    .eq("id", ctx.officeId)
     .maybeSingle();
-
   if (!office) return NextResponse.json({ error: "No office found. Create one first." }, { status: 404 });
 
-  // …AND is currently on a paid Office plan. The offices row survives a
-  // subscription cancel; without this recheck a downgraded ex-owner could keep
-  // inviting people, and each accept mints a free enterprise account.
-  const { data: ownerProfile } = await supabase.from("profiles").select("plan, name").eq("id", user.id).maybeSingle();
+  // The office OWNER must currently be on a paid Office plan (the offices row
+  // survives a cancel; without this a downgraded team could keep minting
+  // enterprise). Also fetch the owner's name for the invite email brand.
+  const { data: ownerProfile } = await admin.from("profiles").select("plan, name").eq("id", ctx.ownerId).maybeSingle();
   if (ownerProfile?.plan !== "enterprise") {
     return NextResponse.json({ error: "An active Office subscription is required to invite members." }, { status: 403 });
   }
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
   if (!email?.trim()) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
   // Check for duplicate (case-insensitive — invite emails are stored lowercased).
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("office_members")
     .select("id, status")
     .eq("office_id", office.id)
@@ -86,7 +92,7 @@ export async function POST(req: Request) {
     // not exist pre-migration — an unknown-column error just leaves it null and
     // the join route falls back to created_at + TTL).
     let member: { invite_token: string } | null = null;
-    ({ data: member } = await supabase
+    ({ data: member } = await admin
       .from("office_members")
       .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso })
       .eq("id", existing.id)
@@ -94,7 +100,7 @@ export async function POST(req: Request) {
       .maybeSingle());
     if (!member) {
       // Retry without expires_at in case the column isn't there yet.
-      ({ data: member } = await supabase
+      ({ data: member } = await admin
         .from("office_members")
         .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null })
         .eq("id", existing.id)
@@ -106,14 +112,14 @@ export async function POST(req: Request) {
   } else {
     let member: { invite_token: string } | null = null;
     let error: { message: string } | null = null;
-    ({ data: member, error } = await supabase
+    ({ data: member, error } = await admin
       .from("office_members")
       .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), expires_at: expiresIso })
       .select("invite_token")
       .single());
     if (error) {
       // Retry without expires_at (pre-migration) before giving up.
-      ({ data: member, error } = await supabase
+      ({ data: member, error } = await admin
         .from("office_members")
         .insert({ office_id: office.id, invite_email: email.trim().toLowerCase() })
         .select("invite_token")

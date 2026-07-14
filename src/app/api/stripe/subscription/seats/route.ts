@@ -6,13 +6,14 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { planFromPriceId } from "@/lib/subscription";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import { writeAudit } from "@/lib/audit";
+import { requireOfficeCapability } from "@/lib/office-roles";
 import type Stripe from "stripe";
 
 // POST /api/stripe/subscription/seats { seats }
-// Change the Office seat count. Enforces the 2-seat minimum and refuses to drop
-// below the number of ACTIVE members (they'd lose access mid-cycle). Stripe
-// prorates the change (create_prorations) so the customer is charged/credited
-// the difference immediately. offices.seats is synced here and by the webhook.
+// Change the Office seat count. Allowed for the owner AND a billing_admin — a
+// delegated billing admin acts on the OWNER's subscription. Enforces the 2-seat
+// minimum and refuses to drop below seats in use (owner + active + pending).
+// Stripe prorates the change (create_prorations).
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,19 +26,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Office requires at least ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats.` }, { status: 400 });
   }
 
+  // Server-side authorization: caller must have manage_seats (owner or billing_admin).
+  const ctx = await requireOfficeCapability(user.id, "manage_seats");
+  if (!ctx) return NextResponse.json({ error: "You don't have permission to change seats." }, { status: 403 });
+
   const admin = getAdminSupabase();
+  // The subscription belongs to the office OWNER (a billing_admin acts on it).
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_subscription_id")
-    .eq("id", user.id)
+    .eq("id", ctx.ownerId)
     .single();
 
   if (profile?.plan !== "enterprise" || !profile.stripe_subscription_id) {
     return NextResponse.json({ error: "Seats can only be changed on an active Office plan." }, { status: 400 });
   }
 
-  const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
-  if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
+  const office = { id: ctx.officeId };
 
   // Never strand anyone: seats can't drop below what's in use — owner (seat 1)
   // + active members + pending invitations (which reserve a seat). Revoke

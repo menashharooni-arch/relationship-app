@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
+import { requireOfficeCapability } from "@/lib/office-roles";
 import { NextResponse } from "next/server";
 
 // DELETE ?id=<member_id> — remove an active member, OR revoke a pending invite.
@@ -8,22 +10,20 @@ import { NextResponse } from "next/server";
 // the action is tracked and its reserved seat is released. An active member is
 // fully removed (plan reverted, office brand stripped) — that path is unchanged.
 export async function DELETE(req: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabaseUser = await createClient();
+  const { data: { user } } = await supabaseUser.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const memberId = searchParams.get("id");
   if (!memberId) return NextResponse.json({ error: "Member ID required" }, { status: 400 });
 
-  // Verify the member belongs to this admin's office
-  const { data: office } = await supabase
-    .from("offices")
-    .select("id")
-    .eq("owner_id", user.id)
-    .maybeSingle();
+  // Server-side authorization: caller must have remove_members in an office.
+  const ctx = await requireOfficeCapability(user.id, "remove_members");
+  if (!ctx) return NextResponse.json({ error: "You don't have permission to remove members." }, { status: 403 });
 
-  if (!office) return NextResponse.json({ error: "No office found" }, { status: 404 });
+  const supabase = getAdminSupabase();
+  const office = { id: ctx.officeId };
 
   const { data: member } = await supabase
     .from("office_members")

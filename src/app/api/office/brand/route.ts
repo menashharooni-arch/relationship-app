@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
 import { writeAudit } from "@/lib/audit";
+import { requireOfficeCapability } from "@/lib/office-roles";
 
 // Office admin sets the uniform brand (logo / company / website / template).
 // Saves it on the office AND propagates it to every existing card under the
@@ -13,19 +14,22 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminSupabase();
-  // Office ownership AND a currently-paid plan. The offices row survives a
-  // subscription cancel, so without the plan recheck a downgraded ex-owner
-  // could keep rewriting former members' live cards through this API.
-  const { data: ownerProfile } = await admin.from("profiles").select("plan").eq("id", user.id).maybeSingle();
+  // Server-side authorization: caller must have manage_branding (owner or admin).
+  const ctx = await requireOfficeCapability(user.id, "manage_branding");
+  if (!ctx) return NextResponse.json({ error: "You don't have permission to manage branding." }, { status: 403 });
+
+  // The office OWNER must currently be on a paid Office plan (the offices row
+  // survives a cancel, so a downgraded team must not keep rewriting live cards).
+  const { data: ownerProfile } = await admin.from("profiles").select("plan").eq("id", ctx.ownerId).maybeSingle();
   if (ownerProfile?.plan !== "enterprise") {
     return NextResponse.json({ error: "An active Office subscription is required." }, { status: 403 });
   }
   const { data: office } = await admin
     .from("offices")
     .select("id, brand_logo_url, brand_company, brand_website, brand_template")
-    .eq("owner_id", user.id)
+    .eq("id", ctx.officeId)
     .maybeSingle();
-  if (!office) return NextResponse.json({ error: "Only the office owner can set branding." }, { status: 403 });
+  if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const brand = {

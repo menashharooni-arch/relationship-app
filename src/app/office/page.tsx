@@ -5,6 +5,7 @@ import OfficeDashboard from "@/components/OfficeDashboard";
 import OfficeBranding from "@/components/OfficeBranding";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
 import DashboardLink from "@/components/DashboardLink";
+import { resolveOfficeContext, roleHasCapability, type OfficeRole } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -46,11 +47,27 @@ export default async function OfficePage() {
   if (!profile) redirect("/onboarding");
   if (profile.plan !== "enterprise") redirect("/pricing");
 
-  const { data: office } = await supabase
-    .from("offices")
-    .select("*, office_members(*)")
-    .eq("owner_id", user.id)
-    .single();
+  // Server-side role resolution. The owner OR a management-role member (admin /
+  // manager / billing_admin) may view the team dashboard; a plain employee is
+  // sent to their own dashboard. Capabilities gate every control (the APIs
+  // re-check server-side regardless — the UI gating is only cosmetic).
+  const ctx = await resolveOfficeContext(user.id);
+  const role: OfficeRole = ctx ? ctx.role : "owner"; // enterprise user w/o an office yet = owner-to-be
+  if (ctx && !ctx.isOwner && !roleHasCapability(role, "view_org_analytics")) redirect("/dashboard");
+
+  const caps = {
+    canInvite: roleHasCapability(role, "invite_members"),
+    canRemove: roleHasCapability(role, "remove_members"),
+    canBrand: roleHasCapability(role, "manage_branding"),
+    canManageRoles: roleHasCapability(role, "manage_roles"),
+    canManageSeats: roleHasCapability(role, "manage_seats"),
+  };
+
+  // Owner (or owner-to-be) loads by ownership; a member-admin loads THEIR office.
+  const officeQuery = getAdminSupabase().from("offices").select("*, office_members(*)");
+  const { data: office } = ctx && !ctx.isOwner
+    ? await officeQuery.eq("id", ctx.officeId).single()
+    : await supabase.from("offices").select("*, office_members(*)").eq("owner_id", user.id).single();
 
   // Fetch unified team leads if office exists. Leads are keyed by CARD username,
   // which differs from a member's profile handle — so gather every card slug the
@@ -76,8 +93,16 @@ export default async function OfficePage() {
     const verifiedIds = new Set((teamProfiles ?? []).map((p) => p.id as string));
     const verifiedCards = (teamCards ?? []).filter((c) => verifiedIds.has(c.user_id as string));
 
+    // Include the OFFICE OWNER's cards regardless of who is viewing (a member-
+    // admin viewer's own username is already covered via teamProfiles).
+    const [{ data: ownerProfile }, { data: ownerCards }] = await Promise.all([
+      admin.from("profiles").select("username").eq("id", office.owner_id).maybeSingle(),
+      admin.from("cards").select("username").eq("user_id", office.owner_id),
+    ]);
+
     const memberUsernames = Array.from(new Set([
-      profile.username,
+      ownerProfile?.username as string,
+      ...(ownerCards ?? []).map((c) => c.username as string),
       ...(teamProfiles ?? []).map((p) => p.username as string),
       ...verifiedCards.map((c) => c.username as string),
     ].filter(Boolean))) as string[];
@@ -114,9 +139,11 @@ export default async function OfficePage() {
               office={office}
               members={(office.office_members ?? []) as Member[]}
               appUrl={APP_URL}
+              viewerRole={role}
+              caps={caps}
             />
 
-            <OfficeBranding office={office} />
+            {caps.canBrand && <OfficeBranding office={office} />}
 
             {/* Unified team leads */}
             <div>

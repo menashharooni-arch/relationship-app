@@ -21,16 +21,28 @@ type Office = {
   seats: number;
 };
 
+type Caps = { canInvite: boolean; canRemove: boolean; canBrand: boolean; canManageRoles: boolean; canManageSeats: boolean };
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin", manager: "Manager", billing_admin: "Billing Admin", employee: "Employee",
+};
+
 export default function OfficeDashboard({
   office,
   members,
   appUrl,
+  viewerRole = "owner",
+  caps = { canInvite: true, canRemove: true, canBrand: true, canManageRoles: true, canManageSeats: true },
 }: {
   office: Office;
   members: Member[];
   appUrl: string;
+  viewerRole?: string;
+  caps?: Caps;
 }) {
+  void viewerRole;
   const [email, setEmail] = useState("");
+  const [roleSavingId, setRoleSavingId] = useState<string | null>(null);
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [inviteError, setInviteError] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -102,6 +114,19 @@ export default function OfficeDashboard({
     setTimeout(() => setCopiedId((c) => (c === member.id ? null : c)), 1800);
   }
 
+  async function changeRole(memberId: string, role: string) {
+    setRoleSavingId(memberId);
+    const res = await fetch("/api/office/role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memberId, role }),
+    });
+    if (res.ok) {
+      setMemberList((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)));
+    }
+    setRoleSavingId(null);
+  }
+
   return (
     <div className="space-y-6">
       {/* Office header card */}
@@ -132,7 +157,8 @@ export default function OfficeDashboard({
         </div>
       </div>
 
-      {/* Invite form */}
+      {/* Invite form — only for roles that may invite (server also enforces) */}
+      {caps.canInvite && (
       <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
         <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-4">Invite a team member</p>
         <form onSubmit={sendInvite} className="flex gap-3">
@@ -162,6 +188,7 @@ export default function OfficeDashboard({
           </p>
         )}
       </div>
+      )}
 
       {/* Member list */}
       <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
@@ -210,7 +237,25 @@ export default function OfficeDashboard({
                 </div>
 
                 <div className="shrink-0 ml-3 flex items-center gap-3">
-                  {member.status === "pending" && (
+                  {/* Role selector for active members — owner only (manage_roles). */}
+                  {member.status === "active" && caps.canManageRoles && (
+                    <select
+                      value={member.role && ROLE_LABELS[member.role] ? member.role : "employee"}
+                      onChange={(e) => changeRole(member.id, e.target.value)}
+                      disabled={roleSavingId === member.id}
+                      className="text-xs bg-[#FAF7F2] border border-[#D4C8B8] rounded-lg px-2 py-1 text-slate-700 focus:outline-none disabled:opacity-40"
+                      aria-label={`Role for ${member.invite_email}`}
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="manager">Manager</option>
+                      <option value="admin">Admin</option>
+                      <option value="billing_admin">Billing Admin</option>
+                    </select>
+                  )}
+                  {member.status === "active" && !caps.canManageRoles && member.role && ROLE_LABELS[member.role] && member.role !== "employee" && (
+                    <span className="text-[10px] font-semibold text-slate-500 bg-[#F0EBE1] px-2 py-0.5 rounded-full">{ROLE_LABELS[member.role]}</span>
+                  )}
+                  {member.status === "pending" && caps.canInvite && (
                     <button
                       onClick={() => resendInvite(member.invite_email)}
                       disabled={resendingEmail === member.invite_email}
@@ -219,6 +264,7 @@ export default function OfficeDashboard({
                       {resendingEmail === member.invite_email ? "…" : expired ? "Re-invite" : "Resend"}
                     </button>
                   )}
+                  {caps.canRemove && (
                   <button
                     onClick={() => removeMember(member.id)}
                     disabled={removingId === member.id}
@@ -226,6 +272,7 @@ export default function OfficeDashboard({
                   >
                     {removingId === member.id ? "…" : member.status === "pending" ? "Revoke" : "Remove"}
                   </button>
+                  )}
                 </div>
               </div>
               );
