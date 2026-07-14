@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
-import { priceIdForPlan, planFromPriceId, DB_PLAN, type BillingPlan, type BillingInterval } from "@/lib/subscription";
+import { priceIdForPlan, planFromPriceId, isUpgrade, DB_PLAN, type BillingPlan, type BillingInterval } from "@/lib/subscription";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import type Stripe from "stripe";
 
@@ -61,12 +61,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "You're already on that plan." }, { status: 400 });
     }
 
+    // Upgrading = the customer gets a bigger plan the moment this returns, so
+    // they're invoiced for it now (Stripe credits the unused part of the old
+    // plan first). Without this the proration would sit on the NEXT invoice and
+    // they'd have Office free until their billing date. Adding seats to an
+    // existing Office plan counts as an upgrade for the same reason.
+    // Downgrades/lateral moves keep create_prorations: the credit rides the next
+    // invoice, so we never owe a cash refund.
+    const addingSeats = targetPlan === "office" && seats > (item.quantity ?? 1);
+    const upgrading = isUpgrade(current, { plan: targetPlan, interval }) || addingSeats;
+
+    // Honour the timestamp the preview quoted from, so the amount we showed is
+    // the amount we charge — Stripe prorates by the second, and re-deriving
+    // "now" here would drift from the quote by however long the user took to
+    // click. Ignore a stale/implausible value rather than trust the client.
+    const clientDate = Math.floor(Number(body.prorationDate));
+    const nowSec = Math.floor(Date.now() / 1000);
+    const prorationDate =
+      Number.isFinite(clientDate) && clientDate > nowSec - 15 * 60 && clientDate <= nowSec
+        ? clientDate
+        : undefined;
+
     await getStripe().subscriptions.update(profile.stripe_subscription_id, {
       items: [{ id: item.id, price: targetPriceId, quantity: seats }],
-      proration_behavior: "create_prorations",
+      proration_behavior: upgrading ? "always_invoice" : "create_prorations",
+      ...(prorationDate ? { proration_date: prorationDate } : {}),
       cancel_at_period_end: false, // switching plans clears any pending cancel
     });
-  } catch {
+  } catch (err) {
+    // A declined card on the immediate upgrade invoice must say so plainly —
+    // "try again" would just fail the same way.
+    const e = err as { code?: string; type?: string; message?: string };
+    if (e?.type === "StripeCardError" || e?.code === "card_declined") {
+      return NextResponse.json(
+        { error: "Your card was declined, so the plan wasn't changed. Update your payment method and try again." },
+        { status: 402 }
+      );
+    }
+    console.error("Stripe change-plan error:", e?.message ?? err);
     return NextResponse.json({ error: "Couldn't change your plan. Please try again." }, { status: 502 });
   }
 

@@ -61,3 +61,27 @@ export function priceIdForPlan(plan: BillingPlan, interval: BillingInterval): st
 export function expectedCentsForPriceId(priceId: string): number | null {
   return buildPrices().find((p) => p.id === priceId)?.cents ?? null;
 }
+
+// ── Upgrade vs downgrade ─────────────────────────────────────────────────────
+// Drives WHEN money moves: an upgrade is invoiced immediately (the customer gets
+// the bigger plan now, so they pay for it now — otherwise they'd have Office
+// free until their next billing date). A downgrade or a lateral move is left to
+// ride on the next invoice as a credit, so we never owe a cash refund.
+//
+// Office outranks Pro. Within the same plan, annual outranks monthly (a bigger
+// upfront commitment). An unknown current plan is treated as an upgrade —
+// charging now is the safe direction: it can't hand out free access, and the
+// amount is always Stripe's own proration, never something we invented.
+const PLAN_RANK: Record<BillingPlan, number> = { pro: 1, office: 2 };
+const INTERVAL_RANK: Record<BillingInterval, number> = { monthly: 1, annual: 2 };
+
+export function isUpgrade(
+  current: { plan: BillingPlan; interval: BillingInterval } | null | undefined,
+  target: { plan: BillingPlan; interval: BillingInterval },
+): boolean {
+  if (!current) return true;
+  if (PLAN_RANK[target.plan] !== PLAN_RANK[current.plan]) {
+    return PLAN_RANK[target.plan] > PLAN_RANK[current.plan];
+  }
+  return INTERVAL_RANK[target.interval] > INTERVAL_RANK[current.interval];
+}
