@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 // match the code. Update LAST_UPDATED whenever the policy meaningfully changes
 // (CalOPPA requires an effective date).
 
-const LAST_UPDATED = "July 13, 2026";
+const LAST_UPDATED = "July 14, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
         <ul className="mb-3">
           <LI><strong>View analytics</strong> — when someone opens a card or Swift Links page, we record the view with an approximate location (city/country derived from IP address by our hosting provider), the source (QR code, link, etc.), and basic device info. We do not store visitors&apos; IP addresses with these views.</LI>
           <LI><strong>Product analytics</strong> — we use PostHog to understand how the app is used (pages visited, features used, general device/browser info) so we can improve it. We use this for product improvement only, not third-party advertising.</LI>
-          <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). We use these solely to detect abuse of our referral program (for example, one person inviting themselves repeatedly) and rate-limit abuse.</LI>
+          <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). If you subscribe, our payment processor (Stripe) also gives us a non-reversible fingerprint of your payment card — a one-way hash, never your card number. We use these solely to detect abuse of our referral program (for example, one person inviting themselves or claiming the same offer repeatedly across accounts) and to rate-limit abuse. We do not use them for advertising.</LI>
           <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
         </ul>
 
