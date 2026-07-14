@@ -7,31 +7,14 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  async function handleUpgrade() {
+  // Route through /upgrade rather than POSTing straight to Stripe. Jumping
+  // directly to a checkout session skipped the order summary and the Terms /
+  // auto-renew consent that every other point of sale shows — and it silently
+  // forced Pro monthly, with no way to pick annual or Office.
+  function handleUpgrade() {
     setLoading(true);
     setErr(null);
-    try {
-      // Send an explicit Pro monthly price so checkout doesn't depend on a
-      // server-side default env var; fall back to the server default if the
-      // public price id isn't configured.
-      const priceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(priceId ? { priceId } : {}),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const { url, error } = await res.json();
-      if (url) {
-        window.location.href = url;
-      } else {
-        setErr(error || "Couldn't start checkout. Please try again or contact support.");
-        setLoading(false);
-      }
-    } catch {
-      setErr("Couldn't reach checkout. Check your connection and try again.");
-      setLoading(false);
-    }
+    window.location.href = "/upgrade";
   }
 
   if (variant === "inline") {
@@ -77,7 +60,7 @@ export default function UpgradeButton({ variant = "banner" }: { variant?: "banne
 
 export function UpgradeLink({ className }: { className?: string }) {
   return (
-    <Link href="/pricing" className={className ?? "text-xs text-blue-400 hover:text-blue-300 font-semibold"}>
+    <Link href="/upgrade" className={className ?? "text-xs text-blue-400 hover:text-blue-300 font-semibold"}>
       Upgrade →
     </Link>
   );

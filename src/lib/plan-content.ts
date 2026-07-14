@@ -52,7 +52,6 @@ export const PLAN_FEATURES = {
     "Every teammate's leads in one place",
     "Add or remove people anytime — your bill updates itself",
     "Admin controls: edit or switch off any card",
-    "Bulk CSV import of contacts",
     "Priority support",
   ],
 } as const;

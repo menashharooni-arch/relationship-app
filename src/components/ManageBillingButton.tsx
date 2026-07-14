@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-// Opens the Stripe portal, which the server scopes to payment method + invoices
-// only (see lib/stripe-portal.ts). Changing plan and cancelling are deliberately
-// NOT here — they're native flows in BillingManager, so this button and those
-// buttons no longer do overlapping jobs.
+// Opens the Stripe customer portal on the account's default configuration, so
+// what it offers — payment method, invoices, cancellation questions, retention
+// coupon, promo codes — is controlled from the Stripe Dashboard rather than
+// hardcoded here.
 export default function ManageBillingButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +35,7 @@ export default function ManageBillingButton() {
         disabled={loading}
         className="w-full text-center text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2.5 transition-colors disabled:opacity-50"
       >
-        {loading ? "Opening…" : "Payment method & invoices"}
+        {loading ? "Opening…" : "Manage subscription & payment"}
       </button>
       {error && <p className="text-red-400 text-xs mt-1.5 text-center">{error}</p>}
     </div>

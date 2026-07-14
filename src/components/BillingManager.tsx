@@ -202,9 +202,12 @@ export default function BillingManager() {
           it, behind the reason prompt and the retention offer, rather than a
           one-click exit sitting on the surface. */}
       <div className="space-y-2.5 mt-4">
+        {/* In-product upgrade — /upgrade, not the marketing /pricing page: no
+            Free column to re-pick and no trial offer, since they're already a
+            user. Just Pro or Office, start and pay. */}
         {!isPaid && (
-          <a href="/pricing" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
-            Upgrade to Pro →
+          <a href="/upgrade" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
+            Upgrade →
           </a>
         )}
 

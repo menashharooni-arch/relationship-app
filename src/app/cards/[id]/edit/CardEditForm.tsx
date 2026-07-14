@@ -454,7 +454,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
                 <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
                 {!isPro && (
-                  <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                  <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
                     Unlock custom colors &amp; fonts with Pro →
                   </Link>
                 )}
@@ -554,7 +554,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               )}
               {atLinkCap ? (
                 <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/pricing" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> for unlimited links.
+                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> for unlimited links.
                 </p>
               ) : (
                 <div className="space-y-2">
