@@ -1,5 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { cardWithinPlanLimit } from "@/lib/card-active";
+import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 
 export type ResolvedCardMeta = {
@@ -37,6 +37,10 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     ? !!(owner?.customization as { _deleted?: boolean } | null)?._deleted
     : !!(profileRow?.customization as { _deleted?: boolean } | null)?._deleted;
   if (deleted) return null;
+
+  // Office kill-switch — a card an admin took offline resolves to nothing, so
+  // its OG/share image, signature image and wallet pass go dark with the page.
+  if (cardIsOffline(cardRow)) return null;
 
   // Plan kill-switch — extra Pro-era cards resolve to nothing (kills the OG
   // share image and the wallet pass alongside the page itself).

@@ -1,6 +1,12 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 
 export type OfficeAddress = { street?: string; unit?: string; city?: string; state?: string; zip?: string };
+
+// The look an office owns: colors + fonts, copied from the primary card. These
+// are the ONLY customization keys the office overwrites — an employee's personal
+// content (photoUrl, bio, links, socials, testimonials) is never touched.
+export const OFFICE_DESIGN_KEYS = PRO_CUSTOMIZATION_KEYS;
 
 export type OfficeBrand = {
   logoUrl: string | null;
@@ -8,15 +14,33 @@ export type OfficeBrand = {
   website: string | null;
   template: string | null;
   customLayout: unknown | null;
+  // The locked look (colors + fonts) taken from the primary card. Applied only
+  // while lockTemplate is on — it travels with the template, since a template
+  // without its colors/fonts isn't a consistent look.
+  design: Record<string, unknown> | null;
   // Company-controlled uniform contact (spec §8) — applied to member cards' data.
   phone: string | null;
   fax: string | null;
   address: OfficeAddress | null;
   // Per-field locks (spec §9). lockTemplate=false lets employees pick their own
-  // template; true (default) forces the office template. Required contact fields
-  // (logo/company/website/phone/fax/address) are always company-controlled.
+  // template AND colors/fonts; true (default) forces the office look. Required
+  // contact fields (logo/company/website/phone/fax/address) are ALWAYS
+  // company-controlled regardless of this flag.
   lockTemplate: boolean;
 };
+
+// Pull just the design keys out of a card's customization blob. Used to derive
+// the office look from the admin's primary card.
+export function extractDesign(
+  customization: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  const cust = customization ?? {};
+  const design: Record<string, unknown> = {};
+  for (const key of OFFICE_DESIGN_KEYS) {
+    if (cust[key] !== undefined && cust[key] !== null && cust[key] !== "") design[key] = cust[key];
+  }
+  return Object.keys(design).length ? design : null;
+}
 
 // Returns the office brand for a given office, or null if none is set.
 export async function getOfficeBrand(officeId: string | null | undefined): Promise<OfficeBrand | null> {
@@ -26,6 +50,15 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
   // errors, so fall back to the base columns.
   let office: Record<string, unknown> | null = null;
   {
+    const { data } = await admin
+      .from("offices")
+      .select("brand_logo_url, brand_company, brand_website, brand_template, brand_custom_layout, brand_phone, brand_fax, brand_address, brand_locks, brand_design")
+      .eq("id", officeId)
+      .maybeSingle();
+    office = data as Record<string, unknown> | null;
+  }
+  if (!office) {
+    // brand_design missing (pre office-primary-card.sql) — retry without it.
     const { data } = await admin
       .from("offices")
       .select("brand_logo_url, brand_company, brand_website, brand_template, brand_custom_layout, brand_phone, brand_fax, brand_address, brand_locks")
@@ -45,9 +78,11 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
 
   const addr = office.brand_address as OfficeAddress | null | undefined;
   const hasAddr = !!addr && Object.values(addr).some((v) => (v ?? "").toString().trim());
+  const design = (office.brand_design as Record<string, unknown> | null) ?? null;
+  const hasDesign = !!design && Object.keys(design).length > 0;
   // A brand is "active" once the admin has set the logo or ANY company field.
   if (!office.brand_logo_url && !office.brand_company && !office.brand_website && !office.brand_template
-      && !office.brand_phone && !office.brand_fax && !hasAddr) {
+      && !office.brand_phone && !office.brand_fax && !hasAddr && !hasDesign) {
     return null;
   }
   const locks = (office.brand_locks as { template?: boolean } | null) ?? null;
@@ -57,11 +92,32 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
     website: (office.brand_website as string) ?? null,
     template: (office.brand_template as string) ?? null,
     customLayout: office.brand_custom_layout ?? null,
+    design: hasDesign ? design : null,
     phone: (office.brand_phone as string) ?? null,
     fax: (office.brand_fax as string) ?? null,
     address: hasAddr ? (addr as OfficeAddress) : null,
-    lockTemplate: locks?.template !== false, // default true (preserve uniform template)
+    lockTemplate: locks?.template !== false, // default true (preserve uniform look)
   };
+}
+
+// ── Pure overlay: force the office's locked look (colors + fonts) onto a card's
+// customization. Only runs while the template lock is on — an unlocked office
+// lets employees pick their own look. The employee's personal content
+// (photoUrl, bio, links, socials, …) is never touched, only the design keys.
+// Exported for unit testing.
+export function overlayOfficeDesign(
+  customization: Record<string, unknown> | null | undefined,
+  brand: Pick<OfficeBrand, "design" | "lockTemplate">,
+): Record<string, unknown> {
+  const cust: Record<string, unknown> = { ...(customization ?? {}) };
+  if (!brand.lockTemplate || !brand.design) return cust;
+  for (const key of OFFICE_DESIGN_KEYS) {
+    // Whatever the office set wins; a key the office does NOT define is cleared
+    // so an employee can't reintroduce an off-brand colour the office omitted.
+    if (brand.design[key] !== undefined) cust[key] = brand.design[key];
+    else delete cust[key];
+  }
+  return cust;
 }
 
 // ── Pure overlay: apply the company-controlled contact fields onto a card's
@@ -127,19 +183,27 @@ export async function applyBrandToUserCards(userId: string, brand: OfficeBrand):
   if (brand.lockTemplate && brand.template) topLevel.template = brand.template;
 
   const hasContact = !!(brand.phone || brand.fax || brand.address);
-  if (!Object.keys(topLevel).length && !hasContact) return;
+  // The locked look also lives in customization, so it needs the same per-card
+  // read/merge/write path as the contact overlay.
+  const hasDesign = !!(brand.lockTemplate && brand.design);
+  if (!Object.keys(topLevel).length && !hasContact && !hasDesign) return;
 
-  if (!hasContact) {
+  if (!hasContact && !hasDesign) {
     await admin.from("cards").update(topLevel).eq("user_id", userId);
     return;
   }
 
-  // Company contact lives in customization → per-card read/merge/write so
-  // personal fields are preserved.
+  // Company contact + locked look live in customization → per-card read/merge/
+  // write so the employee's personal fields are preserved.
   const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId);
   for (const c of cards ?? []) {
-    const merged = overlayOfficeContact(c.customization as Record<string, unknown> | null, brand);
-    await admin.from("cards").update({ ...topLevel, customization: merged }).eq("id", c.id);
+    let merged = c.customization as Record<string, unknown> | null;
+    if (hasContact) merged = overlayOfficeContact(merged, brand);
+    if (hasDesign) merged = overlayOfficeDesign(merged, brand);
+    if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
+      merged = { ...(merged ?? {}), customLayout: brand.customLayout };
+    }
+    await admin.from("cards").update({ ...topLevel, customization: merged ?? {} }).eq("id", c.id);
   }
 }
 

@@ -126,6 +126,11 @@ export default async function CardPage({
 
   if (!profile || ownerDeleted) notFound();
 
+  // Office admin kill-switch: a card taken offline from /office/admin goes dark
+  // (page, QR, links) while keeping its data, history and captured contacts —
+  // so it can be brought back. Absent column (pre-migration) = still live.
+  if (cardRow && cardRow.is_offline === true) notFound();
+
   // Plan kill-switch: a Free account only serves its first card(s) — extra
   // cards created on Pro go dark (page, QR, links) after a downgrade.
   if (cardRow && !(await cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan))) {

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
+import { ensurePrimaryCard, getOwnedOfficeId } from "@/lib/office-primary";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -60,9 +61,10 @@ export async function POST(req: NextRequest) {
   // Custom designer is Pro-only — Free can't save a "custom" template.
   let safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 
-  // Office uniform branding: if the user is under an office with a brand,
-  // force the logo, company, website and design — individuals keep only their
-  // personal details (name/title/phone/email).
+  // Office uniform branding: if the user is under an office with a brand, force
+  // the logo, company, website and the whole look — every employee card is based
+  // on the admin's primary card. Employees keep only their personal details
+  // (name/title/phone/email) and their own content (headshot/bio/personal links).
   let finalCompany = company || "";
   let finalWebsite = website || "";
   let finalLogo = logo_url || null;
@@ -75,6 +77,8 @@ export async function POST(req: NextRequest) {
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
     // Company phone/fax/address (spec §8) — uniform on every member card.
     if (brand.phone || brand.fax || brand.address) cust = overlayOfficeContact(cust, brand);
+    // Locked look (colours + fonts) — no-op while the office leaves it unlocked.
+    cust = overlayOfficeDesign(cust, brand);
   }
 
   const cardRow = {
@@ -125,6 +129,16 @@ export async function POST(req: NextRequest) {
   // slug that was actually inserted (may differ from our first pick after a race).
   if ((count ?? 0) === 0) {
     await seedDemoContact(data.username);
+  }
+
+  // Office seat 1: the owner's first card becomes the office's PRIMARY card —
+  // every employee card is then based on it (logo/company/website/template/look).
+  // Only the owner's card can be primary, and only when the slot is still empty.
+  try {
+    const ownedOfficeId = await getOwnedOfficeId(user.id);
+    if (ownedOfficeId) await ensurePrimaryCard(ownedOfficeId, data.id as string);
+  } catch {
+    // Best-effort: never fail card creation because the brand sync hiccuped.
   }
 
   return NextResponse.json({ card: data });

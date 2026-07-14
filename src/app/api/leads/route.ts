@@ -6,7 +6,7 @@ import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
-import { cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
+import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 
@@ -53,7 +53,10 @@ export async function POST(req: NextRequest) {
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
     const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, customization";
-    const { data: cardRow } = await admin.from("cards").select("id, user_id, name, email, phone, company, label").eq("username", card_owner).maybeSingle();
+    // select("*") so the is_offline kill-switch is actually present on the row —
+    // an explicit column list would silently omit it (and would error outright on
+    // a pre-migration schema), leaving lead capture open on an offline card.
+    const { data: cardRow } = await admin.from("cards").select("*").eq("username", card_owner).maybeSingle();
     const { data: ownerProfile } = cardRow?.user_id
       ? await admin.from("profiles").select(ownerSelect).eq("id", cardRow.user_id).maybeSingle()
       : await admin.from("profiles").select(ownerSelect).eq("username", card_owner).maybeSingle();
@@ -72,6 +75,11 @@ export async function POST(req: NextRequest) {
     // plan-deactivated extra cards — the page 404s, and this API must not be a
     // back door (previously a bogus card_owner could insert orphan leads).
     if (!ownerProfile || ownerIsDeleted(ownerProfile.customization)) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    // A card an office admin took offline captures no leads either — its page
+    // 404s, so this API must not stay open as a back door.
+    if (cardIsOffline(cardRow)) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
     if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerProfile.plan))) {

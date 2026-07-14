@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
 import { NextResponse } from "next/server";
 
 // GET — return office + members for the calling admin
@@ -54,5 +55,14 @@ export async function POST(req: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // The admin builds their seat-1 card BEFORE the office exists, so adopt it now
+  // as the primary card — every employee card is based on it.
+  try {
+    await adoptPrimaryCardForOwner(office.id as string, user.id);
+  } catch {
+    // Best-effort — /office/admin backfills this on load if it didn't take.
+  }
+
   return NextResponse.json(office);
 }
