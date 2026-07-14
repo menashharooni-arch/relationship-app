@@ -70,10 +70,15 @@ export default async function OfficePage() {
   };
 
   // Owner (or owner-to-be) loads by ownership; a member-admin loads THEIR office.
+  // Both go through the service-role client: the offices RLS policies are
+  // mutually recursive with office_members, so the user-scoped client raises
+  // "infinite recursion detected in policy for relation offices" as soon as
+  // there is a row to evaluate the policy against. Each query is still pinned to
+  // this caller (their own owner_id, or the office their context resolved to).
   const officeQuery = getAdminSupabase().from("offices").select("*, office_members(*)");
   const { data: office } = ctx && !ctx.isOwner
-    ? await officeQuery.eq("id", ctx.officeId).single()
-    : await supabase.from("offices").select("*, office_members(*)").eq("owner_id", user.id).single();
+    ? await officeQuery.eq("id", ctx.officeId).maybeSingle()
+    : await getAdminSupabase().from("offices").select("*, office_members(*)").eq("owner_id", user.id).maybeSingle();
 
   // Fetch unified team leads if office exists. Leads are keyed by CARD username,
   // which differs from a member's profile handle — so gather every card slug the

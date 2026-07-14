@@ -1,7 +1,16 @@
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
 import { NextResponse } from "next/server";
+
+// Reads/writes go through the service-role client with the caller's identity
+// checked here, first — the same pattern every other office route uses
+// (invite/join/members/role/brand). The offices RLS policies are mutually
+// recursive with office_members ("infinite recursion detected in policy for
+// relation offices"), which made office creation fail outright through the
+// user-scoped client. Authorization below is explicit and does not depend on
+// RLS: every query is pinned to the caller's own user id.
 
 // GET — return office + members for the calling admin
 export async function GET() {
@@ -9,10 +18,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: office } = await supabase
+  const { data: office } = await getAdminSupabase()
     .from("offices")
     .select("*, office_members(*)")
-    .eq("owner_id", user.id)
+    .eq("owner_id", user.id) // scoped to the caller — never a broad read
     .maybeSingle();
 
   return NextResponse.json(office ?? null);
@@ -24,7 +33,9 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: profile } = await supabase
+  const admin = getAdminSupabase();
+
+  const { data: profile } = await admin
     .from("profiles")
     .select("plan")
     .eq("id", user.id)
@@ -35,7 +46,7 @@ export async function POST(req: Request) {
   }
 
   // Return existing office if already set up
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("offices")
     .select("*")
     .eq("owner_id", user.id)
@@ -48,7 +59,8 @@ export async function POST(req: Request) {
   // Seats MUST be set — the invite/seat math divides by it. A Stripe purchase
   // provisions the real seat count via the webhook; a manually-created office
   // (e.g. plan granted by an admin) defaults to the minimum so invites work.
-  const { data: office, error } = await supabase
+  // owner_id is always the CALLER's id, never a value from the request body.
+  const { data: office, error } = await admin
     .from("offices")
     .insert({ name: name.trim(), owner_id: user.id, seats: PLAN_LIMITS.OFFICE_MIN_SEATS })
     .select()
