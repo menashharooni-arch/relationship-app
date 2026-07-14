@@ -10,6 +10,7 @@ import SwiftLinkMiniBuilder from "@/components/site/SwiftLinkMiniBuilder";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import SignatureMiniBuilder from "@/components/site/SignatureMiniBuilder";
 import DashboardDemo from "@/components/site/DashboardDemo";
+import IntegrationLogos from "@/components/site/IntegrationLogos";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
@@ -184,6 +185,23 @@ export default function Home() {
               </p>
             </div>
             <div data-reveal="fade"><DashboardDemo /></div>
+          </div>
+        </section>
+
+        {/* ═══════════════ INTEGRATIONS / CRM ═══════════════ */}
+        <section id="integrations" className="rd-dark relative py-16 sm:py-20 border-t border-white/10 overflow-hidden">
+          <div className="relative max-w-5xl mx-auto px-5 sm:px-6 text-center">
+            <div data-reveal className="flex justify-center"><Eyebrow>Integrations</Eyebrow></div>
+            <h2 className="rd-h2 text-[clamp(1.7rem,3.6vw,2.5rem)] text-white mt-4" data-reveal>
+              Your leads flow into the <span className="rd-aurora-text">tools you already use.</span>
+            </h2>
+            <p className="text-white/55 text-[1.05rem] mt-3.5 max-w-[560px] mx-auto leading-relaxed" data-reveal>
+              Every contact you capture syncs straight to your CRM — no copy-paste, no exports, no lost leads.
+            </p>
+            <div className="mt-9" data-reveal="fade"><IntegrationLogos /></div>
+            <div className="mt-8" data-reveal>
+              <Link href="/products/integrations" className="rd-btn rd-btn-ghost-d">Explore integrations →</Link>
+            </div>
           </div>
         </section>
 
