@@ -22,6 +22,7 @@ type Product = {
   subtitle: string;
   demo: React.ReactNode;
   wide?: boolean; // demo spans full width below the hero copy
+  ctaLabel?: string; // hero button label (defaults to "Create your free card")
   features: Feature[];
   metaDesc: string;
 };
@@ -134,6 +135,7 @@ const PRODUCTS: Record<string, Product> = {
     subtitle: "However you meet someone, there's a way to hand them your card in a second — Apple Wallet, a QR code, or the share sheet. No app, no signal, no fumbling.",
     demo: <ShareWaysPhones />,
     wide: true,
+    ctaLabel: "Get Started",
     features: [
       { t: "One tap to add", d: "Save your card to Wallet and reach it from your lock screen instantly." },
       { t: "Works offline", d: "No signal needed — your QR is right there whenever you need it." },
@@ -264,7 +266,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[620px]" data-reveal>{p.subtitle}</p>
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
+                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
                   {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
                 </div>
               </div>
@@ -277,7 +279,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]" data-reveal>{p.subtitle}</p>
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
+                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
                   {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
                 </div>
               </div>
