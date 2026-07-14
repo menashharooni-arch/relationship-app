@@ -27,9 +27,9 @@ const CARD_DATA: CardData = withoutSocials({
 const CARD_URL = "https://swiftcard.me/card/demo-realty";
 
 const TUCKED = [
-  { grad: "linear-gradient(120deg,#1f2937,#374151)", tail: "2084" },
-  { grad: "linear-gradient(120deg,#155e63,#0e7490)", tail: "7731" },
-  { grad: "linear-gradient(120deg,#3b2f63,#5b21b6)", tail: "0090" },
+  { grad: "linear-gradient(120deg,#1a1a2e,#3a3a5c)", tail: "2084", network: "VISA" },
+  { grad: "linear-gradient(120deg,#0f766e,#0e7490)", tail: "7731", network: "amex" },
+  { grad: "linear-gradient(120deg,#c2410c,#ea580c)", tail: "0090", network: "MC" },
 ];
 
 // iOS-style status bar (dark glyphs for a white screen).
@@ -91,8 +91,8 @@ function WalletPhone() {
             {/* Only the top strip of each card shows; keep the label row inside it,
                 digits right-aligned and tabular so they line up card to card. */}
             <div className="flex items-center justify-between px-4 h-[22px] pt-2">
-              <span className="text-white/90 text-[11px] font-semibold tracking-wide leading-none">Card</span>
-              <span className="text-white/65 text-[11px] font-medium tabular-nums tracking-[0.12em] leading-none">•••• {c.tail}</span>
+              <span className="text-white/60 text-[11px] font-medium tabular-nums tracking-[0.12em] leading-none">•••• {c.tail}</span>
+              <span className="text-white text-[11px] font-bold italic tracking-tight leading-none">{c.network}</span>
             </div>
           </div>
         ))}
@@ -143,7 +143,7 @@ function ContactBubble({ initials, name, color }: { initials: string; name: stri
   );
 }
 function SharePhone() {
-  const actions = ["Copy Link", "Add to Home Screen", "Add to Reading List", "Save to Files", "Print"];
+  const actions = ["Copy Link", "Add to Home Screen", "Save to Files"];
   return (
     <>
       <StatusBar />
@@ -178,12 +178,12 @@ function SharePhone() {
         </div>
         {/* app row */}
         <div className="flex gap-2 px-2.5 mb-1 overflow-x-auto rd-scrollbar-none">
-          <AppIcon bg="#34C759" label="Messages"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.2 1.1 4.2 3 5.6V21l3.6-2c1.1.3 2.2.4 3.4.4 5.5 0 10-3.6 10-8.4S17.5 3 12 3z" /></svg></AppIcon>
-          <AppIcon bg="#0A84FF" label="Mail"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3.5 7l8.5 6 8.5-6" /></svg></AppIcon>
-          <AppIcon bg="#25D366" label="WhatsApp"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.7-2.7-1.1-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.7s.7-1.9 1-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2 1.3 2.3 1.5.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.3.1.4.2.5.3 0 .2 0 .8-.2 1.4z" /></svg></AppIcon>
-          <AppIcon bg="#5b21b6" label="Notes"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M7 4h10a2 2 0 012 2v9l-5 5H7a2 2 0 01-2-2V6a2 2 0 012-2z" /><path d="M14 20v-4a1 1 0 011-1h4" /></svg></AppIcon>
-          <AppIcon bg="#FF9500" label="Reminders"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg></AppIcon>
-          <AppIcon bg="#8E8E93" label="Copy"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg></AppIcon>
+          <AppIcon bg="linear-gradient(180deg,#3ee15a,#12bf3a)" label="Messages"><svg viewBox="0 0 24 24" className="w-[22px] h-[22px]" fill="currentColor"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.2 1.1 4.2 3 5.6V21l3.6-2c1.1.3 2.2.4 3.4.4 5.5 0 10-3.6 10-8.4S17.5 3 12 3z" /></svg></AppIcon>
+          <AppIcon bg="linear-gradient(180deg,#3cb0ff,#0a7cff)" label="Mail"><svg viewBox="0 0 24 24" className="w-[21px] h-[21px]" fill="currentColor"><path d="M4 5.5h16A1.5 1.5 0 0121.5 7v.3L12 13.4 2.5 7.3V7A1.5 1.5 0 014 5.5z" /><path d="M2.5 9.2l8.9 5.7c.37.24.86.24 1.23 0l8.87-5.7V17a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 17V9.2z" /></svg></AppIcon>
+          <AppIcon bg="#25D366" label="WhatsApp"><svg viewBox="0 0 24 24" className="w-[22px] h-[22px]" fill="currentColor"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.7-2.7-1.1-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.7s.7-1.9 1-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2 1.3 2.3 1.5.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.3.1.4.2.5.3 0 .2 0 .8-.2 1.4z" /></svg></AppIcon>
+          <AppIcon bg="#0A66C2" label="LinkedIn"><svg viewBox="0 0 24 24" className="w-[20px] h-[20px]" fill="currentColor"><path d="M6.94 8.5H4V20h2.94V8.5zM5.47 3.75A1.72 1.72 0 105.47 7.2a1.72 1.72 0 000-3.45zM20 20h-2.94v-5.6c0-1.33-.02-3.05-1.86-3.05-1.86 0-2.15 1.45-2.15 2.95V20H10.1V8.5h2.82v1.57h.04c.4-.75 1.36-1.54 2.8-1.54 3 0 3.55 1.97 3.55 4.53V20z" /></svg></AppIcon>
+          <AppIcon bg="radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)" label="Instagram"><svg viewBox="0 0 24 24" className="w-[20px] h-[20px]" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /><circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none" /></svg></AppIcon>
+          <AppIcon bg="linear-gradient(180deg,#9aa0aa,#6b7280)" label="Copy"><svg viewBox="0 0 24 24" className="w-[19px] h-[19px]" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg></AppIcon>
         </div>
         {/* action list */}
         <div className="mx-2.5 mt-3 rounded-2xl bg-white overflow-hidden">
