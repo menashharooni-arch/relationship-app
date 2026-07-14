@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
+import { canViewOfficeAdmin } from "@/lib/office-roles";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -304,6 +305,12 @@ export default async function DashboardPage({
 
   const ownedOffice = ownedOfficeRes.data;
 
+  // Who sees the "Admin" nav item (the team console at /office/admin) — mirrors
+  // that page's own access rule so the link never lands on a redirect. This is
+  // the OFFICE admin; the site-owner console at /admin is separate and gated by
+  // ADMIN_EMAILS (`isAdmin` below).
+  const canSeeOfficeAdmin = ownedOffice ? true : await canViewOfficeAdmin(user.id, profile.plan);
+
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
 
   // Bell tags: username → human label, so every notification shows which card
@@ -440,14 +447,16 @@ export default async function DashboardPage({
                 {label}
               </Link>
             ))}
-            {ownedOffice && (
-              <Link href="/office" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors">
-                Team
+            {canSeeOfficeAdmin && (
+              <Link href="/office/admin" data-tour="nav-admin" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                Admin
               </Link>
             )}
+            {/* Site-owner console — a different thing entirely from the Office
+                "Admin" above, so it's labelled separately to keep them apart. */}
             {isAdmin && (
               <Link href="/admin" className="text-sm text-blue-400 hover:text-blue-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors font-medium">
-                Admin
+                Site
               </Link>
             )}
           </div>

@@ -38,5 +38,5 @@ export default async function CheckoutSuccessPage({
     redirect(`/cards/new?add=1&postcheckout=${isOffice ? "office" : "pro"}`);
   }
 
-  redirect(isOffice ? "/office" : "/dashboard?upgraded=true&welcome=1");
+  redirect(isOffice ? "/office/admin" : "/dashboard?upgraded=true&welcome=1");
 }

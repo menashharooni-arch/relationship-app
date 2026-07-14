@@ -8,6 +8,9 @@ import DashboardLink from "@/components/DashboardLink";
 import { resolveOfficeContext, roleHasCapability, type OfficeRole } from "@/lib/office-roles";
 import { getOfficeAnalytics, type OfficeAnalytics } from "@/lib/office-analytics";
 import TeamAnalytics from "@/components/TeamAnalytics";
+import OfficeCards from "@/components/OfficeCards";
+import { listOfficeCards, type OfficeCard } from "@/lib/office-cards";
+import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -63,6 +66,7 @@ export default async function OfficePage() {
     canBrand: roleHasCapability(role, "manage_branding"),
     canManageRoles: roleHasCapability(role, "manage_roles"),
     canManageSeats: roleHasCapability(role, "manage_seats"),
+    canManageCards: roleHasCapability(role, "manage_member_cards"),
   };
 
   // Owner (or owner-to-be) loads by ownership; a member-admin loads THEIR office.
@@ -77,9 +81,19 @@ export default async function OfficePage() {
   // otherwise member leads captured on their real cards would be missing.
   let teamLeads: TeamLead[] = [];
   let analytics: OfficeAnalytics | null = null;
+  let officeCards: OfficeCard[] = [];
   if (office) {
+    // Backfill the primary card: an office can be created by the Stripe webhook
+    // or a plan change, neither of which can adopt the owner's card at the time.
+    // No-ops once set, so this is just a self-heal for every creation path.
+    try { await adoptPrimaryCardForOwner(office.id as string, office.owner_id as string); } catch { /* best-effort */ }
+
     // Organization + per-employee analytics (server-scoped to this office).
     try { analytics = await getOfficeAnalytics(office.id as string, office.owner_id as string); } catch { analytics = null; }
+    // Every card the office controls (owner + active members), for the manager.
+    if (caps.canManageCards) {
+      try { officeCards = await listOfficeCards(office.id as string); } catch { officeCards = []; }
+    }
     const admin = getAdminSupabase();
     const members = (office.office_members ?? []) as Member[];
     const candidateIds = members.filter((m) => m.status === "active" && m.user_id).map((m) => m.user_id!);
@@ -129,7 +143,8 @@ export default async function OfficePage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-1">SwiftCard</p>
-            <h1 className="text-2xl font-bold text-slate-900">Team Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Admin</h1>
+            <p className="text-sm text-slate-500 mt-0.5">Your team&apos;s cards, analytics and seats.</p>
           </div>
           <DashboardLink className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
             ← My card
@@ -149,6 +164,8 @@ export default async function OfficePage() {
             />
 
             {analytics && <TeamAnalytics data={analytics} />}
+
+            {caps.canManageCards && <OfficeCards cards={officeCards} appUrl={APP_URL} />}
 
             {caps.canBrand && <OfficeBranding office={office} />}
 
