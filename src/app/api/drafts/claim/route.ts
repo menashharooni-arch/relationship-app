@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import {
   buildClaimInsert,
@@ -177,8 +177,12 @@ export async function POST(req: NextRequest) {
     if (brand.logoUrl) insert.logo_url = brand.logoUrl;
     if (brand.company) insert.company = brand.company;
     if (brand.website) insert.website = brand.website;
-    if (brand.template) insert.template = brand.template;
-    if (brand.template === "custom" && brand.customLayout) cust.customLayout = brand.customLayout;
+    if (brand.lockTemplate && brand.template) insert.template = brand.template;
+    if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust.customLayout = brand.customLayout;
+    // Company phone/fax/address (spec §8).
+    if (brand.phone || brand.fax || brand.address) {
+      Object.assign(cust, overlayOfficeContact(cust as Record<string, unknown>, brand));
+    }
   }
 
   // Stamp the originating draft id for idempotency on any retry.

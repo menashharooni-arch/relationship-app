@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
@@ -81,13 +81,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false);
   }
 
-  // Office uniform branding: force brand fields so members can't override them.
+  // Office uniform branding: force company-controlled fields so members can't
+  // override them (spec §8). Template is forced only when locked (§9) — an
+  // unlocked office lets employees choose their own template.
   const brand = await getOfficeBrandForUser(user.id);
   if (brand) {
     if (brand.logoUrl) updates.logo_url = brand.logoUrl;
     if (brand.company) updates.company = brand.company;
     if (brand.website) updates.website = brand.website;
-    if (brand.template) updates.template = brand.template;
+    if (brand.lockTemplate && brand.template) updates.template = brand.template;
+    // Company phone/fax/address are enforced whenever the client sends
+    // customization (the overlay re-applies them on top of the employee's edit).
+    if ((brand.phone || brand.fax || brand.address) && "customization" in updates) {
+      updates.customization = overlayOfficeContact(updates.customization as Record<string, unknown>, brand);
+    }
   }
 
   const { error } = await admin

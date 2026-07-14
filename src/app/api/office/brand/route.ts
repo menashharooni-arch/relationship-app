@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
+import { overlayOfficeContact } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
@@ -32,14 +33,41 @@ export async function PATCH(req: NextRequest) {
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
+
+  // Company-controlled contact (spec §8) + template lock (spec §9).
+  const addrIn = (body.address ?? null) as { street?: string; unit?: string; city?: string; state?: string; zip?: string } | null;
+  const cleanAddr = addrIn && typeof addrIn === "object"
+    ? {
+        street: (addrIn.street ?? "").toString().trim(),
+        unit: (addrIn.unit ?? "").toString().trim(),
+        city: (addrIn.city ?? "").toString().trim(),
+        state: (addrIn.state ?? "").toString().trim(),
+        zip: (addrIn.zip ?? "").toString().trim(),
+      }
+    : null;
+  const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
+  const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
+
   const brand = {
     brand_logo_url: typeof body.logoUrl === "string" && body.logoUrl ? body.logoUrl : null,
     brand_company: typeof body.company === "string" ? body.company.trim() || null : null,
     brand_website: typeof body.website === "string" ? body.website.trim() || null : null,
     brand_template: typeof body.template === "string" && body.template ? body.template : null,
+    brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
+    brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
+    brand_address: hasAddr ? cleanAddr : null,
+    brand_locks: { template: lockTemplate },
   };
 
-  const { error } = await admin.from("offices").update(brand).eq("id", office.id);
+  // Save, retrying without the newer columns if the migration isn't run yet, so
+  // the core logo/company/website/template save never fails.
+  let { error } = await admin.from("offices").update(brand).eq("id", office.id);
+  if (error) {
+    ({ error } = await admin.from("offices").update({
+      brand_logo_url: brand.brand_logo_url, brand_company: brand.brand_company,
+      brand_website: brand.brand_website, brand_template: brand.brand_template,
+    }).eq("id", office.id));
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Propagate to all cards owned by the admin + every active member. Cross-check
@@ -70,10 +98,22 @@ export async function PATCH(req: NextRequest) {
   if (brand.brand_logo_url) cardUpdate.logo_url = brand.brand_logo_url;
   if (brand.brand_company) cardUpdate.company = brand.brand_company;
   if (brand.brand_website) cardUpdate.website = brand.brand_website;
-  if (brand.brand_template) cardUpdate.template = brand.brand_template;
+  if (lockTemplate && brand.brand_template) cardUpdate.template = brand.brand_template; // only force template when locked
 
   if (Object.keys(cardUpdate).length && userIds.length) {
     await admin.from("cards").update(cardUpdate).in("user_id", userIds);
+  }
+
+  // Company phone/fax/address live in customization → per-card overlay so every
+  // member card carries the uniform company contact (spec §8), preserving each
+  // card's personal fields.
+  if (userIds.length && (brand.brand_phone || brand.brand_fax || brand.brand_address)) {
+    const contact = { phone: brand.brand_phone, fax: brand.brand_fax, address: brand.brand_address };
+    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", userIds);
+    for (const c of memberCards ?? []) {
+      const merged = overlayOfficeContact(c.customization as Record<string, unknown> | null, contact);
+      await admin.from("cards").update({ customization: merged }).eq("id", c.id);
+    }
   }
 
   // A brand field the owner just CLEARED must also come off the cards —
