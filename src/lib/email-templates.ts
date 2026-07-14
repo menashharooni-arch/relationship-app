@@ -12,9 +12,11 @@ function layout(body: string, unsubscribeUrl?: string) {
 <tr><td align="center">
 <table width="100%" style="max-width:520px;">
 
-  <!-- Logo -->
+  <!-- Logo: the real brand mark + wordmark. If a client blocks images, the
+       wordmark text still renders, so branding never disappears. -->
   <tr><td style="padding-bottom:32px;">
-    <span style="font-size:11px;font-weight:800;letter-spacing:0.2em;color:#94a3b8;text-transform:uppercase;">SwiftCard</span>
+    <img src="${APP_URL}/brand-icon.png" width="28" height="28" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;" />
+    <span style="font-size:13px;font-weight:800;letter-spacing:0.02em;color:#111827;vertical-align:middle;">SwiftCard</span>
   </td></tr>
 
   <!-- Body -->
