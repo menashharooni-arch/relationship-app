@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import ManageBillingButton from "./ManageBillingButton";
 
 type Props = {
   email: string;
@@ -12,39 +10,17 @@ type Props = {
   defaultOpen?: boolean;
 };
 
+// Account basics (email, card count, current plan at a glance). Subscription
+// management — Change Plan / Cancel / Keep / seats — lives in its own Billing
+// section (BillingManager), so this stays a simple read-only summary.
 export default function GeneralSettings({ email, cardCount, plan, isPro, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const planLabel = plan === "enterprise" ? "Office" : isPro ? "Pro" : "Free";
   const ref = useRef<HTMLDivElement>(null);
 
-  // Downgrade (individual Pro only — Office manages seats via the billing portal).
-  const canDowngrade = plan === "pro";
-  const [confirmingDowngrade, setConfirmingDowngrade] = useState(false);
-  const [downgrading, setDowngrading] = useState(false);
-  const [downgradeError, setDowngradeError] = useState("");
-
-  // Deep-linked from a receipt email (?billing=1) → open and scroll into view.
   useEffect(() => {
     if (defaultOpen) ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [defaultOpen]);
-
-  async function downgradeToFree() {
-    setDowngrading(true);
-    setDowngradeError("");
-    try {
-      const res = await fetch("/api/account/downgrade", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setDowngradeError(data.error || "Couldn't switch to Free — please try again.");
-        setDowngrading(false);
-        return;
-      }
-      window.location.reload();
-    } catch {
-      setDowngradeError("Couldn't switch to Free — please try again.");
-      setDowngrading(false);
-    }
-  }
 
   return (
     <div ref={ref} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
@@ -63,7 +39,7 @@ export default function GeneralSettings({ email, cardCount, plan, isPro, default
           </div>
           <div className="min-w-0">
             <p className="text-white text-sm font-semibold">General</p>
-            <p className="text-gray-500 text-xs truncate">Account, plan &amp; billing</p>
+            <p className="text-gray-500 text-xs truncate">Account details</p>
           </div>
         </div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
@@ -73,78 +49,22 @@ export default function GeneralSettings({ email, cardCount, plan, isPro, default
       </button>
 
       {open && (
-        <div className="px-5 pb-5 space-y-4 border-t border-gray-800">
-          {/* Account info */}
-          <div className="pt-4">
-            <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Account</p>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-gray-500 text-xs shrink-0">Email</span>
-                <span className="text-white text-xs font-medium truncate">{email}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-gray-500 text-xs shrink-0">Cards</span>
-                <span className="text-white text-xs font-medium truncate">{cardCount} card{cardCount === 1 ? "" : "s"}</span>
-              </div>
-            </div>
+        <div className="px-5 pb-5 space-y-1.5 border-t border-gray-800 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-gray-500 text-xs shrink-0">Email</span>
+            <span className="text-white text-xs font-medium truncate">{email}</span>
           </div>
-
-          <div className="h-px bg-gray-800" />
-
-          {/* Subscription & payment */}
-          <div>
-            <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Subscription</p>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <span className="text-gray-500 text-xs">Current plan</span>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-                {planLabel}
-              </span>
-            </div>
-            {isPro ? (
-              <ManageBillingButton />
-            ) : (
-              <Link href="/pricing" className="block text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">
-                Upgrade to Pro →
-              </Link>
-            )}
-            <p className="text-gray-600 text-[11px] mt-2 leading-relaxed">
-              {isPro
-                ? "Update your payment method, view invoices (card ending shown there), or cancel anytime in the billing portal."
-                : "Pro unlocks unlimited cards, analytics, custom card design, and removes SwiftCard branding."}
-            </p>
-
-            {/* Change plan — a one-tap downgrade to Free, so people don't have to
-                cancel through the portal or the delete flow. Office manages seats
-                via the portal, so it's only offered for individual Pro. */}
-            {canDowngrade && (
-              <div className="mt-3 pt-3 border-t border-gray-800/70">
-                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">Change plan</p>
-                {confirmingDowngrade ? (
-                  <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-                    <p className="text-gray-300 text-xs leading-relaxed mb-2.5">
-                      Switch to Free? Your Pro billing stops now and your account, cards, and contacts stay. You can upgrade again anytime.
-                    </p>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setConfirmingDowngrade(false)} disabled={downgrading}
-                        className="flex-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors disabled:opacity-50">
-                        Keep Pro
-                      </button>
-                      <button type="button" onClick={downgradeToFree} disabled={downgrading}
-                        className="flex-1 text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors disabled:opacity-50">
-                        {downgrading ? "Switching…" : "Switch to Free"}
-                      </button>
-                    </div>
-                    {downgradeError && <p className="text-red-400 text-[11px] mt-2">{downgradeError}</p>}
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setConfirmingDowngrade(true)}
-                    className="w-full text-center text-xs font-medium text-gray-400 hover:text-white border border-gray-800 hover:border-gray-600 rounded-full py-2.5 transition-colors">
-                    Downgrade to Free
-                  </button>
-                )}
-              </div>
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-gray-500 text-xs shrink-0">Cards</span>
+            <span className="text-white text-xs font-medium truncate">{cardCount} card{cardCount === 1 ? "" : "s"}</span>
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-gray-500 text-xs shrink-0">Plan</span>
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+              {planLabel}
+            </span>
+          </div>
+          <p className="text-gray-600 text-[11px] pt-2">Manage your subscription in the Billing section below.</p>
         </div>
       )}
     </div>

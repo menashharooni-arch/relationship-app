@@ -12,12 +12,15 @@ const REASONS = [
   "Other",
 ];
 
-type Step = "survey" | "retain" | "confirm" | "done" | "downgraded";
+type Step = "survey" | "confirm";
 
+// Account Danger Zone: permanent deletion, clearly labeled and secondary-styled.
+// Subscription actions (cancel / switch to Free / retention offer) live in the
+// Billing section — deletion here is deletion, no retention traps. We still show
+// a neutral pointer to Billing so someone who only wants to stop paying knows
+// they don't have to delete.
 export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean; plan?: string }) {
-  // Individual Pro can self-downgrade to Free (keep the account, cancel billing).
-  // Office/enterprise is managed from office settings, so we don't offer it here.
-  const canDowngrade = plan === "pro";
+  void plan;
   const [expanded, setExpanded] = useState(false);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState<Step>("survey");
@@ -42,37 +45,7 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
       return;
     }
     setError("");
-    setStep(isPro ? "retain" : "confirm");
-  }
-
-  async function stayWithOffer() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/account/retain", { method: "POST" });
-      if (!res.ok) throw new Error("retain failed");
-      setStep("done");
-    } catch {
-      setError("Something went wrong applying your offer — please try again.");
-    }
-    setLoading(false);
-  }
-
-  async function downgradeToFree() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/account/downgrade", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Couldn't switch to Free — please try again.");
-        setLoading(false);
-        return;
-      }
-      setStep("downgraded");
-    } catch {
-      setError("Couldn't switch to Free — please try again.");
-    }
-    setLoading(false);
+    setStep("confirm");
   }
 
   async function finalizeDelete() {
@@ -91,7 +64,6 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
         setLoading(false);
         return;
       }
-      // Session ended server-side — go to the deleted page (full reload).
       window.location.href = "/account-deleted";
     } catch {
       setError("Couldn't delete the account. Try again.");
@@ -104,20 +76,31 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center justify-between text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl px-5 py-4 transition-colors"
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between text-sm font-semibold text-gray-300 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl px-5 py-4 transition-colors"
       >
-        Manage account
+        <span className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 text-red-400/80">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          Danger Zone
+        </span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 text-gray-500 transition-transform ${expanded ? "rotate-90" : ""}`}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </button>
 
       {expanded && (
-        <div className="mt-3 bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-white text-sm font-medium">Delete account</p>
+        <div className="mt-3 bg-gray-900 border border-red-900/40 rounded-2xl p-5">
+          <p className="text-white text-sm font-semibold">Delete account</p>
           <p className="text-gray-500 text-xs mt-0.5 mb-3 leading-relaxed">
             Permanently deletes your cards and contacts and cancels any subscription. Your email can&apos;t be used to sign up again.
           </p>
+          {isPro && (
+            <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">
+              Just want to stop paying? You can <a href="#billing" className="text-blue-400 hover:text-blue-300 underline">cancel or switch to Free in Billing</a> and keep your account.
+            </p>
+          )}
           <button
             type="button"
             onClick={openModal}
@@ -163,34 +146,6 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
               </>
             )}
 
-            {step === "retain" && (
-              <>
-                <div className="text-center">
-                  <p className="text-white font-bold text-base mb-1">Wait — here&apos;s a month on us</p>
-                  <p className="text-gray-400 text-sm mb-5 leading-relaxed">
-                    We&apos;d hate to see you go. Stay and your next month of Pro is <span className="text-white font-semibold">free</span>.
-                  </p>
-                </div>
-                <button type="button" onClick={stayWithOffer} disabled={loading} className="w-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-full py-3 transition-colors mb-2">
-                  {loading ? "…" : "Keep my account & get 1 month free"}
-                </button>
-                {canDowngrade && (
-                  <button type="button" onClick={downgradeToFree} disabled={loading} className="w-full text-sm font-semibold text-gray-200 bg-gray-800 hover:bg-gray-700 border border-gray-700 disabled:opacity-50 rounded-full py-2.5 transition-colors mb-2">
-                    {loading ? "…" : "Switch to Free instead — keep my account"}
-                  </button>
-                )}
-                {canDowngrade && (
-                  <p className="text-gray-500 text-[11px] text-center mb-2 leading-relaxed">
-                    Downgrading keeps your account, cards, and contacts — it just cancels Pro billing. No deletion.
-                  </p>
-                )}
-                {error && <p className="text-red-400 text-xs text-center mb-2">{error}</p>}
-                <button type="button" onClick={() => { setError(""); setStep("confirm"); }} className="w-full text-xs text-gray-500 hover:text-gray-300 py-1.5 transition-colors">
-                  No thanks, continue deleting
-                </button>
-              </>
-            )}
-
             {step === "confirm" && (
               <>
                 <p className="text-white font-bold text-base mb-1">Delete account?</p>
@@ -208,7 +163,7 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
                 {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setModal(false)} disabled={loading} className="flex-1 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full py-2.5 transition-colors">
-                    Cancel
+                    Keep my account
                   </button>
                   <button
                     type="button"
@@ -220,26 +175,6 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
                   </button>
                 </div>
               </>
-            )}
-
-            {step === "done" && (
-              <div className="text-center py-2">
-                <p className="text-white font-bold text-base mb-1">Glad you&apos;re staying!</p>
-                <p className="text-gray-400 text-sm mb-5">Your free month has been applied to your account.</p>
-                <button type="button" onClick={() => setModal(false)} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">
-                  Done
-                </button>
-              </div>
-            )}
-
-            {step === "downgraded" && (
-              <div className="text-center py-2">
-                <p className="text-white font-bold text-base mb-1">You&apos;re on the Free plan</p>
-                <p className="text-gray-400 text-sm mb-5 leading-relaxed">Pro billing is cancelled and your account, cards, and contacts are all still here. Upgrade again anytime.</p>
-                <button type="button" onClick={() => window.location.reload()} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">
-                  Done
-                </button>
-              </div>
             )}
           </div>
         </div>

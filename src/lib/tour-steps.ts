@@ -238,7 +238,15 @@ export const TOUR_STEPS: TourStep[] = [
     path: SETTINGS,
     anchor: "settings-general",
     title: "General",
-    body: "Your plan, email, and preferences — upgrade or update details here.",
+    body: "Your email, cards, and current plan at a glance.",
+    placement: "bottom",
+  },
+  {
+    id: "settings-billing",
+    path: SETTINGS,
+    anchor: "settings-billing",
+    title: "Billing",
+    body: "Change plan, manage Office seats, or cancel — and if you ever schedule a cancellation, one tap brings it back.",
     placement: "bottom",
   },
 

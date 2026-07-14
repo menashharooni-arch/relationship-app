@@ -7,6 +7,8 @@ import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
+import { planFromPriceId } from "@/lib/subscription";
+import { isDuplicateStripeEvent } from "@/lib/stripe-idempotency";
 import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -110,6 +112,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  // Idempotency: Stripe redelivers events (and retries after our 500s), so skip
+  // anything we've already processed to avoid double receipts / double cascades.
+  if (await isDuplicateStripeEvent(event.id, event.type)) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
   // Everything past signature verification runs inside a guard: an unexpected
   // failure while provisioning a plan / cascading a downgrade is a money-and-
   // access event, so we alert AND return 500 so Stripe retries the delivery
@@ -122,8 +130,10 @@ export async function POST(req: NextRequest) {
     if (userId) {
       const lineItems = await getStripe().checkout.sessions.listLineItems(session.id, { limit: 1 });
       const priceId = lineItems.data[0]?.price?.id;
-      const enterprisePriceId = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
-      const isEnterprise = priceId === enterprisePriceId;
+      // Recognise BOTH the monthly AND annual Office prices — matching only the
+      // monthly one silently provisioned annual Office buyers as Pro.
+      const mapped = planFromPriceId(priceId);
+      const isEnterprise = mapped?.plan === "office";
       const plan = isEnterprise ? "enterprise" : "pro";
       const seats = isEnterprise
         ? (session.metadata?.seats ? parseInt(session.metadata.seats) : (lineItems.data[0]?.quantity ?? 5))
@@ -297,17 +307,60 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Seat count changes on the Office plan (e.g. changed via billing portal) ──
+  // ── Subscription changed: cancel-scheduled, plan swap, or seat count ─────────
+  // Fires for portal actions AND our own in-app endpoints; reconciles the DB so
+  // the billing UI always reflects Stripe truth regardless of where the change
+  // was made.
   if (event.type === "customer.subscription.updated") {
     const sub = event.data.object as Stripe.Subscription;
     const quantity = sub.items.data[0]?.quantity;
+    const admin = getAdminSupabase();
+    const { data: subProfile } = await admin
+      .from("profiles")
+      .select("id, plan, customization")
+      .eq("stripe_subscription_id", sub.id)
+      .maybeSingle();
+
+    if (subProfile?.id) {
+      const cust = { ...((subProfile.customization as Record<string, unknown> | null) ?? {}) };
+      let dirty = false;
+
+      // 1) Mirror the scheduled-cancel state so the UI shows "cancels on <date>"
+      //    + the Keep Subscription button, even when cancelled via the portal.
+      const periodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
+      const periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+      if (sub.cancel_at_period_end) {
+        if (cust._cancelAtPeriodEnd !== true || cust._cancelAt !== periodEndIso) {
+          cust._cancelAtPeriodEnd = true;
+          cust._cancelAt = periodEndIso;
+          dirty = true;
+        }
+      } else if (cust._cancelAtPeriodEnd) {
+        delete cust._cancelAtPeriodEnd;
+        delete cust._cancelAt;
+        delete cust._cancelReason;
+        dirty = true;
+      }
+
+      // 2) Reconcile the plan from the CURRENT price (a Pro↔Office swap done in
+      //    the portal must not leave the DB on the old plan). Only while the sub
+      //    is live (active/trialing/past_due) — a fully cancelled sub is handled
+      //    by subscription.deleted.
+      const mapped = planFromPriceId(sub.items.data[0]?.price?.id);
+      const liveStatuses = ["active", "trialing", "past_due"];
+      if (mapped && liveStatuses.includes(sub.status)) {
+        const targetDbPlan = mapped.plan === "office" ? "enterprise" : "pro";
+        if (subProfile.plan !== targetDbPlan) {
+          await admin.from("profiles").update({ plan: targetDbPlan }).eq("id", subProfile.id);
+          subProfile.plan = targetDbPlan;
+        }
+      }
+
+      if (dirty) await admin.from("profiles").update({ customization: cust }).eq("id", subProfile.id);
+    }
+
     if (quantity) {
-      const admin = getAdminSupabase();
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("id, plan")
-        .eq("stripe_subscription_id", sub.id)
-        .single();
+      const profile = subProfile;
       if (profile?.id && profile.plan === "enterprise") {
         const { data: office } = await admin.from("offices").select("id").eq("owner_id", profile.id).single();
         if (office) {
@@ -352,11 +405,18 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await admin2.from("profiles")
       .update({ plan: "free", stripe_subscription_id: null })
       .eq("stripe_subscription_id", sub.id)
-      .select("id")
+      .select("id, customization")
       .single();
     // Best-effort: clear any free-month expiry so the row can't later be mistaken
-    // for an active subscriber (which would leak Pro forever).
-    if (profile?.id) await admin2.from("profiles").update({ plan_expires_at: null }).eq("id", profile.id);
+    // for an active subscriber (which would leak Pro forever), and drop the
+    // scheduled-cancel mirror (the cancellation has now happened).
+    if (profile?.id) {
+      const cust = { ...((profile.customization as Record<string, unknown> | null) ?? {}) };
+      delete cust._cancelAtPeriodEnd;
+      delete cust._cancelAt;
+      delete cust._cancelReason;
+      await admin2.from("profiles").update({ plan_expires_at: null, customization: cust }).eq("id", profile.id);
+    }
 
     if (profile?.id) {
       const admin = getAdminSupabase();
