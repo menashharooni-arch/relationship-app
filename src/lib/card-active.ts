@@ -14,9 +14,18 @@ import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 //      inactive the moment the plan is no longer paid — links, QRs, NFC
 //      tags, wallet passes and lead capture for them all stop working.
 //      Their remaining Free-plan card's links keep working.
+//   4. TAKEN OFFLINE    → an office admin pulled the card from /office/admin.
+//      Everything the card serves goes dark, but nothing is deleted, so it can
+//      be brought back online. Used when an employee leaves.
 
 export function ownerIsDeleted(customization: unknown): boolean {
   return !!(customization as { _deleted?: boolean } | null)?._deleted;
+}
+
+// Whether an office admin has taken this card offline. A missing column
+// (pre office-primary-card.sql) reads as undefined → the card stays live.
+export function cardIsOffline(cardRow: unknown): boolean {
+  return (cardRow as { is_offline?: boolean } | null)?.is_offline === true;
 }
 
 // Whether this card falls within its owner's plan allowance. Cheap: only
@@ -42,13 +51,16 @@ export async function cardWithinPlanLimit(
 // the Free allowance.)
 export async function isCardActive(username: string): Promise<boolean> {
   const admin = getAdminSupabase();
+  // select("*") so is_offline is picked up when present and simply absent on a
+  // pre-migration schema (an explicit column list would error there instead).
   const { data: cardRow } = await admin
     .from("cards")
-    .select("id, user_id")
+    .select("*")
     .eq("username", username)
     .maybeSingle();
 
   if (cardRow) {
+    if (cardIsOffline(cardRow)) return false;
     const { data: owner } = await admin
       .from("profiles")
       .select("plan, customization")

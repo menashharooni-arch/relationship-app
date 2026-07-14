@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
+import { getOwnedOfficeId, getPrimaryCardId, syncBrandFromPrimaryCard } from "@/lib/office-primary";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
@@ -81,19 +82,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false);
   }
 
+  // The office's PRIMARY card is the brand's source, so it is exempt from the
+  // brand overlay: applying the lock to it would pin the admin to the look they
+  // first saved and make the company brand impossible to ever change. Only the
+  // owner's own primary card qualifies.
+  const ownedOfficeId = await getOwnedOfficeId(user.id);
+  const primaryCardId = ownedOfficeId ? await getPrimaryCardId(ownedOfficeId) : null;
+  const isPrimaryCard = !!primaryCardId && primaryCardId === id;
+
   // Office uniform branding: force company-controlled fields so members can't
-  // override them (spec §8). Template is forced only when locked (§9) — an
-  // unlocked office lets employees choose their own template.
-  const brand = await getOfficeBrandForUser(user.id);
+  // override them (spec §8). Template + the look are forced only when locked
+  // (§9) — an unlocked office lets employees choose their own.
+  const brand = isPrimaryCard ? null : await getOfficeBrandForUser(user.id);
   if (brand) {
     if (brand.logoUrl) updates.logo_url = brand.logoUrl;
     if (brand.company) updates.company = brand.company;
     if (brand.website) updates.website = brand.website;
     if (brand.lockTemplate && brand.template) updates.template = brand.template;
-    // Company phone/fax/address are enforced whenever the client sends
-    // customization (the overlay re-applies them on top of the employee's edit).
-    if ((brand.phone || brand.fax || brand.address) && "customization" in updates) {
-      updates.customization = overlayOfficeContact(updates.customization as Record<string, unknown>, brand);
+    // Company phone/fax/address + the locked look are enforced whenever the
+    // client sends customization (the overlays re-apply on top of the edit).
+    if ("customization" in updates) {
+      if (brand.phone || brand.fax || brand.address) {
+        updates.customization = overlayOfficeContact(updates.customization as Record<string, unknown>, brand);
+      }
+      updates.customization = overlayOfficeDesign(updates.customization as Record<string, unknown>, brand);
+      if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
+        updates.customization = { ...(updates.customization as Record<string, unknown>), customLayout: brand.customLayout };
+      }
     }
   }
 
@@ -104,6 +119,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Editing the primary card re-brands the whole office: copy its identity/look
+  // back onto the office and push it to every member's cards, so employees never
+  // drift from the admin's card.
+  if (isPrimaryCard && ownedOfficeId) {
+    try {
+      await syncBrandFromPrimaryCard(ownedOfficeId, id);
+    } catch {
+      // Best-effort — the save already succeeded; members re-sync on next edit.
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
 

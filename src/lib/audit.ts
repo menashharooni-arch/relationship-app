@@ -13,7 +13,8 @@ export type AuditAction =
   | "role.changed"
   | "seat.changed" | "seat.reduction_scheduled" | "seat.reduction_canceled"
   | "plan.changed" | "plan.canceled" | "plan.reactivated"
-  | "brand.updated";
+  | "brand.updated"
+  | "card.taken_offline" | "card.brought_online";
 
 export async function writeAudit(entry: {
   action: AuditAction;

@@ -15,13 +15,17 @@ export type Capability =
   | "remove_members"      // remove/suspend members
   | "manage_roles"        // assign member roles
   | "manage_branding"     // company card branding + company info
+  | "manage_member_cards" // view/edit/take offline any employee's card
   | "view_org_analytics"; // organization-wide + per-employee analytics
 
 // Owner = superset of everything. Delegated roles get a deliberate subset.
+// manage_member_cards is deliberately NOT given to manager or billing_admin:
+// editing someone's live public card is a content/brand action, not a reporting
+// or billing one.
 const ROLE_CAPABILITIES: Record<OfficeRole, Capability[]> = {
-  owner: ["manage_billing", "manage_seats", "invite_members", "remove_members", "manage_roles", "manage_branding", "view_org_analytics"],
+  owner: ["manage_billing", "manage_seats", "invite_members", "remove_members", "manage_roles", "manage_branding", "manage_member_cards", "view_org_analytics"],
   billing_admin: ["manage_billing", "manage_seats", "view_org_analytics"],
-  admin: ["invite_members", "remove_members", "manage_branding", "view_org_analytics"],
+  admin: ["invite_members", "remove_members", "manage_branding", "manage_member_cards", "view_org_analytics"],
   manager: ["view_org_analytics"],
   employee: [],
 };
@@ -81,4 +85,18 @@ export async function requireOfficeCapability(userId: string, cap: Capability): 
   const ctx = await resolveOfficeContext(userId);
   if (!ctx) return null;
   return roleHasCapability(ctx.role, cap) ? ctx : null;
+}
+
+// Should this user see the "Admin" nav item (the team console at /office/admin)?
+// Mirrors the page's own access rule, so the link never leads to a redirect:
+// the office owner, an Office user who hasn't created their office yet
+// (owner-to-be), or a member holding a management role. Plain employees: no.
+//
+// This is the OFFICE admin — unrelated to the site-owner console at /admin,
+// which is gated separately by ADMIN_EMAILS and is not for office users.
+export async function canViewOfficeAdmin(userId: string, plan: string | null | undefined): Promise<boolean> {
+  if (plan !== "enterprise") return false;
+  const ctx = await resolveOfficeContext(userId);
+  if (!ctx) return true; // Office plan, no office yet → they're the owner-to-be
+  return ctx.isOwner || roleHasCapability(ctx.role, "view_org_analytics");
 }

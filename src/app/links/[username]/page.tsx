@@ -4,7 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
-import { cardWithinPlanLimit } from "@/lib/card-active";
+import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
@@ -27,6 +27,8 @@ async function resolve(username: string) {
     : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
   let profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
   const ownerPlan = (cardRow ? cardOwner?.plan : profileRow?.plan) as string | null | undefined;
+  // Office kill-switch: a card taken offline serves no Swift Links page either.
+  if (cardIsOffline(cardRow)) profile = null;
   // Plan kill-switch: a Free account's extra (Pro-era) cards serve no Swift
   // Links page either — same rule as the card page, no bypass.
   if (profile && cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerPlan))) {
