@@ -6,6 +6,8 @@ import OfficeBranding from "@/components/OfficeBranding";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
 import DashboardLink from "@/components/DashboardLink";
 import { resolveOfficeContext, roleHasCapability, type OfficeRole } from "@/lib/office-roles";
+import { getOfficeAnalytics, type OfficeAnalytics } from "@/lib/office-analytics";
+import TeamAnalytics from "@/components/TeamAnalytics";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -74,7 +76,10 @@ export default async function OfficePage() {
   // owner and active members own (profile slug covers legacy profile-cards),
   // otherwise member leads captured on their real cards would be missing.
   let teamLeads: TeamLead[] = [];
+  let analytics: OfficeAnalytics | null = null;
   if (office) {
+    // Organization + per-employee analytics (server-scoped to this office).
+    try { analytics = await getOfficeAnalytics(office.id as string, office.owner_id as string); } catch { analytics = null; }
     const admin = getAdminSupabase();
     const members = (office.office_members ?? []) as Member[];
     const candidateIds = members.filter((m) => m.status === "active" && m.user_id).map((m) => m.user_id!);
@@ -142,6 +147,8 @@ export default async function OfficePage() {
               viewerRole={role}
               caps={caps}
             />
+
+            {analytics && <TeamAnalytics data={analytics} />}
 
             {caps.canBrand && <OfficeBranding office={office} />}
 
