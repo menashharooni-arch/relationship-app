@@ -13,11 +13,6 @@ import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 // the same dashboard + tour). If they arrive without a stored choice, it shows
 // the full plan chooser instead.
 
-const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
-const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
-const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
-
 // Where checkout (and the Free choice) send the user: dashboard, welcome popup,
 // and an auto-started guided tour — everything a new account should get.
 const LANDING = "/dashboard?welcome=1&tour=1";
@@ -42,16 +37,18 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
     setLoading(plan);
     setError("");
     try {
-      const priceId = plan === "office"
-        ? (annual ? (ENTERPRISE_ANNUAL_PRICE_ID ?? ENTERPRISE_PRICE_ID) : ENTERPRISE_PRICE_ID)
-        : annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          priceId,
-          quantity: plan === "office" ? seats : 1,
-          successPath: LANDING + "&upgraded=true",
+          // Unified {plan, interval, seats} — price resolves server-side.
+          plan: plan === "office" ? "office" : "pro",
+          interval: annual ? "annual" : "monthly",
+          seats: plan === "office" ? seats : 1,
+          // Office owners go to the Office dashboard after payment; Pro keeps the
+          // guided-tour landing. (The card was already created before payment in
+          // this guest flow, so no post-payment card step is needed here.)
+          successPath: plan === "office" ? "/office" : LANDING + "&upgraded=true",
         }),
       });
       if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }

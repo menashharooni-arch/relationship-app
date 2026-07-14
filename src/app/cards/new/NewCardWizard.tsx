@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
 import DashboardLink from "@/components/DashboardLink";
@@ -83,6 +83,12 @@ const inputCls =
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
 export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean; guest?: boolean }) {
   const router = useRouter();
+  // After a paid checkout the success page routes the OWNER here to create their
+  // card first (it counts as Office seat 1). postcheckout=office → send them on
+  // to the Office admin dashboard when done; pro/absent → dashboard.
+  const searchParams = useSearchParams();
+  const postCheckout = searchParams.get("postcheckout");
+  const doneHref = postCheckout === "office" ? "/office" : "/dashboard";
   // Only requireAuth from the hook (stable). Autosave uses the raw debounced
   // saveDraft so it never triggers a setState → re-render → save loop.
   const { requireAuth } = useGuestDraft();
@@ -696,13 +702,23 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
 
             <EnablePushButton />
 
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard")}
-              className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
-            >
-              Continue to dashboard →
-            </button>
+            {postCheckout === "office" ? (
+              <button
+                type="button"
+                onClick={() => router.push("/office")}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-full transition-colors"
+              >
+                Go to your Office dashboard →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => router.push(doneHref)}
+                className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
+              >
+                Continue to dashboard →
+              </button>
+            )}
           </div>
         )}
 

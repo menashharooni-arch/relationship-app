@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
+import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -35,24 +36,39 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("email, username, plan, stripe_customer_id")
+      .select("email, username, plan, stripe_customer_id, stripe_subscription_id")
       .eq("id", user.id)
       .single();
 
     if (!profile) return NextResponse.json({ error: "No profile" }, { status: 404 });
 
+    // Duplicate-subscription guard: a paying customer must NOT start a second
+    // checkout (that would create a duplicate subscription / double charge).
+    // Send them to Billing to CHANGE their plan instead.
+    if ((profile.plan === "pro" || profile.plan === "enterprise") && profile.stripe_subscription_id) {
+      return NextResponse.json(
+        { error: "already_subscribed", message: "You already have an active subscription. Change your plan in Settings → Billing.", redirect: "/settings/flows?billing=1" },
+        { status: 409 }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
-    const priceId = body.priceId || process.env.STRIPE_PRICE_ID!;
     const couponId: string | undefined = typeof body.couponId === "string" ? body.couponId : undefined;
 
-    // Optional post-payment landing (used by the onboarding /welcome flow to send
-    // paid users straight into the dashboard + tour). Restricted to a safe,
-    // same-origin relative path so it can't be turned into an open redirect.
-    const rawSuccess = typeof body.successPath === "string" ? body.successPath : "";
-    const successPath =
-      rawSuccess.startsWith("/") && !rawSuccess.startsWith("//") && /^\/[a-zA-Z0-9?=&_.\-/]*$/.test(rawSuccess)
-        ? rawSuccess
-        : "/dashboard?upgraded=true";
+    // Resolve the price from EITHER an explicit priceId (legacy callers) OR a
+    // {plan, interval} pair resolved server-side (the unified /checkout flow), so
+    // the price↔plan mapping lives in one place (lib/subscription) and can't drift.
+    const interval: BillingInterval = body.interval === "annual" ? "annual" : "monthly";
+    let priceId: string;
+    if (typeof body.priceId === "string" && body.priceId) {
+      priceId = body.priceId;
+    } else if (body.plan === "pro" || body.plan === "office") {
+      const resolved = priceIdForPlan(body.plan, interval);
+      if (!resolved) return NextResponse.json({ error: "That plan isn't available right now." }, { status: 400 });
+      priceId = resolved;
+    } else {
+      priceId = process.env.STRIPE_PRICE_ID!;
+    }
 
     // Only sell prices we actually offer.
     const isOffice = OFFICE_PRICE_IDS.includes(priceId);
@@ -62,7 +78,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Seats: Office is per-seat with a minimum; Pro is always a single seat.
-    const requestedQty = typeof body.quantity === "number" ? Math.floor(body.quantity) : 1;
+    const requestedQty = typeof body.quantity === "number" ? Math.floor(body.quantity)
+      : typeof body.seats === "number" ? Math.floor(body.seats) : 1;
     let quantity = 1;
     if (isOffice) {
       if (requestedQty < PLAN_LIMITS.OFFICE_MIN_SEATS) {
@@ -105,6 +122,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Post-payment landing. A caller may pass an explicit same-origin successPath
+    // (the legacy /welcome flow does); otherwise route through /checkout/success,
+    // which enforces card creation before the dashboard/office (spec §3).
+    const planKey = isOffice ? "office" : "pro";
+    const rawSuccess = typeof body.successPath === "string" ? body.successPath : "";
+    const successPath =
+      rawSuccess.startsWith("/") && !rawSuccess.startsWith("//") && /^\/[a-zA-Z0-9?=&_.\-/]*$/.test(rawSuccess)
+        ? rawSuccess
+        : `/checkout/success?plan=${planKey}`;
+    // Cancel returns to the checkout page with the SAME selection preserved, so a
+    // canceled/abandoned checkout can be retried without re-choosing (spec §1).
+    const cancelPath = `/checkout?plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}&canceled=1`;
+
     const session = await stripe.checkout.sessions.create({
       client_reference_id: user.id,
       // Reuse the existing Stripe customer so re-subscribing doesn't create duplicates.
@@ -118,10 +148,14 @@ export async function POST(req: NextRequest) {
       // Record the seat count so the webhook provisions the office reliably.
       ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
       success_url: `${APP_URL}${successPath}`,
-      cancel_url: `${APP_URL}/pricing`,
+      cancel_url: `${APP_URL}${cancelPath}`,
       // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):
       // with no coupon, customers can type admin-created promo codes at checkout.
       ...(couponId ? { discounts: [{ coupon: couponId }] } : { allow_promotion_codes: true }),
+    }, {
+      // Idempotency: a double-click (or a retried request) within the same minute
+      // returns the SAME Checkout Session instead of creating a duplicate.
+      idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${Math.floor(Date.now() / 60000)}`,
     });
 
     return NextResponse.json({ url: session.url });

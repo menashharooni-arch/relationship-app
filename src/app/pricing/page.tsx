@@ -10,10 +10,6 @@ import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
-const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
-const ENTERPRISE_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID;
-const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID;
 
 // Display prices (USD) — sourced from PLAN_PRICES (src/lib/plan.ts), the same
 // constants the checkout route validates the real Stripe price against.
@@ -66,30 +62,19 @@ export default function PricingPage() {
     }
   }
 
-  async function handleUpgrade(plan: "pro" | "enterprise") {
+  function handleUpgrade(plan: "pro" | "enterprise") {
     setLoading(plan);
     setCheckoutErr(null);
-    try {
-      const priceId = plan === "enterprise"
-        ? (annual ? (ENTERPRISE_ANNUAL_PRICE_ID ?? ENTERPRISE_PRICE_ID) : ENTERPRISE_PRICE_ID)
-        : annual ? ANNUAL_PRICE_ID : MONTHLY_PRICE_ID;
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId,
-          quantity: plan === "enterprise" ? seats : 1,
-          ...(promo.status === "valid" && promo.couponId ? { couponId: promo.couponId } : {}),
-        }),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const { url, error } = await res.json();
-      if (url) { window.location.href = url; return; }
-      setCheckoutErr(error || "Couldn't start checkout. Please try again or contact support.");
-    } catch {
-      setCheckoutErr("Couldn't reach checkout. Check your connection and try again.");
-    }
-    setLoading(null);
+    // Carry the EXACT selection (plan, interval, seats, promo) into /checkout via
+    // the URL, so it survives login/signup/refresh/back-forward and a canceled or
+    // failed checkout — the user never has to re-choose (spec §1). /checkout shows
+    // the order summary, handles auth (bounce to signup → auto-resume), and starts
+    // the Stripe session.
+    const planKey = plan === "enterprise" ? "office" : "pro";
+    const qs = new URLSearchParams({ plan: planKey, interval: annual ? "annual" : "monthly" });
+    if (plan === "enterprise") qs.set("seats", String(seats));
+    if (promo.status === "valid" && promo.couponId) qs.set("coupon", promo.couponId);
+    window.location.href = `/checkout?${qs.toString()}`;
   }
 
   return (
