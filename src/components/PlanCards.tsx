@@ -96,7 +96,7 @@ export default function PlanCards({
               {busy === "pro" ? "Loading…" : "Start 14-day free trial →"}
             </button>
             <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
-              First-time subscribers get 14 days free. Card required — billing starts automatically after the trial unless you cancel.
+14 days free, then auto-renews. Cancel anytime.
             </p>
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />

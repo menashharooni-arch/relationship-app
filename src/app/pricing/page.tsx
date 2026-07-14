@@ -65,16 +65,16 @@ export default function PricingPage() {
   function handleUpgrade(plan: "pro" | "enterprise") {
     setLoading(plan);
     setCheckoutErr(null);
-    // Carry the EXACT selection (plan, interval, seats, promo) into /checkout via
-    // the URL, so it survives login/signup/refresh/back-forward and a canceled or
-    // failed checkout — the user never has to re-choose (spec §1). /checkout shows
-    // the order summary, handles auth (bounce to signup → auto-resume), and starts
-    // the Stripe session.
+    // Unified flow: even a plan-specific CTA builds the card FIRST, then account,
+    // then payment for the pre-selected plan (no plan chooser again). Route to
+    // the card builder carrying the exact selection in the URL. A logged-in user
+    // who already has a card is redirected straight to /checkout by the builder's
+    // server page, so they don't rebuild.
     const planKey = plan === "enterprise" ? "office" : "pro";
     const qs = new URLSearchParams({ plan: planKey, interval: annual ? "annual" : "monthly" });
     if (plan === "enterprise") qs.set("seats", String(seats));
     if (promo.status === "valid" && promo.couponId) qs.set("coupon", promo.couponId);
-    window.location.href = `/checkout?${qs.toString()}`;
+    window.location.href = `/cards/new?${qs.toString()}`;
   }
 
   return (
@@ -142,7 +142,7 @@ export default function PricingPage() {
                 {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : "Start 14-day free trial →"}
               </button>
               <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
-                First-time subscribers get 14 days free. Card required — billing starts automatically after the trial unless you cancel.
+14 days free, then auto-renews. Cancel anytime.
               </p>
               {checkoutErr && loading === null && (
                 <p className="text-center text-[12px] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
