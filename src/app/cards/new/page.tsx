@@ -1,5 +1,7 @@
 import type { ComponentType } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import NewCardWizard from "./NewCardWizard";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 
@@ -16,11 +18,27 @@ const Wizard = NewCardWizard as ComponentType<{ isPro: boolean; guest?: boolean 
 export default async function NewCardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ add?: string; claim?: string }>;
+  searchParams: Promise<{ add?: string; claim?: string; plan?: string; interval?: string; seats?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Plan-specific entry (?plan=pro|office): a LOGGED-IN user who ALREADY has a
+  // card doesn't need to build one — send them straight to payment for that plan
+  // (unified flow, no rebuild). New users / users without a card fall through and
+  // build their card first, then pay.
+  if (user && (sp.plan === "pro" || sp.plan === "office") && sp.claim !== "1") {
+    const { count } = await getAdminSupabase()
+      .from("cards")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if ((count ?? 0) > 0) {
+      const qs = new URLSearchParams({ plan: sp.plan, interval: sp.interval === "annual" ? "annual" : "monthly" });
+      if (sp.plan === "office" && sp.seats) qs.set("seats", sp.seats);
+      redirect(`/checkout?${qs.toString()}`);
+    }
+  }
 
   // Two very different intents share this route:
   //  • `?add=1` — a SIGNED-IN user adding another card to THEIR account (linked

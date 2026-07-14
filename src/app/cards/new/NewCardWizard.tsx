@@ -89,6 +89,13 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   const searchParams = useSearchParams();
   const postCheckout = searchParams.get("postcheckout");
   const doneHref = postCheckout === "office" ? "/office" : "/dashboard";
+  // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
+  // visitor still builds their card first, but AFTER account creation goes
+  // straight to payment for that plan — no plan chooser again (unified flow).
+  const planParam = searchParams.get("plan");
+  const presetPlan: "pro" | "office" | null = planParam === "pro" ? "pro" : planParam === "office" ? "office" : null;
+  const presetAnnual = searchParams.get("interval") === "annual";
+  const presetSeats = Math.max(2, Math.floor(Number(searchParams.get("seats")) || 2));
   // Only requireAuth from the hook (stable). Autosave uses the raw debounced
   // saveDraft so it never triggers a setState → re-render → save loop.
   const { requireAuth } = useGuestDraft();
@@ -811,11 +818,22 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
                 ← Back
               </button>
               <button
-                onClick={() => (guest ? setShowPlan(true) : requireAuth("save", handleCreate))}
+                onClick={() => {
+                  if (!guest) { requireAuth("save", handleCreate); return; }
+                  // Plan-specific entry → skip the chooser, carry the plan to payment.
+                  if (presetPlan) {
+                    pickPlanThenSignUp({ plan: presetPlan, annual: presetAnnual, seats: presetPlan === "office" ? presetSeats : 1 });
+                    return;
+                  }
+                  setShowPlan(true);
+                }}
                 disabled={status === "loading"}
                 className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
               >
-                {status === "loading" ? "Creating…" : guest ? "Continue to plans →" : "Create card →"}
+                {status === "loading" ? "Creating…"
+                  : !guest ? "Create card →"
+                  : presetPlan ? `Continue to ${presetPlan === "office" ? "Office" : "Pro"} →`
+                  : "Continue to plans →"}
               </button>
             </div>
           </div>
