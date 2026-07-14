@@ -90,7 +90,7 @@ export default function TemplatesPage() {
             </svg>
             Dashboard
           </DashboardLink>
-          <SwiftCardLogo size={28} />
+          <SwiftCardLogo size={28} onDark />
         </div>
 
         <h1 className="text-3xl font-bold text-white mb-2">Your card, your way.</h1>
