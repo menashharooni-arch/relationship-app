@@ -52,6 +52,28 @@ function fmtDate(iso: string | null): string {
 
 const planLabel = (p: Sub["plan"]) => (p === "office" ? "Office" : p === "pro" ? "Pro" : "Free");
 
+// What a paid account actually loses when it drops to Free. These are the real,
+// code-enforced consequences (card-active kill-switch, sanitizeCustomizationForPlan
+// at render, the Free monthly meters) — NOT scare copy. Nothing is deleted, but
+// access to everything past the Free tier stops the moment the plan lapses, which
+// is exactly what the visitor is deciding to give up. Listing it plainly is both
+// honest and the strongest reason to stay.
+function downgradeLosses(plan: Sub["plan"]): string[] {
+  const losses: string[] = [];
+  if (plan === "office") {
+    losses.push("Every teammate's card goes offline — their links, QR codes, NFC taps and Apple Wallet passes stop working, and all seats are released.");
+  }
+  losses.push(
+    plan === "office"
+      ? "Only your own first card stays live; your unified team branding is removed."
+      : "Only your first card stays live — every other card's links, QR codes, NFC taps, Apple Wallet passes and lead capture stop working.",
+  );
+  losses.push(`Your live card reverts to the Free design and keeps just ${PLAN_LIMITS.FREE_MAX_LINKS} Swift Link — Pro styling and your extra action buttons disappear from it.`);
+  losses.push(`New contacts are capped at ${PLAN_LIMITS.FREE_LEADS_PER_MONTH}/month again — anything past that is locked until you upgrade.`);
+  losses.push(`AI card scanning and follow-up drafts drop to ${PLAN_LIMITS.FREE_SCANS_PER_MONTH}/month.`);
+  return losses;
+}
+
 export default function BillingManager() {
   const [sub, setSub] = useState<Sub | null>(null);
   const [loading, setLoading] = useState(true);
@@ -387,11 +409,14 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
           )}
         </div>
 
-        {/* Move to Free = cancel (kept as a separate, honest action) */}
+        {/* Move to Free = cancel. Kept as a separate, honest, visually quiet action
+            (it's the one path that loses the customer value — no reason to dress it
+            up). The copy states the real downgrade consequence instead of the old,
+            misleading "keeps your cards & contacts". */}
         <button onClick={onCancelInstead}
-          className="w-full text-left rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 hover:border-gray-700 transition-colors">
-          <p className="text-white font-semibold text-sm">Switch to Free</p>
-          <p className="text-gray-500 text-[11px]">Cancel your paid plan. Keeps your account, cards & contacts.</p>
+          className="w-full text-left rounded-xl border border-gray-800/70 bg-gray-950/40 p-3.5 hover:border-gray-700 transition-colors">
+          <p className="text-gray-300 font-semibold text-sm">Switch to Free</p>
+          <p className="text-gray-500 text-[11px]">Downgrades your account — extra cards go offline and your card loses its Pro design. See exactly what changes first.</p>
         </button>
       </div>
 
@@ -485,7 +510,7 @@ function CancelModal({ sub, onClose, onDone }: {
             className="w-full rounded-xl bg-gray-950 border border-gray-800 text-sm text-white px-3.5 py-2.5 mb-3 focus:outline-none focus:border-gray-600" />
           {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
           <div className="flex gap-2.5">
-            <button onClick={onClose} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm py-2.5 rounded-full">Never mind</button>
+            <button onClick={onClose} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full">Never mind, keep it</button>
             <button onClick={next} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-sm py-2.5 rounded-full">Continue</button>
           </div>
         </>
@@ -516,16 +541,29 @@ function CancelModal({ sub, onClose, onDone }: {
 
       {step === "confirming" && (
         <>
-          <p className="text-gray-300 text-sm mb-2">
-            Your {sub.plan === "office" ? "Office" : "Pro"} plan will stay active until <strong className="text-white">{fmtDate(sub.currentPeriodEnd)}</strong>, then your account moves to Free automatically. No further charges.
+          <p className="text-gray-300 text-sm mb-3">
+            You keep {sub.plan === "office" ? "Office" : "Pro"} until <strong className="text-white">{fmtDate(sub.currentPeriodEnd)}</strong> (no further charges). After that your account drops to Free and:
           </p>
-          <p className="text-gray-500 text-xs mb-4">Your cards and contacts are kept. You can reactivate anytime before then.</p>
+          <ul className="space-y-1.5 mb-3">
+            {downgradeLosses(sub.plan).map((loss, i) => (
+              <li key={i} className="flex gap-2 text-gray-400 text-xs leading-relaxed">
+                <span className="mt-0.5 text-red-400/90 shrink-0" aria-hidden>✕</span>
+                <span>{loss}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-gray-500 text-[11px] mb-4">Nothing is deleted — re-subscribe anytime and it all switches back on instantly.</p>
           {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
-          <div className="flex gap-2.5">
-            <button onClick={onClose} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm py-2.5 rounded-full">Keep my plan</button>
+          {/* Primary emphasis on staying (the profitable choice); downgrade is a
+              plain, always-available secondary action — clear, not hidden. */}
+          <div className="space-y-2.5">
+            <button onClick={onClose}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-full">
+              Keep my {sub.plan === "office" ? "Office" : "Pro"} plan
+            </button>
             <button onClick={confirmCancel} disabled={busy !== null}
-              className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold text-sm py-2.5 rounded-full">
-              {busy === "cancel" ? "Canceling…" : "Confirm cancellation"}
+              className="w-full text-gray-500 hover:text-gray-300 disabled:opacity-50 font-semibold text-xs py-1.5">
+              {busy === "cancel" ? "Downgrading…" : "Downgrade to Free anyway"}
             </button>
           </div>
         </>
