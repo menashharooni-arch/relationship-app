@@ -97,6 +97,12 @@ export default function GuestGateModal() {
           </a>
         </div>
 
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
+          By creating an account you agree to our{" "}
+          <a href="/terms" className="underline hover:text-gray-300">Terms</a> and{" "}
+          <a href="/privacy" className="underline hover:text-gray-300">Privacy Policy</a>.
+        </p>
+
         <button
           type="button"
           onClick={() => setOpen(false)}
