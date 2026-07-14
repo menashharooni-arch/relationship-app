@@ -14,6 +14,8 @@ export type OfficeCard = {
   title: string | null;
   email: string | null;
   phone: string | null;
+  /** The card's nickname — what the admin sees in a list of many cards. */
+  label: string | null;
   template: string | null;
   logo_url: string | null;
   is_offline: boolean;
@@ -66,7 +68,7 @@ export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
   {
     const { data } = await admin
       .from("cards")
-      .select("id, user_id, username, name, title, email, phone, template, logo_url, created_at, is_offline")
+      .select("id, user_id, username, name, title, email, phone, template, logo_url, created_at, label, is_offline")
       .in("user_id", userIds)
       .order("created_at", { ascending: true });
     cards = data as Record<string, unknown>[] | null;
@@ -74,7 +76,7 @@ export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
   if (!cards) {
     const { data } = await admin
       .from("cards")
-      .select("id, user_id, username, name, title, email, phone, template, logo_url, created_at")
+      .select("id, user_id, username, name, title, email, phone, template, logo_url, created_at, label")
       .in("user_id", userIds)
       .order("created_at", { ascending: true });
     cards = data as Record<string, unknown>[] | null;
@@ -97,6 +99,7 @@ export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
       title: (c.title as string | null) ?? null,
       email: (c.email as string | null) ?? null,
       phone: (c.phone as string | null) ?? null,
+      label: (c.label as string | null) ?? null,
       template: (c.template as string | null) ?? null,
       logo_url: (c.logo_url as string | null) ?? null,
       is_offline: c.is_offline === true,
