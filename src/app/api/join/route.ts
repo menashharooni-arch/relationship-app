@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { getOfficeBrand, applyBrandToUserCards } from "@/lib/office-brand";
 import { NextResponse } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
@@ -47,6 +48,20 @@ export async function POST(req: Request) {
 
   const officeId = (member.offices as { id: string } | null)?.id ?? member.office_id;
 
+  // Accepting mints enterprise access, so the office's owner must CURRENTLY be
+  // on a paid Office plan — the offices row survives a cancel, and a pending
+  // invite from a since-cancelled office must not keep granting enterprise.
+  const ownerId = (member.offices as { owner_id?: string } | null)?.owner_id;
+  if (ownerId) {
+    const { data: ownerProfile } = await admin.from("profiles").select("plan").eq("id", ownerId).maybeSingle();
+    if (ownerProfile?.plan !== "enterprise") {
+      return NextResponse.json(
+        { error: "This team's subscription is no longer active. Ask the team admin to reactivate it." },
+        { status: 410 }
+      );
+    }
+  }
+
   // HARD seat guard at accept time. The invite-send check only counts ACTIVE
   // members, so an admin could send more pending invites than seats; without
   // this, all of them accepting would overflow the seat count. This is the
@@ -86,11 +101,38 @@ export async function POST(req: Request) {
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  // Count-then-update above isn't atomic — two invitees accepting the LAST
+  // seat simultaneously can both pass the pre-check. Recount after activating
+  // and, if we overflowed, roll THIS activation back. Self-heals the race
+  // instead of leaving active > paid seats.
+  const { count: afterCount } = await admin
+    .from("office_members")
+    .select("*", { count: "exact", head: true })
+    .eq("office_id", officeId)
+    .eq("status", "active");
+  if ((afterCount ?? 0) > seatCap) {
+    await admin
+      .from("office_members")
+      .update({ user_id: null, status: "pending", joined_at: null })
+      .eq("id", member.id);
+    return NextResponse.json(
+      { error: "This team's seats are all full. Ask the team admin to free up or add a seat." },
+      { status: 409 }
+    );
+  }
+
   // Give the joining user enterprise plan + link to office
   await admin
     .from("profiles")
     .update({ plan: "enterprise", office_id: officeId })
     .eq("id", user.id);
+
+  // Uniform branding: the member's EXISTING cards adopt the office brand right
+  // away (cards created/edited later already get the overlay in the card APIs).
+  try {
+    const brand = await getOfficeBrand(officeId);
+    if (brand) await applyBrandToUserCards(user.id, brand);
+  } catch { /* best-effort — the next card edit applies the overlay anyway */ }
 
   return NextResponse.json({ ok: true, officeName: (member.offices as { name: string } | null)?.name });
 }

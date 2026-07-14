@@ -25,6 +25,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Username must be lowercase letters, numbers, and hyphens only" }, { status: 400 });
   }
 
+  // Same enums set-plan / users/[id] enforce — a typo'd plan string must not
+  // land in profiles.plan (plan gating reads it everywhere).
+  if (!["free", "pro", "enterprise"].includes(plan)) {
+    return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+  }
+  if (!["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "custom"].includes(template)) {
+    return NextResponse.json({ error: "Invalid template" }, { status: 400 });
+  }
+
   const admin = getAdminSupabase();
 
   // Check username is available

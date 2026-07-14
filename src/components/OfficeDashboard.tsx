@@ -121,7 +121,12 @@ export default function OfficeDashboard({
         </form>
         {inviteStatus === "error" && <p className="text-red-500 text-xs mt-2">{inviteError}</p>}
         {activeCount >= office.seats && (
-          <p className="text-amber-600 text-xs mt-2">Seat limit reached. Contact support to add more seats.</p>
+          <p className="text-amber-600 text-xs mt-2">
+            Seat limit reached.{" "}
+            <a href="/settings/flows?billing=1" className="underline font-semibold hover:text-amber-500">
+              Add seats in billing →
+            </a>
+          </p>
         )}
       </div>
 

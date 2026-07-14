@@ -7,8 +7,12 @@ import { requireAdmin } from "@/lib/admin";
 // cohort checks, sales-call prep, or reconciling with payment records.
 
 // RFC 4180 field escaping — quote when needed, double internal quotes.
+// ALSO neutralizes spreadsheet formula injection: a user-controlled name like
+// `=HYPERLINK(...)` or `=cmd|...` would otherwise execute when an admin opens
+// the export in Excel/Sheets. A leading ' makes Excel treat it as text.
 function csv(v: unknown): string {
-  const s = String(v ?? "");
+  let s = String(v ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
   if (!discount_percent && !discount_amount) {
     return NextResponse.json({ error: "discount_percent or discount_amount required" }, { status: 400 });
   }
+  // Clamp discount magnitude BEFORE anything is created — otherwise a typo'd
+  // value (150%, negative, huge amount_off) can persist locally even when
+  // Stripe rejects it, leaving an over-generous or broken code in promo_codes.
+  if (discount_percent != null && !(Number(discount_percent) > 0 && Number(discount_percent) <= 100)) {
+    return NextResponse.json({ error: "discount_percent must be between 1 and 100" }, { status: 400 });
+  }
+  if (discount_amount != null && !(Number(discount_amount) > 0 && Number(discount_amount) <= 100_00)) {
+    return NextResponse.json({ error: "discount_amount must be 1–10000 cents ($100 max)" }, { status: 400 });
+  }
 
   const cleanCode = code.toUpperCase().trim();
 
