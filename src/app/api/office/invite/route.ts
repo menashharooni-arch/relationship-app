@@ -6,6 +6,8 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
+import { writeAudit } from "@/lib/audit";
+import { INVITE_TTL_MS } from "@/lib/office-invite";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -72,27 +74,54 @@ export async function POST(req: Request) {
     }
   }
 
-  // Upsert: re-send invite if pending
+  const nowIso = new Date().toISOString();
+  const expiresIso = new Date(Date.now() + INVITE_TTL_MS).toISOString();
+
+  // Upsert: re-send invite if a row already exists.
   let token: string;
   if (existing) {
-    // Resend existing invite. Reset created_at so the 7-day acceptance window
-    // restarts — otherwise a resend of an EXPIRED invite mails out the same
-    // already-dead link and that email can never be re-invited.
-    const { data: member } = await supabase
+    // Resend: restart the acceptance window AND flip the status back to 'pending'
+    // so a previously revoked/declined/expired invite becomes live again (and the
+    // same email can always be re-invited). expires_at is best-effort (column may
+    // not exist pre-migration — an unknown-column error just leaves it null and
+    // the join route falls back to created_at + TTL).
+    let member: { invite_token: string } | null = null;
+    ({ data: member } = await supabase
       .from("office_members")
-      .update({ created_at: new Date().toISOString() })
+      .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso })
       .eq("id", existing.id)
       .select("invite_token")
-      .maybeSingle();
+      .maybeSingle());
+    if (!member) {
+      // Retry without expires_at in case the column isn't there yet.
+      ({ data: member } = await supabase
+        .from("office_members")
+        .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null })
+        .eq("id", existing.id)
+        .select("invite_token")
+        .maybeSingle());
+    }
     token = member!.invite_token;
+    await writeAudit({ action: "invite.resent", actorId: user.id, orgId: office.id as string, targetId: email.trim().toLowerCase() });
   } else {
-    const { data: member, error } = await supabase
+    let member: { invite_token: string } | null = null;
+    let error: { message: string } | null = null;
+    ({ data: member, error } = await supabase
       .from("office_members")
-      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase() })
+      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), expires_at: expiresIso })
       .select("invite_token")
-      .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      .single());
+    if (error) {
+      // Retry without expires_at (pre-migration) before giving up.
+      ({ data: member, error } = await supabase
+        .from("office_members")
+        .insert({ office_id: office.id, invite_email: email.trim().toLowerCase() })
+        .select("invite_token")
+        .single());
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     token = member!.invite_token;
+    await writeAudit({ action: "invite.created", actorId: user.id, orgId: office.id as string, targetId: email.trim().toLowerCase() });
   }
 
   const inviteUrl = `${APP_URL}/join/${token}`;

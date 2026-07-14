@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { isInviteExpired } from "@/lib/office-invite";
 
 // ── Office seat accounting — ONE source of truth ─────────────────────────────
 // A purchased Office seat count is the ORG's total card seats INCLUDING the
@@ -35,12 +36,16 @@ export function computeSeatUsage(purchased: number, active: number, pending: num
   };
 }
 
-// DB-reading wrapper: counts active + pending office_members for an office.
+// DB-reading wrapper: counts active + NON-EXPIRED pending office_members. An
+// expired pending invite no longer reserves a seat (spec §2: expired invitations
+// release the reserved seat), so it's excluded here even if its row hasn't been
+// swept to status='expired' yet.
 export async function getOfficeSeatUsage(officeId: string, purchasedSeats: number): Promise<SeatUsage> {
   const admin = getAdminSupabase();
-  const [{ count: active }, { count: pending }] = await Promise.all([
+  const [{ count: active }, { data: pendingRows }] = await Promise.all([
     admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", officeId).eq("status", "active"),
-    admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", officeId).eq("status", "pending"),
+    admin.from("office_members").select("id, status, expires_at, created_at").eq("office_id", officeId).eq("status", "pending"),
   ]);
-  return computeSeatUsage(purchasedSeats, active ?? 0, pending ?? 0);
+  const pending = (pendingRows ?? []).filter((r) => !isInviteExpired(r)).length;
+  return computeSeatUsage(purchasedSeats, active ?? 0, pending);
 }

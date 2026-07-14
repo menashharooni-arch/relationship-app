@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isInviteExpired, inviteDaysLeft } from "@/lib/office-invite";
 
 type Member = {
   id: string;
@@ -10,6 +11,8 @@ type Member = {
   role: string;
   joined_at: string | null;
   user_id: string | null;
+  created_at?: string | null;
+  expires_at?: string | null;
 };
 
 type Office = {
@@ -31,10 +34,15 @@ export default function OfficeDashboard({
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [inviteError, setInviteError] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
   const [memberList, setMemberList] = useState<Member[]>(members);
 
+  // Only active + pending invitations are shown; revoked/declined are historical.
+  const visibleMembers = memberList.filter((m) => m.status === "active" || m.status === "pending");
   const activeCount = memberList.filter((m) => m.status === "active").length;
-  const pendingCount = memberList.filter((m) => m.status === "pending").length;
+  // Non-expired pending invites (an expired invite no longer reserves a seat).
+  const pendingCount = memberList.filter((m) => m.status === "pending" && !isInviteExpired(m)).length;
   // Seats include YOU (the owner = seat 1) + active members + pending invites,
   // which each reserve a seat — matches the server's seat accounting (spec §2/§4).
   const usedSeats = 1 + activeCount + pendingCount;
@@ -55,7 +63,7 @@ export default function OfficeDashboard({
     const json = await res.json();
 
     if (!res.ok) {
-      setInviteError(json.error ?? "Failed to send invite.");
+      setInviteError(json.message ?? json.error ?? "Failed to send invite.");
       setInviteStatus("error");
       return;
     }
@@ -70,9 +78,28 @@ export default function OfficeDashboard({
     setRemovingId(memberId);
     const res = await fetch(`/api/office/members?id=${memberId}`, { method: "DELETE" });
     if (res.ok) {
+      // Active member removed → row gone; pending invite revoked → hide it too.
       setMemberList((prev) => prev.filter((m) => m.id !== memberId));
     }
     setRemovingId(null);
+  }
+
+  async function resendInvite(inviteEmail: string) {
+    setResendingEmail(inviteEmail);
+    const res = await fetch("/api/office/invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: inviteEmail }),
+    });
+    setResendingEmail(null);
+    if (res.ok) window.location.reload();
+  }
+
+  function copyInviteLink(member: Member) {
+    const link = `${appUrl}/join/${member.invite_token}`;
+    try { navigator.clipboard?.writeText(link); } catch { /* ignore */ }
+    setCopiedId(member.id);
+    setTimeout(() => setCopiedId((c) => (c === member.id ? null : c)), 1800);
   }
 
   return (
@@ -139,27 +166,33 @@ export default function OfficeDashboard({
       {/* Member list */}
       <div className="bg-[#EDE5D8] border border-[#D4C8B8] rounded-2xl p-6 shadow-sm">
         <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-4">
-          Members ({memberList.length})
+          Members ({visibleMembers.length})
         </p>
 
-        {memberList.length === 0 ? (
+        {visibleMembers.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-8">No members yet. Send your first invite above.</p>
         ) : (
           <div className="space-y-2">
-            {memberList.map((member) => (
+            {visibleMembers.map((member) => {
+              const expired = member.status === "pending" && isInviteExpired(member);
+              const daysLeft = member.status === "pending" ? inviteDaysLeft(member) : 0;
+              return (
               <div key={member.id} className="flex items-center justify-between bg-[#F0EBE1] rounded-xl px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <p className="text-slate-900 text-sm font-medium truncate">{member.invite_email}</p>
                     <span
                       className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{
-                        background: member.status === "active" ? "#dcfce7" : "#fef9c3",
-                        color: member.status === "active" ? "#15803d" : "#854d0e",
+                        background: member.status === "active" ? "#dcfce7" : expired ? "#fee2e2" : "#fef9c3",
+                        color: member.status === "active" ? "#15803d" : expired ? "#b91c1c" : "#854d0e",
                       }}
                     >
-                      {member.status === "active" ? "Active" : "Pending"}
+                      {member.status === "active" ? "Active" : expired ? "Expired" : "Pending"}
                     </span>
+                    {member.status === "pending" && !expired && (
+                      <span className="shrink-0 text-[10px] text-slate-400">Expires in {daysLeft}d</span>
+                    )}
                   </div>
                   {member.status === "active" && member.joined_at && (
                     <p className="text-slate-400 text-xs">
@@ -167,21 +200,36 @@ export default function OfficeDashboard({
                     </p>
                   )}
                   {member.status === "pending" && (
-                    <p className="text-slate-400 text-xs truncate max-w-[200px]">
-                      Invite: {appUrl}/join/{member.invite_token}
-                    </p>
+                    <button
+                      onClick={() => copyInviteLink(member)}
+                      className="text-slate-400 hover:text-blue-600 text-xs truncate max-w-[220px] text-left transition-colors"
+                    >
+                      {copiedId === member.id ? "Copied invite link!" : `Copy invite link`}
+                    </button>
                   )}
                 </div>
 
-                <button
-                  onClick={() => removeMember(member.id)}
-                  disabled={removingId === member.id}
-                  className="shrink-0 ml-3 text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40"
-                >
-                  {removingId === member.id ? "…" : "Remove"}
-                </button>
+                <div className="shrink-0 ml-3 flex items-center gap-3">
+                  {member.status === "pending" && (
+                    <button
+                      onClick={() => resendInvite(member.invite_email)}
+                      disabled={resendingEmail === member.invite_email}
+                      className="text-xs text-blue-600 hover:text-blue-500 transition-colors disabled:opacity-40"
+                    >
+                      {resendingEmail === member.invite_email ? "…" : expired ? "Re-invite" : "Resend"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => removeMember(member.id)}
+                    disabled={removingId === member.id}
+                    className="text-xs text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                  >
+                    {removingId === member.id ? "…" : member.status === "pending" ? "Revoke" : "Remove"}
+                  </button>
+                </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

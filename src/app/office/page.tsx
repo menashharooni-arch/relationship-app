@@ -16,6 +16,8 @@ type Member = {
   role: string;
   joined_at: string | null;
   user_id: string | null;
+  created_at?: string | null;
+  expires_at?: string | null;
 };
 
 type TeamLead = {

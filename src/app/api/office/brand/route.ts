@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
+import { writeAudit } from "@/lib/audit";
 
 // Office admin sets the uniform brand (logo / company / website / template).
 // Saves it on the office AND propagates it to every existing card under the
@@ -84,6 +85,13 @@ export async function PATCH(req: NextRequest) {
       await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq(c.column, c.old);
     }
   }
+
+  await writeAudit({
+    action: "brand.updated",
+    actorId: user.id,
+    orgId: office.id as string,
+    metadata: { fields: Object.keys(cardUpdate), affectedUsers: userIds.length },
+  });
 
   return NextResponse.json({ ok: true });
 }
