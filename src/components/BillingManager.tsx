@@ -192,7 +192,15 @@ export default function BillingManager() {
         <SeatManager sub={sub} onChanged={load} />
       )}
 
-      {/* Actions */}
+      {/* Actions — ONE door for a paid subscriber.
+          There used to be three: "Change Plan", "Manage subscription & payment"
+          (the Stripe portal, which by default also cancels and switches plans),
+          and "Cancel subscription". All three ended somewhere you could cancel,
+          which is what made them feel like the same button three times.
+          Now: this opens everything — switch plan, payment method, invoices, and
+          the downgrade-to-Free path — and cancelling is a deliberate step INSIDE
+          it, behind the reason prompt and the retention offer, rather than a
+          one-click exit sitting on the surface. */}
       <div className="space-y-2.5 mt-4">
         {!isPaid && (
           <a href="/pricing" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
@@ -205,21 +213,13 @@ export default function BillingManager() {
             onClick={() => { setShowChange(true); setErr(null); setNotice(null); }}
             className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm py-2.5 rounded-full transition-colors"
           >
-            Change Plan
+            Manage subscription &amp; payment
           </button>
         )}
 
-        {/* Payment method + invoices via the Stripe portal (its copy is fine here). */}
-        {sub.hasCustomer && <ManageBillingButton />}
-
-        {isPaid && !sub.cancelAtPeriodEnd && (
-          <button
-            onClick={() => { setShowCancel(true); setErr(null); setNotice(null); }}
-            className="w-full text-gray-500 hover:text-gray-300 text-xs font-medium py-2 transition-colors"
-          >
-            Cancel subscription
-          </button>
-        )}
+        {/* A cancelled/Free account keeps its Stripe customer — it still needs a
+            way to read past invoices, and has no subscription modal to find it in. */}
+        {!isPaid && sub.hasCustomer && <ManageBillingButton />}
       </div>
 
       {showChange && (
@@ -371,7 +371,7 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
     ? `${formatUsd(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)}/yr` : `${formatUsd(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}/mo`;
 
   return (
-    <Modal onClose={onClose} title="Change plan">
+    <Modal onClose={onClose} title="Manage subscription">
       <div className="flex items-center justify-center gap-2 mb-4">
         {(["monthly", "annual"] as const).map((iv) => (
           <button key={iv} onClick={() => setInterval(iv)}
@@ -415,6 +415,15 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
             </div>
           )}
         </div>
+
+        {/* Payment method + invoices. Lives in here because this modal is now the
+            single door to billing — the Stripe portal is scoped server-side to
+            exactly these two jobs, so it can't offer a competing cancel. */}
+        {sub.hasCustomer && (
+          <div className="pt-1">
+            <ManageBillingButton />
+          </div>
+        )}
 
         {/* Move to Free = cancel. Kept as a separate, honest, visually quiet action
             (it's the one path that loses the customer value — no reason to dress it
