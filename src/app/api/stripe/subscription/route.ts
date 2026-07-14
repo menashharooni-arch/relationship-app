@@ -32,6 +32,8 @@ export async function GET() {
     status: null as string | null,
     seats: null as number | null,
     activeMembers: null as number | null,
+    pendingInvites: null as number | null,
+    ownerSeats: 1,
     minSeats: PLAN_LIMITS.OFFICE_MIN_SEATS,
     currentPeriodEnd: null as string | null,
     cancelAtPeriodEnd: false,
@@ -65,12 +67,12 @@ export async function GET() {
     if (mapped?.plan === "office") {
       const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
       if (office) {
-        const { count } = await admin
-          .from("office_members")
-          .select("*", { count: "exact", head: true })
-          .eq("office_id", office.id)
-          .eq("status", "active");
-        base.activeMembers = count ?? 0;
+        const [{ count: active }, { count: pending }] = await Promise.all([
+          admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", office.id).eq("status", "active"),
+          admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", office.id).eq("status", "pending"),
+        ]);
+        base.activeMembers = active ?? 0;
+        base.pendingInvites = pending ?? 0;
       }
     }
   } catch {

@@ -18,6 +18,8 @@ type Sub = {
   status: string | null;
   seats: number | null;
   activeMembers: number | null;
+  pendingInvites: number | null;
+  ownerSeats: number;
   minSeats: number;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
@@ -213,7 +215,11 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
   const [seats, setSeats] = useState(sub.seats ?? sub.minSeats);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const floor = Math.max(sub.minSeats, sub.activeMembers ?? 0);
+  const active = sub.activeMembers ?? 0;
+  const pending = sub.pendingInvites ?? 0;
+  const used = 1 /* owner */ + active + pending; // seats in use — can't reduce below this
+  const available = Math.max(0, (sub.seats ?? sub.minSeats) - used);
+  const floor = Math.max(sub.minSeats, used);
   const changed = seats !== (sub.seats ?? sub.minSeats);
 
   async function save() {
@@ -238,8 +244,11 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
     <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 mb-2">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-gray-300">Team seats</p>
-        <p className="text-[11px] text-gray-500">{sub.activeMembers ?? 0} active · min {sub.minSeats}</p>
+        <p className="text-[11px] text-gray-500">{available} available · min {sub.minSeats}</p>
       </div>
+      <p className="text-[11px] text-gray-500 mb-2">
+        {sub.seats ?? sub.minSeats} purchased · you + {active} active + {pending} pending = {used} used
+      </p>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setSeats((s) => Math.max(floor, s - 1))} disabled={seats <= floor}
@@ -260,7 +269,7 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
       </div>
       {msg && <p className="text-[11px] text-gray-400 mt-2">{msg}</p>}
       {floor > sub.minSeats && seats <= floor && (
-        <p className="text-[11px] text-gray-600 mt-1.5">Remove members to go below {floor} seats.</p>
+        <p className="text-[11px] text-gray-600 mt-1.5">Remove members or revoke invitations to go below {floor} seats.</p>
       )}
     </div>
   );

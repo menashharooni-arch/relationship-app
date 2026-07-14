@@ -35,6 +35,11 @@ export default function OfficeDashboard({
 
   const activeCount = memberList.filter((m) => m.status === "active").length;
   const pendingCount = memberList.filter((m) => m.status === "pending").length;
+  // Seats include YOU (the owner = seat 1) + active members + pending invites,
+  // which each reserve a seat — matches the server's seat accounting (spec §2/§4).
+  const usedSeats = 1 + activeCount + pendingCount;
+  const seatsLeft = Math.max(0, office.seats - usedSeats);
+  const seatsFull = seatsLeft <= 0;
 
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -80,16 +85,17 @@ export default function OfficeDashboard({
             <h2 className="text-xl font-bold text-slate-900">{office.name}</h2>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-slate-900">{activeCount} <span className="text-slate-400 text-base font-normal">/ {office.seats}</span></p>
-            <p className="text-slate-400 text-xs mt-0.5">active seats</p>
+            <p className="text-2xl font-bold text-slate-900">{usedSeats} <span className="text-slate-400 text-base font-normal">/ {office.seats}</span></p>
+            <p className="text-slate-400 text-xs mt-0.5">seats used</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-100">
           {[
+            { label: "You", value: 1, color: "#c4b5fd" },
             { label: "Active", value: activeCount, color: "#86efac" },
             { label: "Pending", value: pendingCount, color: "#fcd34d" },
-            { label: "Seats left", value: Math.max(0, office.seats - activeCount), color: "#93c5fd" },
+            { label: "Available", value: seatsLeft, color: "#93c5fd" },
           ].map((s) => (
             <div key={s.label} className="text-center">
               <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -113,18 +119,18 @@ export default function OfficeDashboard({
           />
           <button
             type="submit"
-            disabled={inviteStatus === "sending" || activeCount >= office.seats}
+            disabled={inviteStatus === "sending" || seatsFull}
             className="shrink-0 bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"
           >
             {inviteStatus === "sending" ? "Sending…" : inviteStatus === "sent" ? "Sent!" : "Send invite"}
           </button>
         </form>
         {inviteStatus === "error" && <p className="text-red-500 text-xs mt-2">{inviteError}</p>}
-        {activeCount >= office.seats && (
+        {seatsFull && (
           <p className="text-amber-600 text-xs mt-2">
-            Seat limit reached.{" "}
+            You&apos;ve used all {office.seats} seats (you + {activeCount} active + {pendingCount} pending).{" "}
             <a href="/settings/flows?billing=1#billing" className="underline font-semibold hover:text-amber-500">
-              Add seats in Billing →
+              Add a seat to invite more →
             </a>
           </p>
         )}

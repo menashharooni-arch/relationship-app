@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { planFromPriceId } from "@/lib/subscription";
+import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
 
 // POST /api/stripe/subscription/seats { seats }
@@ -37,15 +38,14 @@ export async function POST(req: NextRequest) {
   const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
 
-  // Never strand active members: seats can't drop below current active headcount.
-  const { count: activeMembers } = await admin
-    .from("office_members")
-    .select("*", { count: "exact", head: true })
-    .eq("office_id", office.id)
-    .eq("status", "active");
-  if (requested < (activeMembers ?? 0)) {
+  // Never strand anyone: seats can't drop below what's in use — owner (seat 1)
+  // + active members + pending invitations (which reserve a seat). Revoke
+  // invites / remove members first to free the seats.
+  const usage = await getOfficeSeatUsage(office.id as string, requested);
+  const inUse = usage.ownerSeats + usage.active + usage.pending;
+  if (requested < inUse) {
     return NextResponse.json(
-      { error: `You have ${activeMembers} active members. Remove members before reducing to ${requested} seats.` },
+      { error: `You're using ${inUse} of your seats (you + ${usage.active} active + ${usage.pending} pending). Remove members or revoke invitations before reducing to ${requested} seats.` },
       { status: 409 }
     );
   }
