@@ -7,7 +7,8 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
-import { PLAN_FEATURES, money } from "@/lib/plan-content";
+import { PLAN_FEATURES } from "@/lib/plan-content";
+import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
 const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
@@ -18,8 +19,6 @@ const ENTERPRISE_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANN
 // constants the checkout route validates the real Stripe price against.
 const PRO_MONTHLY = PLAN_PRICES.PRO_MONTHLY_CENTS / 100;
 const PRO_ANNUAL = PLAN_PRICES.PRO_ANNUAL_CENTS / 100;
-const OFFICE_PER_USER = PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100;
-const OFFICE_PER_USER_YEAR = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100;
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 
 // Feature lists + descriptions come from the shared plan-content module so the
@@ -171,9 +170,11 @@ export default function PricingPage() {
           <div data-reveal style={{ transitionDelay: "180ms" }} className="rounded-[28px] p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]">
             <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
             <div className="mb-1">
-              <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">${annual ? "3.59" : OFFICE_PER_USER}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
+              <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
               <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
-              <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}</p>
+              <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual
+                ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
+                : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`}</p>
             </div>
             <div className="mt-4 mb-6">
               <label className="text-xs text-slate-400 font-medium block mb-2">Team size</label>
@@ -194,8 +195,10 @@ export default function PricingPage() {
             <ul className="space-y-2.5 mb-8 flex-1">
               {features.enterprise.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-600"><Check />{f}</li>))}
             </ul>
-            <button onClick={() => handleUpgrade("enterprise")} disabled={loading !== null} className="w-full font-bold py-3.5 rounded-full text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors">
-              {loading === "enterprise" ? "Loading…" : `Get Office Plan · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
+            <button onClick={() => handleUpgrade("enterprise")} disabled={loading !== null} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
+              {loading === "enterprise" ? "Loading…" : `Get Office · ${annual
+                ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
+                : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`} →`}
             </button>
           </div>
         </section>
