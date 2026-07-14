@@ -7,7 +7,6 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
-import CSVImport from "@/components/CSVImport";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
@@ -466,7 +465,6 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {isEnterprise && <CSVImport />}
             <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>

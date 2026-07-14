@@ -32,6 +32,10 @@ export default function CheckoutClient() {
     : 1;
   const coupon = params.get("coupon") || undefined;
   const canceled = params.get("canceled") === "1";
+  // ?trial=0 → start-and-pay, no free trial. Set by the in-product upgrade page
+  // (/upgrade); the public pricing page omits it and keeps the trial offer.
+  // Default true so every existing marketing link behaves exactly as before.
+  const trial = params.get("trial") !== "0";
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -110,7 +114,7 @@ export default function CheckoutClient() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval, seats, ...(coupon ? { couponId: coupon } : {}) }),
+        body: JSON.stringify({ plan, interval, seats, trial, ...(coupon ? { couponId: coupon } : {}) }),
       });
       if (res.status === 401) {
         // Not signed in → create account / log in, then auto-resume here.
@@ -133,7 +137,7 @@ export default function CheckoutClient() {
     } finally {
       setBusy(false);
     }
-  }, [plan, interval, seats, coupon, preview, changePlan]);
+  }, [plan, interval, seats, coupon, trial, preview, changePlan]);
 
   // Auto-continue after returning from account creation / login (spec §1:
   // "automatically continue to checkout for the originally selected plan").
@@ -215,10 +219,14 @@ export default function CheckoutClient() {
         )}
 
         {/* Trial + "calculated at checkout" copy only applies to a NEW
-            subscription — an existing subscriber gets neither. */}
+            subscription — an existing subscriber gets neither. The trial line
+            must not appear when trial=0, or we'd be promising a free trial the
+            checkout session won't create. */}
         {!preview && plan === "pro" && (
           <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
-            First-time subscribers start with a {TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Taxes, discounts, and any proration are calculated at checkout.
+            {trial
+              ? `First-time subscribers start with a ${TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Taxes, discounts, and any proration are calculated at checkout.`
+              : "Billing starts today and renews automatically until you cancel. Taxes, discounts, and any proration are calculated at checkout."}
           </p>
         )}
         {plan === "office" && (
@@ -249,10 +257,12 @@ export default function CheckoutClient() {
           By continuing you agree to our{" "}
           <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
           <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>
-          {plan === "pro" ? ", including that your subscription auto-renews after any free trial until you cancel." : "."}
+          {plan === "pro" && trial
+            ? ", including that your subscription auto-renews after any free trial until you cancel."
+            : ", including that your subscription auto-renews until you cancel."}
         </p>
 
-        <Link href="/pricing" className="block text-center text-gray-500 hover:text-gray-300 text-xs mt-3 transition-colors">
+        <Link href={trial ? "/pricing" : "/upgrade"} className="block text-center text-gray-500 hover:text-gray-300 text-xs mt-3 transition-colors">
           ← Change plan, billing, or seats
         </Link>
       </div>

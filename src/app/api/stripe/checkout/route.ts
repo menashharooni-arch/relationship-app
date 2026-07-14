@@ -97,8 +97,15 @@ export async function POST(req: NextRequest) {
     // collected at checkout and Stripe bills automatically when the trial ends
     // unless they cancel. A customer who has ever had a subscription (active,
     // canceled, or trialing) gets no second trial.
+    //
+    // `trial: false` opts OUT. The trial is a public-pricing-page acquisition
+    // offer; an in-product upgrade (someone already using SwiftCard on Free)
+    // starts and pays. Only ever narrows eligibility — a client asking for a
+    // trial it isn't entitled to is still refused by the hadSub check below, so
+    // this flag can't be abused to mint one.
+    const trialAllowed = body.trial !== false;
     let trialDays: number | undefined;
-    if (isPro) {
+    if (isPro && trialAllowed) {
       let hadSub = false;
       if (profile.stripe_customer_id) {
         try {
