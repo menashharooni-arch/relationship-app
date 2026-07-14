@@ -4,10 +4,66 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { planFromPriceId } from "@/lib/subscription";
-import { getOfficeSeatUsage } from "@/lib/office-seats";
+import { getOfficeSeatUsage, computeSeatUsage } from "@/lib/office-seats";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import type Stripe from "stripe";
+
+// GET /api/stripe/subscription/seats — what the seat UI needs to offer "add a
+// seat" and state the price before charging: current quantity, billing interval,
+// the real per-seat unit_amount from Stripe, and live usage.
+//
+// Scoped by the SAME capability check as the POST (owner or billing_admin) and
+// resolved through the office, not the caller's own profile — a billing_admin
+// has no subscription of their own, so reading the caller's profile (as
+// GET /api/stripe/subscription does) would report them as Free and hide the UI
+// from someone the POST would happily authorize.
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const ctx = await requireOfficeCapability(user.id, "manage_seats");
+  if (!ctx) return NextResponse.json({ error: "You don't have permission to change seats." }, { status: 403 });
+
+  const admin = getAdminSupabase();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("plan, stripe_subscription_id")
+    .eq("id", ctx.ownerId)
+    .single();
+
+  const { data: office } = await admin.from("offices").select("seats").eq("id", ctx.officeId).maybeSingle();
+  const purchased = (office?.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
+  const usage = await getOfficeSeatUsage(ctx.officeId, purchased);
+
+  const base = {
+    seats: usage.purchased,
+    usage,
+    interval: null as "monthly" | "annual" | null,
+    perSeatCents: null as number | null,
+    minSeats: PLAN_LIMITS.OFFICE_MIN_SEATS,
+    // False when the office has no Stripe subscription behind it (e.g. a plan
+    // granted by hand) — there's nothing to bill, so the UI must not offer to.
+    billable: profile?.plan === "enterprise" && !!profile.stripe_subscription_id,
+  };
+  if (!base.billable) return NextResponse.json(base);
+
+  try {
+    const sub = (await getStripe().subscriptions.retrieve(profile!.stripe_subscription_id!)) as Stripe.Subscription;
+    const item = sub.items.data[0];
+    const mapped = planFromPriceId(item?.price?.id);
+    if (!item || mapped?.plan !== "office") return NextResponse.json({ ...base, billable: false });
+    // Stripe is authoritative for what they're actually paying for.
+    base.seats = item.quantity ?? base.seats;
+    base.usage = { ...usage, ...computeSeatUsage(base.seats, usage.active, usage.pending) };
+    base.interval = mapped.interval;
+    base.perSeatCents = item.price?.unit_amount ?? null;
+  } catch {
+    return NextResponse.json({ ...base, billable: false });
+  }
+  return NextResponse.json(base);
+}
 
 // POST /api/stripe/subscription/seats { seats }
 // Change the Office seat count. Allowed for the owner AND a billing_admin — a
@@ -71,9 +127,15 @@ export async function POST(req: NextRequest) {
     if (requested > current) {
       // INCREASE → effective immediately, prorated (spec §4/§6). Also cancels any
       // pending scheduled reduction (you're going up, not down).
+      //
+      // always_invoice, NOT create_prorations: Stripe does not bill a positive
+      // proration on its own — create_prorations only parks the line item on the
+      // next renewal invoice, so an extra seat bought today would be used free
+      // until the cycle rolled over. always_invoice finalizes an invoice for the
+      // prorated remainder now and charges the card on file.
       await getStripe().subscriptions.update(profile.stripe_subscription_id, {
         items: [{ id: item.id, quantity: requested }],
-        proration_behavior: "create_prorations",
+        proration_behavior: "always_invoice",
       });
       await admin.from("offices").update({ seats: requested, scheduled_seats: null, scheduled_seats_at: null }).eq("id", office.id);
       await writeAudit({ action: "seat.changed", actorId: user.id, orgId: office.id as string, metadata: { seats: requested, mode: "increase" } });

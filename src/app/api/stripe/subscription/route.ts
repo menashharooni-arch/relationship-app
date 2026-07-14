@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { planFromPriceId } from "@/lib/subscription";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
 
 // GET /api/stripe/subscription — the read model the billing UI renders from.
@@ -73,12 +74,14 @@ export async function GET() {
         .eq("owner_id", user.id)
         .maybeSingle();
       if (office) {
-        const [{ count: active }, { count: pending }] = await Promise.all([
-          admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", office.id).eq("status", "active"),
-          admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", office.id).eq("status", "pending"),
-        ]);
-        base.activeMembers = active ?? 0;
-        base.pendingInvites = pending ?? 0;
+        // Same accounting as the invite/seat routes — getOfficeSeatUsage drops
+        // EXPIRED pending invites, which no longer reserve a seat. Counting them
+        // here (as a raw status='pending' count once did) inflated "used" in the
+        // billing UI, which both hid available seats and raised the floor on a
+        // seat reduction the server would actually have allowed.
+        const usage = await getOfficeSeatUsage(office.id as string, base.seats ?? PLAN_LIMITS.OFFICE_MIN_SEATS);
+        base.activeMembers = usage.active;
+        base.pendingInvites = usage.pending;
         base.scheduledSeats = (office as { scheduled_seats?: number | null }).scheduled_seats ?? null;
         base.scheduledSeatsAt = (office as { scheduled_seats_at?: string | null }).scheduled_seats_at ?? null;
       }

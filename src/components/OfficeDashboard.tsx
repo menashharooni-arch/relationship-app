@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { isInviteExpired, inviteDaysLeft } from "@/lib/office-invite";
+import AddSeatButton from "@/components/AddSeatButton";
 
 type Member = {
   id: string;
@@ -162,12 +163,16 @@ export default function OfficeDashboard({
         </form>
         {inviteStatus === "error" && <p className="text-red-500 text-xs mt-2">{inviteError}</p>}
         {seatsFull && (
-          <p className="text-amber-600 text-xs mt-2">
+          <div className="text-amber-600 text-xs mt-2">
             You&apos;ve used all {office.seats} seats (you + {activeCount} active + {pendingCount} pending).{" "}
-            <a href="/settings/flows?billing=1#billing" className="underline font-semibold hover:text-amber-500">
-              Add a seat to invite more →
-            </a>
-          </p>
+            {caps.canManageSeats ? (
+              <AddSeatButton />
+            ) : (
+              // An admin can invite but not buy seats — send them to the owner
+              // rather than to a billing page that will 403 on them.
+              <span className="font-semibold">Ask the office owner to add a seat.</span>
+            )}
+          </div>
         )}
       </div>
       )}
