@@ -8,6 +8,7 @@ import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import GrowLinkButton from "@/components/GrowLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
+import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -57,6 +58,10 @@ export default async function ContactsPage({
     ? rawLeads
     : (rawLeads ?? []).filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)));
 
+  // Keep the "Admin" nav item present across the app shell, not just on the
+  // dashboard — the same gate the /office/admin page itself applies.
+  const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
+
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
   const dashHref = dashCard ? `/dashboard?card=${dashCard}` : "/dashboard";
@@ -92,6 +97,11 @@ export default async function ContactsPage({
             <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Settings
             </Link>
+            {showOfficeAdmin && (
+              <Link href="/office/admin" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                Admin
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

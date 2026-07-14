@@ -48,7 +48,7 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
           // Office owners go to the Office dashboard after payment; Pro keeps the
           // guided-tour landing. (The card was already created before payment in
           // this guest flow, so no post-payment card step is needed here.)
-          successPath: plan === "office" ? "/office" : LANDING + "&upgraded=true",
+          successPath: plan === "office" ? "/office/admin" : LANDING + "&upgraded=true",
         }),
       });
       if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }

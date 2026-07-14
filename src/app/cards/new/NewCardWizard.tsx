@@ -88,7 +88,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   // to the Office admin dashboard when done; pro/absent → dashboard.
   const searchParams = useSearchParams();
   const postCheckout = searchParams.get("postcheckout");
-  const doneHref = postCheckout === "office" ? "/office" : "/dashboard";
+  const doneHref = postCheckout === "office" ? "/office/admin" : "/dashboard";
   // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
   // visitor still builds their card first, but AFTER account creation goes
   // straight to payment for that plan — no plan chooser again (unified flow).
@@ -732,7 +732,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
             {postCheckout === "office" ? (
               <button
                 type="button"
-                onClick={() => router.push("/office")}
+                onClick={() => router.push("/office/admin")}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-full transition-colors"
               >
                 Go to your Office dashboard →

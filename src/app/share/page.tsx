@@ -12,6 +12,7 @@ import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
 import { cardHeadshot } from "@/lib/card-media";
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
+import { canViewOfficeAdmin } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -51,6 +52,8 @@ export default async function SharePage({
   const activeSource = activeCard;
   const activeUsername = activeCard.username as string;
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  // Keep the "Admin" nav item present across the app shell (same gate as the page).
+  const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
 
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
@@ -120,6 +123,11 @@ export default async function SharePage({
                 {label}
               </Link>
             ))}
+            {showOfficeAdmin && (
+              <Link href="/office/admin" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800/60 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                Admin
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
