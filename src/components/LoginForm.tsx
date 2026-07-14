@@ -188,6 +188,14 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
             ? "…"
             : mode === "signin" ? "Sign in →" : "Create account →"}
         </button>
+
+        {mode === "signup" && (
+          <p className="text-center text-[11px] leading-relaxed text-slate-400">
+            By creating an account you agree to our{" "}
+            <a href="/terms" className="underline hover:text-slate-600">Terms</a> and{" "}
+            <a href="/privacy" className="underline hover:text-slate-600">Privacy Policy</a>.
+          </p>
+        )}
       </form>
 
       {mode === "signin" && (

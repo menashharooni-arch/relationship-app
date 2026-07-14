@@ -134,6 +134,13 @@ export default function CheckoutClient() {
           {busy ? "Redirecting to secure checkout…" : "Continue to secure payment →"}
         </button>
 
+        <p className="text-center text-gray-500 text-[11px] mt-3 leading-relaxed">
+          By continuing you agree to our{" "}
+          <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
+          <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>
+          {plan === "pro" ? ", including that your subscription auto-renews after any free trial until you cancel." : "."}
+        </p>
+
         <Link href="/pricing" className="block text-center text-gray-500 hover:text-gray-300 text-xs mt-3 transition-colors">
           ← Change plan, billing, or seats
         </Link>
