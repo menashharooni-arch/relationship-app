@@ -39,7 +39,7 @@ export const LOCKED_LEAD_TAG = "sc-locked";
 // cron that expires old grants still reads this value for those accounts.)
 // Legacy: every NEW signup got a full-Pro reverse trial for this many days, then the
 // daily cron downgrades them to Free (never touches a real paying subscriber).
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 14;
 
 // Length of one app-level "free month" grant, in days (referral/promo rewards).
 export const FREE_MONTH_DAYS = 30;
