@@ -377,7 +377,10 @@ export async function POST(req: NextRequest) {
             .eq("status", "active")
             .not("user_id", "is", null)
             .order("created_at", { ascending: true });
-          const overflow = (activeMembers ?? []).slice(quantity);
+          // The owner occupies seat 1, so a quantity of N leaves N−1 seats for
+          // members. Keep the oldest N−1 active members and trim the rest.
+          const memberSeats = Math.max(0, quantity - 1);
+          const overflow = (activeMembers ?? []).slice(memberSeats);
           const trimBrand = overflow.length ? await getOfficeBrand(office.id).catch(() => null) : null;
           for (const m of overflow) {
             if (m.user_id) {

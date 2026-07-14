@@ -62,10 +62,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // HARD seat guard at accept time. The invite-send check only counts ACTIVE
-  // members, so an admin could send more pending invites than seats; without
-  // this, all of them accepting would overflow the seat count. This is the
-  // real guarantee that active members never exceed the paid seats.
+  // HARD seat guard at accept time. Seats include the OWNER (seat 1) plus active
+  // members, so active members may never exceed seats − 1. This is the real
+  // overflow guarantee (the invite gate reserves seats, this backstops downgrades
+  // and races).
   const { data: officeRow } = await admin.from("offices").select("seats").eq("id", officeId).maybeSingle();
   const seatCap = (officeRow?.seats as number | null) ?? OFFICE_MIN_SEATS;
   const { count: activeCount } = await admin
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     .select("*", { count: "exact", head: true })
     .eq("office_id", officeId)
     .eq("status", "active");
-  if ((activeCount ?? 0) >= seatCap) {
+  if (1 + (activeCount ?? 0) >= seatCap) {
     return NextResponse.json(
       { error: "This team's seats are all full. Ask the team admin to free up or add a seat." },
       { status: 409 }
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     .select("*", { count: "exact", head: true })
     .eq("office_id", officeId)
     .eq("status", "active");
-  if ((afterCount ?? 0) > seatCap) {
+  if (1 + (afterCount ?? 0) > seatCap) {
     await admin
       .from("office_members")
       .update({ user_id: null, status: "pending", joined_at: null })

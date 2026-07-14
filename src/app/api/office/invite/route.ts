@@ -5,6 +5,7 @@ import { getMarketingFrom } from "@/lib/resend-domain";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
+import { getOfficeSeatUsage } from "@/lib/office-seats";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -39,24 +40,10 @@ export async function POST(req: Request) {
   // Seats is required for the math; fall back to the minimum for legacy rows.
   const seatCap = (office.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
 
-  // Check seat limit (active members already occupy seats). This is a soft,
-  // courtesy check at send-time only — the hard guarantee against overflow is
-  // the active-count recheck in /api/join at ACCEPT time, so pending invites
-  // not being counted here can't actually let seats overflow.
-  const { count } = await supabase
-    .from("office_members")
-    .select("*", { count: "exact", head: true })
-    .eq("office_id", office.id)
-    .eq("status", "active");
-
-  if ((count ?? 0) >= seatCap) {
-    return NextResponse.json({ error: `Seat limit reached (${seatCap} seats). Add a seat to invite more.` }, { status: 400 });
-  }
-
   const { email } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-  // Check for duplicate
+  // Check for duplicate (case-insensitive — invite emails are stored lowercased).
   const { data: existing } = await supabase
     .from("office_members")
     .select("id, status")
@@ -66,6 +53,23 @@ export async function POST(req: Request) {
 
   if (existing?.status === "active") {
     return NextResponse.json({ error: "This person is already a member." }, { status: 400 });
+  }
+
+  // Seat gate — only for a NEW invite (a resend reuses a pending row that
+  // already reserves its seat). Seats include the owner + active + pending, so
+  // this is the hard, server-side reservation that prevents overflow (spec §2/§4).
+  if (!existing) {
+    const usage = await getOfficeSeatUsage(office.id as string, seatCap);
+    if (usage.available <= 0) {
+      return NextResponse.json(
+        {
+          error: "no_seats",
+          message: `You've used all ${usage.purchased} seats (you + ${usage.active} active + ${usage.pending} pending). Add a seat to invite this employee.`,
+          usage,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   // Upsert: re-send invite if pending
