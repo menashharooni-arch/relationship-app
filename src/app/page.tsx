@@ -248,7 +248,9 @@ export default function Home() {
 
         {/* ═══════════════ APPLE WATCH ═══════════════ */}
         <section id="watch" className="rd-dark relative py-24 sm:py-28 border-y border-white/8">
-          <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
+          {/* gap-14 was a 56px hole between the copy and the watch on a phone,
+              where the two are stacked and want to read as one unit. */}
+          <div className="max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
             <div className="flex justify-center order-2 lg:order-1" data-reveal="scale"><WatchShareImage /></div>
             <div className="order-1 lg:order-2">
               <div data-reveal><Eyebrow>Apple Watch</Eyebrow></div>

@@ -95,10 +95,10 @@ const CONTACTS: Contact[] = [
     messages: [],
   },
   {
-    id: "c6", name: "Priya Shah", email: "priya@northlight.studio", initials: "PS", source: "nfc_tap",
+    id: "c6", name: "Priya Shah", email: "priya@northlight.studio", initials: "PS", source: "nfc_card",
     created_at: "2026-06-28T15:00:00", status: "dissolved", last: "Viewed · 2w ago", time: "2w",
     events: [
-      { id: "e8", event_type: "viewed_card", source: "nfc_tap", created_at: "2026-06-28T15:00:00" },
+      { id: "e8", event_type: "viewed_card", source: "nfc_card", created_at: "2026-06-28T15:00:00" },
     ],
     messages: [],
   },
@@ -194,7 +194,18 @@ const STATUS_TABS = [
   { id: "touch", label: "Touch" },
   { id: "dissolved", label: "Dissolved" },
 ];
-const DATE_TABS = ["All", "30d", "7d", "Today"];
+
+// The demo's fixed dataset is anchored to this instant rather than Date.now(),
+// so "7d" always selects the same contacts no matter when the page is viewed.
+// (Wall-clock filtering would quietly empty the panel once the seed data aged.)
+const DEMO_NOW = new Date("2026-07-10T18:00:00").getTime();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DATE_TABS: { id: string; label: string; days: number | null }[] = [
+  { id: "All", label: "All", days: null },
+  { id: "30d", label: "30d", days: 30 },
+  { id: "7d", label: "7d", days: 7 },
+  { id: "Today", label: "Today", days: 1 },
+];
 const PIPE_COLUMNS: { id: Status; label: string; color: string }[] = [
   { id: "new_contact", label: "New Contact", color: "#94a3b8" },
   { id: "touch", label: "Touch", color: "#60a5fa" },
@@ -268,7 +279,8 @@ function PipelineView({ contacts, selectedId, onSelect }: { contacts: Contact[];
                     style={{ background: on ? "rgba(37,99,235,0.12)" : "#111827", borderColor: on ? "rgba(37,99,235,0.5)" : "#1f2937" }}
                   >
                     <div className="flex items-center gap-2">
-                      <Avatar initials={c.initials} size={7} />
+                      {/* size={7} rendered a 7px circle with 10px text inside it */}
+                      <Avatar initials={c.initials} size={24} />
                       <span className="text-white text-[12px] font-semibold truncate">{c.name}</span>
                     </div>
                     <p className="text-blue-400 text-[10px] mt-1.5 truncate">{c.email}</p>
@@ -313,7 +325,16 @@ function ContactsPanel({ contacts, selectedId, onSelect }: { contacts: Contact[]
   const [view, setView] = useState<View>("list");
   const [status, setStatus] = useState("all");
   const [date, setDate] = useState("All");
-  const shown = status === "all" ? contacts : contacts.filter((c) => c.status === status);
+
+  // Both filters actually apply. The date tabs used to set state that nothing
+  // read, so clicking "Today" visibly did nothing — the one interaction on the
+  // homepage that's meant to prove the product works.
+  const days = DATE_TABS.find((d) => d.id === date)?.days ?? null;
+  const shown = contacts.filter((c) => {
+    if (status !== "all" && c.status !== status) return false;
+    if (days != null && DEMO_NOW - new Date(c.created_at).getTime() > days * DAY_MS) return false;
+    return true;
+  });
 
   return (
     <div className={PANEL}>
@@ -345,7 +366,7 @@ function ContactsPanel({ contacts, selectedId, onSelect }: { contacts: Contact[]
         ))}
         <div className="ml-auto flex items-center bg-gray-800/50 rounded-lg p-0.5">
           {DATE_TABS.map((d) => (
-            <button key={d} onClick={() => setDate(d)} className={`px-2 py-1 rounded-md text-[10.5px] font-medium transition-colors ${date === d ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>{d}</button>
+            <button key={d.id} onClick={() => setDate(d.id)} className={`px-2 py-1 rounded-md text-[10.5px] font-medium transition-colors ${date === d.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>{d.label}</button>
           ))}
         </div>
       </div>
