@@ -36,10 +36,10 @@ export const metadata: Metadata = {
   // production domain — otherwise share previews (iMessage, WhatsApp, social)
   // can point at the wrong host (or localhost) and fail to render the card.
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"),
-  // Untitled pages (homepage/marketing) use the full default; pages that set
-  // their own title keep it as-is (they already include "— SwiftCard"), so no
+  // Plain string: untitled pages (homepage/marketing) use this; pages that set
+  // their own title override it (they already include "— SwiftCard"). No
   // template — appending one would double the brand ("… SwiftCard · SwiftCard").
-  title: { default: SITE_TITLE },
+  title: SITE_TITLE,
   description: SITE_DESC,
   applicationName: "SwiftCard",
   appleWebApp: {
