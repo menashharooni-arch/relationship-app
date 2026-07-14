@@ -14,6 +14,7 @@ import {
   CLAIM_DRAFT_ID_KEY,
   type ClaimInsert,
 } from "@/lib/draft-claim";
+import { ensureUniqueUsername } from "@/lib/username";
 
 // Claim converts a guest's localStorage draft into a real `cards` row under the
 // SESSION user. It mirrors src/app/api/cards (field allow-list, username +
@@ -188,23 +189,32 @@ export async function POST(req: NextRequest) {
   // Stamp the originating draft id for idempotency on any retry.
   if (safeDraftId) cust[CLAIM_DRAFT_ID_KEY] = safeDraftId;
 
-  // ── Insert ────────────────────────────────────────────────────────────────
-  const { data: card, error } = await admin.from("cards").insert(insert).select("id, username").single();
+  // The username is only the public URL slug — a collision with another account's
+  // card must not block the claim — so pick the next free variant up front (the
+  // same-draft idempotency guard above already prevents duplicate cards for this
+  // draft).
+  insert.username = await ensureUniqueUsername(insert.username, admin);
 
-  if (error) {
-    if (error.code === "23505") {
-      // Username taken. If THIS user already owns a card with it (e.g. a racing
-      // duplicate claim), treat the claim as idempotent and return it.
-      const { data: mine } = await admin
-        .from("cards")
-        .select("id, username")
-        .eq("user_id", user.id)
-        .eq("username", insert.username)
-        .maybeSingle();
-      if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep, first: count === 0 });
-      return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // ── Insert ────────────────────────────────────────────────────────────────
+  let { data: card, error } = await admin.from("cards").insert(insert).select("id, username").single();
+
+  if (error?.code === "23505") {
+    // Raced with another insert. If THIS user already owns a card with the slug
+    // (a double-submit of the same draft), that's the idempotent result.
+    const { data: mine } = await admin
+      .from("cards")
+      .select("id, username")
+      .eq("user_id", user.id)
+      .eq("username", insert.username)
+      .maybeSingle();
+    if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep, first: count === 0 });
+    // Otherwise another account grabbed it — regenerate and try once more.
+    insert.username = await ensureUniqueUsername(insert.username, admin);
+    ({ data: card, error } = await admin.from("cards").insert(insert).select("id, username").single());
+  }
+
+  if (error || !card) {
+    return NextResponse.json({ error: error?.message ?? "Couldn't create the card." }, { status: 500 });
   }
 
   // First card on the account → seed a sample contact (mirror api/cards).

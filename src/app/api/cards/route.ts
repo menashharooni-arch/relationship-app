@@ -5,6 +5,7 @@ import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/pla
 import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
+import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -42,15 +43,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label } = body;
 
-  if (!username) return NextResponse.json({ error: "Username required." }, { status: 400 });
-
-  // Charset guard: usernames flow into Supabase `.or()` filter strings elsewhere
-  // (dashboard analytics), where a `,` / `.` / `(` / `)` would break the filter.
-  // Lock the slug to [a-z0-9-] at the source so that can never happen.
-  const normalizedUsername = String(username).toLowerCase().trim();
-  if (!/^[a-z0-9-]{1,60}$/.test(normalizedUsername)) {
-    return NextResponse.json({ error: "Username can only contain letters, numbers, and hyphens." }, { status: 400 });
-  }
+  // The username is ONLY the public URL slug — the account (email/auth user) is
+  // the real identity — so a slug collision must never block card creation. We
+  // normalize to the safe charset ([a-z0-9-], so it can't break the Supabase
+  // `.or()` analytics filters) and auto-pick the next free variant instead of
+  // erroring. Fall back to the name, then the email local-part, then "card".
+  const slugBase =
+    normalizeSlug(String(username ?? "")) ||
+    normalizeSlug(String(name ?? "")) ||
+    normalizeSlug(String(email ?? "").split("@")[0] || "");
+  const normalizedUsername = await ensureUniqueUsername(slugBase, admin);
 
   // Enforce Free limits on the customization blob (Pro-only accent/font stripped,
   // link buttons capped) — backend-enforced, not just hidden in the UI.
@@ -75,41 +77,54 @@ export async function POST(req: NextRequest) {
     if (brand.phone || brand.fax || brand.address) cust = overlayOfficeContact(cust, brand);
   }
 
-  const { data, error } = await admin
+  const cardRow = {
+    user_id: user.id,
+    name: name || "",
+    title: title || "",
+    company: finalCompany,
+    phone: phone || "",
+    email: email || "",
+    website: finalWebsite,
+    // Server-side normalize (backstop for older/other clients) so whatever
+    // was typed — full URL, bare handle, even a spaced name — always stores
+    // a linkable value. See lib/social-url.ts.
+    linkedin: normalizeSocial(String(linkedin || ""), "linkedin"),
+    instagram: normalizeSocial(String(instagram || ""), "instagram"),
+    twitter: normalizeSocial(String(twitter || ""), "twitter"),
+    tiktok: normalizeSocial(String(tiktok || ""), "tiktok"),
+    template: safeTemplate,
+    customization: cust,
+    logo_url: finalLogo,
+    label: label || null,
+  };
+
+  let { data, error } = await admin
     .from("cards")
-    .insert({
-      user_id: user.id,
-      username: normalizedUsername,
-      name: name || "",
-      title: title || "",
-      company: finalCompany,
-      phone: phone || "",
-      email: email || "",
-      website: finalWebsite,
-      // Server-side normalize (backstop for older/other clients) so whatever
-      // was typed — full URL, bare handle, even a spaced name — always stores
-      // a linkable value. See lib/social-url.ts.
-      linkedin: normalizeSocial(String(linkedin || ""), "linkedin"),
-      instagram: normalizeSocial(String(instagram || ""), "instagram"),
-      twitter: normalizeSocial(String(twitter || ""), "twitter"),
-      tiktok: normalizeSocial(String(tiktok || ""), "tiktok"),
-      template: safeTemplate,
-      customization: cust,
-      logo_url: finalLogo,
-      label: label || null,
-    })
+    .insert({ ...cardRow, username: normalizedUsername })
     .select()
     .single();
 
-  if (error) {
-    if (error.code === "23505") return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // Race backstop: another insert grabbed the slug between our check and this
+  // write. Regenerate a fresh unique slug and try once more — never surface a
+  // "username taken" error, since the slug is disposable and the account owns it.
+  if (error?.code === "23505") {
+    const retrySlug = await ensureUniqueUsername(`${normalizedUsername}`, admin);
+    ({ data, error } = await admin
+      .from("cards")
+      .insert({ ...cardRow, username: retrySlug })
+      .select()
+      .single());
+  }
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message ?? "Couldn't create the card." }, { status: 500 });
   }
 
   // First card on the account → seed a sample contact so the dashboard/contacts
-  // aren't empty and the guided tour has a real contact to demonstrate.
+  // aren't empty and the guided tour has a real contact to demonstrate. Use the
+  // slug that was actually inserted (may differ from our first pick after a race).
   if ((count ?? 0) === 0) {
-    await seedDemoContact(normalizedUsername);
+    await seedDemoContact(data.username);
   }
 
   return NextResponse.json({ card: data });

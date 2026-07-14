@@ -126,6 +126,11 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
+  // The slug the SERVER actually saved — the server auto-dedupes the URL slug on
+  // a collision, so it can differ from our locally-derived `username`. Used for
+  // the "card is live" URL so we never show a slug that isn't the real one.
+  const [createdUsername, setCreatedUsername] = useState<string | null>(null);
+
   // Step 3 — media + design
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
@@ -372,6 +377,10 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
       setStatus("error");
       return;
     }
+
+    // Remember the slug the server actually saved (it may have been deduped).
+    const savedUsername = (data?.card?.username as string | undefined) || username;
+    setCreatedUsername(savedUsername);
 
     // A logged-in buyer who built this card as part of Get Pro / Get Office still
     // has to pay — take them straight to checkout for that plan (this new card is
@@ -708,7 +717,7 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Your card is live!</h1>
-              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{username}</p>
+              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{createdUsername || username}</p>
             </div>
 
             <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
