@@ -51,7 +51,7 @@ function Phone({ label, labelClass, children }: { label: string; labelClass: str
     <div className="shrink-0 flex flex-col items-center gap-3.5">
       <div className="rd-phone w-[240px]">
         <div className="rd-phone-screen h-[500px]" style={{ background: "#FFFFFF" }}>
-          <div className="rd-notch" style={{ width: 66, height: 18 }} />
+          <div className="rd-notch" style={{ width: 48, height: 18 }} />
           <div className="absolute inset-0 flex flex-col">{children}</div>
         </div>
       </div>
