@@ -23,10 +23,6 @@ type Office = {
 
 type Caps = { canInvite: boolean; canRemove: boolean; canBrand: boolean; canManageRoles: boolean; canManageSeats: boolean };
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin", manager: "Manager", billing_admin: "Billing Admin", employee: "Employee",
-};
-
 export default function OfficeDashboard({
   office,
   members,
@@ -42,7 +38,6 @@ export default function OfficeDashboard({
 }) {
   void viewerRole;
   const [email, setEmail] = useState("");
-  const [roleSavingId, setRoleSavingId] = useState<string | null>(null);
   const [inviteStatus, setInviteStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [inviteError, setInviteError] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -112,19 +107,6 @@ export default function OfficeDashboard({
     try { navigator.clipboard?.writeText(link); } catch { /* ignore */ }
     setCopiedId(member.id);
     setTimeout(() => setCopiedId((c) => (c === member.id ? null : c)), 1800);
-  }
-
-  async function changeRole(memberId: string, role: string) {
-    setRoleSavingId(memberId);
-    const res = await fetch("/api/office/role", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memberId, role }),
-    });
-    if (res.ok) {
-      setMemberList((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)));
-    }
-    setRoleSavingId(null);
   }
 
   return (
@@ -237,24 +219,11 @@ export default function OfficeDashboard({
                 </div>
 
                 <div className="shrink-0 ml-3 flex items-center gap-3">
-                  {/* Role selector for active members — owner only (manage_roles). */}
-                  {member.status === "active" && caps.canManageRoles && (
-                    <select
-                      value={member.role && ROLE_LABELS[member.role] ? member.role : "employee"}
-                      onChange={(e) => changeRole(member.id, e.target.value)}
-                      disabled={roleSavingId === member.id}
-                      className="text-xs bg-[#FAF7F2] border border-[#D4C8B8] rounded-lg px-2 py-1 text-slate-700 focus:outline-none disabled:opacity-40"
-                      aria-label={`Role for ${member.invite_email}`}
-                    >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                      <option value="billing_admin">Billing Admin</option>
-                    </select>
-                  )}
-                  {member.status === "active" && !caps.canManageRoles && member.role && ROLE_LABELS[member.role] && member.role !== "employee" && (
-                    <span className="text-[10px] font-semibold text-slate-500 bg-[#F0EBE1] px-2 py-0.5 rounded-full">{ROLE_LABELS[member.role]}</span>
-                  )}
+                  {/* No role selector or role badge: a team is the owner plus their
+                      people, and we don't hand out Employee/Manager/Admin titles.
+                      The underlying capability model still exists server-side (the
+                      owner holds everything) — it just isn't something you assign
+                      to a person here. */}
                   {member.status === "pending" && caps.canInvite && (
                     <button
                       onClick={() => resendInvite(member.invite_email)}
