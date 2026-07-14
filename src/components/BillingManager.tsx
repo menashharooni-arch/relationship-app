@@ -20,6 +20,8 @@ type Sub = {
   activeMembers: number | null;
   pendingInvites: number | null;
   ownerSeats: number;
+  scheduledSeats: number | null;
+  scheduledSeatsAt: string | null;
   minSeats: number;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
@@ -222,16 +224,22 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
   const floor = Math.max(sub.minSeats, used);
   const changed = seats !== (sub.seats ?? sub.minSeats);
 
-  async function save() {
+  const current = sub.seats ?? sub.minSeats;
+  const perSeatCents = sub.interval === "annual" ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS;
+  const per = sub.interval === "annual" ? "yr" : "mo";
+
+  async function submit(targetSeats: number) {
     setBusy(true); setMsg(null);
     try {
       const res = await fetch("/api/stripe/subscription/seats", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seats }),
+        body: JSON.stringify({ seats: targetSeats }),
       });
       const data = await res.json();
       if (!res.ok) { setMsg(data.error || "Couldn't update seats."); return; }
-      setMsg(`Seats updated to ${data.seats}. Your next invoice is prorated.`);
+      if (data.mode === "increased") setMsg(`Seats increased to ${data.seats}. Your next invoice is prorated.`);
+      else if (data.mode === "scheduled") setMsg(`Scheduled to reduce to ${data.scheduledSeats} on ${fmtDate(data.effectiveAt)}. Current seats stay until then.`);
+      else if (data.mode === "unchanged") setMsg("Scheduled reduction canceled — you'll keep your current seats.");
       await onChanged();
     } catch {
       setMsg("Couldn't reach the server.");
@@ -247,8 +255,24 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
         <p className="text-[11px] text-gray-500">{available} available · min {sub.minSeats}</p>
       </div>
       <p className="text-[11px] text-gray-500 mb-2">
-        {sub.seats ?? sub.minSeats} purchased · you + {active} active + {pending} pending = {used} used
+        {current} purchased · you + {active} active + {pending} pending = {used} used
       </p>
+
+      {/* Scheduled reduction banner (spec §5) — current vs future clearly distinct */}
+      {sub.scheduledSeats != null && (
+        <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+          <p className="text-amber-300 text-[11px] font-semibold">
+            Scheduled to reduce {current} → {sub.scheduledSeats} seats on {fmtDate(sub.scheduledSeatsAt)}
+          </p>
+          <p className="text-amber-200/80 text-[11px] mt-0.5">
+            {formatUsd(seatSubtotalCents(perSeatCents, current))}/{per} now → {formatUsd(seatSubtotalCents(perSeatCents, sub.scheduledSeats))}/{per} after. You keep {current} seats until then.
+          </p>
+          <button onClick={() => submit(current)} disabled={busy}
+            className="mt-2 text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-50 px-3 py-1.5 rounded-full">
+            {busy ? "…" : "Cancel scheduled reduction"}
+          </button>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setSeats((s) => Math.max(floor, s - 1))} disabled={seats <= floor}
@@ -261,12 +285,15 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
           {`${formatUsd(seatSubtotalCents(sub.interval === "annual" ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/${sub.interval === "annual" ? "yr" : "mo"}`}
         </span>
         {changed && (
-          <button onClick={save} disabled={busy}
+          <button onClick={() => submit(seats)} disabled={busy}
             className="ml-auto bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-            {busy ? "Saving…" : "Save"}
+            {busy ? "Saving…" : seats > current ? "Add seats" : "Schedule reduction"}
           </button>
         )}
       </div>
+      {changed && seats < current && (
+        <p className="text-[11px] text-gray-500 mt-1.5">Reductions take effect at the end of your billing period; you keep {current} seats until then.</p>
+      )}
       {msg && <p className="text-[11px] text-gray-400 mt-2">{msg}</p>}
       {floor > sub.minSeats && seats <= floor && (
         <p className="text-[11px] text-gray-600 mt-1.5">Remove members or revoke invitations to go below {floor} seats.</p>

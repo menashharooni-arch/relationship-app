@@ -64,15 +64,38 @@ export async function POST(req: NextRequest) {
     if (!item || mapped?.plan !== "office") {
       return NextResponse.json({ error: "This subscription isn't an Office plan." }, { status: 400 });
     }
-    await getStripe().subscriptions.update(profile.stripe_subscription_id, {
-      items: [{ id: item.id, quantity: requested }],
-      proration_behavior: "create_prorations",
-    });
+    const current = item.quantity ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
+    const periodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
+    const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+
+    if (requested > current) {
+      // INCREASE → effective immediately, prorated (spec §4/§6). Also cancels any
+      // pending scheduled reduction (you're going up, not down).
+      await getStripe().subscriptions.update(profile.stripe_subscription_id, {
+        items: [{ id: item.id, quantity: requested }],
+        proration_behavior: "create_prorations",
+      });
+      await admin.from("offices").update({ seats: requested, scheduled_seats: null, scheduled_seats_at: null }).eq("id", office.id);
+      await writeAudit({ action: "seat.changed", actorId: user.id, orgId: office.id as string, metadata: { seats: requested, mode: "increase" } });
+      return NextResponse.json({ ok: true, mode: "increased", seats: requested });
+    }
+
+    if (requested === current) {
+      // No change — treat as "cancel any scheduled reduction".
+      await admin.from("offices").update({ scheduled_seats: null, scheduled_seats_at: null }).eq("id", office.id);
+      await writeAudit({ action: "seat.reduction_canceled", actorId: user.id, orgId: office.id as string });
+      return NextResponse.json({ ok: true, mode: "unchanged", seats: current });
+    }
+
+    // REDUCTION → schedule for the END of the current billing period (spec §5).
+    // Current seats stay billable + available until then; a daily job applies it.
+    await admin
+      .from("offices")
+      .update({ scheduled_seats: requested, scheduled_seats_at: periodEnd })
+      .eq("id", office.id);
+    await writeAudit({ action: "seat.reduction_scheduled", actorId: user.id, orgId: office.id as string, metadata: { from: current, to: requested, effectiveAt: periodEnd } });
+    return NextResponse.json({ ok: true, mode: "scheduled", seats: current, scheduledSeats: requested, effectiveAt: periodEnd });
   } catch {
     return NextResponse.json({ error: "Couldn't update seats. Please try again." }, { status: 502 });
   }
-
-  await admin.from("offices").update({ seats: requested }).eq("id", office.id);
-  await writeAudit({ action: "seat.changed", actorId: user.id, orgId: office.id as string, metadata: { seats: requested } });
-  return NextResponse.json({ ok: true, seats: requested });
 }
