@@ -10,6 +10,17 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 type Plan = "pro" | "office";
 type Interval = "monthly" | "annual";
 
+// What Stripe says this plan change costs right now (see /api/stripe/subscription/preview).
+type Preview = {
+  upgrading: boolean;
+  currentPlan: Plan | null;
+  currentInterval: Interval | null;
+  seats: number;
+  prorationDate: number;
+  prorationCents: number;
+  dueTodayCents: number;
+};
+
 const RESUME_KEY = "sc_checkout_resume"; // set before bouncing to login → auto-continue on return
 
 export default function CheckoutClient() {
@@ -25,6 +36,14 @@ export default function CheckoutClient() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // An existing subscriber changing plans is NOT a new purchase — Stripe swaps
+  // the price on the subscription they already have and prorates it. Starting a
+  // second checkout would create a duplicate subscription and bill them twice,
+  // so the server rejects that; we detect it up front instead and quote the real
+  // prorated amount before they commit to anything.
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(true);
+
   // Per-seat + subtotal in integer cents (shared util → no float artifacts, and
   // the number shown is exactly what Stripe is asked to charge).
   const perSeatCents = plan === "office"
@@ -33,7 +52,58 @@ export default function CheckoutClient() {
   const subtotalCents = seatSubtotalCents(perSeatCents, seats);
   const per = interval === "annual" ? "yr" : "mo";
 
+  // Ask Stripe what this change costs. 401 (guest) / 409 (no subscription yet)
+  // both simply mean "this is a normal first-time purchase" — not an error.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/stripe/subscription/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan, interval, seats }),
+        });
+        if (!alive) return;
+        if (res.ok) setPreview((await res.json()) as Preview);
+      } catch {
+        // Quote unavailable → fall back to the normal checkout path.
+      } finally {
+        if (alive) setPreviewLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [plan, interval, seats]);
+
+  // Existing subscriber → swap the price on the subscription they already have,
+  // prorated, at the timestamp we quoted from.
+  const changePlan = useCallback(async (p: Preview) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/stripe/subscription/change-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, interval, seats, prorationDate: p.prorationDate }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.needsCheckout) {
+        setPreview(null); // subscription vanished under us → fall back to checkout
+        setErr("Your subscription couldn't be found. Continue to secure payment instead.");
+        return;
+      }
+      if (!res.ok) { setErr(data.error || "Couldn't change your plan. Please try again."); return; }
+      window.location.href = `/checkout/success?plan=${plan}`;
+    } catch {
+      setErr("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }, [plan, interval, seats]);
+
   const start = useCallback(async () => {
+    // Already paying → this is a plan change, not a second subscription.
+    if (preview) { await changePlan(preview); return; }
+
     setBusy(true);
     setErr(null);
     try {
@@ -51,7 +121,8 @@ export default function CheckoutClient() {
       }
       const data = await res.json().catch(() => ({}));
       if (res.status === 409 && data.redirect) {
-        // Already subscribed → manage the plan instead of double-charging.
+        // Already subscribed but we had no quote (preview failed) — send them to
+        // Billing rather than risk a duplicate subscription.
         window.location.href = data.redirect;
         return;
       }
@@ -62,7 +133,7 @@ export default function CheckoutClient() {
     } finally {
       setBusy(false);
     }
-  }, [plan, interval, seats, coupon]);
+  }, [plan, interval, seats, coupon, preview, changePlan]);
 
   // Auto-continue after returning from account creation / login (spec §1:
   // "automatically continue to checkout for the originally selected plan").
@@ -85,8 +156,14 @@ export default function CheckoutClient() {
       </div>
 
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
-        <h1 className="text-white text-xl font-bold mb-1">Review your order</h1>
-        <p className="text-gray-500 text-sm mb-5">Confirm the details below, then continue to secure payment.</p>
+        <h1 className="text-white text-xl font-bold mb-1">
+          {preview ? `${preview.upgrading ? "Upgrade" : "Switch"} to ${planName}` : "Review your order"}
+        </h1>
+        <p className="text-gray-500 text-sm mb-5">
+          {preview
+            ? `You're on ${preview.currentPlan === "office" ? "Office" : "Pro"}. We'll adjust your existing subscription — no second charge, and you keep your billing date.`
+            : "Confirm the details below, then continue to secure payment."}
+        </p>
 
         {canceled && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5">
@@ -111,16 +188,42 @@ export default function CheckoutClient() {
           )}
           <Row label="Recurring total"><span className="text-white font-semibold">{formatUsd(subtotalCents)}/{per}</span></Row>
           <Row label="Renews"><span className="text-gray-400">Every {interval === "annual" ? "year" : "month"}, auto-renews unless canceled</span></Row>
+
+          {/* The prorated difference — Stripe's own figure, not ours. */}
+          {preview && (
+            <>
+              <div className="h-px bg-gray-800 my-1.5" />
+              {preview.upgrading ? (
+                <Row label="Due today">
+                  <span className="text-white font-semibold">{formatUsd(preview.dueTodayCents)}</span>
+                </Row>
+              ) : (
+                <Row label="Credit applied">
+                  <span className="text-white font-semibold">{formatUsd(Math.abs(preview.prorationCents))}</span>
+                </Row>
+              )}
+            </>
+          )}
         </dl>
 
-        {plan === "pro" && (
+        {preview && (
+          <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
+            {preview.upgrading
+              ? `Charged today to the card on file. You're credited for the unused time on ${preview.currentPlan === "office" ? "Office" : "Pro"}, so you only pay the difference — then ${formatUsd(subtotalCents)}/${per} from your next billing date.`
+              : `Applied as a credit against your next invoice rather than refunded, then ${formatUsd(subtotalCents)}/${per} from your next billing date.`}
+          </p>
+        )}
+
+        {/* Trial + "calculated at checkout" copy only applies to a NEW
+            subscription — an existing subscriber gets neither. */}
+        {!preview && plan === "pro" && (
           <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
             First-time subscribers start with a {TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Taxes, discounts, and any proration are calculated at checkout.
           </p>
         )}
         {plan === "office" && (
           <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
-            Your own card counts as seat 1 — after payment, invite the rest of your team from the Office dashboard. Taxes and any discounts are calculated at checkout.
+            Your own card counts as seat 1 — {preview ? "invite the rest of your team from the Admin page." : "after payment, invite the rest of your team from the Office dashboard. Taxes and any discounts are calculated at checkout."}
           </p>
         )}
 
@@ -128,10 +231,18 @@ export default function CheckoutClient() {
 
         <button
           onClick={start}
-          disabled={busy}
+          disabled={busy || previewLoading}
           className="mt-5 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full transition-colors"
         >
-          {busy ? "Redirecting to secure checkout…" : "Continue to secure payment →"}
+          {previewLoading
+            ? "Checking your plan…"
+            : preview
+              ? (busy
+                  ? "Updating your plan…"
+                  : preview.upgrading
+                    ? `Upgrade to ${planName} — pay ${formatUsd(preview.dueTodayCents)} today →`
+                    : `Switch to ${planName} →`)
+              : (busy ? "Redirecting to secure checkout…" : "Continue to secure payment →")}
         </button>
 
         <p className="text-center text-gray-500 text-[11px] mt-3 leading-relaxed">
