@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearDraft, hasPendingDraft, loadDraft } from "@/lib/guest-draft";
+import { clearDraft, hasClaimConsent, hasPendingDraft, loadDraft } from "@/lib/guest-draft";
 
 // Mounted on the pages an authenticated user lands on after signing in with a
 // pending guest draft (the editor wrappers, dashboard, onboarding). On mount it
@@ -10,6 +10,13 @@ import { clearDraft, hasPendingDraft, loadDraft } from "@/lib/guest-draft";
 // `cards` row under the SESSION user, then routes the user into the editor for
 // their now-saved card. Everything is idempotent server-side, so a double mount
 // (duplicate OAuth callback, refresh, second tab) never duplicates the card.
+//
+// CROSS-ACCOUNT SAFETY: a draft is claimed ONLY when it carries fresh, explicit
+// consent (the guest clicked "Create account / Log in" at the gate for THIS
+// draft — see markClaimConsent). Without that, an abandoned draft sitting in
+// localStorage would silently attach to whichever account signs in next on this
+// browser — a real cross-account data leak. No consent → no-op; the draft stays
+// local and the guest can resume it at /cards/new.
 export default function GuestDraftClaim() {
   const router = useRouter();
   const ranRef = useRef(false);
@@ -19,6 +26,7 @@ export default function GuestDraftClaim() {
     // StrictMode double-invokes effects in dev — guard so we only claim once.
     if (ranRef.current) return;
     if (!hasPendingDraft()) return;
+    if (!hasClaimConsent()) return; // never claim without the guest's explicit choice
     ranRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- shows the "saving…" overlay while the one-time claim runs
     setVisible(true);

@@ -49,6 +49,31 @@ describe("normalizeSocial", () => {
   });
 });
 
+// The user-reported LinkedIn breakage: a pasted URL must stay linkable, and a
+// spaced name must never produce an invalid URL on the published card.
+describe("LinkedIn linkability — every stored shape builds a working URL", () => {
+  it("accepts a full pasted profile URL (with or without www / trailing slash)", () => {
+    expect(socialUrl("linkedin", "https://www.linkedin.com/in/aaron-lavi")).toBe("https://www.linkedin.com/in/aaron-lavi");
+    expect(normalizeSocial("https://www.linkedin.com/in/aaron-lavi/", "linkedin")).toBe("linkedin.com/in/aaron-lavi");
+    expect(socialUrl("linkedin", "linkedin.com/in/aaron-lavi")).toBe("https://linkedin.com/in/aaron-lavi");
+  });
+
+  it("converts a spaced name to the hyphenated handle instead of an invalid URL", () => {
+    expect(normalizeSocial("John Doe", "linkedin")).toBe("linkedin.com/in/john-doe");
+    expect(socialUrl("linkedin", "John Doe")).toBe("https://linkedin.com/in/john-doe");
+  });
+
+  it("never emits a raw space, and never double-encodes an already-encoded value", () => {
+    const spaced = socialUrl("linkedin", "linkedin.com/in/John Doe");
+    expect(spaced).not.toMatch(/\s/);
+    expect(socialUrl("linkedin", "https://linkedin.com/in/John%20Doe")).toBe("https://linkedin.com/in/John%20Doe");
+  });
+
+  it("URL-normalizes a pasted URL whose path carries a space", () => {
+    expect(normalizeSocial("https://www.linkedin.com/in/John Doe", "linkedin")).toBe("linkedin.com/in/John%20Doe");
+  });
+});
+
 describe("handleLabel", () => {
   it("strips the scheme for display", () => {
     expect(handleLabel("https://instagram.com/aaron")).toBe("instagram.com/aaron");

@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
+import { normalizeSocial } from "@/lib/social-url";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -83,10 +84,13 @@ export async function POST(req: NextRequest) {
       phone: phone || "",
       email: email || "",
       website: finalWebsite,
-      linkedin: linkedin || "",
-      instagram: instagram || "",
-      twitter: twitter || "",
-      tiktok: tiktok || "",
+      // Server-side normalize (backstop for older/other clients) so whatever
+      // was typed — full URL, bare handle, even a spaced name — always stores
+      // a linkable value. See lib/social-url.ts.
+      linkedin: normalizeSocial(String(linkedin || ""), "linkedin"),
+      instagram: normalizeSocial(String(instagram || ""), "instagram"),
+      twitter: normalizeSocial(String(twitter || ""), "twitter"),
+      tiktok: normalizeSocial(String(tiktok || ""), "tiktok"),
       template: safeTemplate,
       customization: cust,
       logo_url: finalLogo,

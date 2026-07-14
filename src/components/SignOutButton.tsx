@@ -14,6 +14,17 @@ export default function SignOutButton() {
     } catch {
       /* clear locally + navigate anyway */
     }
+    // Account-scoped client state must not survive into the NEXT session on
+    // this browser — the active-card pointer and any marketing-sketch prefill
+    // belong to the account that just left, not whoever signs in after.
+    // (The guest draft is intentionally kept: it belongs to the person at the
+    // keyboard, and it can only ever be claimed via the explicit account gate.)
+    try {
+      localStorage.removeItem("swiftcard_active_card");
+      localStorage.removeItem("swiftcard_prefill");
+    } catch {
+      /* storage blocked — nothing to clear */
+    }
     // HARD navigation to the marketing front page — a full reload guarantees no
     // stale client state or in-memory session survives the sign-out.
     window.location.href = "/";

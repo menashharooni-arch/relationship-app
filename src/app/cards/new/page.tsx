@@ -42,13 +42,14 @@ export default async function NewCardPage({
     isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   }
 
-  // The pending draft is claimed ONLY on an explicit signal:
-  //  • `claim=1` — the post-auth return from the account gate (GuestGateModal
-  //    stamps it on the redirect URL), i.e. the visitor just chose an account.
-  //  • `add=1`  — a signed-in user deliberately adding a card to their account.
-  // Never on a bare marketing landing: a lingering session + a leftover draft
-  // from an earlier visit must not silently merge into that account.
-  const claimHere = !!user && (sp.claim === "1" || authedAdd);
+  // The pending draft is claimed ONLY on `claim=1` — the post-auth return from
+  // the account gate (GuestGateModal stamps it on the redirect URL), i.e. the
+  // visitor just chose an account for THIS draft. GuestDraftClaim additionally
+  // verifies the draft carries fresh gate consent before posting it.
+  // Deliberately NOT on `add=1`: a signed-in user clicking "Add Card" expects a
+  // blank wizard — a leftover guest draft from an earlier visit (possibly built
+  // for a different account) must never silently merge in.
+  const claimHere = !!user && sp.claim === "1";
 
   return (
     <>

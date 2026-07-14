@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GUEST_GATE_EVENT } from "@/lib/guest-draft";
+import { GUEST_GATE_EVENT, markClaimConsent } from "@/lib/guest-draft";
 
 // The auth gate a guest hits when they try to Publish / Save / Share / QR /
 // download their signature / open analytics / open leads. Fully self-contained:
@@ -78,14 +78,19 @@ export default function GuestGateModal() {
         </p>
 
         <div className="mt-6 space-y-2.5">
+          {/* markClaimConsent: choosing an account HERE is the explicit "save this
+              draft into that account" moment — the claim flow only ever attaches
+              a draft that carries this fresh consent. */}
           <a
             href={signupHref}
+            onClick={() => markClaimConsent()}
             className="btn-cta block w-full rounded-full bg-blue-600 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-500"
           >
             Create account
           </a>
           <a
             href={loginHref}
+            onClick={() => markClaimConsent()}
             className="block w-full rounded-full border border-gray-700 px-6 py-3 text-center text-sm font-semibold text-gray-300 transition-colors hover:border-gray-500 hover:text-white"
           >
             Log in
