@@ -20,7 +20,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
-          <SwiftCardLogo size={32} />
+          <SwiftCardLogo size={32} onDark />
           <h1 className="text-2xl font-bold text-white mt-8 mb-3">Invite not found</h1>
           <p className="text-gray-500 text-sm mb-6">This invite link is invalid or has expired.</p>
           <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
@@ -35,7 +35,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
-          <SwiftCardLogo size={32} />
+          <SwiftCardLogo size={32} onDark />
           <h1 className="text-2xl font-bold text-white mt-8 mb-3">Already accepted</h1>
           <p className="text-gray-500 text-sm mb-6">This invite has already been used.</p>
           <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
@@ -61,7 +61,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <SwiftCardLogo size={32} />
+            <SwiftCardLogo size={32} onDark />
           </div>
           <div className="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-800/40 rounded-full px-4 py-1.5 mb-5">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
@@ -69,8 +69,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">Join {officeName}</h1>
           <p className="text-gray-400 text-sm">
-            You&apos;ve been invited to join <strong className="text-white">{officeName}</strong> on SwiftCard.
-            You&apos;ll get your own digital business card and access to the team dashboard.
+            You&apos;ve been invited to join <strong className="text-white">{officeName}</strong>
+            {" "}on SwiftCard. You&apos;ll get your own digital business card and access to the
+            team dashboard.
           </p>
         </div>
 
