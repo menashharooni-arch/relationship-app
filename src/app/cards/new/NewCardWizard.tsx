@@ -373,6 +373,17 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
       return;
     }
 
+    // A logged-in buyer who built this card as part of Get Pro / Get Office still
+    // has to pay — take them straight to checkout for that plan (this new card is
+    // seat 1 for Office). `postCheckout` means they already paid and are building
+    // the card AFTER payment, so that path skips this and shows the done screen.
+    if (!guest && presetPlan && !postCheckout) {
+      const qs = new URLSearchParams({ plan: presetPlan, interval: presetAnnual ? "annual" : "monthly" });
+      if (presetPlan === "office") qs.set("seats", String(presetSeats));
+      router.push(`/checkout?${qs.toString()}`);
+      return;
+    }
+
     // Card created — last step: turn on notifications for this card so the
     // owner gets contact alerts + view milestones on their device.
     setStatus("idle");
@@ -831,8 +842,8 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
                 className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
               >
                 {status === "loading" ? "Creating…"
+                  : (presetPlan && !postCheckout) ? `Continue to ${presetPlan === "office" ? "Office" : "Pro"} →`
                   : !guest ? "Create card →"
-                  : presetPlan ? `Continue to ${presetPlan === "office" ? "Office" : "Pro"} →`
                   : "Continue to plans →"}
               </button>
             </div>
