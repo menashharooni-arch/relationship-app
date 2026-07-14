@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   if (member.status === "revoked") return NextResponse.json({ error: "This invitation was canceled by the team admin." }, { status: 410 });
   if (member.status === "declined") return NextResponse.json({ error: "This invitation was already declined." }, { status: 410 });
 
-  // Invites expire after 7 days (matches the deadline stated in the invite email)
+  // Invites expire after 14 days (matches the deadline stated in the invite email)
   // — otherwise a leaked/forwarded link would work indefinitely. Uses stored
   // expires_at when present, else created_at + TTL.
   if (isInviteExpired(member as { status?: string; expires_at?: string | null; created_at?: string | null })) {

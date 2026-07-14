@@ -3,23 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Exactly three tabs, in the order an owner uses them: who's on my team →
+// who's contacted us → what do our cards look like. The old Overview/Cards/
+// Invite tabs are folded in: Team IS the landing page, per-card management
+// lives inside each person, and inviting is a button, not a destination.
 const LINKS = [
-  { href: "/office/admin", label: "Overview" },
-  { href: "/office/admin/team", label: "Team" },
-  { href: "/office/admin/cards", label: "Cards" },
+  { href: "/office/admin", label: "Team" },
   { href: "/office/admin/leads", label: "Leads" },
-  { href: "/office/admin/invite", label: "Invite" },
   { href: "/office/admin/branding", label: "Branding" },
 ];
 
 export default function OfficeAdminNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 -mb-px overflow-x-auto no-scrollbar">
+    <nav className="flex gap-1 -mb-px overflow-x-auto rd-scrollbar-none">
       {LINKS.map((l) => {
-        // Overview is the index, so it must match exactly — every other tab owns
-        // its subtree (a card detail page keeps "Cards" highlighted).
-        const active = l.href === "/office/admin" ? pathname === "/office/admin" : pathname.startsWith(l.href);
+        // Team owns the root plus the person/card detail subtrees, so drilling
+        // into a teammate keeps the Team tab lit.
+        const active =
+          l.href === "/office/admin"
+            ? pathname === "/office/admin" ||
+              pathname.startsWith("/office/admin/team") ||
+              pathname.startsWith("/office/admin/cards")
+            : pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}

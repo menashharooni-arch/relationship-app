@@ -26,8 +26,11 @@ export default async function OfficeCardDetailPage({ params }: { params: Promise
 
   return (
     <div>
-      <Link href="/office/admin/cards" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-        ← Cards
+      <Link
+        href={card.user_id ? `/office/admin/team/${card.user_id}` : "/office/admin"}
+        className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+      >
+        ← Back
       </Link>
 
       <div className="mt-3 flex items-start justify-between gap-4 mb-5">

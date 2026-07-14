@@ -1,7 +1,7 @@
 // Shared invitation constants + expiry helpers so the invite, join, decline, and
-// dashboard-display code all agree on the 7-day window.
+// dashboard-display code all agree on the 14-day window.
 
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
 // True if a pending invite has passed its acceptance window. Prefers the stored
 // expires_at (set on invite creation once the migration is run); falls back to
