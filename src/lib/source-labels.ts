@@ -9,6 +9,10 @@ export const SOURCE_LABELS: Record<string, string> = {
   direct_link: "Card link",       // opened the card's plain URL (sent by text/DM/etc.)
   text_message: "Text message",
   email_signature: "Swift Signature",
+  // The Swift Links page hardcodes source="swift_links" on every event it
+  // records (links/[username]/page.tsx). Without an entry here that fell through
+  // to the raw-slug fallback and printed a lowercase "swift links" to real users.
+  swift_links: "Swift Links",
   manual: "Added by hand",        // the user typed the contact in themselves
   imported: "CSV import",
   scanner: "Card scanner",

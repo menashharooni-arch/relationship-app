@@ -7,7 +7,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
-import { PLAN_FEATURES } from "@/lib/plan-content";
+import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 
@@ -107,21 +107,23 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* Plans — equal-size cards, buttons aligned at the bottom */}
-        <section className="max-w-6xl mx-auto w-full px-5 sm:px-6 pb-14 grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+        {/* Plans — Pro is deliberately not a peer of the other two: it sits
+            taller, on top, and is the only card with the aurora fill, so the
+            eye lands on it first and the free plan reads as the trial it is. */}
+        <section className="max-w-6xl mx-auto w-full px-5 sm:px-6 pb-14 grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch md:pt-6">
           {/* Free */}
           <div data-reveal className="rounded-[28px] p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]">
             <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900 mb-3">Free</p>
             <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
-            <p className="text-slate-500 text-sm mb-7 mt-2">Perfect to get started.</p>
+            <p className="text-slate-500 text-sm mb-7 mt-2">{PLAN_DESCRIPTIONS.free}</p>
             <ul className="space-y-2.5 mb-8 flex-1">
-              {features.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-600"><Check />{f}</li>))}
+              {features.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-500"><Check />{f}</li>))}
             </ul>
-            <Link href="/cards/new" className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors">Get started free →</Link>
+            <Link href="/cards/new" className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 transition-colors">Get started free →</Link>
           </div>
 
           {/* Pro — highlighted, glistening */}
-          <div data-reveal className="relative rounded-[28px] p-8 flex flex-col overflow-hidden" style={{ transitionDelay: "90ms", background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
+          <div data-reveal className="relative rounded-[28px] p-8 flex flex-col overflow-hidden md:-mt-6 md:mb-0 md:z-10 ring-1 ring-blue-500/20" style={{ transitionDelay: "90ms", background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
             <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
             <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
             <div className="relative z-[2] flex flex-col flex-1">
@@ -134,7 +136,7 @@ export default function PricingPage() {
               ) : (
                 <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
               )}
-              <p className="text-white/80 text-sm mb-7 mt-2">For serious networkers.</p>
+              <p className="text-white/80 text-sm mb-7 mt-2">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
               </ul>
@@ -153,7 +155,10 @@ export default function PricingPage() {
 
           {/* Office */}
           <div data-reveal style={{ transitionDelay: "180ms" }} className="rounded-[28px] p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]">
-            <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
+            <div className="flex items-center gap-2 mb-3">
+              <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900">Office</p>
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">FOR TEAMS</span>
+            </div>
             <div className="mb-1">
               <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
               <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
