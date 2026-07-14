@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeBrand, applyBrandToUserCards } from "@/lib/office-brand";
+import { isInviteExpired } from "@/lib/office-invite";
+import { writeAudit } from "@/lib/audit";
 import { NextResponse } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
@@ -25,11 +27,13 @@ export async function POST(req: Request) {
 
   if (!member) return NextResponse.json({ error: "Invalid or expired invite link." }, { status: 404 });
   if (member.status === "active") return NextResponse.json({ error: "This invite has already been used." }, { status: 400 });
+  if (member.status === "revoked") return NextResponse.json({ error: "This invitation was canceled by the team admin." }, { status: 410 });
+  if (member.status === "declined") return NextResponse.json({ error: "This invitation was already declined." }, { status: 410 });
 
-  // Invites expire after 7 days (matches the deadline stated in the invite
-  // email) — otherwise a leaked/forwarded link would work indefinitely.
-  const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-  if (member.created_at && Date.now() - new Date(member.created_at as string).getTime() > INVITE_TTL_MS) {
+  // Invites expire after 7 days (matches the deadline stated in the invite email)
+  // — otherwise a leaked/forwarded link would work indefinitely. Uses stored
+  // expires_at when present, else created_at + TTL.
+  if (isInviteExpired(member as { status?: string; expires_at?: string | null; created_at?: string | null })) {
     return NextResponse.json({ error: "This invite has expired. Ask the team admin to send a new one." }, { status: 410 });
   }
 
@@ -133,6 +137,8 @@ export async function POST(req: Request) {
     const brand = await getOfficeBrand(officeId);
     if (brand) await applyBrandToUserCards(user.id, brand);
   } catch { /* best-effort — the next card edit applies the overlay anyway */ }
+
+  await writeAudit({ action: "invite.accepted", actorId: user.id, orgId: officeId, targetId: user.email ?? user.id });
 
   return NextResponse.json({ ok: true, officeName: (member.offices as { name: string } | null)?.name });
 }

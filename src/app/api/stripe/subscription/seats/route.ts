@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { planFromPriceId } from "@/lib/subscription";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
+import { writeAudit } from "@/lib/audit";
 import type Stripe from "stripe";
 
 // POST /api/stripe/subscription/seats { seats }
@@ -67,5 +68,6 @@ export async function POST(req: NextRequest) {
   }
 
   await admin.from("offices").update({ seats: requested }).eq("id", office.id);
+  await writeAudit({ action: "seat.changed", actorId: user.id, orgId: office.id as string, metadata: { seats: requested } });
   return NextResponse.json({ ok: true, seats: requested });
 }
