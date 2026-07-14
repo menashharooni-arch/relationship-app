@@ -143,6 +143,10 @@ export async function POST(req: Request) {
     subject: `${ownerFirst} invited you to join ${office.name} on SwiftCard`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+        <div style="margin:0 0 24px;">
+          <img src="${APP_URL}/brand-icon.png" width="28" height="28" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;" />
+          <span style="font-size:14px;font-weight:800;color:#111827;vertical-align:middle;">SwiftCard</span>
+        </div>
         <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 8px;">You're invited to ${safeOfficeName}</h2>
         <p style="color:#555;margin:0 0 24px;">${safeOwnerFirst} has invited you to join their team on SwiftCard — the digital business card platform. You'll get your own card and access to the team dashboard.</p>
         <a href="${inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:100px;font-size:15px;">Accept invitation →</a>

@@ -41,17 +41,17 @@ export default function TermsPage() {
 
         <H2>Company information</H2>
         <P>
-          Swift Card is a brand operated by <strong>ORION RE SERVICES INC.</strong> Aaron Lavi serves as
+          SwiftCard is a brand operated by <strong>ORION RE SERVICES INC.</strong> Aaron Lavi serves as
           Co-Founder and CEO and is authorized to represent the company.
         </P>
         <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Operating entity</dt>
-            <dd className="text-slate-800 text-[15px]">ORION RE SERVICES INC.</dd>
+            <dd className="text-slate-800 text-[15px]">ORION RE SERVICES INC</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Brand</dt>
-            <dd className="text-slate-800 text-[15px]">Swift Card (swiftcard.me)</dd>
+            <dd className="text-slate-800 text-[15px]">SwiftCard (swiftcard.me)</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Authorized representative</dt>
@@ -262,7 +262,7 @@ export default function TermsPage() {
 
       <footer className="border-t border-warm-border mt-auto">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500">
-          <span>Swift Card, a brand operated by ORION RE SERVICES INC. · New York, NY</span>
+          <span>SwiftCard, a brand operated by ORION RE SERVICES INC. · New York, NY</span>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>

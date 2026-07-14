@@ -27,17 +27,39 @@ const ORG_JSONLD = {
   contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${APP_URL}/contact` },
 };
 
+const SITE_TITLE = "SwiftCard — The digital business card that shares itself";
+const SITE_DESC =
+  "Build your SwiftCard once and share it by tap, QR code, Apple Wallet, or link — with built-in lead capture and automatic follow-up.";
+
 export const metadata: Metadata = {
   // Required so file-based opengraph-image URLs resolve to ABSOLUTE links on the
   // production domain — otherwise share previews (iMessage, WhatsApp, social)
   // can point at the wrong host (or localhost) and fail to render the card.
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"),
-  title: "SwiftCard",
-  description: "Your digital business card",
+  // Pages may set their own title; it gets "· SwiftCard" appended. Untitled pages
+  // (homepage/marketing) use the full default.
+  title: { default: SITE_TITLE, template: "%s · SwiftCard" },
+  description: SITE_DESC,
+  applicationName: "SwiftCard",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "SwiftCard",
+  },
+  // Site-wide link-preview card (the per-card pages override this with their own
+  // dynamic opengraph-image). The root src/app/opengraph-image.tsx supplies the
+  // image for the homepage and all marketing pages.
+  openGraph: {
+    type: "website",
+    siteName: "SwiftCard",
+    url: APP_URL,
+    title: SITE_TITLE,
+    description: SITE_DESC,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESC,
   },
 };
 
