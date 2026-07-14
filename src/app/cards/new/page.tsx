@@ -24,18 +24,20 @@ export default async function NewCardPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Plan-specific entry (?plan=pro|office): a LOGGED-IN user who ALREADY has a
-  // card doesn't need to build one — send them straight to payment for that plan
-  // (unified flow, no rebuild). New users / users without a card fall through and
-  // build their card first, then pay.
-  if (user && (sp.plan === "pro" || sp.plan === "office") && sp.claim !== "1") {
+  // Plan-specific entry (?plan=pro|office). PRO is a single-person upgrade of the
+  // one card you already have, so a logged-in Pro buyer who already has a card
+  // needs no new card — skip straight to payment. OFFICE is different: it's a
+  // company/team setup and the buyer's card becomes seat 1, so an Office buyer
+  // ALWAYS builds (or freshly sets up) that card first rather than being dropped
+  // onto a bare "Review your order" screen — the card creation IS the first step
+  // of Office onboarding. Everyone without a card falls through and builds first.
+  if (user && sp.plan === "pro" && sp.claim !== "1") {
     const { count } = await getAdminSupabase()
       .from("cards")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id);
     if ((count ?? 0) > 0) {
-      const qs = new URLSearchParams({ plan: sp.plan, interval: sp.interval === "annual" ? "annual" : "monthly" });
-      if (sp.plan === "office" && sp.seats) qs.set("seats", sp.seats);
+      const qs = new URLSearchParams({ plan: "pro", interval: sp.interval === "annual" ? "annual" : "monthly" });
       redirect(`/checkout?${qs.toString()}`);
     }
   }
@@ -48,7 +50,11 @@ export default async function NewCardPage({
   //    (e.g. a returning user), the card must NOT silently merge into that
   //    account. The visitor builds as a guest and explicitly chooses an account
   //    (log in, or sign up with a different email) before it's saved.
-  const authedAdd = sp.add === "1" && !!user;
+  //  • plan-specific CTA (?plan=pro|office) clicked by a LOGGED-IN user — they
+  //    intend to buy for THIS account, so build the (seat-1) card straight into
+  //    it (authed, no guest gate), then continue to payment.
+  const authedPlan = !!user && (sp.plan === "pro" || sp.plan === "office") && sp.claim !== "1";
+  const authedAdd = (sp.add === "1" && !!user) || authedPlan;
 
   let isPro = false;
   if (user) {

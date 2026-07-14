@@ -120,7 +120,7 @@ export default function CheckoutClient() {
         )}
         {plan === "office" && (
           <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
-            You&apos;ll create your own card first (it counts as seat 1), then invite your team from the Office dashboard. Taxes and any discounts are calculated at checkout.
+            Your own card counts as seat 1 — after payment, invite the rest of your team from the Office dashboard. Taxes and any discounts are calculated at checkout.
           </p>
         )}
 
