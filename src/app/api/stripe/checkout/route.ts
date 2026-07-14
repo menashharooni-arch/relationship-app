@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    // Opt-in 7-day Pro trial for FIRST-TIME subscribers only. The card is
+    // Opt-in Pro trial (TRIAL_DAYS) for FIRST-TIME subscribers only. The card is
     // collected at checkout and Stripe bills automatically when the trial ends
     // unless they cancel. A customer who has ever had a subscription (active,
     // canceled, or trialing) gets no second trial.

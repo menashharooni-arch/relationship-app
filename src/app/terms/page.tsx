@@ -131,7 +131,7 @@ export default function TermsPage() {
 
         <H2>Free trials and promotional offers</H2>
         <P>
-          When you subscribe to Pro for the first time, your subscription starts with a free trial (currently 7 days).
+          When you subscribe to Pro for the first time, your subscription starts with a free trial (currently 14 days).
           You provide a payment method at checkout, and <strong>when the trial ends your subscription begins and your
           payment method is charged automatically</strong> at the price shown, unless you cancel before the trial ends.
           You can cancel anytime from Settings or the billing portal — cancel during the trial and you won&apos;t be
