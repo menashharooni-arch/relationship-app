@@ -29,7 +29,12 @@ export default function CardScaler({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <div ref={outerRef} className="w-full" style={{ height: height || undefined }}>
+    // contain:size — the inner card keeps a fixed LAYOUT width of 460px (the
+    // scale() transform is visual only), which would otherwise inflate any
+    // auto-sized grid/flex track holding a card to >=460px on phones and get
+    // it clipped. Size containment zeroes that intrinsic contribution; the
+    // explicit measured height keeps layout correct.
+    <div ref={outerRef} className="w-full" style={{ height: height || undefined, contain: "size" }}>
       <div
         ref={innerRef}
         style={{
