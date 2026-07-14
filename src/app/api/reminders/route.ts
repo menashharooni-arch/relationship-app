@@ -6,6 +6,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
 import { getAccountEmail } from "@/lib/account-email";
 import { expireFreeMonths } from "@/lib/referral-server";
+import { purgeExpiredDeletedAccounts } from "@/lib/account-purge";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
@@ -59,6 +60,17 @@ export async function GET(req: NextRequest) {
   const supabase = getAdminSupabase();
   const currentUTCHour = new Date().getUTCHours();
   let totalSent = 0;
+
+  // Permanently delete accounts whose 30-day reopen window has passed. This is
+  // what makes the "your data is removed for good" promise in the delete
+  // dialog / Privacy Policy / Terms actually true (and satisfies Apple's
+  // account-deletion requirement). Best-effort — never blocks the send run.
+  let purged = 0;
+  try {
+    purged = await purgeExpiredDeletedAccounts();
+  } catch (e) {
+    await reportError("reminders.purge-deleted-accounts", e);
+  }
 
   // Expire finished trial / free-month grants → back to Free, unless the user
   // converted to a paid subscription. Email each downgraded user what changed.
@@ -290,5 +302,5 @@ export async function GET(req: NextRequest) {
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===
 
-  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded });
+  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded, purged });
 }

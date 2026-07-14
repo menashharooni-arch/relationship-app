@@ -30,7 +30,7 @@ export default function TermsPage() {
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: July 13, 2026</p>
+        <p className="text-slate-500 text-sm mb-8">Last updated: July 14, 2026</p>
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -236,6 +236,22 @@ export default function TermsPage() {
           of it. You may not assign these terms; we may assign them in connection with a merger, acquisition, or sale
           of assets. Nothing in these terms creates a partnership, employment, or agency relationship.
         </P>
+
+        <H2>Apple App Store</H2>
+        <P>
+          If you download SwiftCard from the Apple App Store, the following also applies, and these terms are the
+          end-user license agreement (EULA) between you and SwiftCard for the app:
+        </P>
+        <ul className="mb-3">
+          <LI><strong>Party to this agreement.</strong> This agreement is between you and SwiftCard only, not Apple. SwiftCard, not Apple, is solely responsible for the app and its content.</LI>
+          <LI><strong>Scope of license.</strong> Your license to use the app is limited to a non-transferable license to use it on any Apple-branded device you own or control, as permitted by the App Store Usage Rules, except that it may be accessed by other accounts associated with you through Family Sharing or volume purchasing.</LI>
+          <LI><strong>Maintenance and support.</strong> SwiftCard is solely responsible for providing any maintenance and support for the app. Apple has no obligation to furnish any maintenance or support services.</LI>
+          <LI><strong>Warranty.</strong> To the maximum extent permitted by law, Apple has no warranty obligation with respect to the app. If the app fails to conform to any applicable warranty, you may notify Apple and Apple will refund the purchase price (if any); Apple has no other warranty obligation, and any other claims are SwiftCard&apos;s responsibility.</LI>
+          <LI><strong>Product claims.</strong> SwiftCard, not Apple, is responsible for addressing any claims relating to the app, including product-liability claims, claims that the app fails to conform to legal or regulatory requirements, and consumer-protection or privacy claims.</LI>
+          <LI><strong>Intellectual property.</strong> If a third party claims the app infringes its intellectual property, SwiftCard, not Apple, is solely responsible for the investigation, defense, settlement, and discharge of that claim.</LI>
+          <LI><strong>Third-party beneficiary.</strong> Apple and its subsidiaries are third-party beneficiaries of these terms and, upon your acceptance, will have the right to enforce them against you as a third-party beneficiary.</LI>
+          <LI><strong>Compliance.</strong> You represent that you are not located in a country subject to a U.S. Government embargo or designated as terrorist-supporting, and that you are not on any U.S. Government restricted-parties list.</LI>
+        </ul>
 
         <H2>Contact</H2>
         <P>
