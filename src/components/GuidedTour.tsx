@@ -178,8 +178,26 @@ export default function GuidedTour() {
   // rAF gives buttery tracking while the tab is visible. We ALSO position once
   // synchronously (so the first paint is correct, no flash) and on scroll/resize
   // (so it still tracks if rAF is throttled, e.g. a backgrounded tab).
+  //
+  // PERF: the naive version of this loop wrote styles to 7 overlay nodes and
+  // called getComputedStyle/offsetWidth every frame. Each write dirties layout,
+  // so the NEXT frame's getBoundingClientRect forces a synchronous reflow —
+  // 60fps layout thrash that made the whole tour feel laggy on a busy
+  // dashboard. Now everything expensive is cached (tooltip size per step,
+  // border-radius per target) and the frame bails out before ANY write when
+  // the target hasn't moved — a steady-state frame is a single cheap rect read.
+  const measureRef = useRef<{
+    el: HTMLElement | null;   // target the radius cache belongs to
+    radius: string;           // cached computed border-radius for the ring
+    tipStep: number;          // step the tooltip size was measured for
+    tipW: number;
+    tipH: number;
+    sig: string;              // last-applied layout signature (bail when equal)
+  }>({ el: null, radius: "12px", tipStep: -1, tipW: TIP_W, tipH: 160, sig: "" });
+
   function startLoop() {
     stopLoop();
+    measureRef.current.sig = ""; // new target/step → force one full layout pass
     layout(); // immediate — don't wait for the first animation frame
     const frame = () => {
       layout();
@@ -187,57 +205,88 @@ export default function GuidedTour() {
     };
     rafRef.current = requestAnimationFrame(frame);
     window.addEventListener("scroll", layout, true);
-    window.addEventListener("resize", layout);
+    window.addEventListener("resize", onResize);
   }
   function stopLoop() {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     window.removeEventListener("scroll", layout, true);
-    window.removeEventListener("resize", layout);
+    window.removeEventListener("resize", onResize);
+  }
+  function onResize() {
+    // Viewport changed → cached tooltip size may be stale (width clamp) and the
+    // bail signature no longer matches reality. Remeasure + relayout.
+    measureRef.current.tipStep = -1;
+    measureRef.current.sig = "";
+    layout();
   }
 
   function layout() {
     const W = window.innerWidth, H = window.innerHeight;
     const el = targetRef.current;
     const tipEl = tip.current;
+    const m = measureRef.current;
+
+    // Tooltip size: fixed width + step-dependent content → only remeasure when
+    // the step changes (or after a resize), never per frame.
+    if (tipEl && m.tipStep !== idxRef.current) {
+      m.tipW = tipEl.offsetWidth || TIP_W;
+      m.tipH = tipEl.offsetHeight || 160;
+      m.tipStep = idxRef.current;
+    }
 
     // No target → full-screen dim + centered tooltip.
     if (!el) {
+      const sig = `c|${W}|${H}|${m.tipW}|${m.tipH}`;
+      if (sig === m.sig) return;
+      m.sig = sig;
       if (full.current) full.current.style.opacity = "1";
-      [maskT, maskB, maskL, maskR].forEach((m) => m.current && (m.current.style.opacity = "0"));
+      [maskT, maskB, maskL, maskR].forEach((mm) => mm.current && (mm.current.style.opacity = "0"));
       if (ring.current) ring.current.style.opacity = "0";
       if (holeCover.current) holeCover.current.style.opacity = "0";
       if (tipEl) {
-        tipEl.style.left = `${Math.round((W - tipEl.offsetWidth) / 2)}px`;
-        tipEl.style.top = `${Math.round((H - tipEl.offsetHeight) / 2)}px`;
+        tipEl.style.left = `${Math.round((W - m.tipW) / 2)}px`;
+        tipEl.style.top = `${Math.round((H - m.tipH) / 2)}px`;
+        tipEl.style.visibility = "visible";
       }
       return;
     }
 
-    if (full.current) full.current.style.opacity = "0";
     const r = el.getBoundingClientRect();
     const x0 = Math.max(0, r.left - PAD), y0 = Math.max(0, r.top - PAD);
     const x1 = Math.min(W, r.right + PAD), y1 = Math.min(H, r.bottom + PAD);
     const hw = Math.max(0, x1 - x0), hh = Math.max(0, y1 - y0);
+
+    // Bail before ANY write when nothing moved — keeps layout clean so the rect
+    // read above stays cheap (no forced reflow) on every idle frame.
+    const clickable = !!(step?.clickToAdvance || step?.interactive);
+    const sig = `${x0}|${y0}|${x1}|${y1}|${W}|${H}|${m.tipW}|${m.tipH}|${clickable ? 1 : 0}`;
+    if (sig === m.sig) return;
+    m.sig = sig;
+
+    if (full.current) full.current.style.opacity = "0";
 
     // Four dim rectangles framing the hole.
     setBox(maskT.current, 0, 0, W, y0);
     setBox(maskB.current, 0, y1, W, H - y1);
     setBox(maskL.current, 0, y0, x0, hh);
     setBox(maskR.current, x1, y0, W - x1, hh);
-    [maskT, maskB, maskL, maskR].forEach((m) => m.current && (m.current.style.opacity = "1"));
+    [maskT, maskB, maskL, maskR].forEach((mm) => mm.current && (mm.current.style.opacity = "1"));
 
-    // Spotlight ring (visual only).
+    // Spotlight ring (visual only). Computed border-radius is cached per target.
     if (ring.current) {
-      const cs = getComputedStyle(el);
+      if (m.el !== el) {
+        const cs = getComputedStyle(el);
+        m.radius = cs.borderRadius && cs.borderRadius !== "0px" ? cs.borderRadius : "12px";
+        m.el = el;
+      }
       setBox(ring.current, x0, y0, hw, hh);
-      ring.current.style.borderRadius = cs.borderRadius && cs.borderRadius !== "0px" ? cs.borderRadius : "12px";
+      ring.current.style.borderRadius = m.radius;
       ring.current.style.opacity = "1";
     }
     // Click blocker over the hole — present unless this step invites a click
     // (clickToAdvance) or lets the visitor genuinely use the control (interactive).
     if (holeCover.current) {
-      const clickable = !!(step?.clickToAdvance || step?.interactive);
       setBox(holeCover.current, x0, y0, hw, hh);
       holeCover.current.style.opacity = clickable ? "0" : "1";
       holeCover.current.style.pointerEvents = clickable ? "none" : "auto";
@@ -245,7 +294,7 @@ export default function GuidedTour() {
 
     // Tooltip: try the preferred side, fall back to whatever fits.
     if (tipEl) {
-      const tw = tipEl.offsetWidth || TIP_W, th = tipEl.offsetHeight || 160;
+      const tw = m.tipW, th = m.tipH;
       const place = step?.placement ?? "bottom";
       let top: number, left: number;
       const fitsBelow = y1 + GAP + th <= H, fitsAbove = y0 - GAP - th >= 0;
@@ -268,6 +317,7 @@ export default function GuidedTour() {
 
       tipEl.style.left = `${Math.round(left!)}px`;
       tipEl.style.top = `${Math.round(top!)}px`;
+      tipEl.style.visibility = "visible";
     }
   }
 
@@ -288,8 +338,16 @@ export default function GuidedTour() {
 
   if (!step) return null;
 
-  // While navigating to another page, render nothing (the destination resumes).
-  if (step.path !== pathname) return null;
+  // While navigating to another page, keep the screen dimmed (instead of
+  // unmounting everything) so the step change reads as one continuous motion
+  // rather than a bright flash of the raw page mid-tour.
+  if (step.path !== pathname) {
+    return (
+      <div className="sc-tour" aria-hidden="true">
+        <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(3,7,18,0.80)", pointerEvents: "auto" }} />
+      </div>
+    );
+  }
 
   const isLast = idx === TOUR_STEPS.length - 1;
   const isFirst = idx === 0;
@@ -308,14 +366,18 @@ export default function GuidedTour() {
       <div
         ref={ring}
         className={`fixed z-[9999] ${step.clickToAdvance || step.interactive ? "sc-tour-pulse" : ""}`}
-        style={{ opacity: 0, pointerEvents: "none", boxShadow: "0 0 0 3px rgba(96,165,250,0.95), 0 0 0 9999px rgba(0,0,0,0), 0 8px 40px rgba(37,99,235,0.35)" }}
+        style={{ opacity: 0, pointerEvents: "none", boxShadow: "0 0 0 3px rgba(96,165,250,0.95), 0 8px 40px rgba(37,99,235,0.35)" }}
       />
 
-      {/* Tooltip */}
+      {/* Tooltip — keyed on the step so each step gets a light fade/slide-in.
+          Mounts hidden; layout() reveals it once it's actually positioned, so a
+          fresh node never flashes at the viewport origin while the next anchor
+          is still being located. */}
       <div
+        key={idx}
         ref={tip}
-        className="fixed z-[10000] rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-5"
-        style={{ width: TIP_W, maxWidth: "calc(100vw - 24px)" }}
+        className="fixed z-[10000] rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-5 sc-tour-tip-in"
+        style={{ width: TIP_W, maxWidth: "calc(100vw - 24px)", visibility: "hidden" }}
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-semibold tracking-wide text-blue-400 uppercase">Step {idx + 1} of {TOUR_STEPS.length}</span>
@@ -360,7 +422,15 @@ export default function GuidedTour() {
           50% { box-shadow: 0 0 0 6px rgba(96,165,250,0.55), 0 8px 46px rgba(37,99,235,0.5); }
         }
         .sc-tour-pulse { animation: sc-tour-pulse 1.4s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .sc-tour-pulse { animation: none; } }
+        @keyframes sc-tour-tip-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .sc-tour-tip-in { animation: sc-tour-tip-in .18s ease-out; }
+        @media (prefers-reduced-motion: reduce) {
+          .sc-tour-pulse { animation: none; }
+          .sc-tour-tip-in { animation: none; }
+        }
       `}</style>
     </div>
   );
