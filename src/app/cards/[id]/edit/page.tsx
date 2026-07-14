@@ -8,8 +8,15 @@ import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
 import type { CardData } from "@/components/card-templates/types";
 
-export default async function CardEditPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CardEditPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ claim?: string }>;
+}) {
   const { id } = await params;
+  const { claim } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -62,9 +69,11 @@ export default async function CardEditPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
-      {/* Backstop: resolves any still-pending guest draft claim that landed on an
-          edit URL. No-ops once the draft is cleared. */}
-      <GuestDraftClaim />
+      {/* Backstop: resolves a still-pending guest draft ONLY on an explicit
+          post-auth claim return (?claim=1) — never on a bare edit visit, or a
+          leftover guest draft would silently bleed into whatever card/account
+          you opened. The real claim already happens on /cards/new?claim=1. */}
+      {claim === "1" && <GuestDraftClaim />}
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <DashboardLink card={card.username} className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">

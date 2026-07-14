@@ -48,7 +48,7 @@ function daysAgoISO(days: number) {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string }>;
+  searchParams: Promise<{ upgraded?: string; sort?: string; view?: string; range?: string; card?: string; surface?: string; vrange?: string; welcome?: string; claim?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -399,8 +399,11 @@ export default async function DashboardPage({
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>
       {/* Backstop for the guest-signup flow: claims a still-pending localStorage
-          draft if a guest lands here post-auth. No-ops when there's no draft. */}
-      <GuestDraftClaim />
+          draft ONLY on an explicit post-auth claim return (?claim=1). Never on a
+          bare dashboard visit — otherwise logging into an existing account would
+          silently swallow a leftover guest draft into it (the "bleed" bug). The
+          real claim already happens on /cards/new?claim=1 in every auth path. */}
+      {params.claim === "1" && <GuestDraftClaim />}
       <Suspense>
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>
