@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
+import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
 // plan step and the /welcome step. Visually and content-wise it mirrors the
@@ -14,11 +15,8 @@ import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 
 const PRO_MONTHLY = PLAN_PRICES.PRO_MONTHLY_CENTS / 100;
 const PRO_ANNUAL = PLAN_PRICES.PRO_ANNUAL_CENTS / 100;
-const OFFICE_PER_USER = PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100;
-const OFFICE_PER_USER_YEAR = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100;
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 const PRO_ANNUAL_PER_MO = money(PRO_ANNUAL / 12);
-const OFFICE_ANNUAL_PER_MO = money(OFFICE_PER_USER_YEAR / 12);
 
 export type PaidPlan = "pro" | "office";
 
@@ -108,9 +106,11 @@ export default function PlanCards({
         <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
           <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
           <div className="mb-1">
-            <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? OFFICE_ANNUAL_PER_MO : OFFICE_PER_USER}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
+            <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
             <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
-            <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${(seats * OFFICE_PER_USER).toLocaleString()}/mo`}</p>
+            <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual
+              ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
+              : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`}</p>
           </div>
           <div className="mt-4 mb-5">
             <label className="text-xs text-slate-400 font-medium block mb-2">Team size</label>
@@ -131,8 +131,10 @@ export default function PlanCards({
           <ul className="space-y-2.5 mb-7 flex-1">
             {PLAN_FEATURES.office.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
           </ul>
-          <button onClick={() => onPaid("office", annual, seats)} disabled={disabled} className="w-full font-bold py-3.5 rounded-full text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors">
-            {busy === "office" ? "Loading…" : `Get Office Plan · ${annual ? `$${money(seats * OFFICE_PER_USER_YEAR)}/yr` : `$${seats * OFFICE_PER_USER}/mo`} →`}
+          <button onClick={() => onPaid("office", annual, seats)} disabled={disabled} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
+            {busy === "office" ? "Loading…" : `Get Office · ${annual
+              ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
+              : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`} →`}
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
-import { money } from "@/lib/plan-content";
+import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ManageBillingButton from "@/components/ManageBillingButton";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
@@ -105,7 +105,7 @@ export default function BillingManager() {
 
   const isPaid = sub.plan === "pro" || sub.plan === "office";
   const renewalLine = sub.renewalCents != null
-    ? `$${money(sub.renewalCents / 100)}/${sub.interval === "annual" ? "yr" : "mo"}`
+    ? `${formatUsd(sub.renewalCents)}/${sub.interval === "annual" ? "yr" : "mo"}`
     : null;
 
   return (
@@ -249,7 +249,7 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
             className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-white font-bold">+</button>
         </div>
         <span className="text-xs text-gray-500">
-          {`$${money((sub.interval === "annual" ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS) * seats / 100)}/${sub.interval === "annual" ? "yr" : "mo"}`}
+          {`${formatUsd(seatSubtotalCents(sub.interval === "annual" ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/${sub.interval === "annual" ? "yr" : "mo"}`}
         </span>
         {changed && (
           <button onClick={save} disabled={busy}
@@ -300,10 +300,10 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
     }
   }
 
-  const proMo = sub.interval === "annual" || interval === "annual"
-    ? `$${money(PLAN_PRICES.PRO_ANNUAL_CENTS / 100)}/yr` : `$${money(PLAN_PRICES.PRO_MONTHLY_CENTS / 100)}/mo`;
+  const proMo = interval === "annual"
+    ? `${formatUsd(PLAN_PRICES.PRO_ANNUAL_CENTS)}/yr` : `${formatUsd(PLAN_PRICES.PRO_MONTHLY_CENTS)}/mo`;
   const officePer = interval === "annual"
-    ? `$${money(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100)}/yr` : `$${money(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS / 100)}/mo`;
+    ? `${formatUsd(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)}/yr` : `${formatUsd(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}/mo`;
 
   return (
     <Modal onClose={onClose} title="Change plan">
