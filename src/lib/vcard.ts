@@ -11,6 +11,8 @@
 // VCardPhoto. A missing/failed image simply omits PHOTO — it never throws and
 // never corrupts the card.
 
+import { socialUrl } from "@/lib/social-url";
+
 export type VCardPhone = { number: string; label?: string | null; showOnCard?: boolean };
 
 export type VCardAddress = {
@@ -137,7 +139,12 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
     lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
   }
 
-  if (person.linkedin) lines.push(`URL;type=LinkedIn:${esc(normalizeVCardUrl(person.linkedin))}`);
+  // socialUrl (not normalizeVCardUrl) — a bare handle like "john-doe" must
+  // become linkedin.com/in/john-doe, not the nonsense domain https://john-doe.
+  if (person.linkedin) {
+    const li = socialUrl("linkedin", person.linkedin);
+    if (li) lines.push(`URL;type=LinkedIn:${esc(li)}`);
+  }
   if (person.instagram) lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
   if (person.twitter) lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
   if (person.tiktok) lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);

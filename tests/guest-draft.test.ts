@@ -226,4 +226,78 @@ describe("guest draft store", () => {
     expect(m.loadDraft()).toBeNull();
     expect(m.hasPendingDraft()).toBe(false);
   });
+
+  // ── Claim consent — the cross-account leak guard ───────────────────────────
+  // A draft may ONLY be claimed when the guest explicitly chose an account for
+  // it at the gate. An abandoned draft must never attach to whichever account
+  // signs in next on the same browser.
+  it("a fresh draft carries NO claim consent", async () => {
+    const m = await freshStore(ls);
+    m.saveDraft({ payload: { name: "Guest Work" } });
+    m.flushDraft();
+    expect(m.hasClaimConsent()).toBe(false);
+  });
+
+  it("markClaimConsent grants consent, and it survives a reload", async () => {
+    const m1 = await freshStore(ls);
+    m1.saveDraft({ payload: { name: "Guest Work" } });
+    m1.markClaimConsent();
+    expect(m1.hasClaimConsent()).toBe(true);
+    // Same browser, new page load (login round-trip / email-confirm return).
+    const m2 = await freshStore(ls);
+    expect(m2.hasClaimConsent()).toBe(true);
+  });
+
+  it("consent expires after CLAIM_CONSENT_MAX_AGE_MS", async () => {
+    const m = await freshStore(ls);
+    m.saveDraft({ payload: { name: "Guest Work" } });
+    m.markClaimConsent();
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now + m.CLAIM_CONSENT_MAX_AGE_MS + 1);
+    try {
+      expect(m.hasClaimConsent()).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("consent without a draft is meaningless (no draft → no consent)", async () => {
+    const m = await freshStore(ls);
+    m.markClaimConsent(); // no-op: nothing to consent about
+    expect(m.hasClaimConsent()).toBe(false);
+  });
+
+  it("editing after consenting keeps the consent (same draft, same person)", async () => {
+    const m = await freshStore(ls);
+    m.saveDraft({ payload: { name: "v1" } });
+    m.markClaimConsent();
+    m.saveDraft({ payload: { name: "v2" } });
+    m.flushDraft();
+    expect(m.hasClaimConsent()).toBe(true);
+  });
+});
+
+// ── Claim normalizes socials like /api/cards does ────────────────────────────
+describe("buildClaimInsert — social normalization", () => {
+  it("stores a guest-typed LinkedIn value in linkable form", () => {
+    const r = buildClaimInsert("session-user", {
+      username: "acme",
+      name: "A",
+      linkedin: "https://www.linkedin.com/in/aaron-lavi/",
+      instagram: "https://instagram.com/aaron",
+      twitter: "aaron",
+    }, false);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.insert.linkedin).toBe("linkedin.com/in/aaron-lavi");
+    expect(r.insert.instagram).toBe("@aaron");
+    expect(r.insert.twitter).toBe("@aaron");
+  });
+
+  it("a spaced name in the LinkedIn field becomes a hyphenated handle path", () => {
+    const r = buildClaimInsert("session-user", { username: "acme", name: "A", linkedin: "John Doe" }, false);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.insert.linkedin).toBe("linkedin.com/in/john-doe");
+  });
 });

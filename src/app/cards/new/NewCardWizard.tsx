@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
+import DashboardLink from "@/components/DashboardLink";
 import LogoSuggest from "@/components/LogoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
 import CardScaler from "@/components/CardScaler";
@@ -23,6 +24,9 @@ import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayo
 import { socialUrl } from "@/lib/social-url";
 import { useGuestDraft, saveDraft } from "@/lib/guest-draft";
 import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefill";
+// Shared with the edit form + server so a social typed here connects to the
+// same URL everywhere (blur, save, guest-draft snapshot all normalize).
+import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { PLAN_LIMITS } from "@/lib/plan";
 import PlanCards from "@/components/PlanCards";
@@ -35,29 +39,6 @@ function slugify(str: string): string {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
-}
-
-// Turn whatever the user types (a URL, an @handle, or a bare handle) into a clean,
-// linkable value so the card can connect to the account automatically.
-function normalizeSocial(raw: string, key: SocialKey): string {
-  const v = raw.trim();
-  if (!v) return "";
-  const urlLike = key === "linkedin" || key === "youtube" || key === "facebook";
-  try {
-    if (v.includes("://") || v.includes(".")) {
-      const url = new URL(v.includes("://") ? v : `https://${v}`);
-      const parts = url.pathname.split("/").filter(Boolean);
-      if (key === "linkedin") return parts.length ? `linkedin.com/${parts.join("/")}` : v;
-      if (key === "youtube") return parts.length ? `youtube.com/${parts.join("/")}` : v;
-      if (key === "facebook") return parts.length ? `facebook.com/${parts.join("/")}` : v;
-      const handle = parts[parts.length - 1]?.replace(/^@/, "");
-      if (handle) return `@${handle}`;
-    }
-  } catch {
-    /* not a URL — fall through */
-  }
-  if (urlLike) return v;
-  return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
 }
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
@@ -286,13 +267,18 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
       payload: {
         username, label: cardLabel, name, company, title,
         phone: primaryPhone, email, website,
-        linkedin: socials.linkedin, instagram: socials.instagram,
-        tiktok: socials.tiktok, twitter: socials.twitter,
+        linkedin: normalizeSocial(socials.linkedin, "linkedin"),
+        instagram: normalizeSocial(socials.instagram, "instagram"),
+        tiktok: normalizeSocial(socials.tiktok, "tiktok"),
+        twitter: normalizeSocial(socials.twitter, "twitter"),
         template,
         logo_url: null,
         customization: {
-          bio, facebook: socials.facebook, snapchat: socials.snapchat,
-          youtube: socials.youtube, links, address, phones: cleanPhones, fax: fax.trim(),
+          bio,
+          facebook: normalizeSocial(socials.facebook, "facebook"),
+          snapchat: normalizeSocial(socials.snapchat, "snapchat"),
+          youtube: normalizeSocial(socials.youtube, "youtube"),
+          links, address, phones: cleanPhones, fax: fax.trim(),
           ...templateStyleState,
           photoUrl: null,
           ...(template === "custom" ? { customLayout } : {}),
@@ -330,17 +316,19 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
           phone: primaryPhone,
           email: email.trim(),
           website: website.trim(),
-          linkedin: socials.linkedin.trim(),
-          instagram: socials.instagram.trim(),
-          tiktok: socials.tiktok.trim(),
-          twitter: socials.twitter.trim(),
+          // Normalize at save too — onBlur alone misses Enter-to-submit and the
+          // prefill autofill path, which set state without ever blurring the field.
+          linkedin: normalizeSocial(socials.linkedin, "linkedin"),
+          instagram: normalizeSocial(socials.instagram, "instagram"),
+          tiktok: normalizeSocial(socials.tiktok, "tiktok"),
+          twitter: normalizeSocial(socials.twitter, "twitter"),
           template,
           logo_url: logoUrl,
           customization: {
             bio: bio.trim(),
-            facebook: socials.facebook.trim(),
-            snapchat: socials.snapchat.trim(),
-            youtube: socials.youtube.trim(),
+            facebook: normalizeSocial(socials.facebook, "facebook"),
+            snapchat: normalizeSocial(socials.snapchat, "snapchat"),
+            youtube: normalizeSocial(socials.youtube, "youtube"),
             links,
             address,
             phones: cleanPhones,
@@ -382,15 +370,26 @@ export default function NewCardWizard({ isPro, guest = false }: { isPro: boolean
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className={step === 4 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
-        {/* Always a plain "Home" back-link — never a Dashboard shortcut. The
-            card builder must never offer a jump into an account (a lingering
-            session would otherwise open the dashboard without a fresh sign-in). */}
-        <Link href="/" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-          </svg>
-          Home
-        </Link>
+        {/* Back-link matches how the user got here:
+            • guest / marketing entry → "Home" (no jump into a lingering session's
+              account without a fresh sign-in);
+            • signed-in "Add Card" from the dashboard (add=1 → guest=false, the
+              server verified the session) → "Dashboard", back to their cards. */}
+        {guest ? (
+          <Link href="/" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Home
+          </Link>
+        ) : (
+          <DashboardLink className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Dashboard
+          </DashboardLink>
+        )}
 
         {/* Steps 1–3: form on the left, a live card preview pinned alongside
             (right on desktop, top on mobile). Step 4 (success) is full-width. */}

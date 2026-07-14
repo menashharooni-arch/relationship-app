@@ -24,6 +24,12 @@ export type GuestDraft = {
   images: Record<string, string>; // e.g. { logo: "data:…", photo: "data:…" }
   step: number;
   updatedAt: number;
+  // Set the moment the guest explicitly chooses "Create account / Log in" at
+  // the gate FOR THIS DRAFT. A draft is only ever claimed into an account when
+  // this consent is present and fresh — an abandoned draft sitting in
+  // localStorage must never silently attach to whichever account signs in next
+  // on this browser (that was a real cross-account leak).
+  claimRequestedAt?: number;
 };
 
 function storageAvailable(): boolean {
@@ -137,6 +143,31 @@ export function clearDraft(): void {
 
 export function hasPendingDraft(): boolean {
   return loadDraft() !== null;
+}
+
+// ── Claim consent ─────────────────────────────────────────────────────────────
+// How long the "yes, save this draft into the account I'm about to sign into"
+// choice stays valid. Long enough to cover login + email confirmation on the
+// same device; short enough that a forgotten draft can't ambush a different
+// account signing in days later.
+export const CLAIM_CONSENT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+// Called when the guest clicks "Create account" / "Log in" at the gate — the
+// explicit moment they choose to save THIS draft into the account they're
+// about to authenticate as.
+export function markClaimConsent(): void {
+  const draft = loadDraft();
+  if (!draft) return;
+  mem = { ...draft, claimRequestedAt: Date.now() };
+  writeNow(mem);
+}
+
+// True when the pending draft carries fresh, explicit save-consent.
+export function hasClaimConsent(): boolean {
+  const draft = loadDraft();
+  if (!draft?.claimRequestedAt) return false;
+  const age = Date.now() - draft.claimRequestedAt;
+  return age >= 0 && age <= CLAIM_CONSENT_MAX_AGE_MS;
 }
 
 // Client-side auth heuristic: the @supabase/ssr session is stored in a cookie

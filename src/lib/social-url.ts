@@ -1,10 +1,17 @@
+// Last-resort escape so a stored value with stray whitespace still yields a
+// VALID absolute URL. Deliberately narrower than encodeURI, which would
+// double-encode already-%-encoded values (…%20… → …%2520…).
+function escapeSpaces(url: string): string {
+  return url.replace(/\s/g, "%20");
+}
+
 // Build a valid profile URL from whatever was stored: a full URL, a platform URL
 // (e.g. "instagram.com/x"), an "@handle", or a bare handle.
 export function socialUrl(platform: string, raw?: string | null): string | null {
   if (!raw) return null;
   const v = raw.trim();
   if (!v) return null;
-  if (/^https?:\/\//i.test(v)) return v;
+  if (/^https?:\/\//i.test(v)) return escapeSpaces(v);
 
   const lower = v.toLowerCase();
   const domain: Record<string, string> = {
@@ -17,24 +24,31 @@ export function socialUrl(platform: string, raw?: string | null): string | null 
     youtube: "youtube.com",
   };
   if ((domain[platform] && lower.includes(domain[platform])) || (platform === "twitter" && lower.includes("twitter.com"))) {
-    return `https://${v.replace(/^\/+/, "")}`;
+    return escapeSpaces(`https://${v.replace(/^\/+/, "")}`);
   }
 
-  const handle = v.replace(/^@+/, "").trim();
+  let handle = v.replace(/^@+/, "").trim();
   if (!handle) return null;
+  // A spaced value is a person's/page's NAME, not a handle. LinkedIn (and
+  // Facebook) default handles are the hyphenated name — "John Doe" →
+  // "john-doe" — which at worst lands on the right profile and at best is
+  // exactly it. A raw space would produce an invalid URL that opens nothing.
+  if (/\s/.test(handle) && (platform === "linkedin" || platform === "facebook")) {
+    handle = handle.toLowerCase().replace(/\s+/g, "-");
+  }
 
   switch (platform) {
     case "linkedin":
-      if (/^(in|company|pub|school)\//i.test(handle)) return `https://linkedin.com/${handle}`;
-      return `https://linkedin.com/in/${handle}`;
-    case "instagram": return `https://instagram.com/${handle}`;
-    case "twitter":   return `https://x.com/${handle}`;
-    case "tiktok":    return `https://tiktok.com/@${handle}`;
-    case "facebook":  return `https://facebook.com/${handle}`;
-    case "snapchat":  return `https://snapchat.com/add/${handle}`;
-    case "youtube":   return `https://youtube.com/@${handle}`;
-    case "website":   return /\.[a-z]{2,}/i.test(handle) ? `https://${handle.replace(/^\/+/, "")}` : null;
-    default:          return `https://${handle}`;
+      if (/^(in|company|pub|school)\//i.test(handle)) return escapeSpaces(`https://linkedin.com/${handle}`);
+      return escapeSpaces(`https://linkedin.com/in/${handle}`);
+    case "instagram": return escapeSpaces(`https://instagram.com/${handle}`);
+    case "twitter":   return escapeSpaces(`https://x.com/${handle}`);
+    case "tiktok":    return escapeSpaces(`https://tiktok.com/@${handle}`);
+    case "facebook":  return escapeSpaces(`https://facebook.com/${handle}`);
+    case "snapchat":  return escapeSpaces(`https://snapchat.com/add/${handle}`);
+    case "youtube":   return escapeSpaces(`https://youtube.com/@${handle}`);
+    case "website":   return /\.[a-z]{2,}/i.test(handle) ? escapeSpaces(`https://${handle.replace(/^\/+/, "")}`) : null;
+    default:          return escapeSpaces(`https://${handle}`);
   }
 }
 
@@ -51,6 +65,8 @@ export function normalizeSocial(raw: string, platform: string): string {
   const urlLike = platform === "linkedin" || platform === "youtube" || platform === "facebook";
   try {
     if (v.includes("://") || v.includes(".")) {
+      // URL() encodes stray spaces in the path (…/in/John Doe → John%20Doe),
+      // so a pasted profile URL always normalizes to something linkable.
       const url = new URL(v.includes("://") ? v : `https://${v}`);
       const parts = url.pathname.split("/").filter(Boolean);
       if (platform === "linkedin") return parts.length ? `linkedin.com/${parts.join("/")}` : v;
@@ -62,7 +78,16 @@ export function normalizeSocial(raw: string, platform: string): string {
   } catch {
     /* not a URL — fall through */
   }
-  if (urlLike) return v;
+  if (urlLike) {
+    // No dot, so this is a name or bare handle. A spaced name ("John Doe")
+    // can never be linked as-is — store the platform's hyphenated-handle
+    // convention instead so the built URL actually resolves.
+    if (/\s/.test(v) && (platform === "linkedin" || platform === "facebook")) {
+      const slug = v.toLowerCase().replace(/\s+/g, "-");
+      return platform === "linkedin" ? `linkedin.com/in/${slug}` : `facebook.com/${slug}`;
+    }
+    return v;
+  }
   return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
 }
 

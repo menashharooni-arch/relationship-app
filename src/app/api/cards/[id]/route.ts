@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { normalizeSocial } from "@/lib/social-url";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
+const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +18,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updates: Record<string, unknown> = {};
   for (const key of ALLOWED) {
     if (key in body) updates[key] = body[key];
+  }
+  // Server-side normalize (backstop for older/other clients): stored social
+  // values must always build a working profile URL. See lib/social-url.ts.
+  for (const key of SOCIAL_COLUMNS) {
+    if (key in updates) updates[key] = normalizeSocial(String(updates[key] ?? ""), key);
   }
 
   const admin = getAdminSupabase();

@@ -8,6 +8,7 @@
 // is ALWAYS the session user id passed in by the route — never anything the
 // (untrusted) draft payload supplied. See buildClaimInsert + its tests.
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
+import { normalizeSocial } from "@/lib/social-url";
 
 // Keys we accept off a draft payload. Anything else (user_id, id, created_at,
 // plan, …) is ignored — the allow-list IS the ownership guard.
@@ -116,6 +117,12 @@ export function buildClaimInsert(
 
   for (const field of ALLOWED_STRING_FIELDS) {
     insert[field] = str(p[field]);
+  }
+
+  // Socials normalize on claim like /api/cards does on create — a guest-typed
+  // value (full URL, handle, or spaced name) must store linkable.
+  for (const field of ["linkedin", "instagram", "twitter", "tiktok"] as const) {
+    insert[field] = normalizeSocial(insert[field], field);
   }
 
   return { ok: true, insert };
