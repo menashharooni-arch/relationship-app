@@ -239,8 +239,12 @@ export default async function DashboardPage({
     supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
     // Bell (top nav): EVERY card's notifications, each tagged with its card.
     supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    // Service-role client: the offices RLS policies are mutually recursive with
+    // office_members, so a user-scoped read raises "infinite recursion detected
+    // in policy for relation offices" once there's a row to evaluate. Still
+    // scoped to this caller's own owner_id.
     isEnterprise
-      ? supabase.from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
+      ? getAdminSupabase().from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
