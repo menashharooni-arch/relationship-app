@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -149,9 +150,14 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
             <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
             <QRCodeModal url={DEMO_URL} firstName={FIRST} />
           </div>
-          <a href="https://swiftcard.me/?src=card" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
+          {/* The "Powered by SwiftCard" badge a free card carries — and a real
+              conversion path, so it points at the builder. It used to be a hard
+              link to https://swiftcard.me/?src=card, which on production merely
+              reloaded the page you were already on, and from a preview deploy or
+              localhost ejected you onto the live site mid-demo. */}
+          <Link href="/cards/new" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
             Create your card · swiftcard.me
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -29,7 +29,6 @@ import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefil
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
-import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
@@ -125,19 +124,6 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
     return () => cancelAnimationFrame(id);
   }, [step]);
 
-  // Top of the funnel: the editor opened. Fires once per mount, not per step.
-  useEffect(() => {
-    track("card_creation_started", { variant: guest ? "guest" : "authed" });
-  }, [guest]);
-
-  // Payment happens on Stripe's side and /checkout/success only ever redirects,
-  // so the first moment we can observe a completed purchase is the page it hands
-  // the buyer to. This is one of the two landing spots (the other is
-  // /dashboard?upgraded=true).
-  useEffect(() => {
-    if (postCheckout) track("checkout_completed", { plan: postCheckout === "office" ? "office" : "pro" });
-  }, [postCheckout]);
-
   // Step 1 — card details
   const [nickname, setNickname] = useState("");
   const [name, setName] = useState("");
@@ -213,12 +199,6 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
 
   function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
     writePlanIntent(intent);
-    track("plan_selected", {
-      plan: intent.plan,
-      interval: intent.annual ? "annual" : "monthly",
-      seats: intent.seats,
-    });
-    track("account_creation_started", { plan: intent.plan });
     // forceGate: always make the visitor pick an account (log in, or sign up with
     // a different email → a NEW account). Never silently save into a session that
     // just happens to be in this browser.
@@ -491,9 +471,6 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
     // Remember the slug the server actually saved (it may have been deduped).
     const savedUsername = (data?.card?.username as string | undefined) || username;
     setCreatedUsername(savedUsername);
-    // The card exists and is serving — the single most important funnel step.
-    track("card_creation_completed");
-    track("card_published", { cardId: (data?.card?.id as string | undefined) });
 
     // A logged-in buyer who built this card as part of Get Pro / Get Office still
     // has to pay — take them straight to checkout for that plan (this new card is

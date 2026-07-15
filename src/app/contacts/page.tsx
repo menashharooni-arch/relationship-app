@@ -7,7 +7,8 @@ import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import GrowLinkButton from "@/components/GrowLinkButton";
-import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
+import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
+import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
 
@@ -57,6 +58,14 @@ export default async function ContactsPage({
   const leads = paid
     ? rawLeads
     : (rawLeads ?? []).filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)));
+
+  // How many real contacts we're withholding. The dashboard has always counted
+  // these and said so; this page filtered them out in silence — so a Free user at
+  // the cap saw a short list and no hint that anything was missing. That is both
+  // the most confusing state in the product (it reads as lost data) and the
+  // single highest-intent upsell moment there is: these are real people who
+  // already asked to be contacted.
+  const lockedCount = paid ? 0 : (rawLeads ?? []).length - (leads ?? []).length;
 
   // Keep the "Admin" nav item present across the app shell, not just on the
   // dashboard — the same gate the /office/admin page itself applies.
@@ -126,7 +135,7 @@ export default async function ContactsPage({
           </div>
           {(leads?.length ?? 0) > 0 && (
             <a
-              href={isPaidPlan(profile.plan) ? `/api/leads/export?username=${dashCard}` : `/pricing`}
+              href={isPaidPlan(profile.plan) ? `/api/leads/export?username=${dashCard}` : `/upgrade`}
               title={isPaidPlan(profile.plan) ? "Export your contacts as CSV" : "CSV export is a Pro feature"}
               className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
             >
@@ -138,6 +147,29 @@ export default async function ContactsPage({
           )}
         </div>
       </div>
+
+      {/* Locked contacts — real people this account captured but can't see yet.
+          Says the number plainly, names the price, and offers a way out. */}
+      {lockedCount > 0 && (
+        <div className="max-w-6xl mx-auto w-full px-6 pt-4">
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3.5 flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-amber-300 text-sm font-semibold">
+                {lockedCount === 1
+                  ? "1 more contact is waiting for you"
+                  : `${lockedCount} more contacts are waiting for you`}
+              </p>
+              <p className="text-amber-200/70 text-xs mt-0.5 leading-relaxed">
+                Free keeps {PLAN_LIMITS.FREE_LEADS_PER_MONTH} new contacts a month. We saved the rest — they&apos;re
+                yours the moment you upgrade, nothing was lost.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <UpgradeButton placement="contacts_locked_banner" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 pt-0 max-w-6xl mx-auto w-full">

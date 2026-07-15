@@ -23,6 +23,7 @@ import TourAutoStart from "@/components/TourAutoStart";
 import TrialBanner from "@/components/TrialBanner";
 import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
+import TrackEvent from "@/components/TrackEvent";
 import AddContactModal from "@/components/AddContactModal";
 import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
@@ -581,7 +582,10 @@ export default async function DashboardPage({
             {cardSharePanel}
           </div>
 
-          {/* Upgrade success banner */}
+          {/* Upgrade success banner. /checkout/success only ever redirects, so
+              this is the first render after a completed Pro purchase — and
+              therefore the only place we can observe it client-side. */}
+          {params.upgraded && <TrackEvent event="checkout_completed" props={{ plan: "pro" }} />}
           {params.upgraded && (
             <div className="flex items-center gap-3 bg-green-950 border border-green-800/60 rounded-2xl px-5 py-3.5 mb-5">
               <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
