@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { mergeClientTags } from "@/lib/lead-tags";
 
 async function getOwnerUsernames(userId: string): Promise<string[]> {
   const admin = getAdminSupabase();
@@ -38,6 +39,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const usernames = await getOwnerUsernames(user.id);
   const admin = getAdminSupabase();
+
+  // `tags` is server-owned in part: reserved tags drive org visibility
+  // (sc-office-*), the Free paywall (sc-locked), and automation state (flow-*,
+  // *-paused, preset-*). Never let the client set/clear those — read the row's
+  // current tags (ownership-scoped) and preserve the reserved ones, honoring
+  // only the client's non-reserved tags. Without this a user could plant a lead
+  // in another org or unlock a paywalled lead. See lib/lead-tags.ts.
+  if ("tags" in body) {
+    const { data: cur } = await admin
+      .from("leads")
+      .select("tags")
+      .eq("id", id)
+      .in("card_owner", usernames)
+      .maybeSingle();
+    body.tags = mergeClientTags(body.tags, cur?.tags as string[] | null);
+  }
 
   const { error } = await admin
     .from("leads")

@@ -5,6 +5,7 @@ import { checkViewMilestone } from "@/lib/milestones";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
+import { clientIp } from "@/lib/client-ip";
 
 export async function POST(
   req: NextRequest,
@@ -16,8 +17,7 @@ export async function POST(
   // omits visitorId (bypassing the reload-dedup below entirely) can't loop
   // this to inflate a card's view count or spam its owner's view-milestone
   // notifications.
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? req.headers.get("x-real-ip")
+  const ip = clientIp(req)
     ?? "unknown";
   if (await isRateLimited(`views:${ip}:${username}`, 20, 10 * 60 * 1000)) {
     return NextResponse.json({ ok: true, rateLimited: true });

@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isCardActive } from "@/lib/card-active";
 import { isOwnerRequest } from "@/lib/self-traffic";
 import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 // Cap the stored event payload so this public, unauthenticated endpoint can't be
 // used to bloat the analytics table with an oversized blob.
@@ -18,8 +19,7 @@ export async function POST(req: NextRequest) {
     // Public, unauthenticated endpoint — cap per (IP, slug) exactly like the
     // views / card-events ingest routes so a known slug can't be looped to flood
     // the analytics table.
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      ?? req.headers.get("x-real-ip")
+    const ip = clientIp(req)
       ?? "unknown";
     if (await isRateLimited(`analytics:${ip}:${username}`, 40, 10 * 60 * 1000)) {
       return NextResponse.json({ ok: true, rateLimited: true });
