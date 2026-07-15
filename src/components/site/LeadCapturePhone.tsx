@@ -99,7 +99,13 @@ function LinkExperience() {
               {["Full name", "Email address", "Phone number"].map((ph) => (
                 <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[12px] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
-              <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center" style={{ background: "#2563EB" }}>Share my info →</button>
+              <button
+                onClick={() => setShared(true)}
+                className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center"
+                style={{ background: "#2563EB", boxShadow: "0 0 0 2px #2563EB, 0 0 0 5px rgba(37,99,235,0.18)" }}
+              >
+                Share my info →
+              </button>
             </div>
           )}
         </div>

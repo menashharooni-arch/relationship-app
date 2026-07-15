@@ -82,7 +82,7 @@ export default async function GrowPage() {
             </DashboardLink>
             {[
               { href: "/contacts", label: "Contacts" },
-              { href: "/share", label: "Share" },
+              { href: "/share", label: "Links" },
               { href: "/settings/flows", label: "Settings" },
             ].map(({ href, label }) => (
               <Link key={href} href={href}

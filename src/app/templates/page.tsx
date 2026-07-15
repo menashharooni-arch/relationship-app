@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLink from "@/components/DashboardLink";
+import { useRouter } from "next/navigation";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -50,6 +50,7 @@ const TEMPLATES = [
 ] as const;
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -84,12 +85,21 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="px-5 pt-10 pb-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <DashboardLink className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
+          {/* A plain history-back control, not a jump into the Dashboard — this
+              page is reached from all over the app (nav, product pages), and
+              landing an authenticated visitor straight in their full Dashboard
+              after just browsing templates felt like an unexpected account
+              switch rather than a simple "go back." */}
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
-            Dashboard
-          </DashboardLink>
+            Back
+          </button>
           <SwiftCardLogo size={28} onDark />
         </div>
 

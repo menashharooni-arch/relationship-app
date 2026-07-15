@@ -187,6 +187,7 @@ export default function PricingPage() {
                   className="w-20 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 bg-white border border-slate-200 focus:outline-none" />
                 <span className="text-xs text-slate-400">users</span>
               </div>
+              <p className="text-slate-400 text-[11px] mt-2">No cap on team size — add more seats anytime from your account as you grow.</p>
             </div>
             <ul className="space-y-2.5 mb-8 flex-1">
               {features.enterprise.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-600"><Check />{f}</li>))}
