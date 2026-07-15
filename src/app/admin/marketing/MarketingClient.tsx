@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FREE_PERIODS, promoLabel } from "@/lib/promo";
+import SentEmailsModal from "./SentEmailsModal";
 
 type Counts = { all: number; free: number; pro: number; office: number };
 type PromoCode = {
@@ -34,6 +35,10 @@ export default function MarketingClient() {
   const [sending, setSending] = useState<"" | "test" | "real">("");
   const [result, setResult] = useState<{ ok?: string; error?: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // One key per confirm dialog: the server refuses a second campaign with the
+  // same key, so a double-click or retried request can't send twice.
+  const [sendKey, setSendKey] = useState<string | null>(null);
+  const [showLog, setShowLog] = useState(false);
 
   // Promos
   const [promos, setPromos] = useState<PromoCode[]>([]);
@@ -142,11 +147,19 @@ export default function MarketingClient() {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, ctaUrl: form.ctaUrl || undefined, test }),
+        body: JSON.stringify({ ...form, ctaUrl: form.ctaUrl || undefined, test, ...(test ? {} : { sendKey }) }),
       });
       const d = await res.json();
       if (res.ok) {
-        setResult({ ok: test ? `Test sent to ${d.to} — check your inbox before the real send.` : `Sent to ${d.sent} users · ${d.skipped} skipped (unsubscribed or no email)` });
+        if (d.duplicate) {
+          setResult({ ok: `This email was already sent (${d.sent} delivered) — duplicate click ignored.` });
+        } else {
+          setResult({
+            ok: test
+              ? `Test sent to ${d.to} — check your inbox before the real send.`
+              : `Sent to ${d.sent} users · ${d.skipped} skipped (unsubscribed or no email)${d.failed ? ` · ${d.failed} failed — see View sent emails` : ""}`,
+          });
+        }
       } else {
         setResult({ error: d.error || "Send failed" });
       }
@@ -259,14 +272,23 @@ export default function MarketingClient() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Broadcast composer */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-          <h2 className="text-white font-semibold text-sm mb-1">Send email to users</h2>
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <h2 className="text-white font-semibold text-sm">Send email to users</h2>
+            <button
+              type="button"
+              onClick={() => setShowLog(true)}
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-3 py-1.5 transition-colors shrink-0"
+            >
+              View sent emails
+            </button>
+          </div>
           <p className="text-gray-500 text-xs mb-5">Users who unsubscribed from marketing are skipped automatically; every email includes an unsubscribe link.</p>
           {!emailReady && (
             <p className="text-amber-300 text-xs bg-amber-950/40 border border-amber-800/40 rounded-xl px-3 py-2 mb-4">
               Email preference tables aren&apos;t set up — run <span className="font-mono">supabase/email-system.sql</span> in the Supabase SQL editor so unsubscribes are honored before sending broadcasts.
             </p>
           )}
-          <form onSubmit={(e) => { e.preventDefault(); setConfirming(true); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); setSendKey(crypto.randomUUID()); setConfirming(true); }} className="space-y-4">
             <div>
               <label className="text-xs text-gray-400 block mb-1">Segment</label>
               <select value={form.segment} onChange={(e) => setForm((p) => ({ ...p, segment: e.target.value }))} className={inputCls}>
@@ -562,6 +584,9 @@ export default function MarketingClient() {
           </div>
         </div>
       )}
+
+      {/* Sent-emails history */}
+      {showLog && <SentEmailsModal onClose={() => setShowLog(false)} />}
 
       {/* Confirm modal for the real send */}
       {confirming && (
