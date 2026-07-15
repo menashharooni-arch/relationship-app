@@ -114,7 +114,7 @@ export default function ComparePage() {
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
+            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
           </div>

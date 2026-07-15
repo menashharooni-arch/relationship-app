@@ -30,7 +30,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
       { label: "Preview", href: "/preview" },
       { label: "Templates", href: "/templates" },
       { label: "Why SwiftCard", href: "/testimonials" },
-      { label: "Contact", href: "/contact" },
+      { label: "Contact Us", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Terms & Legal", href: "/terms" },
     ],
@@ -76,7 +76,7 @@ export default function SiteFooter() {
           <p className="text-white/35 text-[13px]">© {new Date().getFullYear()} SwiftCard. All rights reserved.</p>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Privacy</Link>
-            <Link href="/contact" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Contact</Link>
+            <Link href="/contact" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Contact Us</Link>
           </div>
         </div>
       </div>
