@@ -147,34 +147,8 @@ export function trialEndedEmail(opts: {
   };
 }
 
-// Sent ~1 day after signup to anyone who made a card but never actually
-// shared it (zero card views) — nudges them toward the easiest ways to start:
-// download the QR code, or drop the card into their email signature.
-export function neverSharedNudgeEmail(opts: {
-  firstName: string;
-  cardUrl: string;
-}) {
-  const safeName = escapeHtml(opts.firstName);
-  const safeCardUrl = safeUrlAttr(opts.cardUrl);
-  const cardUrlText = escapeHtml(opts.cardUrl.replace(/^https?:\/\//, ""));
-  const body = `
-    ${h1(`Your card's ready — let's get it in front of someone`)}
-    ${p(`Hey ${safeName} — you built your SwiftCard, but it looks like it hasn't been shared yet. Here are the two fastest ways to start:`)}
-    ${card(`
-      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">📱 Download your QR code</p>
-      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Print it, stick it on your desk or a card, and anyone can scan it straight to your card.</p>
-      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">✉️ Add it to your email signature</p>
-      <p style="margin:0;font-size:13px;color:#64748b;">One click copies your live card into your signature — it's in every email you send from then on.</p>
-    `)}
-    ${btn(safeCardUrl, "Open my card →")}
-    ${p(`Both take under a minute from your dashboard. Your card is already live at ${cardUrlText} — it just needs to get in front of people.`)}
-  `;
-  return {
-    from: FROM,
-    subject: `Your SwiftCard is ready — here's how to start sharing it`,
-    html: layout(body),
-  };
-}
+// (The old "never shared your card" nudge email was removed for good — no
+// automated engagement emails go to account owners. See commit 1e656c9.)
 
 export function promoEmail(opts: {
   firstName: string;
