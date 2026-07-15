@@ -21,8 +21,12 @@ import { withoutSocials } from "@/components/card-templates/types";
 // Purely presentational — nothing is fetched, all data is fictional. Only the
 // tab switcher and the template pills (driving the live preview) are wired.
 
-const COMPANY = "Meridian Realty";
-const WEBSITE = "meridianrealty.com";
+// Same demo identity as SAMPLE_DATA (card-templates/types.tsx) and every other
+// marketing demo (SwiftLinksPhone, SignatureDemo, DashboardDemo) — one person,
+// one company, everywhere on the site. Alex Morgan (Founder & CEO) is the
+// office owner; the team works under the same "Morgan & Co." brand.
+const COMPANY = "Morgan & Co.";
+const WEBSITE = "morganandco.com";
 const ACCENT = "#2563EB";
 
 const TEMPLATES = { "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst, "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal } as const;
@@ -32,23 +36,21 @@ const TEMPLATE_CHIPS: { id: TemplateId; label: string }[] = [
 ];
 
 type Person = {
-  id: string; name: string; title: string; initials: string; email: string;
+  id: string; name: string; title: string; initials: string; email: string; photo: string;
   views: number; leads: number; lastActive: string; active: boolean; owner?: boolean;
 };
 
-// The owner's headshot (Unsplash — free for commercial use, no attribution
-// required). Members render the real portal's purple-initials avatar.
-const OWNER_PHOTO = "/marketing/team/person1.jpg";
-
+// Licensed stock headshots (free for commercial use, no attribution required) —
+// every team member gets a real photo, not just an initials circle.
 const PEOPLE: Person[] = [
-  { id: "alex", name: "Alex Morgan", title: "Managing Broker", initials: "AM", email: "alex@meridianrealty.com", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true },
-  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@meridianrealty.com", views: 903, leads: 94, lastActive: "Yesterday", active: true },
-  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@meridianrealty.com", views: 588, leads: 61, lastActive: "3 days ago", active: true },
-  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@meridianrealty.com", views: 511, leads: 52, lastActive: "5 days ago", active: true },
-  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@meridianrealty.com", views: 96, leads: 4, lastActive: "3 weeks ago", active: false },
+  { id: "alex", name: "Alex Morgan", title: "Founder & CEO", initials: "AM", email: "alex@morganandco.com", photo: "/marketing/team/person1.jpg", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true },
+  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@morganandco.com", photo: "/marketing/team/person2.jpg", views: 903, leads: 94, lastActive: "Yesterday", active: true },
+  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@morganandco.com", photo: "/marketing/team/person3.jpg", views: 588, leads: 61, lastActive: "3 days ago", active: true },
+  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@morganandco.com", photo: "/marketing/team/person4.jpg", views: 511, leads: 52, lastActive: "5 days ago", active: true },
+  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@morganandco.com", photo: "/marketing/team/person5.jpg", views: 96, leads: 4, lastActive: "3 weeks ago", active: false },
 ];
 
-const PENDING = { email: "priya@meridianrealty.com", initials: "PR", sent: "Jul 12" };
+const PENDING = { email: "priya@morganandco.com", initials: "PR", sent: "Jul 12" };
 
 const LEADS = [
   { id: "l1", name: "Sarah Chen", email: "sarah@acme.com", phone: "(415) 555-0126", by: "Sofia Reyes", worked: true, label: "Contacted", when: "2 hours ago" },
@@ -229,12 +231,8 @@ export default function TeamsDashboard() {
                 {PEOPLE.map((p) => (
                   <div key={p.id} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
                     <div className="col-span-12 md:col-span-4 min-w-0 flex items-center gap-2.5">
-                      {p.owner ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={OWNER_PHOTO} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 bg-gray-800" />
-                      ) : (
-                        <InitialsAvatar initials={p.initials} />
-                      )}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.photo} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 bg-gray-800" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-[13px] text-white font-medium truncate">{p.name}</p>
@@ -373,7 +371,7 @@ export default function TeamsDashboard() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={logoUrl} alt="" className="w-11 h-11 rounded-[10px] shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-xs text-gray-300 truncate">meridian-logo.png</p>
+                          <p className="text-xs text-gray-300 truncate">morgan-co-logo.png</p>
                           <p className="text-[11px] text-gray-600">Shows on every card · <span className="text-purple-300 font-semibold">Replace</span></p>
                         </div>
                       </div>

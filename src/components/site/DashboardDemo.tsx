@@ -1,6 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import CardScaler from "@/components/CardScaler";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import { withoutSocials } from "@/components/card-templates/types";
+import type { CardData } from "@/components/card-templates/types";
+
+// Same demo identity as SAMPLE_DATA (card-templates/types.tsx) and every other
+// marketing demo (SwiftLinksPhone, SignatureDemo, TeamsDashboard) — one person,
+// one company, everywhere on the site.
+const DEMO_CARD: CardData = withoutSocials({
+  name: "Alex Morgan",
+  title: "Founder & CEO",
+  company: "Morgan & Co.",
+  phone: "(555) 123-4567",
+  email: "alex@morganandco.com",
+  website: "www.morganandco.com",
+  initials: "AM",
+  photoUrl: "/marketing/demo-girl.jpg",
+  logoUrl: null,
+  cardUrl: "swiftcard.me/card/alexmorgan",
+});
 
 // Marketing-site replica of the real Pro /dashboard, inside a browser chrome.
 // Mirrors the real page's structure and styling exactly:
@@ -289,30 +309,18 @@ function CardSharePanel() {
         </div>
         <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
 
-        {/* Static mock card preview */}
-        <div className="rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
-          <div className="h-16" style={{ background: "var(--rd-aurora)" }} />
-          <div className="px-4 pb-4 -mt-6">
-            <div className="w-12 h-12 rounded-full bg-gray-800 border-2 border-gray-950 flex items-center justify-center text-sm font-bold text-white mb-2">
-              AR
-            </div>
-            <p className="text-white text-sm font-bold">Alex Rivera</p>
-            <p className="text-gray-500 text-[11px]">Realtor · Bay Area Homes</p>
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3 h-3 text-gray-600 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
-                alex@bayareahomes.com
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3 h-3 text-gray-600 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
-                (415) 555-0134
-              </div>
-            </div>
-            <div className="mt-3 rounded-full bg-blue-600 text-white text-[11px] font-semibold text-center py-2">
-              Save contact
-            </div>
-          </div>
+        {/* The REAL card template component, same identity used across every
+            marketing demo — not a hand-drawn mock, so this box looks exactly
+            like the real dashboard's "Your Card" panel. */}
+        <div className="rounded-xl overflow-hidden border border-gray-800">
+          <CardScaler><ClassicPro data={DEMO_CARD} /></CardScaler>
         </div>
+        <span className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-gray-400 border border-gray-800 rounded-full py-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="w-3.5 h-3.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          Download card as image
+        </span>
       </div>
 
       {/* Share */}
@@ -337,7 +345,123 @@ function CardSharePanel() {
   );
 }
 
+// ── Contacts page replica — mirrors ContactsClient's list + detail shape ─────
+const DEMO_CONTACTS = [
+  { id: "c1", name: "Sarah Chen", company: "Acme Realty", status: "New Contact", statusCls: "bg-blue-950 text-blue-300", unread: true, last: "Loved the listing on Cole St — can we set up a viewing this weekend?" },
+  { id: "c2", name: "Marcus Webb", company: "Northgate Co.", status: "Touch", statusCls: "bg-amber-950 text-amber-300", unread: false, last: "Interested in the downtown condos — what's coming up?" },
+  { id: "c3", name: "Elena Diaz", company: "Brightpath Studio", status: "Touch", statusCls: "bg-amber-950 text-amber-300", unread: false, last: "Thanks for following up! Let's talk next week." },
+  { id: "c4", name: "Tom Farrell", company: "Farrell Development", status: "Dissolved", statusCls: "bg-gray-800 text-gray-400", unread: false, last: "Following up on the office space downtown — is it still available?" },
+];
+
+function ContactsPageView() {
+  const [selectedId, setSelectedId] = useState(DEMO_CONTACTS[0].id);
+  const selected = DEMO_CONTACTS.find((c) => c.id === selectedId) ?? DEMO_CONTACTS[0];
+  return (
+    <div className="grid grid-cols-[220px_1fr] gap-4 h-[420px]">
+      {/* List */}
+      <div className="border border-gray-800 rounded-2xl overflow-y-auto divide-y divide-gray-800">
+        {DEMO_CONTACTS.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setSelectedId(c.id)}
+            className={`w-full text-left px-3 py-3 flex items-center gap-2.5 transition-colors ${c.id === selectedId ? "bg-gray-800/80" : "hover:bg-gray-800/40"}`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${c.unread ? "bg-blue-600" : "bg-gray-700"}`}>
+              {c.name[0]}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-xs font-semibold truncate">{c.name}</p>
+              <p className="text-gray-500 text-[10px] truncate">{c.company}</p>
+            </div>
+            {c.unread && <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+          </button>
+        ))}
+      </div>
+
+      {/* Detail */}
+      <div className="border border-gray-800 rounded-2xl p-5 flex flex-col">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-base font-bold text-white shrink-0">
+            {selected.name[0]}
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-sm">{selected.name}</h3>
+            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ${selected.statusCls}`}>{selected.status}</span>
+          </div>
+        </div>
+        <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-3.5 py-3 text-gray-300 text-xs leading-relaxed">
+          {selected.last}
+        </div>
+        <div className="mt-auto pt-4 flex gap-2">
+          <span className="flex-1 text-center text-xs font-semibold text-white bg-blue-600 rounded-full py-2">Reply</span>
+          <span className="flex-1 text-center text-xs font-semibold text-gray-300 border border-gray-700 rounded-full py-2">Add note</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Links page replica — mirrors the real /share page ────────────────────────
+function LinksPageView() {
+  return (
+    <div className="max-w-md mx-auto">
+      <div className="mb-5">
+        <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+        <h2 className="text-xl font-bold text-white">Links</h2>
+        <p className="text-gray-500 text-xs mt-1">
+          For <span className="text-gray-300 font-medium">Alex Morgan</span>
+          <span className="text-gray-600"> · /alexmorgan</span>
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Swift Links</p>
+          <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+            <p className="text-gray-500 text-xs mb-3 leading-relaxed">
+              A separate link from your card — your bio, socials, and links in one place.
+            </p>
+            <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              </svg>
+              <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/alexmorgan</span>
+              <span className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300">Copy</span>
+            </div>
+            <span className="mt-2 block text-center text-xs font-semibold text-gray-400 bg-gray-800 border border-gray-700 rounded-full py-2">
+              Open Swift Links →
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Swift Signature</p>
+          <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+            <p className="text-white font-semibold text-sm">Swift Signature</p>
+            <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
+              Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
+            </p>
+            <span className="mt-3 block text-center bg-blue-600 text-white font-semibold text-xs py-2 rounded-full">
+              Preview &amp; copy
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { id: "dashboard", label: "Dashboard", path: "swiftcard.me/dashboard" },
+  { id: "contacts", label: "Contacts", path: "swiftcard.me/contacts" },
+  { id: "links", label: "Links", path: "swiftcard.me/share" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
 export default function DashboardDemo() {
+  const [tab, setTab] = useState<TabId>("dashboard");
+  const activePath = TABS.find((t) => t.id === tab)?.path ?? TABS[0].path;
+
   return (
     <div className="rounded-[22px] border border-white/10 bg-[#0A0B10] shadow-2xl overflow-hidden">
       {/* browser chrome */}
@@ -345,19 +469,39 @@ export default function DashboardDemo() {
         <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
         <div className="ml-3 flex-1 max-w-[280px] h-6 rounded-md bg-white/[0.05] flex items-center px-3 gap-1.5">
           <svg viewBox="0 0 24 24" className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></svg>
-          <span className="text-white/40 text-[11px]">swiftcard.me/dashboard</span>
+          <span className="text-white/40 text-[11px]">{activePath}</span>
         </div>
       </div>
 
-      <div className="p-4 sm:p-5">
-        {/* Traffic — full width, like the real /dashboard */}
-        <TrafficBox />
+      {/* Page tabs — the actual app nav (Dashboard / Contacts / Links) so
+          visitors can click through the real pages, not just Dashboard. */}
+      <div className="flex items-center gap-1 px-4 sm:px-5 pt-4">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${tab === t.id ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Main: contacts + card panel (real page: lg:grid-cols-[1fr_300px]) */}
-        <div className="grid grid-cols-[1fr_260px] gap-5">
-          <QuickContactsSection />
-          <CardSharePanel />
-        </div>
+      <div className="p-4 sm:p-5">
+        {tab === "dashboard" && (
+          <>
+            {/* Traffic — full width, like the real /dashboard */}
+            <TrafficBox />
+
+            {/* Main: contacts + card panel (real page: lg:grid-cols-[1fr_300px]) */}
+            <div className="grid grid-cols-[1fr_260px] gap-5">
+              <QuickContactsSection />
+              <CardSharePanel />
+            </div>
+          </>
+        )}
+        {tab === "contacts" && <ContactsPageView />}
+        {tab === "links" && <LinksPageView />}
       </div>
     </div>
   );
