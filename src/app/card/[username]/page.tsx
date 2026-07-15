@@ -89,12 +89,17 @@ export default async function CardPage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ source?: string; embed?: string }>;
+  searchParams: Promise<{ source?: string; embed?: string; shared?: string }>;
 }) {
   const { username } = await params;
-  const { source: rawSource, embed } = await searchParams;
+  const { source: rawSource, embed, shared } = await searchParams;
   const source = rawSource ?? "direct_link";
   const isEmbed = embed === "1"; // rendered inside the /preview demo — skip tracking + nudge
+  // ?shared=1 — this link was sent by the owner from one of their saved
+  // contacts ("Share my contact information"), so the recipient's info is
+  // already in the owner's hands: confirm that instead of asking them to fill
+  // the share-back form again.
+  const alreadyShared = shared === "1";
 
   // Cards table is the source of truth. Fall back to a legacy profile-card for any
   // account not yet migrated. Admin client so row-level security doesn't hide cards.
@@ -314,14 +319,28 @@ export default async function CardPage({
       </div>
 
       {/* ── Section 2: Share Your Info Back ── */}
-      <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-        <div className="flex items-center gap-3 mb-1">
-          <SectionNumber n={2} />
-          <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+      {alreadyShared ? (
+        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <div className="flex items-center gap-3">
+            <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#16a34a" }}>
+              <svg viewBox="0 0 20 20" fill="#fff" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+            </span>
+            <p className="text-slate-900 font-semibold text-sm">Your contact info has already been shared</p>
+          </div>
+          <p className="text-slate-400 text-xs mt-1.5 ml-9">
+            {firstName} already has your details — just save {firstName}&apos;s contact above and you&apos;re all set.
+          </p>
         </div>
-        <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
-        <LeadCaptureForm cardOwner={profile.username} source={source} />
-      </div>
+      ) : (
+        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <div className="flex items-center gap-3 mb-1">
+            <SectionNumber n={2} />
+            <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+          </div>
+          <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
+          <LeadCaptureForm cardOwner={profile.username} source={source} />
+        </div>
+      )}
 
       {/* ── Section 3: Other Ways to Connect ── */}
       {hasConnectSection && (

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
 import AddContactModal from "@/components/AddContactModal";
+import ShareMyInfoButton from "@/components/ShareMyInfoButton";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
@@ -804,7 +805,8 @@ export default function ContactsClient({
               </button>
             </div>
 
-            {/* Quick actions — call the contact + save them to your phone */}
+            {/* Quick actions — call the contact, share YOUR info with them, and
+                save them to your phone */}
             <div className="flex items-center gap-2 mb-6">
               {selected.phone ? (
                 <a
@@ -819,6 +821,12 @@ export default function ContactsClient({
               ) : (
                 <span className="flex-1 text-center text-xs text-gray-600 py-2.5 rounded-xl border border-dashed border-gray-800">No phone to call</span>
               )}
+              <ShareMyInfoButton
+                leadId={selected.id}
+                firstName={(selected.name || "them").split(" ")[0]}
+                hasPhone={!!selected.phone}
+                hasEmail={!!selected.email}
+              />
               <button
                 onClick={saveContactToPhone}
                 className="flex items-center justify-center gap-1.5 flex-1 text-sm font-semibold py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 transition-colors"
