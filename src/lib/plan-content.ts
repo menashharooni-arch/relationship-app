@@ -24,8 +24,8 @@ export const PLAN_FEATURES = {
   free: [
     "1 digital business card",
     "5 new leads a month",
-    "1 Swift Links button",
-    "3 AI drafts + 3 card scans a month",
+    "2 Swift Links buttons",
+    "3 AI follow-up drafts a month",
     "All 5 templates · QR, link & NFC",
     "Swift Signature — your card in every email",
     "Contacts CRM + day-1 follow-up email",
@@ -35,7 +35,8 @@ export const PLAN_FEATURES = {
   pro: [
     "Everything in Free — with the limits taken off:",
     "Unlimited cards, leads & contacts",
-    "Unlimited AI drafts & card scans",
+    "Unlimited AI follow-up drafts",
+    "Scan any business card — AI fills the contact in",
     "Unlimited Swift Links buttons",
     "No “Powered by SwiftCard” badge — 100% your brand",
     "Custom card designer — your exact colors & fonts",

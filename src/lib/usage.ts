@@ -1,13 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ── Monthly free-plan usage meters ───────────────────────────────────────────
-// Free plans get a set number of leads / scans / AI drafts PER MONTH that refresh
-// on the 1st. The counters live on the ACCOUNT (profiles.customization._usage),
-// NOT the card — so deleting or remaking a card can never reset them. The period
-// is a UTC year-month string; when it rolls over, everything reads as 0 again.
+// Free plans get a set number of leads / AI drafts PER MONTH that refresh on the
+// 1st. The counters live on the ACCOUNT (profiles.customization._usage), NOT the
+// card — so deleting or remaking a card can never reset them. The period is a
+// UTC year-month string; when it rolls over, everything reads as 0 again.
+//
+// There is no "scans" meter: the card scanner is Pro-only (unlimited), so there
+// is nothing to count. Old rows may still carry a stale `scans` key — it's
+// simply ignored on read and dropped on the next write.
 
-export type UsageKey = "leads" | "scans" | "drafts";
-export type UsageBlock = { period: string; leads: number; scans: number; drafts: number };
+export type UsageKey = "leads" | "drafts";
+export type UsageBlock = { period: string; leads: number; drafts: number };
 
 export function currentPeriod(): string {
   const d = new Date();
@@ -19,8 +23,8 @@ export function currentPeriod(): string {
 export function readUsage(customization: unknown): UsageBlock {
   const period = currentPeriod();
   const u = (customization as { _usage?: Partial<UsageBlock> } | null)?._usage;
-  if (!u || u.period !== period) return { period, leads: 0, scans: 0, drafts: 0 };
-  return { period, leads: u.leads ?? 0, scans: u.scans ?? 0, drafts: u.drafts ?? 0 };
+  if (!u || u.period !== period) return { period, leads: 0, drafts: 0 };
+  return { period, leads: u.leads ?? 0, drafts: u.drafts ?? 0 };
 }
 
 // Increment one monthly counter and persist it back onto the profile, preserving
