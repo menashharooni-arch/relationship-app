@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 
 const REASONS = [
   "I'm not using it enough",
@@ -14,30 +15,48 @@ const REASONS = [
 
 type Step = "survey" | "confirm";
 
-// Account Danger Zone: permanent deletion, clearly labeled and secondary-styled.
-// Subscription actions (cancel / switch to Free / retention offer) live in the
-// Billing section — deletion here is deletion, no retention traps. We still show
-// a neutral pointer to Billing so someone who only wants to stop paying knows
-// they don't have to delete.
-export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean; plan?: string }) {
+// Advanced account settings → Account ownership and deletion.
+// Deletion is deliberate but never misleading: one clearly-named group, an
+// explanation of what's deleted vs. kept, a password re-check when the account
+// has one (OAuth-only accounts can't be password-checked), and a typed final
+// confirmation. Subscription actions (cancel / switch to Free) live in Billing —
+// deletion here is deletion, no retention traps.
+export default function ManageAccount({ isPro, plan = "free", email = "" }: { isPro: boolean; plan?: string; email?: string }) {
   void plan;
-  const [advanced, setAdvanced] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState<Step>("survey");
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
   const [confirmText, setConfirmText] = useState("");
+  const [password, setPassword] = useState("");
+  // null = still checking; false = OAuth-only account (no password to re-check).
+  const [needsPassword, setNeedsPassword] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function openModal() {
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  async function openModal() {
     setStep("survey");
     setReason("");
     setComment("");
     setConfirmText("");
+    setPassword("");
     setError("");
     setModal(true);
+    // Reauthentication is only possible when the account has a password
+    // identity — a Google-only account has nothing to re-enter.
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const hasPassword = !!user?.identities?.some((i) => i.provider === "email");
+      setNeedsPassword(hasPassword);
+    } catch {
+      setNeedsPassword(false);
+    }
   }
 
   function continueFromSurvey() {
@@ -50,10 +69,25 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
   }
 
   async function finalizeDelete() {
-    if (confirmText.trim().toUpperCase() !== "DELETE") return;
+    if (confirmText.trim().toUpperCase() !== "DELETE" || loading) return;
     setLoading(true);
     setError("");
     try {
+      // Reauthenticate first when the account supports it, so a borrowed
+      // unlocked session can't delete the account.
+      if (needsPassword) {
+        if (!password) {
+          setError("Enter your password to confirm it's you.");
+          setLoading(false);
+          return;
+        }
+        const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (authErr) {
+          setError("That password doesn't match. Please try again.");
+          setLoading(false);
+          return;
+        }
+      }
       const res = await fetch("/api/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,48 +108,24 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
 
   return (
     <div>
-      {/* Deleting an account is irreversible and almost never what someone is
-          actually looking for in Settings, so it sits behind two deliberate
-          steps (Advanced → Danger Zone) before the modal's survey + typed
-          confirmation. Nobody reaches it by accident, and anyone who genuinely
-          wants it still gets there in a few clicks. */}
       <button
         type="button"
-        onClick={() => setAdvanced((a) => !a)}
-        aria-expanded={advanced}
-        className="w-full flex items-center justify-between text-sm text-gray-500 hover:text-gray-300 transition-colors py-2"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between text-sm font-semibold text-gray-300 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl px-5 py-4 transition-colors"
       >
         <span className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 text-gray-500">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" />
           </svg>
-          Advanced
+          Account ownership and deletion
         </span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-3.5 h-3.5 transition-transform ${advanced ? "rotate-90" : ""}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 text-gray-500 transition-transform ${expanded ? "rotate-90" : ""}`}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </button>
 
-      {advanced && (
-        <button
-          type="button"
-          onClick={() => setExpanded((e) => !e)}
-          aria-expanded={expanded}
-          className="mt-2 w-full flex items-center justify-between text-sm font-semibold text-gray-300 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl px-5 py-4 transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 text-red-400/80">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-            Danger Zone
-          </span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`w-4 h-4 text-gray-500 transition-transform ${expanded ? "rotate-90" : ""}`}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
-
-      {advanced && expanded && (
+      {expanded && (
         <div className="mt-3 bg-gray-900 border border-red-900/40 rounded-2xl p-5">
           <p className="text-white text-sm font-semibold">Delete account</p>
           <p className="text-gray-500 text-xs mt-0.5 mb-3 leading-relaxed">
@@ -123,7 +133,7 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
           </p>
           {isPro && (
             <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">
-              Just want to stop paying? You can <a href="#billing" className="text-blue-400 hover:text-blue-300 underline">cancel or switch to Free in Billing</a> and keep your account.
+              Just want to stop paying? You can <a href="#billing" className="text-blue-400 hover:text-blue-300 underline">cancel or switch to Free in Plan and billing</a> and keep your account.
             </p>
           )}
           <button
@@ -173,10 +183,29 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
 
             {step === "confirm" && (
               <>
-                <p className="text-white font-bold text-base mb-1">Delete account?</p>
-                <p className="text-gray-400 text-sm mb-4 leading-relaxed">
-                  This deletes your account, your cards, and <span className="text-white font-semibold">all of your contacts</span>, and cancels any subscription. You&apos;ll have <span className="text-white font-semibold">one month to reopen your account</span> — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again.
-                </p>
+                <p className="text-white font-bold text-base mb-2">Delete account?</p>
+                <div className="text-gray-400 text-sm mb-4 leading-relaxed space-y-2">
+                  <p>
+                    <span className="text-white font-semibold">Deleted:</span> your account, your cards and their public links, and{" "}
+                    <span className="text-white font-semibold">all of your contacts</span>. Any subscription is canceled so you won&apos;t be billed again.
+                  </p>
+                  <p>
+                    <span className="text-white font-semibold">Kept for one month:</span> everything above is held for 30 days so you can reopen your account — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again.
+                  </p>
+                </div>
+                {needsPassword && (
+                  <>
+                    <label className="block text-xs text-gray-500 mb-1.5">Confirm it&apos;s you — enter your password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      autoComplete="current-password"
+                      className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500 mb-3"
+                    />
+                  </>
+                )}
                 <label className="block text-xs text-gray-500 mb-1.5">Type DELETE to confirm</label>
                 <input
                   type="text"
@@ -193,7 +222,7 @@ export default function ManageAccount({ isPro, plan = "free" }: { isPro: boolean
                   <button
                     type="button"
                     onClick={finalizeDelete}
-                    disabled={loading || confirmText.trim().toUpperCase() !== "DELETE"}
+                    disabled={loading || confirmText.trim().toUpperCase() !== "DELETE" || (needsPassword === true && !password)}
                     className="flex-1 text-sm font-semibold text-white bg-red-600 hover:bg-red-500 disabled:opacity-40 rounded-full py-2.5 transition-colors"
                   >
                     {loading ? "Deleting…" : "Delete account"}

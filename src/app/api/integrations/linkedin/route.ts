@@ -54,6 +54,69 @@ export async function GET() {
   });
 }
 
+// POST /api/integrations/linkedin → IMPORT the approved photo. LinkedIn's CDN
+// URLs expire, so "Use this photo" copies the image into our own storage and
+// returns a durable URL the caller saves onto the card — the same flow as a
+// manual upload, just sourced from LinkedIn. Only ever called after the user
+// confirms the preview; nothing is applied automatically.
+export async function POST() {
+  if (!isLinkedInEnabled()) {
+    return NextResponse.json({ error: "not_configured" }, { status: 501 });
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const admin = getAdminSupabase();
+  const { data: row } = await admin
+    .from("integrations")
+    .select("access_token")
+    .eq("user_id", user.id)
+    .eq("provider", "linkedin")
+    .maybeSingle();
+  if (!row?.access_token) return NextResponse.json({ error: "not_connected" }, { status: 400 });
+
+  let token: string;
+  try {
+    token = decryptToken(row.access_token as string);
+  } catch {
+    return NextResponse.json({ error: "not_connected" }, { status: 400 });
+  }
+
+  const profile = await fetchLinkedInProfile(token);
+  if (!profile?.picture) {
+    return NextResponse.json({ error: "no_photo" }, { status: 404 });
+  }
+
+  // Download from LinkedIn's CDN (https-validated upstream), cap the size, and
+  // re-encode exactly like a manual photo upload so the stored file is ours.
+  let body: Buffer;
+  try {
+    const res = await fetch(profile.picture);
+    if (!res.ok) throw new Error(`cdn ${res.status}`);
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.startsWith("image/")) throw new Error("not an image");
+    const bytes = Buffer.from(await res.arrayBuffer());
+    if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("too large");
+    const sharp = (await import("sharp")).default;
+    body = await sharp(bytes).rotate().resize(1000, 1000, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+  } catch {
+    return NextResponse.json({ error: "fetch_failed" }, { status: 502 });
+  }
+
+  const path = `${user.id}/photo-linkedin-${Date.now()}.jpg`;
+  const { error: uploadError } = await admin.storage
+    .from("card-uploads")
+    .upload(path, body, { contentType: "image/jpeg", upsert: true });
+  if (uploadError) return NextResponse.json({ error: "save_failed" }, { status: 500 });
+
+  const { data: { publicUrl } } = admin.storage.from("card-uploads").getPublicUrl(path);
+  // Deferred like the manual uploader — the caller persists it on card save,
+  // after the user's explicit confirmation.
+  return NextResponse.json({ url: publicUrl });
+}
+
 // DELETE /api/integrations/linkedin → disconnect (revoke our stored tokens).
 export async function DELETE() {
   const supabase = await createClient();
