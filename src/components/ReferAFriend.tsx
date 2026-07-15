@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useIsNativeApp } from "@/lib/platform";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -21,6 +22,7 @@ type Progress = {
 
 export default function ReferAFriend({ progress }: { progress: Progress | null }) {
   const router = useRouter();
+  const native = useIsNativeApp();
   const [p, setP] = useState<Progress | null>(progress);
   const [claiming, setClaiming] = useState(false);
   const [claimMsg, setClaimMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -70,6 +72,10 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
 
   const per = 3;
   const cap = 3;
+
+  // Native app: the referral promo is built entirely around earning free months
+  // of Pro — a selling incentive — so it's hidden. Web is unchanged.
+  if (native) return null;
 
   return (
     <div id="refer" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 scroll-mt-24">

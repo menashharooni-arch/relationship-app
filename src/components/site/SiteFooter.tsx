@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SalesChat from "@/components/site/SalesChat";
+import NativeHidden from "@/components/NativeHidden";
 
 // Marketing footer — real routes only, no invented content.
 const COLS: { title: string; links: { label: string; href: string }[] }[] = [
@@ -62,11 +63,15 @@ export default function SiteFooter() {
             <div key={col.title}>
               <p className="rd-eyebrow text-white/40 mb-4">{col.title}</p>
               <ul className="space-y-2.5">
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <Link href={l.href} className="text-[14px] text-white/55 hover:text-white transition-colors">{l.label}</Link>
-                  </li>
-                ))}
+                {col.links.map((l) => {
+                  const li = (
+                    <li key={l.label}>
+                      <Link href={l.href} className="text-[14px] text-white/55 hover:text-white transition-colors">{l.label}</Link>
+                    </li>
+                  );
+                  // Hide the Pricing link inside the native app (no selling).
+                  return l.href === "/pricing" ? <NativeHidden key={l.label}>{li}</NativeHidden> : li;
+                })}
               </ul>
             </div>
           ))}

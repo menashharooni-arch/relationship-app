@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { nudgeCopy } from "@/lib/referral";
+import { useIsNativeApp } from "@/lib/platform";
 
 // The hero: a tilted, floating "your card" mockup with a shine sweep — the
 // popup SHOWS the product (the Blinq loop: you just used a card this smooth,
@@ -66,6 +67,7 @@ export default function SignupNudgeHost() {
   const [source, setSource] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const native = useIsNativeApp();
 
   useEffect(() => {
     function onNudge(e: Event) {
@@ -93,7 +95,9 @@ export default function SignupNudgeHost() {
     };
   }, []);
 
-  if (!source) return null;
+  // Native app: never show the public-page "create your free card" signup nudge,
+  // regardless of login state.
+  if (!source || native) return null;
   const copy = nudgeCopy(source);
 
   function dismiss() {

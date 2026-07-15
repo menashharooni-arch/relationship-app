@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PLAN_PRICES } from "@/lib/plan";
 import { formatUsd } from "@/lib/currency";
 import { trackCta } from "@/lib/events";
+import { useIsNativeApp } from "@/lib/platform";
 
 // The price is read from PLAN_PRICES — the same constant the checkout route
 // validates the real Stripe price against — rather than typed into the label.
@@ -18,6 +19,10 @@ export default function UpgradeButton({ variant = "banner", placement = "unknown
   placement?: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const native = useIsNativeApp();
+
+  // Native app: never show price/upgrade CTAs (no in-app selling).
+  if (native) return null;
 
   // Route through /upgrade rather than POSTing straight to Stripe. Jumping
   // directly to a checkout session skipped the order summary and the Terms /
@@ -72,6 +77,8 @@ export default function UpgradeButton({ variant = "banner", placement = "unknown
 }
 
 export function UpgradeLink({ className, placement = "unknown" }: { className?: string; placement?: string }) {
+  const native = useIsNativeApp();
+  if (native) return null;
   return (
     <Link
       href="/upgrade"

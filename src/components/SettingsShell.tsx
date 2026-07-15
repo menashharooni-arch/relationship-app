@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Settings layout: a section rail + one panel at a time, rather than one long
 // scroll of everything. Same pattern as Stripe/Linear/Vercel — you pick the area
@@ -18,15 +19,23 @@ export type SettingsSection = {
   content: ReactNode;
   /** Rendered in a muted, set-apart style at the bottom of the rail. */
   quiet?: boolean;
+  /** Hidden entirely inside the native app (e.g. billing/subscription UI). */
+  hideOnNative?: boolean;
 };
 
 export default function SettingsShell({
-  sections,
+  sections: allSections,
   initialSection,
 }: {
   sections: SettingsSection[];
   initialSection?: string;
 }) {
+  const native = useIsNativeApp();
+  // Native app: drop any section flagged hideOnNative (rail item + panel + deep
+  // link). On web (native false, incl. first paint) this is the full list, so
+  // web behavior is byte-for-byte unchanged.
+  const sections = allSections.filter((s) => !(native && s.hideOnNative));
+
   const first = sections[0]?.id ?? "";
   const valid = (id: string | undefined) => (id && sections.some((s) => s.id === id) ? id : null);
 

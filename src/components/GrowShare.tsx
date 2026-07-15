@@ -5,11 +5,13 @@
 // Native share sheet first on mobile; explicit per-network intents as the grid.
 
 import { useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 
 const PITCH = "I use SwiftCard as my digital business card — one tap to share my info and it auto-saves every contact. Grab a free one:";
 
 export default function GrowShare({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
+  const native = useIsNativeApp();
 
   const enc = encodeURIComponent;
   const text = `${PITCH} `;
@@ -61,7 +63,9 @@ export default function GrowShare({ link }: { link: string }) {
     <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
       <p className="text-gray-200 text-sm font-medium mb-1">Spread the word</p>
       <p className="text-gray-500 text-xs mb-4 leading-relaxed">
-        Share your invite anywhere — every friend who joins moves you toward a free month of Pro.
+        {native
+          ? "Share your invite anywhere — help more people discover SwiftCard."
+          : "Share your invite anywhere — every friend who joins moves you toward a free month of Pro."}
       </p>
 
       <button
