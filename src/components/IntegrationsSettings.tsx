@@ -2,6 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import { PlanGate, PlanBadge } from "@/components/PlanGate";
+
+const INTEGRATIONS_NATIVE_COPY =
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
 
 type Integration = "google" | "hubspot";
 
@@ -99,7 +103,13 @@ function IntegrationCard({
             </a>
           )
         ) : (
-          <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+          <PlanGate
+            feature="integration-google"
+            nativeCopy={INTEGRATIONS_NATIVE_COPY}
+            nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
+          >
+            <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+          </PlanGate>
         )}
       </div>
 
@@ -201,7 +211,13 @@ function HubSpotCard({
         </div>
 
         {!isPro ? (
-          <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+          <PlanGate
+            feature="integration-hubspot"
+            nativeCopy={INTEGRATIONS_NATIVE_COPY}
+            nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
+          >
+            <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+          </PlanGate>
         ) : connected && !showForm ? (
           <button
             onClick={disconnect}

@@ -30,6 +30,7 @@ import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
+import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -586,9 +587,19 @@ export default async function DashboardPage({
                         <p className="text-white text-sm font-medium truncate">
                           {card.label || card.name || card.username}
                           {planInactive && (
-                            <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
-                              LINK OFF — PRO ONLY
-                            </span>
+                            <PlanGate
+                              feature="link-off-badge"
+                              nativeCopy="These links are only active on the Pro plan."
+                              nativeContent={
+                                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan.">
+                                  LINK OFF — PRO ONLY
+                                </span>
+                              }
+                            >
+                              <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
+                                LINK OFF — PRO ONLY
+                              </span>
+                            </PlanGate>
                           )}
                         </p>
                         <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
@@ -601,13 +612,18 @@ export default async function DashboardPage({
                 );
               })}
               {!isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT && (
-                <Link
-                  href="/pricing"
-                  className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
+                <PlanGate
+                  feature="second-card"
+                  nativeCopy="Pro feature — Multiple cards are only available on the Pro plan."
                 >
-                  <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
-                  <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
-                </Link>
+                  <Link
+                    href="/pricing"
+                    className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
+                  >
+                    <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
+                    <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
+                  </Link>
+                </PlanGate>
               )}
             </div>
           </div>
@@ -634,24 +650,55 @@ export default async function DashboardPage({
           <FirstLeadNudge leadCount={visibleLeads.length} isPro={isPro} />
 
           {!isPro && (nearLimit || lockedCount > 0) && (
-            <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  <p className="text-sm font-medium text-amber-400">
-                    {lockedCount > 0
-                      ? `${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
-                      : atLimit
-                        ? `You've used your ${FREE_LIMIT} free leads this month. Upgrade to Pro for unlimited.`
-                        : `${monthlyLeadsUsed}/${FREE_LIMIT} free leads used this month`}
-                  </p>
+            <PlanGate
+              feature="leads-cap"
+              nativeCopy={
+                lockedCount > 0
+                  ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan.`
+                  : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan."
+              }
+              // Native: show only the neutral notice for the cap/locked states
+              // (no UpgradeButton, no referral promo — both are selling). When
+              // it's just the usage counter (near-limit but not at-limit / not
+              // locked), keep it as a pure fact with no selling attached.
+              nativeContent={
+                lockedCount > 0 || atLimit ? (
+                  <div className="mb-5">
+                    <PlanNotice
+                      tier="pro"
+                      copy={
+                        lockedCount > 0
+                          ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan.`
+                          : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan."
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
+                    <p className="text-sm font-medium text-amber-400">{monthlyLeadsUsed}/{FREE_LIMIT} free leads used this month</p>
+                  </div>
+                )
+              }
+            >
+              <div className="rounded-2xl px-5 py-3.5 mb-5 bg-amber-950/40 border border-amber-800/40">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    <p className="text-sm font-medium text-amber-400">
+                      {lockedCount > 0
+                        ? `${lockedCount} new lead${lockedCount === 1 ? " is" : "s are"} locked this month. Upgrade to Pro to unlock ${lockedCount === 1 ? "it" : "them"} — and never miss the next one.`
+                        : atLimit
+                          ? `You've used your ${FREE_LIMIT} free leads this month. Upgrade to Pro for unlimited.`
+                          : `${monthlyLeadsUsed}/${FREE_LIMIT} free leads used this month`}
+                    </p>
+                  </div>
+                  <UpgradeButton />
                 </div>
-                <UpgradeButton />
+                <p className="text-amber-200/60 text-xs mt-2">
+                  Not ready to upgrade? <strong className="text-amber-200">Invite 3 friends</strong> — when they sign up, you get a month of Pro free (up to 3 months).
+                </p>
               </div>
-              <p className="text-amber-200/60 text-xs mt-2">
-                Not ready to upgrade? <strong className="text-amber-200">Invite 3 friends</strong> — when they sign up, you get a month of Pro free (up to 3 months).
-              </p>
-            </div>
+            </PlanGate>
           )}
 
           {/* Traffic — SwiftCard & SwiftLink views (full width; Swift Links + Email signature moved to /share) */}
@@ -677,14 +724,19 @@ export default async function DashboardPage({
               </div>
               {viewsRange === "locations" ? (
                 !isPro ? (
-                  <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
-                    <div className="w-10 h-10 rounded-full bg-blue-600/15 border border-blue-500/30 flex items-center justify-center mx-auto mb-3">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                  <PlanGate
+                    feature="analytics-locations"
+                    nativeCopy="Pro feature — Detailed analytics are only available on the Pro plan."
+                  >
+                    <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-blue-600/15 border border-blue-500/30 flex items-center justify-center mx-auto mb-3">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                      </div>
+                      <p className="text-white text-sm font-semibold">See where your views come from</p>
+                      <p className="text-gray-500 text-xs mt-1 mb-4 leading-relaxed max-w-[280px] mx-auto">Top locations are part of full analytics on Pro — see which cities are opening your card and links.</p>
+                      <Link href="/pricing" className="inline-block text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-colors">Upgrade to Pro →</Link>
                     </div>
-                    <p className="text-white text-sm font-semibold">See where your views come from</p>
-                    <p className="text-gray-500 text-xs mt-1 mb-4 leading-relaxed max-w-[280px] mx-auto">Top locations are part of full analytics on Pro — see which cities are opening your card and links.</p>
-                    <Link href="/pricing" className="inline-block text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-colors">Upgrade to Pro →</Link>
-                  </div>
+                  </PlanGate>
                 ) : topLocations.length > 0 ? (
                   <div className="space-y-2">
                     {topLocations.map((loc) => (
@@ -798,10 +850,21 @@ export default async function DashboardPage({
                           Export
                         </a>
                       ) : (
-                        <Link href="/pricing" title="CSV export is a Pro feature"
-                          className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
-                          Export · Pro
-                        </Link>
+                        <PlanGate
+                          feature="csv-export"
+                          nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan."
+                          nativeContent={
+                            <span title="Exporting contacts is only available on the Pro plan."
+                              className="text-xs text-gray-500 border border-gray-800 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
+                              Export <PlanBadge tier="pro" />
+                            </span>
+                          }
+                        >
+                          <Link href="/pricing" title="CSV export is a Pro feature"
+                            className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
+                            Export · Pro
+                          </Link>
+                        </PlanGate>
                       )
                     )}
                   </div>

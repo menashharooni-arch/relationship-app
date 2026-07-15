@@ -3,6 +3,7 @@
 import ShareMyCardButton from "@/components/ShareMyCardButton";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlanGate } from "@/components/PlanGate";
 
 type FlowPreset = { name: string; days: number[] };
 
@@ -154,6 +155,11 @@ export default function LeadCard({
   // AI messages
   const [showAI, setShowAI] = useState(false);
   const [aiMessages, setAiMessages] = useState<string[] | null>(null);
+  // When the AI-drafts endpoint returns a cap/upgrade error (HTTP 402), we hold
+  // its real message here so we can surface it correctly instead of the generic
+  // "no AI key" empty state. Web renders the message + an Upgrade link; native
+  // renders the neutral PlanGate string.
+  const [aiUpgradeMsg, setAiUpgradeMsg] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [sendingSMS, setSendingSMS] = useState<number | null>(null);
@@ -299,6 +305,7 @@ export default function LeadCard({
   async function fetchAI() {
     setAiLoading(true);
     setAiMessages(null);
+    setAiUpgradeMsg(null);
     try {
       const res = await fetch("/api/ai/suggest-messages", {
         method: "POST",
@@ -306,7 +313,17 @@ export default function LeadCard({
         body: JSON.stringify({ leadId: lead.id, meetContext: meetContext.trim() || undefined, tone }),
       });
       const data = await res.json();
-      setAiMessages(data.messages ?? []);
+      // Bug fix: the monthly free-drafts cap returns HTTP 402 with
+      // { error:"upgrade", message, messages:[] } (and, additively, a
+      // code:"AI_DRAFTS_LIMIT_REACHED"). Previously we only read data.messages,
+      // so a capped user saw the misleading "Make sure an AI key … is set"
+      // empty state. Surface the server's real cap message instead.
+      if (data.error === "upgrade") {
+        setAiUpgradeMsg(typeof data.message === "string" ? data.message : "");
+        setAiMessages([]);
+      } else {
+        setAiMessages(data.messages ?? []);
+      }
     } catch {
       setAiMessages([]);
     }
@@ -836,9 +853,20 @@ export default function LeadCard({
                           </button>
                         )}
                         {seqError && !generatingSeq && (
-                          <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
-                            ⚠ {seqError}{seqError.includes("Pro feature") && <> <a href="/pricing" className="underline font-semibold">Upgrade →</a></>}
-                          </p>
+                          seqError.includes("Pro feature") ? (
+                            <PlanGate
+                              feature="ai-sequences"
+                              nativeCopy="Pro feature — Automated follow-up sequences are only available on the Pro plan."
+                            >
+                              <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
+                                ⚠ {seqError} <a href="/pricing" className="underline font-semibold">Upgrade →</a>
+                              </p>
+                            </PlanGate>
+                          ) : (
+                            <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
+                              ⚠ {seqError}
+                            </p>
+                          )
                         )}
                         {pendingSequence && (
                           <div className="space-y-2">
@@ -1055,7 +1083,18 @@ export default function LeadCard({
                 )}
 
                 {aiMessages !== null && aiMessages.length === 0 && (
-                  <p className="text-gray-600 text-xs py-2">Could not generate messages. Make sure an AI key (OpenAI or Gemini) is set.</p>
+                  aiUpgradeMsg !== null ? (
+                    <PlanGate
+                      feature="ai-drafts"
+                      nativeCopy="Pro feature — You've used your 3 free AI drafts this month. Unlimited AI follow-ups are only available on the Pro plan."
+                    >
+                      <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
+                        {aiUpgradeMsg} <a href="/pricing" className="underline font-semibold">Upgrade →</a>
+                      </p>
+                    </PlanGate>
+                  ) : (
+                    <p className="text-gray-600 text-xs py-2">Could not generate messages. Make sure an AI key (OpenAI or Gemini) is set.</p>
+                  )
                 )}
               </div>
             )}

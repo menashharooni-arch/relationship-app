@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { PlanGate, PlanBadge } from "@/components/PlanGate";
+
+const INTEGRATIONS_NATIVE_COPY =
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
 
 type Props = {
   initialNotifications: boolean;
@@ -71,7 +75,15 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3 mb-1">
         <p className="text-gray-100 text-sm font-medium">Send activity to your CRM</p>
-        {locked && <a href="/pricing" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>}
+        {locked && (
+          <PlanGate
+            feature="integration-crm"
+            nativeCopy={INTEGRATIONS_NATIVE_COPY}
+            nativeContent={<PlanBadge tier="pro" />}
+          >
+            <a href="/pricing" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>
+          </PlanGate>
+        )}
       </div>
       <p className="text-gray-500 text-xs leading-relaxed mb-4">
         Forwards events to your <strong className="text-gray-400">Zapier webhook</strong> above, which routes them into any CRM (HubSpot, Salesforce, Pipedrive, Sheets…). Each event includes a <code className="text-gray-400">type</code> field so your Zap can route it.

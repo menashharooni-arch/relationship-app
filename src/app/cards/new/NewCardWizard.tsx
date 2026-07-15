@@ -18,6 +18,8 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
+import { PlanGate, PlanNotice } from "@/components/PlanGate";
+import { isNativeApp } from "@/lib/platform";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -252,6 +254,11 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
 
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  // Native-only: when a Free user hits the card cap we can't send them to the
+  // /upgrade selling screen (forbidden in-app), so we show a neutral notice
+  // instead. Stays false on web, so the web flow (router.push("/upgrade")) is
+  // unchanged.
+  const [multiCardBlocked, setMultiCardBlocked] = useState(false);
   // Guest flow: after building the card, pick a plan BEFORE creating the account.
   // The choice is stashed (plan-intent) and honored on /welcome after signup —
   // Free → dashboard, Pro/Office → checkout. Authed users skip this (they already
@@ -537,6 +544,14 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       if (data.error === "limit" || data.error === "upgrade") {
+        // In the native app the /upgrade screen is a selling surface and is
+        // suppressed — show a neutral notice in place instead of navigating.
+        if (isNativeApp) {
+          creatingRef.current = false;
+          setMultiCardBlocked(true);
+          setStatus("error");
+          return;
+        }
         // They're signed in and already hit a Free cap — send them to the
         // in-product upgrade screen, not the marketing page with its Free
         // column and trial offer.
@@ -897,9 +912,14 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                 </div>
               )}
               {atLinkCap ? (
-                <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300 underline">Upgrade to Pro</a> to access unlimited additional links.
-                </p>
+                <PlanGate
+                  feature="swift-links-cap"
+                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
+                >
+                  <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                    Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300 underline">Upgrade to Pro</a> to access unlimited additional links.
+                  </p>
+                </PlanGate>
               ) : (
                 <div className="space-y-2">
                   <input
@@ -1108,9 +1128,14 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                   </div>
                   <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
                   {!isPro && (
-                    <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
-                      Unlock custom colors &amp; fonts with Pro →
-                    </Link>
+                    <PlanGate
+                      feature="colors-fonts"
+                      nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                    >
+                      <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                        Unlock custom colors &amp; fonts with Pro →
+                      </Link>
+                    </PlanGate>
                   )}
                 </div>
               )}
@@ -1118,6 +1143,14 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
             )}
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
+            {/* Native-only: shown in place of the /upgrade redirect when a Free
+                user hits the card cap. Never renders on web (multiCardBlocked
+                stays false there). */}
+            {multiCardBlocked && (
+              <div className="mt-2">
+                <PlanNotice tier="pro" copy="Pro feature — Multiple cards are only available on the Pro plan." />
+              </div>
+            )}
 
             <div className="flex gap-3 mt-1">
               <button onClick={() => setStep(2)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">

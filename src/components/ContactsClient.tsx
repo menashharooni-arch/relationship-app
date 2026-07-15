@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSourceLabel } from "@/lib/source-labels";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton from "@/components/ShareMyInfoButton";
+import { PlanGate } from "@/components/PlanGate";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
@@ -1268,10 +1269,15 @@ export default function ContactsClient({
               </div>
 
               {aiUpgrade && (
-                <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
-                  <p className="text-blue-200 text-sm">{aiUpgrade}</p>
-                  <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
-                </div>
+                <PlanGate
+                  feature="ai-sequences"
+                  nativeCopy="Pro feature — Automated follow-up sequences are only available on the Pro plan."
+                >
+                  <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
+                    <p className="text-blue-200 text-sm">{aiUpgrade}</p>
+                    <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
+                  </div>
+                </PlanGate>
               )}
             </div>
 

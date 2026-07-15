@@ -8,6 +8,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { PlanGate } from "@/components/PlanGate";
 import { PLAN_LIMITS } from "@/lib/plan";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
@@ -368,9 +369,14 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           </div>
         </div>
       ) : atLinkCap ? (
-        <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
-          Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
-        </p>
+        <PlanGate
+          feature="swift-links-cap"
+          nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
+        >
+          <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
+            Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
+          </p>
+        </PlanGate>
       ) : (
         <button
           type="button"
@@ -578,11 +584,16 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           </div>
         </div>
       ) : (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
-          <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
-          <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
-          <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</a>
-        </div>
+        <PlanGate
+          feature="customization"
+          nativeCopy="Pro feature — Customization is only available on the Pro plan."
+        >
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
+            <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
+            <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
+            <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</a>
+          </div>
+        </PlanGate>
       )}
 
       {status === "error" && <p className="text-red-500 text-xs text-center">Something went wrong.</p>}
