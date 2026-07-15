@@ -144,6 +144,11 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   const [step, setStep] = useState(1);
   // Gates the autosave until the stored draft has been read back in.
   const hydratedRef = useRef(false);
+  // Synchronous in-flight guard for card creation. The `disabled` prop only
+  // takes effect after React re-renders with status==="loading", so a fast
+  // double-tap can fire two POSTs before that — creating two cards (even on
+  // Free, whose limit check isn't atomic). A ref flips instantly. (cards audit M3)
+  const creatingRef = useRef(false);
   // True once we've actually restored something — drives the "we kept your
   // work" note, so the restore is visible rather than spooky.
   const [restored, setRestored] = useState(false);
@@ -476,6 +481,8 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
       setError("Full name is required.");
       return;
     }
+    if (creatingRef.current) return; // a create is already in flight
+    creatingRef.current = true;
     setStatus("loading");
     setError("");
 
@@ -521,6 +528,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
         }),
       });
     } catch {
+      creatingRef.current = false; // allow retry
       setError("Couldn't reach the server — check your connection and try again.");
       setStatus("error");
       return;
@@ -535,6 +543,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
         router.push("/upgrade");
         return;
       }
+      creatingRef.current = false; // allow retry
       setError(data.error || "Something went wrong.");
       setStatus("error");
       return;

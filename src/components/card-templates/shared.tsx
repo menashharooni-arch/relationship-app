@@ -156,7 +156,7 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
   return (
     <div className="flex flex-col" style={{ gap }}>
       {cardPhones(data).map((p, i) => (
-        <a key={`ph${i}`} href={`tel:${p.number}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
+        <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
           <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
             {formatPhone(p.number)}

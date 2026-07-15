@@ -179,8 +179,11 @@ export default async function CardPage({
   const facebook = customization.facebook || "";
   const snapchat = customization.snapchat || "";
   const youtube = customization.youtube || "";
-  const actionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
-  const testimonials = (customization.testimonials ?? []).filter((t) => t.name && t.text);
+  // Array.isArray guards: a corrupted/crafted customization where links,
+  // testimonials, or phones is a non-array would throw on .filter and 500 the
+  // public card. Coerce to [] instead. (cards audit M4)
+  const actionLinks = (Array.isArray(customization.links) ? customization.links : []).filter((l) => l && l.label && l.url);
+  const testimonials = (Array.isArray(customization.testimonials) ? customization.testimonials : []).filter((t) => t && t.name && t.text);
 
   const addr = customization.address;
   const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
@@ -204,7 +207,11 @@ export default async function CardPage({
     logoUrl: profile.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
     address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
-    customization: profile.customization ?? {},
+    // Use the plan-SANITIZED customization the templates read design keys from,
+    // so a downgraded Pro's card doesn't keep rendering Pro-only colors/fonts on
+    // Free. (cards audit M1) photoUrl is resolved from raw customization above,
+    // which is fine — it isn't a plan-gated key.
+    customization: customization,
   };
 
   const person = {
@@ -213,7 +220,7 @@ export default async function CardPage({
     company: profile.company || "",
     email: profile.email || "",
     phone: profile.phone || "",
-    phones: (customization.phones ?? []).filter((p) => p?.number?.trim()),
+    phones: (Array.isArray(customization.phones) ? customization.phones : []).filter((p) => p?.number?.trim()),
     fax: customization.fax || "",
     website: profile.website || "",
     address: {
