@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   // the organization's. A delegated billing_admin passes through.
   const subBlocked = await officeSubUserBlockMessage(user.id, {
     unless: "manage_billing",
+    allowIfOwnSubscription: true,
     message: "Billing for your account is managed by your organization.",
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });

@@ -8,7 +8,8 @@ import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import { planFromPriceId } from "@/lib/subscription";
-import { isDuplicateStripeEvent } from "@/lib/stripe-idempotency";
+import { PLAN_LIMITS } from "@/lib/plan";
+import { isDuplicateStripeEvent, clearStripeEvent } from "@/lib/stripe-idempotency";
 import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -133,10 +134,16 @@ export async function POST(req: NextRequest) {
       // Recognise BOTH the monthly AND annual Office prices — matching only the
       // monthly one silently provisioned annual Office buyers as Pro.
       const mapped = planFromPriceId(priceId);
+      // An unmapped price silently falling through to "pro" reintroduces the
+      // exact "annual Office provisioned as Pro" bug when an env price var is
+      // missing at runtime — alert instead of guessing. (billing audit #10)
+      if (!mapped) {
+        await reportError("stripe.webhook.unmapped_price", new Error(`Unmapped checkout price ${priceId}`), { eventId: event.id, priceId });
+      }
       const isEnterprise = mapped?.plan === "office";
       const plan = isEnterprise ? "enterprise" : "pro";
       const seats = isEnterprise
-        ? (session.metadata?.seats ? parseInt(session.metadata.seats) : (lineItems.data[0]?.quantity ?? 5))
+        ? (session.metadata?.seats ? parseInt(session.metadata.seats) : (lineItems.data[0]?.quantity ?? PLAN_LIMITS.OFFICE_MIN_SEATS))
         : 1;
 
       // Card fingerprint for referral fraud dedup (same card on two accounts).
@@ -421,6 +428,30 @@ export async function POST(req: NextRequest) {
       await admin2.from("profiles").update({ plan_expires_at: null, customization: cust }).eq("id", profile.id);
     }
 
+    // If the person whose PERSONAL subscription just ended is still an active
+    // member of someone else's PAID office, they remain entitled to enterprise
+    // — the blanket downgrade above wrongly dropped them to free. Restore it
+    // (keeping stripe_subscription_id null, since their own sub is gone) and
+    // re-link the office. (billing audit #6B) The office-OWNER path below is
+    // unaffected: an owner's own sub ending correctly cascades to members.
+    if (profile?.id) {
+      const { data: membership } = await admin2
+        .from("office_members")
+        .select("office_id")
+        .eq("user_id", profile.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (membership?.office_id) {
+        const { data: owningOffice } = await admin2.from("offices").select("owner_id").eq("id", membership.office_id).maybeSingle();
+        if (owningOffice?.owner_id) {
+          const { data: ownerProfile } = await admin2.from("profiles").select("plan").eq("id", owningOffice.owner_id).maybeSingle();
+          if (ownerProfile?.plan === "enterprise") {
+            await admin2.from("profiles").update({ plan: "enterprise", office_id: membership.office_id }).eq("id", profile.id);
+          }
+        }
+      }
+    }
+
     if (profile?.id) {
       const admin = getAdminSupabase();
       const { data: office } = await admin.from("offices").select("id").eq("owner_id", profile.id).single();
@@ -454,6 +485,10 @@ export async function POST(req: NextRequest) {
   }
   } catch (e) {
     await reportError("stripe.webhook", e, { eventType: event.type, eventId: event.id });
+    // The dedup marker was inserted BEFORE the handler ran; a failed handler
+    // must release it so Stripe's retry re-processes instead of being skipped
+    // as a duplicate (which would drop the event permanently). (billing audit #1)
+    await clearStripeEvent(event.id);
     return NextResponse.json({ error: "webhook handler failed" }, { status: 500 });
   }
 
