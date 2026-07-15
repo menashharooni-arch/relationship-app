@@ -7,7 +7,7 @@ _Last updated: 2026-07-14_
 
 - **Stack:** Next.js 16.x App Router (⚠️ **custom build — read `node_modules/next/dist/docs/` before writing code**, per `AGENTS.md`; APIs differ from stock Next), React 19, TypeScript (strict), Tailwind CSS 4, npm.
 - **Backend:** Supabase (auth/db/storage — `getAdminSupabase` service-role client + `createClient` user client), Stripe, logo.dev.
-- **Plans:** Free (1 card, 1 link, 5 leads/mo, 3 scans/mo, 3 AI drafts/mo), Pro (unlimited), Office (DB value `"enterprise"`, min 2 seats). Downgrade deletes nothing; kill-switches take extra cards/leads/design offline at render.
+- **Plans:** Free (1 card, 1 link, 5 leads/mo, 3 AI drafts/mo; NO card scanner), Pro (unlimited + AI card scanner + no SwiftCard branding), Office (DB value `"enterprise"`, min 2 seats). Downgrade deletes nothing; kill-switches take extra cards/leads/design offline at render.
 
 ## Teams/Office model (built 2026-07-14)
 - **`/office/admin` is the OFFICE admin console** (nav "Admin", right of Settings). `/office` 307s to it. The site-owner console at **`/admin` is untouched and ADMIN_EMAILS-only** — office users must never reach it; its nav item is labelled **"Site"** to keep the two apart.

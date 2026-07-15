@@ -77,7 +77,7 @@ function downgradeLosses(plan: Sub["plan"]): string[] {
   );
   losses.push(`Your live card reverts to the Free design and keeps just ${PLAN_LIMITS.FREE_MAX_LINKS} Swift Link — Pro styling and your extra action buttons disappear from it.`);
   losses.push(`New contacts are capped at ${PLAN_LIMITS.FREE_LEADS_PER_MONTH}/month again — anything past that is locked until you upgrade.`);
-  losses.push(`AI card scanning and follow-up drafts drop to ${PLAN_LIMITS.FREE_SCANS_PER_MONTH}/month.`);
+  losses.push(`AI card scanning switches off, and AI follow-up drafts drop to ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH}/month.`);
   return losses;
 }
 

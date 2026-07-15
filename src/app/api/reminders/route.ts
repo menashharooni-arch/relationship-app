@@ -292,6 +292,10 @@ export async function GET(req: NextRequest) {
         subject: item.subject?.trim() || `${ownerFirst} following up`,
         cardUsername: seqLead.card_owner,
         channel: itemChannel,
+        // Pro/Office = no SwiftCard branding on the message. (Sequences are
+        // Pro-gated anyway, so this is effectively always true here — passed
+        // explicitly rather than assumed.)
+        senderPaid: isPaidPlan(owner.profile.plan as string | null),
       });
 
       // Mark THIS step (matched by day AND channel) done unless it failed

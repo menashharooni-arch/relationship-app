@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { isPaidPlan } from "@/lib/plan";
 import {
   sendSms,
   sendRawEmail,
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
   // (name/company/email per card), profile as fallback.
   const [{ data: card }, { data: profile }] = await Promise.all([
     admin.from("cards").select("name, company, email").eq("username", lead.card_owner as string).maybeSingle(),
-    admin.from("profiles").select("name, company, email, customization").eq("id", user.id).maybeSingle(),
+    admin.from("profiles").select("name, company, email, plan, customization").eq("id", user.id).maybeSingle(),
   ]);
   // A deleted account sends nothing (same choke point as the automations).
   if ((profile?.customization as { _deleted?: boolean } | null)?._deleted) {
@@ -77,6 +78,10 @@ export async function POST(req: NextRequest) {
   const ownerName = (card?.name as string) || (profile?.name as string) || "A SwiftCard user";
   const ownerCompany = (card?.company as string) || (profile?.company as string) || null;
   const replyTo = (card?.email as string) || (profile?.email as string) || null;
+  // Pro/Office is sold as "no SwiftCard branding" — drop the attribution lines
+  // for paid senders (the STOP notice and the unsubscribe link always stay:
+  // those are compliance, not branding).
+  const paid = isPaidPlan(profile?.plan as string | null);
 
   const contactFirst = ((lead.name as string) || "").split(" ")[0];
   const cardUrl = `${APP_URL}/card/${lead.card_owner}?shared=1`;
@@ -91,7 +96,7 @@ export async function POST(req: NextRequest) {
       const body = toGsm7(
         `${contactFirst ? `Hi ${contactFirst}! ` : ""}${ownerName} here - save my contact information in the link below.\n` +
         `${cardUrl}\n` +
-        `via SwiftCard · Reply STOP to opt out`,
+        `${paid ? "" : "via SwiftCard · "}Reply STOP to opt out`,
       );
       results.sms = await sendSms(lead.phone as string, body);
       if (results.sms === "sent") {
@@ -128,7 +133,7 @@ export async function POST(req: NextRequest) {
   <p style="margin:0 0 16px;">Save my contact information in the link below.</p>
   <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(cardUrl.replace(/^https?:\/\//, ""))}</a></p>
   ${preview}
-  <p style="margin-top:24px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> · <a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
+  <p style="margin-top:24px;color:#9ca3af;font-size:11px;">${paid ? "" : `Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> · `}<a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
 </div>`;
 
       results.email = await sendRawEmail({

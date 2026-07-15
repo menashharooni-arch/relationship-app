@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { ownsLead } from "@/lib/lead-access";
 import { deliverToLead } from "@/lib/messaging";
+import { isPaidPlan } from "@/lib/plan";
 
 // GET — the conversation thread (outbound messages you've sent this contact).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -64,6 +65,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .maybeSingle();
     sender = prof;
   }
+  // Paid senders get no SwiftCard branding on the message they send.
+  const { data: senderPlan } = await admin.from("profiles").select("plan").eq("id", user.id).maybeSingle();
+
   const result = await deliverToLead({
     leadId: id,
     cardOwner: lead.card_owner,
@@ -80,6 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     subject: typeof subject === "string" ? subject : null,
     cardUsername: lead.card_owner,
     channel: preferChannel,
+    senderPaid: isPaidPlan(senderPlan?.plan as string | null),
   });
   const { channel, status } = result;
 
