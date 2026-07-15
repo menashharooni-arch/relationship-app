@@ -218,11 +218,14 @@ export default async function DashboardPage({
     // safe: analyticsUsername is verified above to be one of THIS user's cards.
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+    // 60 days of raw view timestamps: powers the best-day stat (30d), the
+    // Traffic bar graph buckets, and the vs-previous-window % change (which
+    // needs a full prior window, hence 60d for the month view).
     getAdminSupabase()
       .from("card_views")
-      .select("viewed_at")
+      .select("viewed_at, username")
       .in("username", [analyticsUsername, linkUsername])
-      .gte("viewed_at", daysAgoISO(30)),
+      .gte("viewed_at", daysAgoISO(60)),
     viewsRange === "locations"
       ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
       : Promise.resolve({ data: null }),
@@ -267,8 +270,10 @@ export default async function DashboardPage({
   }
 
   // Basic-panel "best day" (last 30d views) — available to every plan.
+  const thirtyDayCutoff = daysAgoISO(30);
   const dayTally: Record<string, number> = {};
   for (const v of recentViews ?? []) {
+    if ((v.viewed_at as string) < thirtyDayCutoff) continue;
     const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
     dayTally[k] = (dayTally[k] ?? 0) + 1;
   }
@@ -276,6 +281,35 @@ export default async function DashboardPage({
   for (const [date, views] of Object.entries(dayTally)) {
     if (!bestDay || views > bestDay.views) bestDay = { date, views };
   }
+
+  // ── Traffic graph + trend ────────────────────────────────────────────────────
+  // Bucket the selected window's views into bars (today → 24 hours, week → 7
+  // days, month → 30 days) and compare each tile's total against the SAME-SIZE
+  // window immediately before it ("▲ 23% this week").
+  const windowMs = viewsRange === "month" ? 30 * 864e5 : viewsRange === "week" ? 7 * 864e5 : 864e5;
+  const windowStart = new Date(viewsCutoff).getTime();
+  const prevStart = windowStart - windowMs;
+  const bucketCount = viewsRange === "month" ? 30 : viewsRange === "week" ? 7 : 24;
+  const bucketMs = viewsRange === "today" ? 36e5 : 864e5;
+  const trafficBars: number[] = Array.from({ length: bucketCount }, () => 0);
+  let prevCard = 0;
+  let prevLink = 0;
+  for (const v of recentViews ?? []) {
+    const t = new Date(v.viewed_at as string).getTime();
+    const isLink = (v as { username?: string }).username === linkUsername;
+    if (t >= windowStart) {
+      const idx = Math.min(bucketCount - 1, Math.floor((t - windowStart) / bucketMs));
+      trafficBars[idx]++;
+    } else if (t >= prevStart) {
+      if (isLink) prevLink++; else prevCard++;
+    }
+  }
+  // % vs the previous window; null when there's no baseline to compare against.
+  const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
+  const cardDelta = pct(swiftCardViews ?? 0, prevCard);
+  const linkDelta = pct(swiftLinkViews ?? 0, prevLink);
+  const deltaPeriod = viewsRange === "month" ? "this month" : viewsRange === "week" ? "this week" : "today";
+  const maxBar = Math.max(1, ...trafficBars);
 
   // Locations view (on-demand): top places your card + links are viewed from,
   // with the SwiftCard vs Swift Links split per location. All-time totals.
@@ -443,7 +477,7 @@ export default async function DashboardPage({
             {[
               { href: `/dashboard?card=${activeUsername}`, label: "Dashboard", active: true },
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
-              { href: `/share?card=${activeUsername}`, label: "Share", active: false },
+              { href: `/share?card=${activeUsername}`, label: "Links", active: false },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
@@ -672,19 +706,48 @@ export default async function DashboardPage({
                   </div>
                 )
               ) : (
-                <div className="space-y-3">
-                  {[
-                    { label: "SwiftCard Views", sub: "from your business card link", value: swiftCardViews ?? 0 },
-                    { label: "SwiftLink Views", sub: "from your Swift Links page", value: swiftLinkViews ?? 0 },
-                  ].map((m) => (
-                    <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
-                      <div className="min-w-0">
-                        <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
-                        <p className="text-gray-600 text-[11px]">{m.sub}</p>
+                <div>
+                  {/* Stat tiles — side by side, each with its change vs the
+                      previous same-size window. */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "SwiftCard views", value: swiftCardViews ?? 0, delta: cardDelta, accent: "#818cf8" },
+                      { label: "Swift Link views", value: swiftLinkViews ?? 0, delta: linkDelta, accent: "#22d3ee" },
+                    ].map((m) => (
+                      <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
+                        <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
+                        <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value.toLocaleString("en-US")}</p>
+                        {m.delta !== null ? (
+                          <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
+                            {m.delta < 0 ? "▼" : "▲"} {Math.abs(m.delta)}% {deltaPeriod}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] font-medium text-gray-600 mt-0.5">— {deltaPeriod}</p>
+                        )}
                       </div>
-                      <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Bar graph — one bar per hour (Today) or day (Week/Month),
+                      the newest bucket highlighted. Fixed height so the box
+                      stays the size it is. */}
+                  <div className="flex items-end gap-1 h-20 mt-4" aria-hidden="true">
+                    {trafficBars.map((v, i) => {
+                      const last = i === trafficBars.length - 1;
+                      return (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t-md min-w-0"
+                          style={{
+                            height: `${Math.max(6, Math.round((v / maxBar) * 100))}%`,
+                            background: last
+                              ? "linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)"
+                              : "#343e6b",
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               )}
               {/* Basic stats (every plan): contacts captured + best day */}

@@ -115,7 +115,7 @@ export default async function SharePage({
             </DashboardLink>
             {[
               { href: "/contacts", label: "Contacts", active: false },
-              { href: "/share", label: "Share", active: true },
+              { href: "/share", label: "Links", active: true },
               { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
@@ -146,7 +146,7 @@ export default async function SharePage({
             card's Swift Links / signature are shown. */}
         <div className="mb-6">
           <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
-          <h1 className="text-2xl font-bold text-white">Share</h1>
+          <h1 className="text-2xl font-bold text-white">Links</h1>
           <p className="text-gray-500 text-sm mt-1">
             For <span className="text-gray-300 font-medium">{(activeCard.label || activeCard.name || activeUsername) as string}</span>
             <span className="text-gray-600"> · /{activeUsername}</span>

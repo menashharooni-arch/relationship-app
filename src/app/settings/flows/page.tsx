@@ -19,12 +19,16 @@ import GrowLinkButton from "@/components/GrowLinkButton";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
+import SignOutButton from "@/components/SignOutButton";
+import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import { resolveOfficeContext, roleHasCapability, canViewOfficeAdmin } from "@/lib/office-roles";
 import { Suspense } from "react";
 import Link from "next/link";
 
 // Rail icons — small, uniform, and deliberately plain so the labels do the work.
 const I = {
+  security: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>),
+  bell: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>),
   general: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0" /></svg>),
   cards: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>),
   integrations: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.035 1.007-1.875 2.25-1.875s2.25.84 2.25 1.875c0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 00.658-.663 48.422 48.422 0 00-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 01-.61-.58v0z" /></svg>),
@@ -60,13 +64,14 @@ export default async function FlowSettingsPage({
   await ensureUserCards(user.id);
 
   const admin = getAdminSupabase();
-  const [{ data: integrations }, { data: cards }] = await Promise.all([
+  const [{ data: integrations }, { data: cards }, { data: emailPrefs }] = await Promise.all([
     admin.from("integrations").select("provider, sync_error").eq("user_id", user.id),
     admin
       .from("cards")
       .select("id, username, name, title, label")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
+    admin.from("email_preferences").select("marketing_emails, receipt_emails").eq("user_id", user.id).maybeSingle(),
   ]);
 
   // An office SUB-USER is an active member who is NOT the owner — an employee on
@@ -87,23 +92,24 @@ export default async function FlowSettingsPage({
   const referral = await getReferralProgress(user.id);
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
-  const linkedinIntegration = integrations?.find((i) => i.provider === "linkedin");
   const googleConnected = !!googleIntegration;
   const hubspotConnected = !!hubspotIntegration;
-  const linkedinConnected = !!linkedinIntegration;
   const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const hubspotSyncError = (hubspotIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
-  const linkedinSyncError = (linkedinIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
+  // LinkedIn no longer appears in Settings — its OAuth now powers the "Suggest
+  // my profile picture" button in the card editors instead.
 
   // One section per area of the product, rendered one at a time by SettingsShell.
-  // Everything that existed before still exists — it's grouped instead of stacked.
-  // `false &&` entries are dropped below, so per-role visibility is decided here
-  // on the server rather than hidden with CSS.
+  // Everything that existed before still exists — it's grouped instead of stacked:
+  //   Profile / Cards and sharing / Plan and billing / Notifications and
+  //   preferences / Security / Help and referrals / Advanced account settings.
+  // Sections that don't apply to a role are dropped here on the SERVER (never
+  // hidden with CSS); the APIs behind them are role-guarded independently.
   const sections: SettingsSection[] = [
     {
-      id: "general",
-      label: "General",
-      desc: "Your account details and notifications.",
+      id: "profile",
+      label: "Profile",
+      desc: "Your account details at a glance.",
       icon: I.general,
       content: (
         <div data-tour="settings-general" className="space-y-3">
@@ -112,31 +118,62 @@ export default async function FlowSettingsPage({
             cardCount={cards?.length ?? 0}
             plan={profile.plan ?? "free"}
             isPro={isPro}
+            defaultOpen
           />
-          {/* Push notifications toggle — the wizard offers opt-in once at card
-              creation; this is the permanent on/off switch for this device. */}
-          <EnablePushButton label="Turn on push notifications" allowDisable />
         </div>
       ),
     },
     ...(isOfficeSubUser ? [] : [{
       id: "cards",
-      label: "Cards",
-      desc: "Rename, open, or remove a card.",
+      label: "Cards and sharing",
+      desc: "Rename, open, or remove a card, and share your links.",
       icon: I.cards,
       content: (
-        <div data-tour="settings-cards">
+        <div data-tour="settings-cards" className="space-y-3">
           <ManageCards cards={cards ?? []} />
+          <Link
+            href="/share"
+            className="flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
+          >
+            Share your card &amp; links
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </Link>
         </div>
       ),
     } as SettingsSection]),
+    ...(canSeeBilling ? [{
+      id: "billing",
+      label: "Plan and billing",
+      desc: "Your plan, seats, invoices and payment method.",
+      icon: I.billing,
+      content: (
+        <div id="billing" data-tour="settings-billing" className="scroll-mt-24">
+          <BillingManager />
+        </div>
+      ),
+    } as SettingsSection] : []),
     {
-      id: "integrations",
-      label: "Integrations",
-      desc: "Send new contacts straight into the tools you already use.",
-      icon: I.integrations,
+      id: "notifications",
+      label: "Notifications and preferences",
+      desc: "Push alerts, lead notifications, and the tools your contacts sync to.",
+      icon: I.bell,
       content: (
         <div data-tour="settings-integrations" className="space-y-3">
+          {/* Push notifications toggle — the wizard offers opt-in once at card
+              creation; this is the permanent on/off switch for this device. */}
+          <EnablePushButton label="Turn on push notifications" allowDisable />
+          {/* Which emails we may send: marketing + payment receipts. Lives here
+              (not only on the legacy /profile page) so it's actually findable. */}
+          <EmailPreferencesForm
+            initialMarketing={emailPrefs?.marketing_emails ?? true}
+            initialReceipts={emailPrefs?.receipt_emails ?? true}
+          />
+          <CrmEventSettings
+            initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
+            initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
+            zapierConnected={!!profile.zapier_webhook_url}
+            isPro={isPro}
+          />
           <ZapierSettings initialUrl={profile.zapier_webhook_url ?? null} isPro={isPro} />
           <Suspense>
             <IntegrationsSettings
@@ -146,70 +183,70 @@ export default async function FlowSettingsPage({
               hubspotSyncError={hubspotSyncError}
               isPro={isPro}
               hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
-              linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
-              linkedinConnected={linkedinConnected}
-              linkedinSyncError={linkedinSyncError}
             />
           </Suspense>
-          <CrmEventSettings
-            initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
-            initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
-            zapierConnected={!!profile.zapier_webhook_url}
-            isPro={isPro}
-          />
         </div>
       ),
     },
-    ...(canSeeBilling ? [{
-      id: "billing",
-      label: "Billing",
-      desc: "Your plan, seats, invoices and payment method.",
-      icon: I.billing,
+    {
+      id: "security",
+      label: "Security",
+      desc: "Your password and session.",
+      icon: I.security,
       content: (
-        <div id="billing" data-tour="settings-billing" className="scroll-mt-24">
-          <BillingManager />
+        <div className="space-y-3">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-white text-sm font-semibold">Password</p>
+              <p className="text-gray-500 text-xs mt-0.5">Set a new password for your account.</p>
+            </div>
+            <Link href="/auth/reset-password" className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors shrink-0">
+              Change password
+            </Link>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-white text-sm font-semibold">Sign out</p>
+              <p className="text-gray-500 text-xs mt-0.5">Sign out of SwiftCard on this device.</p>
+            </div>
+            <SignOutButton />
+          </div>
         </div>
       ),
-    } as SettingsSection] : []),
-    ...(isOfficeSubUser ? [] : [{
-      id: "grow",
-      label: "Refer & grow",
-      desc: "Invite a friend and earn free months.",
-      icon: I.grow,
-      content: (
-        <div data-tour="settings-refer">
-          <ReferAFriend progress={referral} />
-          <Link
-            href="/grow"
-            className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
-          >
-            More ways to help us grow
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-          </Link>
-        </div>
-      ),
-    } as SettingsSection]),
+    },
     {
       id: "help",
-      label: "Help",
-      desc: "Ask a question or replay the guided tour.",
+      label: isOfficeSubUser ? "Help" : "Help and referrals",
+      desc: isOfficeSubUser ? "Ask a question or replay the guided tour." : "Get help, invite a friend, and earn free months.",
       icon: I.help,
       content: (
         <div data-tour="settings-help" className="space-y-3">
           <HelpWidget />
           <TakeTourButton />
+          {!isOfficeSubUser && (
+            <div data-tour="settings-refer" className="pt-2">
+              <ReferAFriend progress={referral} />
+              <Link
+                href="/grow"
+                className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
+              >
+                More ways to help us grow
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+              </Link>
+            </div>
+          )}
         </div>
       ),
     },
     ...(isOfficeSubUser ? [] : [{
-      id: "account",
-      label: "Account",
-      desc: "Account-level actions. Deleting is permanent.",
+      id: "advanced",
+      label: "Advanced account settings",
+      desc: "Account ownership and deletion. Deleting is permanent.",
       icon: I.account,
       quiet: true,
       content: (
         <div data-tour="settings-account">
-          <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} />
+          <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} email={user.email ?? ""} />
           <p className="mt-6">
             <a href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</a>
           </p>
@@ -241,7 +278,7 @@ export default async function FlowSettingsPage({
             </DashboardLink>
             {[
               { href: "/contacts",  label: "Contacts" },
-              { href: "/share", label: "Share" },
+              { href: "/share", label: "Links" },
               { href: "/settings/flows", label: "Settings", active: true },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
@@ -257,7 +294,7 @@ export default async function FlowSettingsPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <GrowLinkButton />
+            {!isOfficeSubUser && <GrowLinkButton />}
             <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">
               ← Dashboard
             </DashboardLink>
