@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
+import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
   const { toEmail } = await request.json() as { toEmail?: string };
   if (!toEmail) return NextResponse.json({ error: "no_email" }, { status: 400 });
 
+  // Same opt-out check every other lead-facing email in the app respects —
+  // a recipient who's unsubscribed via ANY SwiftCard user's email must not
+  // get a new one just because a different user scanned their card.
+  if (await isOptedOut("email", toEmail)) {
+    return NextResponse.json({ error: "opted_out", message: "This person has opted out of emails." }, { status: 409 });
+  }
+
   const adminSupabase = getAdminSupabase();
   const { data: profile } = await adminSupabase
     .from("profiles")
@@ -36,10 +43,9 @@ export async function POST(request: NextRequest) {
   const firstName = profile.name?.split(" ")[0] ?? "Someone";
   const safeFirstName = escapeHtml(firstName);
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>",
+  const result = await sendRawEmail({
     to: toEmail,
+    fromName: firstName,
     subject: `${firstName} shared their contact card with you`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
@@ -52,11 +58,15 @@ export async function POST(request: NextRequest) {
           View ${safeFirstName}&apos;s card
         </a>
         <p style="font-size:12px;color:#94a3b8;margin-top:32px;">
-          Sent via <a href="${APP_URL}" style="color:#94a3b8;">SwiftCard</a>
+          Sent via <a href="${APP_URL}" style="color:#94a3b8;">SwiftCard</a> ·
+          <a href="${contactUnsubUrl(toEmail)}" style="color:#94a3b8;">Unsubscribe</a>
         </p>
       </div>
     `,
   });
 
+  if (result !== "sent") {
+    return NextResponse.json({ error: "send_failed" }, { status: 502 });
+  }
   return NextResponse.json({ ok: true });
 }

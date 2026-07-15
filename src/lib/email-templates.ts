@@ -108,6 +108,7 @@ export function trialEndingSoonEmail(opts: {
   firstName: string;
   daysLeft: number;
   isTrial: boolean;
+  unsubscribeUrl?: string;
 }) {
   const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
   const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
@@ -122,7 +123,7 @@ export function trialEndingSoonEmail(opts: {
   return {
     from: FROM,
     subject: `${day} left of your ${what}`,
-    html: layout(body),
+    html: layout(body, opts.unsubscribeUrl),
   };
 }
 
@@ -130,6 +131,7 @@ export function trialEndingSoonEmail(opts: {
 export function trialEndedEmail(opts: {
   firstName: string;
   isTrial: boolean;
+  unsubscribeUrl?: string;
 }) {
   const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
   const safeName = escapeHtml(opts.firstName);
@@ -143,7 +145,7 @@ export function trialEndedEmail(opts: {
   return {
     from: FROM,
     subject: what,
-    html: layout(body),
+    html: layout(body, opts.unsubscribeUrl),
   };
 }
 
