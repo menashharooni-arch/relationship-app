@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { aiVision, hasAiProvider } from "@/lib/ai";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import { readUsage, bumpUsage } from "@/lib/usage";
+import { isPaidPlan } from "@/lib/plan";
 
 export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
@@ -13,16 +12,17 @@ export async function POST(request: NextRequest) {
   const adminSupabase = getAdminSupabase();
   const { data: profile } = await adminSupabase
     .from("profiles")
-    .select("plan, customization")
+    .select("plan")
     .eq("id", user.id)
     .single();
 
-  // Free gets a monthly taste of the scanner (resets on the 1st); Pro/Office unlimited.
-  const paid = isPaidPlan(profile?.plan);
-  if (!paid && readUsage(profile?.customization).scans >= PLAN_LIMITS.FREE_SCANS_PER_MONTH) {
+  // The AI card scanner is a Pro feature — no free allowance (owner decision,
+  // Jul 2026; it previously gave Free 3 scans/month). 403 rather than 402: this
+  // isn't a meter that refills on the 1st, it's simply not on the Free plan.
+  if (!isPaidPlan(profile?.plan)) {
     return NextResponse.json(
-      { error: "upgrade", message: `You've used your ${PLAN_LIMITS.FREE_SCANS_PER_MONTH} free card scans this month. Upgrade to Pro for unlimited scanning.`, upgrade: "/pricing" },
-      { status: 402 }
+      { error: "upgrade", message: "Scanning business cards is a Pro feature. Upgrade to scan unlimited cards.", upgrade: "/pricing" },
+      { status: 403 }
     );
   }
 
@@ -43,10 +43,8 @@ export async function POST(request: NextRequest) {
   if (!jsonMatch) return NextResponse.json({});
 
   try {
-    const extracted = JSON.parse(jsonMatch[0]);
-    // Count a successful scan against the free monthly allowance.
-    if (!paid) await bumpUsage(adminSupabase, user.id, profile?.customization as Record<string, unknown> | null, "scans");
-    return NextResponse.json({ ...extracted, scansRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_SCANS_PER_MONTH - (readUsage(profile?.customization).scans + 1)) });
+    // Pro-only, and Pro is unlimited — nothing to meter or report.
+    return NextResponse.json(JSON.parse(jsonMatch[0]));
   } catch {
     return NextResponse.json({});
   }

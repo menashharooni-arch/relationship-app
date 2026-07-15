@@ -394,10 +394,16 @@ export default async function CardPage({
           label="Share this card"
         />
         <QRCodeModal url={publicCardUrl} firstName={firstName} />
-        {/* Faint viewer CTA — turns people who receive a card into signups. */}
-        <a href={`${APP_URL}/?src=card`} className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
-          Create your card · swiftcard.me
-        </a>
+        {/* Faint viewer CTA — turns people who receive a card into signups.
+            Free only: Pro is sold as "100% your brand", and this line is
+            SwiftCard advertising sitting on a paying customer's card page. It
+            rendered for everyone, which quietly broke that promise alongside
+            the badge below (which was already gated). */}
+        {!isPaidPlan(profile.plan) && (
+          <a href={`${APP_URL}/?src=card`} className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
+            Create your card · swiftcard.me
+          </a>
+        )}
       </div>
 
       {/* "Powered by SwiftCard.me" badge (links to site) — Free only, removed on Pro/Office */}

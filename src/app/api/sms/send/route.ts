@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { deliverToLead } from "@/lib/messaging";
 import { isRateLimited } from "@/lib/rate-limit";
+import { isPaidPlan } from "@/lib/plan";
 
 // Send a one-off text to a contact (the "Send SMS" button on AI messages).
 // Goes through the shared delivery path so STOP opt-outs are respected, the
@@ -47,6 +48,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     sender = prof;
   }
+  // Paid senders get no "via SwiftCard" line on the text they send.
+  const { data: senderPlan } = await admin.from("profiles").select("plan").eq("id", user.id).maybeSingle();
 
   const result = await deliverToLead({
     leadId,
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
     text: message.trim(),
     cardUsername: lead.card_owner,
     channel: "sms",
+    senderPaid: isPaidPlan(senderPlan?.plan as string | null),
   });
 
   if (result.status === "opted_out") {
