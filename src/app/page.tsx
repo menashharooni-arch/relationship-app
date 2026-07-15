@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
-import StickyMobileCTA from "@/components/StickyMobileCTA";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import HeroImage from "@/components/site/HeroImage";
@@ -356,11 +355,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-
-      {/* Mobile-only, appears once the hero CTA scrolls away, hides over the
-          final CTA. The component was already written for exactly this and had
-          zero importers — it was never mounted anywhere. */}
-      <StickyMobileCTA />
 
       <SiteFooter />
     </>
