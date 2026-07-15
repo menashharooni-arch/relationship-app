@@ -175,5 +175,9 @@ export async function POST(req: Request) {
     `,
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true });
+  // `resent` lets the caller tell the truth: there is only ever ONE invite row
+  // per (office, email), so re-inviting someone who's already pending re-sends
+  // that invitation rather than creating a duplicate. Saying "invite sent" for
+  // both would leave an owner wondering why the person has two emails.
+  return NextResponse.json({ ok: true, resent: !!existing, inviteToken: token });
 }

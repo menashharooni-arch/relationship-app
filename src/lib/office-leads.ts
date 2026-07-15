@@ -83,16 +83,37 @@ export async function getOfficeLeads(officeId: string): Promise<OfficeLead[]> {
   return merged;
 }
 
+// How many team leads nobody has worked yet — drives the "new leads waiting"
+// item in Needs attention. Counted the same way the Leads tab labels them, so
+// the number and the list can never disagree.
+export async function getOfficeUncontactedLeadCount(officeId: string): Promise<number> {
+  const leads = await getOfficeLeads(officeId);
+  return leads.filter((l) => !leadStatusView(l.status).worked).length;
+}
+
 // ── Plain-English lead status ────────────────────────────────────────────────
 // The app's real status values are new_contact | touch | dissolved (see
 // LeadCard.tsx). The old office Leads page colour-coded "hot/warm/closed" —
 // values that can never occur, so every row fell through to grey. Map the real
 // vocabulary to owner-readable labels, with anything unknown treated as New.
 
+export type LeadStatusLabel = "New" | "Contacted" | "Closed" | "Not interested";
+
 export type LeadStatusView = {
-  label: "New" | "Contacted" | "Closed";
+  label: LeadStatusLabel;
   worked: boolean; // has someone on the team already handled this lead?
 };
+
+// The stored values the owner can set from the Leads tab. `status` is plain text
+// with no CHECK constraint, so this needs no migration — but every value here is
+// also renderable by the personal Contacts UI (LeadCard / ContactsClient), so a
+// lead marked here never shows up blank there.
+export const LEAD_STATUS_VALUES = ["new_contact", "touch", "dissolved", "not_interested"] as const;
+export type LeadStatusValue = (typeof LEAD_STATUS_VALUES)[number];
+
+export function isLeadStatusValue(v: string | null | undefined): v is LeadStatusValue {
+  return !!v && (LEAD_STATUS_VALUES as readonly string[]).includes(v);
+}
 
 export function leadStatusView(status: string | null | undefined): LeadStatusView {
   switch ((status ?? "").toLowerCase()) {
@@ -100,8 +121,18 @@ export function leadStatusView(status: string | null | undefined): LeadStatusVie
       return { label: "Contacted", worked: true };
     case "dissolved":
       return { label: "Closed", worked: true };
+    case "not_interested":
+      return { label: "Not interested", worked: true };
     case "new_contact":
     default:
       return { label: "New", worked: false };
   }
 }
+
+// Label → stored value, for the owner-facing status picker.
+export const LEAD_STATUS_OPTIONS: { value: LeadStatusValue; label: LeadStatusLabel }[] = [
+  { value: "new_contact", label: "New" },
+  { value: "touch", label: "Contacted" },
+  { value: "dissolved", label: "Closed" },
+  { value: "not_interested", label: "Not interested" },
+];

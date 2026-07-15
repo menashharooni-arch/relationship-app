@@ -50,18 +50,21 @@ describe("leadStatusView — real app statuses map to owner words", () => {
 
 describe("computeSetupProgress — checklist derives from durable facts", () => {
   it("fresh office: nothing done", () => {
-    const p = computeSetupProgress({ hasBrand: false, memberRowCount: 0, leadCount: 0 });
-    expect(p).toEqual({ brandingDone: false, invitedDone: false, firstLeadDone: false, allDone: false });
+    const p = computeSetupProgress({ hasBrand: false, memberRowCount: 0, liveEmployeeCards: 0, leadCount: 0 });
+    expect(p).toMatchObject({
+      brandingDone: false, invitedDone: false, cardLiveDone: false, firstLeadDone: false, allDone: false,
+    });
   });
 
   it("each fact checks its own step", () => {
-    expect(computeSetupProgress({ hasBrand: true, memberRowCount: 0, leadCount: 0 }).brandingDone).toBe(true);
-    expect(computeSetupProgress({ hasBrand: false, memberRowCount: 2, leadCount: 0 }).invitedDone).toBe(true);
-    expect(computeSetupProgress({ hasBrand: false, memberRowCount: 0, leadCount: 1 }).firstLeadDone).toBe(true);
+    expect(computeSetupProgress({ hasBrand: true, memberRowCount: 0, liveEmployeeCards: 0, leadCount: 0 }).brandingDone).toBe(true);
+    expect(computeSetupProgress({ hasBrand: false, memberRowCount: 2, liveEmployeeCards: 0, leadCount: 0 }).invitedDone).toBe(true);
+    expect(computeSetupProgress({ hasBrand: false, memberRowCount: 0, liveEmployeeCards: 1, leadCount: 0 }).cardLiveDone).toBe(true);
+    expect(computeSetupProgress({ hasBrand: false, memberRowCount: 0, liveEmployeeCards: 0, leadCount: 1 }).firstLeadDone).toBe(true);
   });
 
-  it("all three facts → allDone (checklist gone for good)", () => {
-    const p = computeSetupProgress({ hasBrand: true, memberRowCount: 1, leadCount: 3 });
+  it("all four facts → allDone (checklist gone for good)", () => {
+    const p = computeSetupProgress({ hasBrand: true, memberRowCount: 1, liveEmployeeCards: 1, leadCount: 3 });
     expect(p.allDone).toBe(true);
   });
 });

@@ -57,6 +57,9 @@ const STATUS_STYLES: Record<string, string> = {
   new_contact: "bg-gray-800 text-gray-400",
   touch:       "bg-blue-950 text-blue-400",
   dissolved:   "bg-gray-900 text-gray-600",
+  // Settable from the Office Leads tab — listed here so an Office-marked lead
+  // renders correctly in personal contacts instead of falling back to "New".
+  not_interested: "bg-gray-900 text-gray-500",
 };
 
 function formatDate(iso: string) {
@@ -774,6 +777,7 @@ export default function ContactsClient({
                       { value: "new_contact", label: "New Contact" },
                       { value: "touch",       label: "Touch" },
                       { value: "dissolved",   label: "Dissolved" },
+                      { value: "not_interested", label: "Not interested" },
                     ].map((s) => (
                       <option key={s.value} value={s.value} className="bg-gray-900 text-gray-200">{s.label}</option>
                     ))}

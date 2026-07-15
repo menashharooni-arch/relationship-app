@@ -12,6 +12,8 @@ type SeatInfo = {
   seats: number;
   interval: "monthly" | "annual" | null;
   perSeatCents: number | null;
+  nextSeatProrationCents: number | null;
+  nextSeatTotalCents: number | null;
   billable: boolean;
   usage: { purchased: number; used: number; available: number };
 };
@@ -26,9 +28,9 @@ function perWord(interval: SeatInfo["interval"]): string {
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl">
+      <div className="relative w-full sm:max-w-md bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-bold text-base">{title}</h2>
           <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-white text-xl leading-none px-1">×</button>
@@ -39,6 +41,20 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
+function CopyRow({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        try { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* older browsers */ }
+      }}
+      className="w-full text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 px-4 py-2.5 rounded-full transition-colors"
+    >
+      {copied ? "Link copied ✓" : label}
+    </button>
+  );
+}
+
 // ── Add team member ──────────────────────────────────────────────────────────
 // One smooth action: email in → invite out. When seats are full, the SAME modal
 // offers to buy the seat (price stated) and sends the invite in the same click.
@@ -46,7 +62,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   canManageSeats: boolean;
   label?: string;
-  variant?: "button" | "link"; // "link" renders as an inline text action (setup checklist)
+  variant?: "button" | "link" | "small";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,20 +70,30 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState<null | "invite" | "seat">(null);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<{ message: string; inviteUrl: string | null } | null>(null);
   // Set when the invite bounced off a full office: we show the one-click
   // "add a seat & send" path instead of a dead end.
   const [needsSeat, setNeedsSeat] = useState(false);
   const [seatInfo, setSeatInfo] = useState<SeatInfo | null>(null);
+  const [seatLoading, setSeatLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    // Ignore a resolved fetch after close, and after a newer one started.
     let live = true;
-    // Pre-fetch seat pricing so the upsell can state the real price instantly.
-    fetch("/api/stripe/subscription/seats")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (live) setSeatInfo(j); })
-      .catch(() => { if (live) setSeatInfo(null); });
+    (async () => {
+      // Pre-fetch seat pricing + the real prorated quote, so the upsell can
+      // state the actual amount instantly instead of after a spinner.
+      try {
+        const res = await fetch("/api/stripe/subscription/seats");
+        const next = res.ok ? await res.json() : null;
+        if (live) setSeatInfo(next);
+      } catch {
+        if (live) setSeatInfo(null);
+      } finally {
+        if (live) setSeatLoading(false);
+      }
+    })();
     return () => { live = false; };
   }, [open]);
 
@@ -76,14 +102,31 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
     setError(null); setDone(null); setNeedsSeat(false);
   }
 
-  async function sendInvite(): Promise<"ok" | "no_seats" | "error"> {
+  function openModal() {
+    reset();
+    setSeatLoading(true); // set here, not in the effect — see the lint rule on
+    setSeatInfo(null);    // synchronous setState inside an effect body.
+    setOpen(true);
+  }
+
+  async function sendInvite(prefix?: string): Promise<"ok" | "no_seats" | "error"> {
     const res = await fetch("/api/office/invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim(), name: name.trim() || undefined }),
     });
     const json = await res.json().catch(() => ({}));
-    if (res.ok) return "ok";
+    if (res.ok) {
+      const base = json.resent
+        ? `${email.trim()} already had an invite — we've sent it again ✓`
+        : `Invite sent to ${email.trim()} ✓`;
+      setDone({
+        message: prefix ? `${prefix} ${base}` : base,
+        inviteUrl: json.inviteToken ? `${window.location.origin}/join/${json.inviteToken}` : null,
+      });
+      router.refresh();
+      return "ok";
+    }
     if (res.status === 409 && json.error === "no_seats") return "no_seats";
     setError(json.message ?? json.error ?? "Couldn't send the invite. Please try again.");
     return "error";
@@ -91,16 +134,11 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || busy) return;
     setBusy("invite"); setError(null);
     try {
       const r = await sendInvite();
-      if (r === "ok") {
-        setDone(`Invite sent to ${email.trim()} ✓`);
-        router.refresh();
-      } else if (r === "no_seats") {
-        setNeedsSeat(true);
-      }
+      if (r === "no_seats") setNeedsSeat(true);
     } catch {
       setError("Couldn't reach the server — check your connection and try again.");
     } finally {
@@ -109,7 +147,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   }
 
   async function addSeatAndInvite() {
-    if (!seatInfo) return;
+    if (!seatInfo || busy) return;
     setBusy("seat"); setError(null);
     try {
       const res = await fetch("/api/stripe/subscription/seats", {
@@ -122,14 +160,11 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
         setError(json.message ?? json.error ?? "Couldn't add the seat. Your card was not charged — please try again.");
         return;
       }
-      const r = await sendInvite();
-      if (r === "ok") {
-        setDone(`Seat added and invite sent to ${email.trim()} ✓`);
-        setNeedsSeat(false);
-        router.refresh();
-      } else {
+      const r = await sendInvite("Seat added and");
+      if (r === "ok") setNeedsSeat(false);
+      else if (r !== "error") {
         // The seat purchase went through but the invite didn't — say exactly
-        // that, so they know to just retry the (free) invite, not the payment.
+        // that, so they know to retry the (free) invite, not the payment.
         setError("Your new seat was added, but the invite didn't send. Press \"Send invite\" to try again — you won't be charged twice.");
         setNeedsSeat(false);
       }
@@ -143,16 +178,16 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   const firstName = name.trim() ? name.trim().split(/\s+/)[0] : email.split("@")[0] || "them";
   const seatPrice = seatInfo?.perSeatCents != null ? `${usd(seatInfo.perSeatCents)}/${perWord(seatInfo.interval)}` : null;
 
+  const cls =
+    variant === "link"
+      ? "text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
+      : variant === "small"
+        ? "text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full transition-colors shrink-0"
+        : "bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shrink-0";
+
   return (
     <>
-      <button
-        onClick={() => { reset(); setOpen(true); }}
-        className={
-          variant === "link"
-            ? "text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
-            : "bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shrink-0"
-        }
-      >
+      <button onClick={openModal} className={cls}>
         {label ?? "+ Add team member"}
       </button>
 
@@ -160,43 +195,71 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
         <Modal title="Add a team member" onClose={reset}>
           {done ? (
             <div>
-              <p className="text-green-400 text-sm font-semibold mb-1">{done}</p>
+              <p className="text-green-400 text-sm font-semibold mb-1">{done.message}</p>
               <p className="text-gray-500 text-xs mb-4">
-                They&apos;ll get an email with a link to create their card. It takes them about 2 minutes.
+                They&apos;ll get an email with a link to create their card. It takes them about two minutes.
               </p>
-              <div className="flex gap-2">
-                <button onClick={() => { setDone(null); setEmail(""); setName(""); }}
-                  className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-full transition-colors">
-                  Add another person
+              <div className="space-y-2">
+                {done.inviteUrl && <CopyRow value={done.inviteUrl} label="Copy invite link" />}
+                <button
+                  onClick={() => { setDone(null); setEmail(""); setName(""); setError(null); }}
+                  className="w-full text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 px-4 py-2.5 rounded-full transition-colors"
+                >
+                  Add another team member
                 </button>
-                <button onClick={reset}
-                  className="text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-full transition-colors">
+                <button
+                  onClick={reset}
+                  className="w-full text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 px-4 py-2.5 rounded-full transition-colors"
+                >
                   Done
                 </button>
               </div>
             </div>
           ) : needsSeat ? (
             <div>
-              <p className="text-gray-300 text-sm mb-1.5">
-                All {seatInfo?.usage?.purchased ?? seatInfo?.seats ?? "your"} of your seats are in use.
+              <p className="text-gray-300 text-sm mb-3">
+                All {seatInfo?.usage?.purchased ?? seatInfo?.seats ?? "your"} of your seats are being used.
+                {canManageSeats && seatInfo?.billable && seatPrice
+                  ? ` Add another seat for ${seatPrice} and invite ${firstName}?`
+                  : ""}
               </p>
               {canManageSeats && seatInfo?.billable && seatPrice ? (
                 <>
-                  <p className="text-gray-500 text-xs mb-4">
-                    Add one more seat for <strong className="text-gray-300">{seatPrice}</strong> to
-                    invite {firstName}? You&apos;ll be charged a smaller, partial amount today for the
-                    rest of this billing period.
-                  </p>
-                  {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+                  <dl className="rounded-xl border border-gray-800 bg-gray-950/50 px-3.5 py-3 mb-4 space-y-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-gray-500 text-xs">New seat</dt>
+                      <dd className="text-gray-300 text-xs font-semibold">{seatPrice}</dd>
+                    </div>
+                    {seatInfo.nextSeatProrationCents != null && (
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-gray-500 text-xs">Charged today</dt>
+                        <dd className="text-white text-xs font-semibold">{usd(seatInfo.nextSeatProrationCents)}</dd>
+                      </div>
+                    )}
+                    {seatInfo.nextSeatTotalCents != null && (
+                      <div className="flex items-center justify-between gap-3 pt-1.5 border-t border-gray-800">
+                        <dt className="text-gray-500 text-xs">New total</dt>
+                        <dd className="text-white text-xs font-semibold">
+                          {usd(seatInfo.nextSeatTotalCents)}/{perWord(seatInfo.interval)}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {seatInfo.nextSeatProrationCents == null && (
+                    <p className="text-gray-600 text-[11px] mb-3">
+                      You&apos;ll be charged a smaller, partial amount today for the rest of this billing period.
+                    </p>
+                  )}
+                  {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
                   <button
                     onClick={addSeatAndInvite}
                     disabled={busy !== null}
                     className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors"
                   >
-                    {busy === "seat" ? "Adding seat…" : `Add seat & send invite (${seatPrice})`}
+                    {busy === "seat" ? "Adding seat…" : "Add seat & send invite"}
                   </button>
                   <button onClick={() => setNeedsSeat(false)} disabled={busy !== null}
-                    className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors">
+                    className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors disabled:opacity-50">
                     Go back
                   </button>
                 </>
@@ -217,8 +280,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
           ) : (
             <form onSubmit={submit}>
               <p className="text-gray-500 text-xs mb-4">
-                We&apos;ll email them a link to create their own {""}
-                company card. You only need their email.
+                We&apos;ll email them a link to create their own company card. You only need their email.
               </p>
               <label className="block mb-3">
                 <span className="text-xs font-medium text-gray-400">Their email</span>
@@ -238,13 +300,13 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                   className="mt-1 w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
                 />
               </label>
-              {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+              {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
               <button
                 type="submit"
-                disabled={busy !== null || !email.trim()}
+                disabled={busy !== null || seatLoading || !email.trim()}
                 className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors"
               >
-                {busy === "invite" ? "Sending…" : "Send invite"}
+                {busy === "invite" ? "Sending…" : seatLoading ? "Checking your seats…" : "Send invite"}
               </button>
             </form>
           )}
@@ -256,13 +318,19 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
 
 // ── Pending-invite row actions ────────────────────────────────────────────────
 
-export function InviteRowActions({ memberId, email }: { memberId: string; email: string }) {
+export function InviteRowActions({ memberId, email, inviteUrl }: {
+  memberId: string;
+  email: string;
+  inviteUrl: string | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<null | "resend" | "cancel">(null);
   const [note, setNote] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function resend() {
+    if (busy) return;
     setBusy("resend"); setNote(null);
     try {
       const res = await fetch("/api/office/invite", {
@@ -283,6 +351,7 @@ export function InviteRowActions({ memberId, email }: { memberId: string; email:
   }
 
   async function cancel() {
+    if (busy) return;
     setBusy("cancel"); setNote(null);
     try {
       const res = await fetch(`/api/office/members?id=${memberId}`, { method: "DELETE" });
@@ -297,29 +366,39 @@ export function InviteRowActions({ memberId, email }: { memberId: string; email:
   }
 
   return (
-    <span className="inline-flex items-center gap-2 flex-wrap">
-      <button onClick={resend} disabled={busy !== null}
-        className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
-        {busy === "resend" ? "Sending…" : "Resend"}
-      </button>
+    <span className="inline-flex items-center gap-2 flex-wrap justify-end">
       {confirming ? (
-        <span className="inline-flex items-center gap-1.5">
+        <>
           <span className="text-[11px] text-gray-400">Cancel this invite?</span>
           <button onClick={cancel} disabled={busy !== null}
             className="text-[11px] font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/15 px-2 py-1 rounded-full disabled:opacity-50">
             {busy === "cancel" ? "…" : "Yes, cancel"}
           </button>
-          <button onClick={() => setConfirming(false)} className="text-[11px] text-gray-500 hover:text-gray-300 px-1">
-            Keep
-          </button>
-        </span>
+          <button onClick={() => setConfirming(false)} className="text-[11px] text-gray-500 hover:text-gray-300 px-1">Keep</button>
+        </>
       ) : (
-        <button onClick={() => setConfirming(true)} disabled={busy !== null}
-          className="text-[11px] font-semibold text-gray-500 hover:text-gray-300 px-1.5 py-1 transition-colors disabled:opacity-50">
-          Cancel
-        </button>
+        <>
+          <button onClick={resend} disabled={busy !== null}
+            className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
+            {busy === "resend" ? "Sending…" : "Resend"}
+          </button>
+          {inviteUrl && (
+            <button
+              onClick={() => {
+                try { navigator.clipboard?.writeText(inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* older browsers */ }
+              }}
+              className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 px-1.5 py-1 transition-colors"
+            >
+              {copied ? "Copied ✓" : "Copy link"}
+            </button>
+          )}
+          <button onClick={() => setConfirming(true)} disabled={busy !== null}
+            className="text-[11px] font-semibold text-gray-500 hover:text-gray-300 px-1.5 py-1 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+        </>
       )}
-      {note && <span className="text-[11px] text-gray-500">{note}</span>}
+      {note && <span className="text-[11px] text-gray-500 w-full text-right lg:w-auto">{note}</span>}
     </span>
   );
 }
@@ -342,6 +421,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
   const first = personName.split(/\s+/)[0] || "They";
 
   async function remove() {
+    if (busy) return;
     setBusy(true); setError(null);
     try {
       const res = await fetch(`/api/office/members?id=${memberId}`, { method: "DELETE" });
@@ -351,7 +431,6 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
         return;
       }
       if (canManageSeats) {
-        // Offer the seat decision with the real numbers.
         const info = await fetch("/api/stripe/subscription/seats")
           .then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (info?.billable && info.perSeatCents != null && info.seats > (info.usage?.used ?? 1)) {
@@ -371,7 +450,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
   }
 
   async function dropSeat() {
-    if (!seatInfo) return;
+    if (!seatInfo || busy) return;
     setBusy(true); setError(null);
     try {
       const res = await fetch("/api/stripe/subscription/seats", {
@@ -408,39 +487,36 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       </button>
 
       {step === "confirm" && (
-        <Modal title={`Remove ${first} from your team?`} onClose={() => setStep("idle")}>
-          <p className="text-gray-300 text-sm mb-1.5">Here&apos;s what will happen:</p>
-          <ul className="text-gray-500 text-xs space-y-1 mb-4 list-disc pl-4">
-            <li>{first}&apos;s card will be turned off — people can no longer open it.</li>
-            <li>The leads {first} captured <strong className="text-gray-300">stay with your company</strong> in your Leads tab.</li>
-            <li>Their seat frees up for your next hire.</li>
-          </ul>
-          {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+        <Modal title={`Remove ${first} from your team?`} onClose={() => !busy && setStep("idle")}>
+          <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+            {first}&apos;s card will be turned off and {first} will lose access to the Office account.
+            The leads {first} captured will remain with your company.
+          </p>
+          {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
           <button onClick={remove} disabled={busy}
             className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors">
             {busy ? "Removing…" : `Remove ${first}`}
           </button>
           <button onClick={() => setStep("idle")} disabled={busy}
-            className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors">
+            className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors disabled:opacity-50">
             Never mind
           </button>
         </Modal>
       )}
 
       {step === "seat" && seatInfo && (
-        <Modal title={`${first} was removed ✓`} onClose={() => setStep("idle")}>
-          <p className="text-gray-300 text-sm mb-1.5">You now have an empty seat.</p>
+        <Modal title={`${first} was removed ✓`} onClose={() => !busy && setStep("idle")}>
+          <p className="text-gray-300 text-sm mb-1.5">You now have one unused paid seat.</p>
           <p className="text-gray-500 text-xs mb-4">
             You&apos;re paying {seatInfo.perSeatCents != null ? usd(seatInfo.perSeatCents) : ""}/{perWord(seatInfo.interval)} for it.
-            Remove it to lower your bill, or keep it if you&apos;re hiring soon.
           </p>
-          {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+          {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
           <button onClick={dropSeat} disabled={busy}
             className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors">
-            {busy ? "Updating…" : "Remove the empty seat & lower my bill"}
+            {busy ? "Updating…" : "Remove the seat and lower my bill"}
           </button>
           <button onClick={() => setStep("idle")} disabled={busy}
-            className="w-full text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 text-sm font-semibold py-2.5 rounded-full mt-2 transition-colors">
+            className="w-full text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 text-sm font-semibold py-2.5 rounded-full mt-2 transition-colors disabled:opacity-50">
             Keep the seat for my next hire
           </button>
         </Modal>

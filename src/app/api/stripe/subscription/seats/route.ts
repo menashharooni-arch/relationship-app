@@ -43,6 +43,12 @@ export async function GET() {
     interval: null as "monthly" | "annual" | null,
     perSeatCents: null as number | null,
     minSeats: PLAN_LIMITS.OFFICE_MIN_SEATS,
+    // What one more seat actually costs TODAY (Stripe's own prorated figure for
+    // the remainder of this billing period) and what the recurring total becomes.
+    // Both null when Stripe can't quote — the UI then just omits the line rather
+    // than guessing an amount someone is about to be charged.
+    nextSeatProrationCents: null as number | null,
+    nextSeatTotalCents: null as number | null,
     // False when the office has no Stripe subscription behind it (e.g. a plan
     // granted by hand) — there's nothing to bill, so the UI must not offer to.
     billable: profile?.plan === "enterprise" && !!profile.stripe_subscription_id,
@@ -50,7 +56,8 @@ export async function GET() {
   if (!base.billable) return NextResponse.json(base);
 
   try {
-    const sub = (await getStripe().subscriptions.retrieve(profile!.stripe_subscription_id!)) as Stripe.Subscription;
+    const stripe = getStripe();
+    const sub = (await stripe.subscriptions.retrieve(profile!.stripe_subscription_id!)) as Stripe.Subscription;
     const item = sub.items.data[0];
     const mapped = planFromPriceId(item?.price?.id);
     if (!item || mapped?.plan !== "office") return NextResponse.json({ ...base, billable: false });
@@ -59,6 +66,28 @@ export async function GET() {
     base.usage = { ...usage, ...computeSeatUsage(base.seats, usage.active, usage.pending) };
     base.interval = mapped.interval;
     base.perSeatCents = item.price?.unit_amount ?? null;
+    if (base.perSeatCents != null) base.nextSeatTotalCents = base.perSeatCents * (base.seats + 1);
+
+    // Quote one more seat. Best-effort: an extra API call that must never stop
+    // the seat UI from rendering.
+    try {
+      const preview = await stripe.invoices.createPreview({
+        customer: sub.customer as string,
+        subscription: profile!.stripe_subscription_id!,
+        subscription_details: {
+          items: [{ id: item.id, quantity: base.seats + 1 }],
+          proration_behavior: "create_prorations",
+          proration_date: Math.floor(Date.now() / 1000),
+        },
+      });
+      // Only the proration lines — the preview also contains the next renewal.
+      const prorated = (preview.lines?.data ?? [])
+        .filter((l) => (l as unknown as { proration?: boolean }).proration === true)
+        .reduce((s, l) => s + (l.amount ?? 0), 0);
+      base.nextSeatProrationCents = Math.max(0, prorated);
+    } catch {
+      // Leave null → the modal drops the "charged today" line.
+    }
   } catch {
     return NextResponse.json({ ...base, billable: false });
   }
@@ -133,13 +162,33 @@ export async function POST(req: NextRequest) {
       // next renewal invoice, so an extra seat bought today would be used free
       // until the cycle rolled over. always_invoice finalizes an invoice for the
       // prorated remainder now and charges the card on file.
-      await getStripe().subscriptions.update(profile.stripe_subscription_id, {
-        items: [{ id: item.id, quantity: requested }],
-        proration_behavior: "always_invoice",
-      });
+      //
+      // Idempotency: this endpoint charges money, and the obvious failure is a
+      // double-click (or a retry after a timeout) buying two seats. The key is
+      // the TRANSITION, not the request — two clicks both read current=3 and ask
+      // for 4, produce the same key, and Stripe collapses them into one charge.
+      // A later, genuinely different change (4→5) keys differently and goes
+      // through. Deriving it server-side from Stripe's own quantity means a
+      // client can't defeat it by varying its payload.
+      const idempotencyKey = `office-seats:${profile.stripe_subscription_id}:${current}->${requested}`;
+      const updated = await getStripe().subscriptions.update(
+        profile.stripe_subscription_id,
+        { items: [{ id: item.id, quantity: requested }], proration_behavior: "always_invoice" },
+        { idempotencyKey },
+      );
+      // DB only after Stripe confirms — if the charge failed, the office must not
+      // believe it owns a seat it never bought.
       await admin.from("offices").update({ seats: requested, scheduled_seats: null, scheduled_seats_at: null }).eq("id", office.id);
       await writeAudit({ action: "seat.changed", actorId: user.id, orgId: office.id as string, metadata: { seats: requested, mode: "increase" } });
-      return NextResponse.json({ ok: true, mode: "increased", seats: requested });
+      const unit = updated.items.data[0]?.price?.unit_amount ?? item.price?.unit_amount ?? null;
+      return NextResponse.json({
+        ok: true,
+        mode: "increased",
+        seats: requested,
+        perSeatCents: unit,
+        totalCents: unit != null ? unit * requested : null,
+        interval: mapped.interval,
+      });
     }
 
     if (requested === current) {
