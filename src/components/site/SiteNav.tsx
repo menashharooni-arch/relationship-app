@@ -165,8 +165,17 @@ export default function SiteNav() {
       {open && (
         <div className="fixed inset-0 z-[90] lg:hidden">
           <div className="absolute inset-0 bg-[#06070A]/80 backdrop-blur-xl" onClick={() => setOpen(false)} />
-          <div className="absolute inset-x-0 top-0 rounded-b-3xl border-b border-white/10 bg-[#0A0B10] p-5 pt-5 shadow-2xl animate-[sc-notif-in_.2s_ease]">
-            <div className="flex items-center justify-between mb-5">
+          {/* Capped to the DYNAMIC viewport and laid out as a flex column: the
+              links scroll, the header and the Log in / Get started row never do.
+              Plain `vh` on iOS Safari measures the viewport with the toolbars
+              retracted, so a taller-than-screen sheet pushed the buttons behind
+              the Safari toolbar; dvh + a scrolling middle keeps them on screen.
+              Bottom padding clears the home indicator. */}
+          <div
+            className="absolute inset-x-0 top-0 flex max-h-[100dvh] flex-col rounded-b-3xl border-b border-white/10 bg-[#0A0B10] p-5 pt-5 shadow-2xl animate-[sc-notif-in_.2s_ease]"
+            style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex shrink-0 items-center justify-between mb-5">
               <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
                 <SwiftCardIcon size={28} /><span className="text-white font-bold text-[16px]">SwiftCard</span>
               </Link>
@@ -174,7 +183,7 @@ export default function SiteNav() {
                 <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
               </button>
             </div>
-            <div className="space-y-5 max-h-[70vh] overflow-y-auto rd-scrollbar-none">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto rd-scrollbar-none">
               <Link
                 href="/"
                 onClick={() => {
@@ -218,7 +227,7 @@ export default function SiteNav() {
               ))}
               <Link href="/pricing" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Pricing</Link>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
+            <div className="mt-5 grid shrink-0 grid-cols-2 gap-2.5">
               <Link href="/login" onClick={() => setOpen(false)} className="rd-btn rd-btn-ghost-d w-full">Log in</Link>
               <Link href="/cards/new" onClick={() => setOpen(false)} className="rd-btn rd-btn-primary w-full">Get started</Link>
             </div>
