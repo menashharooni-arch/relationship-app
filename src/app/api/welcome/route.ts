@@ -25,6 +25,16 @@ export async function POST() {
     const accountEmail = user.email;
     if (!profile || !accountEmail) return NextResponse.json({ error: "No profile" }, { status: 404 });
 
+    // Idempotency: a retry, back-navigation, or double-click on the onboarding
+    // form must not send a second welcome email.
+    const { data: alreadySent } = await admin
+      .from("email_logs")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("type", "welcome")
+      .maybeSingle();
+    if (alreadySent) return NextResponse.json({ success: true, skipped: "already_sent" });
+
     // Ensure email_preferences row exists for this user
     await admin
       .from("email_preferences")

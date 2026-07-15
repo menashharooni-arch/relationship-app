@@ -9,7 +9,7 @@ import { expireFreeMonths } from "@/lib/referral-server";
 import { purgeExpiredDeletedAccounts } from "@/lib/account-purge";
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
-import { trialEndingSoonEmail, trialEndedEmail } from "@/lib/email-templates";
+import { trialEndingSoonEmail, trialEndedEmail, unsubUrl } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
 
 
@@ -46,6 +46,18 @@ async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, 
 // that channel down entirely for this contact.
 function channelPaused(tags: string[] | null | undefined, channel: "email" | "sms"): boolean {
   return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
+}
+
+// Best-effort unsubscribe link for the two owner-directed plan-status emails
+// below — same token/row the welcome email uses. Undefined (no link shown)
+// if the row hasn't been created yet, never blocks the send.
+async function getUnsubscribeUrl(supabase: ReturnType<typeof getAdminSupabase>, userId: string): Promise<string | undefined> {
+  const { data } = await supabase
+    .from("email_preferences")
+    .select("unsubscribe_token")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.unsubscribe_token ? unsubUrl(data.unsubscribe_token as string) : undefined;
 }
 
 
@@ -92,8 +104,15 @@ export async function GET(req: NextRequest) {
       // (which can be the card's public contact address).
       const to = await getAccountEmail(u.id, u.email);
       if (!to) continue;
-      const tpl = trialEndedEmail({ firstName: u.name?.split(" ")[0] || "there", isTrial: u.wasTrial });
-      await resend.emails.send({ ...tpl, to }).catch(() => {});
+      const tpl = trialEndedEmail({
+        firstName: u.name?.split(" ")[0] || "there",
+        isTrial: u.wasTrial,
+        unsubscribeUrl: await getUnsubscribeUrl(supabase, u.id),
+      });
+      const { data: sent } = await resend.emails.send({ ...tpl, to }).catch(() => ({ data: null }));
+      try {
+        await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ended", subject: tpl.subject, resend_id: sent?.id });
+      } catch { /* logging is best-effort */ }
     }
   } catch (e) {
     console.error("[reminders] expireFreeMonths failed:", e);
@@ -125,8 +144,12 @@ export async function GET(req: NextRequest) {
           firstName: (u.name as string)?.split(" ")[0] || "there",
           daysLeft,
           isTrial: cust._trial === true,
+          unsubscribeUrl: await getUnsubscribeUrl(supabase, u.id as string),
         });
-        await resend.emails.send({ ...tpl, to }).catch(() => {});
+        const { data: sent } = await resend.emails.send({ ...tpl, to }).catch(() => ({ data: null }));
+        try {
+          await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent?.id });
+        } catch { /* logging is best-effort */ }
       }
       await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
     }
