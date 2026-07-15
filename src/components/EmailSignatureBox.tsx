@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { QRCodeSVG } from "qrcode.react";
 import type { CardData } from "@/components/card-templates/types";
 import { withoutSocials } from "@/components/card-templates/types";
 
@@ -231,10 +230,6 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
   const onLoad = () => { setReady(true); setStatus("idle"); };
 
-  // Initials for the static collapsed-card preview thumbnail below.
-  const previewInitials =
-    (name || "").split(" ").map((n) => n[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "SC";
-
   return (
     <>
       {/* Hidden full-size render of the selected card — captured AS-IS (no font
@@ -248,48 +243,15 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         </div>
       )}
 
-      <div className="h-full flex flex-col bg-gray-900 border border-gray-800/80 rounded-2xl p-5 lg:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">In every email</p>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75h19.5v10.5H2.25zM3 7l9 6 9-6" />
-            </svg>
-            Signature
-          </span>
-        </div>
-
-        {/* Static preview thumbnail — a mini email mock so the value is visible
-            before the modal is opened. The small QR is real (points at this
-            card), matching the poster on Swift Links — not a decorative fake. */}
-        <div className="rounded-2xl border border-gray-800/80 overflow-hidden bg-[#FAF7F2]">
-          <div className="px-3.5 py-2 border-b border-black/[0.06] text-[10px] text-gray-500 space-y-0.5">
-            <p><span className="text-gray-400">To</span>&nbsp; sarah@acme.com</p>
-            <p><span className="text-gray-400">Subject</span>&nbsp; Great connecting today</p>
-          </div>
-          <div className="px-3.5 py-3">
-            <p className="text-[11px] text-gray-500 mb-2.5">…Really enjoyed chatting — let&apos;s keep in touch!</p>
-            <div className="flex items-center gap-2.5">
-              <span className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-white text-[11px] font-bold" style={{ background: "var(--rd-aurora)" }}>{previewInitials}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-bold text-gray-900 truncate">{name || "Your name"}{company ? <span className="font-normal text-gray-500"> | {company}</span> : null}</p>
-                <span className="text-[10px] font-bold text-blue-600">Contact me →</span>
-              </div>
-              <div className="shrink-0 bg-white p-0.5 rounded">
-                <QRCodeSVG value={cardUrl} size={32} bgColor="#ffffff" fgColor="#17255A" level="L" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <p className="text-white font-semibold text-sm mt-4">Swift Signature</p>
+      <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+        <p className="text-white font-semibold text-sm">Swift Signature</p>
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
-          A clickable image of your card, pinned to the bottom of every message you send. Preview it, then copy it into your email settings.
+          Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
         </p>
         <button
           type="button"
           onClick={() => { if (status === "error" && !ready) captureAndUpload(); setOpen(true); }}
-          className="mt-5 lg:mt-auto w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2.5 rounded-full transition-colors"
+          className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors"
         >
           Preview &amp; copy
         </button>
