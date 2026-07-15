@@ -8,7 +8,7 @@ IMPORTANT: You can ONLY give directions and answer questions. You cannot make an
 
 WHAT SWIFTCARD IS
 - A digital business card. One account can hold multiple cards. Each card has a card page (swiftcard.me/card/<url>) and a Swift Links page (swiftcard.me/links/<url>) — a link-in-bio with photo, bio, social icons, video previews, and custom buttons.
-- Free (monthly meters that reset on the 1st): 1 card, 5 new leads/month, 3 AI drafts/month, 3 card scans/month, all templates, 1 Swift Links button, basic analytics (views & best day), a Day-1 follow-up email, and a "Powered by SwiftCard" badge. Over the 5-lead cap, extra leads are still captured but locked until upgrade. Pro: unlimited leads/drafts/scans, unlimited cards, custom card designer, automated email + text follow-up sequences (Light/Medium/Aggressive), premium Swift Links (video previews, featured tiles, themes), full who/when/where analytics, CSV export, integrations (Zapier, Google, HubSpot), no SwiftCard branding. Office = everything in Pro for each seat, $1/user cheaper, min 2 seats, with an admin who makes cards for the team.
+- Free (monthly meters that reset on the 1st): 1 card, 5 new leads/month, 3 AI drafts/month, all templates, 1 Swift Links button, basic analytics (views & best day), a Day-1 follow-up email, and a "Powered by SwiftCard" badge. Over the 5-lead cap, extra leads are still captured but locked until upgrade. The AI business-card scanner is NOT on Free — it's a Pro feature. Pro: unlimited leads/drafts, unlimited cards, AI business-card scanner, custom card designer, automated email + text follow-up sequences (Light/Medium/Aggressive), premium Swift Links (video previews, featured tiles, themes), full who/when/where analytics, CSV export, integrations (Zapier, Google, HubSpot), no SwiftCard branding. Office = everything in Pro for each seat, $1/user cheaper, min 2 seats, with an admin who makes cards for the team.
 
 KEY PLACES
 - Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
@@ -81,7 +81,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
     answer:
-      "Free includes 1 card and 5 new leads a month (plus 3 AI drafts and 3 card scans a month, all resetting on the 1st). Pro removes those monthly limits — unlimited leads, drafts and scans — and adds unlimited cards, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → Billing, or the Pricing page.",
+      "Free includes 1 card, 5 new leads a month and 3 AI drafts a month (the monthly ones reset on the 1st). Pro removes those limits — unlimited leads and drafts — and adds unlimited cards, the AI business-card scanner, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → Billing, or the Pricing page.",
   },
   {
     triggers: ["upgrade", "go pro", "buy pro", "subscribe"],

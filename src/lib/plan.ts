@@ -8,8 +8,9 @@ export const PLAN_LIMITS = {
   // ── Monthly free meters (refresh on the 1st; counted per-ACCOUNT via
   //    profiles.customization._usage so deleting a card can never reset them).
   FREE_LEADS_PER_MONTH: 5,     // new leads/month before extras soft-lock behind Pro
-  FREE_SCANS_PER_MONTH: 3,     // AI business-card scans/month (a taste of the scanner)
   FREE_AI_DRAFTS_PER_MONTH: 3, // AI follow-up drafts/month
+  // NOTE: the AI business-card scanner is Pro-only (owner decision, Jul 2026) —
+  // there is no free scan allowance, so there's no limit constant for it.
   OFFICE_MIN_SEATS: 2,         // minimum seats for the Office plan
 } as const;
 

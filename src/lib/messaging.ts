@@ -133,11 +133,14 @@ export function toGsm7(input: string): string {
 }
 
 // Plain-text SMS with a clean signature (name, company) + the sender's card link.
-export function buildSmsBody(opts: { senderName: string; company?: string | null; text: string; cardUrl?: string | null }): string {
+// `paid` suppresses the "via SwiftCard" attribution line: Pro is sold as "no
+// SwiftCard branding / 100% your brand", and this text goes out under the
+// sender's own name to THEIR contact.
+export function buildSmsBody(opts: { senderName: string; company?: string | null; text: string; cardUrl?: string | null; paid?: boolean }): string {
   let body = opts.text.trim();
   body += `\n\n— ${opts.senderName}${opts.company ? `, ${opts.company}` : ""}`;
   if (opts.cardUrl) body += `\n${opts.cardUrl}`;
-  body += `\nvia SwiftCard ${APP_URL}/join?src=follow_up`;
+  if (!opts.paid) body += `\nvia SwiftCard ${APP_URL}/join?src=follow_up`;
   body = toGsm7(body);
   if (body.length > 480) body = body.slice(0, 477) + "...";
   return body;
@@ -207,6 +210,8 @@ export async function deliverToLead(opts: {
   cardUsername?: string | null;
   log?: boolean;                              // append to conversation thread (default true)
   channel?: "email" | "sms";                  // explicit channel choice; else email-first auto
+  /** Sender is on Pro/Office → strip SwiftCard branding from the message. */
+  senderPaid?: boolean;
 }): Promise<DeliverResult> {
   const { lead, sender } = opts;
   const senderName = sender.name || "A SwiftCard user";
@@ -225,7 +230,7 @@ export async function deliverToLead(opts: {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
       ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null })
-      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername });
+      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, senderPaid: opts.senderPaid });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
   }
@@ -233,7 +238,7 @@ export async function deliverToLead(opts: {
   if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
     const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
-    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl }));
+    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status });
     return { channel: "sms", status };
   }
@@ -280,16 +285,23 @@ export function emailSignatureHtml(opts: { senderName: string; company?: string 
 // Wrap a plain message body in a clean personal-email shell + signature.
 // Blank lines become real paragraph spacing so the email "breathes" like a
 // message a person actually typed; single newlines become line breaks.
-export function personalEmailHtml(text: string, signature: string, unsubscribeUrl?: string | null): string {
+// `paid` drops the "Sent with SwiftCard — make your own, free to start."
+// promo line (Pro = no SwiftCard branding). The Unsubscribe link is NEVER
+// dropped — it's a compliance requirement, not branding — so a paid sender's
+// footer keeps the unsubscribe on its own.
+export function personalEmailHtml(text: string, signature: string, unsubscribeUrl?: string | null, paid?: boolean): string {
   const paragraphs = esc(text.trim())
     .split(/\n{2,}/)
     .filter((p) => p.length > 0)
     .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, "<br>")}</p>`)
     .join("");
+  const promo = `Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.`;
+  const unsub = unsubscribeUrl ? `<a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>` : "";
+  const footer = paid ? unsub : [promo, unsub].filter(Boolean).join(" · ");
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <div>${paragraphs}</div>
   ${signature}
-  <p style="margin-top:18px;color:#9ca3af;font-size:11px;">Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.${unsubscribeUrl ? ` · <a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>` : ""}</p>
+  ${footer ? `<p style="margin-top:18px;color:#9ca3af;font-size:11px;">${footer}</p>` : ""}
 </div>`;
 }
 
@@ -305,6 +317,8 @@ export async function sendBrandedEmail(opts: {
   phone?: string | null;
   website?: string | null;
   cardUsername?: string | null;
+  /** Paid sender → no SwiftCard promo line in the footer. */
+  senderPaid?: boolean;
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -330,7 +344,7 @@ export async function sendBrandedEmail(opts: {
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject,
-      html: personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to)),
+      html: personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to), opts.senderPaid),
       headers: unsubHeaders(opts.to),
     });
     return "sent";
