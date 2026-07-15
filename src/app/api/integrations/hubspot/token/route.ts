@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   // HubSpot is a Pro/Office feature, same as the other CRM integrations.
   const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow?.plan)) {
-    return NextResponse.json({ error: "upgrade", message: "HubSpot is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "HubSpot is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
   const { token } = await request.json() as { token?: string };

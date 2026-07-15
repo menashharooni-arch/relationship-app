@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   // CSV export is a Pro/Office feature.
   if (!isPaidPlan(profile.plan)) {
     return NextResponse.json(
-      { error: "upgrade", message: "CSV export is a Pro feature. Upgrade to export your contacts.", upgrade: "/pricing" },
+      { code: "EXPORT_PRO_ONLY", error: "upgrade", message: "CSV export is a Pro feature. Upgrade to export your contacts.", upgrade: "/pricing" },
       { status: 402 }
     );
   }

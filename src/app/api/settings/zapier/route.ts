@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest) {
   // Zapier integration is a Pro/Office feature.
   const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow?.plan)) {
-    return NextResponse.json({ error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
   const { zapier_webhook_url } = await request.json() as { zapier_webhook_url?: string };
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   const admin2 = getAdminSupabase();
   const { data: planRow2 } = await admin2.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow2?.plan)) {
-    return NextResponse.json({ error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
   const { webhookUrl } = await request.json() as { webhookUrl?: string };
