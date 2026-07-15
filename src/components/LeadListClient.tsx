@@ -18,6 +18,7 @@ import SortSelect from "@/components/SortSelect";
 import UpgradeButton from "@/components/UpgradeButton";
 import { PLAN_LIMITS } from "@/lib/plan";
 import type { FlowPresets } from "@/components/LeadCard";
+import { PlanGate } from "@/components/PlanGate";
 
 type Lead = {
   id: string;
@@ -109,7 +110,12 @@ export default function LeadListClient({
             <LeadCard key={lead.id} lead={lead} flowPresets={flowPresets} />
           ))}
           {!isPro && totalCount >= FREE_LIMIT && !search && (
-            <UpgradeButton variant="inline" />
+            <PlanGate
+              feature="leads-cap"
+              nativeCopy="Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan."
+            >
+              <UpgradeButton variant="inline" />
+            </PlanGate>
           )}
         </div>
       )}

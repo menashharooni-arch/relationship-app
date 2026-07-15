@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlanGate } from "@/components/PlanGate";
 
 // The entry point to the freeform custom designer — the "edit every element"
 // path (drag/resize/recolor text, logo, photo, QR, icons; full control of
@@ -48,9 +49,14 @@ export default function CustomDesignCard({
           marketing page, which re-offers the Free plan they're already on and
           sells a trial that in-product upgrades deliberately don't include. */}
       {!isPro && (
-        <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
-          Make it unmistakably yours — unlock the custom designer with Pro →
-        </Link>
+        <PlanGate
+          feature="custom-designer"
+          nativeCopy="Pro feature — The custom card designer is only available on the Pro plan."
+        >
+          <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+            Make it unmistakably yours — unlock the custom designer with Pro →
+          </Link>
+        </PlanGate>
       )}
     </>
   );

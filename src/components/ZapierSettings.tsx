@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { PlanGate, PlanBadge } from "@/components/PlanGate";
+
+const INTEGRATIONS_NATIVE_COPY =
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
 
 export default function ZapierSettings({
   initialUrl,
@@ -59,7 +63,13 @@ export default function ZapierSettings({
           <p className="text-slate-400 text-xs">Send new leads to 6,000+ apps automatically</p>
         </div>
         {!isPro && (
-          <a href="/pricing" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
+          <PlanGate
+            feature="integration-zapier"
+            nativeCopy={INTEGRATIONS_NATIVE_COPY}
+            nativeContent={<span className="ml-auto"><PlanBadge tier="pro" /></span>}
+          >
+            <a href="/pricing" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
+          </PlanGate>
         )}
       </div>
 
@@ -124,7 +134,13 @@ export default function ZapierSettings({
           {saveStatus === "error" && <p className="text-red-500 text-xs text-center">Failed to save. Try again.</p>}
         </>
       ) : (
-        <p className="text-xs text-slate-400">Upgrade to Pro to connect Zapier and automate your lead workflow.</p>
+        <PlanGate
+          feature="integration-zapier"
+          nativeCopy={INTEGRATIONS_NATIVE_COPY}
+          nativeContent={<p className="text-xs text-slate-400">{INTEGRATIONS_NATIVE_COPY}</p>}
+        >
+          <p className="text-xs text-slate-400">Upgrade to Pro to connect Zapier and automate your lead workflow.</p>
+        </PlanGate>
       )}
     </div>
   );

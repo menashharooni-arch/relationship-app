@@ -12,6 +12,7 @@ import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
+import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 
 export default async function ContactsPage({
   searchParams,
@@ -133,16 +134,45 @@ export default async function ContactsPage({
             <p className="text-gray-500 text-sm mt-0.5">Everyone who shared their info with you, with full activity history.</p>
           </div>
           {(leads?.length ?? 0) > 0 && (
-            <a
-              href={isPaidPlan(profile.plan) ? `/api/leads/export?username=${dashCard}` : `/upgrade`}
-              title={isPaidPlan(profile.plan) ? "Export your contacts as CSV" : "CSV export is a Pro feature"}
-              className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
-              </svg>
-              {isPaidPlan(profile.plan) ? "Export CSV" : "Export CSV · Pro"}
-            </a>
+            isPaidPlan(profile.plan) ? (
+              <a
+                href={`/api/leads/export?username=${dashCard}`}
+                title="Export your contacts as CSV"
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+              >
+                <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                  <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
+                </svg>
+                Export CSV
+              </a>
+            ) : (
+              <PlanGate
+                feature="csv-export"
+                nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan."
+                nativeContent={
+                  <span
+                    title="Exporting contacts is only available on the Pro plan."
+                    className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 border border-gray-700 px-3 py-1.5 rounded-lg shrink-0"
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                      <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
+                    </svg>
+                    Export CSV <PlanBadge tier="pro" />
+                  </span>
+                }
+              >
+                <a
+                  href={`/upgrade`}
+                  title="CSV export is a Pro feature"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                >
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                    <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
+                  </svg>
+                  Export CSV · Pro
+                </a>
+              </PlanGate>
+            )
           )}
         </div>
       </div>
@@ -151,22 +181,33 @@ export default async function ContactsPage({
           Says the number plainly, names the price, and offers a way out. */}
       {lockedCount > 0 && (
         <div className="max-w-6xl mx-auto w-full px-6 pt-4">
-          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3.5 flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <p className="text-amber-300 text-sm font-semibold">
-                {lockedCount === 1
-                  ? "1 more contact is waiting for you"
-                  : `${lockedCount} more contacts are waiting for you`}
-              </p>
-              <p className="text-amber-200/70 text-xs mt-0.5 leading-relaxed">
-                Free keeps {PLAN_LIMITS.FREE_LEADS_PER_MONTH} new contacts a month. We saved the rest — they&apos;re
-                yours the moment you upgrade, nothing was lost.
-              </p>
+          <PlanGate
+            feature="leads-locked"
+            nativeCopy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan.`}
+            nativeContent={
+              <PlanNotice
+                tier="pro"
+                copy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan.`}
+              />
+            }
+          >
+            <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3.5 flex items-start justify-between gap-4 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-amber-300 text-sm font-semibold">
+                  {lockedCount === 1
+                    ? "1 more contact is waiting for you"
+                    : `${lockedCount} more contacts are waiting for you`}
+                </p>
+                <p className="text-amber-200/70 text-xs mt-0.5 leading-relaxed">
+                  Free keeps {PLAN_LIMITS.FREE_LEADS_PER_MONTH} new contacts a month. We saved the rest — they&apos;re
+                  yours the moment you upgrade, nothing was lost.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <UpgradeButton placement="contacts_locked_banner" />
+              </div>
             </div>
-            <div className="shrink-0">
-              <UpgradeButton placement="contacts_locked_banner" />
-            </div>
-          </div>
+          </PlanGate>
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
+import { PlanGate } from "@/components/PlanGate";
 import { PLAN_LIMITS } from "@/lib/plan";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -194,6 +195,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+  // Set when the save is rejected because this is a non-primary card that is
+  // view-only on Free (api/cards/[id] → error:"view_only" / code:"CARD_VIEW_ONLY").
+  // Previously this had no proper surface; now web shows the message + an
+  // Upgrade link and native shows the neutral PlanGate string.
+  const [viewOnly, setViewOnly] = useState(false);
 
   // Phone management (multiple numbers, each labeled + toggleable on the card).
   function updatePhone(i: number, patch: Partial<CardPhone>) {
@@ -278,6 +284,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     }
     setStatus("saving");
     setError("");
+    setViewOnly(false);
     try {
       const res = await fetch(saveUrl, {
         method: "PATCH",
@@ -326,7 +333,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       } else {
         // Surface the server's plain-English reason when it gives one (e.g. an
         // org-managed field was changed) instead of a bare "Error".
-        const json = await res.json().catch(() => ({} as { message?: string }));
+        const json = await res.json().catch(() => ({} as { message?: string; error?: string; code?: string }));
+        if (json.error === "view_only" || json.code === "CARD_VIEW_ONLY") setViewOnly(true);
         if (typeof json.message === "string" && json.message) setError(json.message);
         setStatus("error");
         setTimeout(() => setStatus("idle"), 2500);
@@ -585,9 +593,14 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
                 <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
                 {!isPro && (
-                  <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
-                    Unlock custom colors &amp; fonts with Pro →
-                  </Link>
+                  <PlanGate
+                    feature="colors-fonts"
+                    nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                  >
+                    <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                      Unlock custom colors &amp; fonts with Pro →
+                    </Link>
+                  </PlanGate>
                 )}
               </div>
             )}
@@ -694,9 +707,14 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
               )}
               {atLinkCap ? (
-                <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> to access unlimited additional links.
-                </p>
+                <PlanGate
+                  feature="swift-links-cap"
+                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
+                >
+                  <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                    Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> to access unlimited additional links.
+                  </p>
+                </PlanGate>
               ) : (
                 <div className="space-y-2">
                   <input
@@ -736,7 +754,20 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </div>
         )}
 
-        {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+        {error && (
+          viewOnly ? (
+            <PlanGate
+              feature="card-view-only"
+              nativeCopy="This card is view-only. Editing multiple cards is only available on the Pro plan."
+            >
+              <p className="text-red-400 text-sm mt-4">
+                {error} <a href="/pricing" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</a>
+              </p>
+            </PlanGate>
+          ) : (
+            <p className="text-red-400 text-sm mt-4">{error}</p>
+          )
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 mt-6">
