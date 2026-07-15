@@ -31,7 +31,9 @@ export default function CheckoutClient() {
   const seats = plan === "office"
     ? Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, Math.floor(Number(params.get("seats")) || PLAN_LIMITS.OFFICE_MIN_SEATS))
     : 1;
-  const coupon = params.get("coupon") || undefined;
+  // The promo CODE, not a Stripe coupon id — the server re-resolves it (a
+  // client-supplied coupon id used to be passed straight to Stripe).
+  const promoCode = params.get("promo") || undefined;
   const canceled = params.get("canceled") === "1";
   // ?trial=0 → start-and-pay, no free trial. Set by the in-product upgrade page
   // (/upgrade); the public pricing page omits it and keeps the trial offer.
@@ -116,7 +118,7 @@ export default function CheckoutClient() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval, seats, trial, ...(coupon ? { couponId: coupon } : {}) }),
+        body: JSON.stringify({ plan, interval, seats, trial, ...(promoCode ? { promoCode } : {}) }),
       });
       if (res.status === 401) {
         // Not signed in → create account / log in, then auto-resume here.
@@ -139,7 +141,7 @@ export default function CheckoutClient() {
     } finally {
       setBusy(false);
     }
-  }, [plan, interval, seats, coupon, trial, preview, changePlan]);
+  }, [plan, interval, seats, promoCode, trial, preview, changePlan]);
 
   // Auto-continue after returning from account creation / login (spec §1:
   // "automatically continue to checkout for the originally selected plan").

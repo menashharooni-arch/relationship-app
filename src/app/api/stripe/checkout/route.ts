@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
+import { isFreeDays } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -53,7 +55,63 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const couponId: string | undefined = typeof body.couponId === "string" ? body.couponId : undefined;
+
+    // ── Promo resolution (server-side, never the client's word) ───────────────
+    // This used to read `couponId` straight out of the request body and hand it
+    // to Stripe. Nothing checked it against promo_codes — and the id was visible
+    // in the URL (/checkout?coupon=…), so anyone could lift one from a shared
+    // link and apply it to their own purchase. Every guard the promo system has
+    // (max_uses, expires_at, plan_target, one-redemption-per-user) was
+    // bypassable; they only ever gated the /pricing box, not the charge.
+    //
+    // Now the client sends the CODE and the server re-derives everything. The
+    // authoritative check is that THIS user holds a redemption row for it, which
+    // /api/promo/redeem creates behind a UNIQUE(code_id, user_id) constraint.
+    const promoCode: string | undefined =
+      typeof body.promoCode === "string" && body.promoCode.trim()
+        ? body.promoCode.toUpperCase().trim()
+        : undefined;
+
+    let couponId: string | undefined;
+    let promoFreeDays: number | undefined;
+    if (promoCode) {
+      // promo_codes / promo_code_redemptions are service-role only (RLS on, no
+      // client policy), so this must not use the caller's session client.
+      const admin = getAdminSupabase();
+      const { data: promo } = await admin
+        .from("promo_codes")
+        .select("id, discount_type, free_days, stripe_coupon_id, active, expires_at, max_uses, uses_count, plan_target")
+        .eq("code", promoCode)
+        .eq("active", true)
+        .maybeSingle();
+
+      // Every failure below is silent: the purchase proceeds at full price
+      // rather than erroring. A promo that quietly doesn't apply is a support
+      // ticket; a checkout that refuses to complete is a lost sale.
+      const usable =
+        !!promo &&
+        (!promo.expires_at || new Date(promo.expires_at as string) > new Date()) &&
+        (promo.max_uses == null || (promo.uses_count as number) < (promo.max_uses as number));
+
+      if (usable) {
+        // Did this user actually redeem it? Without this, knowing the string is
+        // enough — which is exactly the hole we're closing.
+        const { data: redemption } = await admin
+          .from("promo_code_redemptions")
+          .select("id")
+          .eq("code_id", promo!.id as string)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (redemption) {
+          if (promo!.discount_type === "free_time" && isFreeDays(Number(promo!.free_days))) {
+            promoFreeDays = Number(promo!.free_days);
+          } else if (promo!.stripe_coupon_id) {
+            couponId = promo!.stripe_coupon_id as string;
+          }
+        }
+      }
+    }
 
     // Resolve the price from EITHER an explicit priceId (legacy callers) OR a
     // {plan, interval} pair resolved server-side (the unified /checkout flow), so
@@ -116,6 +174,19 @@ export async function POST(req: NextRequest) {
         }
       }
       if (!hadSub) trialDays = TRIAL_DAYS;
+    }
+
+    // ── Free-time promo → a trial, not a coupon ──────────────────────────────
+    // "One week free" cannot be a Stripe coupon (coupon duration is whole months
+    // only), so a free-time code buys trial days instead. It applies to BOTH Pro
+    // and Office — an Office buyer given a free month should get one.
+    //
+    // It overrides the standard 14-day Pro trial rather than stacking: the two
+    // are the same mechanism, and Stripe takes a single trial_period_days. Max()
+    // so a code can only ever be at least as good as what they'd have had — a
+    // one-week code must never quietly shorten someone's 14-day trial.
+    if (promoFreeDays) {
+      trialDays = Math.max(trialDays ?? 0, promoFreeDays);
     }
 
     // Verify the real Stripe Price still matches what /pricing shows before
