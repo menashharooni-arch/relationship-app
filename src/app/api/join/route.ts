@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
-import { getOfficeBrand, applyBrandToUserCards } from "@/lib/office-brand";
+import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards } from "@/lib/office-brand";
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
 import { NextResponse } from "next/server";
@@ -84,18 +84,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Remove any membership this user still holds in a DIFFERENT office first
-  // (same as the owner's "Remove member" action). Without this, a user who
-  // switches teams keeps an "active" row in their old office forever, and
-  // every place that trusts office_members.status as "who's currently on this
-  // team" (Team Leads, brand propagation) keeps leaking the old office's data
-  // to them / their card to the old office.
-  await admin
-    .from("office_members")
-    .delete()
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .neq("office_id", officeId);
+  // NOTE: any membership this user still holds in a DIFFERENT office is removed
+  // AFTER the seat recount below succeeds — never before. Deleting it up front
+  // (the old order) meant a seat-race rollback returned 409 having already wiped
+  // the user's OLD office row, leaving them with no membership anywhere but a
+  // stale profiles.plan='enterprise' + office_id pointing at the old office —
+  // permanent unpaid enterprise that no cascade could ever clean up. (office
+  // audit H2)
 
   // Accept: mark active, link user_id
   const { error: updateError } = await admin
@@ -125,15 +120,37 @@ export async function POST(req: Request) {
     );
   }
 
+  // The activation stuck — NOW it's safe to leave the previous office. Capture
+  // the old office(s) so we can strip their brand from this user's cards too;
+  // otherwise the ex-employer's logo/company/fax/address linger on a card now
+  // serving under the new team. (office audit H2/M3)
+  const { data: oldRows } = await admin
+    .from("office_members")
+    .select("office_id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .neq("office_id", officeId);
+  await admin
+    .from("office_members")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .neq("office_id", officeId);
+
   // Give the joining user enterprise plan + link to office
   await admin
     .from("profiles")
     .update({ plan: "enterprise", office_id: officeId })
     .eq("id", user.id);
 
-  // Uniform branding: the member's EXISTING cards adopt the office brand right
-  // away (cards created/edited later already get the overlay in the card APIs).
+  // Uniform branding: strip any OLD office brand first, then adopt the new one,
+  // so switching teams never leaves the previous company's contact details on
+  // the card. (cards created/edited later already get the overlay in the APIs.)
   try {
+    for (const r of oldRows ?? []) {
+      const oldBrand = await getOfficeBrand(r.office_id as string).catch(() => null);
+      if (oldBrand) await stripBrandFromUserCards(user.id, oldBrand);
+    }
     const brand = await getOfficeBrand(officeId);
     if (brand) await applyBrandToUserCards(user.id, brand);
   } catch { /* best-effort — the next card edit applies the overlay anyway */ }

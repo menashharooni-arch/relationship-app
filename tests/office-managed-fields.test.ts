@@ -94,4 +94,33 @@ describe("findManagedFieldViolations — sub-user attempts on managed fields", (
   it("ignores fields the request doesn't send at all", () => {
     expect(findManagedFieldViolations({ name: "Just my name" }, brand)).toEqual([]);
   });
+
+  // Regression for the save-lockout (office audit H1): when the card's stored
+  // managed values LAGGED the brand (propagation hadn't caught up), the editor
+  // echoes the stale card value. That must NOT be rejected — only a value
+  // matching NEITHER the brand NOR the card's current value is a real change.
+  it("allows echoing the card's current (stale) managed values", () => {
+    const current = {
+      company: "Acme Plumbing",
+      website: "acmeplumbing.com",
+      logo_url: "https://cdn/acme-logo.png",
+      template: "classic-pro", // card still on the OLD template the brand moved off of
+      customization: { accentColor: "#00ff00", fax: "(555) 999-0000" }, // stale design/fax
+    };
+    const body = {
+      company: "Acme Plumbing",
+      template: "classic-pro",
+      name: "Dana Lee",
+      customization: { accentColor: "#00ff00", fax: "(555) 999-0000", photoUrl: "https://cdn/me.jpg" },
+    };
+    // Echoes stale card state → allowed (the overlay re-normalizes to brand).
+    expect(findManagedFieldViolations(body, brand, current)).toEqual([]);
+  });
+
+  it("still rejects a genuine off-brand change even against a stale card", () => {
+    const current = { template: "classic-pro", customization: { accentColor: "#00ff00" } };
+    // A THIRD value, matching neither brand (modern-bold/#123456) nor card.
+    const body = { template: "photo-first", customization: { accentColor: "#ff00ff" } };
+    expect(findManagedFieldViolations(body, brand, current)).toContain("card design");
+  });
 });
