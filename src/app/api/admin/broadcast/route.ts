@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
     ctaLabel = "Open SwiftCard",
     ctaUrl = APP_URL,
     test = false,
-  } = body as { segment?: Segment; subject?: string; headline?: string; message?: string; ctaLabel?: string; ctaUrl?: string; test?: boolean };
+    sendKey,
+  } = body as { segment?: Segment; subject?: string; headline?: string; message?: string; ctaLabel?: string; ctaUrl?: string; test?: boolean; sendKey?: string };
 
   if (!subject || !headline || !message) {
     return NextResponse.json({ error: "subject, headline, message required" }, { status: 400 });
@@ -91,17 +92,73 @@ export async function POST(req: NextRequest) {
   const { data: profiles, error } = await segmentQuery(admin, segment);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // ── Campaign log ────────────────────────────────────────────────────────────
+  // One row per campaign, created BEFORE sending (status 'processing') and
+  // finalized after. `sendKey` is generated once per confirm dialog on the
+  // client, so a double-click or a retried request can't send (or log) twice.
+  // If the table hasn't been migrated yet (admin-email-log.sql), sending still
+  // works — history is simply unavailable, and the UI says so.
+  let campaignId: string | null = null;
+  {
+    const { data: created, error: campErr } = await admin
+      .from("admin_email_campaigns")
+      .insert({
+        idempotency_key: sendKey || null,
+        sent_by: adminUser.email ?? "admin",
+        segment,
+        subject,
+        headline,
+        body: message,
+        cta_label: ctaLabel,
+        cta_url: ctaUrl,
+        intended_count: profiles?.length ?? 0,
+      })
+      .select("id")
+      .single();
+    if (campErr?.code === "23505" && sendKey) {
+      // Same sendKey already used — this exact campaign was (or is being) sent.
+      const { data: existing } = await admin
+        .from("admin_email_campaigns")
+        .select("sent_count, skipped_count, status")
+        .eq("idempotency_key", sendKey)
+        .maybeSingle();
+      return NextResponse.json({
+        duplicate: true,
+        sent: existing?.sent_count ?? 0,
+        skipped: existing?.skipped_count ?? 0,
+        status: existing?.status ?? "processing",
+        errors: [],
+      });
+    }
+    campaignId = (created?.id as string | null) ?? null;
+  }
+
+  // Best-effort per-recipient outcome row; tolerates a pre-migration schema.
+  async function logRecipient(row: { user_id: string | null; email: string; status: string; resend_id?: string | null; error?: string | null }) {
+    const full = { type: "marketing", subject, campaign_id: campaignId, ...row };
+    const { error: e1 } = await admin.from("email_logs").insert(full);
+    if (e1) {
+      // campaign_id / error / status columns may not exist yet — log what we can.
+      await admin.from("email_logs").insert({ user_id: row.user_id, email: row.email, type: "marketing", subject, resend_id: row.resend_id ?? null }).then(() => {}, () => {});
+    }
+  }
+
   // Send to the ACCOUNT (auth) email of each user, not profiles.email (which can
   // be the card's public contact address). One listUsers page → id→auth-email map.
   const authEmails = await getAccountEmailMap();
 
   let sent = 0;
   let skipped = 0;
+  let failed = 0;
   const errors: string[] = [];
 
   for (const profile of profiles ?? []) {
     const recipient = authEmails.get(profile.id) ?? profile.email;
-    if (!recipient) { skipped++; continue; }
+    if (!recipient) {
+      skipped++;
+      if (campaignId) await logRecipient({ user_id: profile.id, email: "(no email address)", status: "skipped", error: "No account email address" });
+      continue;
+    }
 
     const { data: prefs } = await admin
       .from("email_preferences")
@@ -109,7 +166,11 @@ export async function POST(req: NextRequest) {
       .eq("user_id", profile.id)
       .single();
 
-    if (prefs?.marketing_emails === false) { skipped++; continue; }
+    if (prefs?.marketing_emails === false) {
+      skipped++;
+      if (campaignId) await logRecipient({ user_id: profile.id, email: recipient, status: "skipped", error: "Unsubscribed from marketing" });
+      continue;
+    }
 
     const firstName = profile.name?.split(" ")[0] || "there";
     const token = prefs?.unsubscribe_token ?? "";
@@ -131,21 +192,31 @@ export async function POST(req: NextRequest) {
         to: recipient,
         headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
       });
-      if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
+      if (sendErr) {
+        failed++;
+        errors.push(`${recipient}: ${sendErr.message}`);
+        await logRecipient({ user_id: profile.id, email: recipient, status: "failed", error: sendErr.message });
+        continue;
+      }
 
-      await admin.from("email_logs").insert({
-        user_id: profile.id,
-        email: recipient,
-        type: "marketing",
-        subject,
-        resend_id: emailData?.id,
-      });
+      await logRecipient({ user_id: profile.id, email: recipient, status: "sent", resend_id: emailData?.id ?? null });
 
       sent++;
     } catch (e) {
+      failed++;
       errors.push(`${recipient}: ${e}`);
+      await logRecipient({ user_id: profile.id, email: recipient, status: "failed", error: String(e).slice(0, 500) });
     }
   }
 
-  return NextResponse.json({ sent, skipped, errors });
+  // Finalize the campaign: Sent (no failures), Partially sent, or Failed.
+  if (campaignId) {
+    const status = failed === 0 ? "sent" : sent === 0 ? "failed" : "partial";
+    await admin
+      .from("admin_email_campaigns")
+      .update({ sent_count: sent, failed_count: failed, skipped_count: skipped, status, completed_at: new Date().toISOString() })
+      .eq("id", campaignId);
+  }
+
+  return NextResponse.json({ sent, skipped, failed, errors });
 }
