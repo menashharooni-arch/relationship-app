@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
 // Origin-based redirects break sign-in if the form is ever loaded on a Vercel
@@ -17,6 +18,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const native = useIsNativeApp();
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
   // ?error=oauth) instead of silently landing the visitor back on the form.
@@ -59,6 +61,31 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       // wrong for anyone juggling multiple Google accounts.
       options: { redirectTo: callback, queryParams: { prompt: "select_account" } },
     });
+  }
+
+  // Sign in with Apple — mirrors handleGoogle. Rendered only in the native app.
+  // Supabase's Apple provider isn't enabled on the project yet (a separate owner
+  // action), so today this call returns an error; we catch it and surface it as
+  // a normal user-facing message rather than letting it throw. Inert but safe.
+  async function handleApple() {
+    if (mode === "signup") await clearExistingSession();
+    const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+    const callback = safeNext
+      ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
+      : `${APP_URL}/auth/callback`;
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo: callback },
+      });
+      if (error) {
+        setErrorMsg(error.message || "Apple sign-in isn't available right now — please try again.");
+        setStatus("error");
+      }
+    } catch {
+      setErrorMsg("Apple sign-in isn't available right now — please try again.");
+      setStatus("error");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -232,6 +259,21 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         </svg>
         Continue with Google
       </button>
+
+      {/* Native app only: Sign in with Apple (Apple requires it alongside other
+          social logins in-app). Renders nothing on web. */}
+      {native && (
+        <button
+          type="button"
+          onClick={handleApple}
+          className="w-full flex items-center justify-center gap-3 bg-black hover:bg-gray-900 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm mt-3"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor" aria-hidden="true">
+            <path d="M16.365 1.43c0 1.14-.42 2.2-1.13 3-.77.88-2.02 1.56-3.06 1.48-.13-1.1.42-2.28 1.09-3.02.76-.86 2.09-1.48 3.1-1.46zM20.5 17.2c-.55 1.27-.81 1.84-1.52 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.01-1.94-1-4.03-.99-2.09.01-2.53 1.01-4.07.99-1.73-.02-3.05-1.78-4.04-3.35C-.02 16.9-.34 12.03 1.35 9.5c1.19-1.8 3.07-2.85 4.83-2.85 1.8 0 2.93 1.01 4.42 1.01 1.44 0 2.32-1.01 4.4-1.01 1.57 0 3.23.86 4.42 2.34-3.88 2.13-3.25 7.67 1.08 9.21z" />
+          </svg>
+          Continue with Apple
+        </button>
+      )}
     </div>
   );
 }
