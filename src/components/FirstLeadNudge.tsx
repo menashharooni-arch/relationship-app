@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { trackCta } from "@/lib/events";
+import { useIsNativeApp } from "@/lib/platform";
 
 // A one-time, dismissible "refer a friend" nudge at a happy moment — right after
 // a free user captures their very first contact.
@@ -15,6 +16,7 @@ import { trackCta } from "@/lib/events";
 // to make one. It's a link now.
 export default function FirstLeadNudge({ leadCount, isPro }: { leadCount: number; isPro: boolean }) {
   const [show, setShow] = useState(false);
+  const native = useIsNativeApp();
 
   useEffect(() => {
     if (isPro || leadCount !== 1) return;
@@ -25,7 +27,8 @@ export default function FirstLeadNudge({ leadCount, isPro }: { leadCount: number
     setShow(true);
   }, [leadCount, isPro]);
 
-  if (!show) return null;
+  // Native app: this is a referral promo (earn a month of Pro free) — suppressed.
+  if (!show || native) return null;
 
   function dismiss() {
     try { localStorage.setItem("sc_firstlead_nudge", "1"); } catch { /* ignore */ }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { trackCta } from "@/lib/events";
+import { useIsNativeApp } from "@/lib/platform";
 
 // ── SwiftCard 2.0 marketing navigation ──────────────────────────────────────
 // Floating graphite-glass bar: transparent over the dark hero, condenses into a
@@ -108,6 +109,7 @@ function Dropdown({ label, items }: { label: string; items: Item[] }) {
 
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
+  const native = useIsNativeApp();
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -150,7 +152,7 @@ export default function SiteNav() {
             <Dropdown label="Products" items={PRODUCTS} />
             <Dropdown label="Solutions" items={SOLUTIONS} />
             <Dropdown label="Resources" items={RESOURCES} />
-            <Link href="/pricing" className="px-3 py-2 text-[14px] font-medium text-white/70 hover:text-white transition-colors">Pricing</Link>
+            {!native && <Link href="/pricing" className="px-3 py-2 text-[14px] font-medium text-white/70 hover:text-white transition-colors">Pricing</Link>}
           </div>
 
           <div className="hidden lg:flex items-center gap-2.5 shrink-0">
@@ -240,7 +242,7 @@ export default function SiteNav() {
                   </div>
                 </div>
               ))}
-              <Link href="/pricing" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Pricing</Link>
+              {!native && <Link href="/pricing" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Pricing</Link>}
             </div>
             <div className="mt-5 grid shrink-0 grid-cols-2 gap-2.5">
               <Link href="/login" onClick={() => setOpen(false)} className="rd-btn rd-btn-ghost-d w-full">Log in</Link>

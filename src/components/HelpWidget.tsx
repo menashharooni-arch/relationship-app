@@ -11,6 +11,13 @@ const GREETING: Msg = {
     "Hi! I'm your SwiftCard assistant. Ask me where to find something or how to do it — e.g. \"How do I create a card?\", \"Where do I change my design?\", or \"How do I upgrade to Pro?\"",
 };
 
+// Native app: no upgrade prompt in the greeting (no in-app selling).
+const NATIVE_GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hi! I'm your SwiftCard assistant. Ask me where to find something or how to do it — e.g. \"How do I create a card?\", \"Where do I change my design?\", or \"How do I share my card?\"",
+};
+
 const SUGGESTIONS = [
   "How do I create a card?",
   "Where do I change my card design?",
@@ -18,13 +25,17 @@ const SUGGESTIONS = [
   "How do I upgrade to Pro?",
 ];
 
+// Native app: drop the "How do I upgrade to Pro?" canned question.
+const NATIVE_SUGGESTIONS = SUGGESTIONS.filter((s) => s !== "How do I upgrade to Pro?");
+
 // Two presentations of the same assistant:
 //   default  — the full-width "Need help?" button used inline on Settings.
 //   floating — a chatbot bubble pinned bottom-right on app pages (sits above
 //              the mobile bottom nav; the open panel overlays it).
 export default function HelpWidget({ floating = false }: { floating?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([GREETING]);
+  const [messages, setMessages] = useState<Msg[]>(() => [isNativeApp ? NATIVE_GREETING : GREETING]);
+  const suggestions = isNativeApp ? NATIVE_SUGGESTIONS : SUGGESTIONS;
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -127,7 +138,7 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
             {/* Suggestion chips (only before the first question) */}
             {messages.length === 1 && !loading && (
               <div className="flex flex-wrap gap-2 pt-1">
-                {SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button
                     key={s}
                     type="button"

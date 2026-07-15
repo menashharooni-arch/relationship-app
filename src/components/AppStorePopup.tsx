@@ -6,9 +6,11 @@
 
 import { useEffect, useState } from "react";
 import { APP_STORE_URL } from "@/lib/app-store";
+import { useIsNativeApp } from "@/lib/platform";
 
 export default function AppStorePopup({ trigger }: { trigger: boolean }) {
   const [open, setOpen] = useState(false);
+  const native = useIsNativeApp();
 
   useEffect(() => {
     if (!trigger) return;
@@ -26,7 +28,8 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
     try { window.dispatchEvent(new CustomEvent("sc:appstore-done")); } catch { /* ignore */ }
   }
 
-  if (!open) return null;
+  // An app already running natively should never be told to download itself.
+  if (!open || native) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={(e) => e.target === e.currentTarget && close()}>

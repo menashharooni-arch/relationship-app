@@ -8,6 +8,7 @@ import GeneralSettings from "@/components/GeneralSettings";
 import BillingManager from "@/components/BillingManager";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
+import NativeHidden from "@/components/NativeHidden";
 import { getReferralProgress } from "@/lib/referral-server";
 import CrmEventSettings from "@/components/CrmEventSettings";
 import EnablePushButton from "@/components/EnablePushButton";
@@ -147,6 +148,8 @@ export default async function FlowSettingsPage({
       label: "Plan and billing",
       desc: "Your plan, seats, invoices and payment method.",
       icon: I.billing,
+      // Native app: no billing/subscription-management UI at all.
+      hideOnNative: true,
       content: (
         <div id="billing" data-tour="settings-billing" className="scroll-mt-24">
           <BillingManager />
@@ -224,16 +227,20 @@ export default async function FlowSettingsPage({
           <HelpWidget />
           <TakeTourButton />
           {!isOfficeSubUser && (
-            <div data-tour="settings-refer" className="pt-2">
-              <ReferAFriend progress={referral} />
-              <Link
-                href="/grow"
-                className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
-              >
-                More ways to help us grow
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-              </Link>
-            </div>
+            // Native app: the referral section (earn free months of Pro) and its
+            // anchor are removed entirely, so the guided tour skips this step too.
+            <NativeHidden>
+              <div data-tour="settings-refer" className="pt-2">
+                <ReferAFriend progress={referral} />
+                <Link
+                  href="/grow"
+                  className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
+                >
+                  More ways to help us grow
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                </Link>
+              </div>
+            </NativeHidden>
           )}
         </div>
       ),

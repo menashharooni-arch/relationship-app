@@ -153,7 +153,9 @@ export default function NotificationsPanel({
         </div>
       </div>
       <div className="divide-y divide-gray-800">
-        {items.map((n) => (
+        {/* Native app: drop the referral "claim your free month of Pro" promo
+            entirely (a selling incentive). Web shows every notification. */}
+        {items.filter((n) => !(isNative && n.type === "referral_claim")).map((n) => (
           <div key={n.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"}`}>
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
             <div

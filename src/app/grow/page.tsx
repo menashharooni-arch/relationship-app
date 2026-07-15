@@ -8,6 +8,7 @@ import DashboardLink from "@/components/DashboardLink";
 import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
+import NativeHidden from "@/components/NativeHidden";
 import RateUsCard from "@/components/RateUsCard";
 import GrowShare from "@/components/GrowShare";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
@@ -107,7 +108,7 @@ export default async function GrowPage() {
           <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Help us grow</h1>
           <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-            SwiftCard grows by word of mouth. A few seconds here goes a long way — and most of it earns <span className="text-gray-300">you</span> free Pro.
+            SwiftCard grows by word of mouth. A few seconds here goes a long way<NativeHidden> — and most of it earns <span className="text-gray-300">you</span> free Pro</NativeHidden>.
           </p>
         </div>
 
