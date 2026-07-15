@@ -7,6 +7,7 @@ import CardLiveShare from "@/components/CardLiveShare";
 import ImageUpload from "@/components/ImageUpload";
 import DashboardLink from "@/components/DashboardLink";
 import LogoSuggest from "@/components/LogoSuggest";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -79,11 +80,36 @@ const TEMPLATES = [
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
 
+// Company information owned by the user's Office organization (sub-users only).
+// Managed fields are shown as already prepared instead of asked for; blanks the
+// office left stay editable. `lockDesign` mirrors the office's Lock Card Design.
+export type OrgManaged = {
+  company: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  phone: string | null;
+  fax: string | null;
+  address: CardAddress | null;
+  lockDesign: boolean;
+};
+
+// Small "who owns this field" tag shown next to org-controlled values.
+function ManagedTag() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded-full px-2 py-0.5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-2.5 h-2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      Managed by your organization
+    </span>
+  );
+}
+
 // Guest mode: a signed-out visitor can build a full card without an account. The
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, appUrl = "https://swiftcard.me", walletEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, appUrl = "https://swiftcard.me", walletEnabled = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
   guest?: boolean;
   /** Absolute origin for the share link/QR — passed in so a preview deploy
@@ -92,6 +118,10 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   /** Apple Wallet only when the signing certs are configured, so the button
    *  never offers a download that fails. */
   walletEnabled?: boolean;
+  /** Office sub-users only: the org-managed company half of the card. */
+  org?: OrgManaged | null;
+  /** LinkedIn OAuth configured — enables "Suggest my profile picture". */
+  linkedinEnabled?: boolean;
 }) {
   const router = useRouter();
   // After a paid checkout the success page routes the OWNER here to create their
@@ -139,19 +169,30 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
     if (postCheckout) track("checkout_completed", { plan: postCheckout === "office" ? "office" : "pro" });
   }, [postCheckout]);
 
-  // Step 1 — card details
-  const [nickname, setNickname] = useState("");
+  // Org-managed fields (office sub-users) — per-field: the office manages
+  // exactly what it has set, blanks stay editable.
+  const orgCompany = org?.company?.trim() || null;
+  const orgWebsite = org?.website?.trim() || null;
+  const orgLogo = org?.logoUrl || null;
+  const orgPhone = org?.phone?.trim() || null;
+  const orgFax = org?.fax?.trim() || null;
+  const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
+  const designLocked = !!org?.lockDesign;
+
+  // Step 1 — card details. Managed fields start (and stay) on the org's values;
+  // the server enforces them again on create.
+  const [nickname, setNickname] = useState(orgCompany ?? "");
   const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
+  const [company, setCompany] = useState(orgCompany ?? "");
   const [title, setTitle] = useState("");
   const [phones, setPhones] = useState<CardPhone[]>([{ number: "", label: "mobile", showOnCard: true }]);
-  const [fax, setFax] = useState("");
+  const [fax, setFax] = useState(orgFax ?? "");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState<Required<CardAddress>>(EMPTY_ADDRESS);
+  const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(orgAddress ?? {}) });
 
   // Step 2 — bio, social links, additional links
   const [bio, setBio] = useState("");
-  const [website, setWebsite] = useState("");
+  const [website, setWebsite] = useState(orgWebsite ?? "");
   const [links, setLinks] = useState<CardLink[]>([]);
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
@@ -162,7 +203,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   const [createdUsername, setCreatedUsername] = useState<string | null>(null);
 
   // Step 3 — media + design
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(orgLogo);
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
   const [template, setTemplate] = useState("classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(DEFAULT_CUSTOM_LAYOUT);
@@ -304,7 +345,17 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim(), ...templateStyleState },
+    customization: {
+      snapchat: socials.snapchat,
+      customLayout,
+      // Preview mirrors the live card: the office number the server injects on
+      // every connected card shows here too, ahead of personal numbers.
+      phones: org && orgPhone
+        ? [{ number: orgPhone, label: "office" as PhoneLabel, showOnCard: true }, ...cleanPhones]
+        : cleanPhones,
+      fax: fax.trim(),
+      ...templateStyleState,
+    },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
@@ -607,21 +658,66 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
-              <input type="text" placeholder="e.g. Sales Card" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputCls} />
-              <p className="text-gray-600 text-xs mt-1">A label shown on your dashboard so you can tell your cards apart.</p>
-            </div>
+            {/* Office sub-users: the company half is already prepared by their
+                organization — shown read-only so they know it's done, never
+                asked for. Fields the office left blank still render below. */}
+            {org && (orgCompany || orgWebsite || orgPhone || orgFax || orgAddress || orgLogo) && (
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Company information</p>
+                  <ManagedTag />
+                </div>
+                <p className="text-gray-500 text-xs mb-3">
+                  Your organization already prepared these details — they&apos;ll be on your card automatically.
+                </p>
+                <dl className="space-y-1.5">
+                  {orgLogo && (
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-gray-500 text-xs">Company logo</dt>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-cover bg-gray-900" /></dd>
+                    </div>
+                  )}
+                  {([
+                    orgCompany && { k: "Card nickname", v: orgCompany },
+                    orgCompany && { k: "Company name", v: orgCompany },
+                    orgPhone && { k: "Office phone", v: orgPhone },
+                    orgFax && { k: "Fax", v: orgFax },
+                    orgAddress && {
+                      k: "Address",
+                      v: [orgAddress.street, orgAddress.unit, orgAddress.city, orgAddress.state, orgAddress.zip]
+                        .filter((v) => (v ?? "").toString().trim()).join(", "),
+                    },
+                    orgWebsite && { k: "Website", v: orgWebsite },
+                  ].filter(Boolean) as { k: string; v: string }[]).map((b) => (
+                    <div key={b.k} className="flex items-center justify-between gap-3">
+                      <dt className="text-gray-500 text-xs shrink-0">{b.k}</dt>
+                      <dd className="text-gray-300 text-xs font-medium truncate">{b.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
+            {!(org && orgCompany) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
+                <input type="text" placeholder="e.g. Sales Card" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputCls} />
+                <p className="text-gray-600 text-xs mt-1">A label shown on your dashboard so you can tell your cards apart.</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
               <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
-              <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-              <p className="text-gray-600 text-xs mt-1">Card URL: /card/{username || "your-name"}</p>
-            </div>
+            {!(org && orgCompany) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
+                <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
+                <p className="text-gray-600 text-xs mt-1">Card URL: /card/{username || "your-name"}</p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Job title</label>
               <input type="text" placeholder="Sales Director" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
@@ -664,20 +760,27 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                 ))}
               </div>
               <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which ones appear on your card (you can show more than one).</p>
+              {org && orgPhone && (
+                <p className="text-gray-500 text-xs mt-1">
+                  Your office number ({orgPhone}) is added to your card automatically by your organization.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
               <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
-            <AddressInput value={address} onChange={setAddress} />
+            {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
-              </label>
-              <input type="tel" placeholder="+1 (555) 000-0000" value={fax} onChange={(e) => setFax(e.target.value)} className={inputCls} />
-            </div>
+            {!(org && orgFax) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
+                </label>
+                <input type="tel" placeholder="+1 (555) 000-0000" value={fax} onChange={(e) => setFax(e.target.value)} className={inputCls} />
+              </div>
+            )}
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
@@ -719,13 +822,17 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Website</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs text-gray-500">Website</label>
+                    {org && orgWebsite && <ManagedTag />}
+                  </div>
                   <input
                     type="text"
                     placeholder="yoursite.com"
                     value={website}
                     onChange={(e) => setWebsite(e.target.value)}
-                    className={inputCls}
+                    disabled={!!(org && orgWebsite)}
+                    className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
                   />
                 </div>
                 {SOCIALS.map(({ key, label, placeholder }) => {
@@ -891,13 +998,27 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-              <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer guest={guest} onUploaded={(url) => setLogoUrl(url || null)} />
-              {/* Suggest an official company logo (Agent 4 contract). Fails safe —
-                  renders nothing when the provider isn't configured. */}
-              <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
-            </div>
+            {org && orgLogo ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-gray-400">Company logo</label>
+                  <ManagedTag />
+                </div>
+                <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3.5 py-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-cover bg-gray-900" />
+                  <p className="text-gray-500 text-xs">Your organization&apos;s logo is used on every connected card.</p>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
+                <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer guest={guest} onUploaded={(url) => setLogoUrl(url || null)} />
+                {/* Suggest an official company logo (Agent 4 contract). Fails safe —
+                    renders nothing when the provider isn't configured. */}
+                <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
@@ -911,9 +1032,30 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                 guest={guest}
                 onUploaded={(url) => setHeadshotUrl(url || null)}
               />
+              {/* Guests can't OAuth mid-draft — the suggestion appears once signed in. */}
+              {!guest && (
+                <ProfilePhotoSuggest
+                  enabled={linkedinEnabled}
+                  returnTo="/cards/new?add=1"
+                  onConfirm={(url) => setHeadshotUrl(url)}
+                />
+              )}
             </div>
 
-            {/* Design */}
+            {/* Design — locked for sub-users while the office's Lock Card Design
+                setting is on; the server enforces the office look regardless. */}
+            {designLocked ? (
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Card design</p>
+                  <ManagedTag />
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Your organization keeps every card matching, so the template, colors and
+                  fonts are applied automatically when your card is created.
+                </p>
+              </div>
+            ) : (
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-2">Choose your design</label>
 
@@ -964,6 +1106,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                 </div>
               )}
             </div>
+            )}
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
 

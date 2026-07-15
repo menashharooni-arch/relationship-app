@@ -6,6 +6,8 @@ import GuestDraftClaim from "@/components/GuestDraftClaim";
 import DashboardLink from "@/components/DashboardLink";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { getOfficeBrandForUser } from "@/lib/office-brand";
 import type { CardData } from "@/components/card-templates/types";
 
 export default async function CardEditPage({
@@ -33,6 +35,25 @@ export default async function CardEditPage({
   const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   // Per-card headshot (legacy cards fall back to the account photo).
   const cardPhoto = cardHeadshot(card.customization, profile?.photo_url);
+
+  // Office SUB-USER (active member, not the owner): their card carries the
+  // organization's company information, so the editor shows those fields as
+  // "Managed by your organization" instead of editable inputs, and the Design
+  // tab locks while the office's design lock is on. Resolved server-side —
+  // the client is never trusted for role or brand.
+  const subCtx = await getOfficeSubUserContext(user.id);
+  const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
+  const org = subCtx && brand
+    ? {
+        company: brand.company,
+        website: brand.website,
+        logoUrl: brand.logoUrl,
+        phone: brand.phone,
+        fax: brand.fax,
+        address: brand.address,
+        lockDesign: brand.lockTemplate,
+      }
+    : null;
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -98,7 +119,14 @@ export default async function CardEditPage({
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>
 
-        <CardEditForm card={card} photoUrl={cardPhoto} logoUrl={card.logo_url ?? null} isPro={isPro} />
+        <CardEditForm
+          card={card}
+          photoUrl={cardPhoto}
+          logoUrl={card.logo_url ?? null}
+          isPro={isPro}
+          org={org}
+          linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
+        />
       </div>
 
       {/* Invisible: keeps the texted-link share preview a pixel-perfect copy

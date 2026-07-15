@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/cancel
 // Schedules the paid plan to end at the period boundary (cancel_at_period_end),
@@ -13,6 +14,14 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Office sub-users have no personal subscription to manage — billing is
+  // the organization's. A delegated billing_admin passes through.
+  const subBlocked = await officeSubUserBlockMessage(user.id, {
+    unless: "manage_billing",
+    message: "Billing for your account is managed by your organization.",
+  });
+  if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.slice(0, 120) : "";

@@ -179,6 +179,9 @@ export async function applyBrandToUserCards(userId: string, brand: OfficeBrand):
   const topLevel: Record<string, unknown> = {};
   if (brand.logoUrl) topLevel.logo_url = brand.logoUrl;
   if (brand.company) topLevel.company = brand.company;
+  // The card nickname is company-controlled on member cards, sourced from the
+  // company name — every connected card shows the same label on the dashboard.
+  if (brand.company) topLevel.label = brand.company;
   if (brand.website) topLevel.website = brand.website;
   if (brand.lockTemplate && brand.template) topLevel.template = brand.template;
 
@@ -220,6 +223,7 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
   }
   if (brand.company) {
     await admin.from("cards").update({ company: "" }).eq("user_id", userId).eq("company", brand.company);
+    await admin.from("cards").update({ label: null }).eq("user_id", userId).eq("label", brand.company);
   }
   if (brand.website) {
     await admin.from("cards").update({ website: "" }).eq("user_id", userId).eq("website", brand.website);
@@ -234,6 +238,44 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
   }
   // template deliberately kept — a card must always have SOME template, and the
   // office's choice is as good a default as any once the brand fields are gone.
+}
+
+// ── Managed-field rejection (sub-users only) ─────────────────────────────────
+// Given the raw PATCH body an office SUB-USER submitted, list the org-managed
+// fields the request tries to CHANGE away from the office brand. Fields the
+// office left blank are not managed and never flagged. The overlays above stay
+// as the enforcement backstop; this exists so a hand-crafted request gets a
+// clear 403 instead of a silent overwrite. Design fields count only while the
+// office's design lock (lockTemplate) is on.
+export function findManagedFieldViolations(
+  body: Record<string, unknown>,
+  brand: OfficeBrand,
+): string[] {
+  const out: string[] = [];
+  const t = (v: unknown) => (v == null ? "" : String(v).trim());
+  if (brand.company && "company" in body && t(body.company) !== brand.company.trim()) out.push("company name");
+  if (brand.website && "website" in body && t(body.website) !== brand.website.trim()) out.push("website");
+  if (brand.logoUrl && "logo_url" in body && t(body.logo_url) !== brand.logoUrl) out.push("company logo");
+  if (brand.lockTemplate && brand.template && "template" in body && t(body.template) !== brand.template) out.push("card design");
+  const cust = body.customization as Record<string, unknown> | undefined;
+  if (cust && typeof cust === "object") {
+    if (brand.fax && brand.fax.trim() && "fax" in cust && t(cust.fax) !== brand.fax.trim()) out.push("fax number");
+    if (brand.address && "address" in cust) {
+      const a = (cust.address ?? {}) as Record<string, unknown>;
+      const b = brand.address as Record<string, unknown>;
+      const keys = ["street", "unit", "city", "state", "zip"] as const;
+      if (keys.some((k) => t(a[k]) !== t(b[k]))) out.push("address");
+    }
+    if (brand.lockTemplate && brand.design && !out.includes("card design")) {
+      for (const key of OFFICE_DESIGN_KEYS) {
+        if (brand.design[key] !== undefined && key in cust && t(cust[key]) !== t(brand.design[key])) {
+          out.push("card design");
+          break;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 // The plan a member should land on when they leave an office: members who had

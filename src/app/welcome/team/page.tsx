@@ -48,6 +48,7 @@ export default async function TeamWelcomePage() {
       <TeamCardSetup
         appUrl={APP_URL}
         walletEnabled={hasWalletConfig()}
+        linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
         prefill={{
           name: (profile.name as string) || "",
           email: (profile.email as string) || user.email || "",
@@ -61,7 +62,10 @@ export default async function TeamWelcomePage() {
           logoUrl: brand?.logoUrl ?? null,
           website: brand?.website ?? null,
           phone: brand?.phone ?? null,
+          fax: brand?.fax ?? null,
           address: addrLine || null,
+          // The dashboard nickname on a connected card follows the company name.
+          nickname: brand?.company ?? null,
         }}
       />
     </main>

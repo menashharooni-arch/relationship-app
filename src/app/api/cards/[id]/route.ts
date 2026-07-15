@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOwnedOfficeId, getPrimaryCardId, syncBrandFromPrimaryCard } from "@/lib/office-primary";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
@@ -95,8 +96,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // (§9) — an unlocked office lets employees choose their own.
   const brand = isPrimaryCard ? null : await getOfficeBrandForUser(user.id);
   if (brand) {
+    // A SUB-USER (active member, not the owner) explicitly trying to CHANGE an
+    // org-managed field is refused outright — even a hand-crafted request never
+    // silently rewrites company data. Values that match the brand pass through
+    // (the editor sends the whole card back), and the overlays below stay as
+    // the normalization backstop.
+    const subCtx = await getOfficeSubUserContext(user.id);
+    if (subCtx) {
+      const violations = findManagedFieldViolations(body, brand);
+      if (violations.length) {
+        return NextResponse.json(
+          {
+            error: "managed_by_org",
+            message: `The ${violations.join(", ")} on this card ${violations.length > 1 ? "are" : "is"} managed by your organization. Refresh the page to see the latest company details.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
     if (brand.logoUrl) updates.logo_url = brand.logoUrl;
     if (brand.company) updates.company = brand.company;
+    // Nickname is company-controlled on connected cards (sourced from the
+    // company name), so member dashboards all show the same label.
+    if (brand.company && subCtx) updates.label = brand.company;
     if (brand.website) updates.website = brand.website;
     if (brand.lockTemplate && brand.template) updates.template = brand.template;
     // Company phone/fax/address + the locked look are enforced whenever the

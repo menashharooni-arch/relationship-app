@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { isFreeDays } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Office sub-users have no personal subscription to manage — billing is
+    // the organization's. A delegated billing_admin passes through.
+    const subBlocked = await officeSubUserBlockMessage(user.id, {
+      unless: "manage_billing",
+      message: "Billing for your account is managed by your organization.",
+    });
+    if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
     const { data: profile } = await supabase
       .from("profiles")

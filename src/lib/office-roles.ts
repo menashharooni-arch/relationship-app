@@ -87,6 +87,29 @@ export async function requireOfficeCapability(userId: string, cap: Capability): 
   return roleHasCapability(ctx.role, cap) ? ctx : null;
 }
 
+// An office SUB-USER is an ACTIVE member of someone else's office (any member
+// role) — never the owner. Their account is company-managed: no personal
+// billing, referrals, or account deletion. Returns the office context when the
+// user is a sub-user, else null. SERVER-SIDE only — never trust a client flag.
+export async function getOfficeSubUserContext(userId: string): Promise<OfficeContext | null> {
+  const ctx = await resolveOfficeContext(userId);
+  return ctx && !ctx.isOwner ? ctx : null;
+}
+
+// Route guard for account-holder-only APIs (billing, referrals, account
+// deletion). Blocks office sub-users; `unless` lets a delegated capability
+// (e.g. manage_billing for a billing_admin) through. Returns a plain-English
+// message to send back with a 403, or null when the caller may proceed.
+export async function officeSubUserBlockMessage(
+  userId: string,
+  opts?: { unless?: Capability; message?: string },
+): Promise<string | null> {
+  const ctx = await getOfficeSubUserContext(userId);
+  if (!ctx) return null;
+  if (opts?.unless && roleHasCapability(ctx.role, opts.unless)) return null;
+  return opts?.message ?? "This is managed by your organization. Ask your Office admin if you need a change.";
+}
+
 // Should this user see the "Admin" nav item (the team console at /office/admin)?
 // Mirrors the page's own access rule, so the link never leads to a redirect:
 // the office owner, an Office user who hasn't created their office yet

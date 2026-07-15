@@ -6,6 +6,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { priceIdForPlan, planFromPriceId, isUpgrade, DB_PLAN, type BillingPlan, type BillingInterval } from "@/lib/subscription";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import type Stripe from "stripe";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/change-plan { plan: "pro"|"office", interval, seats? }
 // Switches an EXISTING paid subscription between Pro and Office (and between
@@ -16,6 +17,14 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Office sub-users have no personal subscription to manage — billing is
+  // the organization's. A delegated billing_admin passes through.
+  const subBlocked = await officeSubUserBlockMessage(user.id, {
+    unless: "manage_billing",
+    message: "Billing for your account is managed by your organization.",
+  });
+  if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const targetPlan = body.plan as BillingPlan;
