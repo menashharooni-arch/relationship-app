@@ -90,10 +90,14 @@ export async function POST(req: NextRequest) {
       });
       if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
 
+      // Tagged with the code ("promo:LAUNCH20") so the admin promo log can
+      // report per-code send counts and dates. Nothing queries the bare
+      // "promo" type, so this is safe to extend; older rows show up in the
+      // log as untagged promo emails.
       await admin.from("email_logs").insert({
         user_id: profile.id,
         email: recipient,
-        type: "promo",
+        type: `promo:${promo.code}`,
         subject: template.subject,
         resend_id: emailData?.id,
       });

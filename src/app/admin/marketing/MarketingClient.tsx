@@ -13,6 +13,13 @@ type PromoCode = {
   stripe_coupon_id: string | null;
   discount_type: string | null; free_days: number | null;
 };
+type PromoLogEntry = PromoCode & {
+  uses_count: number;
+  active: boolean;
+  deactivated_at: string | null;
+  plan_target: string | null;
+  sends: { count: number; first: string | null; last: string | null };
+};
 type DomainStatus = {
   configured: boolean; exists: boolean; status: string; error?: string;
   records: { record: string; name: string; type: string; value: string; ttl?: string; priority?: number; status?: string }[];
@@ -40,6 +47,12 @@ export default function MarketingClient() {
   const [promoSending, setPromoSending] = useState(false);
   const [promoSendResult, setPromoSendResult] = useState<string | null>(null);
 
+  // Promo log popup — every code ever created, active or deactivated
+  const [logOpen, setLogOpen] = useState(false);
+  const [logLoading, setLogLoading] = useState(false);
+  const [logCodes, setLogCodes] = useState<PromoLogEntry[] | null>(null);
+  const [logUntagged, setLogUntagged] = useState(0);
+
   // Sending domain (Resend) status
   const [domain, setDomain] = useState<DomainStatus | null>(null);
   const [domainChecking, setDomainChecking] = useState(false);
@@ -60,6 +73,25 @@ export default function MarketingClient() {
 
   async function copyVal(key: string, val: string) {
     try { await navigator.clipboard.writeText(val); setCopied(key); setTimeout(() => setCopied(null), 1500); } catch { /* ignore */ }
+  }
+
+  async function openPromoLog() {
+    setLogOpen(true);
+    setLogLoading(true);
+    try {
+      const res = await fetch("/api/admin/promo-codes/log");
+      const d = await res.json();
+      if (res.ok) {
+        setLogCodes(d.codes ?? []);
+        setLogUntagged(d.untaggedSends ?? 0);
+      } else {
+        setLogCodes([]);
+      }
+    } catch {
+      setLogCodes([]);
+    } finally {
+      setLogLoading(false);
+    }
   }
 
   async function sendPromoEmail() {
@@ -353,8 +385,18 @@ export default function MarketingClient() {
           </div>
 
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-800">
+            <div className="px-5 py-3.5 border-b border-gray-800 flex items-center justify-between">
               <p className="text-white font-semibold text-sm">Promo codes ({promos.length})</p>
+              <button
+                onClick={openPromoLog}
+                title="Every code ever created — what it was, when it was sent, and how long it was active"
+                className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg px-2.5 py-1 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l3.5 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Log
+              </button>
             </div>
             {promos.length === 0 ? (
               <p className="px-5 py-8 text-center text-gray-500 text-sm">No promo codes yet</p>
@@ -382,7 +424,16 @@ export default function MarketingClient() {
                         className="text-blue-400 hover:text-blue-300 transition-colors font-semibold">
                         Email to users
                       </button>
-                      <button onClick={async () => { await fetch(`/api/admin/promo-codes?id=${p.id}`, { method: "DELETE" }); loadPromos(); }}
+                      <button
+                        onClick={async () => {
+                          // Delete = deactivate everywhere, immediately. It stays
+                          // in the Log with its full history.
+                          if (!window.confirm(`Deactivate ${p.code}? It stops working for everyone immediately — at checkout, on /pricing, and on Stripe.`)) return;
+                          const res = await fetch(`/api/admin/promo-codes?id=${p.id}`, { method: "DELETE" });
+                          const d = await res.json().catch(() => ({}));
+                          if (d.stripeWarning) setPromoError(d.stripeWarning);
+                          loadPromos();
+                        }}
                         className="text-gray-600 hover:text-red-400 transition-colors">Delete</button>
                     </div>
                   </div>
@@ -392,6 +443,90 @@ export default function MarketingClient() {
           </div>
         </div>
       </div>
+
+      {/* Promo log popup — every code ever created, with sends + active window */}
+      {logOpen && (
+        <div className="fixed inset-0 z-40 bg-black/70 flex items-center justify-center px-4" onClick={(e) => e.target === e.currentTarget && setLogOpen(false)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 shrink-0">
+              <div>
+                <p className="text-white font-bold">Promo code log</p>
+                <p className="text-gray-500 text-xs mt-0.5">Every code ever created — including deactivated ones.</p>
+              </div>
+              <button onClick={() => setLogOpen(false)} className="text-gray-500 hover:text-white">✕</button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-4">
+              {logLoading ? (
+                <p className="text-gray-500 text-sm text-center py-10">Loading…</p>
+              ) : !logCodes || logCodes.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center py-10">No promo codes have been created yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {logCodes.map((c) => {
+                    const expired = !!c.expires_at && new Date(c.expires_at) < new Date();
+                    const maxed = c.max_uses != null && c.uses_count >= c.max_uses;
+                    const status = !c.active ? "Deactivated" : expired ? "Expired" : maxed ? "Max uses reached" : "Active";
+                    const statusCls = status === "Active"
+                      ? "bg-emerald-900/50 text-emerald-300"
+                      : status === "Deactivated"
+                        ? "bg-red-950/60 text-red-300"
+                        : "bg-amber-950/60 text-amber-300";
+                    // How long the code was (or has been) live.
+                    const activeEnd = !c.active
+                      ? (c.deactivated_at ? new Date(c.deactivated_at) : null)
+                      : expired ? new Date(c.expires_at as string) : new Date();
+                    const activeDays = activeEnd
+                      ? Math.max(0, Math.round((activeEnd.getTime() - new Date(c.created_at).getTime()) / 86400000))
+                      : null;
+                    const fmt = (iso: string | null) =>
+                      iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+                    return (
+                      <div key={c.id} className="rounded-xl border border-gray-800 bg-gray-950/60 p-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-white bg-gray-800 px-2 py-0.5 rounded text-xs">{c.code}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusCls}`}>{status}</span>
+                          <span className="text-green-400 text-xs font-semibold">{promoLabel(c)}</span>
+                          {c.description && <span className="text-gray-500 text-xs">· {c.description}</span>}
+                        </div>
+                        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[11px]">
+                          <div>
+                            <p className="text-gray-600">Created</p>
+                            <p className="text-gray-300">{fmt(c.created_at)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">{c.active ? "Active for" : "Was active for"}</p>
+                            <p className="text-gray-300">
+                              {activeDays != null ? `${activeDays} day${activeDays === 1 ? "" : "s"}` : "unknown"}
+                              {!c.active && (c.deactivated_at ? ` (off ${fmt(c.deactivated_at)})` : " (deactivation date not recorded)")}
+                              {c.active && !expired && " (ongoing)"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Redemptions</p>
+                            <p className="text-gray-300">{c.uses_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Emailed to users</p>
+                            <p className="text-gray-300">
+                              {c.sends.count > 0 ? `${c.sends.count} email${c.sends.count === 1 ? "" : "s"} · last ${fmt(c.sends.last)}` : "never"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {logUntagged > 0 && (
+                    <p className="text-gray-600 text-[11px] pt-1">
+                      + {logUntagged} older promo email{logUntagged === 1 ? "" : "s"} sent before per-code tracking (not tied to a specific code).
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Email-a-promo-code modal */}
       {promoSend && (

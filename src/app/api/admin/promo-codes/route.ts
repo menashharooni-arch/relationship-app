@@ -117,7 +117,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ promo: data, stripeWarning });
 }
 
-// GET /api/admin/promo-codes — list all promo codes
+// GET /api/admin/promo-codes — list ACTIVE promo codes (the working set the
+// admin can send/manage). Deactivated codes live in the log endpoint.
 export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -125,13 +126,22 @@ export async function GET() {
   const { data, error } = await admin
     .from("promo_codes")
     .select("*")
+    .eq("active", true)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ codes: data });
 }
 
-// DELETE /api/admin/promo-codes?id=<id> — delete a promo code
+// DELETE /api/admin/promo-codes?id=<id> — deactivate a promo code EVERYWHERE.
+//
+// This is deliberately a SOFT delete (active=false), not a row delete:
+// - every redemption path filters on active=true (redeem, checkout resolve),
+//   so the code stops working for everyone the moment this lands;
+// - promo_code_redemptions has ON DELETE CASCADE — a hard delete would wipe
+//   who used the code AND drop the single-use guard, so recreating the same
+//   string would let past redeemers use it again;
+// - the row is the promo log ("what we sent, when, how long it was active").
 export async function DELETE(req: NextRequest) {
   if (!await requireAdmin()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -140,22 +150,34 @@ export async function DELETE(req: NextRequest) {
 
   const admin = getAdminSupabase();
 
-  // Deactivate the matching Stripe promotion code too (best effort) so a
-  // deleted code stops working at checkout as well.
-  const { data: promo } = await admin.from("promo_codes").select("code").eq("id", id).maybeSingle();
-  if (promo?.code) {
-    try {
-      const { getStripe } = await import("@/lib/stripe");
-      const stripe = getStripe();
-      const list = await stripe.promotionCodes.list({ code: promo.code as string, limit: 1 });
-      const pc = list.data[0];
-      if (pc && pc.active) await stripe.promotionCodes.update(pc.id, { active: false });
-    } catch {
-      /* Stripe cleanup is best-effort */
+  // Kill the code on Stripe's own checkout page too. allow_promotion_codes
+  // means a code typed at Stripe bypasses our DB entirely, so EVERY matching
+  // active promotion code must be turned off — and a failure is reported, not
+  // swallowed (a silently-still-working "deleted" code is the worst outcome).
+  let stripeWarning: string | null = null;
+  const { data: promo } = await admin.from("promo_codes").select("code, active").eq("id", id).maybeSingle();
+  if (!promo) return NextResponse.json({ error: "Promo code not found" }, { status: 404 });
+  try {
+    const { getStripe } = await import("@/lib/stripe");
+    const stripe = getStripe();
+    const list = await stripe.promotionCodes.list({ code: promo.code as string, limit: 100 });
+    for (const pc of list.data) {
+      if (pc.active) await stripe.promotionCodes.update(pc.id, { active: false });
     }
+  } catch (e) {
+    stripeWarning = `Deactivated in SwiftCard, but Stripe cleanup failed (${e instanceof Error ? e.message : e}). If this code has a Stripe coupon, disable it in the Stripe dashboard too.`;
   }
 
-  const { error } = await admin.from("promo_codes").delete().eq("id", id);
+  // Stamp when it was turned off (for the "how long was it active" log).
+  // deactivated_at arrives with supabase/promo-deactivated-at.sql — fall back
+  // to just active=false if the column isn't there yet.
+  let { error } = await admin
+    .from("promo_codes")
+    .update({ active: false, deactivated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error && /deactivated_at/i.test(error.message)) {
+    ({ error } = await admin.from("promo_codes").update({ active: false }).eq("id", id));
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, stripeWarning });
 }
