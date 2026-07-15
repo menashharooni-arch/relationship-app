@@ -200,6 +200,18 @@ export async function POST(req: NextRequest) {
 
     // REDUCTION → schedule for the END of the current billing period (spec §5).
     // Current seats stay billable + available until then; a daily job applies it.
+    //
+    // Guard: if Stripe didn't return a period end, storing scheduled_seats_at as
+    // null would make the reduction NEVER apply (the cron filters
+    // `.lte("scheduled_seats_at", now)`, which never matches null) — the banner
+    // would show forever and the customer keep paying the higher quantity. Fail
+    // loudly instead. (billing audit #11)
+    if (!periodEnd) {
+      return NextResponse.json(
+        { error: "no_period_end", message: "We couldn't schedule the seat reduction right now. Please try again in a moment." },
+        { status: 503 }
+      );
+    }
     await admin
       .from("offices")
       .update({ scheduled_seats: requested, scheduled_seats_at: periodEnd })

@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { priceIdForPlan, planFromPriceId, isUpgrade, DB_PLAN, type BillingPlan, type BillingInterval } from "@/lib/subscription";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
+import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
@@ -51,19 +52,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "That plan isn't available right now." }, { status: 400 });
   }
 
-  // Seats only matter for Office; clamp to the minimum.
-  let seats = 1;
-  if (targetPlan === "office") {
-    seats = Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, Math.floor(Number(body.seats) || PLAN_LIMITS.OFFICE_MIN_SEATS));
-  }
-
   const wasOffice = profile.plan === "enterprise";
+  const seatsProvided = body.seats != null && Number.isFinite(Number(body.seats));
+
+  // Seats only matter for Office; resolved against Stripe's current quantity
+  // inside the try below (needs the retrieved subscription). Function-scoped so
+  // the later Office→Pro cascade can read it.
+  let seats = 1;
 
   // Perform the swap on Stripe with proration.
   try {
     const sub = (await getStripe().subscriptions.retrieve(profile.stripe_subscription_id)) as Stripe.Subscription;
     const item = sub.items.data[0];
     if (!item) return NextResponse.json({ error: "Subscription has no billable item." }, { status: 400 });
+
+    // When staying on Office and the caller didn't explicitly ask to change
+    // seats, DEFAULT to the current quantity — never to the plan minimum. The
+    // old code defaulted to 2, so an Office→Office call with seats omitted
+    // slammed quantity down to 2 and the webhook trim loop deleted active
+    // members. And a reduction may never go below what is currently in use
+    // (owner + active + pending). (billing audit #4)
+    if (targetPlan === "office") {
+      const currentQty = item.quantity ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
+      const requested = seatsProvided ? Math.floor(Number(body.seats)) : (wasOffice ? currentQty : PLAN_LIMITS.OFFICE_MIN_SEATS);
+      seats = Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, requested);
+      if (wasOffice && seats < currentQty) {
+        const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
+        if (office?.id) {
+          const usage = await getOfficeSeatUsage(office.id as string, currentQty);
+          if (seats < usage.used) {
+            return NextResponse.json(
+              { error: "seats_in_use", message: `You have ${usage.used} seats in use. Remove members before reducing below that, or reduce seats from the billing page.` },
+              { status: 409 }
+            );
+          }
+        }
+      }
+    }
 
     const current = planFromPriceId(item.price?.id);
     if (current && current.plan === targetPlan && current.interval === interval && targetPlan !== "office") {
@@ -91,12 +116,16 @@ export async function POST(req: NextRequest) {
         ? clientDate
         : undefined;
 
+    // Idempotency key derived from the exact transition, so a network-level
+    // retry of the same change can't double-apply (mirrors the seats route).
+    // (billing audit #12)
+    const idempotencyKey = `change:${profile.stripe_subscription_id}:${item.price?.id}->${targetPriceId}:${seats}`;
     await getStripe().subscriptions.update(profile.stripe_subscription_id, {
       items: [{ id: item.id, price: targetPriceId, quantity: seats }],
       proration_behavior: upgrading ? "always_invoice" : "create_prorations",
       ...(prorationDate ? { proration_date: prorationDate } : {}),
       cancel_at_period_end: false, // switching plans clears any pending cancel
-    });
+    }, { idempotencyKey });
   } catch (err) {
     // A declined card on the immediate upgrade invoice must say so plainly —
     // "try again" would just fail the same way.

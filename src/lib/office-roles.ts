@@ -102,11 +102,23 @@ export async function getOfficeSubUserContext(userId: string): Promise<OfficeCon
 // message to send back with a 403, or null when the caller may proceed.
 export async function officeSubUserBlockMessage(
   userId: string,
-  opts?: { unless?: Capability; message?: string },
+  opts?: { unless?: Capability; message?: string; allowIfOwnSubscription?: boolean },
 ): Promise<string | null> {
   const ctx = await getOfficeSubUserContext(userId);
   if (!ctx) return null;
   if (opts?.unless && roleHasCapability(ctx.role, opts.unless)) return null;
+  // A sub-user who joined a team while still holding their OWN personal Stripe
+  // subscription must be able to cancel/manage THAT subscription — otherwise
+  // they're billed forever with no way out (billing audit #6A). This is their
+  // own sub, never the org's, so allowing it can't touch org billing.
+  if (opts?.allowIfOwnSubscription) {
+    const { data: profile } = await getAdminSupabase()
+      .from("profiles")
+      .select("stripe_subscription_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (profile?.stripe_subscription_id) return null;
+  }
   return opts?.message ?? "This is managed by your organization. Ask your Office admin if you need a change.";
 }
 
