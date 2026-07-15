@@ -8,21 +8,22 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
-import type { CardData } from "@/components/card-templates/types";
 
 // A replica of the REAL Office admin at /office/admin — same three tabs (Team,
-// Leads, Branding), same dark panels, same purple accent, same copy. It was
-// previously a different product entirely: an "Offices" sidebar with San
-// Francisco/New York/Austin groups, Admin/Manager/Member roles and a "Brand kit"
-// panel, none of which exist. A prospect who bought on the strength of that
-// screenshot would not recognise what they logged into.
+// Leads, Branding), same shell, same four BigStats, same table anatomy, same
+// branding form. Structure, labels and styling are copied from:
+//   - /office/admin (page.tsx BigStat + seats counter)
+//   - components/office/TeamList.tsx (12-col table, Manage pill, invite row)
+//   - /office/admin/leads/LeadsTable.tsx (three filters, 5-col table)
+//   - /office/admin/branding + components/OfficeBranding.tsx (the real form)
+// A prospect who buys on the strength of this demo logs into exactly this.
 //
-// Interactive and fictional — nothing is fetched. The Branding tab still drives
-// every card live, because "change it once, everyone updates" is the actual
-// promise of the section this sits under.
+// Purely presentational — nothing is fetched, all data is fictional. Only the
+// tab switcher and the template pills (driving the live preview) are wired.
 
 const COMPANY = "Meridian Realty";
 const WEBSITE = "meridianrealty.com";
+const ACCENT = "#2563EB";
 
 const TEMPLATES = { "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst, "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal } as const;
 type TemplateId = keyof typeof TEMPLATES;
@@ -30,105 +31,126 @@ const TEMPLATE_CHIPS: { id: TemplateId; label: string }[] = [
   { id: "classic-pro", label: "Classic Pro" }, { id: "modern-bold", label: "Modern Bold" }, { id: "photo-first", label: "Photo First" }, { id: "local-business", label: "Local Business" }, { id: "luxury-minimal", label: "Luxury Minimal" },
 ];
 
-const ACCENTS = ["#2563EB", "#0EA5A0", "#7C3AED", "#DC2626", "#EA580C", "#059669"];
-
 type Person = {
-  id: string; name: string; title: string; initials: string; email: string; phone: string;
-  views: number; leads: number; lastActive: string; active: boolean; owner?: boolean; avatar: number;
+  id: string; name: string; title: string; initials: string; email: string;
+  views: number; leads: number; lastActive: string; active: boolean; owner?: boolean;
 };
 
-// Real teammate headshots (Unsplash — free for commercial use, no attribution
-// required). A fictional sample company, so the faces are stock portraits.
-const TEAM_PHOTOS = [
-  "/marketing/team/person1.jpg",
-  "/marketing/team/person2.jpg",
-  "/marketing/team/person3.jpg",
-  "/marketing/team/person4.jpg",
-  "/marketing/team/person5.jpg",
-  "/marketing/team/person6.jpg",
-];
-const teamPhoto = (i: number): string => TEAM_PHOTOS[i % TEAM_PHOTOS.length];
+// The owner's headshot (Unsplash — free for commercial use, no attribution
+// required). Members render the real portal's purple-initials avatar.
+const OWNER_PHOTO = "/marketing/team/person1.jpg";
 
 const PEOPLE: Person[] = [
-  { id: "alex", name: "Alex Morgan", title: "Managing Broker", initials: "AM", email: "alex@meridianrealty.com", phone: "(415) 555-0188", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true, avatar: 0 },
-  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@meridianrealty.com", phone: "(415) 555-0142", views: 903, leads: 94, lastActive: "Yesterday", active: true, avatar: 1 },
-  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@meridianrealty.com", phone: "(212) 555-0119", views: 588, leads: 61, lastActive: "3 days ago", active: true, avatar: 2 },
-  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@meridianrealty.com", phone: "(737) 555-0155", views: 511, leads: 52, lastActive: "5 days ago", active: true, avatar: 4 },
-  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@meridianrealty.com", phone: "(212) 555-0164", views: 96, leads: 4, lastActive: "3 weeks ago", active: false, avatar: 3 },
+  { id: "alex", name: "Alex Morgan", title: "Managing Broker", initials: "AM", email: "alex@meridianrealty.com", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true },
+  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@meridianrealty.com", views: 903, leads: 94, lastActive: "Yesterday", active: true },
+  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@meridianrealty.com", views: 588, leads: 61, lastActive: "3 days ago", active: true },
+  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@meridianrealty.com", views: 511, leads: 52, lastActive: "5 days ago", active: true },
+  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@meridianrealty.com", views: 96, leads: 4, lastActive: "3 weeks ago", active: false },
 ];
 
-const PENDING = { email: "priya@meridianrealty.com", sent: "Jul 12" };
+const PENDING = { email: "priya@meridianrealty.com", initials: "PR", sent: "Jul 12" };
 
 const LEADS = [
-  { id: "l1", name: "Sarah Chen", contact: "sarah@acme.com", by: "Sofia Reyes", worked: true, label: "Contacted", when: "2 hours ago" },
-  { id: "l2", name: "Marcus Webb", contact: "m.webb@northgate.co", by: "Alex Morgan", worked: false, label: "New", when: "Yesterday" },
-  { id: "l3", name: "Jordan Kim", contact: "(415) 555-0173", by: "Marcus Lee", worked: false, label: "New", when: "Yesterday" },
-  { id: "l4", name: "Elena Diaz", contact: "elena@brightpath.io", by: "Elena Diaz", worked: true, label: "Closed", when: "4 days ago" },
-  { id: "l5", name: "Tom Farrell", contact: "tom@farrell.dev", by: "Sofia Reyes", worked: true, label: "Contacted", when: "1 week ago" },
+  { id: "l1", name: "Sarah Chen", email: "sarah@acme.com", phone: "(415) 555-0126", by: "Sofia Reyes", worked: true, label: "Contacted", when: "2 hours ago" },
+  { id: "l2", name: "Marcus Webb", email: "m.webb@northgate.co", phone: null, by: "Alex Morgan", worked: false, label: "New", when: "Yesterday" },
+  { id: "l3", name: "Jordan Kim", email: "jordan.kim@vela.io", phone: "(415) 555-0173", by: "Marcus Lee", worked: false, label: "New", when: "Yesterday" },
+  { id: "l4", name: "Elena Diaz", email: "elena@brightpath.io", phone: "(512) 555-0180", by: "Elena Diaz", worked: true, label: "Closed", when: "4 days ago" },
+  { id: "l5", name: "Tom Farrell", email: "tom@farrell.dev", phone: "(628) 555-0114", by: "Sofia Reyes", worked: true, label: "Contacted", when: "1 week ago" },
 ];
 
-// Company logo mark as an SVG data URI (recolored by the brand accent).
-function logoUri(shape: string, color: string): string {
-  const glyph = shape === "bolt"
-    ? `<polygon points='27,8 16,27 23,27 20,40 33,20 26,20' fill='white'/>`
-    : shape === "ring"
-      ? `<circle cx='24' cy='24' r='10' fill='none' stroke='white' stroke-width='5'/>`
-      : `<text x='24' y='32' font-family='Arial' font-size='23' font-weight='700' fill='white' text-anchor='middle'>M</text>`;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='12' fill='${color}'/>${glyph}</svg>`;
+// Company logo mark as an SVG data URI.
+function logoUri(color: string): string {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='12' fill='${color}'/><text x='24' y='32' font-family='Arial' font-size='23' font-weight='700' fill='white' text-anchor='middle'>M</text></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 type Tab = "Team" | "Leads" | "Branding";
 const TABS: Tab[] = ["Team", "Leads", "Branding"];
 
-// Mirrors the real StatTile + explainer line on /office/admin.
-function BigStat({ label, value, delta, explainer }: { label: string; value: string; delta?: string; explainer: string }) {
+// Mirrors the real BigStat on /office/admin — value + optional sub + optional
+// green delta arrow, explainer underneath.
+function BigStat({ label, value, explainer, delta, sub }: {
+  label: string; value: string; explainer: string; delta?: string; sub?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900 px-4 py-4">
-      <p className="text-[11px] text-gray-500">{label}</p>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
+      <p className="text-xs text-gray-500">{label}</p>
       <div className="flex items-baseline gap-2 mt-1 flex-wrap">
-        <p className="text-[26px] font-bold text-white tabular-nums leading-none">{value}</p>
-        {delta && <span className="text-[10px] font-bold text-green-400">▲ {delta}</span>}
+        <p className="text-[28px] font-bold text-white tabular-nums leading-none">{value}</p>
+        {sub && <span className="text-xs text-gray-600 font-medium">{sub}</span>}
+        {delta && <span className="text-[11px] font-bold text-green-400">▲ {delta}</span>}
       </div>
-      <p className="text-[10.5px] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
+      <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
     </div>
   );
 }
 
+// Mirrors TeamList's StatusChip tones for the statuses shown here.
 function Chip({ tone, children }: { tone: "green" | "amber" | "gray"; children: React.ReactNode }) {
   const tones = {
     green: "bg-green-500/10 text-green-400 border-green-500/20",
     amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     gray: "bg-gray-800 text-gray-400 border-gray-700",
   } as const;
-  return <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${tones[tone]}`}>{children}</span>;
+  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${tones[tone]}`}>{children}</span>;
+}
+
+// The real portal's initials avatar: purple disc, purple border.
+function InitialsAvatar({ initials }: { initials: string }) {
+  return (
+    <span className="w-9 h-9 rounded-full bg-purple-500/15 border border-purple-500/20 text-purple-300 text-xs font-bold flex items-center justify-center shrink-0" aria-hidden="true">
+      {initials}
+    </span>
+  );
+}
+
+const pillCls = "text-[11px] font-semibold text-gray-400 bg-gray-800 px-2.5 py-1 rounded-full whitespace-nowrap";
+const inputCls = "w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white";
+
+// Static stand-in for a filled text input (the demo isn't a form).
+function FakeInput({ value, className = "" }: { value: string; className?: string }) {
+  return <div className={`${inputCls} truncate ${className}`}>{value}</div>;
+}
+
+// Mirrors OfficeBranding's numbered Section.
+function Section({ n, title, desc, children }: {
+  n: number; title: string; desc: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="flex items-start gap-3 mb-4">
+        <span className="w-5 h-5 rounded-full bg-purple-500/15 text-purple-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">{n}</span>
+        <div>
+          <p className="text-sm font-bold text-white">{title}</p>
+          <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function TeamsDashboard() {
   const [tab, setTab] = useState<Tab>("Team");
-  const [template, setTemplate] = useState<TemplateId>("photo-first");
-  const [accent, setAccent] = useState<string>(ACCENTS[0]);
-  const [logo, setLogo] = useState<string>("mono");
-  const [flash, setFlash] = useState(false);
+  const [template, setTemplate] = useState<TemplateId>("classic-pro");
 
   const Template = TEMPLATES[template];
-  const logoUrl = logoUri(logo, accent);
+  const logoUrl = logoUri(ACCENT);
 
-  // Pulse the cards briefly so the "updates instantly" story reads.
-  function brandChange<T>(setter: (v: T) => void, v: T) {
-    setter(v);
-    setFlash(true);
-    setTimeout(() => setFlash(false), 650);
-  }
-
-  function cardData(p: Person): CardData {
-    return withoutSocials({
-      name: p.name, title: p.title, company: COMPANY, phone: p.phone, email: p.email, website: WEBSITE,
-      initials: p.initials, photoUrl: teamPhoto(p.avatar), logoUrl,
-      customization: { accentColor: accent },
-      cardUrl: `swiftcard.me/card/${p.id}`,
-    });
-  }
+  // Live preview — a stand-in teammate, exactly like the real branding page:
+  // their personal details are placeholders, the company half is what's set here.
+  const previewData = withoutSocials({
+    name: "Dana Lee",
+    title: "Sales Manager",
+    company: COMPANY,
+    phone: "(415) 555-0100",
+    email: `dana@${WEBSITE}`,
+    website: WEBSITE,
+    address: "660 Market St, Suite 400, San Francisco, CA, 94104",
+    initials: "DL",
+    logoUrl,
+    cardUrl: "swiftcard.me/card/dana",
+  });
 
   return (
     <div className="rounded-[22px] border border-white/10 bg-[#0A0B10] shadow-2xl overflow-hidden">
@@ -170,58 +192,87 @@ export default function TeamsDashboard() {
         {/* ── TEAM ── */}
         {tab === "Team" && (
           <div>
-            <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-start justify-between gap-4 mb-1">
               <div>
                 <p className="text-[17px] font-bold text-white tracking-tight">Your team</p>
                 <p className="text-gray-500 text-[12px] mt-0.5">Everyone with a company card, and what those cards are bringing in.</p>
               </div>
-              <span className="bg-purple-600 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full shrink-0">+ Add team member</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs text-gray-500 whitespace-nowrap hidden sm:block">
+                  <span className="text-gray-300 font-semibold tabular-nums">4 of 6</span> seats in use
+                </span>
+                <span className="bg-purple-600 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">+ Add team member</span>
+              </div>
             </div>
+            <p className="text-xs text-gray-500 mb-4 sm:hidden">
+              <span className="text-gray-300 font-semibold tabular-nums">4 of 6</span> seats in use
+            </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            {/* The four numbers — same as /office/admin. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 sm:mt-4">
               <BigStat label="Leads captured this month" value="339" delta="18% vs last month" explainer="People who shared their info with your team" />
               <BigStat label="Card views this month" value="3,338" delta="24% vs last month" explainer="Times someone opened one of your team's cards" />
-              <BigStat label="Team members active" value="4" explainer="Teammates whose cards had views or leads this month" />
+              <BigStat label="Team activation rate" value="75%" sub="3 of 4" explainer="People you invited who have a live card up" />
+              <BigStat label="Seats in use" value="4" sub="of 6" explainer="You're paying for 2 seats nobody is using" />
             </div>
 
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                <p className="col-span-4">Person</p><p className="col-span-2">Views</p><p className="col-span-2">Leads</p><p className="col-span-2">Last active</p><p className="col-span-2">Status</p>
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                <p className="col-span-4">Person</p>
+                <p className="col-span-1 text-right">Views</p>
+                <p className="col-span-1 text-right">Leads</p>
+                <p className="col-span-2">Last active</p>
+                <p className="col-span-2">Status</p>
+                <p className="col-span-2 text-right">Actions</p>
               </div>
               <div className="divide-y divide-gray-800">
                 {PEOPLE.map((p) => (
-                  <div key={p.id} className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                  <div key={p.id} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
                     <div className="col-span-12 md:col-span-4 min-w-0 flex items-center gap-2.5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={teamPhoto(p.avatar)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                      {p.owner ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={OWNER_PHOTO} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 bg-gray-800" />
+                      ) : (
+                        <InitialsAvatar initials={p.initials} />
+                      )}
                       <div className="min-w-0">
-                        <p className="text-[12.5px] text-white font-medium truncate">{p.name}</p>
-                        {p.owner && <p className="text-[10px] text-purple-400">Owner (you)</p>}
+                        <div className="flex items-center gap-2">
+                          <p className="text-[13px] text-white font-medium truncate">{p.name}</p>
+                          {p.owner && <span className="text-[10px] text-purple-400 shrink-0">You</span>}
+                        </div>
+                        <p className="text-[11px] text-gray-500 truncate">{p.title}</p>
+                        <p className="text-[11px] text-gray-600 truncate">{p.email}</p>
                       </div>
                     </div>
-                    <p className="col-span-4 md:col-span-2 text-[12.5px] text-gray-300 tabular-nums"><span className="md:hidden text-gray-600 text-[10px]">Views </span>{p.views.toLocaleString("en-US")}</p>
-                    <p className="col-span-4 md:col-span-2 text-[12.5px] text-gray-300 tabular-nums"><span className="md:hidden text-gray-600 text-[10px]">Leads </span>{p.leads}</p>
+                    <p className="col-span-4 md:col-span-1 text-[13px] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[10px]">Views </span>{p.views.toLocaleString("en-US")}</p>
+                    <p className="col-span-4 md:col-span-1 text-[13px] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[10px]">Leads </span>{p.leads}</p>
                     <p className="col-span-4 md:col-span-2 text-[11px] text-gray-500">{p.lastActive}</p>
-                    <div className="col-span-12 md:col-span-2">
+                    <div className="col-span-6 md:col-span-2">
                       {p.active ? <Chip tone="green">Active</Chip> : <Chip tone="amber">Not using it yet</Chip>}
+                    </div>
+                    <div className="col-span-6 md:col-span-2 flex md:justify-end">
+                      <span className={pillCls}>Manage</span>
                     </div>
                   </div>
                 ))}
                 {/* Pending invites live in the same table as real people. */}
-                <div className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                <div className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
                   <div className="col-span-12 md:col-span-4 min-w-0 flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-purple-500/15 border border-purple-500/20 text-purple-300 text-[10px] font-bold flex items-center justify-center shrink-0">PR</span>
+                    <InitialsAvatar initials={PENDING.initials} />
                     <div className="min-w-0">
-                      <p className="text-[12.5px] text-gray-300 truncate">{PENDING.email}</p>
-                      <p className="text-[10px] text-gray-600">Invite sent {PENDING.sent}</p>
+                      <p className="text-[13px] text-gray-300 truncate">{PENDING.email}</p>
+                      <p className="text-[11px] text-gray-600">Invite sent {PENDING.sent}</p>
                     </div>
                   </div>
-                  <p className="col-span-4 md:col-span-2 text-[12.5px] text-gray-600">—</p>
-                  <p className="col-span-4 md:col-span-2 text-[12.5px] text-gray-600">—</p>
+                  <p className="col-span-4 md:col-span-1 text-[13px] text-gray-600 md:text-right">—</p>
+                  <p className="col-span-4 md:col-span-1 text-[13px] text-gray-600 md:text-right">—</p>
                   <p className="col-span-4 md:col-span-2 text-[11px] text-gray-600">—</p>
-                  <div className="col-span-12 md:col-span-2 flex items-center gap-2">
+                  <div className="col-span-6 md:col-span-2">
                     <Chip tone="gray">Invite sent</Chip>
-                    <span className="text-[10px] font-semibold text-purple-300">Resend</span>
+                  </div>
+                  <div className="col-span-6 md:col-span-2 flex items-center gap-2 md:justify-end">
+                    <span className={pillCls}>Resend</span>
+                    <span className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">Cancel</span>
                   </div>
                 </div>
               </div>
@@ -236,43 +287,59 @@ export default function TeamsDashboard() {
               <p className="text-[17px] font-bold text-white tracking-tight">Leads</p>
               <p className="text-gray-500 text-[12px] mt-0.5">Everyone who shared their info with your team — {LEADS.length} so far.</p>
             </div>
+            {/* Search + the two filter selects — same as the real LeadsTable. */}
             <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <div className="flex-1 rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 flex items-center gap-2">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-gray-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" strokeLinecap="round" /></svg>
                 <span className="text-gray-600 text-[12px]">Search by contact name…</span>
               </div>
-              <div className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 sm:w-52 flex items-center justify-between">
+              <div className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 sm:w-48 flex items-center justify-between gap-2">
                 <span className="text-gray-400 text-[12px]">Everyone on the team</span>
+                <span className="text-gray-600 text-[9px]">▼</span>
+              </div>
+              <div className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 sm:w-36 flex items-center justify-between gap-2">
+                <span className="text-gray-400 text-[12px]">Any status</span>
                 <span className="text-gray-600 text-[9px]">▼</span>
               </div>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                <p className="col-span-4">Contact</p><p className="col-span-3">Captured by</p><p className="col-span-2">Status</p><p className="col-span-3">When</p>
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                <p className="col-span-3">Contact</p>
+                <p className="col-span-3">Email &amp; phone</p>
+                <p className="col-span-2">Captured by</p>
+                <p className="col-span-2">Status</p>
+                <p className="col-span-2">When</p>
               </div>
               <div className="divide-y divide-gray-800">
                 {LEADS.map((l) => (
-                  <div key={l.id} className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
-                    <div className="col-span-12 md:col-span-4 min-w-0">
-                      <p className="text-[12.5px] text-white truncate">{l.name}</p>
-                      <p className="text-[11px] text-gray-500 truncate">{l.contact}</p>
+                  <div key={l.id} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
+                    <div className="col-span-12 md:col-span-3 min-w-0">
+                      <p className="text-[13px] text-white truncate">{l.name}</p>
+                    </div>
+                    <div className="col-span-12 md:col-span-3 min-w-0">
+                      <p className="text-[11.5px] text-gray-400 truncate">{l.email}</p>
+                      <p className="text-[11.5px] text-gray-600 truncate">{l.phone || "No phone"}</p>
                     </div>
                     {/* The person's NAME — never a card URL slug. */}
-                    <p className="col-span-5 md:col-span-3 text-[11.5px] text-gray-400 truncate">{l.by}</p>
-                    <div className="col-span-4 md:col-span-2">
+                    <p className="col-span-4 md:col-span-2 text-[11.5px] text-gray-400 truncate">{l.by}</p>
+                    <div className="col-span-5 md:col-span-2 flex items-center gap-2 flex-wrap">
                       <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${l.worked ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${l.worked ? "bg-green-400" : "bg-amber-400"}`} />
                         {l.label}
                       </span>
+                      {!l.worked && (
+                        <span className="text-[10px] font-semibold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full whitespace-nowrap">Mark contacted</span>
+                      )}
                     </div>
-                    <p className="col-span-3 md:col-span-3 text-[11px] text-gray-600 whitespace-nowrap">{l.when}</p>
+                    <p className="col-span-3 md:col-span-2 text-[11px] text-gray-600 whitespace-nowrap">{l.when}</p>
                   </div>
                 ))}
               </div>
             </div>
             <p className="text-[10.5px] text-gray-600 mt-2.5">
               <span className="text-amber-400 font-semibold">New</span> = nobody has followed up yet.{" "}
-              <span className="text-green-400 font-semibold">Contacted</span> / <span className="text-green-400 font-semibold">Closed</span> = someone on your team has handled it.
+              <span className="text-green-400 font-semibold">Contacted</span>, <span className="text-green-400 font-semibold">Closed</span> and{" "}
+              <span className="text-green-400 font-semibold">Not interested</span> = someone on your team has handled it.
             </p>
           </div>
         )}
@@ -280,58 +347,123 @@ export default function TeamsDashboard() {
         {/* ── BRANDING ── */}
         {tab === "Branding" && (
           <div>
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-              <div>
-                <p className="text-[17px] font-bold text-white tracking-tight">Branding</p>
-                <p className="text-gray-500 text-[12px] mt-0.5">Set this once — every card on your team automatically uses it.</p>
-              </div>
-              <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full transition-colors shrink-0 ${flash ? "bg-purple-600 text-white" : "bg-white/[0.06] text-white/50"}`}>
-                {flash ? "✓ Every card updated" : "Try it — change anything below"}
-              </span>
+            <div className="mb-4">
+              <p className="text-[17px] font-bold text-white tracking-tight">Branding</p>
+              <p className="text-gray-500 text-[12px] mt-0.5">Set this once — every card on your team automatically uses it.</p>
             </div>
 
-            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 mb-4">
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-gray-400 text-[11px] font-medium mb-2">Card style</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {TEMPLATE_CHIPS.map((t) => (
-                      <button key={t.id} onClick={() => brandChange(setTemplate, t.id)} className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full transition-colors ${template === t.id ? "bg-purple-600 text-white" : "bg-gray-950 text-gray-400 border border-gray-800 hover:text-gray-200"}`}>{t.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-[11px] font-medium mb-2">Brand color</p>
-                  <div className="flex flex-wrap gap-2">
-                    {ACCENTS.map((c) => (
-                      <button key={c} onClick={() => brandChange(setAccent, c)} className="w-7 h-7 rounded-full transition-transform hover:scale-110" style={{ background: c, outline: accent === c ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }} aria-label={`Brand color ${c}`} />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-[11px] font-medium mb-2">Company logo</p>
-                  <div className="flex items-center gap-2">
-                    {["mono", "bolt", "ring"].map((s) => (
-                      <button key={s} onClick={() => brandChange(setLogo, s)} className="rounded-[10px] transition-transform hover:scale-105" style={{ outline: logo === s ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }} aria-label={`Logo ${s}`}>
+            {/* The look comes from the admin's own card — same notice as the real page. */}
+            <div className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-4">
+              <p className="text-[13px] text-purple-200 font-medium">Your own card sets the look</p>
+              <p className="text-xs text-purple-200/70 mt-1 leading-relaxed">
+                The colors, fonts and layout on every team card are copied from your own card —
+                change your card once and everyone&apos;s updates with it.{" "}
+                <span className="underline">Open your card →</span>
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-[1fr_260px] gap-4 items-start">
+              <div className="space-y-4 min-w-0">
+                {/* 1 ── Company information */}
+                <Section n={1} title="Company information" desc="What's true about your business. This is the same on everyone's card.">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 mb-1.5">Company logo <span className="text-red-400" aria-hidden="true">*</span></p>
+                      <div className="flex items-center gap-3 rounded-xl border border-dashed border-gray-700 bg-gray-950 p-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={logoUri(s, accent)} alt="" className="w-8 h-8 rounded-[10px] block" />
+                        <img src={logoUrl} alt="" className="w-11 h-11 rounded-[10px] shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-300 truncate">meridian-logo.png</p>
+                          <p className="text-[11px] text-gray-600">Shows on every card · <span className="text-purple-300 font-semibold">Replace</span></p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 mb-1.5">Company name</p>
+                        <FakeInput value={COMPANY} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 mb-1.5">Website</p>
+                        <FakeInput value={WEBSITE} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 mb-1.5">Main phone number <span className="text-gray-600 font-normal">(optional)</span></p>
+                        <FakeInput value="(415) 555-0100" />
+                        <p className="text-[11px] text-gray-600 mt-1">Shows as &quot;Office&quot; on every card, next to each person&apos;s own number.</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 mb-1.5">Fax <span className="text-gray-600 font-normal">(optional)</span></p>
+                        <FakeInput value="(415) 555-0101" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-400 mb-1.5">Business address <span className="text-gray-600 font-normal">(optional)</span></p>
+                      <div className="grid grid-cols-6 gap-2">
+                        <FakeInput value="660 Market St" className="col-span-4" />
+                        <FakeInput value="Suite 400" className="col-span-2" />
+                        <FakeInput value="San Francisco" className="col-span-3" />
+                        <FakeInput value="CA" className="col-span-1" />
+                        <FakeInput value="94104" className="col-span-2" />
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+
+                {/* 2 ── Card appearance */}
+                <Section n={2} title="Card appearance" desc="Pick the style. The preview updates as you choose.">
+                  <div className="flex flex-wrap gap-2">
+                    {TEMPLATE_CHIPS.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTemplate(t.id)}
+                        aria-pressed={template === t.id}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                          template === t.id ? "bg-purple-600 text-white" : "bg-gray-950 text-gray-400 border border-gray-800 hover:text-gray-200"
+                        }`}
+                      >
+                        {t.label}
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
+                  <p className="text-[11px] text-gray-600 mt-3">
+                    Colors and fonts come from your own card — change your card once and everyone&apos;s updates with it.
+                  </p>
+                </Section>
 
-            {/* Every teammate's real SwiftCard — updates live with the brand */}
-            <div className={`grid sm:grid-cols-2 xl:grid-cols-3 gap-3 transition-[filter] duration-300 ${flash ? "[filter:brightness(1.06)]" : ""}`}>
-              {PEOPLE.slice(0, 3).map((p) => (
-                <div key={p.id} className="rounded-2xl border border-gray-800 bg-gray-900 p-2.5">
+                {/* 3 ── What team members can edit */}
+                <Section n={3} title="What team members can edit" desc="Everything else is locked to what you set above.">
+                  <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+                    <input type="checkbox" defaultChecked className="accent-purple-500 mt-0.5" />
+                    <span>
+                      Keep every card matching
+                      <span className="block text-[11px] text-gray-600 mt-0.5">
+                        Recommended. Uncheck only if you want each person to pick their own style.
+                      </span>
+                    </span>
+                  </label>
+                </Section>
+
+                <button type="button" className="bg-purple-600 hover:bg-purple-500 text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors">
+                  Save &amp; apply to all cards
+                </button>
+              </div>
+
+              {/* Live preview — one stand-in teammate, like the real page. */}
+              <aside>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
                   <div className="rounded-xl overflow-hidden">
-                    <CardScaler><Template data={cardData(p)} /></CardScaler>
+                    <CardScaler><Template data={previewData} /></CardScaler>
                   </div>
-                  <p className="text-white/70 text-[11px] font-semibold truncate mt-2 px-0.5">{p.name}</p>
+                  <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
+                    An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
+                  </p>
                 </div>
-              ))}
+              </aside>
             </div>
           </div>
         )}
