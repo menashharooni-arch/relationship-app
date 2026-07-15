@@ -50,6 +50,12 @@ export async function POST(req: Request) {
   const defer = formData.get("defer") as string | null; // "true" = just return the URL, write nothing
 
   if (!file || !field) return NextResponse.json({ error: "Missing file or field" }, { status: 400 });
+  // `field` and the filename extension both flow into the storage object key, so
+  // they must be strictly allow-listed — otherwise field="../<otherUserId>/photo"
+  // (with upsert) could traverse out of this user's folder and overwrite another
+  // user's file. Only these two fields exist, and the extension is derived from
+  // the re-encoded content-type below, never from the attacker's filename.
+  if (field !== "photo" && field !== "logo") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
@@ -61,7 +67,13 @@ export async function POST(req: Request) {
   const arrayBuffer = await file.arrayBuffer();
   let body: ArrayBuffer | Buffer = arrayBuffer;
   let contentType = file.type;
-  let ext = file.name.split(".").pop() ?? "jpg";
+  // Extension is derived from the (validated) MIME type — NEVER from the
+  // attacker-supplied filename, which could carry path separators or ".." and
+  // corrupt the storage key. ALLOWED is already checked above.
+  const EXT_BY_TYPE: Record<string, string> = {
+    "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif",
+  };
+  let ext = EXT_BY_TYPE[file.type] ?? "jpg";
   if (file.type !== "image/gif") {
     try {
       const sharp = (await import("sharp")).default;

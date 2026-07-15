@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { escapeHtml } from "@/lib/escape";
 import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     // This is public + unauthenticated — rate-limit per IP so it can't be used
     // to flood the staff inbox or burn the Resend quota.
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     if (await isRateLimited(`contact:${ip}`)) {
       return NextResponse.json({ error: "Too many messages. Please wait a few minutes." }, { status: 429 });
     }

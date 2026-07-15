@@ -9,6 +9,7 @@ import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
+import { clientIp } from "@/lib/client-ip";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Rate limit: same IP submitting to the same card too frequently.
     // card_owner is normalized so "Alice " vs "alice" can't mint fresh buckets.
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ip = clientIp(req);
     const rateKey = `${ip}:${card_owner.trim().toLowerCase()}`;
     if (await isRateLimited(rateKey)) {
       return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });

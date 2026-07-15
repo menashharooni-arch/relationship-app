@@ -2,6 +2,7 @@ import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { isRateLimited } from "@/lib/rate-limit";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp } from "@/lib/client-ip";
 
 // Public (unauthenticated) sales assistant for the marketing site. Answers
 // "what is SwiftCard / what does it cost / how does it work" for visitors and
@@ -140,7 +141,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(req: NextRequest) {
   // Public endpoint → strict per-IP limit (20 messages / 10 minutes).
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(req);
   if (await isRateLimited(`sales-chat:${ip}`, 20, 10 * 60 * 1000)) {
     return NextResponse.json(
       { reply: "You've sent quite a few messages — give it a few minutes and try again, or reach the team at swiftcard.me/contact." },

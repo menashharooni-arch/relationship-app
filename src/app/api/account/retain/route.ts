@@ -22,18 +22,28 @@ export async function POST() {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
-    .select("plan, stripe_subscription_id")
+    .select("plan, stripe_subscription_id, customization")
     .eq("id", user.id)
     .single();
 
   const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   const couponId = process.env.STRIPE_RETENTION_COUPON_ID;
 
+  // Once per customer, exactly like /api/stripe/subscription/discount. Without
+  // this a paid user could POST here every cycle and re-apply the free-month
+  // coupon forever — a perpetual discount they were never offered. (security
+  // audit MED) The flag lives in the server-owned `_retentionUsed` key.
+  const cust = (profile?.customization as Record<string, unknown> | null) ?? {};
+  if (cust._retentionUsed === true) {
+    return NextResponse.json({ error: "already_used", message: "You've already used your retention offer." }, { status: 409 });
+  }
+
   if (isPro && couponId && profile?.stripe_subscription_id) {
     try {
       await getStripe().subscriptions.update(profile.stripe_subscription_id, { discounts: [{ coupon: couponId }] });
+      await admin.from("profiles").update({ customization: { ...cust, _retentionUsed: true } }).eq("id", user.id);
     } catch {
-      /* ignore — they still keep their account */
+      /* ignore — they still keep their account (coupon not consumed, flag not set) */
     }
   }
 

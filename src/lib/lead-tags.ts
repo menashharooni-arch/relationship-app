@@ -1,0 +1,24 @@
+// Reserved lead tags are SERVER-OWNED — they drive org visibility, the Free
+// paywall, and automation state, so a client must never set or clear them by
+// PATCHing a lead's `tags` array. Without this, a user could:
+//   • inject `sc-office-<otherOrgId>` to plant a lead in another company's
+//     Leads tab (cross-org pollution), or
+//   • strip `sc-locked` from their own capped Free lead to unlock it for free,
+//     or pause/unpause automation (`flow-paused`, `email-paused`, `sms-paused`,
+//     `preset-*`) they aren't meant to touch directly.
+export const RESERVED_LEAD_TAG = /^(sc-office-|sc-locked$|flow-|email-paused$|sms-paused$|preset-)/;
+
+// Merge a client-supplied tag array with the row's existing tags so that the
+// server-owned (reserved) tags are preserved exactly as they were and only
+// non-reserved tags from the client are honored. Order: kept reserved tags
+// first, then the client's own tags (de-duplicated).
+export function mergeClientTags(
+  incoming: unknown,
+  existing: string[] | null | undefined,
+): string[] {
+  const incomingClean = (Array.isArray(incoming) ? incoming : [])
+    .filter((t): t is string => typeof t === "string")
+    .filter((t) => !RESERVED_LEAD_TAG.test(t));
+  const keptReserved = (existing ?? []).filter((t) => RESERVED_LEAD_TAG.test(t));
+  return Array.from(new Set([...keptReserved, ...incomingClean]));
+}

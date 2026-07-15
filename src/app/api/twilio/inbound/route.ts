@@ -23,11 +23,20 @@ export async function POST(req: NextRequest) {
   for (const [k, v] of form.entries()) params[k] = String(v);
 
   // Verify the request really came from Twilio (signed with your auth token).
-  const sig = req.headers.get("x-twilio-signature");
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-  const url = `https://${host}/api/twilio/inbound`;
-  if (process.env.TWILIO_SKIP_VALIDATION !== "true" && process.env.TWILIO_AUTH_TOKEN) {
-    if (!sig || !twilio.validateRequest(process.env.TWILIO_AUTH_TOKEN, sig, url, params)) {
+  // FAIL CLOSED: without a configured auth token, an unsigned request could
+  // forge inbound SMS to manipulate the opt-out list or inject into a thread.
+  // In production we require the token + a valid signature; the skip flag is
+  // honored only outside production (local testing).
+  const skip = process.env.TWILIO_SKIP_VALIDATION === "true" && process.env.NODE_ENV !== "production";
+  if (!skip) {
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    if (!token) {
+      return new NextResponse("Twilio not configured", { status: 503 });
+    }
+    const sig = req.headers.get("x-twilio-signature");
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const url = `https://${host}/api/twilio/inbound`;
+    if (!sig || !twilio.validateRequest(token, sig, url, params)) {
       return new NextResponse("Invalid signature", { status: 403 });
     }
   }
