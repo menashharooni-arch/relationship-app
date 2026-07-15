@@ -20,20 +20,23 @@ import { buildConnectLinks } from "@/lib/social-url";
 // same components the live /card page uses. Display-only here (no downloads,
 // posts, or nav) — just an accurate preview.
 
+// Same demo identity as SAMPLE_DATA (card-templates/types.tsx) and every other
+// marketing demo (SwiftLinksPhone, TeamsDashboard, DashboardDemo) — one person,
+// one company, everywhere on the site.
 const IDENTITY = {
   name: "Alex Morgan",
-  title: "Realtor",
-  company: "Coastline Realty",
-  phone: "(415) 555-0188",
-  email: "alex@coastlinerealty.com",
-  website: "coastlinehomes.com",
+  title: "Founder & CEO",
+  company: "Morgan & Co.",
+  phone: "(555) 123-4567",
+  email: "alex@morganandco.com",
+  website: "www.morganandco.com",
   linkedin: "linkedin.com/in/alexmorgan",
-  instagram: "@coastlinehomes",
-  tiktok: "@coastlinehomes",
+  instagram: "@morganandco",
+  tiktok: "@morganandco",
   twitter: "@alexmorgan",
 };
 const FIRST = "Alex";
-const CARD_URL = "https://swiftcard.me/card/alex-morgan";
+const CARD_URL = "https://swiftcard.me/card/alexmorgan";
 
 const CARD_DATA: CardData = withoutSocials({
   name: IDENTITY.name,
@@ -45,7 +48,7 @@ const CARD_DATA: CardData = withoutSocials({
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,
-  cardUrl: "swiftcard.me/card/alex-morgan",
+  cardUrl: "swiftcard.me/card/alexmorgan",
 });
 
 const PERSON = {
@@ -87,7 +90,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
               <div className="flex items-center gap-3 mb-1"><SectionNumber n={1} /><p className="text-slate-900 font-semibold text-sm">Save {FIRST}&apos;s contact</p></div>
               <p className="text-slate-400 text-xs mb-4 ml-9">One tap adds them to your phone contacts — no app needed.</p>
               <div style={showOnly}>
-                <SaveContactButton person={PERSON} username="alex-morgan" source="signature_demo" cardOwner="alex-morgan" ownerFirstName={FIRST} suppressTracking />
+                <SaveContactButton person={PERSON} username="alexmorgan" source="signature_demo" cardOwner="alexmorgan" ownerFirstName={FIRST} suppressTracking />
               </div>
             </div>
 
@@ -115,7 +118,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
                 <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
               </div>
               <div style={showOnly}>
-                <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alex-morgan" ownerFirstName={FIRST} />
+                <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
               </div>
             </div>
 
@@ -179,7 +182,7 @@ export default function SignatureDemo() {
 
           {/* signature */}
           <div className="mt-5 pt-5 border-t border-slate-100">
-            <p className="text-[14px] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Coastline Realty</span></p>
+            <p className="text-[14px] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Morgan &amp; Co.</span></p>
             <div className="relative w-[300px] max-w-full transition-transform hover:-translate-y-0.5">
               <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.4)]" style={{ pointerEvents: "none", background: "#FAF7F2" }}>
                 <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>
