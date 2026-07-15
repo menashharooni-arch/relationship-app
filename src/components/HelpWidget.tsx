@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isNativeApp } from "@/lib/platform";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -43,8 +44,9 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
       const res = await fetch("/api/ai/help", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Skip the static greeting when sending history.
-        body: JSON.stringify({ messages: next.slice(1) }),
+        // Skip the static greeting when sending history. The `native` flag lets
+        // the server apply the in-app guardrail (no pricing/upgrade/website).
+        body: JSON.stringify({ messages: next.slice(1), native: isNativeApp }),
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply || "Sorry, I couldn't answer that." }]);
