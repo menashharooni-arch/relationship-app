@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { detectNativeApp } from "@/lib/platform";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -39,6 +41,18 @@ function Check({ pro }: { pro?: boolean }) {
 type PromoState = { code: string; status: "idle" | "checking" | "valid" | "invalid"; message: string; appliedCode?: string; discountLabel?: string };
 
 export default function PricingPage() {
+  const router = useRouter();
+  // Native app: the pricing page is a selling surface and must not appear.
+  // Redirect to the dashboard on mount. This also cleanly covers the Office
+  // team-management gate: a non-Office user who hits /office/admin is redirected
+  // server-side to /pricing (unchanged on web), and on native that lands here
+  // and bounces straight to /dashboard — no selling shown. Server-side native
+  // detection isn't reliable in a Capacitor webview, so this client redirect is
+  // the safe approach. On web this effect is a no-op.
+  useEffect(() => {
+    if (detectNativeApp()) router.replace("/dashboard");
+  }, [router]);
+
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
