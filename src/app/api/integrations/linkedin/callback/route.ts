@@ -7,9 +7,21 @@ import { exchangeLinkedInCode, isLinkedInEnabled } from "@/lib/sync-linkedin";
 export const runtime = "nodejs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-const DONE = (status: string) => NextResponse.redirect(`${APP_URL}/settings/flows?integration=linkedin&status=${status}`);
 
 export async function GET(request: NextRequest) {
+  // Return the user to where they started the connect (set by /connect?next=…,
+  // same-origin paths only) — default is Settings. Clear the cookie either way.
+  const returnRaw = request.cookies.get("li_return_to")?.value ?? "";
+  const returnTo = returnRaw.startsWith("/") && !returnRaw.startsWith("//") ? returnRaw : "/settings/flows";
+  const DONE = (status: string) => {
+    const url = new URL(returnTo, APP_URL);
+    url.searchParams.set("integration", "linkedin");
+    url.searchParams.set("status", status);
+    const res = NextResponse.redirect(url.toString());
+    res.cookies.set("li_return_to", "", { maxAge: 0, path: "/" });
+    return res;
+  };
+
   if (!isLinkedInEnabled()) return DONE("error");
 
   const { searchParams } = new URL(request.url);
