@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { revokeAppleTokensOnDelete } from "@/lib/apple-revoke";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -53,6 +54,16 @@ export async function POST(req: NextRequest) {
       },
     })
     .eq("id", user.id);
+
+  // Sign in with Apple (requirement 6.2): if this account was created with an
+  // Apple identity, revoke its Apple tokens. Best-effort and fully guarded — it
+  // never blocks deletion, and it's a no-op for every current account (no user
+  // has an Apple identity yet, and the Apple env vars aren't set).
+  try {
+    await revokeAppleTokensOnDelete(user);
+  } catch {
+    /* never block deletion */
+  }
 
   // End the session.
   try {
