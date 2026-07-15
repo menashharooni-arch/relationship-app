@@ -73,8 +73,14 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   if (!profile) notFound();
 
   // Don't count the owner viewing their own Swift Links page as a view.
+  // getUser() refreshes the Supabase session cookie, which can throw for a
+  // public viewer carrying a stale/invalid cookie — a public page must never
+  // 500 on that (the card page guards this identically). Default to not-owner.
   const ownerId = (profile as { user_id?: string; id?: string }).user_id ?? (profile as { id?: string }).id;
-  const { data: { user: viewer } } = await (await createClient()).auth.getUser();
+  let viewer: { id: string } | null = null;
+  try {
+    ({ data: { user: viewer } } = await (await createClient()).auth.getUser());
+  } catch { /* public viewer with a bad cookie — treat as anonymous */ }
   const isOwnerView = !!viewer && viewer.id === ownerId;
 
   const ownerPaid = isPaidPlan(ownerPlan);

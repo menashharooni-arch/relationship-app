@@ -45,6 +45,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label } = body;
 
+  // Server-side validation (the client validated too, but the API must not
+  // accept a card with no name — it renders "Save 's contact" / a blank hero —
+  // nor unbounded field lengths. (cards audit M5) Caps are generous so no real
+  // card is truncated; they only stop abuse.
+  if (typeof name !== "string" || !name.trim()) {
+    return NextResponse.json({ error: "invalid", message: "A name is required." }, { status: 400 });
+  }
+  if (name.length > 120) {
+    return NextResponse.json({ error: "invalid", message: "That name is too long." }, { status: 400 });
+  }
+
   // The username is ONLY the public URL slug — the account (email/auth user) is
   // the real identity — so a slug collision must never block card creation. We
   // normalize to the safe charset ([a-z0-9-], so it can't break the Supabase

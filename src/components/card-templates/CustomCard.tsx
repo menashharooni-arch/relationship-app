@@ -173,7 +173,13 @@ export function CustomElementContent({
 }
 
 export default function CustomCard({ data }: { data: CardData }) {
-  const layout = data.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT;
+  const raw = data.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT;
+  // A corrupted layout (e.g. a restored guest draft that saved `customLayout: {}`
+  // with no elements) would throw on `.elements.map` and crash the card. Fall
+  // back to the default element set when elements isn't an array. (cards audit M4)
+  const layout = Array.isArray((raw as CustomLayout)?.elements)
+    ? (raw as CustomLayout)
+    : { ...DEFAULT_CUSTOM_LAYOUT, ...(raw as object), elements: DEFAULT_CUSTOM_LAYOUT.elements };
   return (
     <div
       className="sc-card"

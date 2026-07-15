@@ -120,10 +120,13 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
 
   // All phones, typed (mobile → CELL, office → WORK); fall back to the legacy
   // single phone; fax last.
-  const phones = (person.phones ?? []).filter((p) => p?.number?.trim());
+  const phones = (Array.isArray(person.phones) ? person.phones : []).filter((p) => p?.number?.trim());
   if (phones.length) {
     for (const p of phones) {
-      const type = p.label === "office" ? "WORK,VOICE" : "CELL,VOICE";
+      // Case-insensitive: the office overlay writes the label as "Office" (capital
+      // O), which used to miss this === "office" check and export office numbers
+      // as CELL. (cards audit L2)
+      const type = String(p.label).toLowerCase() === "office" ? "WORK,VOICE" : "CELL,VOICE";
       lines.push(`TEL;TYPE=${type}:${esc(p.number)}`);
     }
   } else if (person.phone) {

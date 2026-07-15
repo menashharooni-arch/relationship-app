@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isCardActive } from "@/lib/card-active";
 
 // A pixel-perfect PNG of the real card, captured client-side on the dashboard
 // and stored here. When present it IS the share preview, so the link unfurls
@@ -265,10 +266,19 @@ export default async function Image({
 }) {
   const { username } = await params;
 
+  // Kill-switch: a card that's offline, deleted, or plan-deactivated 404s on the
+  // page and its metadata "goes dark", but the stored capture below would keep
+  // serving the full card image (name/phone/email) forever. Honor the same
+  // active check the wallet route uses, and fall through to the brand fallback
+  // when inactive. (cards audit M2) Fails OPEN on error so a transient DB blip
+  // doesn't blank a live card's share preview.
+  let active = true;
+  try { active = await isCardActive(username); } catch { active = true; }
+
   // ── Tier 1: the pixel-perfect capture of the real card ────────────────────
   // Cover-fit to the exact frame → full-bleed, no blank space. JPEG keeps it
   // small (~40-90KB, under WhatsApp's ~600KB ceiling). Any failure → next tier.
-  try {
+  if (active) try {
     const stored = await storedCardImage(username);
     if (stored) {
       const hdr = new DataView(stored);
