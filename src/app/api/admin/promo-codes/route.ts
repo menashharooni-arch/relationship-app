@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
+import { FREE_PERIODS, isFreeDays, isDiscountType } from "@/lib/promo";
 
 // POST /api/admin/promo-codes — create a new promo code
 export async function POST(req: NextRequest) {
@@ -11,8 +12,9 @@ export async function POST(req: NextRequest) {
     code,
     description,
     discount_percent,
-    discount_type = "percent",
+    discount_type = "free_time",
     discount_amount,
+    free_days,
     max_uses,
     expires_at,
     plan_target = "free",
@@ -20,26 +22,50 @@ export async function POST(req: NextRequest) {
   } = body;
 
   if (!code) return NextResponse.json({ error: "code is required" }, { status: 400 });
-  if (!discount_percent && !discount_amount) {
-    return NextResponse.json({ error: "discount_percent or discount_amount required" }, { status: 400 });
+  if (!isDiscountType(discount_type)) {
+    return NextResponse.json({ error: "Unknown discount type." }, { status: 400 });
   }
-  // Clamp discount magnitude BEFORE anything is created — otherwise a typo'd
-  // value (150%, negative, huge amount_off) can persist locally even when
-  // Stripe rejects it, leaving an over-generous or broken code in promo_codes.
-  if (discount_percent != null && !(Number(discount_percent) > 0 && Number(discount_percent) <= 100)) {
-    return NextResponse.json({ error: "discount_percent must be between 1 and 100" }, { status: 400 });
-  }
-  if (discount_amount != null && !(Number(discount_amount) > 0 && Number(discount_amount) <= 100_00)) {
-    return NextResponse.json({ error: "discount_amount must be 1–10000 cents ($100 max)" }, { status: 400 });
+
+  const isFreeTime = discount_type === "free_time";
+
+  // ── Validate the offer BEFORE anything is created ───────────────────────────
+  // A typo'd value (150%, negative, a 9-month "free trial") must never persist
+  // locally even when Stripe rejects it — that leaves an over-generous or broken
+  // code sitting in promo_codes looking legitimate.
+  if (isFreeTime) {
+    if (!isFreeDays(Number(free_days))) {
+      return NextResponse.json(
+        { error: `Free period must be one of: ${FREE_PERIODS.map((p) => p.label.toLowerCase()).join(", ")}.` },
+        { status: 400 },
+      );
+    }
+  } else {
+    if (!discount_percent && !discount_amount) {
+      return NextResponse.json({ error: "discount_percent or discount_amount required" }, { status: 400 });
+    }
+    if (discount_percent != null && !(Number(discount_percent) > 0 && Number(discount_percent) <= 100)) {
+      return NextResponse.json({ error: "discount_percent must be between 1 and 100" }, { status: 400 });
+    }
+    if (discount_amount != null && !(Number(discount_amount) > 0 && Number(discount_amount) <= 100_00)) {
+      return NextResponse.json({ error: "discount_amount must be 1–10000 cents ($100 max)" }, { status: 400 });
+    }
   }
 
   const cleanCode = code.toUpperCase().trim();
 
-  // Make the code REAL: create a matching Stripe coupon + promotion code so
-  // customers can type it on the Stripe checkout page (allow_promotion_codes).
+  // ── Make the code real in Stripe ────────────────────────────────────────────
+  // percent/fixed → a Stripe coupon + promotion code, so it can also be typed on
+  // Stripe's own checkout page (allow_promotion_codes).
+  //
+  // free_time → NO coupon. Free time is a trial (trial_period_days), and Stripe
+  // coupons can't express it: their duration is whole months only, so "one week
+  // free" is not a coupon anyone can build. The checkout route resolves the code
+  // to a trial instead. That also means a free-time code can't be typed on
+  // Stripe's page — it's redeemed in the SwiftCard promo box on /pricing, which
+  // is where the plan/expiry/usage rules can actually be enforced.
   let couponId: string | null = stripe_coupon_id ?? null;
   let stripeWarning: string | null = null;
-  if (!couponId) {
+  if (!isFreeTime && !couponId) {
     try {
       const { getStripe } = await import("@/lib/stripe");
       const stripe = getStripe();
@@ -67,16 +93,27 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin.from("promo_codes").insert({
     code: cleanCode,
     description,
-    discount_percent,
+    discount_percent: isFreeTime ? null : discount_percent,
     discount_type,
-    discount_amount,
+    discount_amount: isFreeTime ? null : discount_amount,
+    free_days: isFreeTime ? Number(free_days) : null,
     max_uses,
     expires_at: expires_at || null,
     plan_target,
     stripe_coupon_id: couponId,
   }).select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // The free_days column + the widened discount_type CHECK arrive in
+    // supabase/promo-free-time.sql. Say so rather than surfacing raw Postgres.
+    if (isFreeTime && /free_days|discount_type|check constraint/i.test(error.message)) {
+      return NextResponse.json(
+        { error: "Free-time codes need the promo-free-time.sql migration run first (Supabase → SQL Editor)." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ promo: data, stripeWarning });
 }
 

@@ -107,6 +107,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   const presetPlan: "pro" | "office" | null = planParam === "pro" ? "pro" : planParam === "office" ? "office" : null;
   const presetAnnual = searchParams.get("interval") === "annual";
   const presetSeats = Math.max(2, Math.floor(Number(searchParams.get("seats")) || 2));
+  const presetPromo = searchParams.get("promo") || null;
   // Only requireAuth from the hook (stable). Autosave uses the raw debounced
   // saveDraft so it never triggers a setState → re-render → save loop.
   const { requireAuth } = useGuestDraft();
@@ -502,6 +503,10 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
     if (!guest && presetPlan && !postCheckout) {
       const qs = new URLSearchParams({ plan: presetPlan, interval: presetAnnual ? "annual" : "monthly" });
       if (presetPlan === "office") qs.set("seats", String(presetSeats));
+      // Carry the promo through the builder — /pricing → /cards/new → /checkout.
+      // Without this the code is silently dropped mid-flow and the buyer pays
+      // full price for an offer they were shown.
+      if (presetPromo) qs.set("promo", presetPromo);
       router.push(`/checkout?${qs.toString()}`);
       return;
     }
@@ -971,7 +976,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                   if (!guest) { requireAuth("save", handleCreate); return; }
                   // Plan-specific entry → skip the chooser, carry the plan to payment.
                   if (presetPlan) {
-                    pickPlanThenSignUp({ plan: presetPlan, annual: presetAnnual, seats: presetPlan === "office" ? presetSeats : 1 });
+                    pickPlanThenSignUp({ plan: presetPlan, annual: presetAnnual, seats: presetPlan === "office" ? presetSeats : 1, ...(presetPromo ? { promo: presetPromo } : {}) });
                     return;
                   }
                   setShowPlan(true);
@@ -1020,7 +1025,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
             </div>
             <PlanCards
               onFree={() => pickPlanThenSignUp({ plan: "free" })}
-              onPaid={(plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats })}
+              onPaid={(plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })}
               busy={null}
               freeLabel="Start free →"
             />

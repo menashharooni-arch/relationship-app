@@ -4,12 +4,14 @@
 // a mandatory-feeling "send test to me" step) + promo code management.
 
 import { useCallback, useEffect, useState } from "react";
+import { FREE_PERIODS, promoLabel } from "@/lib/promo";
 
 type Counts = { all: number; free: number; pro: number; office: number };
 type PromoCode = {
   id: string; code: string; description: string | null; discount_percent: number | null;
   discount_amount: number | null; max_uses: number | null; expires_at: string | null; created_at: string;
   stripe_coupon_id: string | null;
+  discount_type: string | null; free_days: number | null;
 };
 type DomainStatus = {
   configured: boolean; exists: boolean; status: string; error?: string;
@@ -29,7 +31,7 @@ export default function MarketingClient() {
   // Promos
   const [promos, setPromos] = useState<PromoCode[]>([]);
   const [promosReady, setPromosReady] = useState(true);
-  const [promoForm, setPromoForm] = useState({ code: "", description: "", discount_percent: "20", max_uses: "", expires_at: "", plan_target: "free" });
+  const [promoForm, setPromoForm] = useState({ code: "", description: "", free_days: "30", max_uses: "", expires_at: "", plan_target: "free" });
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
 
@@ -134,14 +136,18 @@ export default function MarketingClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...promoForm,
-          discount_percent: promoForm.discount_percent ? Number(promoForm.discount_percent) : null,
+          // Free time, not a percentage: a code hands out a period of the plan.
+          // Stripe delivers it as a trial (trial_period_days) because coupons
+          // can only express whole months — "one week free" isn't a coupon.
+          discount_type: "free_time",
+          free_days: Number(promoForm.free_days),
           max_uses: promoForm.max_uses ? Number(promoForm.max_uses) : null,
           expires_at: promoForm.expires_at || null,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        setPromoForm({ code: "", description: "", discount_percent: "20", max_uses: "", expires_at: "", plan_target: "free" });
+        setPromoForm({ code: "", description: "", free_days: "30", max_uses: "", expires_at: "", plan_target: "free" });
         setPromoError(data.stripeWarning ?? null); // honest warning if Stripe rejected the code
         loadPromos();
       } else {
@@ -310,9 +316,19 @@ export default function MarketingClient() {
                   placeholder="LAUNCH20" required className={`${inputCls} font-mono`} />
               </div>
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Discount % *</label>
-                <input type="number" min="1" max="100" value={promoForm.discount_percent} onChange={(e) => setPromoForm((p) => ({ ...p, discount_percent: e.target.value }))}
-                  required className={inputCls} />
+                <label className="text-xs text-gray-400 block mb-1">Free period *</label>
+                <select
+                  value={promoForm.free_days}
+                  onChange={(e) => setPromoForm((p) => ({ ...p, free_days: e.target.value }))}
+                  required
+                  className={inputCls}
+                >
+                  {FREE_PERIODS.map((f) => (
+                    <option key={f.days} value={String(f.days)} className="bg-gray-900">
+                      {f.label} free
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="col-span-2">
                 <label className="text-xs text-gray-400 block mb-1">Description</label>
@@ -357,10 +373,12 @@ export default function MarketingClient() {
                       {p.description && <span className="text-gray-500 ml-2">{p.description}</span>}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-green-400 font-semibold">{p.discount_percent ? `${p.discount_percent}%` : p.discount_amount ? `$${(p.discount_amount / 100).toFixed(2)}` : "—"}</span>
+                      {/* Shared label helper — the admin list and the customer's
+                          /pricing box describe a code with the same words. */}
+                      <span className="text-green-400 font-semibold">{promoLabel(p)}</span>
                       <span className="text-gray-600">{p.expires_at ? `until ${new Date(p.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "no expiry"}</span>
                       <button
-                        onClick={() => { setPromoSend({ code: p.code, headline: `Here's ${p.discount_percent ? `${p.discount_percent}% off` : "a discount"} on SwiftCard Pro`, message: "Upgrade with the code below and unlock unlimited cards, contacts, and follow-ups.", segment: "free" }); setPromoSendResult(null); }}
+                        onClick={() => { setPromoSend({ code: p.code, headline: `Here's ${promoLabel(p)} on SwiftCard Pro`, message: "Upgrade with the code below and unlock unlimited cards, contacts, and follow-ups.", segment: "free" }); setPromoSendResult(null); }}
                         className="text-blue-400 hover:text-blue-300 transition-colors font-semibold">
                         Email to users
                       </button>

@@ -45,6 +45,7 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
           plan: plan === "office" ? "office" : "pro",
           interval: annual ? "annual" : "monthly",
           seats: plan === "office" ? seats : 1,
+          ...(intent?.promo ? { promoCode: intent.promo } : {}),
           // Office owners go to the Office dashboard after payment; Pro keeps the
           // guided-tour landing. (The card was already created before payment in
           // this guest flow, so no post-payment card step is needed here.)

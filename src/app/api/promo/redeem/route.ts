@@ -91,6 +91,12 @@ export async function POST(req: NextRequest) {
   // so a duplicate/failed attempt can never inflate it.
   await admin.from("promo_codes").update({ uses_count: promo.uses_count + 1 }).eq("id", promo.id);
 
+  // NOTE: stripe_coupon_id is deliberately NOT returned any more. It used to be,
+  // and the client then handed it to /api/stripe/checkout, which passed it
+  // straight to Stripe unvalidated — so a coupon id lifted from the URL of a
+  // shared checkout link applied to anyone's purchase, bypassing max_uses,
+  // expiry, plan_target and the per-user single-use rule. Checkout now takes the
+  // CODE and re-resolves it server-side; the client never sees a Stripe id.
   return NextResponse.json({
     success: true,
     promo: {
@@ -99,7 +105,7 @@ export async function POST(req: NextRequest) {
       discount_type: promo.discount_type,
       discount_percent: promo.discount_percent,
       discount_amount: promo.discount_amount,
-      stripe_coupon_id: promo.stripe_coupon_id,
+      free_days: promo.free_days ?? null,
     },
   });
 }

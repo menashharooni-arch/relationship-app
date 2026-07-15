@@ -8,6 +8,7 @@ import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
+import { promoLabel } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 
@@ -31,7 +32,11 @@ function Check({ pro }: { pro?: boolean }) {
   );
 }
 
-type PromoState = { code: string; status: "idle" | "checking" | "valid" | "invalid"; message: string; couponId?: string; discountLabel?: string };
+// No couponId here on purpose. The Stripe coupon id used to be handed to the
+// client, put in the URL, and passed to checkout unvalidated — so lifting one
+// from a shared link applied it to anyone's purchase. The CODE travels instead;
+// the server re-resolves it.
+type PromoState = { code: string; status: "idle" | "checking" | "valid" | "invalid"; message: string; appliedCode?: string; discountLabel?: string };
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
@@ -52,8 +57,9 @@ export default function PricingPage() {
       const data = await res.json();
       if (res.ok) {
         const d = data.promo;
-        const discountLabel = d.discount_percent ? `${d.discount_percent}% off` : d.discount_amount ? `$${(d.discount_amount / 100).toFixed(2)} off` : "Discount applied";
-        setPromo((p) => ({ ...p, status: "valid", message: d.description || discountLabel, couponId: d.stripe_coupon_id, discountLabel }));
+        // Shared with the admin list so a code is described identically in both.
+        const discountLabel = promoLabel(d);
+        setPromo((p) => ({ ...p, status: "valid", message: d.description || discountLabel, appliedCode: d.code, discountLabel }));
       } else {
         setPromo((p) => ({ ...p, status: "invalid", message: data.error || "Invalid code" }));
       }
@@ -73,7 +79,7 @@ export default function PricingPage() {
     const planKey = plan === "enterprise" ? "office" : "pro";
     const qs = new URLSearchParams({ plan: planKey, interval: annual ? "annual" : "monthly" });
     if (plan === "enterprise") qs.set("seats", String(seats));
-    if (promo.status === "valid" && promo.couponId) qs.set("coupon", promo.couponId);
+    if (promo.status === "valid" && promo.appliedCode) qs.set("promo", promo.appliedCode);
     window.location.href = `/cards/new?${qs.toString()}`;
   }
 

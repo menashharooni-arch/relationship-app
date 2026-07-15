@@ -3,6 +3,10 @@
 // after their card is claimed: Free → dashboard, Pro/Office → Stripe checkout.
 
 export type PlanIntent = {
+  /** Promo CODE (never a Stripe coupon id — see api/stripe/checkout). Carried
+   *  through the guest signup detour so an offer shown on /pricing survives
+   *  account creation instead of silently evaporating at checkout. */
+  promo?: string;
   plan: "free" | "pro" | "office";
   annual?: boolean;
   seats?: number;
