@@ -50,6 +50,10 @@ export default function Home() {
                   Free to start — no credit card required
                 </span>
               </div>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-3.5 py-1.5" data-reveal="fade">
+                <span aria-hidden="true">💍</span>
+                <span className="text-pink-700 text-sm font-medium">Aaron Lavi engaged to Serena Eshagoff</span>
+              </div>
               <h1 className="rd-display text-slate-900 mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
