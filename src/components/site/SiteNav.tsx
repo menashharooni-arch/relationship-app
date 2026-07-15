@@ -199,10 +199,18 @@ export default function SiteNav() {
                           // homepage scrolls to the top (a same-route Link no-ops).
                           if (it.href === "/" && window.location.pathname === "/") window.scrollTo(0, 0);
                         }}
-                        className="flex items-center justify-between rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]"
+                        className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]"
                       >
-                        <span className="text-[15px] font-medium">{it.label}</span>
-                        <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/30" fill="currentColor"><path fillRule="evenodd" d="M7.3 4.3a1 1 0 011.4 0l5 5a1 1 0 010 1.4l-5 5a1 1 0 01-1.4-1.4L11.6 10 7.3 5.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
+                        {/* Both menus read the SAME items array, but this one
+                            rendered only `label` and dropped `desc` — so every
+                            subheader the desktop dropdown shows ("Apple Watch →
+                            Share from your wrist") was invisible on a phone.
+                            Same source, same words, on both. */}
+                        <span className="min-w-0">
+                          <span className="block text-[15px] font-medium">{it.label}</span>
+                          <span className="block text-[12.5px] text-white/45 leading-snug mt-0.5">{it.desc}</span>
+                        </span>
+                        <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/30 shrink-0" fill="currentColor"><path fillRule="evenodd" d="M7.3 4.3a1 1 0 011.4 0l5 5a1 1 0 010 1.4l-5 5a1 1 0 01-1.4-1.4L11.6 10 7.3 5.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
                       </Link>
                     ))}
                   </div>

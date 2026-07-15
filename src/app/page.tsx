@@ -16,6 +16,7 @@ import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
+import WideDemo from "@/components/site/WideDemo";
 
 export const metadata: Metadata = {
   title: "SwiftCard — The digital business card that shares itself",
@@ -197,7 +198,11 @@ export default function Home() {
                 Real-time views, saves, and locations. Every contact who taps your card lands in one place — searchable, with the full history and automated follow-ups. Try the dashboard right here.
               </p>
             </div>
-            <div data-reveal="fade"><DashboardDemo /></div>
+            <div data-reveal="fade">
+              <WideDemo minWidth={760} hint="Swipe to explore the dashboard →">
+                <DashboardDemo />
+              </WideDemo>
+            </div>
             {/* This section had no CTA at all — the copy says "try the dashboard
                 right here", so the next step is the demo that actually is one. */}
             <div className="mt-8 flex flex-wrap items-center gap-3" data-reveal>
@@ -316,7 +321,11 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <div className="mt-8" data-reveal="fade"><TeamsDashboard /></div>
+            <div className="mt-8" data-reveal="fade">
+              <WideDemo minWidth={820} hint="Swipe to explore the admin →">
+                <TeamsDashboard />
+              </WideDemo>
+            </div>
             {/* The highest-value segment on the page had no CTA whatsoever — no
                 link to the Office product page, to pricing, or to a human. A
                 small team that's ready gets the self-serve path; a bigger or
