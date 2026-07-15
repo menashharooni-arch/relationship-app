@@ -31,18 +31,22 @@ Do NOT commit `.env.local` to git.
 ## Needed for CRM Integrations (Google Contacts, HubSpot)
 
 > Zapier needs no env var — each user pastes their own webhook URL in Settings → Integrations, which also carries conversation-notification and view events to any CRM.
+>
+> HubSpot needs no env var either — HubSpot disabled self-serve public (OAuth,
+> multi-account) app creation, so this connects via a **Private App access
+> token** instead. Each user pastes their own token in Settings →
+> Integrations (HubSpot → Settings → Integrations → Private Apps → Create a
+> private app → grant `crm.objects.contacts.write` → copy the token). No
+> Client ID/Secret, no redirect URI, nothing to configure here.
 
 | Variable | Where to get it |
 |---|---|
-| `OAUTH_SECRET` | **Required** for Google/HubSpot connect. A 32-byte key as 64 hex chars. Generate with `openssl rand -hex 32`. Encrypts the stored OAuth tokens. |
+| `OAUTH_SECRET` | **Required** for Google connect (and to encrypt stored HubSpot tokens). A 32-byte key as 64 hex chars. Generate with `openssl rand -hex 32`. |
 | `GOOGLE_CLIENT_ID` | console.cloud.google.com → APIs & Services → Credentials → Create OAuth client ID (Web application). Also enable the **People API**. |
 | `GOOGLE_CLIENT_SECRET` | Same Google OAuth client. |
-| `HUBSPOT_CLIENT_ID` | developers.hubspot.com → your app → Auth tab. |
-| `HUBSPOT_CLIENT_SECRET` | Same HubSpot app → Auth tab. |
 
-Register these **redirect URIs** in each OAuth app (must match `NEXT_PUBLIC_APP_URL` exactly):
+Register this **redirect URI** in the Google OAuth app (must match `NEXT_PUBLIC_APP_URL` exactly):
 - Google → `https://swiftcard.me/api/integrations/google/callback` · scope `https://www.googleapis.com/auth/contacts`
-- HubSpot → `https://swiftcard.me/api/integrations/hubspot/callback` · scope `crm.objects.contacts.write`
 
 ---
 
@@ -133,9 +137,8 @@ See **`STRIPE_TWILIO_SETUP.md`** for the full dashboard walkthrough (buying a nu
 | `ADMIN_SECRET` | Admin broadcast + promo code routes return 403 |
 | `GEMINI_API_KEY` (or OPENAI/ANTHROPIC) | AI follow-up generation falls back to generic templates |
 | `NEXT_PUBLIC_APP_URL` | Card links, email links, and OAuth redirects will point at the wrong domain |
-| `OAUTH_SECRET` | Google & HubSpot "Connect" fail (can't encrypt tokens) |
+| `OAUTH_SECRET` | Google "Connect" and HubSpot token save both fail (can't encrypt tokens) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Contacts integration |
-| `HUBSPOT_CLIENT_ID` / `HUBSPOT_CLIENT_SECRET` | HubSpot integration |
 | `STRIPE_SECRET_KEY` | Checkout and subscription management |
 | `STRIPE_WEBHOOK_SECRET` | Plan upgrades, receipts, failed-payment emails, and cancellations won't process |
 | `NEXT_PUBLIC_STRIPE_*_PRICE_ID` | Checkout rejects the request with "Unknown plan price" |

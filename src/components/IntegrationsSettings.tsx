@@ -11,9 +11,6 @@ type Props = {
   googleSyncError?: string | null;
   hubspotSyncError?: string | null;
   isPro: boolean;
-  /** HubSpot OAuth env keys present — hide the card entirely when not configured
-      so users never hit a broken Connect redirect. */
-  hubspotEnabled?: boolean;
 };
 
 function IntegrationCard({
@@ -119,7 +116,156 @@ function IntegrationCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro, hubspotEnabled = false }: Props) {
+const HUBSPOT_LOGO = (
+  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#ff7a59">
+    <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.268-1.978V3.04A2.2 2.2 0 0 0 17.236.84h-.065a2.2 2.2 0 0 0-2.197 2.2v.066a2.198 2.198 0 0 0 1.268 1.978V7.93a6.232 6.232 0 0 0-2.962 1.303L5.85 3.845a2.44 2.44 0 0 0 .085-.624 2.451 2.451 0 1 0-2.451 2.45c.463 0 .894-.13 1.263-.353l7.36 5.32a6.232 6.232 0 0 0-.005 7.024l-2.24 2.24a1.944 1.944 0 0 0-.568-.088 1.96 1.96 0 1 0 1.96 1.96 1.944 1.944 0 0 0-.088-.568l2.215-2.215a6.248 6.248 0 1 0 4.723-11.06zm-.892 9.338a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2z"/>
+  </svg>
+);
+
+// HubSpot connects with a pasted Private App access token (see the /token
+// route for why) instead of the OAuth redirect the other cards use, so it
+// gets its own small form in place of a plain Connect link.
+function HubSpotCard({
+  connected: initialConnected,
+  syncError,
+  isPro,
+  flashStatus,
+}: {
+  connected: boolean;
+  syncError?: string | null;
+  isPro: boolean;
+  flashStatus?: string | null;
+}) {
+  const [connected, setConnected] = useState(initialConnected);
+  const [showForm, setShowForm] = useState(!initialConnected);
+  const [token, setToken] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "error" | "disconnecting">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const needsReconnect = connected && !!syncError;
+
+  async function save() {
+    if (!token.trim()) return;
+    setStatus("saving");
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/hubspot/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || "Couldn't connect. Try again.");
+        setStatus("error");
+        return;
+      }
+      setConnected(true);
+      setShowForm(false);
+      setToken("");
+      setStatus("idle");
+    } catch {
+      setError("Couldn't reach SwiftCard. Try again.");
+      setStatus("error");
+    }
+  }
+
+  async function disconnect() {
+    setStatus("disconnecting");
+    try {
+      await fetch("/api/integrations/hubspot", { method: "DELETE" });
+      setConnected(false);
+      setShowForm(true);
+    } catch { /* ignore */ } finally {
+      setStatus("idle");
+    }
+  }
+
+  return (
+    <div className={`bg-[#EDE5D8] border rounded-2xl px-5 py-4 shadow-sm ${!isPro ? "opacity-60" : ""}`}
+      style={{ borderColor: needsReconnect ? "#fcd34d" : connected ? "#86efac" : "#D4C8B8" }}>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#F0EBE1] border border-[#D4C8B8] flex items-center justify-center shrink-0">
+          {HUBSPOT_LOGO}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-slate-900 font-semibold text-sm">HubSpot CRM</p>
+            {needsReconnect ? (
+              <span className="text-xs bg-amber-100 text-amber-700 font-medium px-2 py-0.5 rounded-full">Reconnect needed</span>
+            ) : connected ? (
+              <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">Connected</span>
+            ) : null}
+          </div>
+          <p className="text-slate-400 text-xs mt-0.5">New leads are automatically created as HubSpot contacts</p>
+        </div>
+
+        {!isPro ? (
+          <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+        ) : connected && !showForm ? (
+          <button
+            onClick={disconnect}
+            disabled={status === "disconnecting"}
+            className="text-xs text-slate-400 hover:text-red-500 transition-colors font-medium shrink-0"
+          >
+            {status === "disconnecting" ? "..." : "Disconnect"}
+          </button>
+        ) : !connected && !showForm ? (
+          <button onClick={() => setShowForm(true)} className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0">
+            Connect
+          </button>
+        ) : null}
+      </div>
+
+      {isPro && needsReconnect && !showForm && (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="text-xs text-amber-700">{syncError}</p>
+          <button onClick={() => setShowForm(true)} className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0">
+            Reconnect
+          </button>
+        </div>
+      )}
+
+      {isPro && showForm && (
+        <div className="mt-3 space-y-2">
+          <label className="text-xs text-slate-500 block">HubSpot Private App access token</label>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="pat-na1-..."
+              className="flex-1 min-w-0 bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
+            />
+            <button
+              onClick={save}
+              disabled={!token.trim() || status === "saving"}
+              className="shrink-0 bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
+            >
+              {status === "saving" ? "Checking…" : "Save"}
+            </button>
+          </div>
+          <p className="text-slate-400 text-[11px] leading-relaxed">
+            In HubSpot: Settings → Integrations → Private Apps → Create a private app → grant the{" "}
+            <code className="text-slate-600">crm.objects.contacts.write</code> scope → copy the access token here.
+          </p>
+          {connected && (
+            <button onClick={() => { setShowForm(false); setError(null); }} className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors">
+              Cancel
+            </button>
+          )}
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+        </div>
+      )}
+
+      {flashStatus === "connected" && (
+        <p className="text-xs text-green-600 font-medium mt-2">Successfully connected!</p>
+      )}
+    </div>
+  );
+}
+
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -156,23 +302,12 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         flashStatus={flashIntegration === "google" ? flashStatus : null}
       />
 
-      {hubspotEnabled && (
-      <IntegrationCard
-        name="HubSpot CRM"
-        description="New leads are automatically created as HubSpot contacts"
-        logo={
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#ff7a59">
-            <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.268-1.978V3.04A2.2 2.2 0 0 0 17.236.84h-.065a2.2 2.2 0 0 0-2.197 2.2v.066a2.198 2.198 0 0 0 1.268 1.978V7.93a6.232 6.232 0 0 0-2.962 1.303L5.85 3.845a2.44 2.44 0 0 0 .085-.624 2.451 2.451 0 1 0-2.451 2.45c.463 0 .894-.13 1.263-.353l7.36 5.32a6.232 6.232 0 0 0-.005 7.024l-2.24 2.24a1.944 1.944 0 0 0-.568-.088 1.96 1.96 0 1 0 1.96 1.96 1.944 1.944 0 0 0-.088-.568l2.215-2.215a6.248 6.248 0 1 0 4.723-11.06zm-.892 9.338a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2z"/>
-          </svg>
-        }
+      <HubSpotCard
         connected={hubspotConnected}
         syncError={hubspotSyncError}
-        connectUrl="/api/integrations/hubspot/connect"
-        disconnectUrl="/api/integrations/hubspot"
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
       />
-      )}
     </div>
   );
 }
