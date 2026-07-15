@@ -305,6 +305,63 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </section>
 
+        {/* Deep dive — teams & offices only */}
+        {slug === "teams" && (
+          <section className="relative py-24 overflow-hidden border-t border-white/10" style={{ background: "var(--rd-ink-1000)" }}>
+            <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
+            <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
+              <div className="max-w-2xl" data-reveal>
+                <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>What you get</p>
+                <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One office account. Total control, zero busywork.</h2>
+                <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You set the brand once — every card your team creates inherits it automatically. From there, it&rsquo;s a single dashboard to see how the whole team is doing, not a spreadsheet of who has what.</p>
+              </div>
+
+              <div className="mt-12 grid md:grid-cols-3 gap-4">
+                {[
+                  { t: "Brand it once", d: "Set your logo, colors, and a locked template. Every card anyone on your team creates — today or a year from now — is on-brand automatically. No one can go rogue with their own look." },
+                  { t: "Everyone gets their own card", d: "Each teammate gets a personal card with their name, title, and photo — their own Swift Links, their own Swift Signature, their own contacts. Same brand, their identity." },
+                  { t: "Admin sees everyone at a glance", d: "One dashboard shows every member's card, activity, and lead count. Spot who's actively sharing their card and who needs a nudge — without asking around." },
+                  { t: "Add people in seconds", d: "Invite a teammate by email and their card is ready before the meeting ends. No IT ticket, no design request, no waiting on a template." },
+                  { t: "Unlimited seats, always", d: "There's no cap on team size and no separate contract to add someone. Add or remove seats anytime from inside the account as your team grows or changes." },
+                  { t: "Team leads, not just admins", d: "Promote someone to manage their own group — new hires, a regional office, a department — without handing them the keys to the whole account." },
+                ].map((s, i) => (
+                  <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
+                      <svg viewBox="0 0 20 20" className="w-4.5 h-4.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+                    </div>
+                    <p className="text-white font-semibold text-[16px]">{s.t}</p>
+                    <p className="text-white/55 text-[14px] mt-1.5 leading-relaxed">{s.d}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-16 max-w-2xl" data-reveal>
+                <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>Built for</p>
+                <h2 className="rd-h2 text-white text-[clamp(1.6rem,3vw,2.1rem)] mt-3">Any team that shows up as one brand.</h2>
+              </div>
+              <div className="mt-8 grid sm:grid-cols-2 gap-4">
+                {[
+                  { t: "Real estate teams & brokerages", d: "Every agent's card matches the brokerage brand, but leads from open houses and showings land with the right agent — not a shared inbox." },
+                  { t: "Sales & account teams", d: "Reps hand out on-brand cards at every meeting and conference. Leads flow straight to their own dashboard, and you can see who's actually working the room." },
+                  { t: "Agencies & studios", d: "New hires and freelancers get a card the moment they join — same polish as everyone else — and it's revoked the moment they leave." },
+                  { t: "Multi-location businesses", d: "One brand across every office. Each location's staff gets their own card and contacts, while you keep a single view across all of them." },
+                ].map((s, i) => (
+                  <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                    <p className="text-white font-semibold text-[15px]">{s.t}</p>
+                    <p className="text-white/55 text-[13.5px] mt-1.5 leading-relaxed">{s.d}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[13px]" data-reveal>
+                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />No cap on seats</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />One bill for the whole team</span>
+                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Add or remove people anytime</span>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* How it works — integrations only */}
         {slug === "integrations" && (
           <section className="relative py-24 overflow-hidden border-t border-white/10" style={{ background: "var(--rd-ink-1000)" }}>
