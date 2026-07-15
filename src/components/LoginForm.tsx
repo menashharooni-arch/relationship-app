@@ -53,7 +53,11 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       : `${APP_URL}/auth/callback`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: callback },
+      // Force Google's account chooser every time — without this, a browser
+      // that already has one Google session signed in skips straight past
+      // account selection and logs into that account silently, which is
+      // wrong for anyone juggling multiple Google accounts.
+      options: { redirectTo: callback, queryParams: { prompt: "select_account" } },
     });
   }
 

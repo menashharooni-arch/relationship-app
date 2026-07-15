@@ -110,29 +110,6 @@ export default function WhySwiftCardPage() {
                 </div>
               ))}
             </div>
-
-            {/* Honesty card — our credibility IS being straight with you */}
-            <div className="rd-card-l p-8 sm:p-10 mt-6" data-reveal>
-              <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500">A note on reviews</p>
-              <p className="text-slate-800 text-[1.15rem] leading-relaxed font-medium mt-3" style={{ textWrap: "balance" }}>
-                SwiftCard is new, and we don&apos;t publish reviews we don&apos;t have. No invented quotes, no made-up
-                star ratings — when real customer reviews come in, you&apos;ll see them here, unedited.
-              </p>
-              <p className="text-slate-600 text-[14.5px] leading-relaxed mt-3">
-                Using SwiftCard already? We&apos;d genuinely love your take — it helps more than you&apos;d think.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <a
-                  href="https://www.trustpilot.com/evaluate/swiftcard.me"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rd-btn rd-btn-aurora"
-                >
-                  Be one of our first reviewers →
-                </a>
-                <Link href="/cards/new" className="rd-btn rd-btn-ghost-l">Try it free first</Link>
-              </div>
-            </div>
           </div>
         </section>
 

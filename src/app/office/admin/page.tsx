@@ -2,14 +2,11 @@ import Link from "next/link";
 import CreateOfficeForm from "@/components/CreateOfficeForm";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 import { getTeamOverview, computeSetupProgress } from "@/lib/office-team";
-import { computeAttention } from "@/lib/office-attention";
 import { getOfficeBrand } from "@/lib/office-brand";
-import { getOfficeUncontactedLeadCount } from "@/lib/office-leads";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { PageHead } from "@/components/office/OfficeUI";
 import { AddMemberButton } from "@/components/office/TeamActions";
 import TeamList from "@/components/office/TeamList";
-import AttentionList from "@/components/office/AttentionList";
 
 export const metadata = { title: "Team — Admin — SwiftCard" };
 
@@ -75,10 +72,9 @@ export default async function OfficeTeamPage() {
 
   const seatCap = (office.seats as number | null) ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
 
-  const [overview, brand, uncontactedLeads] = await Promise.all([
+  const [overview, brand] = await Promise.all([
     getTeamOverview(officeId, ownerId, seatCap).catch(() => null),
     getOfficeBrand(officeId).catch(() => null),
-    getOfficeUncontactedLeadCount(officeId).catch(() => 0),
   ]);
 
   const people = overview?.people ?? [];
@@ -91,17 +87,6 @@ export default async function OfficeTeamPage() {
     liveEmployeeCards: people.filter((p) => !p.isOwner && p.liveCards > 0).length,
     leadCount: overview?.totals.leads ?? 0,
   });
-
-  const attention = overview
-    ? computeAttention({
-        people,
-        invites,
-        seats: overview.stats.seats,
-        uncontactedLeads,
-        canManageSeats: caps.canManageSeats,
-        canInvite: caps.canInvite,
-      })
-    : [];
 
   const activation = overview?.stats.activation;
   const hasRows = people.length > 0 || invites.length > 0;
@@ -188,11 +173,6 @@ export default async function OfficeTeamPage() {
             </Step>
           </ol>
         </div>
-      )}
-
-      {/* Needs attention — only when there's genuinely something to do. */}
-      {attention.length > 0 && (
-        <AttentionList items={attention} canManageSeats={caps.canManageSeats} />
       )}
 
       {/* The four numbers. */}
