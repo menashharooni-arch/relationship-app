@@ -41,7 +41,27 @@ function findAnchor(anchor: string): HTMLElement | null {
   return null;
 }
 
-export default function GuidedTour() {
+type Props = {
+  /** The ordered step list to run. Defaults to the main dashboard tour. */
+  steps?: TourStep[];
+  /** sessionStorage keys — pass a distinct set to run an independent tour. */
+  runningKey?: string;
+  indexKey?: string;
+  cardKey?: string;
+  /** Custom-event name that (re)starts this tour instance. */
+  startEvent?: string;
+  /** Called instead of the default endTour()+redirect-to-dashboard behavior. */
+  onFinish?: (completed: boolean) => void;
+};
+
+export default function GuidedTour({
+  steps = TOUR_STEPS,
+  runningKey = TOUR_RUNNING,
+  indexKey = TOUR_INDEX,
+  cardKey = TOUR_CARD,
+  startEvent = TOUR_START_EVENT,
+  onFinish,
+}: Props = {}) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -51,7 +71,7 @@ export default function GuidedTour() {
   // fresh clickToAdvance state. Positions themselves are handled by the rAF loop.
   const [, forceTick] = useState(0);
 
-  const step: TourStep | null = running ? TOUR_STEPS[idx] ?? null : null;
+  const step: TourStep | null = running ? steps[idx] ?? null : null;
 
   // The resolve effect and its polling run inside a closure that must NOT read a
   // stale `idx` — otherwise a skip computes the wrong next step. Mirror idx into
@@ -77,40 +97,45 @@ export default function GuidedTour() {
   // ── Persist index so a page navigation can resume the tour ────────────────
   const persist = useCallback((i: number) => {
     try {
-      sessionStorage.setItem(TOUR_RUNNING, "1");
-      sessionStorage.setItem(TOUR_INDEX, String(i));
+      sessionStorage.setItem(runningKey, "1");
+      sessionStorage.setItem(indexKey, String(i));
     } catch { /* ignore */ }
-  }, []);
+  }, [runningKey, indexKey]);
 
   const finish = useCallback((completed: boolean) => {
     setRunning(false);
     targetRef.current = null;
+    if (onFinish) {
+      onFinish(completed);
+      return;
+    }
     endTour(completed);
     // When the tour ends, land the user on their dashboard.
     router.push("/dashboard");
-  }, [router]);
+  }, [router, onFinish]);
 
   const go = useCallback((next: number) => {
     if (next < 0) return;
-    if (next >= TOUR_STEPS.length) { finish(true); return; }
+    if (next >= steps.length) { finish(true); return; }
     dirRef.current = next >= idxRef.current ? 1 : -1;
     persist(next);
     setIdx(next);
-  }, [persist, finish]);
+  }, [persist, finish, steps.length]);
 
   // ── Start / resume: read sessionStorage on mount and on the start event ───
   useEffect(() => {
     function boot() {
       let active = false, i = 0;
       try {
-        active = sessionStorage.getItem(TOUR_RUNNING) === "1";
-        i = parseInt(sessionStorage.getItem(TOUR_INDEX) || "0", 10) || 0;
+        active = sessionStorage.getItem(runningKey) === "1";
+        i = parseInt(sessionStorage.getItem(indexKey) || "0", 10) || 0;
       } catch { /* ignore */ }
-      if (active) { setIdx(Math.min(Math.max(i, 0), TOUR_STEPS.length - 1)); setRunning(true); }
+      if (active) { setIdx(Math.min(Math.max(i, 0), steps.length - 1)); setRunning(true); }
     }
     boot();
-    window.addEventListener(TOUR_START_EVENT, boot);
-    return () => window.removeEventListener(TOUR_START_EVENT, boot);
+    window.addEventListener(startEvent, boot);
+    return () => window.removeEventListener(startEvent, boot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keys are stable per instance
   }, []);
 
   // ── Resolve the current step: navigate if needed, else find + scroll to it ─
@@ -119,14 +144,14 @@ export default function GuidedTour() {
   // would otherwise reset the find-polling and could strand a skip.
   useEffect(() => {
     if (!running) return;
-    const cur = TOUR_STEPS[idx];
+    const cur = steps[idx];
     if (!cur) return;
 
     // Wrong page for this step → go there; this effect re-runs after the route
     // changes (pathname is a dependency) and we resume on arrival.
     if (cur.path !== pathname) {
       let card: string | null = null;
-      try { card = sessionStorage.getItem(TOUR_CARD); } catch { /* ignore */ }
+      try { card = sessionStorage.getItem(cardKey); } catch { /* ignore */ }
       router.push(resolveTourPath(cur, card));
       return;
     }
@@ -162,7 +187,7 @@ export default function GuidedTour() {
       if (++tries >= FIND_TRIES) {
         // Element genuinely isn't here — skip in the direction we're moving.
         const nextIdx = idxRef.current + dirRef.current;
-        if (nextIdx < 0 || nextIdx >= TOUR_STEPS.length) { finish(true); return; }
+        if (nextIdx < 0 || nextIdx >= steps.length) { finish(true); return; }
         go(nextIdx);
         return;
       }
@@ -349,7 +374,7 @@ export default function GuidedTour() {
     );
   }
 
-  const isLast = idx === TOUR_STEPS.length - 1;
+  const isLast = idx === steps.length - 1;
   const isFirst = idx === 0;
 
   return (
@@ -380,7 +405,7 @@ export default function GuidedTour() {
         style={{ width: TIP_W, maxWidth: "calc(100vw - 24px)", visibility: "hidden" }}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold tracking-wide text-blue-400 uppercase">Step {idx + 1} of {TOUR_STEPS.length}</span>
+          <span className="text-[11px] font-semibold tracking-wide text-blue-400 uppercase">Step {idx + 1} of {steps.length}</span>
           <button onClick={() => finish(true)} className="text-gray-500 hover:text-gray-300 text-xs font-medium transition-colors">Skip tour</button>
         </div>
         <p className="text-white font-bold text-[15px] leading-snug mb-1.5">{step.title}</p>
@@ -394,7 +419,7 @@ export default function GuidedTour() {
 
         {/* Progress dots */}
         <div className="flex items-center gap-1 mt-4 mb-3 flex-wrap">
-          {TOUR_STEPS.map((_, i) => (
+          {steps.map((_, i) => (
             <span key={i} className={`h-1 rounded-full transition-all ${i === idx ? "w-4 bg-blue-500" : i < idx ? "w-1.5 bg-blue-800" : "w-1.5 bg-gray-700"}`} />
           ))}
         </div>

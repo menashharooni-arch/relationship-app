@@ -73,3 +73,40 @@ export function tourCompleted(): boolean {
     return false;
   }
 }
+
+// ── Office Admin guided tour: same mechanics, separate state ────────────────
+// Its own storage keys so it can run, be skipped, or be replayed independently
+// of the main dashboard tour — no shared "card" concept, since every step
+// lives inside the Office admin console.
+import { ADMIN_TOUR_STEPS } from "./admin-tour-steps";
+
+export const ADMIN_TOUR_RUNNING = "sc_admin_tour_running";
+export const ADMIN_TOUR_INDEX = "sc_admin_tour_index";
+export const ADMIN_TOUR_DONE = "sc_admin_tour_completed";
+export const ADMIN_TOUR_START_EVENT = "sc:admin-tour-start";
+export const ADMIN_TOUR_END_EVENT = "sc:admin-tour-end";
+
+export function startAdminTour(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(ADMIN_TOUR_RUNNING, "1");
+    sessionStorage.setItem(ADMIN_TOUR_INDEX, "0");
+  } catch { /* private mode — the event path below still works this session */ }
+
+  const first = ADMIN_TOUR_STEPS[0];
+  if (window.location.pathname === first.path) {
+    window.dispatchEvent(new CustomEvent(ADMIN_TOUR_START_EVENT));
+  } else {
+    window.location.assign(first.path);
+  }
+}
+
+export function endAdminTour(completed: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(ADMIN_TOUR_RUNNING);
+    sessionStorage.removeItem(ADMIN_TOUR_INDEX);
+    if (completed) localStorage.setItem(ADMIN_TOUR_DONE, "1");
+  } catch { /* ignore */ }
+  window.dispatchEvent(new CustomEvent(ADMIN_TOUR_END_EVENT));
+}

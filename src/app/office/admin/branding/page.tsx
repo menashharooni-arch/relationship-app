@@ -24,7 +24,7 @@ export default async function OfficeBrandingPage() {
       {/* The look and the company identity come from the primary card — say so
           here, or an admin will hunt for colour pickers that deliberately
           don't exist on this page. */}
-      <div className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-5">
+      <div data-tour="admin-branding-note" className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-5">
         <p className="text-sm text-purple-200 font-medium">Your own card sets the look</p>
         <p className="text-xs text-purple-200/70 mt-1 leading-relaxed">
           The colors, fonts and layout on every team card are copied from your own card —
@@ -41,7 +41,7 @@ export default async function OfficeBrandingPage() {
 
       {/* Company-wide fields (logo, name, website, office phone/fax/address)
           live on the office itself — they aren't personal card fields. */}
-      <OfficeBranding office={office} />
+      <div data-tour="admin-branding-form"><OfficeBranding office={office} /></div>
     </div>
   );
 }
