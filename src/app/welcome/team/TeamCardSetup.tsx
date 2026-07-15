@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import ImageUpload from "@/components/ImageUpload";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import AddToWalletButton from "@/components/AddToWalletButton";
 
 // One screen: name, photo, title, phone, email → live card. The company look
@@ -17,7 +18,9 @@ type Company = {
   logoUrl: string | null;
   website: string | null;
   phone: string | null;
+  fax: string | null;
   address: string | null;
+  nickname: string | null;
 };
 
 type Props = {
@@ -27,9 +30,11 @@ type Props = {
   // Only true when the Apple Wallet signing certs are configured — otherwise the
   // button would hand them a download that fails.
   walletEnabled: boolean;
+  // LinkedIn OAuth configured — enables "Suggest my profile picture".
+  linkedinEnabled?: boolean;
 };
 
-export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled }: Props) {
+export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled, linkedinEnabled = false }: Props) {
   const [name, setName] = useState(prefill.name);
   const [title, setTitle] = useState("");
   const [phone, setPhone] = useState(prefill.phone);
@@ -133,8 +138,10 @@ export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled 
 
   // ── The one-screen form ────────────────────────────────────────────────────
   const companyBits = [
+    company.nickname && { k: "Card nickname", v: company.nickname },
     company.website && { k: "Website", v: company.website },
     company.phone && { k: "Office phone", v: company.phone },
+    company.fax && { k: "Fax", v: company.fax },
     company.address && { k: "Address", v: company.address },
   ].filter(Boolean) as { k: string; v: string }[];
 
@@ -158,7 +165,10 @@ export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled 
       {(company.name || companyBits.length > 0) && (
         <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-4 mb-4">
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5">
-            Already on your card
+            Managed by your organization
+          </p>
+          <p className="text-gray-500 text-xs mb-2.5 -mt-1">
+            Your company already prepared these details — they&apos;re on your card automatically.
           </p>
           <dl className="space-y-1.5">
             {company.name && (
@@ -202,6 +212,11 @@ export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled 
             shape="circle"
             defer
             onUploaded={(url) => setPhotoUrl(url || null)}
+          />
+          <ProfilePhotoSuggest
+            enabled={linkedinEnabled}
+            returnTo="/welcome/team"
+            onConfirm={(url) => setPhotoUrl(url)}
           />
         </div>
 

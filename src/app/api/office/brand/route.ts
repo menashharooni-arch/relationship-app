@@ -104,6 +104,13 @@ export async function PATCH(req: NextRequest) {
     await admin.from("cards").update(cardUpdate).in("user_id", userIds);
   }
 
+  // Card nickname is company-controlled on MEMBER cards only (sourced from the
+  // company name) — the owner's own card labels are theirs. verifiedInOffice is
+  // the members-only subset of userIds, so the owner is naturally excluded.
+  if (brand.brand_company && verifiedInOffice.length) {
+    await admin.from("cards").update({ label: brand.brand_company }).in("user_id", verifiedInOffice);
+  }
+
   // Company phone/fax/address live in customization → per-card overlay so every
   // member card carries the uniform company contact (spec §8), preserving each
   // card's personal fields.
@@ -124,6 +131,10 @@ export async function PATCH(req: NextRequest) {
     const cleared: Array<{ column: "logo_url" | "company" | "website"; old: string; to: string | null }> = [];
     if (!brand.brand_logo_url && office.brand_logo_url) cleared.push({ column: "logo_url", old: office.brand_logo_url as string, to: null });
     if (!brand.brand_company && office.brand_company) cleared.push({ column: "company", old: office.brand_company as string, to: "" });
+    // Company name cleared → member card nicknames that still carry it come off too.
+    if (!brand.brand_company && office.brand_company && verifiedInOffice.length) {
+      await admin.from("cards").update({ label: null }).in("user_id", verifiedInOffice).eq("label", office.brand_company as string);
+    }
     if (!brand.brand_website && office.brand_website) cleared.push({ column: "website", old: office.brand_website as string, to: "" });
     for (const c of cleared) {
       await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq(c.column, c.old);

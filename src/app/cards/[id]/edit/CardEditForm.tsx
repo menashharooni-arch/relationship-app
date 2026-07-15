@@ -12,6 +12,7 @@ import DashboardLink from "@/components/DashboardLink";
 import { PLAN_LIMITS } from "@/lib/plan";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -80,17 +81,53 @@ type Card = {
   customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string };
 };
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean };
+// Company information owned by the user's Office organization (sub-users only).
+// Any field the office set is shown read-only under "Managed by your
+// organization"; a field the office left blank stays editable. `lockDesign`
+// mirrors the office's Lock Card Design setting and freezes the Design tab.
+export type OrgManaged = {
+  company: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  phone: string | null;
+  fax: string | null;
+  address: CardAddress | null;
+  lockDesign: boolean;
+};
+
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean };
+
+// Small "who owns this field" tag shown next to org-controlled values.
+function ManagedTag() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded-full px-2 py-0.5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-2.5 h-2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      Managed by your organization
+    </span>
+  );
+}
 
 // Note: editing is auth-only — a guest has no existing card to edit — so per the
 // guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
 // Guest mode lives in NewCardWizard.
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false, org = null, linkedinEnabled = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("content");
+
+  // Org-managed fields (office sub-users). Each flag is per-field: the office
+  // manages exactly what it has set; blanks stay in the employee's hands.
+  const orgCompany = org?.company?.trim() || null;
+  const orgWebsite = org?.website?.trim() || null;
+  const orgLogo = org?.logoUrl || null;
+  const orgPhone = org?.phone?.trim() || null;
+  const orgFax = org?.fax?.trim() || null;
+  const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
+  const designLocked = !!org?.lockDesign;
 
   // On tab change, jump the editor column back to the top. Defer to the next
   // frame and jump instantly — mobile browsers can drop a smooth scroll issued
@@ -100,25 +137,31 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     return () => cancelAnimationFrame(id);
   }, [tab]);
 
-  // Content — card details
-  const [label, setLabel] = useState(card.label || "");
+  // Content — card details. Org-managed fields initialize FROM the org so the
+  // saved payload always matches the organization's current values, even if
+  // this card hadn't been re-synced yet.
+  const [label, setLabel] = useState(orgCompany ?? (card.label || ""));
   const [name, setName] = useState(card.name || "");
-  const [company, setCompany] = useState(card.company || "");
+  const [company, setCompany] = useState(orgCompany ?? (card.company || ""));
   const [title, setTitle] = useState(card.title || "");
+  // The office phone rides in `phones` as a server-injected `office:true` entry.
+  // Sub-users edit only their own numbers — the office entry is filtered out
+  // here (shown read-only in the company panel) and re-applied on save.
+  const initialPhones = (card.customization?.phones ?? []).filter((p) => !(orgPhone && (p as { office?: boolean }).office));
   const [phones, setPhones] = useState<CardPhone[]>(
-    card.customization?.phones?.length
-      ? card.customization.phones
-      : card.phone
+    initialPhones.length
+      ? initialPhones
+      : card.phone && card.phone !== orgPhone
       ? [{ number: card.phone, label: "mobile", showOnCard: true }]
       : [{ number: "", label: "mobile", showOnCard: true }]
   );
-  const [fax, setFax] = useState(card.customization?.fax || "");
+  const [fax, setFax] = useState(orgFax ?? (card.customization?.fax || ""));
   const [email, setEmail] = useState(card.email || "");
-  const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(card.customization?.address ?? {}) });
+  const [address, setAddress] = useState<Required<CardAddress>>({ ...EMPTY_ADDRESS, ...(orgAddress ?? card.customization?.address ?? {}) });
 
   // Sharing — bio, social links, additional links
   const [bio, setBio] = useState(card.customization?.bio || "");
-  const [website, setWebsite] = useState(card.website || "");
+  const [website, setWebsite] = useState(orgWebsite ?? (card.website || ""));
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Record<SocialKey, string>>({
@@ -212,7 +255,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),
-    customization: { snapchat: socials.snapchat, customLayout, phones: cleanPhones, fax: fax.trim(), ...templateStyleState },
+    customization: {
+      snapchat: socials.snapchat,
+      customLayout,
+      // Preview mirrors the live card: the office number the server injects on
+      // every connected card is shown here too, ahead of personal numbers.
+      phones: org && orgPhone
+        ? [{ number: orgPhone, label: "office" as PhoneLabel, showOnCard: true }, ...cleanPhones]
+        : cleanPhones,
+      fax: fax.trim(),
+      ...templateStyleState,
+    },
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
@@ -271,6 +324,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         // dashboard (not the bare picker).
         setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(card.username)}`); }, 1000);
       } else {
+        // Surface the server's plain-English reason when it gives one (e.g. an
+        // org-managed field was changed) instead of a bare "Error".
+        const json = await res.json().catch(() => ({} as { message?: string }));
+        if (typeof json.message === "string" && json.message) setError(json.message);
         setStatus("error");
         setTimeout(() => setStatus("idle"), 2500);
       }
@@ -309,7 +366,50 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         {/* ── CONTENT ── */}
         {tab === "content" && (
           <div className="space-y-4">
-            {!isPrimary && (
+            {/* Company information — office sub-users see the org-owned half of
+                their card here, read-only. Fields the office set never render as
+                inputs below; whatever it left blank stays editable. */}
+            {org && (orgCompany || orgWebsite || orgPhone || orgFax || orgAddress || orgLogo) && (
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className={sectionLabel}>Company information</p>
+                  <ManagedTag />
+                </div>
+                <p className="text-gray-500 text-xs mb-3">
+                  Your organization keeps these details up to date on every connected card.
+                </p>
+                <dl className="space-y-1.5">
+                  {orgLogo && (
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-gray-500 text-xs">Company logo</dt>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-cover bg-gray-900" /></dd>
+                    </div>
+                  )}
+                  {([
+                    orgCompany && { k: "Card nickname", v: orgCompany },
+                    orgCompany && { k: "Company name", v: orgCompany },
+                    orgPhone && { k: "Office phone", v: orgPhone },
+                    orgFax && { k: "Fax", v: orgFax },
+                    orgAddress && {
+                      k: "Address",
+                      v: [orgAddress.street, orgAddress.unit, orgAddress.city, orgAddress.state, orgAddress.zip]
+                        .filter((v) => (v ?? "").toString().trim()).join(", "),
+                    },
+                    orgWebsite && { k: "Website", v: orgWebsite },
+                  ].filter(Boolean) as { k: string; v: string }[]).map((b) => (
+                    <div key={b.k} className="flex items-center justify-between gap-3">
+                      <dt className="text-gray-500 text-xs shrink-0">{b.k}</dt>
+                      <dd className="text-gray-300 text-xs font-medium truncate">{b.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
+            {org && <p className={sectionLabel}>Your information</p>}
+
+            {!isPrimary && !(org && orgCompany) && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
                 <input type="text" placeholder="e.g. Sales Card" value={label} onChange={(e) => setLabel(e.target.value)} className={inputCls} />
@@ -321,11 +421,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
               <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
-              <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-              <p className="text-gray-600 text-xs mt-1">Card URL: /card/{card.username}</p>
-            </div>
+            {!(org && orgCompany) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
+                <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
+                <p className="text-gray-600 text-xs mt-1">Card URL: /card/{card.username}</p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Job title</label>
               <input type="text" placeholder="Sales Director" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
@@ -368,30 +470,39 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 ))}
               </div>
               <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which ones appear on your card (you can show more than one).</p>
+              {org && orgPhone && (
+                <p className="text-gray-500 text-xs mt-1">
+                  Your office number ({orgPhone}) is added to your card automatically by your organization.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
               <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
-            <AddressInput value={address} onChange={setAddress} />
+            {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
-              </label>
-              <input type="tel" placeholder="+1 (555) 000-0000" value={fax} onChange={(e) => setFax(e.target.value)} className={inputCls} />
-            </div>
+            {!(org && orgFax) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
+                </label>
+                <input type="tel" placeholder="+1 (555) 000-0000" value={fax} onChange={(e) => setFax(e.target.value)} className={inputCls} />
+              </div>
+            )}
 
             {/* Photos */}
             <div className="border-t border-gray-800 pt-4 mt-2 space-y-4">
               <p className={sectionLabel}>Photos</p>
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-                <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
-                <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
-                {!isPrimary && <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>}
-              </div>
+              {!(org && orgLogo) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
+                  <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
+                  <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
+                  {!isPrimary && <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
                 <ImageUpload
@@ -403,13 +514,33 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   defer
                   onUploaded={(url) => setPhotoState(url || null)}
                 />
+                <ProfilePhotoSuggest
+                  enabled={linkedinEnabled}
+                  returnTo={`/cards/${card.id}/edit`}
+                  onConfirm={(url) => setPhotoState(url)}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* ── DESIGN ── */}
-        {tab === "design" && (
+        {/* ── DESIGN — locked for sub-users while the office's Lock Card Design
+            setting is on. The server rejects locked-design writes regardless;
+            this just makes the rule visible instead of surprising. ── */}
+        {tab === "design" && designLocked && (
+          <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className={sectionLabel}>Card design</p>
+              <ManagedTag />
+            </div>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Your organization keeps every card matching, so the template, colors and fonts
+              are set by your Office admin. If they turn off the design lock, you&apos;ll be able
+              to customize your card&apos;s look right here.
+            </p>
+          </div>
+        )}
+        {tab === "design" && !designLocked && (
           <div className="space-y-4">
             {/* Custom designer is the editing surface for the custom template */}
             {customSelected && isPro && (
@@ -497,8 +628,18 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Website</label>
-                  <input type="text" placeholder="yoursite.com" value={website} onChange={(e) => setWebsite(e.target.value)} className={inputCls} />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs text-gray-500">Website</label>
+                    {org && orgWebsite && <ManagedTag />}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="yoursite.com"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    disabled={!!(org && orgWebsite)}
+                    className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
+                  />
                 </div>
                 {SOCIALS.map(({ key, label: socialLabel, placeholder }) => {
                   const linked = socials[key].trim().length > 0;

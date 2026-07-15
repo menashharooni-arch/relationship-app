@@ -2,9 +2,11 @@ import type { ComponentType } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import NewCardWizard from "./NewCardWizard";
+import NewCardWizard, { type OrgManaged } from "./NewCardWizard";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { hasWalletConfig } from "@/lib/wallet-config";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { getOfficeBrandForUser } from "@/lib/office-brand";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
 // Forward-declare it here so this wrapper can pass guest mode before/after that
@@ -14,6 +16,8 @@ const Wizard = NewCardWizard as ComponentType<{
   guest?: boolean;
   appUrl?: string;
   walletEnabled?: boolean;
+  org?: OrgManaged | null;
+  linkedinEnabled?: boolean;
 }>;
 
 // Guests may build a full card here WITHOUT an account — no login wall while
@@ -72,6 +76,28 @@ export default async function NewCardPage({
     isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   }
 
+  // Office SUB-USER adding a card to their account: the company half of the
+  // card (nickname, company, logo, website, office phone, fax, address) is
+  // already decided by their organization, so the wizard shows it as prepared
+  // instead of asking for it. Only for the authed "add" path — guests and
+  // account owners see the wizard unchanged.
+  let org: OrgManaged | null = null;
+  if (user && authedAdd) {
+    const subCtx = await getOfficeSubUserContext(user.id);
+    const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
+    if (subCtx && brand) {
+      org = {
+        company: brand.company,
+        website: brand.website,
+        logoUrl: brand.logoUrl,
+        phone: brand.phone,
+        fax: brand.fax,
+        address: brand.address,
+        lockDesign: brand.lockTemplate,
+      };
+    }
+  }
+
   // The pending draft is claimed ONLY on `claim=1` — the post-auth return from
   // the account gate (GuestGateModal stamps it on the redirect URL), i.e. the
   // visitor just chose an account for THIS draft. GuestDraftClaim additionally
@@ -89,6 +115,8 @@ export default async function NewCardPage({
         guest={!authedAdd}
         appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
         walletEnabled={hasWalletConfig()}
+        org={org}
+        linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
       />
     </>
   );

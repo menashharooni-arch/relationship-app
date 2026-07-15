@@ -7,6 +7,7 @@ import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
 import { ensurePrimaryCard, getOwnedOfficeId } from "@/lib/office-primary";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -68,11 +69,15 @@ export async function POST(req: NextRequest) {
   let finalCompany = company || "";
   let finalWebsite = website || "";
   let finalLogo = logo_url || null;
+  let finalLabel = label || null;
   const brand = await getOfficeBrandForUser(user.id);
   if (brand) {
     if (brand.logoUrl) finalLogo = brand.logoUrl;
     if (brand.company) finalCompany = brand.company;
     if (brand.website) finalWebsite = brand.website;
+    // Member cards carry the company-controlled nickname (the company name), so
+    // every connected card is labeled consistently. Owners keep their own labels.
+    if (brand.company && (await getOfficeSubUserContext(user.id))) finalLabel = brand.company;
     if (brand.lockTemplate && brand.template) safeTemplate = brand.template;
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
     // Company phone/fax/address (spec §8) — uniform on every member card.
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
     template: safeTemplate,
     customization: cust,
     logo_url: finalLogo,
-    label: label || null,
+    label: finalLabel,
   };
 
   let { data, error } = await admin

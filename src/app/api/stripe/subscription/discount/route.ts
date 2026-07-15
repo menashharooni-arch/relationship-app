@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 // The one-time retention offer: 50% off for the next 3 months. Self-provisioning
 // so it works without any dashboard setup — we create a coupon with a fixed id
@@ -46,6 +47,14 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Office sub-users have no personal subscription to manage — billing is
+  // the organization's. A delegated billing_admin passes through.
+  const subBlocked = await officeSubUserBlockMessage(user.id, {
+    unless: "manage_billing",
+    message: "Billing for your account is managed by your organization.",
+  });
+  if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
   const admin = getAdminSupabase();
   const { data: profile } = await admin

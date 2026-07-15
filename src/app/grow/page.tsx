@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { getReferralProgress } from "@/lib/referral-server";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import MobileNav from "@/components/MobileNav";
@@ -27,6 +28,11 @@ export default async function GrowPage() {
     .single();
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
+
+  // The referral/growth programme isn't aimed at office sub-users (their
+  // account is company-managed) — same rule as the hidden Settings section,
+  // enforced here so the page can't be opened by URL.
+  if (await getOfficeSubUserContext(user.id)) redirect("/dashboard");
 
   const referral = await getReferralProgress(user.id);
   const inviteLink = referral?.code ? `${APP_URL}/r/${referral.code}` : APP_URL;

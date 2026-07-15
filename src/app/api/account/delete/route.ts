@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // An office sub-user's account is company-managed: soft-deleting it would
+  // orphan a paid seat and their branded card. They leave via the team admin
+  // (Remove member), which cleanly unwinds the seat, plan, and branding.
+  const blocked = await officeSubUserBlockMessage(user.id, {
+    message: "Your account is part of your organization's team. Ask your Office admin to remove you from the team instead.",
+  });
+  if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.slice(0, 200) : "";
