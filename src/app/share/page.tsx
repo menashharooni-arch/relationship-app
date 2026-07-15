@@ -10,7 +10,6 @@ import HelpWidget from "@/components/HelpWidget";
 import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
-import SwiftLinksQR from "@/components/SwiftLinksQR";
 import { cardHeadshot } from "@/lib/card-media";
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
@@ -142,65 +141,42 @@ export default async function SharePage({
           didn't carry one. */}
       <ShareCardResolver current={activeUsername} />
 
-      {(() => {
-        const cardLabel = (activeCard.label || activeCard.name || activeUsername) as string;
-        return (
-      <div className="max-w-md lg:max-w-5xl mx-auto pt-20">
-        {/* Masthead — frames the two channels and names the card they belong to,
-            so it's unambiguous which card's Swift Links / signature are shown. */}
-        <header className="mb-8 sc-rise">
-          <p className="text-[11px] font-bold tracking-[0.28em] text-blue-500 uppercase mb-2">SwiftCard · Share</p>
-          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white">Links</h1>
-          <p className="text-gray-400 text-sm lg:text-base mt-2.5 leading-relaxed max-w-xl">
-            Two ways your card travels — a scannable link for your bios and DMs, and a signature that rides along with every email you send.
+      <div className="max-w-md mx-auto pt-20">
+        {/* Header — names the card these belong to, so it's unambiguous which
+            card's Swift Links / signature are shown. */}
+        <div className="mb-6">
+          <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+          <h1 className="text-2xl font-bold text-white">Links</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            For <span className="text-gray-300 font-medium">{(activeCard.label || activeCard.name || activeUsername) as string}</span>
+            <span className="text-gray-600"> · /{activeUsername}</span>
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 border border-gray-800/80 pl-1.5 pr-3.5 py-1.5">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-white text-[10px] font-bold" style={{ background: "var(--rd-aurora)" }}>{initials(cardLabel)}</span>
-            <span className="text-xs text-gray-400">For <span className="text-gray-200 font-medium">{cardLabel}</span> <span className="text-gray-600">· /{activeUsername}</span></span>
-          </div>
-        </header>
+        </div>
 
-        <div className="grid gap-5 lg:grid-cols-2 lg:gap-6 lg:items-stretch">
-          {/* Swift Links — anchored by a real, scannable QR code */}
-          <section data-tour="swift-links" className="sc-rise sc-rise-2 h-full">
-            <div className="h-full flex flex-col bg-gray-900 border border-gray-800/80 rounded-2xl p-5 lg:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Scan or tap</p>
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" /> Live
-                </span>
-              </div>
-
-              {/* Visual anchor: a real QR code for this card's Swift Links */}
-              <div className="rounded-2xl p-5 flex flex-col items-center gap-3" style={{ background: "var(--rd-aurora)" }}>
-                <div className="bg-white rounded-2xl p-3 shadow-lg shadow-blue-950/40">
-                  <SwiftLinksQR url={swiftUrl} />
-                </div>
-                <p className="text-white/90 text-[11px] font-semibold tracking-wide text-center">Scan to open — or tap the link below</p>
-              </div>
-
-              <h2 className="text-lg font-bold text-white mt-5">Swift Links</h2>
-              <p className="text-gray-500 text-xs mt-1.5 leading-relaxed">
+        <div className="space-y-6">
+          {/* Swift Links */}
+          <div data-tour="swift-links">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Links</p>
+            <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+              <p className="text-gray-500 text-xs mb-3 leading-relaxed">
                 A separate link from your card — your bio, socials, and links in one place. Drop it in your Instagram, TikTok, or any social bio.
               </p>
-
-              <div className="mt-5 lg:mt-auto space-y-3 lg:pt-5">
-                <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                  </svg>
-                  <span className="font-mono text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
-                  <CopyButton text={swiftUrl} />
-                </div>
-                <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="sc-btn-glow block text-center text-sm font-semibold text-white rounded-full py-2.5 transition-transform hover:-translate-y-0.5" style={{ background: "var(--rd-aurora)" }}>
-                  Open Swift Links →
-                </a>
+              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+                <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
+                <CopyButton text={swiftUrl} />
               </div>
+              <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+                Open Swift Links →
+              </a>
             </div>
-          </section>
+          </div>
 
           {/* Swift Signature (email signature) */}
-          <section id="signature" data-tour="email-signature" className="sc-rise sc-rise-3 h-full scroll-mt-24">
+          <div id="signature" data-tour="email-signature" className="scroll-mt-24">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Signature</p>
             <EmailSignatureBox
               key={activeUsername}
               cardData={cardData}
@@ -212,11 +188,9 @@ export default async function SharePage({
               storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
               ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
             />
-          </section>
+          </div>
         </div>
       </div>
-        );
-      })()}
     </main>
   );
 }
