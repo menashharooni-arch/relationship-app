@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import { trackCta } from "@/lib/events";
 
 // ── SwiftCard 2.0 marketing navigation ──────────────────────────────────────
 // Floating graphite-glass bar: transparent over the dark hero, condenses into a
@@ -126,10 +127,13 @@ export default function SiteNav() {
           borderBottom: "1px solid var(--rd-line-dark)",
         }}
       >
-        <nav className="max-w-7xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between gap-4">
+        {/* px-4 on the smallest phones (320px): the logo + Get started + menu
+            trigger together need every pixel, and px-5 pushed the trigger off
+            the right edge. */}
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <SwiftCardIcon size={30} />
-            <span className="text-white font-bold text-[17px] tracking-tight">SwiftCard</span>
+            <span className="text-white font-bold text-[15px] sm:text-[17px] tracking-tight">SwiftCard</span>
           </Link>
 
           <div className="hidden lg:flex items-center gap-1">
@@ -154,10 +158,21 @@ export default function SiteNav() {
             <Link href="/cards/new" className="rd-btn rd-btn-primary text-[14px] px-4 py-2">Get started free</Link>
           </div>
 
-          {/* Mobile trigger */}
-          <button onClick={() => setOpen(true)} aria-label="Open menu" className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl text-white hover:bg-white/10 transition-colors">
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" /></svg>
-          </button>
+          {/* Mobile: the primary CTA sits beside the menu trigger. This replaces
+              the old sticky bottom bar — the action stays reachable on every
+              scroll position without covering the page content. */}
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden">
+            <Link
+              href="/cards/new"
+              onClick={() => trackCta("create_your_card", "mobile_nav")}
+              className="rd-btn rd-btn-primary text-[13px] px-3 sm:px-3.5 py-2 whitespace-nowrap"
+            >
+              Get started
+            </Link>
+            <button onClick={() => setOpen(true)} aria-label="Open menu" className="w-10 h-10 flex items-center justify-center rounded-xl text-white hover:bg-white/10 transition-colors">
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" /></svg>
+            </button>
+          </div>
         </nav>
       </header>
 
