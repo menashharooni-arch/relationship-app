@@ -242,33 +242,52 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
 
 // ── Managed-field rejection (sub-users only) ─────────────────────────────────
 // Given the raw PATCH body an office SUB-USER submitted, list the org-managed
-// fields the request tries to CHANGE away from the office brand. Fields the
-// office left blank are not managed and never flagged. The overlays above stay
-// as the enforcement backstop; this exists so a hand-crafted request gets a
-// clear 403 instead of a silent overwrite. Design fields count only while the
-// office's design lock (lockTemplate) is on.
+// fields the request tries to CHANGE. A field is a violation only when the
+// submitted value differs from BOTH the office brand AND the card's CURRENT
+// stored value — i.e. the user actively typed a new off-brand value. Echoing a
+// stale value the card already holds (which happens whenever brand propagation
+// lagged, e.g. the admin re-enabled the design lock and the design keys hadn't
+// been pushed yet) is NOT a violation: it's allowed through and the overlays
+// normalize it back to the brand. Without the "differs from both" rule, a
+// legitimate personal-field save would be rejected forever on any card whose
+// managed values drifted from the brand, with no way for the employee to
+// recover. Fields the office left blank are never managed. Design fields count
+// only while the office's design lock (lockTemplate) is on.
+//
+// `current` is the card's stored row (top-level company/website/logo_url/
+// template + its customization). Pass {} to fall back to brand-only comparison.
 export function findManagedFieldViolations(
   body: Record<string, unknown>,
   brand: OfficeBrand,
+  current: { company?: unknown; website?: unknown; logo_url?: unknown; template?: unknown; customization?: Record<string, unknown> | null } = {},
 ): string[] {
   const out: string[] = [];
   const t = (v: unknown) => (v == null ? "" : String(v).trim());
-  if (brand.company && "company" in body && t(body.company) !== brand.company.trim()) out.push("company name");
-  if (brand.website && "website" in body && t(body.website) !== brand.website.trim()) out.push("website");
-  if (brand.logoUrl && "logo_url" in body && t(body.logo_url) !== brand.logoUrl) out.push("company logo");
-  if (brand.lockTemplate && brand.template && "template" in body && t(body.template) !== brand.template) out.push("card design");
+  const cur = (current.customization ?? {}) as Record<string, unknown>;
+  // changed(field, submitted, brandVal, currentVal): only a violation if the
+  // submitted value matches neither the brand nor what's already on the card.
+  const changed = (submitted: unknown, brandVal: string, currentVal: unknown) =>
+    t(submitted) !== brandVal.trim() && t(submitted) !== t(currentVal);
+
+  if (brand.company && "company" in body && changed(body.company, brand.company, current.company)) out.push("company name");
+  if (brand.website && "website" in body && changed(body.website, brand.website, current.website)) out.push("website");
+  if (brand.logoUrl && "logo_url" in body && changed(body.logo_url, brand.logoUrl, current.logo_url)) out.push("company logo");
+  if (brand.lockTemplate && brand.template && "template" in body && changed(body.template, brand.template, current.template)) out.push("card design");
   const cust = body.customization as Record<string, unknown> | undefined;
   if (cust && typeof cust === "object") {
-    if (brand.fax && brand.fax.trim() && "fax" in cust && t(cust.fax) !== brand.fax.trim()) out.push("fax number");
+    if (brand.fax && brand.fax.trim() && "fax" in cust && changed(cust.fax, brand.fax, cur.fax)) out.push("fax number");
     if (brand.address && "address" in cust) {
       const a = (cust.address ?? {}) as Record<string, unknown>;
       const b = brand.address as Record<string, unknown>;
+      const c = (cur.address ?? {}) as Record<string, unknown>;
       const keys = ["street", "unit", "city", "state", "zip"] as const;
-      if (keys.some((k) => t(a[k]) !== t(b[k]))) out.push("address");
+      const diffsBrand = keys.some((k) => t(a[k]) !== t(b[k]));
+      const diffsCurrent = keys.some((k) => t(a[k]) !== t(c[k]));
+      if (diffsBrand && diffsCurrent) out.push("address");
     }
     if (brand.lockTemplate && brand.design && !out.includes("card design")) {
       for (const key of OFFICE_DESIGN_KEYS) {
-        if (brand.design[key] !== undefined && key in cust && t(cust[key]) !== t(brand.design[key])) {
+        if (brand.design[key] !== undefined && key in cust && changed(cust[key], String(brand.design[key] ?? ""), cur[key])) {
           out.push("card design");
           break;
         }

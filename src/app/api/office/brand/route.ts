@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
-import { overlayOfficeContact } from "@/lib/office-brand";
+import { overlayOfficeContact, stripOfficeContact } from "@/lib/office-brand";
+import { propagateBrandToMembers } from "@/lib/office-primary";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
@@ -27,7 +28,7 @@ export async function PATCH(req: NextRequest) {
   }
   const { data: office } = await admin
     .from("offices")
-    .select("id, brand_logo_url, brand_company, brand_website, brand_template")
+    .select("id, brand_logo_url, brand_company, brand_website, brand_template, brand_phone, brand_fax, brand_address")
     .eq("id", ctx.officeId)
     .maybeSingle();
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
@@ -140,6 +141,34 @@ export async function PATCH(req: NextRequest) {
       await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq(c.column, c.old);
     }
   }
+
+  // Cleared company CONTACT (phone/fax/address) must also come off member cards
+  // — those live in customization, so the additive overlay above never removes
+  // them. Strip only the values that still MATCH the OLD office brand, so a
+  // personal value a member set is never wiped. (office audit M1)
+  const clearedPhone = !brand.brand_phone && office.brand_phone;
+  const clearedFax = !brand.brand_fax && office.brand_fax;
+  const oldAddr = office.brand_address as { street?: string; unit?: string; city?: string; state?: string; zip?: string } | null;
+  const hadAddr = !!oldAddr && Object.values(oldAddr).some((v) => (v ?? "").toString().trim());
+  const clearedAddr = !brand.brand_address && hadAddr;
+  if (verifiedInOffice.length && (clearedPhone || clearedFax || clearedAddr)) {
+    const oldBrandContact = { phone: office.brand_phone as string | null, fax: office.brand_fax as string | null, address: hadAddr ? oldAddr : null };
+    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", verifiedInOffice);
+    for (const c of memberCards ?? []) {
+      const stripped = stripOfficeContact(c.customization as Record<string, unknown> | null, oldBrandContact);
+      await admin.from("cards").update({ customization: stripped }).eq("id", c.id);
+    }
+  }
+
+  // Push the locked LOOK (colors/fonts) to member cards on a brand save too.
+  // Contact/logo/company/website/template propagate above, but the design keys
+  // only travel via the primary-card sync path — so re-enabling the design lock
+  // never reached member cards, which is what caused the sub-user save-lockout
+  // (office audit H1). Re-applying the full brand overlay per member is
+  // idempotent and best-effort.
+  try {
+    await propagateBrandToMembers(office.id as string);
+  } catch { /* best-effort — a member re-syncs on their next edit */ }
 
   await writeAudit({
     action: "brand.updated",

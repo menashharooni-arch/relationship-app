@@ -103,7 +103,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // the normalization backstop.
     const subCtx = await getOfficeSubUserContext(user.id);
     if (subCtx) {
-      const violations = findManagedFieldViolations(body, brand);
+      // Compare against the card's CURRENT stored values too, so echoing a
+      // value the card already holds (managed data that lagged the brand) is
+      // never rejected — only an actual off-brand change is. Prevents a
+      // permanent save-lockout when brand propagation lagged.
+      const { data: currentCard } = await admin
+        .from("cards")
+        .select("company, website, logo_url, template, customization")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const violations = findManagedFieldViolations(body, brand, {
+        company: currentCard?.company,
+        website: currentCard?.website,
+        logo_url: currentCard?.logo_url,
+        template: currentCard?.template,
+        customization: (currentCard?.customization as Record<string, unknown> | null) ?? null,
+      });
       if (violations.length) {
         return NextResponse.json(
           {

@@ -68,10 +68,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "This person is already a member." }, { status: 400 });
   }
 
-  // Seat gate — only for a NEW invite (a resend reuses a pending row that
-  // already reserves its seat). Seats include the owner + active + pending, so
-  // this is the hard, server-side reservation that prevents overflow (spec §2/§4).
-  if (!existing) {
+  // Seat gate — required for a NEW invite AND for a resend that would newly
+  // consume a seat. A *pending* row already reserves its seat, but a revoked/
+  // declined/expired row does NOT count in getOfficeSeatUsage, so re-inviting
+  // one is effectively a new reservation and must pass the gate — otherwise the
+  // owner could overbook past their purchased seats. (billing audit #5)
+  const isPendingReservation = existing?.status === "pending";
+  if (!existing || !isPendingReservation) {
     const usage = await getOfficeSeatUsage(office.id as string, seatCap);
     if (usage.available <= 0) {
       return NextResponse.json(
@@ -151,6 +154,7 @@ export async function POST(req: Request) {
   } catch { /* logo is a nicety, never block the invite */ }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
+  let emailSent = true;
   await resend.emails.send({
     from: await getMarketingFrom(), // verified domain when set up, safe fallback otherwise
     to: email.trim(),
@@ -173,11 +177,13 @@ export async function POST(req: Request) {
         <p style="color:#ccc;font-size:11px;margin:0;">Powered by SwiftCard</p>
       </div>
     `,
-  }).catch(() => {});
+  }).catch(() => { emailSent = false; });
 
   // `resent` lets the caller tell the truth: there is only ever ONE invite row
   // per (office, email), so re-inviting someone who's already pending re-sends
   // that invitation rather than creating a duplicate. Saying "invite sent" for
   // both would leave an owner wondering why the person has two emails.
-  return NextResponse.json({ ok: true, resent: !!existing, inviteToken: token });
+  // `emailSent` lets the UI fall back to "copy the invite link" when delivery
+  // failed, instead of claiming success. (billing audit #13)
+  return NextResponse.json({ ok: true, resent: !!existing, inviteToken: token, emailSent });
 }
