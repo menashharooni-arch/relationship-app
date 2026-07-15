@@ -8,9 +8,9 @@ import { usePathname } from "next/navigation";
 // Invite tabs are folded in: Team IS the landing page, per-card management
 // lives inside each person, and inviting is a button, not a destination.
 const LINKS = [
-  { href: "/office/admin", label: "Team" },
-  { href: "/office/admin/leads", label: "Leads" },
-  { href: "/office/admin/branding", label: "Branding" },
+  { href: "/office/admin", label: "Team", tour: "admin-nav-team" },
+  { href: "/office/admin/leads", label: "Leads", tour: "admin-nav-leads" },
+  { href: "/office/admin/branding", label: "Branding", tour: "admin-nav-branding" },
 ];
 
 export default function OfficeAdminNav() {
@@ -30,6 +30,7 @@ export default function OfficeAdminNav() {
           <Link
             key={l.href}
             href={l.href}
+            data-tour={l.tour}
             className={`px-3 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
               active
                 ? "border-purple-500 text-white"

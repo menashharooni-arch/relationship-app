@@ -31,7 +31,7 @@ const TABS = [
   },
   {
     href: "/share",
-    tour: "nav-share",
+    tour: "nav-links",
     label: "Links",
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

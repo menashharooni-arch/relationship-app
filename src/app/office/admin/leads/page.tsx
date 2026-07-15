@@ -21,7 +21,7 @@ export default async function OfficeLeadsPage() {
         title="Leads"
         desc={`Everyone who shared their info with your team${leads.length ? ` — ${leads.length} so far` : ""}.`}
       />
-      <LeadsTable leads={leads} />
+      <div data-tour="admin-leads-table"><LeadsTable leads={leads} /></div>
     </div>
   );
 }

@@ -60,11 +60,11 @@ export const TOUR_STEPS: TourStep[] = [
     placement: "bottom",
   },
   {
-    id: "nav-share",
+    id: "nav-links",
     path: DASH,
-    anchor: "nav-share",
-    title: "Share",
-    body: "Your Swift Links link and Swift Signature live here — everything you drop into a bio or the bottom of an email.",
+    anchor: "nav-links",
+    title: "Links",
+    body: "Your Swift Links page and Swift Signature live here — everything you drop into a bio or the bottom of an email.",
     placement: "bottom",
   },
   {
@@ -72,7 +72,7 @@ export const TOUR_STEPS: TourStep[] = [
     path: DASH,
     anchor: "nav-settings",
     title: "Settings",
-    body: "Cards, integrations, referrals, and your account. The tour ends here.",
+    body: "This gear icon opens Cards, integrations, referrals, and your account. The tour ends there.",
     placement: "bottom",
   },
   {

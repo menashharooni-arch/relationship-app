@@ -7,6 +7,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { PageHead } from "@/components/office/OfficeUI";
 import { AddMemberButton } from "@/components/office/TeamActions";
 import TeamList from "@/components/office/TeamList";
+import AdminTourButton from "@/components/office/AdminTourButton";
 
 export const metadata = { title: "Team — Admin — SwiftCard" };
 
@@ -93,11 +94,14 @@ export default async function OfficeTeamPage() {
 
   return (
     <div>
+      <div className="mb-3">
+        <AdminTourButton />
+      </div>
       <PageHead
         title="Your team"
         desc="Everyone with a company card, and what those cards are bringing in."
         action={
-          <div className="flex items-center gap-3">
+          <div data-tour="admin-add-member" className="flex items-center gap-3">
             {seats && (
               <span className="text-xs text-gray-500 whitespace-nowrap hidden sm:block">
                 <span className="text-gray-300 font-semibold tabular-nums">{seats.used} of {seats.purchased}</span> seats in use
@@ -177,7 +181,7 @@ export default async function OfficeTeamPage() {
 
       {/* The four numbers. */}
       {overview && hasRows && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div data-tour="admin-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <BigStat
             label="Leads captured this month"
             value={overview.stats.leadsThisMonth.current.toLocaleString("en-US")}
@@ -214,22 +218,24 @@ export default async function OfficeTeamPage() {
       )}
 
       {/* One list: members and pending invitations together. */}
-      {hasRows ? (
-        <TeamList
-          people={people}
-          invites={invites}
-          appUrl={APP_URL}
-          caps={{ canInvite: caps.canInvite, canRemove: caps.canRemove, canManageCards: caps.canManageCards, canManageSeats: caps.canManageSeats }}
-        />
-      ) : (
-        setup.allDone && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-10 text-center">
-            <p className="text-gray-400 text-sm mb-1">Your team is empty right now.</p>
-            <p className="text-gray-600 text-xs mb-4">Invite someone and their card shows up here.</p>
-            {caps.canInvite && <AddMemberButton canManageSeats={caps.canManageSeats} />}
-          </div>
-        )
-      )}
+      <div data-tour="admin-team-list">
+        {hasRows ? (
+          <TeamList
+            people={people}
+            invites={invites}
+            appUrl={APP_URL}
+            caps={{ canInvite: caps.canInvite, canRemove: caps.canRemove, canManageCards: caps.canManageCards, canManageSeats: caps.canManageSeats }}
+          />
+        ) : (
+          setup.allDone && (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-10 text-center">
+              <p className="text-gray-400 text-sm mb-1">Your team is empty right now.</p>
+              <p className="text-gray-600 text-xs mb-4">Invite someone and their card shows up here.</p>
+              {caps.canInvite && <AddMemberButton canManageSeats={caps.canManageSeats} />}
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }

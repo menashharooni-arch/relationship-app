@@ -1,5 +1,6 @@
 import Link from "next/link";
 import OfficeAdminNav from "./OfficeAdminNav";
+import AdminGuidedTour from "@/components/office/AdminGuidedTour";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 
 // Every /office/admin page inherits this shell: the Office gate + one consistent
@@ -36,6 +37,7 @@ export default async function OfficeAdminLayout({ children }: { children: React.
       </header>
 
       <main className="max-w-6xl mx-auto px-5 pt-6 pb-16">{children}</main>
+      <AdminGuidedTour />
     </div>
   );
 }
