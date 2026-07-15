@@ -19,14 +19,27 @@ KEY PLACES
 
 Keep answers short. Use plain language.`;
 
+// Hard guardrail appended to the prompt ONLY for native-app sessions. The app
+// store forbids in-app selling, so the assistant must never route users toward
+// buying, pricing, or the website. If asked how to get a feature, it states only
+// which plan includes it.
+export const NATIVE_RULES = `
+
+IMPORTANT — NATIVE APP SESSION: You must NEVER discuss upgrading, pricing, prices, costs, discounts, purchasing, payments, subscriptions, or billing, and you must NEVER tell the user to visit the website, the Pricing page, or Settings → Billing. If the user asks how to get a feature or how to "upgrade", answer ONLY by stating which plan includes it (e.g. "That feature is part of the Pro plan.") — say nothing about how to buy it, what it costs, or where to pay. Do not use the word "upgrade".`;
+
 // ── Built-in knowledge base (works with no API / no credits) ────────────────
-type KbEntry = { triggers: string[]; answer: string };
+// `nativeAnswer` overrides `answer` in native-app sessions for entries whose
+// normal answer would leak pricing/upgrade/billing/website copy — so the KB
+// fast-path can't bypass the native guardrail above.
+type KbEntry = { triggers: string[]; answer: string; nativeAnswer?: string };
 
 const KB: KbEntry[] = [
   {
     triggers: ["hello", "hi", "hey", "what can you do", "what can you help", "help me"],
     answer:
       "Hi! I can help you find features and learn how to do things in SwiftCard. Try asking things like \"How do I create a card?\", \"How do I share my card?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\"",
+    nativeAnswer:
+      "Hi! I can help you find features and learn how to do things in SwiftCard. Try asking things like \"How do I create a card?\", \"How do I share my card?\", or \"Where are my contacts?\"",
   },
   {
     triggers: ["create a card", "make a card", "new card", "add card", "add a card", "create my card", "get started", "first card", "set up a card"],
@@ -82,16 +95,22 @@ const KB: KbEntry[] = [
     triggers: ["pricing", "price", "cost", "how much", "free", "pro", "difference between free and pro", "what is pro", "free vs pro"],
     answer:
       "Free includes 1 card, 5 new leads a month and 3 AI drafts a month (the monthly ones reset on the 1st). Pro removes those limits — unlimited leads and drafts — and adds unlimited cards, the AI business-card scanner, the custom card designer, automated email + text follow-up sequences, full analytics, integrations, and no SwiftCard branding. Upgrade from Settings → Billing, or the Pricing page.",
+    nativeAnswer:
+      "Free includes 1 card, 5 new leads a month and 3 AI drafts a month (the monthly ones reset on the 1st). Unlimited leads and drafts, unlimited cards, the AI business-card scanner, the custom card designer, automated email + text follow-up sequences, full analytics, and integrations are all part of the Pro plan.",
   },
   {
     triggers: ["upgrade", "go pro", "buy pro", "subscribe"],
     answer:
       "Go to Settings → Billing → \"Change Plan\" (or \"Upgrade to Pro\" if you're on Free), or use the Pricing page. Pro unlocks unlimited cards & contacts, the custom designer, analytics, integrations, and removes branding.",
+    nativeAnswer:
+      "Unlimited cards & contacts, the custom designer, full analytics, and integrations are part of the Pro plan.",
   },
   {
     triggers: ["billing", "manage subscription", "cancel", "cancel subscription", "invoice", "payment", "change card", "update payment", "refund", "change plan", "keep subscription", "reactivate", "seats", "add seats"],
     answer:
       "Everything is in Settings → Billing. \"Change Plan\" switches between Free, Pro and Office (and monthly/annual). \"Cancel subscription\" schedules it to end at your billing date — you keep Pro until then, and if you change your mind a \"Keep Subscription\" button brings it back. \"Manage subscription & payment\" opens the Stripe portal for your payment method and invoices. Office plans can change seats there too.",
+    nativeAnswer:
+      "That isn't something I can help with in the app. I can still help with cards, contacts, sharing, Swift Links, analytics, and account settings — just ask.",
   },
   {
     triggers: ["settings", "where is settings", "account settings", "where are settings"],
@@ -102,6 +121,8 @@ const KB: KbEntry[] = [
     triggers: ["delete account", "close account", "delete my account", "remove account", "reopen", "reopen account", "undo delete", "restore account"],
     answer:
       "Go to Settings → Account → Danger Zone → Delete account (you'll answer a couple of quick questions). After deleting you have 1 month to reopen by logging back in; after that it's permanent. If you only want to stop paying, use Settings → Billing to cancel or switch to Free instead — that keeps your account.",
+    nativeAnswer:
+      "Go to Settings → Account → Danger Zone → Delete account (you'll answer a couple of quick questions). After deleting you have 1 month to reopen by logging back in; after that it's permanent.",
   },
   {
     triggers: ["integration", "integrations", "zapier", "google contacts", "hubspot", "crm", "sync", "connect crm"],
@@ -148,23 +169,35 @@ const KB: KbEntry[] = [
 const FALLBACK =
   "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, billing, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\" — or reach the team via the Contact page in the footer.";
 
+// Native-safe fallback: same helpfulness, no upgrade/billing/website copy.
+export const NATIVE_FALLBACK =
+  "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I share my card?\"";
+
 function normalize(s: string): string {
   return ` ${s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim()} `;
 }
 
 // Score each KB entry by matching triggers; multi-word phrases weigh more.
-function localAnswer(question: string): string | null {
+// In native sessions, an entry's `nativeAnswer` (when present) is returned in
+// place of `answer` so the fast-path can't leak pricing/upgrade/billing copy.
+export function localAnswer(question: string, native = false): string | null {
   const q = normalize(question);
-  let best = { score: 0, answer: "" };
+  let best: { score: number; entry: KbEntry | null } = { score: 0, entry: null };
   for (const entry of KB) {
     let score = 0;
     for (const t of entry.triggers) {
       const words = t.split(" ").length;
       if (q.includes(` ${t} `) || (words > 1 && q.includes(t))) score += words;
     }
-    if (score > best.score) best = { score, answer: entry.answer };
+    if (score > best.score) best = { score, entry };
   }
-  return best.score >= 1 ? best.answer : null;
+  if (best.score < 1 || !best.entry) return null;
+  return native ? best.entry.nativeAnswer ?? best.entry.answer : best.entry.answer;
+}
+
+// Build the LLM prompt; appends the hard native guardrail for native sessions.
+export function buildHelpPrompt(convo: string, native = false): string {
+  return `${SYSTEM_PROMPT}${native ? NATIVE_RULES : ""}\n\nConversation so far:\n${convo}\n\nReply as the assistant to the user's last message.`;
 }
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -175,6 +208,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
+  const native = body.native === true;
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages: ChatMessage[] = raw
     .filter((m: unknown): m is ChatMessage =>
@@ -188,17 +222,18 @@ export async function POST(req: NextRequest) {
   if (!lastUser) return NextResponse.json({ error: "No question provided." }, { status: 400 });
 
   // 1) Answer instantly from the built-in knowledge base (free, always works).
-  const local = localAnswer(lastUser.content);
+  //    Native sessions get the native-safe answer for any leaky entry.
+  const local = localAnswer(lastUser.content, native);
   if (local) return NextResponse.json({ reply: local });
 
   // 2) For anything the KB can't confidently answer, use the LLM IF a provider
   //    is configured. If not (or it errors), fall back to the helpful default.
   if (hasAiProvider()) {
     const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
-    const prompt = `${SYSTEM_PROMPT}\n\nConversation so far:\n${convo}\n\nReply as the assistant to the user's last message.`;
+    const prompt = buildHelpPrompt(convo, native);
     const reply = await aiComplete(prompt, { maxTokens: 700 });
     if (reply) return NextResponse.json({ reply });
   }
 
-  return NextResponse.json({ reply: FALLBACK });
+  return NextResponse.json({ reply: native ? NATIVE_FALLBACK : FALLBACK });
 }
