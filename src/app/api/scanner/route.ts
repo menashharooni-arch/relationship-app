@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   // isn't a meter that refills on the 1st, it's simply not on the Free plan.
   if (!isPaidPlan(profile?.plan)) {
     return NextResponse.json(
-      { error: "upgrade", message: "Scanning business cards is a Pro feature. Upgrade to scan unlimited cards.", upgrade: "/pricing" },
+      { code: "SCANNER_PRO_ONLY", error: "upgrade", message: "Scanning business cards is a Pro feature. Upgrade to scan unlimited cards.", upgrade: "/pricing" },
       { status: 403 }
     );
   }

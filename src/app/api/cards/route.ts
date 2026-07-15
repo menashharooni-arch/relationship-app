@@ -34,6 +34,8 @@ export async function POST(req: NextRequest) {
   if (!paid && (count ?? 0) >= PLAN_LIMITS.FREE_CARD_LIMIT) {
     return NextResponse.json(
       {
+        // Additive machine code for native; web keeps using message/error/upgrade.
+        code: "CARD_LIMIT_REACHED",
         error: "limit",
         message: "Ready for a second card? Go unlimited with Pro.",
         upgrade: "/pricing",

@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest) {
   const admin = getAdminSupabase();
   const { data: prof } = await admin.from("profiles").select("plan, customization").eq("id", user.id).single();
   if (!isPaidPlan(prof?.plan)) {
-    return NextResponse.json({ error: "upgrade", message: "Forwarding events to your CRM is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Forwarding events to your CRM is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
   const { notifications, views } = (await req.json()) as { notifications?: boolean; views?: boolean };

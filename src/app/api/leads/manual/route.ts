@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
   if (!paid && readUsage(profile.customization).leads >= PLAN_LIMITS.FREE_LEADS_PER_MONTH) {
     return NextResponse.json(
       {
+        // Machine code for the native app (platform-agnostic). Additive only —
+        // web keeps using message/error/upgrade byte-for-byte.
+        code: "LEAD_LIMIT_REACHED",
         error: "limit",
         message: `You've captured your ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} free leads this month. Upgrade to Pro to add unlimited contacts.`,
         upgrade: "/pricing",
