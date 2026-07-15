@@ -5,6 +5,7 @@ import { getSourceLabel } from "@/lib/source-labels";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton from "@/components/ShareMyInfoButton";
 import { PlanGate } from "@/components/PlanGate";
+import { AiDraftTag } from "@/components/AiConsentGate";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
@@ -1175,6 +1176,8 @@ export default function ContactsClient({
                               <p className="text-[11px] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
                               {draftItems.map((it, i) => (
                                 <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
+                                  {/* Native-only "AI draft" tag; renders null (no DOM) on web. */}
+                                  <AiDraftTag />
                                   <p className="text-[11px] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
                                   {ch === "email" && (
                                     <input

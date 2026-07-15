@@ -31,6 +31,7 @@ import Link from "next/link";
 import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
+import AiConsentGate from "@/components/AiConsentGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -442,6 +443,8 @@ export default async function DashboardPage({
   return (
     <>
       <AppStorePopup trigger={params.welcome === "1"} />
+      {/* Native-only one-time AI-consent notice (the dashboard scanner uses AI). */}
+      <AiConsentGate accepted={!!(profile.customization as { _aiConsentAccepted?: boolean } | null)?._aiConsentAccepted} />
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>

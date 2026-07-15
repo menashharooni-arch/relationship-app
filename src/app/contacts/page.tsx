@@ -13,6 +13,7 @@ import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
+import AiConsentGate from "@/components/AiConsentGate";
 
 export default async function ContactsPage({
   searchParams,
@@ -82,6 +83,8 @@ export default async function ContactsPage({
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNav />
       <HelpWidget floating />
+      {/* Native-only one-time AI-consent notice (shown before first AI use). */}
+      <AiConsentGate accepted={!!(profile.customization as { _aiConsentAccepted?: boolean } | null)?._aiConsentAccepted} />
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
