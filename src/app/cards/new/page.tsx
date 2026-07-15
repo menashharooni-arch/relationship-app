@@ -4,11 +4,17 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import NewCardWizard from "./NewCardWizard";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
+import { hasWalletConfig } from "@/lib/wallet-config";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
 // Forward-declare it here so this wrapper can pass guest mode before/after that
 // change lands — the real optional prop satisfies this type.
-const Wizard = NewCardWizard as ComponentType<{ isPro: boolean; guest?: boolean }>;
+const Wizard = NewCardWizard as ComponentType<{
+  isPro: boolean;
+  guest?: boolean;
+  appUrl?: string;
+  walletEnabled?: boolean;
+}>;
 
 // Guests may build a full card here WITHOUT an account — no login wall while
 // editing. Auth is required only for protected actions (publish / save / share /
@@ -78,7 +84,12 @@ export default async function NewCardPage({
   return (
     <>
       {claimHere && <GuestDraftClaim />}
-      <Wizard isPro={isPro} guest={!authedAdd} />
+      <Wizard
+        isPro={isPro}
+        guest={!authedAdd}
+        appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
+        walletEnabled={hasWalletConfig()}
+      />
     </>
   );
 }

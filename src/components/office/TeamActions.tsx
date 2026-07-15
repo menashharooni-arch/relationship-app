@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/events";
 
 // ── Team-tab actions: add a member, manage an invite, remove a member ───────
 // Written for an owner who has never used a dashboard: one action per button,
@@ -117,6 +118,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
     });
     const json = await res.json().catch(() => ({}));
     if (res.ok) {
+      track("employee_invited", { variant: json.resent ? "resent" : "new" });
       const base = json.resent
         ? `${email.trim()} already had an invite — we've sent it again ✓`
         : `Invite sent to ${email.trim()} ✓`;
@@ -160,6 +162,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
         setError(json.message ?? json.error ?? "Couldn't add the seat. Your card was not charged — please try again.");
         return;
       }
+      track("office_seat_added", { seats: json.seats, plan: "office" });
       const r = await sendInvite("Seat added and");
       if (r === "ok") setNeedsSeat(false);
       else if (r !== "error") {
