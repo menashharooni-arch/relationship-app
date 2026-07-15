@@ -4,6 +4,7 @@ import ShareMyCardButton from "@/components/ShareMyCardButton";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlanGate } from "@/components/PlanGate";
+import { AiDraftTag } from "@/components/AiConsentGate";
 
 type FlowPreset = { name: string; days: number[] };
 
@@ -1036,6 +1037,8 @@ export default function LeadCard({
                   <>
                     {aiMessages.map((msg, i) => (
                       <div key={i} className="rounded-xl p-3" style={{ background: "#111827", border: "1px solid #1f2937" }}>
+                        {/* Native-only "AI draft" tag; renders null (no DOM) on web. */}
+                        <AiDraftTag />
                         <p className="text-gray-300 text-xs leading-relaxed mb-2">{msg}</p>
                         <div className="flex items-center gap-2">
                           <button
