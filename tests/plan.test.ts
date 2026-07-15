@@ -49,15 +49,50 @@ describe("PLAN_PRICES sanity (guards against a silent pricing drift)", () => {
   });
 });
 
+// The Free numbers are quoted verbatim in plan-content.ts (which drives
+// /pricing, /upgrade and the in-product plan cards), in the AI sales/help
+// prompts, and in the admin plan matrix. Pin them here so changing a limit is
+// a deliberate act that forces the copy to be revisited, rather than a silent
+// drift between what we promise and what we enforce.
+describe("PLAN_LIMITS — Free plan (keep in sync with plan-content.ts)", () => {
+  it("Free gets 1 card", () => {
+    expect(PLAN_LIMITS.FREE_CARD_LIMIT).toBe(1);
+  });
+
+  it("Free gets 2 additional Swift Links buttons", () => {
+    expect(PLAN_LIMITS.FREE_MAX_LINKS).toBe(2);
+  });
+
+  it("Free gets 5 leads and 3 AI drafts a month", () => {
+    expect(PLAN_LIMITS.FREE_LEADS_PER_MONTH).toBe(5);
+    expect(PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH).toBe(3);
+  });
+
+  it("has no free scan allowance — the card scanner is Pro-only", () => {
+    expect(PLAN_LIMITS).not.toHaveProperty("FREE_SCANS_PER_MONTH");
+  });
+});
+
 describe("sanitizeCustomizationForPlan", () => {
   it("strips Pro-only design keys and caps Swift Links for a free account", () => {
-    const input = { accentColor: "#ff0000", font: "serif", about: "hi", links: [1, 2] };
+    // Always start OVER the cap (whatever the cap currently is) so this proves
+    // the trim rather than the input length. It previously hardcoded a 2-item
+    // list against a cap of 1 and would silently stop testing the trim the
+    // moment FREE_MAX_LINKS changed.
+    const overCap = Array.from({ length: PLAN_LIMITS.FREE_MAX_LINKS + 2 }, (_, i) => i + 1);
+    const input = { accentColor: "#ff0000", font: "serif", about: "hi", links: overCap };
     const out = sanitizeCustomizationForPlan(input, false);
     for (const k of PRO_CUSTOMIZATION_KEYS) expect(out).not.toHaveProperty(k);
     // Free-baseline keys survive; Swift Links are trimmed to the Free cap.
     expect(out.about).toBe("hi");
-    expect(out.links).toEqual([1].slice(0, PLAN_LIMITS.FREE_MAX_LINKS));
+    expect(out.links).toEqual(overCap.slice(0, PLAN_LIMITS.FREE_MAX_LINKS));
     expect(out.links).toHaveLength(PLAN_LIMITS.FREE_MAX_LINKS);
+  });
+
+  it("keeps a free account's links when it is exactly at the cap", () => {
+    const atCap = Array.from({ length: PLAN_LIMITS.FREE_MAX_LINKS }, (_, i) => i + 1);
+    const out = sanitizeCustomizationForPlan({ links: atCap }, false);
+    expect(out.links).toEqual(atCap);
   });
 
   it("keeps all Swift Links for a paid account", () => {

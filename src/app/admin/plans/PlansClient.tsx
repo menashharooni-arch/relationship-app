@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 const PLANS = [
   { id: "free", label: "Free", color: "#6b7280", blurb: "The starter experience." },
@@ -9,12 +10,16 @@ const PLANS = [
   { id: "enterprise", label: "Office", color: "#c084fc", blurb: "Teams & multiple seats." },
 ];
 
-// Feature matrix — what to expect on each plan when you test it.
+// Feature matrix — what to expect on each plan when you test it. The Free
+// numbers read from PLAN_LIMITS (the enforced source of truth) rather than
+// being typed here: this table had drifted to "25" contacts and "3 total"
+// drafts, neither of which the product has done for a long time.
 const FEATURES: { label: string; free: string; pro: string; office: string }[] = [
-  { label: "Cards", free: "1", pro: "Unlimited", office: "Unlimited" },
-  { label: "Contacts / leads", free: "25", pro: "Unlimited", office: "Unlimited" },
-  { label: "Swift Links buttons", free: "1", pro: "Unlimited", office: "Unlimited" },
-  { label: "AI follow-up drafts", free: "3 total", pro: "Unlimited", office: "Unlimited" },
+  { label: "Cards", free: String(PLAN_LIMITS.FREE_CARD_LIMIT), pro: "Unlimited", office: "Unlimited" },
+  { label: "Contacts / leads", free: `${PLAN_LIMITS.FREE_LEADS_PER_MONTH}/month`, pro: "Unlimited", office: "Unlimited" },
+  { label: "Swift Links buttons", free: String(PLAN_LIMITS.FREE_MAX_LINKS), pro: "Unlimited", office: "Unlimited" },
+  { label: "AI follow-up drafts", free: `${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH}/month`, pro: "Unlimited", office: "Unlimited" },
+  { label: "AI card scanner", free: "—", pro: "✓", office: "✓" },
   { label: "Custom card designer", free: "—", pro: "✓", office: "✓" },
   { label: "Automated follow-up sequences", free: "Day-1 email only", pro: "✓", office: "✓" },
   { label: "CRM integrations", free: "—", pro: "✓", office: "✓" },
