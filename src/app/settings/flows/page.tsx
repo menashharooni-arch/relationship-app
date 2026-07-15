@@ -183,7 +183,6 @@ export default async function FlowSettingsPage({
               googleSyncError={googleSyncError}
               hubspotSyncError={hubspotSyncError}
               isPro={isPro}
-              hubspotEnabled={!!(process.env.HUBSPOT_CLIENT_ID && process.env.HUBSPOT_CLIENT_SECRET)}
             />
           </Suspense>
         </div>
