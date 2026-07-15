@@ -252,7 +252,7 @@ export default function PrivacyPage() {
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
             <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
+            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
           </div>
           <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
         </div>
