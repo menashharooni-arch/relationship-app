@@ -14,6 +14,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
 import ShareButton from "@/components/ShareButton";
 import GrowLinkButton from "@/components/GrowLinkButton";
+import SettingsLinkButton from "@/components/SettingsLinkButton";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
@@ -478,7 +479,6 @@ export default async function DashboardPage({
               { href: `/dashboard?card=${activeUsername}`, label: "Dashboard", active: true },
               { href: `/contacts?card=${activeUsername}`, label: "Contacts", active: false },
               { href: `/share?card=${activeUsername}`, label: "Links", active: false },
-              { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href} data-tour={`nav-${label.toLowerCase()}`}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
@@ -500,6 +500,7 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <span data-tour="nav-settings" className="flex items-center"><SettingsLinkButton /></span>
             <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
