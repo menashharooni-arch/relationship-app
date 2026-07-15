@@ -369,7 +369,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
         </div>
       ) : atLinkCap ? (
         <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
-          Free includes {PLAN_LIMITS.FREE_MAX_LINKS} Swift Link. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> for unlimited links.
+          Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
         </p>
       ) : (
         <button

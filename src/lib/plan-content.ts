@@ -24,7 +24,7 @@ export const PLAN_FEATURES = {
   free: [
     "1 digital business card",
     "5 new leads a month",
-    "1 Swift Links button",
+    "2 Swift Links buttons",
     "3 AI follow-up drafts a month",
     "All 5 templates · QR, link & NFC",
     "Swift Signature — your card in every email",

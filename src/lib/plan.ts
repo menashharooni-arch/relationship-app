@@ -4,7 +4,7 @@
 // component reads from this file.
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
-  FREE_MAX_LINKS: 1,           // max Swift Links (action-link buttons) on Free; Pro/Office: unlimited
+  FREE_MAX_LINKS: 2,           // max additional Swift Links (action-link buttons) on Free; Pro/Office: unlimited
   // ── Monthly free meters (refresh on the 1st; counted per-ACCOUNT via
   //    profiles.customization._usage so deleting a card can never reset them).
   FREE_LEADS_PER_MONTH: 5,     // new leads/month before extras soft-lock behind Pro
