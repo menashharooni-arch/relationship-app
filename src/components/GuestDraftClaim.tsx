@@ -66,10 +66,20 @@ export default function GuestDraftClaim() {
         }
 
         if (res.status === 402) {
-          // Free card limit reached — can't save another card. Discard the draft
-          // to avoid a redirect loop and route to upgrade.
-          clearDraft();
-          router.push("/pricing?from=claim");
+          // Free card limit reached — this account already has its one card, so
+          // this one can't be saved YET.
+          //
+          // This used to clearDraft() first, which destroyed the card they had
+          // just spent minutes building and then dropped them on the marketing
+          // pricing page. Their work is the entire reason they're here and the
+          // only reason they'd pay; deleting it at the exact moment we ask for
+          // money is the worst possible trade. Keep the draft — the editor
+          // restores it — and send them to the in-product upgrade screen, since
+          // they're signed in and have already chosen SwiftCard.
+          //
+          // Dropping `claim=1` is what prevents the retry loop the old comment
+          // was worried about; discarding the draft was never needed for that.
+          router.push("/upgrade?from=claim");
           return;
         }
 
