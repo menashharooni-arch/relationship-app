@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { hasWalletConfig } from "@/lib/wallet-config";
 import TeamCardSetup from "./TeamCardSetup";
 
 export const metadata = { title: "Create your card — SwiftCard" };
@@ -37,16 +38,30 @@ export default async function TeamWelcomePage() {
 
   const brand = await getOfficeBrandForUser(user.id).catch(() => null);
 
+  const addr = brand?.address;
+  const addrLine = addr
+    ? [addr.street, addr.unit, addr.city, addr.state, addr.zip].filter((v) => (v ?? "").toString().trim()).join(", ")
+    : null;
+
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-10">
       <TeamCardSetup
         appUrl={APP_URL}
-        companyName={brand?.company ?? null}
-        companyLogoUrl={brand?.logoUrl ?? null}
+        walletEnabled={hasWalletConfig()}
         prefill={{
           name: (profile.name as string) || "",
           email: (profile.email as string) || user.email || "",
           phone: (profile.phone as string) || "",
+        }}
+        // The company half of their card, already decided by their employer.
+        // Shown read-only so they can SEE it's done rather than wonder whether
+        // they're supposed to fill it in.
+        company={{
+          name: brand?.company ?? null,
+          logoUrl: brand?.logoUrl ?? null,
+          website: brand?.website ?? null,
+          phone: brand?.phone ?? null,
+          address: addrLine || null,
         }}
       />
     </main>

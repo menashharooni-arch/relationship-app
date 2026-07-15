@@ -31,12 +31,16 @@ type Lead = {
   follow_up_sequence?: { day: number; message: string; sent_at: string | null }[] | null;
 };
 
-type Status = "new_contact" | "touch" | "dissolved";
+type Status = "new_contact" | "touch" | "dissolved" | "not_interested";
 
 const STATUS_CONFIG: Record<Status, { label: string; bg: string; color: string }> = {
   new_contact: { label: "New Contact", bg: "#1e293b", color: "#94a3b8" },
   touch:       { label: "Touch",       bg: "#172554", color: "#60a5fa" },
   dissolved:   { label: "Dissolved",   bg: "#111827", color: "#6b7280" },
+  // Set from the Office Leads tab. Renderable here so an Office-marked lead
+  // doesn't show up blank in the owner's personal contacts; deliberately NOT in
+  // STATUS_ORDER, so the tap-to-cycle here keeps its original three states.
+  not_interested: { label: "Not interested", bg: "#1f1418", color: "#a1a1aa" },
 };
 
 const STATUS_ORDER: Status[] = ["new_contact", "touch", "dissolved"];
