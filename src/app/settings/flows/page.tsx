@@ -16,6 +16,7 @@ import TakeTourButton from "@/components/TakeTourButton";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
+import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import MobileNav from "@/components/MobileNav";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
@@ -279,10 +280,9 @@ export default async function FlowSettingsPage({
             {[
               { href: "/contacts",  label: "Contacts" },
               { href: "/share", label: "Links" },
-              { href: "/settings/flows", label: "Settings", active: true },
-            ].map(({ href, label, active }) => (
+            ].map(({ href, label }) => (
               <Link key={href} href={href}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
+                className="text-sm px-3 py-1.5 rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-gray-800/60">
                 {label}
               </Link>
             ))}
@@ -294,6 +294,7 @@ export default async function FlowSettingsPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <SettingsLinkButton />
             {!isOfficeSubUser && <GrowLinkButton />}
             <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">
               ← Dashboard

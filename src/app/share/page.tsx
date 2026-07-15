@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
+import SettingsLinkButton from "@/components/SettingsLinkButton";
 import MobileNav from "@/components/MobileNav";
 import HelpWidget from "@/components/HelpWidget";
 import CopyButton from "@/components/CopyButton";
@@ -116,7 +117,6 @@ export default async function SharePage({
             {[
               { href: "/contacts", label: "Contacts", active: false },
               { href: "/share", label: "Links", active: true },
-              { href: "/settings/flows", label: "Settings", active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href}
                 className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}>
@@ -131,6 +131,7 @@ export default async function SharePage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <SettingsLinkButton />
             <GrowLinkButton />
             <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">← Dashboard</DashboardLink>
           </div>

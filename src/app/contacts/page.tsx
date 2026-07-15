@@ -7,6 +7,7 @@ import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import GrowLinkButton from "@/components/GrowLinkButton";
+import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
@@ -101,10 +102,7 @@ export default async function ContactsPage({
               Contacts
             </Link>
             <Link href="/share" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
-              Share
-            </Link>
-            <Link href="/settings/flows" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
-              Settings
+              Links
             </Link>
             {showOfficeAdmin && (
               <Link href="/office/admin" className="text-sm text-purple-400 hover:text-purple-300 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors font-medium">
@@ -114,6 +112,7 @@ export default async function ContactsPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <SettingsLinkButton />
             <GrowLinkButton />
             <Link href={dashHref} className="text-sm text-gray-400 hover:text-white transition-colors">
               ← Dashboard

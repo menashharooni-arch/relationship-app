@@ -10,6 +10,7 @@ import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
 import RateUsCard from "@/components/RateUsCard";
 import GrowShare from "@/components/GrowShare";
+import SettingsLinkButton from "@/components/SettingsLinkButton";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -83,7 +84,6 @@ export default async function GrowPage() {
             {[
               { href: "/contacts", label: "Contacts" },
               { href: "/share", label: "Links" },
-              { href: "/settings/flows", label: "Settings" },
             ].map(({ href, label }) => (
               <Link key={href} href={href}
                 className="text-sm px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/60 transition-colors">
@@ -92,9 +92,12 @@ export default async function GrowPage() {
             ))}
           </div>
 
-          <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">
-            ← Dashboard
-          </DashboardLink>
+          <div className="flex items-center gap-2 shrink-0">
+            <SettingsLinkButton />
+            <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">
+              ← Dashboard
+            </DashboardLink>
+          </div>
         </div>
       </nav>
 
