@@ -42,8 +42,13 @@ export default function CustomDesignCard({
           {selected ? "Selected" : isPro ? "Design →" : "Pro"}
         </span>
       </button>
+      {/* /upgrade, not /pricing: this only ever renders inside the card editor,
+          so the reader is signed in. Every sibling upsell in this same panel
+          already goes to /upgrade; this one alone bounced people to the
+          marketing page, which re-offers the Free plan they're already on and
+          sells a trial that in-product upgrades deliberately don't include. */}
       {!isPro && (
-        <Link href="/pricing" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+        <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
           Make it unmistakably yours — unlock the custom designer with Pro →
         </Link>
       )}

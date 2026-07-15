@@ -1,5 +1,17 @@
 "use client";
 
+// ⚠️ ORPHANED — nothing imports this component, and it imports the only thing
+// that imports LeadCard, so both files (~1,200 lines) are dead. The live contact
+// list is ContactsClient (/contacts) plus QuickContactList (/dashboard).
+//
+// Worth knowing before you edit anything here: the `UpgradeButton variant="inline"`
+// below is the richest upsell asset in the codebase and it renders for NOBODY.
+// Its job — telling a Free user at the lead cap what they're missing and what it
+// costs — is now done by the locked-contacts banner on /contacts.
+//
+// Left in place rather than deleted because that's a product decision, not a
+// cleanup one. If it isn't coming back, delete both files.
+
 import { useState } from "react";
 import LeadCard from "@/components/LeadCard";
 import SortSelect from "@/components/SortSelect";

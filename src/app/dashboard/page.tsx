@@ -786,18 +786,23 @@ export default async function DashboardPage({
                         <span className="text-blue-400 text-xs truncate flex-1">{cardUrl.replace("https://", "")}</span>
                         <CopyButton text={cardUrl} />
                       </div>
+                      {/* The headline says SHARE; this button used to say
+                          "Preview your card" and open the owner's own card in a
+                          tab — an action that cannot possibly produce the contact
+                          the copy just promised. The instruction and the only
+                          solid button now agree. */}
+                      <ShareButton
+                        url={cardUrl}
+                        text="Here's my card — save my details in one tap."
+                        label="Share your card"
+                      />
                       <a
                         href={cardUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold transition-colors"
-                        style={{ background: "#1D4ED8", color: "#fff" }}
+                        className="block text-center text-gray-500 hover:text-gray-300 text-[11px] py-1 transition-colors"
                       >
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                        </svg>
-                        Preview your card
+                        See how it looks to them ↗
                       </a>
                     </div>
                   </div>
