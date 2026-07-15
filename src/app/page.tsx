@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
+import StickyMobileCTA from "@/components/StickyMobileCTA";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import HeroImage from "@/components/site/HeroImage";
@@ -67,8 +68,20 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              {/* ONE primary. The secondary is deliberately a quiet outline and
+                  goes to the demo rather than a page — "see how it works" should
+                  show the thing working, not describe it somewhere else. */}
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
-                <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg sc-btn-orbit">Create your free card</Link>
+                <Link
+                  id="hero-cta"
+                  href="/cards/new"
+                  className="rd-btn rd-btn-aurora rd-btn-lg sc-btn-orbit"
+                >
+                  Create your free card
+                </Link>
+                <Link href="#how-it-works" className="rd-btn rd-btn-ghost-l rd-btn-lg">
+                  See how it works
+                </Link>
               </div>
             </div>
 
@@ -79,7 +92,7 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ HOW IT WORKS ═══════════════ */}
-        <section className="rd-dark relative py-20 border-y border-white/8">
+        <section id="how-it-works" className="rd-dark relative py-20 border-y border-white/8 scroll-mt-16">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
             <div className="rd-steps">
               <div className="rd-steps-line" aria-hidden="true" />
@@ -185,6 +198,12 @@ export default function Home() {
               </p>
             </div>
             <div data-reveal="fade"><DashboardDemo /></div>
+            {/* This section had no CTA at all — the copy says "try the dashboard
+                right here", so the next step is the demo that actually is one. */}
+            <div className="mt-8 flex flex-wrap items-center gap-3" data-reveal>
+              <Link href="/cards/new" className="rd-btn rd-btn-primary">Create your free card</Link>
+              <Link href="/preview" className="rd-btn rd-btn-ghost-d">Try the live demo</Link>
+            </div>
           </div>
         </section>
 
@@ -298,6 +317,15 @@ export default function Home() {
               ))}
             </div>
             <div className="mt-8" data-reveal="fade"><TeamsDashboard /></div>
+            {/* The highest-value segment on the page had no CTA whatsoever — no
+                link to the Office product page, to pricing, or to a human. A
+                small team that's ready gets the self-serve path; a bigger or
+                unsure buyer gets a way to ask first, rather than being forced
+                into a 50-seat checkout with no one to talk to. */}
+            <div className="mt-8 flex flex-wrap items-center gap-3" data-reveal>
+              <Link href="/products/teams" className="rd-btn rd-btn-primary">Explore Office</Link>
+              <Link href="/contact?topic=office" className="rd-btn rd-btn-ghost-l">Talk to us about your team</Link>
+            </div>
           </div>
         </section>
 
@@ -319,6 +347,11 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* Mobile-only, appears once the hero CTA scrolls away, hides over the
+          final CTA. The component was already written for exactly this and had
+          zero importers — it was never mounted anywhere. */}
+      <StickyMobileCTA />
 
       <SiteFooter />
     </>

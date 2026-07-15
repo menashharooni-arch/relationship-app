@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PLAN_PRICES, PLAN_LIMITS, TRIAL_DAYS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import { track } from "@/lib/events";
 
 type Plan = "pro" | "office";
 type Interval = "monthly" | "annual";
@@ -110,6 +111,7 @@ export default function CheckoutClient() {
 
     setBusy(true);
     setErr(null);
+    track("checkout_started", { plan, interval, seats, variant: trial ? "with_trial" : "no_trial" });
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",

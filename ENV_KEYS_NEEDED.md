@@ -141,3 +141,15 @@ See **`STRIPE_TWILIO_SETUP.md`** for the full dashboard walkthrough (buying a nu
 | `NEXT_PUBLIC_STRIPE_*_PRICE_ID` | Checkout rejects the request with "Unknown plan price" |
 | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` | SMS sending returns "not configured" (fails safely, no 500) |
 | `TWILIO_MESSAGING_SERVICE_SID` / `TWILIO_PHONE_NUMBER` | Same — at least one of these two is also required for SMS to send |
+
+## Product analytics (optional)
+
+`NEXT_PUBLIC_POSTHOG_KEY` — PostHog **project** key. Publishable by design, which
+is why it's `NEXT_PUBLIC_`. Without it the analytics layer is completely inert:
+the SDK is never imported, no network, no cookies, and every `track()` call is a
+no-op. Set it to start recording the conversion funnel (card created → published
+→ plan selected → checkout completed). This was previously referenced by the code
+but documented nowhere and set in no environment, so the funnel recorded nothing.
+
+`NEXT_PUBLIC_POSTHOG_HOST` — optional, defaults to `https://us.i.posthog.com`.
+Set to `https://eu.i.posthog.com` for an EU project.
