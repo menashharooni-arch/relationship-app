@@ -1,43 +1,81 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 // ── Desktop product mocks on a phone ────────────────────────────────────────
 // DashboardDemo and TeamsDashboard are faithful replicas of the real product:
-// browser chrome, two-column boards, twelve-column tables. That's the point —
-// they show what you actually get. But a ~350px phone column crushed them into
-// unreadable slivers: 10px text, tables at a third of their design width, panels
-// stacked into a long grey smear. Legible on a laptop, uncomfortable on a phone,
-// which is where most SwiftCard traffic starts.
+// browser chrome, two-column boards, twelve-column tables. They need their full
+// design width (~760–820px) to hold together.
 //
-// So don't shrink them — pan them. On a phone the mock renders at the width it
-// was designed for and scrolls sideways inside its own container, the way a real
-// screenshot would. It bleeds to the screen edges (-mx-5 cancels the section's
-// px-5) so the cut-off edge reads as "there's more this way" rather than as a
-// broken layout, and a hint line says so outright.
+// On a phone we SCALE the whole mock to the screen width, like a product
+// screenshot. The earlier approach panned it at full size inside a horizontal
+// scroller — that meant a mock two screens wide and two-plus screens tall that
+// you had to drag around in both axes, which read as broken rather than "more
+// this way". Scaled, the visitor sees the entire dashboard in one glance; the
+// details aren't meant to be read here (the "Try the live demo" CTA under it is
+// the readable version).
 //
-// From `sm:` up nothing changes at all — same markup, no wrapper behaviour.
+// At any container width >= minWidth nothing changes: no transform, no fixed
+// height, the mock flows normally. The scale() transform is visual only — the
+// inner block keeps its full layout width — so while scaled we set an explicit
+// measured height and `contain: size` (same trick as CardScaler) to stop the
+// intrinsic width inflating the section on phones.
 export default function WideDemo({
   children,
   minWidth = 720,
-  hint = "Swipe to explore →",
 }: {
   children: React.ReactNode;
   /** The width the mock actually needs to stay readable. */
   minWidth?: number;
-  hint?: string;
 }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0); // 0 = not measured yet (render hidden)
+  const [height, setHeight] = useState(0);
+
+  useEffect(() => {
+    function recompute() {
+      const w = outerRef.current?.clientWidth ?? minWidth;
+      const s = Math.min(1, w / minWidth);
+      const naturalH = innerRef.current?.offsetHeight ?? 0;
+      setScale(s);
+      setHeight(naturalH * s);
+    }
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    if (outerRef.current) ro.observe(outerRef.current);
+    if (innerRef.current) ro.observe(innerRef.current);
+    // Belt and braces: some embedded webviews deliver window resize but not
+    // ResizeObserver callbacks, and rotation is the resize that matters here.
+    window.addEventListener("resize", recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+  }, [minWidth]);
+
+  const scaled = scale > 0 && scale < 1;
+
   return (
-    <div>
-      <div className="-mx-5 sm:mx-0 overflow-x-auto sm:overflow-visible rd-scrollbar-none [scrollbar-width:none]">
-        <div className="px-5 sm:px-0">
-          {/* min-w only below sm; from sm up the mock fits and flows normally. */}
-          <div className="min-w-[var(--demo-min)] sm:min-w-0" style={{ ["--demo-min" as string]: `${minWidth}px` }}>
-            {children}
-          </div>
-        </div>
+    <div
+      ref={outerRef}
+      className="w-full"
+      style={scaled ? { height: height || undefined, contain: "size" } : undefined}
+    >
+      <div
+        ref={innerRef}
+        style={
+          scaled
+            ? {
+                width: minWidth,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }
+            : { opacity: scale === 0 ? 0 : undefined }
+        }
+      >
+        {children}
       </div>
-      <p className="sm:hidden text-center text-[11px] text-white/35 mt-2.5" aria-hidden="true">
-        {hint}
-      </p>
     </div>
   );
 }

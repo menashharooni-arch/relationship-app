@@ -198,7 +198,7 @@ export default function Home() {
               </p>
             </div>
             <div data-reveal="fade">
-              <WideDemo minWidth={760} hint="Swipe to explore the dashboard →">
+              <WideDemo minWidth={760}>
                 <DashboardDemo />
               </WideDemo>
             </div>
@@ -321,7 +321,7 @@ export default function Home() {
               ))}
             </div>
             <div className="mt-8" data-reveal="fade">
-              <WideDemo minWidth={820} hint="Swipe to explore the admin →">
+              <WideDemo minWidth={820}>
                 <TeamsDashboard />
               </WideDemo>
             </div>

@@ -48,7 +48,7 @@ function StatusBar() {
 
 function Phone({ label, labelClass, children }: { label: string; labelClass: string; children: React.ReactNode }) {
   return (
-    <div className="shrink-0 flex flex-col items-center gap-3.5">
+    <div className="shrink-0 flex flex-col items-center gap-3.5 snap-center">
       <div className="rd-phone w-[240px]">
         <div className="rd-phone-screen h-[500px]" style={{ background: "#FFFFFF" }}>
           <div className="rd-notch" style={{ width: 48, height: 18 }} />
@@ -204,7 +204,10 @@ function SharePhone() {
 export default function ShareWaysPhones({ light = false }: { light?: boolean }) {
   const labelClass = light ? "text-slate-500" : "text-white/60";
   return (
-    <div className="max-w-full flex gap-4 justify-start lg:justify-center overflow-x-auto rd-scrollbar-none pb-2 px-2">
+    // snap-x: on a phone only ~1.4 of the three phones fit, so a free scroll
+    // stops mid-phone and looks cut off. Snap centers one phone per swipe like
+    // a deliberate carousel. Desktop fits all three, so snapping never engages.
+    <div className="max-w-full flex gap-4 justify-start lg:justify-center overflow-x-auto snap-x snap-mandatory lg:snap-none rd-scrollbar-none pb-2 px-2">
       <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
       <Phone label="QR code" labelClass={labelClass}><QrPhone /></Phone>
       <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>
