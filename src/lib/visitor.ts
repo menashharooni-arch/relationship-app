@@ -1,13 +1,39 @@
 const KEY = "kontact_vid";
 
+// A stable per-device visitor id so analytics count UNIQUE VISITORS, not page
+// loads. localStorage (not sessionStorage) is deliberate: it survives reloads,
+// new tabs, and reopening the browser, so the same person viewing the same card
+// keeps one id — the view API then dedups their repeat opens within 24h instead
+// of logging each as a fresh visitor. (A return visit after 24h still records a
+// new view, so repeat interest is tracked as its own row, distinguishable by the
+// shared visitor_id.) Falls back to sessionStorage, then an in-memory id, when
+// persistent storage is blocked (private mode) so tracking still degrades safely.
+let memoryId = "";
+
 export function getVisitorId(): string {
   if (typeof window === "undefined") return "";
-  let id = sessionStorage.getItem(KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(KEY, id);
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    // localStorage unavailable (private mode / blocked cookies) — keep a
+    // per-session id so at least same-tab reloads still dedup.
+    try {
+      let id = sessionStorage.getItem(KEY);
+      if (!id) {
+        id = crypto.randomUUID();
+        sessionStorage.setItem(KEY, id);
+      }
+      return id;
+    } catch {
+      if (!memoryId) memoryId = crypto.randomUUID();
+      return memoryId;
+    }
   }
-  return id;
 }
 
 // ── Visitor share-state ──────────────────────────────────────────────────────

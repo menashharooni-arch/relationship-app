@@ -16,6 +16,7 @@ import ShareButton from "@/components/ShareButton";
 import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import ShareCardCapture from "@/components/ShareCardCapture";
+import TrafficChart from "@/components/TrafficChart";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
@@ -226,7 +227,7 @@ export default async function DashboardPage({
     // needs a full prior window, hence 60d for the month view).
     getAdminSupabase()
       .from("card_views")
-      .select("viewed_at, username")
+      .select("viewed_at, username, visitor_id")
       .in("username", [analyticsUsername, linkUsername])
       .gte("viewed_at", daysAgoISO(60)),
     viewsRange === "locations"
@@ -301,22 +302,36 @@ export default async function DashboardPage({
   const trafficBars: number[] = Array.from({ length: bucketCount }, () => 0);
   let prevCard = 0;
   let prevLink = 0;
+  // Unique visitors in the current window (distinct visitor_id), tracked per
+  // surface so "unique visitors" is shown apart from total views. Now that the
+  // visitor id is device-stable (localStorage), a person's reloads/reopens share
+  // one id — so this counts people, not page loads. A row with no visitor_id
+  // (legacy/private-mode) falls back to a per-timestamp key so it's never merged
+  // into someone else's count.
+  const cardVisitors = new Set<string>();
+  const linkVisitors = new Set<string>();
   for (const v of recentViews ?? []) {
     const t = new Date(v.viewed_at as string).getTime();
     const isLink = (v as { username?: string }).username === linkUsername;
     if (t >= windowStart) {
       const idx = Math.min(bucketCount - 1, Math.floor((t - windowStart) / bucketMs));
       trafficBars[idx]++;
+      const vid = (v as { visitor_id?: string | null }).visitor_id || `anon:${t}`;
+      (isLink ? linkVisitors : cardVisitors).add(vid);
     } else if (t >= prevStart) {
       if (isLink) prevLink++; else prevCard++;
     }
   }
+  const cardUnique = cardVisitors.size;
+  const linkUnique = linkVisitors.size;
   // % vs the previous window; null when there's no baseline to compare against.
   const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
   const cardDelta = pct(swiftCardViews ?? 0, prevCard);
   const linkDelta = pct(swiftLinkViews ?? 0, prevLink);
   const deltaPeriod = viewsRange === "month" ? "this month" : viewsRange === "week" ? "this week" : "today";
   const maxBar = Math.max(1, ...trafficBars);
+  // Timeline for the chart: each bar's real start time so it can label an axis.
+  const trafficBuckets = trafficBars.map((count, i) => ({ count, ts: windowStart + i * bucketMs }));
 
   // Locations view (on-demand): top places your card + links are viewed from,
   // with the SwiftCard vs Swift Links split per location. All-time totals.
@@ -771,12 +786,17 @@ export default async function DashboardPage({
                       previous same-size window. */}
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: "SwiftCard views", value: swiftCardViews ?? 0, delta: cardDelta, accent: "#818cf8" },
-                      { label: "Swift Link views", value: swiftLinkViews ?? 0, delta: linkDelta, accent: "#22d3ee" },
+                      { label: "SwiftCard views", value: swiftCardViews ?? 0, unique: cardUnique, delta: cardDelta, accent: "#818cf8" },
+                      { label: "Swift Link views", value: swiftLinkViews ?? 0, unique: linkUnique, delta: linkDelta, accent: "#22d3ee" },
                     ].map((m) => (
                       <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
                         <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
                         <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value.toLocaleString("en-US")}</p>
+                        {/* Unique visitors (distinct devices) — shown apart from total
+                            views so repeat visits are visible, never folded in. */}
+                        <p className="text-[11px] text-gray-500 tabular-nums mt-0.5" title="Distinct visitors — repeat opens by the same person aren't counted again">
+                          {m.unique.toLocaleString("en-US")} unique visitor{m.unique !== 1 ? "s" : ""}
+                        </p>
                         {m.delta !== null ? (
                           <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
                             {m.delta < 0 ? "▼" : "▲"} {Math.abs(m.delta)}% {deltaPeriod}
@@ -788,26 +808,14 @@ export default async function DashboardPage({
                     ))}
                   </div>
 
-                  {/* Bar graph — one bar per hour (Today) or day (Week/Month),
-                      the newest bucket highlighted. Fixed height so the box
-                      stays the size it is. */}
-                  <div className="flex items-end gap-1 h-20 mt-4" aria-hidden="true">
-                    {trafficBars.map((v, i) => {
-                      const last = i === trafficBars.length - 1;
-                      return (
-                        <div
-                          key={i}
-                          className="flex-1 rounded-t-md min-w-0"
-                          style={{
-                            height: `${Math.max(6, Math.round((v / maxBar) * 100))}%`,
-                            background: last
-                              ? "linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)"
-                              : "#343e6b",
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
+                  {/* Time-series bar graph — one bar per hour (Today) or day
+                      (Week/Month), with a labeled time axis, baseline, and hover
+                      tooltips. Newest bucket highlighted. */}
+                  <TrafficChart
+                    buckets={trafficBuckets}
+                    range={viewsRange as "today" | "week" | "month"}
+                    max={maxBar}
+                  />
                 </div>
               )}
               {/* Basic stats (every plan): contacts captured + best day */}
