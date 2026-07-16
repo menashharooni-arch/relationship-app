@@ -9,6 +9,15 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next");
 
+  // A visitor who cancels/denies on Google's screen comes back with an
+  // `error` param and no code. Without this branch they fell through to
+  // /dashboard, which (having no session) bounced them to /login with no
+  // explanation — a confusing double-redirect. Send them straight to the
+  // login form's existing "didn't complete" message instead.
+  if (!code && searchParams.get("error")) {
+    return NextResponse.redirect(new URL("/login?error=oauth", origin));
+  }
+
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
