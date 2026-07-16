@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { normalizeSlug } from "@/lib/slug";
 
 // ── Public card slug (username) uniqueness ───────────────────────────────────
 // A card's `username` is only the public URL slug (/card/<username>) — it is NOT
@@ -10,18 +11,10 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 // A slug is "taken" if any CARD uses it OR any account handle (profiles.username)
 // uses it, since the public /card/<username> route resolves against both.
 
-// Lock to the same charset the API enforces on insert ([a-z0-9-], ≤60).
-export function normalizeSlug(raw: string): string {
-  const s = String(raw ?? "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]+/g, "-") // spaces / punctuation → hyphen
-    .replace(/-+/g, "-")          // collapse runs
-    .replace(/^-+|-+$/g, "")      // trim hyphens
-    .slice(0, 60)
-    .replace(/-+$/g, "");         // no trailing hyphen after the slice
-  return s;
-}
+// Re-exported from the pure @/lib/slug module (no server deps) so client code
+// and this server module share ONE normalizer — the slug a user is shown while
+// creating/editing a card is exactly what gets saved.
+export { normalizeSlug };
 
 type Admin = ReturnType<typeof getAdminSupabase>;
 

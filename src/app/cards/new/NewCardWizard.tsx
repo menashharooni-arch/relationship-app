@@ -26,6 +26,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl } from "@/lib/social-url";
+import { normalizeSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
 import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
@@ -36,15 +37,6 @@ import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
-
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
@@ -281,7 +273,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
 
   // Card URL auto-fills from full name + company (e.g. "john-smith-acme-corp"),
   // or just the full name when there's no company.
-  const username = slugify(company.trim() ? `${name} ${company}` : name);
+  const username = normalizeSlug(company.trim() ? `${name} ${company}` : name);
   const cardLabel = nickname.trim() || name.trim();
 
   // Phone management (multiple numbers, each labeled + toggleable on the card).
