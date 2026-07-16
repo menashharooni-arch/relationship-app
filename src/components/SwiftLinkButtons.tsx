@@ -156,7 +156,12 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
             <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
               <span
                 className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
-                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word", textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
+                // Break BETWEEN words (overflow-wrap), never mid-word like the
+                // old word-break:break-word did — a whole word only splits if it
+                // alone is wider than the tile. The 2-line clamp then ends on a
+                // complete word with an ellipsis, so the title always fits its
+                // box cleanly and never shows a chopped word.
+                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "normal", overflowWrap: "break-word", textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
               >
                 {link.label}
               </span>
