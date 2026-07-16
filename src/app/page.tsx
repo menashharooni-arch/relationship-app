@@ -54,6 +54,11 @@ export default function Home() {
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
               </h1>
+              {/* Subheader tagline — scales down cleanly on phones via clamp and
+                  wraps within the same max-width as the bullets below. */}
+              <p className="mt-5 text-slate-500 text-[clamp(1.05rem,1.9vw,1.35rem)] leading-snug max-w-[560px]" data-reveal>
+                Saves you in one tap — and does the follow-ups for you.
+              </p>
               <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
                 {[
                   "Share by link, QR code, or NFC tap",
