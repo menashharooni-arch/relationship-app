@@ -29,6 +29,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
+import LinkPreviewThumb from "@/components/LinkPreviewThumb";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -696,7 +697,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                    <div key={i} className="flex items-center gap-2.5 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                      <LinkPreviewThumb url={l.url} />
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                         <p className="text-gray-500 text-[10px] truncate">{l.url}</p>

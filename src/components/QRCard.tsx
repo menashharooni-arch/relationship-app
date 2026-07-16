@@ -32,18 +32,11 @@ export default function QRCard({ url }: { url: string }) {
         />
       </div>
 
-      {/* Scan text */}
+      {/* Scan text — the URL itself is intentionally NOT shown here (the link
+          is already copyable in the CARD LINK field above; repeating the slug
+          under the QR just exposed a not-always-meaningful auto-generated
+          slug). */}
       <p className="text-white text-xl font-bold mt-6 z-10">Scan to connect</p>
-      <p
-        className="text-sm mt-1 z-10"
-        style={{
-          background: "linear-gradient(to right, #60a5fa, #a78bfa)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-        }}
-      >
-        {url.replace("https://", "")}
-      </p>
 
       {/* Wave decoration */}
       <div className="absolute bottom-0 left-0 w-full">
