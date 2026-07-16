@@ -56,4 +56,23 @@ describe("buildEmployeeAnalyticsCsv", () => {
     const cols = csv.split("\n")[1].split(",");
     expect(cols[9]).toBe('""');
   });
+
+  it("neutralizes a leading formula character so Excel/Sheets can't execute it (CSV/formula injection)", () => {
+    for (const malicious of ["=1+1", "+1+1", "-2+3", "@SUM(1,1)", "\t=1+1"]) {
+      const row: EmployeeCsvRow = { ...baseRow, name: malicious };
+      const csv = buildEmployeeAnalyticsCsv([row]);
+      const dataLine = csv.split("\n")[1];
+      // A leading single quote neutralizes the formula trigger while keeping
+      // the value legible — the cell must start with a quoted apostrophe,
+      // never the raw =/+/-/@/tab character Excel/Sheets would treat as a formula.
+      expect(dataLine.startsWith(`"'${malicious}`)).toBe(true);
+    }
+  });
+
+  it("still escapes embedded quotes on a value that also needs formula-neutralizing", () => {
+    const row: EmployeeCsvRow = { ...baseRow, name: '=cmd|"/c calc"!A1' };
+    const csv = buildEmployeeAnalyticsCsv([row]);
+    const dataLine = csv.split("\n")[1];
+    expect(dataLine).toContain(`"'=cmd|""/c calc""!A1"`);
+  });
 });

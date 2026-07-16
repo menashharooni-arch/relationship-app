@@ -38,8 +38,15 @@ export async function GET(req: NextRequest) {
     .in("card_owner", filterUsernames)
     .order("created_at", { ascending: false });
 
+  // Prefixes a leading =, +, -, @, tab, or CR with a single quote before
+  // quoting — otherwise a lead field (name/email/notes etc., all set by
+  // whoever submitted the public lead form) can be interpreted as a formula
+  // by Excel/Sheets when this CSV is opened (CSV/formula injection —
+  // security review).
   function esc(v: string | null | undefined) {
-    return `"${(v ?? "").replace(/"/g, '""')}"`;
+    const s = v ?? "";
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${safe.replace(/"/g, '""')}"`;
   }
 
   const rows = (leads ?? []).map((l) => [
