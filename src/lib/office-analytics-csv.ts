@@ -16,8 +16,14 @@ export type EmployeeCsvRow = {
   lastActivityAt: string | null;
 };
 
+// Prefixes a leading =, +, -, @, tab, or CR with a single quote before
+// quoting — otherwise a cell value under attacker control (an employee or
+// card name, both user-set) can be interpreted as a formula by Excel/Sheets
+// when this CSV is opened (CSV/formula injection — security review).
 function esc(v: string | number | null | undefined): string {
-  return `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const s = String(v ?? "");
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 
 const HEADER = [
