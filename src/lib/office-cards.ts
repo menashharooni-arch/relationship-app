@@ -31,19 +31,35 @@ export async function getOfficeUserIds(officeId: string): Promise<string[]> {
   const admin = getAdminSupabase();
   const ids: string[] = [];
 
-  const { data: office } = await admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle();
+  // Independent reads (the member query only needs officeId, not the owner
+  // lookup's result) — run together instead of serially (performance audit).
+  const [{ data: office }, { data: members }] = await Promise.all([
+    admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle(),
+    admin.from("office_members").select("user_id").eq("office_id", officeId).eq("status", "active"),
+  ]);
   if (office?.owner_id) ids.push(office.owner_id as string);
-
-  const { data: members } = await admin
-    .from("office_members")
-    .select("user_id")
-    .eq("office_id", officeId)
-    .eq("status", "active");
   for (const m of members ?? []) {
     const uid = m.user_id as string | null;
     if (uid && !ids.includes(uid)) ids.push(uid);
   }
   return ids;
+}
+
+// Pure IDOR guard: is `userId` someone this office's resolved team actually
+// contains? Extracted so the check any per-member admin page needs (team/[id],
+// analytics/[id]) is unit-testable in isolation — see tests/authz-negative.test.ts.
+export function isOfficeMember(teamIds: string[], userId: string): boolean {
+  return teamIds.includes(userId);
+}
+
+// True when `targetUserId` is the office OWNER themself. officeOwnsCard's
+// controlled-user set (getOfficeUserIds, above) deliberately includes the
+// owner — but a delegated (non-owner) admin's manage_member_cards capability
+// is scoped to "any EMPLOYEE's card", never the owner's own primary/brand
+// card. Callers must combine this with the caller's OWN isOwner flag: the
+// owner editing their own card is always fine.
+export function isOwnersCard(ownerId: string, targetUserId: string | null | undefined): boolean {
+  return !!targetUserId && targetUserId === ownerId;
 }
 
 // True when `cardId` belongs to someone this office controls. The authorization

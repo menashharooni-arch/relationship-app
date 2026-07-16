@@ -173,7 +173,15 @@ export async function POST(req: NextRequest) {
       const idempotencyKey = `office-seats:${profile.stripe_subscription_id}:${current}->${requested}`;
       const updated = await getStripe().subscriptions.update(
         profile.stripe_subscription_id,
-        { items: [{ id: item.id, quantity: requested }], proration_behavior: "always_invoice" },
+        {
+          items: [{ id: item.id, quantity: requested }],
+          proration_behavior: "always_invoice",
+          // Without this, Stripe's default (allow_incomplete) applies the
+          // seat increase and leaves an uncollectable proration invoice
+          // open — offices.seats below would then be written even though
+          // the added seat(s) were never paid for (billing audit).
+          payment_behavior: "error_if_incomplete",
+        },
         { idempotencyKey },
       );
       // DB only after Stripe confirms — if the charge failed, the office must not
@@ -218,7 +226,23 @@ export async function POST(req: NextRequest) {
       .eq("id", office.id);
     await writeAudit({ action: "seat.reduction_scheduled", actorId: user.id, orgId: office.id as string, metadata: { from: current, to: requested, effectiveAt: periodEnd } });
     return NextResponse.json({ ok: true, mode: "scheduled", seats: current, scheduledSeats: requested, effectiveAt: periodEnd });
-  } catch {
+  } catch (err) {
+    // A declined card (or an invoice needing 3DS/SCA action) on the immediate
+    // seat-increase invoice must say so plainly, matching change-plan's
+    // handling — error_if_incomplete (above) is what makes this reachable.
+    const e = err as { code?: string; type?: string; message?: string };
+    if (
+      e?.type === "StripeCardError" ||
+      e?.code === "card_declined" ||
+      e?.code === "invoice_payment_intent_requires_action" ||
+      e?.code === "subscription_payment_intent_requires_action"
+    ) {
+      return NextResponse.json(
+        { error: "Your card was declined, so seats weren't added. Update your payment method and try again." },
+        { status: 402 }
+      );
+    }
+    console.error("Stripe seats error:", e?.message ?? err);
     return NextResponse.json({ error: "Couldn't update seats. Please try again." }, { status: 502 });
   }
 }

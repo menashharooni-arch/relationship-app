@@ -1,4 +1,4 @@
-import { MiniQR } from "@/components/card-templates/types";
+import { MiniQR } from "@/components/card-templates/MiniQR";
 
 // Apple Wallet-style stack: a SwiftCard pass on top, with clearly fictional
 // cards tucked underneath. No real card numbers — purely illustrative.

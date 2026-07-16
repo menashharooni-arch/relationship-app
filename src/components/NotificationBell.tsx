@@ -34,6 +34,13 @@ export default function NotificationBell({
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
+  // Per-item in-flight ids (Read/Unread + dismiss) and a bulk-action flag
+  // (Mark all read / Clear read) — disables the triggering control while its
+  // request is outstanding (prevents a double-tap firing duplicate requests)
+  // and reverts the optimistic update if the request actually fails, instead
+  // of silently leaving a stale "read"/dismissed state on a dropped request.
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState<"markAll" | "clearRead" | null>(null);
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
@@ -65,39 +72,101 @@ export default function NotificationBell({
   }, []);
 
   async function markAllRead() {
-    await fetch("/api/notifications", { method: "PATCH" });
+    if (bulkPending) return;
+    setBulkPending("markAll");
+    // Revert only the ids THIS action actually flipped (the ones unread at
+    // the moment it started) — not a snapshot/restore of the whole list,
+    // which would also undo a different notification's dismiss/read-toggle
+    // that independently succeeded while this request was in flight (code
+    // review — same reasoning as the setRead/dismiss fix above).
+    const idsToRevert = notifications.filter((n) => !n.read).map((n) => n.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      const res = await fetch("/api/notifications", { method: "PATCH" });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      const revertSet = new Set(idsToRevert);
+      setNotifications((prev) => prev.map((n) => (revertSet.has(n.id) ? { ...n, read: false } : n)));
+    } finally {
+      setBulkPending(null);
+    }
   }
 
   // Toggle ONE notification read/unread — the badge only drops when the user
   // explicitly marks items read (individually here, or in bulk above).
+  // Reverts only THIS notification's own prior state on failure — snapshotting
+  // and restoring the whole list would clobber a DIFFERENT notification's
+  // change that succeeded while this one was still in flight (code review).
   async function setRead(id: string, read: boolean) {
+    if (pendingIds.has(id)) return;
+    setPendingIds((s) => new Set(s).add(id));
+    const previousRead = notifications.find((n) => n.id === id)?.read;
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
-    await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, read }),
-    }).catch(() => {});
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, read }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      if (previousRead !== undefined) {
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: previousRead } : n)));
+      }
+    } finally {
+      setPendingIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    }
   }
 
-  // Remove a single notification for good (not just mark it read).
+  // Remove a single notification for good (not just mark it read). Reverts by
+  // re-inserting only THIS notification (in its original time order) on
+  // failure — same reasoning as setRead above.
   async function dismiss(id: string) {
+    if (pendingIds.has(id)) return;
+    setPendingIds((s) => new Set(s).add(id));
+    const removed = notifications.find((n) => n.id === id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    }).catch(() => {});
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      if (removed) {
+        setNotifications((prev) =>
+          [...prev, removed].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        );
+      }
+    } finally {
+      setPendingIds((s) => { const n = new Set(s); n.delete(id); return n; });
+    }
   }
 
   // Clear out everything already read in one tap.
   async function clearRead() {
+    if (bulkPending) return;
+    setBulkPending("clearRead");
+    // Revert by re-inserting only the specific notifications THIS action
+    // removed, not a snapshot/restore of the whole list — same reasoning as
+    // markAllRead above.
+    const removed = notifications.filter((n) => n.read);
     setNotifications((prev) => prev.filter((n) => !n.read));
-    await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ read: true }),
-    }).catch(() => {});
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: true }),
+      });
+      if (!res.ok) throw new Error("failed");
+    } catch {
+      setNotifications((prev) =>
+        [...prev, ...removed].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      );
+    } finally {
+      setBulkPending(null);
+    }
   }
 
   function handleOpen() {
@@ -143,13 +212,21 @@ export default function NotificationBell({
               <p className="text-sm font-bold text-white">Notifications</p>
               <div className="flex items-center gap-3">
                 {unread > 0 && (
-                  <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                    Mark all read
+                  <button
+                    onClick={markAllRead}
+                    disabled={bulkPending !== null}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkPending === "markAll" ? "Marking…" : "Mark all read"}
                   </button>
                 )}
                 {readCount > 0 && (
-                  <button onClick={clearRead} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-                    Clear read
+                  <button
+                    onClick={clearRead}
+                    disabled={bulkPending !== null}
+                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkPending === "clearRead" ? "Clearing…" : "Clear read"}
                   </button>
                 )}
                 <button onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mr-0.5">✕</button>
@@ -183,9 +260,10 @@ export default function NotificationBell({
                       </div>
                       <button
                         onClick={() => setRead(n.id, !n.read)}
+                        disabled={pendingIds.has(n.id)}
                         title={n.read ? "Mark as unread" : "Mark as read"}
                         aria-label={n.read ? "Mark as unread" : "Mark as read"}
-                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors ${
+                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           n.read
                             ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
                             : "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25"
@@ -195,9 +273,10 @@ export default function NotificationBell({
                       </button>
                       <button
                         onClick={() => dismiss(n.id)}
+                        disabled={pendingIds.has(n.id)}
                         aria-label="Dismiss notification"
                         title="Dismiss"
-                        className="shrink-0 -mt-0.5 -mr-1 p-1 text-gray-600 hover:text-gray-200 transition-colors"
+                        className="shrink-0 -mt-0.5 -mr-1 p-1 text-gray-600 hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -136,19 +136,30 @@ export default async function CardPage({
   // so it can be brought back. Absent column (pre-migration) = still live.
   if (cardRow && cardRow.is_offline === true) notFound();
 
+  // Plan-limit check and the owner-view auth lookup are independent (neither
+  // depends on the other's result) — run them together instead of serially
+  // (performance audit). A card that turns out to be over-limit still
+  // 404s below; the getUser() call in that rare branch just goes unused.
+  const [withinLimit, viewer] = await Promise.all([
+    cardRow ? cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan) : Promise.resolve(true),
+    (async () => {
+      try {
+        const { data: { user } } = await (await createClient()).auth.getUser();
+        return user;
+      } catch {
+        // Cookie refresh may fail for public viewers — safe to ignore.
+        return null;
+      }
+    })(),
+  ]);
+
   // Plan kill-switch: a Free account only serves its first card(s) — extra
   // cards created on Pro go dark (page, QR, links) after a downgrade.
-  if (cardRow && !(await cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan))) {
-    notFound();
-  }
+  if (cardRow && !withinLimit) notFound();
 
   // Don't count the owner viewing their own card as a view.
   const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);
-  let isOwnerView = false;
-  try {
-    const { data: { user: viewer } } = await (await createClient()).auth.getUser();
-    isOwnerView = !!viewer && viewer.id === ownerId;
-  } catch { /* cookie refresh may fail for public viewers — safe to ignore */ }
+  const isOwnerView = !!viewer && viewer.id === ownerId;
 
   // Per-card headshot (account photo is only a fallback for legacy cards).
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);
@@ -393,7 +404,7 @@ export default async function CardPage({
           text={`Connect with ${firstName} — save their contact instantly.`}
           label="Share this card"
         />
-        <QRCodeModal url={publicCardUrl} firstName={firstName} />
+        <QRCodeModal url={`${publicCardUrl}?source=qr_code`} firstName={firstName} />
         {/* Faint viewer CTA — turns people who receive a card into signups.
             Free only: Pro is sold as "100% your brand", and this line is
             SwiftCard advertising sitting on a paying customer's card page. It

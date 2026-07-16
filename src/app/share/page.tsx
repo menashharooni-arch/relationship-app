@@ -56,7 +56,7 @@ export default async function SharePage({
   // Keep the "Admin" nav item present across the app shell (same gate as the page).
   const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
 
-  const cardUrl = `${APP_URL}/card/${activeUsername}`;
+  const cardUrl = `${APP_URL}/card/${activeUsername}?source=email_signature`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
 
   function initials(name: string) {

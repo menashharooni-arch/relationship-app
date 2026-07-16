@@ -4,7 +4,7 @@
 // Best for: Real estate, beauty, fitness, coaches, personal brand, healthcare
 
 import React from "react";
-import { MiniQR as QR } from "./types";
+import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 

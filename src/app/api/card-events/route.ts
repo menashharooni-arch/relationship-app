@@ -7,6 +7,7 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
 import { clientIp } from "@/lib/client-ip";
+import { isLikelyBot } from "@/lib/bot-detection";
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -35,6 +36,13 @@ export async function POST(req: NextRequest) {
       ?? "unknown";
     if (await isRateLimited(`card-events:${ip}:${card_owner_username}`, 20, 10 * 60 * 1000)) {
       return NextResponse.json({ ok: true, rateLimited: true });
+    }
+
+    // Bot/crawler/synthetic-monitor traffic never counts — checked against the
+    // real request header, not the client-supplied device_info. Matters most
+    // here since "viewed_card" is NOT deduped (unlike card_views).
+    if (isLikelyBot(req.headers.get("user-agent"))) {
+      return NextResponse.json({ ok: true, bot: true });
     }
 
     const admin = getAdminSupabase();

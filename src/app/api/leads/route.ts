@@ -10,6 +10,7 @@ import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-a
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { clientIp } from "@/lib/client-ip";
+import { isLikelyBot } from "@/lib/bot-detection";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -38,6 +39,15 @@ export async function POST(req: NextRequest) {
     const rateKey = `${ip}:${card_owner.trim().toLowerCase()}`;
     if (await isRateLimited(rateKey)) {
       return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });
+    }
+
+    // Bot/crawler/synthetic-monitor traffic must not create a lead — unlike
+    // an inflated view count, a fake lead here pushes a real notification,
+    // push alert, and CRM/Zapier sync to the card owner (code review: this
+    // was the only public ingest route without the bot check already applied
+    // to views/card-events/analytics-event).
+    if (isLikelyBot(req.headers.get("user-agent"))) {
+      return NextResponse.json({ error: "Unable to submit right now." }, { status: 400 });
     }
 
     // Extract location from Vercel's built-in geo headers (no API key needed)

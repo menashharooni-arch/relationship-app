@@ -1,6 +1,3 @@
-import QRCode from "qrcode";
-import type { ReactElement } from "react";
-
 export type CardLink = {
   emoji?: string; // legacy — new links have no emoji (picker removed)
   label: string;
@@ -119,48 +116,6 @@ export const SAMPLE_DATA: CardData = {
   cardUrl: "swiftcard.me/card/alexmorgan",
 };
 
-// A REAL, scannable QR of the card's URL. The module matrix is computed
-// synchronously (QRCode.create) with NO React hooks, so this stays safe to
-// server-render inside the card templates. Dark runs are merged per row to keep
-// the node count low. Falls back to swiftcard.me if no URL is supplied.
-export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { size?: number; bg?: string; fg?: string; url?: string }) {
-  const p = size * 0.055;
-  const raw = (url ?? "").trim();
-  const target = raw ? (/^https?:\/\//i.test(raw) ? raw : `https://${raw}`) : "https://swiftcard.me";
-
-  let count = 0;
-  const runs: { r: number; c: number; w: number }[] = [];
-  try {
-    const qr = QRCode.create(target, { errorCorrectionLevel: "M" });
-    count = qr.modules.size;
-    const cells = qr.modules.data; // Uint8Array, 1 = dark module
-    for (let r = 0; r < count; r++) {
-      let c = 0;
-      while (c < count) {
-        if (cells[r * count + c]) {
-          let w = 1;
-          while (c + w < count && cells[r * count + (c + w)]) w++;
-          runs.push({ r, c, w });
-          c += w;
-        } else {
-          c++;
-        }
-      }
-    }
-  } catch {
-    count = 0;
-  }
-  const rects: ReactElement[] = runs.map(({ r, c, w }) => (
-    <rect key={`${r}-${c}`} x={c} y={r} width={w} height={1} fill={fg} />
-  ));
-
-  return (
-    <div data-qr="1" style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
-      {count > 0 && (
-        <svg viewBox={`0 0 ${count} ${count}`} shapeRendering="crispEdges" style={{ width: "100%", height: "100%", display: "block" }}>
-          {rects}
-        </svg>
-      )}
-    </div>
-  );
-}
+// MiniQR moved to ./MiniQR.tsx — this module is value-imported by ~30 files
+// including several client homepage components, so it must stay free of the
+// `qrcode` encoder (performance audit).

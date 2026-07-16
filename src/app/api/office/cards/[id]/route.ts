@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireOfficeCapability } from "@/lib/office-roles";
-import { officeOwnsCard } from "@/lib/office-cards";
+import { officeOwnsCard, isOwnersCard } from "@/lib/office-cards";
 import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
 import { getPrimaryCardId, syncBrandFromPrimaryCard } from "@/lib/office-primary";
 import { normalizeSocial } from "@/lib/social-url";
@@ -30,8 +30,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "That card isn't part of your team." }, { status: 404 });
   }
 
-  const body = await req.json();
   const admin = getAdminSupabase();
+
+  // manage_member_cards means "any EMPLOYEE's card" — the office OWNER's own
+  // card is exempt from a delegated (non-owner) admin's reach here. Without
+  // this, officeOwnsCard's controlled-user set (which includes the owner)
+  // would let a non-owner admin edit or take offline the owner's own
+  // primary/brand card.
+  if (!ctx.isOwner) {
+    const { data: targetCard } = await admin.from("cards").select("user_id").eq("id", id).maybeSingle();
+    if (isOwnersCard(ctx.ownerId, targetCard?.user_id as string | null | undefined)) {
+      return NextResponse.json({ error: "Only the office owner can edit their own card." }, { status: 403 });
+    }
+  }
+
+  const body = await req.json();
   const updates: Record<string, unknown> = {};
 
   for (const key of ALLOWED) {

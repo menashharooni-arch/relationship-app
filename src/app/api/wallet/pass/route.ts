@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       phone: src.phone as string | null,
       email: src.email as string | null,
       website: src.website as string | null,
-      cardUrl: `${APP_URL}/card/${src.username}`,
+      cardUrl: `${APP_URL}/card/${src.username}?source=apple_wallet`,
     });
     return new NextResponse(new Uint8Array(buf), {
       headers: {

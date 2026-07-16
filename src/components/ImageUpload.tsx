@@ -1,9 +1,17 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import Cropper from "react-easy-crop";
+import dynamic from "next/dynamic";
 import type { Area } from "react-easy-crop";
-import "react-easy-crop/react-easy-crop.css";
+import type CropperComponent from "react-easy-crop";
+
+// Deferred: the cropper only renders after a visitor picks a file (see the
+// rawSrc-gated block below) — most page loads using this component never
+// need it, including the marketing homepage's mini-builders (performance
+// audit). Cast back to the real component type (a type-only import, erased
+// at compile time — no bundle cost) so its optional/defaulted props stay
+// optional; dynamic()'s inferred type otherwise treats them as required.
+const Cropper = dynamic(() => import("@/components/CropperLazy"), { ssr: false }) as typeof CropperComponent;
 
 type Props = {
   field: "photo" | "logo";
