@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { normalizeSlug } from "@/lib/username";
+import { normalizeSlug } from "@/lib/slug";
 
 // Editable card URL (slug). Collapsed it just shows the current URL with a
 // "Change" link; expanded it lets the owner set a new slug, with an explicit
