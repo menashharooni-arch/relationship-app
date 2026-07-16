@@ -10,6 +10,19 @@
 -- milliseconds apart always land on the same UTC day) without requiring a
 -- broader schema change. Run once in the Supabase SQL Editor. IF NOT EXISTS,
 -- safe to re-run.
+--
+-- viewed_at is timestamptz, so a bare ::date cast is timezone-dependent and
+-- Postgres refuses it in an index expression ("functions in index expression
+-- must be marked IMMUTABLE"). Pinning to UTC explicitly makes it genuinely
+-- deterministic, so this wrapper is safe to mark IMMUTABLE.
+CREATE OR REPLACE FUNCTION public.card_view_utc_day(ts timestamptz)
+RETURNS date
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT (ts AT TIME ZONE 'utc')::date
+$$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_card_views_username_visitor_day
-  ON public.card_views (username, visitor_id, (viewed_at::date))
+  ON public.card_views (username, visitor_id, public.card_view_utc_day(viewed_at))
   WHERE visitor_id IS NOT NULL;
