@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 import { getMemberDetail } from "@/lib/office-analytics";
-import { getOfficeUserIds } from "@/lib/office-cards";
+import { getOfficeUserIds, isOfficeMember } from "@/lib/office-cards";
 import { relativeTime } from "@/lib/relative-time";
 import { StatTile, PageHead, Empty, Badge } from "@/components/office/OfficeUI";
 import { RemoveMemberButton } from "@/components/office/TeamActions";
@@ -17,7 +17,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
   // Authorization: only someone this office actually controls. Without this, any
   // office admin could read any user's activity by pasting a user id in the URL.
   const teamIds = await getOfficeUserIds(officeId);
-  if (!teamIds.includes(id)) notFound();
+  if (!isOfficeMember(teamIds, id)) notFound();
 
   const m = await getMemberDetail(id);
   if (!m) notFound();

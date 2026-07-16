@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrand } from "@/lib/office-brand";
+import { isInviteExpired } from "@/lib/office-invite";
 import JoinButton from "@/components/JoinButton";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import Link from "next/link";
@@ -43,6 +44,30 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           <p className="text-gray-500 text-sm mb-6">This invite has already been used.</p>
           <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
             Go to my dashboard →
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // Revoked/declined/expired invites must not show an enabled "Accept" CTA
+  // that's guaranteed to fail against the API — mirrors the API's own
+  // rejection logic (isInviteExpired) so the page and API agree (auth audit).
+  if (invite.status === "revoked" || invite.status === "declined" || isInviteExpired(invite as { status?: string; expires_at?: string | null; created_at?: string | null })) {
+    const message =
+      invite.status === "revoked"
+        ? "This invitation was canceled by the team admin."
+        : invite.status === "declined"
+        ? "This invitation was already declined."
+        : "This invite has expired.";
+    return (
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+        <div className="text-center max-w-sm">
+          <SwiftCardLogo size={32} onDark />
+          <h1 className="text-2xl font-bold text-white mt-8 mb-3">This link doesn&apos;t work anymore</h1>
+          <p className="text-gray-500 text-sm mb-6">{message} Ask whoever invited you to send a fresh one.</p>
+          <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
+            Go to sign in →
           </Link>
         </div>
       </main>

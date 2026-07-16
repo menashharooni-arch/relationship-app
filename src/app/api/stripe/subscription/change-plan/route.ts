@@ -4,8 +4,8 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { priceIdForPlan, planFromPriceId, isUpgrade, DB_PLAN, type BillingPlan, type BillingInterval } from "@/lib/subscription";
-import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
+import { provisionOfficeForOwner, tearDownOfficeForOwner } from "@/lib/office-billing-sync";
 import type Stripe from "stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
@@ -123,14 +123,29 @@ export async function POST(req: NextRequest) {
     await getStripe().subscriptions.update(profile.stripe_subscription_id, {
       items: [{ id: item.id, price: targetPriceId, quantity: seats }],
       proration_behavior: upgrading ? "always_invoice" : "create_prorations",
+      // Without this, Stripe's default (allow_incomplete) applies the item
+      // change and leaves an uncollectable proration invoice open — the plan
+      // change went through and got written below even though nothing was
+      // paid for it. error_if_incomplete makes Stripe reject the update
+      // synchronously instead, so the catch below actually fires on a
+      // decline (billing audit — this previously granted the upgrade for free).
+      ...(upgrading ? { payment_behavior: "error_if_incomplete" as const } : {}),
       ...(prorationDate ? { proration_date: prorationDate } : {}),
       cancel_at_period_end: false, // switching plans clears any pending cancel
     }, { idempotencyKey });
   } catch (err) {
-    // A declined card on the immediate upgrade invoice must say so plainly —
-    // "try again" would just fail the same way.
+    // A declined card (or an invoice needing 3DS/SCA action) on the immediate
+    // upgrade invoice must say so plainly — "try again" would just fail the
+    // same way. error_if_incomplete can surface either as a card error or an
+    // invoice/payment-intent-requires-action error, so both are treated the
+    // same: the plan was NOT changed.
     const e = err as { code?: string; type?: string; message?: string };
-    if (e?.type === "StripeCardError" || e?.code === "card_declined") {
+    if (
+      e?.type === "StripeCardError" ||
+      e?.code === "card_declined" ||
+      e?.code === "invoice_payment_intent_requires_action" ||
+      e?.code === "subscription_payment_intent_requires_action"
+    ) {
       return NextResponse.json(
         { error: "Your card was declined, so the plan wasn't changed. Update your payment method and try again." },
         { status: 402 }
@@ -145,36 +160,13 @@ export async function POST(req: NextRequest) {
   await admin.from("profiles").update({ plan: DB_PLAN[targetPlan], customization: cust }).eq("id", user.id);
 
   if (targetPlan === "office") {
-    // Provision (or update) the owner's office row.
-    const { data: existing } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
-    if (existing) {
-      await admin.from("offices").update({ seats }).eq("id", existing.id);
-    } else {
-      const { data: prof } = await admin.from("profiles").select("name, company").eq("id", user.id).maybeSingle();
-      const officeName = (prof?.company as string) || (prof?.name ? `${prof.name}'s Team` : "My Office");
-      await admin.from("offices").insert({ owner_id: user.id, name: officeName, seats });
-    }
+    await provisionOfficeForOwner(admin, user.id, seats);
   } else if (wasOffice) {
-    // Leaving Office → tear the office down: release every active member back to
-    // their own plan, strip the office brand from their cards, remove the office.
-    const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
-    if (office) {
-      const brand = await getOfficeBrand(office.id).catch(() => null);
-      const { data: members } = await admin
-        .from("office_members")
-        .select("user_id")
-        .eq("office_id", office.id)
-        .not("user_id", "is", null);
-      for (const m of members ?? []) {
-        if (m.user_id) {
-          const fallback = await memberFallbackPlan(m.user_id as string);
-          await admin.from("profiles").update({ plan: fallback, office_id: null, plan_expires_at: null }).eq("id", m.user_id as string);
-          await stripBrandFromUserCards(m.user_id as string, brand).catch(() => {});
-        }
-      }
-      await admin.from("office_members").delete().eq("office_id", office.id);
-      await admin.from("offices").delete().eq("id", office.id);
-    }
+    // Leaving Office → tear the office down: release every active member back
+    // to their own plan, strip the office brand from their cards, notify them,
+    // remove the office. Shared with the subscription.updated webhook so a
+    // portal-initiated Office->Pro swap tears down the office too (billing audit).
+    await tearDownOfficeForOwner(admin, user.id);
   }
 
   return NextResponse.json({ ok: true, plan: targetPlan, interval, seats });

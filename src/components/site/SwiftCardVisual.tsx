@@ -1,4 +1,4 @@
-import { MiniQR } from "@/components/card-templates/types";
+import { MiniQR } from "@/components/card-templates/MiniQR";
 
 // A premium, self-contained SwiftCard face used across the marketing site.
 // Modeled on the real product card; a real scannable MiniQR keeps it authentic.

@@ -234,7 +234,11 @@ export default async function DashboardPage({
       : Promise.resolve({ data: null }),
     supabase
       .from("leads")
-      .select("id, name, email, phone, company, message, location, notes, status, tags, source, follow_up_date, created_at, card_owner")
+      // Trimmed to columns this page actually renders (QuickContactList,
+      // NotificationsPanel, and the isLocked/tags check) — message, location,
+      // notes, status, source, follow_up_date were fetched but never used
+      // here (performance audit).
+      .select("id, name, email, phone, company, tags, created_at")
       .eq("card_owner", activeUsername)
       .order(
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",

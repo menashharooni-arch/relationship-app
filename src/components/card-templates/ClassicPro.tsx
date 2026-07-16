@@ -3,7 +3,7 @@
 // Includes: Logo, name, title, phone, email, website, social row, QR
 // Best for: Finance, consulting, legal, corporate, healthcare
 
-import { MiniQR as QR } from "./types";
+import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 

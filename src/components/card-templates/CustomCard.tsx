@@ -2,7 +2,7 @@
 // Layout comes from data.customization.customLayout (built in the Pro designer).
 // NO hooks here — this renders server-side on the public card page.
 import type { CardData, CustomElement, CustomLayout, CustomSocial } from "./types";
-import { MiniQR } from "./types";
+import { MiniQR } from "./MiniQR";
 import PlatformIcon from "@/components/PlatformIcon";
 
 // Map a per-platform social element to its value in the card data + icon label.

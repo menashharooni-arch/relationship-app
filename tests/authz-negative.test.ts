@@ -3,6 +3,7 @@ import { isSelfTraffic, baseSlugForOwnerLookup } from "@/lib/self-traffic";
 import { ownsLead } from "@/lib/lead-access";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
 import { buildClaimInsert } from "@/lib/draft-claim";
+import { isOfficeMember, isOwnersCard } from "@/lib/office-cards";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Negative authorization tests. There is NO database RLS in this app — tenant
@@ -104,6 +105,41 @@ describe("resolveBrandTargetIds — office branding blast radius", () => {
 
   it("with no members, only the owner's own cards are branded", () => {
     expect(resolveBrandTargetIds("owner", [], [])).toEqual(["owner"]);
+  });
+});
+
+// ── Office analytics detail page (IDOR: pasting a foreign user id) ──────────
+describe("isOfficeMember — analytics/team per-member detail page guard", () => {
+  const teamIds = ["owner-1", "member-a", "member-b"];
+
+  it("allows the owner and active members this office actually resolved", () => {
+    expect(isOfficeMember(teamIds, "owner-1")).toBe(true);
+    expect(isOfficeMember(teamIds, "member-a")).toBe(true);
+  });
+
+  it("DENIES a user id from another office (guessed/pasted into the URL)", () => {
+    expect(isOfficeMember(teamIds, "cross-office-user")).toBe(false);
+  });
+
+  it("denies an empty/missing id and never matches on an empty team", () => {
+    expect(isOfficeMember(teamIds, "")).toBe(false);
+    expect(isOfficeMember([], "owner-1")).toBe(false);
+  });
+});
+
+// ── Office card edit: a delegated admin must not reach the OWNER's card ──────
+describe("isOwnersCard — manage_member_cards is scoped to employees, not the owner", () => {
+  it("flags the owner's own card as off-limits to a delegated admin", () => {
+    expect(isOwnersCard("owner-1", "owner-1")).toBe(true);
+  });
+
+  it("does NOT flag an employee's card — a delegated admin may still manage those", () => {
+    expect(isOwnersCard("owner-1", "employee-2")).toBe(false);
+  });
+
+  it("never flags a missing/null target (no accidental block)", () => {
+    expect(isOwnersCard("owner-1", null)).toBe(false);
+    expect(isOwnersCard("owner-1", undefined)).toBe(false);
   });
 });
 

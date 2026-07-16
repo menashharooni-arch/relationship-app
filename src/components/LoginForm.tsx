@@ -103,15 +103,25 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       }
     } else {
       await clearExistingSession();
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${APP_URL}/auth/callback` } });
+      // Carry a same-origin `next` (e.g. a team invite, or the guest editor)
+      // through email-confirmation too — mirrors handleGoogle/handleApple.
+      // Without this, a signup with confirmation enabled sends the user to
+      // /auth/callback with no `next` once they click the emailed link, so
+      // e.g. an invited employee never returns to /join/<token> to accept
+      // (auth audit — the invite was silently dropped).
+      const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+      const emailRedirectTo = safeNext
+        ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
+        : `${APP_URL}/auth/callback`;
+      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
         setErrorMsg(error.message);
         setStatus("error");
       } else {
         // New accounts must pass through /onboarding (profile provisioning +
-        // referral). Carry a same-origin `next` (e.g. the guest editor) so
-        // onboarding returns them there afterwards to claim their draft.
-        const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+        // referral). This branch only runs when confirmation is OFF and a
+        // session came back immediately; the confirmation-required case is
+        // handled by emailRedirectTo above instead.
         window.location.href = safeNext ? `/onboarding?next=${encodeURIComponent(safeNext)}` : "/onboarding";
       }
     }

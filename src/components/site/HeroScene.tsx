@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { MiniQR } from "@/components/card-templates/types";
+import { MiniQR } from "@/components/card-templates/MiniQR";
 
 // Flagship hero scene — recreates a "two phones tapping" moment entirely from
 // our own components (no third-party photography):

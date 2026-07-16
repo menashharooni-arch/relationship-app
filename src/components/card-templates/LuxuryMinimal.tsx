@@ -4,7 +4,7 @@
 // Best for: Luxury real estate, wealth management, executives, high-end services, attorneys
 
 import React from "react";
-import { MiniQR as QR } from "./types";
+import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
 

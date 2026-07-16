@@ -6,6 +6,7 @@ import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
 import { clientIp } from "@/lib/client-ip";
+import { isLikelyBot } from "@/lib/bot-detection";
 
 export async function POST(
   req: NextRequest,
@@ -23,7 +24,21 @@ export async function POST(
     return NextResponse.json({ ok: true, rateLimited: true });
   }
 
-  const visitorId: string | null = await req.json().then((b) => b?.visitorId || null).catch(() => null);
+  // Bot/crawler/synthetic-monitor traffic never counts as a real view. Checked
+  // against the actual request header (not the client-supplied device_info),
+  // so it holds even against a direct scripted POST.
+  if (isLikelyBot(req.headers.get("user-agent"))) {
+    return NextResponse.json({ ok: true, bot: true });
+  }
+
+  const body = await req.json().catch(() => null);
+  const visitorId: string | null = body?.visitorId || null;
+  // Recorded as-is (the card page computes this: a real `?source=` query param,
+  // or its "direct_link" default). Not currently validated against SOURCE_LABELS
+  // — an unrecognized value just falls back to its raw string in the UI (see
+  // getSourceLabel), so a bogus client-supplied value degrades gracefully rather
+  // than breaking tracking.
+  const source: string | null = body?.source || null;
 
   // Only record views for cards that actually serve. Blocks spam inflation of
   // view counts via direct POSTs for nonexistent/deleted/plan-deactivated slugs
@@ -56,13 +71,24 @@ export async function POST(
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: recent } = await supabase
       .from("card_views")
-      .select("id")
+      .select("id, source")
       .eq("username", username)
       .eq("visitor_id", visitorId)
       .gte("viewed_at", since)
       .limit(1)
       .maybeSingle();
-    if (recent) return NextResponse.json({ ok: true, deduped: true });
+    if (recent) {
+      // A repeat visit doesn't get a new row, but if this hit carries a more
+      // specific source (e.g. a QR scan minutes after the same visitor opened
+      // a plain link) than what got recorded first, upgrade it in place —
+      // otherwise that scan silently vanishes from traffic-source attribution.
+      // Never downgrades an already-specific source back to a generic one.
+      const isGeneric = (s: string | null) => !s || s === "direct_link";
+      if (source && !isGeneric(source) && isGeneric(recent.source as string | null)) {
+        await supabase.from("card_views").update({ source }).eq("id", recent.id);
+      }
+      return NextResponse.json({ ok: true, deduped: true });
+    }
   }
 
   // Record the view. Surface a failure in the logs instead of silently dropping
@@ -72,8 +98,18 @@ export async function POST(
   // viewed_at is set explicitly (not left to a column DEFAULT) so a view always
   // has the timestamp the dashboard filters/counts on — no dependency on the
   // production table having the DEFAULT now() the migration specifies.
-  const { error: insertErr } = await supabase.from("card_views").insert({ username, ip, location, visitor_id: visitorId, viewed_at: new Date().toISOString() });
-  if (insertErr) console.error("card_views insert failed:", insertErr.message, { username });
+  // NOTE: the raw IP is intentionally NOT persisted here (only used above for
+  // the rate-limit key) — the privacy policy states visitor IPs are not stored
+  // with views, so only the pre-derived, coarser `location` string is kept.
+  // A concurrent duplicate insert for the same visitor (two tabs, a client
+  // double-fire) is caught by the partial unique index added in
+  // supabase/card-views-race-fix.sql and treated as a normal dedup, not a
+  // failure — the check above narrows the window but is not atomic by itself.
+  const { error: insertErr } = await supabase.from("card_views").insert({ username, location, visitor_id: visitorId, source, viewed_at: new Date().toISOString() });
+  if (insertErr) {
+    if (insertErr.code === "23505") return NextResponse.json({ ok: true, deduped: true });
+    console.error("card_views insert failed:", insertErr.message, { username });
+  }
 
   // Mirror the view to the owner's CRM (SwiftCard vs SwiftLink). Gated by their
   // "card & link views" CRM preference; no-op for everyone else.

@@ -4,6 +4,7 @@ import { isCardActive } from "@/lib/card-active";
 import { isOwnerRequest } from "@/lib/self-traffic";
 import { isRateLimited } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
+import { isLikelyBot } from "@/lib/bot-detection";
 
 // Cap the stored event payload so this public, unauthenticated endpoint can't be
 // used to bloat the analytics table with an oversized blob.
@@ -23,6 +24,10 @@ export async function POST(req: NextRequest) {
       ?? "unknown";
     if (await isRateLimited(`analytics:${ip}:${username}`, 40, 10 * 60 * 1000)) {
       return NextResponse.json({ ok: true, rateLimited: true });
+    }
+
+    if (isLikelyBot(req.headers.get("user-agent"))) {
+      return NextResponse.json({ ok: true, bot: true });
     }
 
     // Only record events for a real, active card — matches the views/card-events

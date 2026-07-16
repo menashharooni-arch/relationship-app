@@ -11,6 +11,8 @@ import { planFromPriceId } from "@/lib/subscription";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { isDuplicateStripeEvent, clearStripeEvent } from "@/lib/stripe-idempotency";
 import { reportError } from "@/lib/report-error";
+import { insertNotification } from "@/lib/notify";
+import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -32,6 +34,23 @@ async function sendReceiptForUser(opts: {
   // the card's public contact address).
   const accountEmail = await getAccountEmail(opts.userId, profile?.email ?? null);
   if (!profile || !accountEmail || prefs?.receipt_emails === false) return;
+
+  // Guard against a duplicate send: if the webhook handler is retried after a
+  // partial failure (e.g. a later step in the same event threw, or Stripe
+  // redelivered), this same receipt path can run again within seconds/minutes.
+  // There's no invoice-id column on email_logs to key an exact dedup off of,
+  // so this is a coarse but effective backstop — a real renewal receipt is
+  // never sent twice within 10 minutes of another for the same user.
+  const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: recentReceipt } = await admin
+    .from("email_logs")
+    .select("id")
+    .eq("user_id", opts.userId)
+    .eq("type", "receipt")
+    .gte("created_at", since)
+    .limit(1)
+    .maybeSingle();
+  if (recentReceipt) return;
 
   const firstName = profile.name?.split(" ")[0] || "there";
   const amount = `$${(opts.amountCents / 100).toFixed(2)}`;
@@ -175,7 +194,13 @@ export async function POST(req: NextRequest) {
         try {
           await getStripe().subscriptions.cancel(priorSubId);
         } catch (e) {
-          console.error("[stripe] failed to cancel superseded subscription:", e);
+          // A failure here means the customer is left on TWO simultaneously
+          // active Stripe subscriptions, billed every cycle for both — this
+          // must be visible, not just logged (code review: this was the one
+          // remaining unchecked Stripe mutation in this file still using a
+          // silent console.error after the same class of gap was fixed
+          // elsewhere in this file tonight).
+          await reportError("stripe.webhook.supersede_cancel_failed", e, { userId, priorSubId, newSubscriptionId: session.subscription });
         }
       }
       // Critical: upgrade the plan. Kept to pre-existing columns ONLY so it can
@@ -206,26 +231,20 @@ export async function POST(req: NextRequest) {
           userId,
           planName: plan.charAt(0).toUpperCase() + plan.slice(1),
           amountCents: session.amount_total ?? 0,
-          interval: "Monthly",
+          interval: mapped?.interval === "annual" ? "Annual" : "Monthly",
           invoiceId: session.invoice as string | null,
         });
       } catch (e) {
         console.error("Receipt email error:", e);
       }
 
-      // Auto-create office for enterprise
+      // Auto-create office for enterprise. Shared with the change-plan route
+      // and the subscription.updated portal-swap path so an office gets the
+      // SAME name regardless of which signup/upgrade path created it (code
+      // review — this used to have its own slightly different name-fallback,
+      // so an office's name depended on how it was purchased).
       if (isEnterprise) {
-        const { data: existing } = await admin.from("offices").select("id").eq("owner_id", userId).single();
-        if (!existing) {
-          const { data: profile } = await admin.from("profiles").select("name, company").eq("id", userId).single();
-          const officeName =
-            (profile as { company?: string } | null)?.company ||
-            (profile as { name?: string } | null)?.name ||
-            "My Office";
-          await admin.from("offices").insert({ name: officeName, owner_id: userId, seats });
-        } else {
-          await admin.from("offices").update({ seats }).eq("id", existing.id);
-        }
+        await provisionOfficeForOwner(admin, userId, seats);
       }
     }
   }
@@ -259,11 +278,13 @@ export async function POST(req: NextRequest) {
       // Skip the very first invoice — checkout.session.completed sends that receipt.
       if (invoice.billing_reason === "subscription_cycle" && profile?.id) {
         try {
+          const renewalPriceId = (invoice as unknown as { lines?: { data?: Array<{ price?: { id?: string } }> } }).lines?.data?.[0]?.price?.id;
+          const renewalInterval = planFromPriceId(renewalPriceId)?.interval === "annual" ? "Annual renewal" : "Monthly renewal";
           await sendReceiptForUser({
             userId: profile.id,
             planName: (profile.plan as string ?? "Pro").charAt(0).toUpperCase() + (profile.plan as string ?? "pro").slice(1),
             amountCents: invoice.amount_paid,
-            interval: "Monthly renewal",
+            interval: renewalInterval,
             invoiceId: invoice.id,
           });
         } catch (e) {
@@ -309,7 +330,11 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (e) {
-        console.error("Grace-period tracking error:", e);
+        // This write is the ONLY trigger for the entire 7-day grace-period
+        // sweep (see /api/reminders) — if it silently fails, nothing ever
+        // downgrades a non-paying past_due customer. Must be visible, not
+        // just logged (billing audit).
+        await reportError("stripe.webhook.grace_period_tracking_failed", e, { eventId: event.id, customerId: invoice.customer });
       }
     }
   }
@@ -331,6 +356,11 @@ export async function POST(req: NextRequest) {
     if (subProfile?.id) {
       const cust = { ...((subProfile.customization as Record<string, unknown> | null) ?? {}) };
       let dirty = false;
+      // Captured BEFORE any plan write below, so the Pro<->Office transition
+      // is judged against the PRIOR plan, not the freshly-reconciled one —
+      // gating the office provision/teardown on the post-write plan (as this
+      // used to) makes the transition itself invisible (billing audit).
+      const wasOffice = subProfile.plan === "enterprise";
 
       // 1) Mirror the scheduled-cancel state so the UI shows "cancels on <date>"
       //    + the Keep Subscription button, even when cancelled via the portal.
@@ -360,6 +390,19 @@ export async function POST(req: NextRequest) {
         if (subProfile.plan !== targetDbPlan) {
           await admin.from("profiles").update({ plan: targetDbPlan }).eq("id", subProfile.id);
           subProfile.plan = targetDbPlan;
+
+          // Reconcile the office row for a Pro<->Office swap made ANYWHERE
+          // (Stripe portal included) — previously only the in-app change-plan
+          // route did this, so a portal swap left Stripe/DB plan reconciled
+          // but the office never provisioned (Pro->Office) or torn down
+          // (Office->Pro, leaving every member with unpaid enterprise access
+          // indefinitely). (billing audit)
+          if (targetDbPlan === "enterprise" && !wasOffice) {
+            const seats = sub.items.data[0]?.quantity ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
+            await provisionOfficeForOwner(admin, subProfile.id, seats);
+          } else if (targetDbPlan === "pro" && wasOffice) {
+            await tearDownOfficeForOwner(admin, subProfile.id);
+          }
         }
       }
 
@@ -399,6 +442,15 @@ export async function POST(req: NextRequest) {
               await admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id);
               await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id);
               await stripBrandFromUserCards(m.user_id, trimBrand).catch(() => {});
+              // Removed because the office's seat count shrank — tell them
+              // why their access just changed (billing audit: members
+              // previously got no notification of any kind).
+              await insertNotification({
+                user_id: m.user_id,
+                type: "office_seat_trimmed",
+                title: "Your Office access ended",
+                body: officeAccessEndedMessage(fallback),
+              }).catch(() => {});
             }
             await admin.from("office_members").delete().eq("id", m.id);
           }
@@ -411,12 +463,27 @@ export async function POST(req: NextRequest) {
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data.object as Stripe.Subscription;
     const admin2 = getAdminSupabase();
-    // Critical downgrade (pre-existing columns only — never blocked by the migration).
+    // Find the owner profile WITHOUT clearing stripe_subscription_id yet — the
+    // previous version nulled that column in the SAME statement used to find
+    // the row, which meant a retry after any failure mid-cascade below could
+    // no longer locate the profile at all, silently skipping the member
+    // downgrade cascade forever (billing audit: retry-idempotency gap).
+    // stripe_subscription_id is only cleared as the FINAL step, once the
+    // whole cascade has run.
     const { data: profile } = await admin2.from("profiles")
-      .update({ plan: "free", stripe_subscription_id: null })
-      .eq("stripe_subscription_id", sub.id)
       .select("id, customization")
-      .single();
+      .eq("stripe_subscription_id", sub.id)
+      .maybeSingle();
+    if (profile?.id) {
+      // Re-check stripe_subscription_id at write time (not just at the
+      // SELECT above) — otherwise a retry of this event arriving after the
+      // customer already resubscribed (a new sub.id written in the
+      // meantime) would downgrade a now-paying customer to free with no
+      // guard, since the write would match on id alone. Mirrors the
+      // original single atomic UPDATE...WHERE stripe_subscription_id this
+      // replaced (code review).
+      await admin2.from("profiles").update({ plan: "free" }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
+    }
     // Best-effort: clear any free-month expiry so the row can't later be mistaken
     // for an active subscriber (which would leak Pro forever), and drop the
     // scheduled-cancel mirror (the cancellation has now happened).
@@ -425,15 +492,20 @@ export async function POST(req: NextRequest) {
       delete cust._cancelAtPeriodEnd;
       delete cust._cancelAt;
       delete cust._cancelReason;
-      await admin2.from("profiles").update({ plan_expires_at: null, customization: cust }).eq("id", profile.id);
+      // Same stripe_subscription_id re-check as the plan write above — a
+      // resubscribed customer's NEW subscription's cancel-mirror/expiry must
+      // not be silently cleared by a stale write for the OLD, now-cancelled
+      // one (code review).
+      await admin2.from("profiles").update({ plan_expires_at: null, customization: cust }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
     }
 
     // If the person whose PERSONAL subscription just ended is still an active
     // member of someone else's PAID office, they remain entitled to enterprise
     // — the blanket downgrade above wrongly dropped them to free. Restore it
-    // (keeping stripe_subscription_id null, since their own sub is gone) and
-    // re-link the office. (billing audit #6B) The office-OWNER path below is
-    // unaffected: an owner's own sub ending correctly cascades to members.
+    // and re-link the office (stripe_subscription_id is cleared for them
+    // regardless, at the very end of this block, since their own sub is
+    // gone). (billing audit #6B) The office-OWNER path below is unaffected:
+    // an owner's own sub ending correctly cascades to members.
     if (profile?.id) {
       const { data: membership } = await admin2
         .from("office_members")
@@ -453,34 +525,62 @@ export async function POST(req: NextRequest) {
     }
 
     if (profile?.id) {
-      const admin = getAdminSupabase();
-      const { data: office } = await admin.from("offices").select("id").eq("owner_id", profile.id).single();
-      if (office) {
-        const { data: activeMembers } = await admin
-          .from("office_members")
-          .select("id, user_id")
-          .eq("office_id", office.id)
-          .eq("status", "active")
-          .not("user_id", "is", null);
+      // Re-verify the subscription id hasn't changed since the initial
+      // lookup (e.g. the owner resubscribed via a fresh Checkout session in
+      // the narrow window since) before running this destructive member
+      // cascade — the final writes below already guard on this; the cascade
+      // itself needs the same guard so it can't downgrade every member of an
+      // office whose owner is, by the time this runs, an active paying
+      // customer again under a NEW subscription (code review).
+      const { data: stillCurrent } = await admin2.from("profiles").select("stripe_subscription_id").eq("id", profile.id).maybeSingle();
+      if (stillCurrent?.stripe_subscription_id === sub.id) {
+        const admin = getAdminSupabase();
+        const { data: office } = await admin.from("offices").select("id").eq("owner_id", profile.id).single();
+        if (office) {
+          const { data: activeMembers } = await admin
+            .from("office_members")
+            .select("id, user_id")
+            .eq("office_id", office.id)
+            .eq("status", "active")
+            .not("user_id", "is", null);
 
-        const cascadeBrand = (activeMembers ?? []).length ? await getOfficeBrand(office.id).catch(() => null) : null;
-        for (const m of activeMembers ?? []) {
-          if (m.user_id) {
-            // Same rules as removal: own-subscription members land on Pro,
-            // and the office brand comes off their cards.
-            const fallback = await memberFallbackPlan(m.user_id);
-            await admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id);
-            await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id); // best-effort
-            await stripBrandFromUserCards(m.user_id, cascadeBrand).catch(() => {});
+          const cascadeBrand = (activeMembers ?? []).length ? await getOfficeBrand(office.id).catch(() => null) : null;
+          for (const m of activeMembers ?? []) {
+            if (m.user_id) {
+              // Same rules as removal: own-subscription members land on Pro,
+              // and the office brand comes off their cards.
+              const fallback = await memberFallbackPlan(m.user_id);
+              await admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id);
+              await admin.from("profiles").update({ plan_expires_at: null }).eq("id", m.user_id); // best-effort
+              await stripBrandFromUserCards(m.user_id, cascadeBrand).catch(() => {});
+              // Removed because the Office subscription ended — tell them why
+              // their access just changed (billing audit: members previously
+              // got no notification of any kind).
+              await insertNotification({
+                user_id: m.user_id,
+                type: "office_subscription_ended",
+                title: "Your Office access ended",
+                body: officeAccessEndedMessage(fallback),
+              }).catch(() => {});
+            }
+            // Remove the membership row itself (same as the owner's "Remove
+            // member" action) — without this it stays status='active' forever,
+            // and the office owner keeps seeing this ex-member's leads /
+            // propagating brand onto their card if the subscription is later
+            // reinstated or the member's card is reused.
+            await admin.from("office_members").delete().eq("id", m.id);
           }
-          // Remove the membership row itself (same as the owner's "Remove
-          // member" action) — without this it stays status='active' forever,
-          // and the office owner keeps seeing this ex-member's leads /
-          // propagating brand onto their card if the subscription is later
-          // reinstated or the member's card is reused.
-          await admin.from("office_members").delete().eq("id", m.id);
         }
       }
+    }
+
+    // Clear the subscription link LAST — only once the entire cascade above
+    // has run. Guarded on stripe_subscription_id still matching sub.id (not
+    // just id) so a stale retry can never null out a DIFFERENT subscription
+    // the customer resubscribed to in the meantime — it just no-ops instead,
+    // same as the original single atomic UPDATE this replaced (code review).
+    if (profile?.id) {
+      await admin2.from("profiles").update({ stripe_subscription_id: null }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
     }
   }
   } catch (e) {

@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 // lives inside each person, and inviting is a button, not a destination.
 const LINKS = [
   { href: "/office/admin", label: "Team", tour: "admin-nav-team" },
+  { href: "/office/admin/analytics", label: "Analytics", tour: "admin-nav-analytics" },
   { href: "/office/admin/leads", label: "Leads", tour: "admin-nav-leads" },
   { href: "/office/admin/branding", label: "Branding", tour: "admin-nav-branding" },
 ];

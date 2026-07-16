@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { reportError } from "@/lib/report-error";
 
 // ── Webhook idempotency ───────────────────────────────────────────────────────
 // Stripe delivers each event at least once, so redeliveries (and Stripe's own
@@ -23,9 +24,13 @@ export async function isDuplicateStripeEvent(eventId: string, type: string): Pro
     if (!error) return false; // fresh insert → first time we've seen it
     // Unique-violation (23505) → already processed → duplicate.
     if ((error as { code?: string }).code === "23505") return true;
-    // Any other error (e.g. table missing) → fail open, process the event.
+    // Any other error (e.g. table missing) → fail open, process the event —
+    // but this silently defeats dedup for every future delivery, so make it
+    // visible rather than a permanently invisible gap (billing audit).
+    await reportError("stripe.idempotency.insert_failed", error, { eventId, type });
     return false;
-  } catch {
+  } catch (e) {
+    await reportError("stripe.idempotency.insert_threw", e, { eventId, type });
     return false;
   }
 }

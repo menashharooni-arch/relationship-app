@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
@@ -12,7 +13,11 @@ import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-async function resolve(username: string) {
+// cache() dedupes this across generateMetadata and the page body within the
+// same request — both call resolve() with the same username, and without
+// this each Swift Links view paid for the cards/profiles/plan-limit lookups
+// twice (performance audit).
+const resolve = cache(async (username: string) => {
   const admin = getAdminSupabase();
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
   const { data: cardOwner } = cardRow
@@ -41,7 +46,7 @@ async function resolve(username: string) {
     ? cardHeadshot(cardRow.customization, cardOwner?.photo_url)
     : (legacyOk ? (profileRow?.photo_url ?? null) : null);
   return { profile, photoUrl, ownerPlan };
-}
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;

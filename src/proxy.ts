@@ -23,6 +23,17 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Any redirect below must carry the auth cookies just written onto
+  // supabaseResponse (e.g. a rotated refresh token from the getUser() call
+  // above) — a bare NextResponse.redirect() is a fresh response object that
+  // doesn't inherit them, silently discarding a token rotation and desyncing
+  // the browser's session (auth audit).
+  function redirectWithAuthCookies(url: URL): NextResponse {
+    const res = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((c) => res.cookies.set(c));
+    return res;
+  }
+
   const protectedPaths = ["/dashboard", "/onboarding", "/profile", "/templates", "/cards", "/settings", "/office", "/contacts"];
   const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p));
 
@@ -36,7 +47,7 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/cards/new/");
 
   if (!user && isProtected && !isGuestCardBuilder) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return redirectWithAuthCookies(new URL("/login", request.url));
   }
 
   // A soft-deleted account's Supabase session/access-token stays valid for its
@@ -51,7 +62,7 @@ export async function proxy(request: NextRequest) {
       .maybeSingle();
     const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
     if (deleted) {
-      return NextResponse.redirect(new URL("/account-deleted", request.url));
+      return redirectWithAuthCookies(new URL("/account-deleted", request.url));
     }
   }
 

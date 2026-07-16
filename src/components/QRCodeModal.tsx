@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import dynamic from "next/dynamic";
+
+// qrcode.react only needs to load once a visitor actually opens this modal —
+// most card viewers never do, so this keeps it out of the public card page's
+// initial bundle (performance audit).
+const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), { ssr: false });
 
 export default function QRCodeModal({ url, firstName }: { url: string; firstName: string }) {
   const [open, setOpen] = useState(false);

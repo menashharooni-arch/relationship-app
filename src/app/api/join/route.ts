@@ -84,6 +84,21 @@ export async function POST(req: Request) {
     );
   }
 
+  // A profile row must exist BEFORE any mutation below — checked here, not
+  // just after activating (the earlier version of this fix rolled back the
+  // NEW office's membership on a missing profile, but by then the OLD
+  // office's membership row was already hard-deleted a few steps later with
+  // no way back, permanently losing the user's original office membership
+  // for nothing (code review). Bailing out here, before anything is
+  // touched, needs no rollback at all.
+  const { data: existingProfile } = await admin.from("profiles").select("id").eq("id", user.id).maybeSingle();
+  if (!existingProfile) {
+    return NextResponse.json(
+      { error: "Your account isn't fully set up yet. Please finish creating your account, then use the invite link again." },
+      { status: 409 }
+    );
+  }
+
   // NOTE: any membership this user still holds in a DIFFERENT office is removed
   // AFTER the seat recount below succeeds — never before. Deleting it up front
   // (the old order) meant a seat-race rollback returned 409 having already wiped
@@ -137,11 +152,31 @@ export async function POST(req: Request) {
     .eq("status", "active")
     .neq("office_id", officeId);
 
-  // Give the joining user enterprise plan + link to office
-  await admin
+  // Give the joining user enterprise plan + link to office. Must verify a
+  // profile row actually exists first — an UPDATE silently affects 0 rows if
+  // it doesn't (e.g. onboarding hasn't finished provisioning it yet), which
+  // would leave the seat we just activated above permanently spent with no
+  // enterprise access ever granted, and nothing later reconciles it (auth
+  // audit).
+  const { data: updatedProfile } = await admin
     .from("profiles")
     .update({ plan: "enterprise", office_id: officeId })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (!updatedProfile) {
+    // Roll back the activation — same rollback pattern as the seat-race
+    // check above, so the seat isn't silently spent for nothing.
+    await admin
+      .from("office_members")
+      .update({ user_id: null, status: "pending", joined_at: null })
+      .eq("id", member.id);
+    return NextResponse.json(
+      { error: "Your account isn't fully set up yet. Please finish creating your account, then use the invite link again." },
+      { status: 409 }
+    );
+  }
 
   // Uniform branding: strip any OLD office brand first, then adopt the new one,
   // so switching teams never leaves the previous company's contact details on
