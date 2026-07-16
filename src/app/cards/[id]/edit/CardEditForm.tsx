@@ -30,6 +30,7 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
+import CardUrlEditor from "@/components/CardUrlEditor";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -434,7 +435,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-                <p className="text-gray-600 text-xs mt-1">Card URL: /card/{card.username}</p>
+                <CardUrlEditor cardId={card.id} currentSlug={card.username} />
               </div>
             )}
             <div>
