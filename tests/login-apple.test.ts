@@ -18,9 +18,14 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 // Item 9 — native-only "Continue with Apple" button.
 
 describe("Item 9 — Apple button never renders on web", () => {
-  it("web login form (native false in SSR) shows Google but NOT Apple", () => {
+  it("web login form (native false in SSR) offers Google sign-in but NOT Apple", () => {
     const out = renderToStaticMarkup(h(LoginForm, { initialMode: "signin" as const }));
-    expect(out).toContain("Continue with Google");
+    // On web the Google option is now the Google Identity Services button
+    // (rendered client-side by GoogleSignInButton), so the SSR markup shows its
+    // container/placeholder rather than the old "Continue with Google" text.
+    // The web tree must still present a Google sign-in affordance and must NOT
+    // render the native-only Apple button.
+    expect(out).toMatch(/Google/);
     expect(out).not.toContain("Continue with Apple");
   });
 });
