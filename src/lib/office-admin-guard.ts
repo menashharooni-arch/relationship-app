@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -29,19 +30,31 @@ export type OfficeAdminCtx = {
   };
 };
 
-export async function requireOfficeAdmin(): Promise<OfficeAdminCtx> {
+// cache(): the layout AND every page under /office/admin call this guard, so
+// without request-level memoization the entire chain (auth round trip, profile
+// read, office-context resolution, office fetch, primary-card self-heal) ran
+// TWICE per page load — roughly doubling time-to-first-byte for the whole
+// admin section. cache() shares one execution across the layout and page
+// within a single request; a fresh request always re-runs it, so nothing is
+// cached across users or requests.
+export const requireOfficeAdmin = cache(async (): Promise<OfficeAdminCtx> => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
+  // Independent lookups (both key on user.id alone) — run together instead of
+  // serially. resolveOfficeContext is read-only, so running it speculatively
+  // even when the profile check below redirects is harmless.
+  const [{ data: profile }, ctx] = await Promise.all([
+    supabase.from("profiles").select("plan").eq("id", user.id).single(),
+    resolveOfficeContext(user.id),
+  ]);
   if (!profile) redirect("/onboarding");
   if (profile.plan !== "enterprise") redirect("/pricing");
 
   // An Office user with no office yet is the owner-to-be (they'll see the
   // create form). A member without org-analytics access is a plain employee and
   // has no business here.
-  const ctx = await resolveOfficeContext(user.id);
   const role: OfficeRole = ctx ? ctx.role : "owner";
   if (ctx && !ctx.isOwner && !roleHasCapability(role, "view_org_analytics")) redirect("/dashboard");
 
@@ -77,4 +90,4 @@ export async function requireOfficeAdmin(): Promise<OfficeAdminCtx> {
       canManageCards: roleHasCapability(role, "manage_member_cards"),
     },
   };
-}
+});
