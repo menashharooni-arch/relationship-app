@@ -102,7 +102,7 @@ function LinkExperience() {
               <button
                 onClick={() => setShared(true)}
                 className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center"
-                style={{ background: "#2563EB", boxShadow: "0 0 0 2px #2563EB, 0 0 0 5px rgba(37,99,235,0.18)" }}
+                style={{ background: "#2563EB", border: "1.5px solid #ffffff", boxShadow: "0 0 0 2px #2563EB, 0 0 0 5px rgba(37,99,235,0.18)" }}
               >
                 Share my info →
               </button>

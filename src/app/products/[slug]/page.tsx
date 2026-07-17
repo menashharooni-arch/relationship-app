@@ -244,7 +244,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   // The "Preview" (see-it-live) CTA is hidden on these product pages per owner
   // request — they showcase the real thing inline instead.
-  const showPreview = !["digital-cards", "swiftlinks", "email-signatures", "lead-capture", "wallet", "watch", "integrations"].includes(slug);
+  const showPreview = !["digital-cards", "swiftlinks", "email-signatures", "lead-capture", "wallet", "watch", "integrations", "teams"].includes(slug);
 
   return (
     <div className="rd-dark2">
