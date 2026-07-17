@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { detectNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import Link from "next/link";
 import { PLAN_PRICES, PLAN_LIMITS, TRIAL_DAYS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -44,6 +44,7 @@ export default function CheckoutClient() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
+  const native = useIsNativeApp();
 
   // Native app (App Store 3.1.1): the checkout order summary + Stripe hand-off
   // is a purchase flow and must never appear inside the Capacitor shell — same
@@ -155,15 +156,24 @@ export default function CheckoutClient() {
   // Auto-continue after returning from account creation / login (spec §1:
   // "automatically continue to checkout for the originally selected plan").
   useEffect(() => {
+    // Native: never auto-resume a Stripe hand-off inside the shell — the
+    // redirect-to-dashboard effect above wins (App Store 3.1.1).
+    if (detectNativeApp()) return;
     let resume = false;
     try { resume = sessionStorage.getItem(RESUME_KEY) === "1"; } catch { /* ignore */ }
     if (resume) {
       try { sessionStorage.removeItem(RESUME_KEY); } catch { /* ignore */ }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-login resume: reads+clears a storage flag on mount, then kicks off the checkout request (which sets busy state)
       start();
     }
   }, [start]);
 
   const planName = plan === "office" ? "Office" : "Pro";
+
+  // After all hooks (safe when `native` flips post-mount): render nothing on
+  // native while the redirect effect runs — no one-frame flash of the order
+  // summary inside the shell.
+  if (native) return null;
 
   return (
     <div className="w-full max-w-md">
