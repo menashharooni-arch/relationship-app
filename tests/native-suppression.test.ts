@@ -70,6 +70,13 @@ const GUARDS: Guard[] = [
   },
   { file: "src/components/SignupNudgeHost.tsx", patterns: [/if \(!source \|\| native\) return null/] },
   { file: "src/components/AppStorePopup.tsx", patterns: [/if \(!open \|\| native\) return null/] },
+  {
+    // Web push can't work inside the Capacitor WKWebView, and the web fallback
+    // ("Add to Home Screen") is impossible instructions inside a native app.
+    // Native must short-circuit to its own honest not-available state.
+    file: "src/components/EnablePushButton.tsx",
+    patterns: [/detectNativeApp\(\)/, /state === "native"/, /native: true/],
+  },
 ];
 
 describe("native suppression guards are present at each site", () => {
