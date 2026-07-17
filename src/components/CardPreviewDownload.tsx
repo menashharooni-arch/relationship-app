@@ -79,7 +79,7 @@ export default function CardPreviewDownload({ data, template, username, previewU
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <DownloadCardButton cardRef={cardRef} filename={`swiftcard-${username}.png`} compact />
+        <DownloadCardButton cardRef={cardRef} filename={`swiftcard-${username}.png`} compact shareUrl={previewUrl} />
         {previewUrl && (
           <a
             href={previewUrl}

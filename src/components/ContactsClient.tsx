@@ -6,6 +6,7 @@ import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton from "@/components/ShareMyInfoButton";
 import { PlanGate } from "@/components/PlanGate";
 import { AiDraftTag } from "@/components/AiConsentGate";
+import { openFileViaSystemBrowser } from "@/lib/native-file";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
 
@@ -262,8 +263,12 @@ export default function ContactsClient({
   }
 
   // Download this contact as a vCard so the user can save it to their phone.
-  function saveContactToPhone() {
+  async function saveContactToPhone() {
     if (!selected) return;
+    // Native shell: a Blob/anchor download no-ops in WKWebView. Route to the
+    // server vCard over the system browser sheet, where iOS shows the real
+    // "Add to Contacts" preview. Web keeps the client Blob path below.
+    if (await openFileViaSystemBrowser(`/api/leads/vcard?id=${encodeURIComponent(selected.id)}`)) return;
     const esc = (v: string) => v.replace(/([\\,;])/g, "\\$1").replace(/\n/g, "\\n");
     const name = (selected.name || "Contact").trim();
     const parts = name.split(" ");

@@ -171,7 +171,7 @@ describe("security hardening locks", () => {
   });
   it("push subscribe validates endpoint shape and is throttled", () => {
     const s = read("src/app/api/push/subscribe/route.ts");
-    expect(s).toMatch(/isPlausibleEndpoint/);
+    expect(s).toMatch(/isSafePushEndpoint/);
     expect(s).toMatch(/isRateLimited/);
   });
   it("previously-uncapped authenticated routes are rate limited", () => {
@@ -186,5 +186,46 @@ describe("security hardening locks", () => {
     ]) {
       expect(read(p), p).toMatch(/isRateLimited/);
     }
+  });
+  it("the upload rate limit is on the EXPENSIVE POST handler (not just DELETE)", () => {
+    const s = read("src/app/api/upload/route.ts");
+    // Isolate the POST handler body and assert the guard lives inside it.
+    const postBody = s.slice(s.indexOf("export async function POST"));
+    expect(postBody).toMatch(/isRateLimited\(`upload:\$\{user\.id\}`/);
+  });
+  it("push endpoints are SSRF-checked at registration and delivery", () => {
+    const sub = read("src/app/api/push/subscribe/route.ts");
+    expect(sub).toMatch(/assertSafeUrl/);
+    expect(sub).toMatch(/isSafePushEndpoint/);
+    expect(read("src/lib/push.ts")).toMatch(/assertSafeUrl/);
+  });
+});
+
+describe("2.1 — file downloads hand off to the system browser on native (WKWebView can't save)", () => {
+  it("native-file helper only acts on native and returns false on web", () => {
+    const s = read("src/lib/native-file.ts");
+    expect(s).toMatch(/detectNativeApp\(\)/);
+    expect(s).toMatch(/@capacitor\/browser/);
+  });
+  it("public vCard endpoint exists, respects the kill-switch, and escapes via buildVCard", () => {
+    const s = read("src/app/api/card/[username]/vcard/route.ts");
+    expect(s).toMatch(/isCardActive/);
+    expect(s).toMatch(/buildVCard/);
+    expect(s).toMatch(/text\/vcard/);
+  });
+  it("SaveContactButton routes the vCard through the system browser on native", () => {
+    expect(read("src/components/SaveContactButton.tsx")).toMatch(/openFileViaSystemBrowser/);
+  });
+  it("in-app contact .vcf routes to the server vCard on native", () => {
+    expect(read("src/components/ContactsClient.tsx")).toMatch(/openFileViaSystemBrowser/);
+  });
+  it("CSV export links use the native-aware DownloadLink", () => {
+    expect(read("src/app/contacts/page.tsx")).toMatch(/DownloadLink/);
+    expect(read("src/app/office/admin/analytics/EmployeeAnalyticsTable.tsx")).toMatch(/DownloadLink/);
+    expect(read("src/components/DownloadLink.tsx")).toMatch(/openFileViaSystemBrowser/);
+  });
+  it("QR + card-image downloads fall back to the native share sheet", () => {
+    expect(read("src/components/QRDownloadButton.tsx")).toMatch(/@capacitor\/share/);
+    expect(read("src/components/DownloadCardButton.tsx")).toMatch(/@capacitor\/share/);
   });
 });

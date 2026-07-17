@@ -13,11 +13,10 @@ export async function DELETE(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
-  if (await isRateLimited(`upload:${user.id}`, 30, 10 * 60 * 1000)) {
+  // Light throttle on the cheap delete path.
+  if (await isRateLimited(`upload-delete:${user.id}`, 60, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
   }
-
 
   const body = await req.json().catch(() => ({}));
   const field = body.field as string | undefined; // "photo" or "logo"
@@ -42,6 +41,11 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle on the EXPENSIVE path: sharp decode/resize/re-encode +
+  // public-bucket write. Previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`upload:${user.id}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
 
   let formData: FormData;
   try {

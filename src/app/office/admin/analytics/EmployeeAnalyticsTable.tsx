@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import DownloadLink from "@/components/DownloadLink";
 import type { EmployeeMetrics } from "@/lib/office-analytics";
 import { computeConversionRate, defaultEmployeeSort } from "@/lib/office-analytics-metrics";
 import { relativeTime } from "@/lib/relative-time";
@@ -75,13 +76,13 @@ export default function EmployeeAnalyticsTable({ employees, range }: { employees
           aria-label="Search employees or cards"
           className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
         />
-        <a
+        <DownloadLink
           href={`/api/office/analytics/export?range=${encodeURIComponent(range)}`}
           title="Downloads the full current date range as CSV (not limited to the search above)"
           className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3.5 py-2.5 rounded-xl transition-colors text-center whitespace-nowrap"
         >
           Export CSV
-        </a>
+        </DownloadLink>
       </div>
 
       {visible.length === 0 ? (

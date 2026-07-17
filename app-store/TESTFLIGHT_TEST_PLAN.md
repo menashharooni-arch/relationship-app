@@ -55,10 +55,21 @@ Core product
       the notification, tap it → contacts screen. (Needs APNs key envs.)
 - [ ] Card scanner: camera prompt on first use; scanning a paper card creates
       a contact.
-- [ ] QR renders; share sheet is the native sheet; "Save contact" (.vcf)
-      behavior in WKWebView — VERIFY the download actually completes; if it
-      no-ops, ship-blocking decision needed (it's an owner-only flow, but a
-      dead button is a 2.1 risk — hide it natively if broken).
+- [ ] QR renders; "Download QR (PNG)" opens the NATIVE SHARE SHEET on device
+      (native falls back to sharing the card link — verify it's the share sheet,
+      not a dead tap). "Download card image" likewise shares the card link.
+- [ ] **Save Contact (.vcf) — HIGH PRIORITY, was the known WKWebView risk:**
+      on the public card AND in Contacts, tapping Save Contact must open the
+      system browser sheet showing iOS's "Add to Contacts" preview (native
+      routes to the `/api/card/<slug>/vcard` and `/api/leads/vcard` endpoints,
+      NOT a Blob). Confirm the contact actually adds to iOS Contacts. If the
+      SFSafariViewController shows the vCard but no Add-to-Contacts affordance
+      on the target iOS version, escalate (may need @capacitor/filesystem +
+      share-file). This is the single most important download to verify.
+- [ ] **CSV export (Contacts + Office analytics) — was ungated in front of the
+      Pro demo:** tapping Export CSV opens the system browser where the CSV is
+      viewable/shareable (native routes through @capacitor/browser). Not a dead
+      tap.
 - [ ] Apple Wallet: add pass, pass shows the right card + QR; pass opens on
       Apple Watch Wallet (this is the "watch" claim's basis).
 - [ ] Swift Links page renders and edits.
