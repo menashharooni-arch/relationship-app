@@ -101,6 +101,36 @@ describe("iOS shell project wiring", () => {
   });
 });
 
+describe("Liquid-Glass native styling layer", () => {
+  const css = read("src/app/globals.css");
+  const bridge = read("src/components/NativeAppBridge.tsx");
+  it("NativeAppBridge stamps html.native-app and injects viewport-fit only on native", () => {
+    expect(bridge).toMatch(/classList\.add\("native-app"\)/);
+    expect(bridge).toMatch(/viewport-fit=cover/);
+    // both must sit AFTER the detectNativeApp() guard — web untouched
+    expect(bridge.indexOf('classList.add("native-app")')).toBeGreaterThan(bridge.indexOf("if (!detectNativeApp()) return;"));
+  });
+  it("every glass rule is scoped under html.native-app (web cannot match)", () => {
+    const section = css.slice(css.indexOf("NATIVE SHELL — Liquid-Glass motion layer"));
+    expect(section.length).toBeGreaterThan(100);
+    // No selector in the section may start outside the native-app scope.
+    const selectors = section.split("\n").filter((l) => /^[a-zA-Z.\[@:]/.test(l) && l.includes("{") && !l.startsWith("@"));
+    for (const s of selectors) {
+      expect(s.trim().startsWith("html.native-app"), `unscoped selector: ${s}`).toBe(true);
+    }
+  });
+  it("accessibility fallbacks exist: reduced motion, reduced transparency, contrast, no-backdrop-filter", () => {
+    const section = css.slice(css.indexOf("NATIVE SHELL — Liquid-Glass motion layer"));
+    expect(section).toMatch(/prefers-reduced-motion: no-preference/);
+    expect(section).toMatch(/prefers-reduced-transparency: reduce/);
+    expect(section).toMatch(/prefers-contrast: more/);
+    expect(section).toMatch(/@supports not \(\(backdrop-filter/);
+  });
+  it("MobileNav carries the sc-tabbar anchor class", () => {
+    expect(read("src/components/MobileNav.tsx")).toMatch(/className="sc-tabbar /);
+  });
+});
+
 describe("native share + Wallet hand-off", () => {
   it("ShareButton tries the native share sheet first inside the shell", () => {
     const src = read("src/components/ShareButton.tsx");

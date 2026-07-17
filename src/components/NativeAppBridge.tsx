@@ -26,6 +26,21 @@ export default function NativeAppBridge() {
   useEffect(() => {
     if (!detectNativeApp()) return;
 
+    // ── Native look & motion hook ──────────────────────────────────────────
+    // `html.native-app` scopes the Liquid-Glass-inspired CSS layer in
+    // globals.css (glass chrome, spring taps, page transitions) to the shell
+    // only — the website never gets the class. viewport-fit=cover is injected
+    // here rather than in the layout's viewport export so the WEBSITE's layout
+    // on notched iPhones is untouched; inside the shell it lets content run
+    // edge-to-edge with env(safe-area-inset-*) padding handling the notch.
+    document.documentElement.classList.add("native-app");
+    try {
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+      if (meta && !meta.content.includes("viewport-fit")) {
+        meta.content = `${meta.content}, viewport-fit=cover`;
+      }
+    } catch { /* ignore */ }
+
     let removeListener: (() => void) | null = null;
     let cancelled = false;
 
