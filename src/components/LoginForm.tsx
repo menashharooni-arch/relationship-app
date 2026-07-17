@@ -19,16 +19,59 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
   const native = useIsNativeApp();
+
+  // SwiftCard is invite-only for new accounts. Office-team invitees (arriving
+  // with next=/join/<token>) are pre-authorized by their invite, so they don't
+  // need a code — the /onboarding gate lets their pending office invite through.
+  const isOfficeInvite = !!(redirectTo && redirectTo.startsWith("/join/"));
+
+  // Verify the invite code before any signup path (email OR Google/Apple). On
+  // success the server sets a short-lived cookie that /onboarding re-checks
+  // before it will provision the account. No-op for sign-in and office invites.
+  async function ensureInviteVerified(): Promise<boolean> {
+    if (mode !== "signup" || isOfficeInvite) return true;
+    const code = inviteCode.trim();
+    if (!code) {
+      setErrorMsg("An invite code is required to create an account.");
+      setStatus("error");
+      return false;
+    }
+    try {
+      const res = await fetch("/api/invite/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error || "That invite code isn't valid.");
+        setStatus("error");
+        return false;
+      }
+      return true;
+    } catch {
+      setErrorMsg("Couldn't verify your invite code — please try again.");
+      setStatus("error");
+      return false;
+    }
+  }
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
   // ?error=oauth) instead of silently landing the visitor back on the form.
   // Read after mount — reading the URL during render would mismatch SSR.
   useEffect(() => {
     try {
-      if (new URLSearchParams(window.location.search).get("error") === "oauth") {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after mount, avoids SSR mismatch
+      const err = new URLSearchParams(window.location.search).get("error");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after mount, avoids SSR mismatch
+      if (err === "oauth") {
         setErrorMsg("Google sign-in didn't complete — please try again.");
+      } else if (err === "invite_only") {
+        // Onboarding rejected an uninvited new account — nudge them to the
+        // invite-code signup instead of leaving them confused on the sign-in tab.
+        setErrorMsg("SwiftCard is invite-only right now — you need an invite code to create an account.");
+        setMode("signup");
       }
     } catch { /* ignore */ }
   }, []);
@@ -47,6 +90,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   }
 
   async function handleGoogle() {
+    if (mode === "signup" && !(await ensureInviteVerified())) return;
     if (mode === "signup") await clearExistingSession();
     // NATIVE: OAuth must run in the SYSTEM browser (SFSafariViewController) —
     // Google blocks embedded-webview OAuth (403 disallowed_useragent). The
@@ -79,6 +123,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   // action), so today this call returns an error; we catch it and surface it as
   // a normal user-facing message rather than letting it throw. Inert but safe.
   async function handleApple() {
+    if (mode === "signup" && !(await ensureInviteVerified())) return;
     if (mode === "signup") await clearExistingSession();
     try {
       // Same system-browser flow as native Google — consistent, and avoids
@@ -109,6 +154,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         window.location.href = redirectTo ?? "/dashboard";
       }
     } else {
+      if (!(await ensureInviteVerified())) return;
       await clearExistingSession();
       // Carry a same-origin `next` (e.g. a team invite, or the guest editor)
       // through email-confirmation too — mirrors handleGoogle/handleApple.
@@ -222,6 +268,23 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
           onChange={(e) => setPassword(e.target.value)}
           className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
+
+        {mode === "signup" && !isOfficeInvite && (
+          <div>
+            <input
+              type="text"
+              placeholder="Invite code"
+              required
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              autoCapitalize="characters"
+              className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
+            />
+            <p className="text-center text-[11px] text-slate-400 mt-1.5">
+              SwiftCard is invite-only right now. Have a code? Enter it to join.
+            </p>
+          </div>
+        )}
 
         {errorMsg && (
           <p className="text-red-400 text-xs text-center">{errorMsg}</p>

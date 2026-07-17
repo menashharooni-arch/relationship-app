@@ -1,0 +1,60 @@
+import { getAdminSupabase } from "@/lib/supabase-admin";
+
+// Short-lived httpOnly cookie set by /api/invite/verify once a code checks out;
+// /onboarding re-verifies it before it will provision a brand-new account.
+export const INVITE_COOKIE = "sc_invite";
+
+// Invite-only signups. A brand-new account is provisioned at /onboarding only
+// if it presents a valid code from public.signup_invites OR the email has a
+// pending office-team invite. All access here is via the service-role client.
+
+export function normalizeInviteCode(raw: unknown): string {
+  return String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+export async function isValidSignupInvite(code: string): Promise<boolean> {
+  const c = normalizeInviteCode(code);
+  if (!c) return false;
+  const admin = getAdminSupabase();
+  const { data } = await admin
+    .from("signup_invites")
+    .select("code, max_uses, uses, disabled")
+    .eq("code", c)
+    .maybeSingle();
+  if (!data || data.disabled) return false;
+  return (data.uses ?? 0) < (data.max_uses ?? 0);
+}
+
+// Record that this account used a code: mark the per-user row (idempotent) and
+// bump the code's use count. Read-then-write increment is fine for a launch
+// gate (generous max_uses); the per-user upsert prevents double-counting the
+// same account across onboarding retries.
+export async function consumeSignupInvite(code: string, userId: string): Promise<void> {
+  const c = normalizeInviteCode(code);
+  if (!c) return;
+  const admin = getAdminSupabase();
+  const { data: already } = await admin
+    .from("signup_invite_uses")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (already) return; // already counted for this user
+  await admin.from("signup_invite_uses").upsert({ user_id: userId, code: c }, { onConflict: "user_id" });
+  const { data } = await admin.from("signup_invites").select("uses").eq("code", c).maybeSingle();
+  if (data) await admin.from("signup_invites").update({ uses: (data.uses ?? 0) + 1 }).eq("code", c);
+}
+
+// An invited teammate (pending office_members row for their email) may create
+// an account without a signup code — the invite itself is their pass.
+export async function hasPendingOfficeInvite(email: string | null | undefined): Promise<boolean> {
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e) return false;
+  const admin = getAdminSupabase();
+  const { data } = await admin
+    .from("office_members")
+    .select("id, status")
+    .ilike("invite_email", e)
+    .eq("status", "pending")
+    .limit(1);
+  return (data ?? []).length > 0;
+}
