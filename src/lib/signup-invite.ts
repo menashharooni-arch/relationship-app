@@ -50,10 +50,15 @@ export async function hasPendingOfficeInvite(email: string | null | undefined): 
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
   const admin = getAdminSupabase();
+  // EXACT match, not ilike: invite_email is always stored lowercased on write
+  // (src/app/api/office/invite/route.ts), so .eq() on the lowercased address is
+  // correct — and it closes a LIKE-wildcard bypass, since `_`/`%` are valid in
+  // an attacker-chosen signup email and ilike would treat them as wildcards
+  // (e.g. "j_hn@x.com" matching a pending invite for "john@x.com").
   const { data } = await admin
     .from("office_members")
-    .select("id, status")
-    .ilike("invite_email", e)
+    .select("id")
+    .eq("invite_email", e)
     .eq("status", "pending")
     .limit(1);
   return (data ?? []).length > 0;
