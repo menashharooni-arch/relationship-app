@@ -100,6 +100,29 @@ device-test round in particular is mandatory, not optional.
 9. **Push to origin** — this pass's commits are local-only (pushing main
    auto-deploys production, which required approval this run did not have).
 
+## Final adversarial round (3 independent reviewers)
+
+A strict-Apple-reviewer, a correctness reviewer, and a security attacker each
+ran against the finished state. Everything they surfaced was fixed (commit
+`6e3f207`) or is a documented owner step:
+
+- **2.1 file downloads** (strict reviewer, LIKELY): fixed — see rows 18 above.
+  This was the real remaining code-side exposure; the reviewer correctly noted
+  CSV export sat ungated in front of the Pro demo account.
+- **Blind SSRF via push endpoint** (security, MEDIUM): fixed — row 19.
+- **Upload rate-limit on wrong handler** (correctness, MEDIUM): fixed — row 20.
+- **Office-member in-app deletion** (strict reviewer, "request info"): framed
+  as the managed-account 5.1.1 carve-out; not on the demo path. See
+  `KNOWN_LIMITATIONS.md`.
+- All three confirmed the 3.1.1 selling suppression is airtight and found no
+  new path to a price in native mode; no secrets; no IDOR; XSS/CSRF on the new
+  admin-takedown and report surfaces all defeated.
+
+The residual risk is now entirely the **owner steps + on-device verification**,
+not unfixed code. The download handoffs use the standard, correct native
+pattern but have NOT been run on a device — they are the top items in
+`TESTFLIGHT_TEST_PLAN.md`.
+
 ## Honest risk assessment
 
 - **4.2 minimum functionality remains the structural risk** for a remote-URL
