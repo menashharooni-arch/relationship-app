@@ -5,15 +5,23 @@
 // the subscription so the server can send contact alerts + view milestones.
 
 import { useEffect, useState } from "react";
+import { detectNativeApp } from "@/lib/platform";
 
-type State = "loading" | "unsupported" | "ios-install" | "denied" | "subscribed" | "idle" | "working" | "error";
+type State = "loading" | "unsupported" | "ios-install" | "native" | "denied" | "subscribed" | "idle" | "working" | "error";
 
 // iOS (iPhone/iPad) only allows web push for a site that's been ADDED TO THE
 // HOME SCREEN and opened from there (standalone). In a normal Safari tab the
 // PushManager API doesn't even exist — so we detect this case and guide the
 // user to install, instead of a dead-end "not supported".
+//
+// NATIVE (Capacitor iOS shell): web push doesn't exist inside WKWebView, and the
+// "Add to Home Screen" guidance is impossible there (no Safari share button) —
+// showing it inside a native app reads as broken (App Review 2.1). Until real
+// APNs push ships via a Capacitor plugin, native gets a quiet, honest
+// not-available state with NO instructions. Web behavior is byte-identical.
 function detectEnv() {
-  if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false };
+  if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false, native: false };
+  if (detectNativeApp()) return { supported: false, iosNeedsInstall: false, native: true };
   const ua = navigator.userAgent || "";
   const isIOS = /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document);
   const standalone =
@@ -23,17 +31,17 @@ function detectEnv() {
     "serviceWorker" in navigator &&
     "PushManager" in window &&
     !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  return { supported: hasApis, iosNeedsInstall: isIOS && !standalone && !hasApis };
+  return { supported: hasApis, iosNeedsInstall: isIOS && !standalone && !hasApis, native: false };
 }
 
 export function usePushState(): [State, () => Promise<boolean>] {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
-    const { supported, iosNeedsInstall } = detectEnv();
+    const { supported, iosNeedsInstall, native } = detectEnv();
     if (!supported) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
-      setState(iosNeedsInstall ? "ios-install" : "unsupported");
+      setState(native ? "native" : iosNeedsInstall ? "ios-install" : "unsupported");
       return;
     }
     if (Notification.permission === "denied") { setState("denied"); return; }
@@ -133,6 +141,17 @@ export default function EnablePushButton({
   }
 
   if (state === "loading") return null;
+
+  // Native Capacitor shell: web push can't work in WKWebView and the install
+  // guidance below is impossible there. A quiet, honest note — no dead-end
+  // instructions, no broken toggle.
+  if (state === "native") {
+    return (
+      <p className="text-gray-500 text-xs text-center">
+        Push notifications aren&apos;t available in this version of the app — you&apos;ll still see new contacts and activity here and by email.
+      </p>
+    );
+  }
 
   // iPhone/iPad in a Safari tab: guide them to install, don't dead-end.
   if (state === "ios-install") {
