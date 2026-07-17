@@ -32,9 +32,11 @@ describe("Item 9 — Apple button never renders on web", () => {
 
 describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
   const src = read("src/components/LoginForm.tsx");
-  it("calls Supabase OAuth with provider apple and handles errors", () => {
-    expect(src).toMatch(/provider:\s*"apple"/);
-    expect(src).toMatch(/if \(error\) \{[\s\S]*setErrorMsg/);
+  it("routes Apple sign-in through the system-browser native flow and handles errors", () => {
+    // The native Apple handler now uses startNativeOAuth (system browser +
+    // swiftcard:// return) — embedded-webview OAuth is unreliable on iOS.
+    expect(src).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo\)/);
+    expect(src).toMatch(/setErrorMsg/);
   });
   it("the button is rendered only when native", () => {
     expect(src).toMatch(/\{native && \(/);

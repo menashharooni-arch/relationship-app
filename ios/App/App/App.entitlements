@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: matches the served AASA (appID <TEAMID>.me.swiftcard.app,
+	     paths /card/*, /links/*, /auth/callback). -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:swiftcard.me</string>
+	</array>
+	<!-- APNs push (EnablePushButton native path + lib/apns.ts). Xcode's signing
+	     step rewrites this to "production" automatically for App Store builds. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

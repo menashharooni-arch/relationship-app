@@ -19,8 +19,12 @@ const AASA = {
     details: [
       {
         appID: "TEAMID_PLACEHOLDER.me.swiftcard.app",
-        // Public card pages and Swift Links pages open in the app when installed.
-        paths: ["/card/*", "/links/*"],
+        // Public card pages and Swift Links pages open in the app when
+        // installed. /auth/callback is the return leg of the native login
+        // flow: the system-browser OAuth round-trip ends there, the universal
+        // link re-opens the app, and NativeAppBridge navigates the webview to
+        // finish the PKCE exchange.
+        paths: ["/card/*", "/links/*", "/auth/callback"],
       },
     ],
   },

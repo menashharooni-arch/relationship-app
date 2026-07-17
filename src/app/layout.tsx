@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import NativeAppBridge from "@/components/NativeAppBridge";
 import GuidedTour from "@/components/GuidedTour";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 
@@ -96,6 +97,8 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
         />
         <ServiceWorkerRegistrar />
+        {/* Capacitor shell only (no-op on web): universal-link → webview navigation. */}
+        <NativeAppBridge />
         <AnalyticsProvider />
         {children}
         <GuidedTour />

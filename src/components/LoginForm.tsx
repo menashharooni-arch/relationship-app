@@ -48,6 +48,16 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
 
   async function handleGoogle() {
     if (mode === "signup") await clearExistingSession();
+    // NATIVE: OAuth must run in the SYSTEM browser (SFSafariViewController) —
+    // Google blocks embedded-webview OAuth (403 disallowed_useragent). The
+    // round-trip returns via the swiftcard:// scheme and NativeAppBridge
+    // completes the session in the webview. See src/lib/native-auth.ts.
+    if (native) {
+      const { startNativeOAuth } = await import("@/lib/native-auth");
+      const err = await startNativeOAuth(supabase, "google", redirectTo);
+      if (err) { setErrorMsg(err); setStatus("error"); }
+      return;
+    }
     // Carry a same-origin `next` (e.g. the guest editor) through the OAuth
     // round-trip so the callback can return the user to where they left off.
     const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
@@ -70,17 +80,13 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   // a normal user-facing message rather than letting it throw. Inert but safe.
   async function handleApple() {
     if (mode === "signup") await clearExistingSession();
-    const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
-    const callback = safeNext
-      ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
-      : `${APP_URL}/auth/callback`;
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "apple",
-        options: { redirectTo: callback },
-      });
-      if (error) {
-        setErrorMsg(error.message || "Apple sign-in isn't available right now — please try again.");
+      // Same system-browser flow as native Google — consistent, and avoids
+      // running Apple's auth page inside the embedded webview.
+      const { startNativeOAuth } = await import("@/lib/native-auth");
+      const err = await startNativeOAuth(supabase, "apple", redirectTo);
+      if (err) {
+        setErrorMsg(err.includes("not enabled") ? "Apple sign-in isn't available right now — please try again." : err);
         setStatus("error");
       }
     } catch {
