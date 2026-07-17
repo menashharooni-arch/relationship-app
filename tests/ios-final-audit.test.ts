@@ -104,6 +104,28 @@ describe("5.1.1 — deletion dialog disclosures", () => {
   });
 });
 
+describe("site lockdown — logged-out visitors are gated except public paths", () => {
+  const s = read("src/proxy.ts");
+  it("has a reversible lockdown flag (SITE_PUBLIC=1 reopens)", () => {
+    expect(s).toMatch(/SITE_PUBLIC/);
+    expect(s).toMatch(/LOCKDOWN/);
+  });
+  it("redirects unauthenticated, non-public paths to /login", () => {
+    expect(s).toMatch(/LOCKDOWN && !user && !isPublicPath\(path\)/);
+  });
+  it("keeps shared cards, links, invites, auth, and legal pages public", () => {
+    for (const p of ["/card/", "/links/", "/join/", "/auth/", "/.well-known/"]) {
+      expect(s).toContain(`"${p}"`);
+    }
+    for (const p of ["/login", "/signup", "/privacy", "/terms", "/contact", "/account-deleted"]) {
+      expect(s).toContain(`"${p}"`);
+    }
+  });
+  it("runs on all page routes (matcher excludes only api/static)", () => {
+    expect(s).toMatch(/matcher:\s*\["\/\(\(\?!api\|_next/);
+  });
+});
+
 describe("Universal Links — AASA covers office invites", () => {
   const s = read("src/app/.well-known/apple-app-site-association/route.ts");
   it("includes /join/* alongside cards and links", () => {
