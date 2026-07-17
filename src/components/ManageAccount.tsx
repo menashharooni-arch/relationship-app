@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 import { createBrowserClient } from "@supabase/ssr";
 
 const REASONS = [
@@ -23,6 +24,7 @@ type Step = "survey" | "confirm";
 // deletion here is deletion, no retention traps.
 export default function ManageAccount({ isPro, plan = "free", email = "" }: { isPro: boolean; plan?: string; email?: string }) {
   void plan;
+  const native = useIsNativeApp();
   const [expanded, setExpanded] = useState(false);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState<Step>("survey");
@@ -131,7 +133,10 @@ export default function ManageAccount({ isPro, plan = "free", email = "" }: { is
           <p className="text-gray-500 text-xs mt-0.5 mb-3 leading-relaxed">
             Permanently deletes your cards and contacts and cancels any subscription. Your email can&apos;t be used to sign up again.
           </p>
-          {isPro && (
+          {/* Native (App Store 5.1.1 + 3.1.1): the Plan-and-billing section is
+              hidden inside the Capacitor shell, so this pointer would be a dead
+              anchor referencing subscription management — web only. */}
+          {isPro && !native && (
             <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">
               Just want to stop paying? You can <a href="#billing" className="text-blue-400 hover:text-blue-300 underline">cancel or switch to Free in Plan and billing</a> and keep your account.
             </p>
