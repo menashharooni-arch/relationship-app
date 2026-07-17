@@ -16,6 +16,7 @@ import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
+import NativeHidden from "@/components/NativeHidden";
 
 export const metadata: Metadata = {
   title: "SwiftCard — The digital business card that shares itself",
@@ -355,7 +356,7 @@ export default function Home() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link>
+              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
             </div>
           </div>
         </section>

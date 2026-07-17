@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -44,6 +45,26 @@ export default function PlanCards({
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const disabled = busy !== null;
+  const native = useIsNativeApp();
+
+  // NATIVE (App Store 3.1.1): this is the shared selling widget — prices, paid
+  // plans, checkout hand-off. None of that may render inside the Capacitor
+  // shell. Native gets ONLY the free continue action so every caller
+  // (/welcome, the card wizard's guest plan step) still has a way forward.
+  // Web is byte-identical (native is false on SSR and the first paint).
+  if (native) {
+    return (
+      <div className="max-w-md mx-auto">
+        <button
+          onClick={onFree}
+          disabled={disabled}
+          className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50"
+        >
+          {busy === "free" ? "Setting up…" : freeLabel}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>

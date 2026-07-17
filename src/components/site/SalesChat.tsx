@@ -8,6 +8,7 @@
 // use the app's light/dark theme system.
 
 import { useEffect, useRef, useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -26,6 +27,7 @@ const SUGGESTIONS = [
 ];
 
 export default function SalesChat() {
+  const native = useIsNativeApp();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -57,6 +59,11 @@ export default function SalesChat() {
       setLoading(false);
     }
   }
+
+  // App Store 3.1.1: the sales assistant freely discusses prices, plans, and
+  // links to /pricing — a selling surface. Never render it inside the native
+  // Capacitor shell (defense in depth alongside the SiteFooter NativeHidden wrap).
+  if (native) return null;
 
   return (
     <>

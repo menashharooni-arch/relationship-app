@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EnablePushButton from "@/components/EnablePushButton";
 import PlanCards, { type PaidPlan } from "@/components/PlanCards";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
+import { detectNativeApp } from "@/lib/platform";
 
 // Onboarding step shown once, right after a brand-new account's first card is
 // saved (routed here by GuestDraftClaim → /welcome?card=slug). It turns on
@@ -25,7 +26,12 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setIntent(consumePlanIntent());
+    // NATIVE (App Store 3.1.1): never resume a stored paid-plan intent inside
+    // the Capacitor shell — the "Complete your subscription" checkout panel is
+    // a selling surface. Native always falls through to the plan step, where
+    // PlanCards renders only the free continue action. Web unchanged.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
+    setIntent(detectNativeApp() ? null : consumePlanIntent());
   }, []);
 
   function goFree() {

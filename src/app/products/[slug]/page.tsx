@@ -13,6 +13,7 @@ import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
+import NativeHidden from "@/components/NativeHidden";
 
 type Feature = { t: string; d: string };
 type Product = {
@@ -402,7 +403,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>Your free SwiftCard is 60 seconds away.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link>
+              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
             </div>
           </div>
         </section>
