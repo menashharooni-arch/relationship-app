@@ -12,7 +12,7 @@ _Every field pre-written. Fill App Store Connect top-to-bottom from this file._
 | Primary category | Business |
 | Secondary category | Productivity |
 | Content rights | Does not contain third-party content |
-| Age rating | 4+ (all questionnaire answers "No") |
+| Age rating | Use the 2025 questionnaire (mandatory since Jan 31 2026) — answer the UGC questions truthfully (public user cards + report/takedown exist); accept the computed rating. See app-store/APP_STORE_CONNECT_CHECKLIST.md §4 |
 
 ## Pricing & Availability
 - Price: **Free** (no in-app purchases configured — subscriptions exist only on the website and are never sold or shown in the app)
@@ -100,9 +100,9 @@ SwiftCard is a companion app for managing an existing SwiftCard account
 (digital business cards + contact management). Notes:
 
 1. No purchases: subscriptions are sold only on our website. The app neither
-   sells nor links to any purchase flow, per guideline 3.1.3(a) reader/companion
-   behavior. The demo account is already on the Pro tier so every feature is
-   visible.
+   sells nor links to any purchase flow (guideline 3.1.1 — nothing is unlocked
+   in-app; 3.1.3(b) multiplatform access for existing subscribers). The demo
+   account is already on the Pro tier so every feature is visible.
 2. Sign in with Apple is offered alongside Google and email/password.
 3. Account deletion is available in-app: Settings → Advanced account
    settings → Delete account.
@@ -112,7 +112,9 @@ SwiftCard is a companion app for managing an existing SwiftCard account
 ```
 
 ## Screenshots (take on device after first build)
-Required: 6.7" (iPhone 15 Pro Max class) and 6.1". Suggested five:
+Required (2026 spec): one 6.9-inch iPhone set at 1320 × 2868 px portrait —
+smaller iPhones auto-scale from it. iPad set only if iPad is enabled.
+Suggested five:
 1. Dashboard with a populated card + analytics
 2. The public card page (what a lead sees)
 3. Contacts/leads list with tags + follow-up statuses
