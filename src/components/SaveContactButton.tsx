@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
+import { openFileViaSystemBrowser } from "@/lib/native-file";
 
 interface Person {
   name: string;
@@ -114,6 +115,27 @@ export default function SaveContactButton({
     triggerSignupNudge("vcard");
     setDownloading(true);
     try {
+    // Native shell: a Blob/anchor download no-ops in WKWebView. Hand the user
+    // to the server vCard over the system browser sheet, where iOS shows the
+    // real "Add to Contacts" preview. Only fires in the app (username known);
+    // the web path below is unchanged. Record the save first so the owner
+    // still gets the activity/notification even though we navigate away.
+    if (username && (await openFileViaSystemBrowser(`/api/card/${encodeURIComponent(username)}/vcard`))) {
+      setSaved(true);
+      markSavedContact(cardOwner);
+      if (!suppressTracking) {
+        trackEvent(username, "downloaded_vcard", source);
+        fetch("/api/analytics/event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, event_type: "contact_save" }),
+        }).catch(() => {});
+      }
+      if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
+        setTimeout(() => setShowSheet(true), 900);
+      }
+      return;
+    }
     // One action = one activity entry. We record the save once (below, as
     // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
     // event was creating a duplicate line in each contact's conversation timeline.

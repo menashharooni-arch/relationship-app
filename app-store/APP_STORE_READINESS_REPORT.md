@@ -53,6 +53,9 @@ device-test round in particular is mandatory, not optional.
 | 15 | Security | Rate limits on 8 previously-uncapped authenticated routes (AI, exports, delete, upload, draft claim, push subscribe) |
 | 16 | Security | push endpoint shape validation; GIF magic-byte check; token-crypto AES-CBC → AES-GCM (legacy readable); unsubscribe + OAuth-state HMACs fail closed |
 | 17 | Security (DB, applied to prod) | RLS enabled on `push_subscriptions`/`card_events`/`analytics_events` (all service-role-only access — zero behavior change); `search_path` pinned on 7 functions; public-bucket listing policy dropped. Recorded in `supabase/ios-audit-security-hardening.sql` |
+| 18 | 2.1 (file downloads) | WKWebView can't save Blob/attachment downloads. Native now hands off to the system browser / share sheet: Save Contact `.vcf` → new public `text/vcard` endpoint via SFSafariViewController (real "Add to Contacts"); in-app contact `.vcf` → existing server route; CSV export (contacts + office analytics) → system browser; QR/card-image PNG → native share sheet. Web keeps its working Blob paths (all native-gated). Endpoint verified: valid escaped vCard for active cards, 404 for offline/bogus |
+| 19 | Security (SSRF) | push endpoint validation now rejects private/loopback/metadata hosts at registration AND re-checks at delivery (`assertSafeUrl`) — closes a blind-SSRF-via-web-push primitive |
+| 20 | Security | upload rate limit moved to the expensive POST handler (was on cheap DELETE); `messaging.ts` secret read lazily like the sibling libs |
 
 ## Verified sound (no action needed)
 

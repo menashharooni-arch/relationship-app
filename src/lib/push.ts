@@ -1,6 +1,20 @@
 import webpush from "web-push";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApnsEndpoint, sendApnsNotification } from "@/lib/apns";
+import { assertSafeUrl } from "@/lib/safe-fetch";
+
+// web-push POSTs to whatever host the stored endpoint names. Endpoints are
+// validated at registration, but a hostname can rebind to a private IP after
+// storage — so re-assert public-internet safety at SEND time too (SSRF
+// defense-in-depth). Rejects quietly: a bad endpoint just isn't delivered.
+async function endpointIsSafeToSend(endpoint: string): Promise<boolean> {
+  try {
+    await assertSafeUrl(new URL(endpoint));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function sendPushToUser(userId: string, payload: {
   title: string;
@@ -45,14 +59,17 @@ export async function sendPushToUser(userId: string, payload: {
     const payloadStr = JSON.stringify(payload);
     for (const sub of webSubs) {
       sends.push(
-        webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          payloadStr
-        ).catch(async (err) => {
-          if (err.statusCode === 404 || err.statusCode === 410) {
-            await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-          }
-          throw err;
+        endpointIsSafeToSend(sub.endpoint).then((safe): Promise<unknown> => {
+          if (!safe) return Promise.resolve("blocked-endpoint");
+          return webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payloadStr
+          ).catch(async (err) => {
+            if (err.statusCode === 404 || err.statusCode === 410) {
+              await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+            }
+            throw err;
+          });
         })
       );
     }

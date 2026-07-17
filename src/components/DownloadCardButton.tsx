@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { detectNativeApp } from "@/lib/platform";
 
 interface Props {
   cardRef: React.RefObject<HTMLDivElement | null>;
   filename?: string;
   compact?: boolean;
+  /** Public card URL — on native, sharing this replaces the PNG download that
+      WKWebView can't save. */
+  shareUrl?: string;
 }
 
 // Inline every <img> src as a data URL before capturing — html-to-image
@@ -41,13 +45,23 @@ async function inlineImages(el: HTMLElement): Promise<void> {
   }));
 }
 
-export default function DownloadCardButton({ cardRef, filename = "swiftcard.png", compact = false }: Props) {
+export default function DownloadCardButton({ cardRef, filename = "swiftcard.png", compact = false, shareUrl }: Props) {
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const loading = status === "working";
 
   async function handleDownload() {
     const el = cardRef.current;
     if (!el || loading) return;
+    // Native shell: WKWebView can't save the generated PNG data URL. Share the
+    // public card link via the native share sheet instead — a working action,
+    // not a dead tap. Web keeps the PNG capture below.
+    if (shareUrl && detectNativeApp()) {
+      try {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ url: shareUrl });
+        return;
+      } catch { /* fall through to the capture path */ }
+    }
     setStatus("working");
     // Neutralize any display scaling so the capture is full resolution.
     const prevTransform = el.style.transform;

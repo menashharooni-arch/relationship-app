@@ -24,11 +24,17 @@ hidden from Apple: metadata and reviewer notes stay consistent with this list._
 - **Account deletion holds data 30 days** — disclosed in the dialog, the
   deleted-state page, and the privacy policy; hard purge is automated
   (cron). Apple accepts disclosed recovery windows; deletion is real.
-- **Office members cannot delete their own account in-app** — they're an
-  organization seat; the block message tells them exactly who to contact.
-  Office OWNERS can delete (with team-consequence disclosure). If review
-  ever flags the member block, the fallback is releasing the member from
-  the org on deletion — decision deferred until flagged.
+- **Office members cannot delete their own account in-app** — this is a
+  MANAGED-ACCOUNT posture (Apple 5.1.1(v) permits managed/enterprise accounts
+  to be administered by the org): a member's account is a company-owned seat,
+  so deletion runs through the Office admin ("Remove from team"), which cleanly
+  unwinds the seat, plan, and branding. The in-app message states this. Office
+  OWNERS delete their own account in-app (with a team-consequence disclosure).
+  The reviewer's demo account is an INDIVIDUAL Pro account with a working
+  in-app delete, so review never hits the member path. If a reviewer flags it,
+  the queued fix is a self-service "Leave the organization" action that
+  releases the seat — deferred because it needs seat/billing unwind that can
+  only be safely device-tested.
 - **Card visitors aren't app users** — lead capture is a public web form on
   the card page; no ATT/consent issue (no tracking; pseudonymous view
   counts; disclosed in the privacy policy).

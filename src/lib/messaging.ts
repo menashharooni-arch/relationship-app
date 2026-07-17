@@ -12,11 +12,16 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // constant would let anyone forge unsubscribes for arbitrary addresses.
 // Both env vars are set in every deployed environment; throwing here only
 // surfaces a misconfigured deployment instead of silently weakening the HMAC.
-const UNSUB_SECRET = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "";
+// Read lazily (not at module load) so env can be provided after import — same
+// pattern as oauth-state.ts/token-crypto.ts.
+function unsubSecret(): string {
+  const s = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "";
+  if (!s) throw new Error("OAUTH_SECRET/CRON_SECRET missing — refusing to sign unsubscribe tokens");
+  return s;
+}
 
 function unsubSig(encoded: string): string {
-  if (!UNSUB_SECRET) throw new Error("OAUTH_SECRET/CRON_SECRET missing — refusing to sign unsubscribe tokens");
-  return createHmac("sha256", UNSUB_SECRET).update(`unsub:${encoded}`).digest("base64url").slice(0, 24);
+  return createHmac("sha256", unsubSecret()).update(`unsub:${encoded}`).digest("base64url").slice(0, 24);
 }
 
 export function contactUnsubUrl(email: string): string {

@@ -2,11 +2,23 @@
 
 import { useRef } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import { detectNativeApp } from "@/lib/platform";
 
 export default function QRDownloadButton({ url, compact = false }: { url: string; compact?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  function download() {
+  async function download() {
+    // Native shell: a canvas data-URL download can't be saved by WKWebView, so
+    // fall back to the native share sheet with the card link the QR encodes —
+    // a working, app-like action instead of a dead tap. Web keeps the PNG
+    // download (detectNativeApp() is false there).
+    if (detectNativeApp()) {
+      try {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ url });
+        return;
+      } catch { /* fall through to the canvas download */ }
+    }
     const canvas = containerRef.current?.querySelector("canvas");
     if (!canvas) return;
     const link = document.createElement("a");

@@ -12,6 +12,7 @@ import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
+import DownloadLink from "@/components/DownloadLink";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
 
@@ -138,7 +139,7 @@ export default async function ContactsPage({
           </div>
           {(leads?.length ?? 0) > 0 && (
             isPaidPlan(profile.plan) ? (
-              <a
+              <DownloadLink
                 href={`/api/leads/export?username=${dashCard}`}
                 title="Export your contacts as CSV"
                 className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
@@ -147,7 +148,7 @@ export default async function ContactsPage({
                   <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.22-1.22a.75.75 0 111.06 1.06l-2.5 2.5a.75.75 0 01-1.06 0l-2.5-2.5a.75.75 0 111.06-1.06l1.22 1.22V1.75A.75.75 0 018 1zM1.5 10.5a.75.75 0 01.75.75v1.5c0 .138.112.25.25.25h11a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 0113.5 14.5h-11A1.75 1.75 0 01.75 12.75v-1.5a.75.75 0 01.75-.75z" clipRule="evenodd"/>
                 </svg>
                 Export CSV
-              </a>
+              </DownloadLink>
             ) : (
               <PlanGate
                 feature="csv-export"
