@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
+import NativeHidden from "@/components/NativeHidden";
 
 export const metadata: Metadata = {
   title: "SwiftCard vs Linktree, Popl & Blinq — Digital Business Card Comparison",
@@ -113,7 +114,7 @@ export default function ComparePage() {
           <SwiftCardLogo size={24} />
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
+            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>

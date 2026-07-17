@@ -1,9 +1,18 @@
+"use client";
+
 import Link from "next/link";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Dashboard banner shown while an account is on an app-level Pro grant (the
 // 14-day reverse trial, or a stacked referral/free month). Presentational only —
 // the dashboard decides when to render it and passes the computed days left.
+//
+// NATIVE (App Store 3.1.1): the status line is neutral information and stays,
+// but the "Keep Pro →" /pricing CTA is a selling surface and must never render
+// inside the Capacitor shell. Web is byte-identical (native is false on SSR and
+// first paint).
 export default function TrialBanner({ daysLeft, isTrial }: { daysLeft: number; isTrial: boolean }) {
+  const native = useIsNativeApp();
   const urgent = daysLeft <= 3;
   const label = isTrial ? "You're on a free Pro trial" : "You're on free Pro";
   const days = daysLeft === 1 ? "1 day left" : `${daysLeft} days left`;
@@ -25,14 +34,16 @@ export default function TrialBanner({ daysLeft, isTrial }: { daysLeft: number; i
           </span>
         </p>
       </div>
-      <Link
-        href="/pricing"
-        className={`shrink-0 text-xs font-bold px-4 py-2 rounded-full text-white transition-colors ${
-          urgent ? "bg-amber-600 hover:bg-amber-500" : "bg-blue-600 hover:bg-blue-500"
-        }`}
-      >
-        Keep Pro →
-      </Link>
+      {!native && (
+        <Link
+          href="/pricing"
+          className={`shrink-0 text-xs font-bold px-4 py-2 rounded-full text-white transition-colors ${
+            urgent ? "bg-amber-600 hover:bg-amber-500" : "bg-blue-600 hover:bg-blue-500"
+          }`}
+        >
+          Keep Pro →
+        </Link>
+      )}
     </div>
   );
 }

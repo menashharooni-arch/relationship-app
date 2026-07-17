@@ -77,6 +77,37 @@ const GUARDS: Guard[] = [
     file: "src/components/EnablePushButton.tsx",
     patterns: [/detectNativeApp\(\)/, /state === "native"/, /native: true/],
   },
+  // ── App Store 3.1.1 leak fixes (overnight iOS review audit) ────────────────
+  // Dashboard trial banner: status info may stay, the "Keep Pro →" /pricing CTA
+  // must not render on native.
+  { file: "src/components/TrialBanner.tsx", patterns: [/useIsNativeApp/, /\{!native && \(/] },
+  // The shared plan chooser (welcome + card-wizard guest step): native gets ONLY
+  // the free continue action — no prices, no paid plans, no checkout.
+  { file: "src/components/PlanCards.tsx", patterns: [/useIsNativeApp/, /if \(native\) \{/] },
+  // /checkout order summary + Stripe hand-off: client redirect on native, same
+  // pattern as /pricing and /upgrade.
+  { file: "src/app/checkout/CheckoutClient.tsx", patterns: [/detectNativeApp\(\)\) router\.replace\("\/dashboard"\)/] },
+  // /welcome: a stored paid-plan intent must never resume its checkout panel
+  // inside the shell.
+  { file: "src/components/WelcomePlan.tsx", patterns: [/detectNativeApp\(\) \? null : consumePlanIntent\(\)/] },
+  // Office team invite: the one-tap prorated seat PURCHASE (price, charge-today,
+  // Stripe seats API) never renders on native; fallback copy is neutral.
+  {
+    file: "src/components/office/TeamActions.tsx",
+    patterns: [/useIsNativeApp/, /!native && canManageSeats && seatInfo\?\.billable && seatPrice/, /Remove an existing team member to free up a seat/],
+  },
+  // Marketing sales assistant discusses pricing: gated internally AND at its
+  // render site.
+  { file: "src/components/site/SalesChat.tsx", patterns: [/if \(native\) return null/] },
+  { file: "src/components/site/SiteFooter.tsx", patterns: [/<NativeHidden><SalesChat \/><\/NativeHidden>/] },
+  // Latent ungated seat purchase (dead code today) — must stay gated if revived.
+  { file: "src/components/AddSeatButton.tsx", patterns: [/if \(native\) return null/] },
+  // Raw marketing "See pricing"/"Pricing" links wrapped in NativeHidden.
+  { file: "src/app/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  { file: "src/app/products/[slug]/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  { file: "src/app/testimonials/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  { file: "src/app/compare/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  { file: "src/app/privacy/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
 ];
 
 describe("native suppression guards are present at each site", () => {

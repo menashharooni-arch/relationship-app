@@ -4,6 +4,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
+import NativeHidden from "@/components/NativeHidden";
 
 // COMPLIANCE NOTE (do not regress): this page previously showed fictional
 // testimonials with fake star ratings and a fabricated review count. Under the
@@ -135,7 +136,7 @@ export default function WhySwiftCardPage() {
             <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>Your free SwiftCard is 60 seconds away. Judge it on what it does.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link>
+              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
             </div>
           </div>
         </section>

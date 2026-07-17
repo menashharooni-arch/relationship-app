@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useIsNativeApp } from "@/lib/platform";
 import { track } from "@/lib/events";
 
 // ── Team-tab actions: add a member, manage an invite, remove a member ───────
@@ -66,6 +67,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   variant?: "button" | "link" | "small";
 }) {
   const router = useRouter();
+  const native = useIsNativeApp();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -222,11 +224,12 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
             <div>
               <p className="text-gray-300 text-sm mb-3">
                 All {seatInfo?.usage?.purchased ?? seatInfo?.seats ?? "your"} of your seats are being used.
-                {canManageSeats && seatInfo?.billable && seatPrice
+                {/* App Store 3.1.1: the seat price + one-tap purchase never renders on native. */}
+                {!native && canManageSeats && seatInfo?.billable && seatPrice
                   ? ` Add another seat for ${seatPrice} and invite ${firstName}?`
                   : ""}
               </p>
-              {canManageSeats && seatInfo?.billable && seatPrice ? (
+              {!native && canManageSeats && seatInfo?.billable && seatPrice ? (
                 <>
                   <dl className="rounded-xl border border-gray-800 bg-gray-950/50 px-3.5 py-3 mb-4 space-y-1.5">
                     <div className="flex items-center justify-between gap-3">
@@ -270,7 +273,10 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                 <>
                   <p className="text-gray-500 text-xs mb-4">
                     {canManageSeats
-                      ? "Your plan doesn't support adding seats from here — manage seats from Settings → Billing."
+                      ? native
+                        // Native: neutral, actionable in-app — no billing/website pointer.
+                        ? "Remove an existing team member to free up a seat, then send this invite again."
+                        : "Your plan doesn't support adding seats from here — manage seats from Settings → Billing."
                       : "Ask the account owner to add a seat, then send this invite again."}
                   </p>
                   <button onClick={() => setNeedsSeat(false)}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { detectNativeApp } from "@/lib/platform";
 import Link from "next/link";
 import { PLAN_PRICES, PLAN_LIMITS, TRIAL_DAYS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -42,6 +43,14 @@ export default function CheckoutClient() {
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Native app (App Store 3.1.1): the checkout order summary + Stripe hand-off
+  // is a purchase flow and must never appear inside the Capacitor shell — same
+  // client-redirect guard as /pricing and /upgrade. No-op on web.
+  useEffect(() => {
+    if (detectNativeApp()) router.replace("/dashboard");
+  }, [router]);
 
   // An existing subscriber changing plans is NOT a new purchase — Stripe swaps
   // the price on the subscription they already have and prorates it. Starting a

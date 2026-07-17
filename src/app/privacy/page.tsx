@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import NativeHidden from "@/components/NativeHidden";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — SwiftCard",
@@ -251,7 +252,7 @@ export default function PrivacyPage() {
           <SwiftCardLogo size={24} />
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link>
+            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
           </div>
           <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>

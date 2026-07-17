@@ -42,7 +42,8 @@ export default function SiteFooter() {
   return (
     <>
     {/* Site-wide sales chatbot — appears on every marketing page via the footer */}
-    <SalesChat />
+    {/* App Store 3.1.1: sales chat discusses pricing — never in the native shell. */}
+    <NativeHidden><SalesChat /></NativeHidden>
     <footer className="rd-dark2 relative overflow-hidden border-t border-white/10">
       <div className="rd-glow rd-glow-violet" style={{ width: 520, height: 520, left: "-10%", bottom: "-60%", opacity: 0.25 }} />
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-16 relative">

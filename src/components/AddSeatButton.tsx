@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 import { formatUsd } from "@/lib/currency";
 
 // ── Add a seat, from where you actually hit the wall ─────────────────────────
@@ -22,6 +23,7 @@ type SeatInfo = {
 };
 
 export default function AddSeatButton({ onAdded }: { onAdded?: () => void }) {
+  const native = useIsNativeApp();
   const [info, setInfo] = useState<SeatInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -66,6 +68,11 @@ export default function AddSeatButton({ onAdded }: { onAdded?: () => void }) {
     }
   }
 
+  // App Store 3.1.1: this is a one-tap in-app seat purchase (price + Stripe
+  // charge). Currently unwired, but if it's ever rendered again it must never
+  // appear inside the native Capacitor shell. (After all hooks — safe when
+  // `native` flips true post-mount.)
+  if (native) return null;
   if (loading) return null;
 
   // No permission (403), or no Stripe subscription behind the office — don't
