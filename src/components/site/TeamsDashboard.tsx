@@ -450,9 +450,9 @@ export default function TeamsDashboard() {
                 </button>
               </div>
 
-              {/* Live preview — one stand-in teammate, like the real page. */}
+              {/* Live preview — one stand-in teammate, like the real page.
+                  (No "Preview" label per owner request.) */}
               <aside>
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
                   <div className="rounded-xl overflow-hidden">
                     <CardScaler><Template data={previewData} /></CardScaler>
