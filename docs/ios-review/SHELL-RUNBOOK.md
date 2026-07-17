@@ -110,6 +110,22 @@ Remaining device-test items (graceful fallbacks today):
 | Save Contact (.vcf) | Blob download may no-op in WKWebView — TEST | Owner flow only (visitors use Safari); upgrade later if needed |
 | Web NFC writer | Unwired; iOS-safe fallback | Core NFC entitlement + plugin (later) |
 
+## 6b. Home-screen QR widget (SwiftCardWidget)
+
+The widget code is complete at `ios/App/SwiftCardWidget/SwiftCardWidget.swift`
+(WidgetKit + CoreImage QR, small & medium sizes, tap-to-open deep link, offline
+— the app syncs the active card into the shared App Group via
+@capacitor/preferences). Xcode steps:
+1. File → New → Target → **Widget Extension**, product name **SwiftCardWidget**
+   (uncheck Live Activity / configuration intent options).
+2. Delete the template's generated Swift file(s); add the provided
+   `SwiftCardWidget.swift` to the target.
+3. Signing & Capabilities on the **SwiftCardWidget** target → **+ App Groups**
+   → `group.me.swiftcard.app` (the App target already has it via
+   App.entitlements; Xcode may need the group checked on both).
+4. Build & run once, then long-press the home screen → add the
+   "My SwiftCard QR" widget. It populates after the app is opened signed-in.
+
 ## 7. Build, run, verify
 
 ```bash

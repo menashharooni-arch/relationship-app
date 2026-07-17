@@ -82,6 +82,37 @@ export default function NativeAppBridge() {
         removeListener = () => handle.remove();
       } catch { /* plugin unavailable (older shell build) — universal links still open the app's last page */ }
 
+      // ── Home-screen QR widget data sync ─────────────────────────────────
+      // Write the signed-in user's active card to the shared App Group store
+      // (@capacitor/preferences with group config) so the SwiftCardWidget
+      // extension can render its QR offline. Best-effort: signed-out or
+      // plugin-less builds simply skip. Honors the dashboard's active-card
+      // choice when one is stored.
+      try {
+        const res = await fetch("/api/cards", { credentials: "include" });
+        if (res.ok) {
+          const { cards } = (await res.json()) as { cards?: Array<{ username?: string; name?: string; company?: string }> };
+          if (cards?.length) {
+            let active = cards[0];
+            try {
+              const chosen = localStorage.getItem("swiftcard_active_card");
+              active = cards.find((c) => c.username === chosen) ?? active;
+            } catch { /* default to first card */ }
+            if (active?.username) {
+              const { Preferences } = await import("@capacitor/preferences");
+              await Preferences.set({
+                key: "widget_card",
+                value: JSON.stringify({
+                  url: `https://swiftcard.me/card/${active.username}?source=widget`,
+                  name: active.name || "My SwiftCard",
+                  company: active.company || "",
+                }),
+              });
+            }
+          }
+        }
+      } catch { /* offline or signed out — widget keeps its last data */ }
+
       // Push-notification taps: lib/apns.ts puts the in-app destination in the
       // payload's custom `url`; navigate there when the user opens one.
       try {

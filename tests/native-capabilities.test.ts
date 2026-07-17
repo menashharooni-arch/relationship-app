@@ -101,6 +101,28 @@ describe("iOS shell project wiring", () => {
   });
 });
 
+describe("home-screen QR widget wiring", () => {
+  it("bridge syncs the active card into the shared Preferences store", () => {
+    const bridge = read("src/components/NativeAppBridge.tsx");
+    expect(bridge).toMatch(/@capacitor\/preferences/);
+    expect(bridge).toMatch(/key: "widget_card"/);
+    expect(bridge).toMatch(/source=widget/);
+  });
+  it("capacitor config points Preferences at the app group", () => {
+    expect(read("capacitor.config.ts")).toMatch(/group: "group\.me\.swiftcard\.app"/);
+  });
+  it("app + widget entitlements share the app group", () => {
+    expect(read("ios/App/App/App.entitlements")).toContain("group.me.swiftcard.app");
+    expect(read("ios/App/SwiftCardWidget/SwiftCardWidget.entitlements")).toContain("group.me.swiftcard.app");
+  });
+  it("widget reads the same group/key and QR-encodes the card url", () => {
+    const w = read("ios/App/SwiftCardWidget/SwiftCardWidget.swift");
+    expect(w).toContain('APP_GROUP = "group.me.swiftcard.app"');
+    expect(w).toContain('STORE_KEY = "widget_card"');
+    expect(w).toContain("qrCodeGenerator");
+  });
+});
+
 describe("Liquid-Glass native styling layer", () => {
   const css = read("src/app/globals.css");
   const bridge = read("src/components/NativeAppBridge.tsx");
