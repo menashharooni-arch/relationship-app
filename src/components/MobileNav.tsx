@@ -68,7 +68,7 @@ export default function MobileNav() {
     (href === "/dashboard" || href === "/contacts" || href === "/share") && card ? `${href}?card=${card}` : href;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <nav className="sc-tabbar fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="flex items-center justify-around px-2 py-2">
         {TABS.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));

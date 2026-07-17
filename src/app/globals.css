@@ -576,3 +576,167 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .sc-btn-orbit::after { animation: none; opacity: 0.45; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NATIVE SHELL — Liquid-Glass motion layer (html.native-app only)
+   ═══════════════════════════════════════════════════════════════════════════
+   Scoped entirely to the Capacitor iOS shell: NativeAppBridge adds
+   `native-app` to <html> after mount, and ONLY inside the native app — the
+   website never gets this class, so nothing below can change the web.
+
+   Translates Apple's Liquid Glass principles (WWDC25) to the webview:
+   • Glass lives on the NAVIGATION layer only (top nav, bottom tab bar) —
+     never on content.
+   • Real translucency: heavy blur + saturation boost so background content
+     glows through, with a specular top hairline like glassEffect().
+   • Motion: springy tap feedback (interactive glass), gentle page-in rise,
+     tab-icon bounce. All disabled under prefers-reduced-motion.
+   • Edge-to-edge: viewport-fit=cover is injected natively; safe-area insets
+     pad the chrome so it hugs the notch/home-indicator like a real app.    */
+
+html.native-app {
+  /* Overscroll rubber-banding reveals the canvas — match the app background
+     so bounces feel native, never gray. */
+  background: #030712;
+  -webkit-text-size-adjust: 100%;
+}
+html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
+
+html.native-app body {
+  /* Content clears the taller (safe-area-padded) chrome; fixed elements are
+     unaffected by body padding, so nav alignment is preserved. */
+  padding-top: env(safe-area-inset-top);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Glass chrome: top app nav + bottom tab bar ─────────────────────────── */
+html.native-app .sc-app.fixed,
+html.native-app .sc-tabbar {
+  background: rgba(9, 13, 28, 0.58) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  backdrop-filter: blur(24px) saturate(1.8);
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+html.native-app .sc-app.fixed {
+  /* Hug the notch: the bar itself extends into the status-bar area. */
+  top: 0 !important;
+  padding-top: calc(env(safe-area-inset-top) + 2px);
+  /* Specular top edge + soft float, like .glassEffect() */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+html.native-app .sc-tabbar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 -8px 32px rgba(0, 0, 0, 0.35);
+}
+/* Light theme: warm glass instead of dark */
+html.native-app[data-sc-theme="light"] .sc-app.fixed,
+html.native-app[data-sc-theme="light"] .sc-tabbar {
+  background: rgba(250, 247, 242, 0.62) !important;
+  border-color: rgba(17, 24, 39, 0.08) !important;
+}
+html.native-app[data-sc-theme="light"] .sc-app.fixed {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 8px 32px rgba(15, 23, 42, 0.10);
+}
+html.native-app[data-sc-theme="light"] .sc-tabbar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 -8px 32px rgba(15, 23, 42, 0.10);
+}
+
+/* ── Interactive glass: springy tap feedback ────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  html.native-app :is(button, a, [role="button"], [role="switch"]) {
+    transition-property: transform, opacity, background-color, color, border-color, box-shadow;
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); /* spring w/ overshoot */
+    transition-duration: 0.28s;
+  }
+  html.native-app :is(button, a, [role="button"], [role="switch"]):active {
+    transform: scale(0.96);
+  }
+  /* Tab items get the bigger, bouncier press of a native tab bar. */
+  html.native-app .sc-tabbar a:active { transform: scale(0.88); }
+  html.native-app .sc-tabbar a:active svg { transform: translateY(1px) scale(0.94); }
+  html.native-app .sc-tabbar a svg { transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  /* ── Page-in: content rises gently on every navigation, app-style. ────── */
+  html.native-app body {
+    animation: sc-native-page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+@keyframes sc-native-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Chrome is UI, not a document: no text selection or callouts on it. */
+html.native-app .sc-app.fixed,
+html.native-app .sc-tabbar {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ── Floating tab bar (iOS-26 style): a detached glass capsule ──────────── */
+html.native-app .sc-tabbar {
+  left: 12px !important;
+  right: 12px !important;
+  bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
+  padding-bottom: 0 !important; /* inset replaces the inline safe-area pad */
+  border-radius: 28px;
+  border-width: 1px !important;
+  overflow: hidden;
+}
+/* Content must clear the floating capsule (nav height + inset + gap). */
+html.native-app .sc-tabbar ~ *,
+html.native-app body:has(.sc-tabbar) main {
+  scroll-padding-bottom: 96px;
+}
+html.native-app body:has(.sc-tabbar) {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
+}
+
+/* ── Sheets & scrims: iOS-style frosted backdrop behind modals ──────────── */
+html.native-app .sc-app :is(.bg-black\/60, .bg-black\/50, .bg-black\/70, .bg-black\/80).fixed {
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+/* ── Content cards: refined elevation, NOT glass ────────────────────────────
+   Per Liquid Glass guidance, content never gets the glass material — cards
+   keep their fills but gain a specular hairline + softer depth so the whole
+   surface reads as one premium system. No backdrop-filter here (each blur
+   surface costs offscreen render passes; chrome + scrims only). */
+html.native-app .sc-app :is(.bg-gray-900, .bg-gray-800\/40, .bg-gray-800\/30, .bg-gray-900\/60, .bg-gray-900\/50).rounded-2xl,
+html.native-app .sc-app :is(.bg-gray-900, .bg-gray-800\/40).rounded-xl {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+html.native-app[data-sc-theme="light"] .sc-app :is(.bg-gray-900, .bg-gray-800\/40, .bg-gray-800\/30, .bg-gray-900\/60, .bg-gray-900\/50).rounded-2xl,
+html.native-app[data-sc-theme="light"] .sc-app :is(.bg-gray-900, .bg-gray-800\/40).rounded-xl {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 6px 20px rgba(15, 23, 42, 0.07);
+}
+
+/* ── Accessibility & fallbacks (Liquid Glass requires all three) ─────────── */
+/* Reduced Transparency: glass collapses to near-solid surfaces. */
+@media (prefers-reduced-transparency: reduce) {
+  html.native-app .sc-app.fixed,
+  html.native-app .sc-tabbar {
+    background: rgba(6, 10, 22, 0.97) !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html.native-app[data-sc-theme="light"] .sc-app.fixed,
+  html.native-app[data-sc-theme="light"] .sc-tabbar {
+    background: rgba(250, 247, 242, 0.98) !important;
+  }
+}
+/* Increased Contrast: strengthen hairlines so chrome edges stay legible. */
+@media (prefers-contrast: more) {
+  html.native-app .sc-app.fixed,
+  html.native-app .sc-tabbar { border-color: rgba(255, 255, 255, 0.35) !important; }
+  html.native-app[data-sc-theme="light"] .sc-app.fixed,
+  html.native-app[data-sc-theme="light"] .sc-tabbar { border-color: rgba(17, 24, 39, 0.45) !important; }
+}
+/* No backdrop-filter support (old WebKit): solid-enough fills, never washout. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.native-app .sc-app.fixed,
+  html.native-app .sc-tabbar { background: rgba(6, 10, 22, 0.96) !important; }
+  html.native-app[data-sc-theme="light"] .sc-app.fixed,
+  html.native-app[data-sc-theme="light"] .sc-tabbar { background: rgba(250, 247, 242, 0.97) !important; }
+}
