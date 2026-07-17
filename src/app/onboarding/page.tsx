@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
+import { isValidSignupInvite, consumeSignupInvite, hasPendingOfficeInvite, INVITE_COOKIE } from "@/lib/signup-invite";
 
 function accountHandle(email: string | undefined, userId: string): string {
   const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
@@ -30,6 +31,24 @@ export default async function OnboardingPage({
 
   if (!profile) {
     const admin = getAdminSupabase();
+
+    // ── Invite-only gate ──────────────────────────────────────────────────
+    // A brand-new account (no profile yet) is provisioned only if it presents
+    // a valid signup invite code OR the email has a pending office-team invite.
+    // This is the single authoritative check — it covers email/password AND
+    // Google/Apple signups, which all funnel through here. An uninvited new
+    // user is removed (no profile is ever created) and bounced to /login.
+    const inviteCode = (await cookies()).get(INVITE_COOKIE)?.value ?? "";
+    const invitedByCode = await isValidSignupInvite(inviteCode);
+    const invitedByOffice = invitedByCode ? false : await hasPendingOfficeInvite(user.email);
+    if (!invitedByCode && !invitedByOffice) {
+      // Remove the orphaned auth user so the code list can't be probed by
+      // repeatedly creating accounts, and so a rejected email is free to retry
+      // with a real invite. Best-effort — the gate blocks provisioning either way.
+      try { await admin.auth.admin.deleteUser(user.id); } catch { /* best-effort */ }
+      redirect("/login?error=invite_only");
+    }
+
     const { error: insertErr } = await admin.from("profiles").insert({
       id: user.id,
       username: accountHandle(user.email ?? undefined, user.id),
@@ -74,6 +93,10 @@ export default async function OnboardingPage({
     // actually WON the insert race runs this — a concurrent duplicate must
     // never re-apply it (this used to double-grant a free month/credit).
     if (!isDuplicate) {
+      // Count the invite code against its use limit (idempotent per user).
+      if (invitedByCode) {
+        try { await consumeSignupInvite(inviteCode, user.id); } catch { /* best-effort */ }
+      }
       try {
         const c = await cookies();
         const h = await headers();

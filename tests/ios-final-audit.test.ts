@@ -104,25 +104,39 @@ describe("5.1.1 — deletion dialog disclosures", () => {
   });
 });
 
-describe("site lockdown — logged-out visitors are gated except public paths", () => {
-  const s = read("src/proxy.ts");
-  it("has a reversible lockdown flag (SITE_PUBLIC=1 reopens)", () => {
-    expect(s).toMatch(/SITE_PUBLIC/);
-    expect(s).toMatch(/LOCKDOWN/);
+describe("invite-only signups", () => {
+  it("the site is public again (no lockdown gate in proxy)", () => {
+    const s = read("src/proxy.ts");
+    expect(s).not.toMatch(/LOCKDOWN|SITE_PUBLIC|isPublicPath/);
   });
-  it("redirects unauthenticated, non-public paths to /login", () => {
-    expect(s).toMatch(/LOCKDOWN && !user && !isPublicPath\(path\)/);
+  it("signup-invite lib verifies, consumes, and honors office invites", () => {
+    const s = read("src/lib/signup-invite.ts");
+    expect(s).toMatch(/export async function isValidSignupInvite/);
+    expect(s).toMatch(/export async function consumeSignupInvite/);
+    expect(s).toMatch(/export async function hasPendingOfficeInvite/);
+    expect(s).toMatch(/signup_invites/);
   });
-  it("keeps shared cards, links, invites, auth, and legal pages public", () => {
-    for (const p of ["/card/", "/links/", "/join/", "/auth/", "/.well-known/"]) {
-      expect(s).toContain(`"${p}"`);
-    }
-    for (const p of ["/login", "/signup", "/privacy", "/terms", "/contact", "/account-deleted"]) {
-      expect(s).toContain(`"${p}"`);
-    }
+  it("the verify endpoint is rate-limited and sets the cookie", () => {
+    const s = read("src/app/api/invite/verify/route.ts");
+    expect(s).toMatch(/isRateLimited/);
+    expect(s).toMatch(/INVITE_COOKIE/);
+    expect(s).toMatch(/isValidSignupInvite/);
   });
-  it("runs on all page routes (matcher excludes only api/static)", () => {
-    expect(s).toMatch(/matcher:\s*\["\/\(\(\?!api\|_next/);
+  it("onboarding is the authoritative gate (code OR pending office invite, else reject+delete)", () => {
+    const s = read("src/app/onboarding/page.tsx");
+    expect(s).toMatch(/invitedByCode/);
+    expect(s).toMatch(/invitedByOffice/);
+    expect(s).toMatch(/deleteUser\(user\.id\)/);
+    expect(s).toMatch(/error=invite_only/);
+    expect(s).toMatch(/consumeSignupInvite/);
+  });
+  it("LoginForm verifies the code before every signup path, office invites exempt", () => {
+    const s = read("src/components/LoginForm.tsx");
+    expect(s).toMatch(/ensureInviteVerified/);
+    expect(s).toMatch(/isOfficeInvite/);
+    expect(s).toMatch(/placeholder="Invite code"/);
+    // called in all three signup entry points
+    expect((s.match(/ensureInviteVerified\(\)/g) || []).length).toBeGreaterThanOrEqual(3);
   });
 });
 
