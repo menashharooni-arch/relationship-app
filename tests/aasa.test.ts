@@ -19,7 +19,7 @@ describe("Item 8 — /.well-known/apple-app-site-association", () => {
     const body = await (await GET()).json();
     const detail = body.applinks.details[0];
     expect(detail.appID).toContain("me.swiftcard.app");
-    expect(detail.paths).toEqual(["/card/*", "/links/*"]);
+    expect(detail.paths).toEqual(["/card/*", "/links/*", "/auth/callback"]);
   });
 
   it("uses a clearly-marked Team ID placeholder (real value is an owner action)", async () => {

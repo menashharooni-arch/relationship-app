@@ -47,6 +47,20 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- Custom URL scheme: the return leg of native OAuth (Supabase redirects
+	     to swiftcard://auth-callback, iOS re-opens the app, NativeAppBridge
+	     completes the session in the webview). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>me.swiftcard.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>swiftcard</string>
+			</array>
+		</dict>
+	</array>
 	<!-- Privacy purpose strings (App Review 5.1.1): required for the WKWebView
 	     file-input flows the web app uses. Camera: the business-card scanner's
 	     capture="environment" input (AddContactModal). Photo Library: the

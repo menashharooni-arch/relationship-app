@@ -1,10 +1,37 @@
-// "Add to Apple Wallet" download button. A plain link to the pass route — the
-// browser hands the .pkpass to Apple Wallet on iPhone/Mac. Parents render this
-// only when hasWalletConfig() is true, so it never shows a broken download.
+"use client";
+
+import { detectNativeApp } from "@/lib/platform";
+
+// "Add to Apple Wallet" download button. On the web it's a plain link to the
+// pass route — the browser hands the .pkpass to Apple Wallet on iPhone/Mac.
+// Parents render this only when hasWalletConfig() is true, so it never shows a
+// broken download.
+//
+// NATIVE (Capacitor shell): a raw WKWebView doesn't reliably hand a .pkpass
+// download to Wallet. Opening the same URL in the system-browser sheet
+// (@capacitor/browser → SFSafariViewController) does — Safari recognizes the
+// pass MIME type and shows Apple's native "Add to Wallet" UI. Web behavior is
+// byte-identical (the intercept only engages inside the shell).
 export default function AddToWalletButton({ username, className = "" }: { username: string; className?: string }) {
+  const href = `/api/wallet/pass?card=${encodeURIComponent(username)}`;
+
+  async function handleNativeOpen(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (!detectNativeApp()) return; // web: normal link navigation
+    e.preventDefault();
+    try {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: new URL(href, window.location.origin).toString() });
+    } catch {
+      // Plugin missing — fall back to webview navigation (may not open Wallet,
+      // but never dead-ends silently).
+      window.location.href = href;
+    }
+  }
+
   return (
     <a
-      href={`/api/wallet/pass?card=${encodeURIComponent(username)}`}
+      href={href}
+      onClick={handleNativeOpen}
       className={`w-full flex items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold text-white bg-black hover:bg-gray-900 transition-colors ${className}`}
     >
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4" aria-hidden="true">

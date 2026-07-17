@@ -16,9 +16,24 @@ type State = "loading" | "unsupported" | "ios-install" | "native" | "denied" | "
 //
 // NATIVE (Capacitor iOS shell): web push doesn't exist inside WKWebView, and the
 // "Add to Home Screen" guidance is impossible there (no Safari share button) —
-// showing it inside a native app reads as broken (App Review 2.1). Until real
-// APNs push ships via a Capacitor plugin, native gets a quiet, honest
-// not-available state with NO instructions. Web behavior is byte-identical.
+// showing it inside a native app reads as broken (App Review 2.1). When the
+// shell ships the PushNotifications plugin, native gets REAL APNs push (the
+// toggle below registers the device token as an "apns:<token>" endpoint and
+// lib/apns.ts delivers). A plugin-less shell build falls back to a quiet,
+// honest not-available state with NO instructions. Web is byte-identical.
+function nativePushAvailable(): boolean {
+  try {
+    const cap = (window as unknown as {
+      Capacitor?: { isPluginAvailable?: (name: string) => boolean };
+    }).Capacitor;
+    return !!cap?.isPluginAvailable?.("PushNotifications");
+  } catch {
+    return false;
+  }
+}
+
+const APNS_ENDPOINT_KEY = "swiftcard_apns_endpoint";
+
 function detectEnv() {
   if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false, native: false };
   if (detectNativeApp()) return { supported: false, iosNeedsInstall: false, native: true };
@@ -39,9 +54,31 @@ export function usePushState(): [State, () => Promise<boolean>] {
 
   useEffect(() => {
     const { supported, iosNeedsInstall, native } = detectEnv();
+    if (native) {
+      if (!nativePushAvailable()) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
+        setState("native");
+        return;
+      }
+      // Native APNs path: subscribed = OS permission granted AND we registered
+      // a token from this device before.
+      (async () => {
+        try {
+          const { PushNotifications } = await import("@capacitor/push-notifications");
+          const perm = await PushNotifications.checkPermissions();
+          if (perm.receive === "denied") { setState("denied"); return; }
+          let stored: string | null = null;
+          try { stored = localStorage.getItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+          setState(perm.receive === "granted" && stored ? "subscribed" : "idle");
+        } catch {
+          setState("native");
+        }
+      })();
+      return;
+    }
     if (!supported) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
-      setState(native ? "native" : iosNeedsInstall ? "ios-install" : "unsupported");
+       
+      setState(iosNeedsInstall ? "ios-install" : "unsupported");
       return;
     }
     if (Notification.permission === "denied") { setState("denied"); return; }
@@ -57,6 +94,39 @@ export function usePushState(): [State, () => Promise<boolean>] {
 
   async function enable(): Promise<boolean> {
     setState("working");
+
+    // Native APNs path (Capacitor shell with the PushNotifications plugin).
+    if (detectNativeApp() && nativePushAvailable()) {
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive !== "granted") { setState("denied"); return false; }
+
+        const token = await new Promise<string>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error("registration timeout")), 15_000);
+          PushNotifications.addListener("registration", (t) => { clearTimeout(timer); resolve(t.value); });
+          PushNotifications.addListener("registrationError", (e) => { clearTimeout(timer); reject(new Error(String(e?.error ?? "registration failed"))); });
+          PushNotifications.register().catch((e) => { clearTimeout(timer); reject(e); });
+        });
+
+        const endpoint = `apns:${token}`;
+        // Same table/route as web push; p256dh/auth are web-crypto fields that
+        // don't exist for APNs — namespaced placeholders satisfy the schema.
+        const res = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
+        });
+        if (!res.ok) { setState("error"); return false; }
+        try { localStorage.setItem(APNS_ENDPOINT_KEY, endpoint); } catch { /* ignore */ }
+        setState("subscribed");
+        return true;
+      } catch {
+        setState("error");
+        return false;
+      }
+    }
+
     try {
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
@@ -124,6 +194,23 @@ export default function EnablePushButton({
   async function disable() {
     setBusyOff(true);
     try {
+      // Native APNs path: delete the server record (iOS has no client-side
+      // "unregister"; removing the endpoint stops all sends to this device).
+      if (detectNativeApp()) {
+        let endpoint: string | null = null;
+        try { endpoint = localStorage.getItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+        if (endpoint) {
+          await fetch("/api/push/subscribe", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint }),
+          }).catch(() => {});
+          try { localStorage.removeItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+        }
+        setForcedOff(true);
+        setBusyOff(false);
+        return;
+      }
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { detectNativeApp } from "@/lib/platform";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 type Props = {
@@ -25,6 +26,16 @@ export default function ShareButton({
     // Conversion moment for logged-out visitors on public pages — the popup
     // host only mounts there, so this is a no-op on the owner's dashboard.
     triggerSignupNudge("share_card");
+    // Native shell: WKWebView often lacks navigator.share — use the native
+    // share sheet via the Capacitor plugin. Falls through to the web paths on
+    // any failure (plugin missing in an old shell build, user cancel throws).
+    if (detectNativeApp()) {
+      try {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ url });
+        return;
+      } catch { /* fall through to web share / menu */ }
+    }
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         // Share ONLY the link. iMessage (and most messengers) render the rich
