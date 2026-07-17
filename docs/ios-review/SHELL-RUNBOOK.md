@@ -35,8 +35,12 @@ In Xcode → target **App** → *Signing & Capabilities*:
 1. **Team**: select your team. Note the 10-char **Team ID** (also at
    developer.apple.com → Membership).
 2. Bundle identifier stays `me.swiftcard.app`.
-3. **+ Capability → Associated Domains** → add `applinks:swiftcard.me`.
-4. **+ Capability → Sign in with Apple**.
+3. **Associated Domains (`applinks:swiftcard.me`) and Push Notifications are
+   already wired** via `App/App.entitlements` + build settings — automatic
+   signing will register them on the App ID. Verify they appear under
+   Signing & Capabilities; if Xcode complains, press "+ Capability" for the
+   missing one (it will merge with the existing entitlements file).
+4. **+ Capability → Sign in with Apple** (the only one still added by hand).
 
 ## 3. Replace the AASA placeholder (Universal Links)
 
@@ -64,32 +68,47 @@ shipped**. Setup:
    `src/lib/apple-revoke.ts`):
    `APPLE_TEAM_ID`, `APPLE_SIGN_IN_CLIENT_ID` (Services ID), `APPLE_SIGN_IN_KEY_ID`,
    `APPLE_SIGN_IN_PRIVATE_KEY` (.p8 contents) → redeploy.
-4. Device-test: tap Continue with Apple → completes into a session.
+4. **Supabase → Authentication → URL Configuration → Redirect URLs: add
+   `swiftcard://auth-callback`** — the return leg of BOTH native Google and
+   Apple sign-in (see §5). 30 seconds; without it every native OAuth attempt
+   errors at the redirect step.
+5. Device-test: tap Continue with Apple → completes into a session.
 
-## 5. Google login inside the shell — TEST FIRST, plugin if blocked
+## 5. Google login inside the shell — ALREADY SOLVED, just test it
 
-The native login uses the OAuth-redirect flow inside the webview. **Google
-frequently blocks embedded-webview OAuth (`403 disallowed_useragent`).** On the
-first device build, test Google login immediately:
+Native OAuth no longer runs inside the webview (Google blocks that with
+`403 disallowed_useragent`). The shipped flow: `src/lib/native-auth.ts` opens
+the provider URL in the system browser sheet (`@capacitor/browser` →
+SFSafariViewController), Supabase redirects to `swiftcard://auth-callback`
+(scheme registered in Info.plist), and `NativeAppBridge` completes the PKCE
+exchange inside the webview. Requirements already in place except the §4.4
+Supabase Redirect URL entry. On the first device build simply test Google +
+Apple sign-in end-to-end. Email/password works regardless — never blocked.
 
-- If it works: done.
-- If blocked: install `@capacitor/browser` and route the OAuth URL through
-  `Browser.open()` (SFSafariViewController), returning via Universal Link, or
-  use a native-SDK plugin (`@capgo/capacitor-social-login`) and pass its ID
-  token to `supabase.auth.signInWithIdToken({provider:'google'})` — the same
-  server-side setup the web GIS flow already uses (add the iOS client ID to the
-  comma-separated Client IDs in Supabase's Google provider).
-- Email/password login works in the webview regardless — never blocked.
+## 6. Native capabilities — push is IMPLEMENTED; finish with one APNs key
 
-## 6. Known WKWebView gaps to device-test (graceful today, better native later)
+**Push notifications (the main 4.2 mitigation) are fully wired:** the in-app
+toggle registers the APNs device token via `@capacitor/push-notifications`,
+tokens ride the existing `push_subscriptions` table as `apns:<token>` rows, and
+`src/lib/apns.ts` delivers over HTTP/2. To activate:
+1. developer.apple.com → Certificates, IDs & Profiles → **Keys** → create an
+   **APNs** key (.p8) — note the Key ID.
+2. Vercel env (all environments) + redeploy:
+   - `APPLE_PUSH_KEY_ID` = the Key ID
+   - `APPLE_PUSH_PRIVATE_KEY` = the .p8 file contents
+   - (`APPLE_TEAM_ID` shared with §4; `APPLE_PUSH_SANDBOX=1` only while
+     testing Xcode dev builds — remove for TestFlight/App Store.)
+3. Device test: toggle Push on in app settings → capture a lead on the card →
+   notification arrives; tapping it opens the contacts screen.
 
-| Surface | Today in shell | Native upgrade (optional) |
+Remaining device-test items (graceful fallbacks today):
+
+| Surface | Today in shell | Note |
 |---|---|---|
-| Push notifications | Suppressed with honest copy (fixed in audit) | `@capacitor/push-notifications` + APNs + `aps-environment` |
-| Save Contact (.vcf) | Blob download may no-op in WKWebView — TEST | Shell download-interception or `@capacitor/filesystem` + share sheet |
-| Apple Wallet (.pkpass) | Same download caveat — TEST | Intercept and present `PKAddPassesViewController` |
-| navigator.share | May be absent; falls back to copy/WhatsApp menu | `@capacitor/share` |
-| Web NFC writer | Unwired; iOS-safe fallback | Core NFC entitlement + plugin |
+| Apple Wallet (.pkpass) | Opens via system browser sheet → native Add-to-Wallet UI | Implemented; just test |
+| navigator.share | Native share sheet via `@capacitor/share` | Implemented; just test |
+| Save Contact (.vcf) | Blob download may no-op in WKWebView — TEST | Owner flow only (visitors use Safari); upgrade later if needed |
+| Web NFC writer | Unwired; iOS-safe fallback | Core NFC entitlement + plugin (later) |
 
 ## 7. Build, run, verify
 
@@ -118,19 +137,20 @@ Run on a real device. Verification checklist (all fixed/audited surfaces):
    Analytics. Not used for tracking across apps → "Data Not Linked to You /
    No Tracking" where truthful.
 3. **App Privacy policy URL**: https://swiftcard.me/privacy
-4. **Review notes**: provide a demo login (create a dedicated
-   review@swiftcard.me account, Pro-granted so locked features show content,
-   NOT a real user), and explain: "Subscriptions are not sold in the app; the
-   app is a companion for managing an existing account."
-5. **Screenshots** from the device build.
+4. **Review notes + demo login**: run `node scripts/create-apple-review-account.js`
+   once (creates applereview@swiftcard.me on Pro; prints the password once —
+   save it). All fields, labels, description, keywords, and reviewer notes are
+   pre-written in **APP-STORE-METADATA.md** — copy-paste from there.
+5. **Screenshots** from the device build (shot list in APP-STORE-METADATA.md).
 
 ## 9. Honest risk assessment (no approval guarantees)
 
 - **Guideline 4.2 (minimum functionality)** is the structural risk for a
   remote-URL webview shell: Apple sometimes rejects apps that are "just a
-  website". Mitigations shipped: native login options, deep links, native-mode
-  UI differences. Strongest counter: add 1–2 real native capabilities before
-  submission (push notifications via APNs is the highest-value one, §6).
+  website". Mitigations now SHIPPED: system-browser native sign-in, universal
+  links, native share sheet, Wallet hand-off, and full APNs push (activate it
+  with the §6 key BEFORE submitting — a working push permission prompt +
+  notifications is the single strongest "not just a website" signal).
 - 3.1.1 / 4.8 / 5.1.1 were audited and fixed in code; they depend on §4 (Apple
   provider) being completed and §5/§6 device tests passing.
 - First submissions of this app category commonly take 1–2 review rounds.
