@@ -47,16 +47,32 @@ const INFO: { title: string; desc: string; icon: React.ReactNode }[] = [
 const inputCls =
   "w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14.5px] text-white placeholder-white/30 outline-none transition-colors focus:border-blue-400/70 focus:bg-white/[0.08]";
 
+const REPORT_TOPIC = "Report a public card";
+
 export default function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", topic: TOPICS[0] as string, message: "" });
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  // Content-report mode (App Review 1.2): reached only from the in-app
+  // "Report this card" link (?topic=report&card=<slug>). The extra topic
+  // option exists ONLY in that mode, so the normal web form is unchanged.
+  const [reportMode, setReportMode] = useState(false);
 
   // The homepage Teams section links here as /contact?topic=office.
   useEffect(() => {
     try {
-      const topic = new URLSearchParams(window.location.search).get("topic");
+      const params = new URLSearchParams(window.location.search);
+      const topic = params.get("topic");
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of ?topic after mount; search params are browser-only
       if (topic === "office") setForm((p) => ({ ...p, topic: "Teams & Offices" }));
+      if (topic === "report") {
+        const slug = (params.get("card") ?? "").replace(/[^a-zA-Z0-9-_.]/g, "");
+        setReportMode(true);
+        setForm((p) => ({
+          ...p,
+          topic: REPORT_TOPIC,
+          message: slug ? `Reporting this card: swiftcard.me/card/${slug}\n\nWhat's wrong with it: ` : p.message,
+        }));
+      }
     } catch {
       /* no search params — default topic stands */
     }
@@ -194,7 +210,7 @@ export default function ContactPage() {
                         backgroundSize: "12px",
                       }}
                     >
-                      {TOPICS.map((t) => (
+                      {(reportMode ? [REPORT_TOPIC, ...TOPICS] : [...TOPICS]).map((t) => (
                         <option key={t} value={t} className="bg-[#0E1017] text-white">{t}</option>
                       ))}
                     </select>

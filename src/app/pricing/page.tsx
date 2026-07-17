@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { detectNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -52,6 +52,10 @@ export default function PricingPage() {
   useEffect(() => {
     if (detectNativeApp()) router.replace("/dashboard");
   }, [router]);
+  // Render guard on top of the redirect: without it, the full pricing page
+  // (every price + checkout CTA) paints in the shell for a frame before the
+  // redirect commits (App Review 3.1.1). Hydration-safe: false on SSR/web.
+  const native = useIsNativeApp();
 
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
@@ -96,6 +100,9 @@ export default function PricingPage() {
     if (promo.status === "valid" && promo.appliedCode) qs.set("promo", promo.appliedCode);
     window.location.href = `/cards/new?${qs.toString()}`;
   }
+
+  // After all hooks (React rules): never paint the selling surface natively.
+  if (native) return null;
 
   return (
     <div className="bg-white text-slate-900 min-h-screen">

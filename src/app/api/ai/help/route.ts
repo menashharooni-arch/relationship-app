@@ -1,6 +1,7 @@
 import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 
 const SYSTEM_PROMPT = `You are the in-app help assistant for SwiftCard (swiftcard.me), a digital business card app. You help logged-in users find features and how to do things. Be friendly, concise, and practical with step-by-step directions ("Go to … → click …"). If unsure or it's outside SwiftCard, say so and suggest the Contact page — never invent features.
 
@@ -206,6 +207,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`ai-help:${user.id}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
+
 
   const body = await req.json().catch(() => ({}));
   const native = body.native === true;

@@ -31,12 +31,14 @@ const config: CapacitorConfig = {
   webDir: "capacitor-shell/www",
   server: {
     url: "https://swiftcard.me",
+    // Attack-surface note: provider hosts (accounts.google.com /
+    // appleid.apple.com) are deliberately NOT allowed in-webview — native
+    // OAuth runs in the system browser sheet (src/lib/native-auth.ts), and
+    // Google blocks embedded webview OAuth anyway (403 disallowed_useragent).
     allowNavigation: [
       "swiftcard.me",
       "www.swiftcard.me",
       "grxmovpmlgmjncnyiyrt.supabase.co",
-      "accounts.google.com",
-      "appleid.apple.com",
     ],
   },
   ios: {

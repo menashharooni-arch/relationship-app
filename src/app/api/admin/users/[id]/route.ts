@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: cards } = await admin
     .from("cards")
-    .select("id, username, label, name, title, company, template, created_at")
+    .select("id, username, label, name, title, company, template, created_at, is_offline")
     .eq("user_id", id)
     .order("created_at", { ascending: true });
 
@@ -130,9 +130,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
-  const body = (await req.json().catch(() => ({}))) as { plan?: string; grantFreeMonth?: boolean; referralCode?: string };
+  const body = (await req.json().catch(() => ({}))) as {
+    plan?: string; grantFreeMonth?: boolean; referralCode?: string;
+    cardOffline?: { cardId: string; offline: boolean };
+  };
 
   const admin = getAdminSupabase();
+
+  // Moderation takedown (App Review 1.2): flip a card's public kill-switch.
+  // Everything the card serves (public page, Swift Links, QR, vCard, Wallet
+  // pass, lead capture) goes dark via card-active.ts; nothing is deleted, so
+  // a takedown can be reversed after review.
+  if (body.cardOffline) {
+    const { cardId, offline } = body.cardOffline;
+    if (typeof cardId !== "string" || typeof offline !== "boolean") {
+      return NextResponse.json({ error: "Invalid takedown request" }, { status: 400 });
+    }
+    const { data: card } = await admin.from("cards").select("id, user_id").eq("id", cardId).maybeSingle();
+    if (!card || card.user_id !== id) {
+      return NextResponse.json({ error: "Card not found on this user" }, { status: 404 });
+    }
+    const { error } = await admin.from("cards").update({ is_offline: offline }).eq("id", cardId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, cardId, offline });
+  }
 
   if (body.grantFreeMonth) {
     // A paying subscriber doesn't need a grant — and stacking plan_expires_at

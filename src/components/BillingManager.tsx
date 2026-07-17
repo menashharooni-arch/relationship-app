@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ManageBillingButton from "@/components/ManageBillingButton";
+import { useIsNativeApp } from "@/lib/platform";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
 // Native UI over our own /api/stripe/subscription/* endpoints — NOT the Stripe
@@ -90,6 +91,11 @@ export default function BillingManager() {
 
   const [showChange, setShowChange] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  // Backstop (App Review 3.1.1): today the only render site is the Settings
+  // billing section, which is already hideOnNative — but if this component is
+  // ever mounted anywhere else, it must still never paint plan prices, seat
+  // purchase, retention offers, or the Stripe portal inside the iOS shell.
+  const native = useIsNativeApp();
 
   const load = useCallback(async () => {
     try {
@@ -129,6 +135,7 @@ export default function BillingManager() {
     }
   }
 
+  if (native) return null;
   if (loading) {
     return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-500">Loading billing…</div>;
   }

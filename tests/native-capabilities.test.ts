@@ -75,7 +75,7 @@ describe("NativeAppBridge is mounted and handles links + push taps", () => {
 describe("AASA covers the OAuth return path", () => {
   const aasa = read("src/app/.well-known/apple-app-site-association/route.ts");
   it("includes /auth/callback alongside card and links paths", () => {
-    expect(aasa).toMatch(/"\/card\/\*", "\/links\/\*", "\/auth\/callback"/);
+    expect(aasa).toMatch(/"\/card\/\*", "\/links\/\*", "\/join\/\*", "\/auth\/callback"/);
   });
 });
 

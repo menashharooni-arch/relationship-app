@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { getOfficeEmployeeMetrics } from "@/lib/office-analytics";
 import { resolveDateRange, type DateRangePreset } from "@/lib/office-analytics-dates";
@@ -19,6 +20,11 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`office-export:${user.id}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
+
 
   const ctx = await requireOfficeCapability(user.id, "view_org_analytics");
   if (!ctx) return NextResponse.json({ error: "You don't have permission to view these analytics." }, { status: 403 });

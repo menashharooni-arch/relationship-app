@@ -8,9 +8,14 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // ── Contact-level unsubscribe (for emails we send TO leads) ─────────────────
 // Signed token = base64url(email) + "." + HMAC — so only links we generated can
 // opt an address out (nobody can suppress someone else's follow-ups by guessing).
-const UNSUB_SECRET = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "swiftcard-unsub";
+// Fail closed: with no server secret at all, tokens signed by a public
+// constant would let anyone forge unsubscribes for arbitrary addresses.
+// Both env vars are set in every deployed environment; throwing here only
+// surfaces a misconfigured deployment instead of silently weakening the HMAC.
+const UNSUB_SECRET = process.env.OAUTH_SECRET || process.env.CRON_SECRET || "";
 
 function unsubSig(encoded: string): string {
+  if (!UNSUB_SECRET) throw new Error("OAUTH_SECRET/CRON_SECRET missing — refusing to sign unsubscribe tokens");
   return createHmac("sha256", UNSUB_SECRET).update(`unsub:${encoded}`).digest("base64url").slice(0, 24);
 }
 

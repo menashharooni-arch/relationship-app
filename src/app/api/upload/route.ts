@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,11 @@ export async function DELETE(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`upload:${user.id}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
+
 
   const body = await req.json().catch(() => ({}));
   const field = body.field as string | undefined; // "photo" or "logo"
@@ -74,6 +80,15 @@ export async function POST(req: Request) {
     "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif",
   };
   let ext = EXT_BY_TYPE[file.type] ?? "jpg";
+  if (file.type === "image/gif") {
+    // GIFs bypass the sharp re-encode (may be animated), so the declared type
+    // is otherwise taken on faith — verify the magic bytes ("GIF87a"/"GIF89a")
+    // before storing a client-declared image/gif in the public bucket.
+    const head = Buffer.from(arrayBuffer.slice(0, 6)).toString("latin1");
+    if (head !== "GIF87a" && head !== "GIF89a") {
+      return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
+    }
+  }
   if (file.type !== "image/gif") {
     try {
       const sharp = (await import("sharp")).default;

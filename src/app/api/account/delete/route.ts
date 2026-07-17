@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
@@ -9,6 +10,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`account-delete:${user.id}`, 5, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
+
 
   // An office sub-user's account is company-managed: soft-deleting it would
   // orphan a paid seat and their branded card. They leave via the team admin

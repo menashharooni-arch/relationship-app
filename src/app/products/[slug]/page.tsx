@@ -14,6 +14,7 @@ import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import NativeHidden from "@/components/NativeHidden";
+import NativeFeatureNote from "@/components/NativeFeatureNote";
 
 type Feature = { t: string; d: string };
 type Product = {
@@ -246,6 +247,20 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // request — they showcase the real thing inline instead.
   const showPreview = !["digital-cards", "swiftlinks", "email-signatures", "lead-capture", "wallet", "watch", "integrations", "teams"].includes(slug);
 
+  // In-app honesty clarifiers (App Review 2.3.1): inside the iOS shell these
+  // marketing pages are in-app content, so aspirational phrasing gets an
+  // exact "how it works today" note. NativeFeatureNote renders null on web.
+  const nativeNote =
+    slug === "watch" ? (
+      <NativeFeatureNote>
+        How this works today: add your card to Apple Wallet on your iPhone and the pass — QR code included — syncs to the Wallet app on your Apple Watch. A dedicated watchOS app is on our roadmap and isn&apos;t part of this version.
+      </NativeFeatureNote>
+    ) : slug === "wallet" ? (
+      <NativeFeatureNote>
+        In this version of the app: Apple Wallet, QR download, and share-sheet sharing are available today. The home-screen QR widget appears once you add it from your iPhone home screen&apos;s widget gallery.
+      </NativeFeatureNote>
+    ) : null;
+
   return (
     <div className="rd-dark2">
       <ScrollProgress />
@@ -266,6 +281,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <div data-reveal="fade"><span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />{p.eyebrow}</span></div>
                 <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[620px]" data-reveal>{p.subtitle}</p>
+                {nativeNote}
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
                   <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
                   {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
@@ -279,6 +295,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <div data-reveal="fade"><span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />{p.eyebrow}</span></div>
                 <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
                 <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]" data-reveal>{p.subtitle}</p>
+                {nativeNote}
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
                   <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
                   {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}

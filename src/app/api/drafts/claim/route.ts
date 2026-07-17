@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
@@ -94,6 +95,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Per-user throttle: claim runs sharp image processing (CPU/mem) and was
+  // previously uncapped for authenticated users.
+  if (await isRateLimited(`draft-claim:${user.id}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
 
   const admin = getAdminSupabase();
 

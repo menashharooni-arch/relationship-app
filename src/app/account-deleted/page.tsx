@@ -46,7 +46,7 @@ export default async function AccountDeletedPage() {
         <>
           <h1 className="text-2xl font-bold text-white mb-2">Your account has been deleted</h1>
           <p className="text-gray-400 text-sm mb-8 max-w-sm leading-relaxed">
-            We&apos;re sorry to see you go. Your cards and contacts have been removed. For your security, this email can&apos;t be used to create a new account.
+            We&apos;re sorry to see you go. Your cards and contacts have been removed. For your security, this email can&apos;t be used to create a new account while the deleted account is held — once it&apos;s permanently purged, the email is freed up again.
           </p>
           <Link href="/" className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors">Back to swiftcard.me</Link>
         </>

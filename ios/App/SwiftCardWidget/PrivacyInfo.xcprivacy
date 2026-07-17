@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- SwiftCardWidget extension privacy manifest. The widget reads only the
+	     active card's PUBLIC url/name/company from the shared App Group
+	     defaults (group.me.swiftcard.app) to render an offline QR code. It
+	     collects nothing and performs no tracking.
+	     ⚠️ Xcode step (SHELL-RUNBOOK §6b): when creating the Widget Extension
+	     target, add this file to the SwiftCardWidget target so it ships in the
+	     extension bundle. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+</dict>
+</plist>

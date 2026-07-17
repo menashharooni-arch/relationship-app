@@ -26,6 +26,7 @@ import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { cardHeadshot } from "@/lib/card-media";
 import { buildConnectLinks } from "@/lib/social-url";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
+import ReportCardLink from "@/components/ReportCardLink";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro,
@@ -427,6 +428,10 @@ export default async function CardPage({
           Powered by SwiftCard.me
         </a>
       )}
+
+      {/* In-app only (App Review 1.2): report affordance for public cards.
+          Renders null on web/SSR — the public page is unchanged. */}
+      <ReportCardLink username={username} />
     </main>
   );
 }
