@@ -45,6 +45,14 @@ const config: CapacitorConfig = {
     limitsNavigationsToAppBoundDomains: false,
     contentInset: "automatic",
   },
+  plugins: {
+    // Store Preferences in the shared App Group so the home-screen QR widget
+    // (SwiftCardWidget extension) can read the active card. Both the app and
+    // widget targets must carry the matching application-groups entitlement.
+    Preferences: {
+      group: "group.me.swiftcard.app",
+    },
+  },
 };
 
 export default config;

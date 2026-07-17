@@ -12,5 +12,12 @@
 	     step rewrites this to "production" automatically for App Store builds. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- Shared storage between the app and the SwiftCardWidget extension: the
+	     webview writes the active card (via @capacitor/preferences group
+	     config) and the widget renders its QR code from it. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.me.swiftcard.app</string>
+	</array>
 </dict>
 </plist>
