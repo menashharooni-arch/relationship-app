@@ -102,6 +102,10 @@ const GUARDS: Guard[] = [
   { file: "src/components/site/SiteFooter.tsx", patterns: [/<NativeHidden><SalesChat \/><\/NativeHidden>/] },
   // Latent ungated seat purchase (dead code today) — must stay gated if revived.
   { file: "src/components/AddSeatButton.tsx", patterns: [/if \(native\) return null/] },
+  // Account deletion stays fully reachable on native (5.1.1), but its
+  // "cancel in Plan and billing" pointer targets a section hidden on native —
+  // web only.
+  { file: "src/components/ManageAccount.tsx", patterns: [/isPro && !native && \(/] },
   // Raw marketing "See pricing"/"Pricing" links wrapped in NativeHidden.
   { file: "src/app/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
   { file: "src/app/products/[slug]/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
