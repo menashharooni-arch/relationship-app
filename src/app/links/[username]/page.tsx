@@ -10,6 +10,7 @@ import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
+import ReportCardLink from "@/components/ReportCardLink";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -132,6 +133,9 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         ownerPaid={ownerPaid}
         appUrl={APP_URL}
       />
+      {/* In-app only (App Review 1.2): report affordance for public Swift
+          Links pages. Renders null on web/SSR — the public page is unchanged. */}
+      <ReportCardLink username={username} />
     </>
   );
 }

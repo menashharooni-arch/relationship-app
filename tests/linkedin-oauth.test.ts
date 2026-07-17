@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { signState, verifyState } from "@/lib/oauth-state";
+
+// oauth-state now fails closed with no OAUTH_SECRET (no service-role/empty-key
+// fallback) — give the tests a key, like every deployed environment has.
+process.env.OAUTH_SECRET ||= "a".repeat(64);
 import {
   isLinkedInEnabled,
   LINKEDIN_SCOPES,

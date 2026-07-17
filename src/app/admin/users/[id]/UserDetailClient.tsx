@@ -17,7 +17,7 @@ type Detail = {
     referred_by: { id: string; name: string | null; email: string | null } | null;
     referral_reward_earned: boolean; deleted: boolean;
   };
-  cards: { id: string; username: string; label: string | null; name: string | null; title: string | null; company: string | null; template: string | null; created_at: string; leads: number; cardViews: number; linkViews: number }[];
+  cards: { id: string; username: string; label: string | null; name: string | null; title: string | null; company: string | null; template: string | null; created_at: string; leads: number; cardViews: number; linkViews: number; is_offline?: boolean }[];
   profileCard: { username: string; leads: number; cardViews: number; linkViews: number } | null;
   totals: { leads: number; views: number; leads30: number; views30: number; referred: number; referralMonthsClaimed?: number; referralMonthsClaimable?: number };
   series: { date: string; views: number; leads: number }[];
@@ -82,8 +82,8 @@ export default function UserDetailClient({ userId }: { userId: string }) {
   // legacy profile-slug card. Null → this account has no public page yet.
   const primarySlug = cards[0]?.username ?? profileCard?.username ?? null;
   const allCards = [
-    ...cards.map((c) => ({ key: c.id, username: c.username, label: c.label || c.name || c.username, template: c.template ?? "classic-pro", leads: c.leads, cardViews: c.cardViews, linkViews: c.linkViews })),
-    ...(profileCard ? [{ key: "profile", username: profileCard.username, label: `${user.name || user.username} (primary)`, template: "primary", leads: profileCard.leads, cardViews: profileCard.cardViews, linkViews: profileCard.linkViews }] : []),
+    ...cards.map((c) => ({ key: c.id, username: c.username, label: c.label || c.name || c.username, template: c.template ?? "classic-pro", leads: c.leads, cardViews: c.cardViews, linkViews: c.linkViews, offline: c.is_offline === true, moderatable: true })),
+    ...(profileCard ? [{ key: "profile", username: profileCard.username, label: `${user.name || user.username} (primary)`, template: "primary", leads: profileCard.leads, cardViews: profileCard.cardViews, linkViews: profileCard.linkViews, offline: false, moderatable: false }] : []),
   ];
 
   return (
@@ -231,6 +231,19 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                       <div className="flex items-center gap-2 text-[11px]">
                         <a href={`/card/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
                         <a href={`/links/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
+                        {/* Moderation kill-switch (App Review 1.2): reversible
+                            takedown of everything this card serves publicly. */}
+                        {c.moderatable && (
+                          <button
+                            type="button"
+                            disabled={busy === `offline-${c.key}`}
+                            onClick={() => patch({ cardOffline: { cardId: c.key, offline: !c.offline } }, `offline-${c.key}`)}
+                            className={`font-semibold px-2 py-1 rounded-full transition-colors disabled:opacity-50 ${c.offline ? "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20" : "text-red-400 bg-red-500/10 hover:bg-red-500/20"}`}
+                          >
+                            {busy === `offline-${c.key}` ? "…" : c.offline ? "Bring online" : "Take offline"}
+                          </button>
+                        )}
+                        {c.offline && <span className="text-amber-400/90 font-medium">offline</span>}
                       </div>
                     </td>
                   </tr>

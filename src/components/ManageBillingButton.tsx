@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Opens the Stripe customer portal on the account's default configuration, so
 // what it offers — payment method, invoices, cancellation questions, retention
@@ -9,6 +10,9 @@ import { useState } from "react";
 export default function ManageBillingButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Backstop (App Review 3.1.1): the Stripe customer portal must never be
+  // reachable from the iOS shell, no matter where this button gets mounted.
+  const native = useIsNativeApp();
 
   async function openPortal() {
     setLoading(true);
@@ -26,6 +30,8 @@ export default function ManageBillingButton() {
     }
     setLoading(false);
   }
+
+  if (native) return null;
 
   return (
     <div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CopyButton from "@/components/CopyButton";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Program a physical NFC tag so a tap opens this card. Web NFC can WRITE tags
 // only on Android Chrome; everywhere else (iPhone especially) we hand the user
@@ -12,6 +13,11 @@ type Status = "idle" | "writing" | "done" | "error" | "unsupported";
 export default function NFCWriter({ url }: { url: string }) {
   const [status, setStatus] = useState<Status>("idle");
   const [msg, setMsg] = useState("");
+  // Inside the iOS shell WKWebView has no Web NFC, so a "Write to a tag"
+  // button could only ever fail after the tap (App Review 2.1 "broken
+  // control"). Native gets just the manual path, which genuinely works.
+  // Web markup is untouched: useIsNativeApp is false on SSR + web.
+  const isNative = useIsNativeApp();
   // Tag taps get their own analytics source (the dashboard's traffic-source
   // breakdown already knows "nfc_card") — appended only if the caller didn't
   // pass query params of its own.
@@ -45,6 +51,7 @@ export default function NFCWriter({ url }: { url: string }) {
         Buy any blank NFC tag or card, write your link to it once, then a phone tap opens your card — no app for them.
       </p>
 
+      {!isNative && (
       <button
         type="button"
         onClick={write}
@@ -57,6 +64,7 @@ export default function NFCWriter({ url }: { url: string }) {
         </svg>
         {status === "writing" ? "Waiting for a tag…" : "Write to a tag"}
       </button>
+      )}
 
       {status !== "idle" && status !== "unsupported" && (
         <p className={`text-xs mt-2 ${status === "done" ? "text-emerald-400" : status === "error" ? "text-amber-400" : "text-gray-400"}`}>

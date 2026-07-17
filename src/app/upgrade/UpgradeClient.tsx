@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
-import { detectNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
@@ -31,12 +31,13 @@ export default function UpgradeClient() {
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
 
   // Native app: the /upgrade selling screen must not appear. Redirect to the
-  // dashboard on mount. A brief flash of this page before the redirect is an
-  // acceptable tradeoff for this pass (server-side native detection isn't
-  // reliable in a Capacitor webview). On web this effect is a no-op.
+  // dashboard on mount, and (below) never paint the page while the redirect
+  // is in flight — prices flashing in the shell is still a 3.1.1 surface.
+  // On web this effect is a no-op. Hydration-safe: false on SSR/first paint.
   useEffect(() => {
     if (detectNativeApp()) router.replace("/dashboard");
   }, [router]);
+  const native = useIsNativeApp();
 
   const interval = annual ? "annual" : "monthly";
   const proCents = annual ? PLAN_PRICES.PRO_ANNUAL_CENTS : PLAN_PRICES.PRO_MONTHLY_CENTS;
@@ -47,6 +48,8 @@ export default function UpgradeClient() {
   // trial=0 is what makes this "start and pay" rather than the public offer.
   const proHref = `/checkout?plan=pro&interval=${interval}&trial=0`;
   const officeHref = `/checkout?plan=office&interval=${interval}&seats=${seats}&trial=0`;
+
+  if (native) return null;
 
   return (
     <div className="max-w-4xl mx-auto">

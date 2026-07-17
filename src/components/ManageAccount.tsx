@@ -22,7 +22,7 @@ type Step = "survey" | "confirm";
 // has one (OAuth-only accounts can't be password-checked), and a typed final
 // confirmation. Subscription actions (cancel / switch to Free) live in Billing —
 // deletion here is deletion, no retention traps.
-export default function ManageAccount({ isPro, plan = "free", email = "" }: { isPro: boolean; plan?: string; email?: string }) {
+export default function ManageAccount({ isPro, plan = "free", email = "", isOfficeOwner = false }: { isPro: boolean; plan?: string; email?: string; isOfficeOwner?: boolean }) {
   void plan;
   const native = useIsNativeApp();
   const [expanded, setExpanded] = useState(false);
@@ -195,8 +195,13 @@ export default function ManageAccount({ isPro, plan = "free", email = "" }: { is
                     <span className="text-white font-semibold">all of your contacts</span>. Any subscription is canceled so you won&apos;t be billed again.
                   </p>
                   <p>
-                    <span className="text-white font-semibold">Kept for one month:</span> everything above is held for 30 days so you can reopen your account — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again.
+                    <span className="text-white font-semibold">Kept for one month:</span> everything above is held for 30 days so you can reopen your account — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again while the account is held.
                   </p>
+                  {isOfficeOwner && (
+                    <p className="text-amber-300/90">
+                      <span className="text-amber-200 font-semibold">You own a team:</span> deleting your account cancels your team&apos;s subscription immediately, and every teammate&apos;s card loses its Office features once your account is gone. Consider removing your team members first, or transferring ownership by contacting support.
+                    </p>
+                  )}
                 </div>
                 {needsPassword && (
                   <>

@@ -428,6 +428,10 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
   const [seatInfo, setSeatInfo] = useState<SeatInfo | null>(null);
   const [seatNote, setSeatNote] = useState<string | null>(null);
   const first = personName.split(/\s+/)[0] || "They";
+  // In the iOS shell the follow-up seat step is a billing surface (seat price +
+  // "lower my bill" subscription change) — skip straight to "done" there, the
+  // same posture as AddMemberButton's native path. Web is unchanged.
+  const native = useIsNativeApp();
 
   async function remove() {
     if (busy) return;
@@ -439,7 +443,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
         setError(j.error ?? "Couldn't remove them — please try again.");
         return;
       }
-      if (canManageSeats) {
+      if (canManageSeats && !native) {
         const info = await fetch("/api/stripe/subscription/seats")
           .then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (info?.billable && info.perSeatCents != null && info.seats > (info.usage?.used ?? 1)) {

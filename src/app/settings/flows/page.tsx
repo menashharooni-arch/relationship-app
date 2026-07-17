@@ -253,7 +253,7 @@ export default async function FlowSettingsPage({
       quiet: true,
       content: (
         <div data-tour="settings-account">
-          <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} email={user.email ?? ""} />
+          <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} email={user.email ?? ""} isOfficeOwner={!!officeCtx?.isOwner} />
           <p className="mt-6">
             <a href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</a>
           </p>

@@ -33,22 +33,26 @@ export const NATIVE_OAUTH_REDIRECT = "swiftcard://auth-callback";
 
 // Where to send the user after the session lands (mirrors the web flows:
 // everything routes through /onboarding, which provisions + forwards).
+// localStorage, not sessionStorage: iOS can terminate the app while the
+// system-browser sheet is open, and the recreated webview would lose a
+// sessionStorage stash — the PKCE verifier survives (cookies), so login
+// completes, but the post-login destination would be dropped.
 const NEXT_KEY = "swiftcard_native_oauth_next";
 
 export function stashNativeOAuthNext(next: string | null | undefined): void {
   try {
     if (next && next.startsWith("/") && !next.startsWith("//")) {
-      sessionStorage.setItem(NEXT_KEY, next);
+      localStorage.setItem(NEXT_KEY, next);
     } else {
-      sessionStorage.removeItem(NEXT_KEY);
+      localStorage.removeItem(NEXT_KEY);
     }
   } catch { /* private mode — land on the default */ }
 }
 
 function consumeNativeOAuthNext(): string | null {
   try {
-    const v = sessionStorage.getItem(NEXT_KEY);
-    sessionStorage.removeItem(NEXT_KEY);
+    const v = localStorage.getItem(NEXT_KEY);
+    localStorage.removeItem(NEXT_KEY);
     return v;
   } catch {
     return null;

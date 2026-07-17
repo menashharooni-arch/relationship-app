@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 
@@ -8,6 +9,11 @@ export async function GET(req: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
+  if (await isRateLimited(`leads-export:${user.id}`, 10, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  }
+
 
   const admin = getAdminSupabase();
   const [{ data: profile }, { data: cards }] = await Promise.all([
