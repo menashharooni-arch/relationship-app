@@ -4,6 +4,7 @@ import { useState } from "react";
 import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
 import CopyButton from "@/components/CopyButton";
+import NFCWriter from "@/components/NFCWriter";
 
 export default function MoreShareOptions({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
@@ -46,6 +47,15 @@ export default function MoreShareOptions({ url }: { url: string }) {
             <div className="mt-3">
               <QRDownloadButton url={url} compact />
             </div>
+
+            {/* NFC card / tag — program a physical tag so a tap opens this
+                card. Writes directly on Android Chrome; everywhere else the
+                component hands over the link + a free NFC-app path. */}
+            <div className="flex items-center gap-1.5 mt-5 mb-2">
+              <p className="text-gray-500 text-[11px] uppercase tracking-wide">NFC card</p>
+              <span className="text-gray-600 text-[11px] normal-case tracking-normal">· tap any phone to open your card</span>
+            </div>
+            <NFCWriter url={url} />
           </div>
         </div>
       )}

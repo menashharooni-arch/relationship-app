@@ -12,6 +12,10 @@ type Status = "idle" | "writing" | "done" | "error" | "unsupported";
 export default function NFCWriter({ url }: { url: string }) {
   const [status, setStatus] = useState<Status>("idle");
   const [msg, setMsg] = useState("");
+  // Tag taps get their own analytics source (the dashboard's traffic-source
+  // breakdown already knows "nfc_card") — appended only if the caller didn't
+  // pass query params of its own.
+  const tagUrl = url.includes("?") ? url : `${url}?source=nfc_card`;
 
   async function write() {
     if (typeof window === "undefined" || !("NDEFReader" in window)) {
@@ -23,7 +27,7 @@ export default function NFCWriter({ url }: { url: string }) {
     try {
       const Reader = (window as unknown as { NDEFReader: new () => { write: (m: unknown) => Promise<void> } }).NDEFReader;
       const reader = new Reader();
-      await reader.write({ records: [{ recordType: "url", data: url }] });
+      await reader.write({ records: [{ recordType: "url", data: tagUrl }] });
       setStatus("done");
       setMsg("Done! Tapping this tag now opens your card.");
     } catch (e) {
@@ -70,8 +74,8 @@ export default function NFCWriter({ url }: { url: string }) {
       <div className="mt-3 pt-3 border-t border-gray-800">
         <p className="text-gray-500 text-[11px] mb-1.5">Or write it yourself with an NFC app — use this link:</p>
         <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
-          <span className="text-blue-400 text-xs truncate flex-1">{url.replace(/^https?:\/\//, "")}</span>
-          <CopyButton text={url} />
+          <span className="text-blue-400 text-xs truncate flex-1">{tagUrl.replace(/^https?:\/\//, "")}</span>
+          <CopyButton text={tagUrl} />
         </div>
       </div>
     </div>
