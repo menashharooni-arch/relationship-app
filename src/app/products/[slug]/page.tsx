@@ -133,7 +133,7 @@ const PRODUCTS: Record<string, Product> = {
     eyebrow: "Ways to share",
     title: <>Your card, always <A>in your pocket.</A></>,
     titlePlain: "Apple Wallet",
-    subtitle: "However you meet someone, there's a way to hand them your card in a second — Apple Wallet, a QR code, or the share sheet. No app, no signal, no fumbling.",
+    subtitle: "However you meet someone, there's a way to hand them your card in a second — Apple Wallet, a QR code, or the share sheet. No app, no signal, no fumbling. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
     demo: <ShareWaysPhones />,
     wide: true,
     ctaLabel: "Get Started",
