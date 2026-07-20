@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ImageUpload from "@/components/ImageUpload";
+import LogoSuggest from "@/components/LogoSuggest";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -139,6 +140,10 @@ export default function OfficeBranding({ office }: { office: Brand }) {
                 defer
                 onUploaded={(url) => setLogoUrl(url || null)}
               />
+              {/* Suggest the company's official logo from its name/domain, same
+                  as the card editor — this is the office's brand logo, so it's a
+                  logo-change surface and gets the suggestion too. */}
+              <LogoSuggest company={company} domain={website} onConfirm={(url) => setLogoUrl(url || null)} />
               {!logoUrl && status === "error" && (
                 <p className="text-red-400 text-xs mt-1" role="alert">Add your logo first — it&apos;s what makes the cards yours.</p>
               )}
