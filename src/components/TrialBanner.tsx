@@ -36,7 +36,7 @@ export default function TrialBanner({ daysLeft, isTrial }: { daysLeft: number; i
       </div>
       {!native && (
         <Link
-          href="/pricing"
+          href="/upgrade"
           className={`shrink-0 text-xs font-bold px-4 py-2 rounded-full text-white transition-colors ${
             urgent ? "bg-amber-600 hover:bg-amber-500" : "bg-blue-600 hover:bg-blue-500"
           }`}

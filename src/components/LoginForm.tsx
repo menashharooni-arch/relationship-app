@@ -12,7 +12,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 // therefore routes through swiftcard.me.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
+export default function LoginForm({ redirectTo, initialMode = "signin", isReferral = false }: { redirectTo?: string; initialMode?: "signin" | "signup"; isReferral?: boolean }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,13 +25,16 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   // SwiftCard is invite-only for new accounts. Office-team invitees (arriving
   // with next=/join/<token>) are pre-authorized by their invite, so they don't
   // need a code — the /onboarding gate lets their pending office invite through.
+  // Referred friends (/r/CODE → ?ref=1) are likewise pre-authorized: their
+  // sc_ref cookie is validated server-side at /onboarding.
   const isOfficeInvite = !!(redirectTo && redirectTo.startsWith("/join/"));
+  const skipInviteCode = isOfficeInvite || isReferral;
 
   // Verify the invite code before any signup path (email OR Google/Apple). On
   // success the server sets a short-lived cookie that /onboarding re-checks
   // before it will provision the account. No-op for sign-in and office invites.
   async function ensureInviteVerified(): Promise<boolean> {
-    if (mode !== "signup" || isOfficeInvite) return true;
+    if (mode !== "signup" || skipInviteCode) return true;
     const code = inviteCode.trim();
     if (!code) {
       setErrorMsg("An invite code is required to create an account.");
@@ -269,7 +272,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
           className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
 
-        {mode === "signup" && !isOfficeInvite && (
+        {mode === "signup" && !skipInviteCode && (
           <div>
             <input
               type="text"

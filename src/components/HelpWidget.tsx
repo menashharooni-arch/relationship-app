@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { isNativeApp } from "@/lib/platform";
+import { useIsNativeApp } from "@/lib/platform";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -34,8 +34,17 @@ const NATIVE_SUGGESTIONS = SUGGESTIONS.filter((s) => s !== "How do I upgrade to 
 //              the mobile bottom nav; the open panel overlays it).
 export default function HelpWidget({ floating = false }: { floating?: boolean }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>(() => [isNativeApp ? NATIVE_GREETING : GREETING]);
-  const suggestions = isNativeApp ? NATIVE_SUGGESTIONS : SUGGESTIONS;
+  // Hydration-safe native detection (false on SSR and first client paint) — the
+  // module-level isNativeApp constant must never be read during render, or the
+  // shell's first render mismatches the server HTML (platform.ts's own warning).
+  const native = useIsNativeApp();
+  const [messages, setMessages] = useState<Msg[]>(() => [GREETING]);
+  useEffect(() => {
+    // Swap in the no-selling greeting once the shell reveals itself — but only
+    // while the conversation is still just the greeting.
+    if (native) setMessages((prev) => (prev.length === 1 ? [NATIVE_GREETING] : prev));
+  }, [native]);
+  const suggestions = native ? NATIVE_SUGGESTIONS : SUGGESTIONS;
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -57,7 +66,7 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
         headers: { "Content-Type": "application/json" },
         // Skip the static greeting when sending history. The `native` flag lets
         // the server apply the in-app guardrail (no pricing/upgrade/website).
-        body: JSON.stringify({ messages: next.slice(1), native: isNativeApp }),
+        body: JSON.stringify({ messages: next.slice(1), native }),
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply || "Sorry, I couldn't answer that." }]);

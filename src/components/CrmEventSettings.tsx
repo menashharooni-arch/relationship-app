@@ -81,7 +81,7 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<PlanBadge tier="pro" />}
           >
-            <a href="/pricing" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>
+            <a href="/upgrade" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>
           </PlanGate>
         )}
       </div>

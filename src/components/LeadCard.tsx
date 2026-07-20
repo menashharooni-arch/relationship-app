@@ -860,7 +860,7 @@ export default function LeadCard({
                               nativeCopy="Pro feature — Automated follow-up sequences are only available on the Pro plan."
                             >
                               <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
-                                ⚠ {seqError} <a href="/pricing" className="underline font-semibold">Upgrade →</a>
+                                ⚠ {seqError} <a href="/upgrade" className="underline font-semibold">Upgrade →</a>
                               </p>
                             </PlanGate>
                           ) : (
@@ -1092,7 +1092,7 @@ export default function LeadCard({
                       nativeCopy="Pro feature — You've used your 3 free AI drafts this month. Unlimited AI follow-ups are only available on the Pro plan."
                     >
                       <p className="text-[11px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2">
-                        {aiUpgradeMsg} <a href="/pricing" className="underline font-semibold">Upgrade →</a>
+                        {aiUpgradeMsg} <a href="/upgrade" className="underline font-semibold">Upgrade →</a>
                       </p>
                     </PlanGate>
                   ) : (

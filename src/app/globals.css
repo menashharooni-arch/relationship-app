@@ -263,6 +263,13 @@ body {
    Dark stays exactly as designed; public cards/links pages are untouched. */
 [data-sc-theme="light"] .sc-app.bg-gray-950,
 [data-sc-theme="light"] .sc-app .bg-gray-950 { background-color: #FAF7F2 !important; }
+/* The mobile tab bar is a top-level sibling of .sc-app (not inside it), so the
+   rules above never reach it — without this it stays dark charcoal under a
+   cream dashboard on the web. (Native has its own rules further down.) */
+[data-sc-theme="light"] .sc-tabbar {
+  background-color: rgba(250, 247, 242, 0.95) !important;
+  border-color: #E4DDD4 !important;
+}
 [data-sc-theme="light"] .sc-app.bg-gray-950\/95,
 [data-sc-theme="light"] .sc-app .bg-gray-950\/95,
 [data-sc-theme="light"] .sc-app .bg-gray-950\/90 { background-color: rgba(250,247,242,0.95) !important; }
