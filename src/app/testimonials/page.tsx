@@ -5,6 +5,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import NativeHidden from "@/components/NativeHidden";
+import AppStoreReviews from "@/components/site/AppStoreReviews";
 
 // COMPLIANCE NOTE (do not regress): this page previously showed fictional
 // testimonials with fake star ratings and a fabricated review count. Under the
@@ -113,6 +114,10 @@ export default function WhySwiftCardPage() {
             </div>
           </div>
         </section>
+
+        {/* REAL App Store reviews (Apple RSS). Renders nothing until the app is
+            live and has reviews — never an invented rating/count. */}
+        <AppStoreReviews />
 
         {/* Facts strip — literally-true claims only */}
         <section className="relative py-20" style={{ background: "var(--rd-ink-1000)" }}>
