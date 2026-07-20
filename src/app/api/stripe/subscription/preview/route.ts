@@ -5,7 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { priceIdForPlan, planFromPriceId, isUpgrade, type BillingPlan, type BillingInterval } from "@/lib/subscription";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/preview { plan, interval, seats? }
 //
@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
+  // A delegated billing_admin acts on the OWNER's subscription, not their own.
+  const subjectId = await resolveBillingSubjectId(user.id);
+
   const body = await req.json().catch(() => ({}));
   const targetPlan = body.plan as BillingPlan;
   const interval = (body.interval === "annual" ? "annual" : "monthly") as BillingInterval;
@@ -42,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_customer_id, stripe_subscription_id")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   // No existing subscription → there's nothing to prorate; this is a first-time

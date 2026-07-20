@@ -79,6 +79,20 @@ export async function resolveOfficeContext(userId: string): Promise<OfficeContex
   };
 }
 
+// Whose SUBSCRIPTION a billing action (cancel, change-plan, discount, preview,
+// keep) operates on. For an office OWNER — or a plain user with no office — it's
+// themselves. For a DELEGATED billing_admin (an active member with manage_billing)
+// it's the office OWNER, whose subscription they manage on the org's behalf.
+// Without this, those routes read the delegate's own (nonexistent) subscription
+// and every billing action but seat-count fails. SERVER-SIDE only.
+export async function resolveBillingSubjectId(userId: string): Promise<string> {
+  const ctx = await resolveOfficeContext(userId);
+  if (ctx && !ctx.isOwner && roleHasCapability(ctx.role, "manage_billing") && ctx.ownerId) {
+    return ctx.ownerId;
+  }
+  return userId;
+}
+
 // Authorize: does this user have `cap` in some office? Returns the office context
 // on success, or null on failure (caller returns 403). SERVER-SIDE only.
 export async function requireOfficeCapability(userId: string, cap: Capability): Promise<OfficeContext | null> {

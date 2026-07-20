@@ -7,7 +7,7 @@ import { priceIdForPlan, planFromPriceId, isUpgrade, DB_PLAN, type BillingPlan, 
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import { provisionOfficeForOwner, tearDownOfficeForOwner } from "@/lib/office-billing-sync";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/change-plan { plan: "pro"|"office", interval, seats? }
 // Switches an EXISTING paid subscription between Pro and Office (and between
@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
+  // A delegated billing_admin changes the OWNER's plan (and the OWNER's office),
+  // not their own account. For the owner (or a plain user) subjectId === user.id.
+  const subjectId = await resolveBillingSubjectId(user.id);
+
   const body = await req.json().catch(() => ({}));
   const targetPlan = body.plan as BillingPlan;
   const interval = (body.interval === "annual" ? "annual" : "monthly") as BillingInterval;
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_subscription_id")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   if (!profile?.stripe_subscription_id) {
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
       const requested = seatsProvided ? Math.floor(Number(body.seats)) : (wasOffice ? currentQty : PLAN_LIMITS.OFFICE_MIN_SEATS);
       seats = Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, requested);
       if (wasOffice && seats < currentQty) {
-        const { data: office } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
+        const { data: office } = await admin.from("offices").select("id").eq("owner_id", subjectId).maybeSingle();
         if (office?.id) {
           const usage = await getOfficeSeatUsage(office.id as string, currentQty);
           if (seats < usage.used) {
@@ -156,17 +160,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Reflect the new plan immediately (the webhook also reconciles this).
-  const cust = await getPlanCleanCustomization(admin, user.id);
-  await admin.from("profiles").update({ plan: DB_PLAN[targetPlan], customization: cust }).eq("id", user.id);
+  const cust = await getPlanCleanCustomization(admin, subjectId);
+  await admin.from("profiles").update({ plan: DB_PLAN[targetPlan], customization: cust }).eq("id", subjectId);
 
   if (targetPlan === "office") {
-    await provisionOfficeForOwner(admin, user.id, seats);
+    await provisionOfficeForOwner(admin, subjectId, seats);
   } else if (wasOffice) {
     // Leaving Office → tear the office down: release every active member back
     // to their own plan, strip the office brand from their cards, notify them,
     // remove the office. Shared with the subscription.updated webhook so a
     // portal-initiated Office->Pro swap tears down the office too (billing audit).
-    await tearDownOfficeForOwner(admin, user.id);
+    await tearDownOfficeForOwner(admin, subjectId);
   }
 
   return NextResponse.json({ ok: true, plan: targetPlan, interval, seats });
