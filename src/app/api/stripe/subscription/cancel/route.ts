@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/cancel
 // Schedules the paid plan to end at the period boundary (cancel_at_period_end),
@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
+  // A delegated billing_admin cancels the OWNER's subscription, not their own.
+  const subjectId = await resolveBillingSubjectId(user.id);
+
   const body = await req.json().catch(() => ({}));
   const reason = typeof body.reason === "string" ? body.reason.slice(0, 120) : "";
   const comment = typeof body.comment === "string" ? body.comment.slice(0, 1000) : "";
@@ -32,7 +35,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_subscription_id, customization")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   if (!profile?.stripe_subscription_id) {
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest) {
     .update({
       customization: { ...cust, _cancelAtPeriodEnd: true, _cancelAt: periodEnd, _cancelReason: reason || null },
     })
-    .eq("id", user.id);
+    .eq("id", subjectId);
 
   return NextResponse.json({ ok: true, cancelAt: periodEnd });
 }

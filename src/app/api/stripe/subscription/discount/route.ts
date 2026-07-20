@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // The one-time retention offer: 50% off for the next 3 months. Self-provisioning
 // so it works without any dashboard setup — we create a coupon with a fixed id
@@ -56,11 +56,14 @@ export async function POST() {
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
+  // A delegated billing_admin applies the offer to the OWNER's subscription.
+  const subjectId = await resolveBillingSubjectId(user.id);
+
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_subscription_id, customization")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   const cust = (profile?.customization as Record<string, unknown> | null) ?? {};
@@ -89,7 +92,7 @@ export async function POST() {
   delete nextCust._cancelAtPeriodEnd;
   delete nextCust._cancelAt;
   delete nextCust._cancelReason;
-  await admin.from("profiles").update({ customization: nextCust }).eq("id", user.id);
+  await admin.from("profiles").update({ customization: nextCust }).eq("id", subjectId);
 
   return NextResponse.json({ ok: true });
 }

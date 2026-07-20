@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // POST /api/stripe/subscription/keep
 // Reverses a scheduled cancellation: clears cancel_at_period_end so the plan
@@ -23,11 +23,14 @@ export async function POST() {
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
 
+  // A delegated billing_admin reactivates the OWNER's subscription, not their own.
+  const subjectId = await resolveBillingSubjectId(user.id);
+
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
     .select("stripe_subscription_id, customization")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   if (!profile?.stripe_subscription_id) {
@@ -50,7 +53,7 @@ export async function POST() {
   delete cust._cancelAtPeriodEnd;
   delete cust._cancelAt;
   delete cust._cancelReason;
-  await admin.from("profiles").update({ customization: cust }).eq("id", user.id);
+  await admin.from("profiles").update({ customization: cust }).eq("id", subjectId);
 
   return NextResponse.json({ ok: true, renewalAt });
 }
