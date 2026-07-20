@@ -25,7 +25,7 @@ type Props = {
 };
 
 type Candidate = {
-  source: "google" | "gravatar" | "linkedin";
+  source: "google" | "gravatar" | "linkedin" | "web";
   label: string;
   photoUrl: string;
 };

@@ -17,8 +17,19 @@ export const runtime = "nodejs";
 // client only ever names a source — it can never supply a URL, so this can't
 // be used to proxy arbitrary images into our storage.
 
-type Source = "google" | "gravatar";
+type Source = "google" | "gravatar" | "web";
 type Candidate = { source: Source; label: string; photoUrl: string };
+
+// unavatar.io aggregates a person's public avatar across many services
+// (Gravatar, Google, Twitter/X, GitHub, DuckDuckGo, …) keyed by email. It
+// proxies the image directly from its own fixed host — no redirect to an
+// arbitrary origin — so importing it is SSRF-safe. fallback=false makes it 404
+// when nothing real exists, so we never show a generated placeholder.
+function unavatarUrl(email: string | undefined): string | null {
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e || !e.includes("@")) return null;
+  return `https://unavatar.io/${encodeURIComponent(e)}?fallback=false`;
+}
 
 function googlePhotoUrl(user: User): string | null {
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
@@ -57,6 +68,21 @@ async function resolveCandidates(user: User): Promise<Candidate[]> {
       if (res.ok) out.push({ source: "gravatar", label: "Your Gravatar", photoUrl: gr });
     } catch { /* gravatar unreachable — just skip the source */ }
   }
+  // Fallback: only reach for the aggregator when the direct sources found
+  // nothing (unavatar also checks Gravatar/Google, so this avoids duplicate
+  // thumbnails while still catching a Twitter/GitHub/etc. photo they missed).
+  if (out.length === 0) {
+    const u = unavatarUrl(user.email);
+    if (u) {
+      try {
+        const res = await fetch(u, { signal: AbortSignal.timeout(5000) });
+        const ct = res.headers.get("content-type") ?? "";
+        if (res.ok && ct.startsWith("image/")) {
+          out.push({ source: "web", label: "Photo from the web", photoUrl: u });
+        }
+      } catch { /* aggregator unreachable — skip */ }
+    }
+  }
   return out;
 }
 
@@ -80,7 +106,7 @@ export async function POST(req: NextRequest) {
   let source: Source | "" = "";
   try {
     const body = await req.json();
-    if (body?.source === "google" || body?.source === "gravatar") source = body.source;
+    if (body?.source === "google" || body?.source === "gravatar" || body?.source === "web") source = body.source;
   } catch { /* handled below */ }
   if (!source) return NextResponse.json({ error: "invalid_source" }, { status: 400 });
 
