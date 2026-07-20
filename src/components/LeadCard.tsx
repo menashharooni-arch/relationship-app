@@ -418,7 +418,7 @@ export default function LeadCard({
               </span>
             )}
             {followUpDate && !followUpOverdue && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 shrink-0">
+              <span suppressHydrationWarning className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 shrink-0">
                 {new Date(followUpDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </span>
             )}
@@ -431,8 +431,9 @@ export default function LeadCard({
         {/* Right: date + expand */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-right hidden sm:block">
-            <p className="text-gray-400 text-xs font-medium">{formatDate(lead.created_at)}</p>
-            <p className="text-gray-600 text-[10px]">{formatTime(lead.created_at)}</p>
+            {/* Viewer-TZ text: server SSRs in UTC — suppress the cosmetic mismatch */}
+            <p suppressHydrationWarning className="text-gray-400 text-xs font-medium">{formatDate(lead.created_at)}</p>
+            <p suppressHydrationWarning className="text-gray-600 text-[10px]">{formatTime(lead.created_at)}</p>
           </div>
           {/* Quick actions */}
           {lead.phone && (
@@ -953,7 +954,7 @@ export default function LeadCard({
                     </div>
                     <span className="text-[11px] text-gray-400">
                       Day {r.day_trigger} email sent{" "}
-                      <span className="text-gray-500">{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span suppressHydrationWarning className="text-gray-500">{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                     </span>
                   </div>
                 ))}

@@ -97,7 +97,11 @@ export default function TrafficChart({
               ? { right: 0 }
               : { left: `${((idx + 0.5) / n) * 100}%`, transform: "translateX(-50%)" };
           return (
-            <span key={idx} className="absolute top-0 tabular-nums whitespace-nowrap" style={style}>
+            // suppressHydrationWarning: toLocale* formats in the VIEWER's
+            // timezone, so the server (UTC) and client can produce different
+            // label text for the same timestamp (React #418). Hover re-renders
+            // settle any stale server text; the drift is cosmetic.
+            <span key={idx} suppressHydrationWarning className="absolute top-0 tabular-nums whitespace-nowrap" style={style}>
               {label}
             </span>
           );

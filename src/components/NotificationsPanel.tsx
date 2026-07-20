@@ -187,7 +187,9 @@ export default function NotificationsPanel({
                   </button>
                 )
               )}
-              <p className="text-gray-600 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
+              {/* Clock-dependent text — a minute tick between SSR and hydration
+                  makes the strings differ (React #418). Cosmetic, so suppress. */}
+              <p suppressHydrationWarning className="text-gray-600 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
             </div>
             <button
               onClick={() => setRead(n.id, !n.read)}
