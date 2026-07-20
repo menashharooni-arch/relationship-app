@@ -102,8 +102,8 @@ export default function SignatureMiniBuilder() {
       content: (
         <>
           <Field label="Full name" placeholder="Alex Morgan" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          <Field label="Title" placeholder="Realtor" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Field label="Company" placeholder="Coastline Realty" value={company} onChange={(e) => setCompany(e.target.value)} />
+          <Field label="Title" placeholder="Founder & CEO" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Field label="Company" placeholder="Morgan & Co." value={company} onChange={(e) => setCompany(e.target.value)} />
         </>
       ),
     },
@@ -112,8 +112,8 @@ export default function SignatureMiniBuilder() {
       subtitle: "These sit inside the card so anyone can reach you in one tap.",
       content: (
         <>
-          <Field label="Email" type="email" placeholder="alex@coastlinerealty.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-          <Field label="Phone" type="tel" placeholder="(415) 555-0188" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Field label="Email" type="email" placeholder="alex@morganandco.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+          <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </>
       ),
     },

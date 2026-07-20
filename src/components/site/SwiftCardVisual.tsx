@@ -29,11 +29,11 @@ function Row({ icon, children }: { icon: React.ReactNode; children: React.ReactN
 
 export default function SwiftCardVisual({
   name = "Alex Morgan",
-  title = "Founder & Principal",
-  company = "Coastline Realty",
-  phone = "(415) 555-0188",
-  email = "alex@coastlinerealty.com",
-  website = "coastlinehomes.com",
+  title = "Founder & CEO",
+  company = "Morgan & Co.",
+  phone = "(555) 123-4567",
+  email = "alex@morganandco.com",
+  website = "www.morganandco.com",
   accent = "#5D6BFF",
   photoUrl = "/marketing/demo-girl.jpg",
   initials = "AM",

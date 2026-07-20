@@ -33,12 +33,12 @@ function WalletPhone() {
             <div className="relative p-3">
               <div className="flex items-center justify-between">
                 <span className="text-white/90 text-[9px] font-bold tracking-[0.18em] uppercase">SwiftCard</span>
-                <span className="text-white/80 text-[9px] font-semibold">Coastline Realty</span>
+                <span className="text-white/80 text-[9px] font-semibold">Morgan & Co.</span>
               </div>
               <div className="mt-4 flex items-end justify-between">
                 <div>
                   <p className="text-white text-[14px] font-extrabold leading-tight">Alex Morgan</p>
-                  <p className="text-white/80 text-[9.5px]">Founder &amp; Principal</p>
+                  <p className="text-white/80 text-[9.5px]">Founder &amp; CEO</p>
                 </div>
                 <div className="rounded-md bg-white p-1">
                   <MiniQR size={34} url="https://swiftcard.me/card/alexmorgan" fg="#0B1022" />
@@ -88,7 +88,7 @@ function LinkPhone() {
               AM
             </div>
             <p className="mt-2 text-slate-900 text-[15px] font-extrabold tracking-tight leading-tight">Alex Morgan</p>
-            <p className="text-slate-500 text-[10.5px]">Founder &amp; Principal · Coastline Realty</p>
+            <p className="text-slate-500 text-[10.5px]">Founder &amp; CEO · Morgan & Co.</p>
 
             {/* Save contact */}
             <button className="mt-3 w-full rounded-full py-2.5 text-white text-[12px] font-bold flex items-center justify-center gap-1.5" style={{ background: "#2563EB" }}>
