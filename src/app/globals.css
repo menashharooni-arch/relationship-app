@@ -358,11 +358,13 @@ body {
   --rd-ink-300:  #93A0C4;
   --rd-ink-200:  #C2CAE0;
   --rd-ink-100:  #E9ECF6;
-  /* Light surfaces — warm cream to match the logo's cream-white */
-  --rd-paper:    #FBF8F0;
-  --rd-paper-50: #F5F0E3;
-  --rd-paper-100:#ECE5D4;
-  --rd-paper-200:#DFD6C1;
+  /* Light surfaces — a soft off-white (each shade pulled 25% toward pure white
+     from the original warmer cream, so the marketing pages read whiter/cleaner
+     while keeping a hint of warmth). */
+  --rd-paper:    #FCFAF4;
+  --rd-paper-50: #F8F4EA;
+  --rd-paper-100:#F1ECDF;
+  --rd-paper-200:#E7E0D1;
   /* Brand blues — royal → navy → sky, all in the logo family */
   --rd-violet:   #4C6EF5;
   --rd-indigo:   #3457D5;
