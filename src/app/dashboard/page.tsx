@@ -272,7 +272,7 @@ export default async function DashboardPage({
     // in policy for relation offices" once there's a row to evaluate. Still
     // scoped to this caller's own owner_id.
     isEnterprise
-      ? getAdminSupabase().from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
+      ? getAdminSupabase().from("offices").select("id, name, primary_card_id").eq("owner_id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -371,6 +371,9 @@ export default async function DashboardPage({
   const nearLimit = !isPro && monthlyLeadsUsed >= FREE_LIMIT - 2;
 
   const ownedOffice = ownedOfficeRes.data;
+  // The office's Primary Card — the one the whole team's brand is based on.
+  // Only meaningful for an office owner; null for everyone else.
+  const primaryCardId = (ownedOffice as { primary_card_id?: string | null } | null)?.primary_card_id ?? null;
 
   // Who sees the "Admin" nav item (the team console at /office/admin) — mirrors
   // that page's own access rule so the link never lands on a redirect. This is
@@ -615,6 +618,14 @@ export default async function DashboardPage({
                       <div className="min-w-0 flex-1">
                         <p className="text-white text-sm font-medium truncate">
                           {card.label || card.name || card.username}
+                          {primaryCardId && card.id === primaryCardId && (
+                            <span
+                              className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-950/60 text-purple-300 border border-purple-700/50 align-middle"
+                              title="This is your team's Primary Card — its logo, company, website and design are what every other card on the team inherits."
+                            >
+                              PRIMARY CARD
+                            </span>
+                          )}
                           {planInactive && (
                             <PlanGate
                               feature="link-off-badge"
