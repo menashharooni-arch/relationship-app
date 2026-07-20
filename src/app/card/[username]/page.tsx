@@ -418,14 +418,25 @@ export default async function CardPage({
         )}
       </div>
 
-      {/* "Powered by SwiftCard.me" badge (links to site) — Free only, removed on Pro/Office */}
+      {/* "Made with SwiftCard" badge — Free only, removed on Pro/Office. A
+          branded pill (colored logo chip + "Get yours free" CTA) so every free
+          card quietly recruits its recipients, without looking spammy on a
+          professional card. src=badge tracks the signups it drives. */}
       {!isPaidPlan(profile.plan) && (
         <a
           href={`${APP_URL}/?src=badge`}
-          className="w-full max-w-sm flex items-center justify-center gap-1.5 text-slate-400 text-[11px] hover:text-slate-600 transition-colors py-1"
+          className="group w-full max-w-sm flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-white border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
         >
-          <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-          Powered by SwiftCard.me
+          <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#1D3FB8,#2563EB 55%,#4DA8F5)" }}>
+            <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="#fff" /></svg>
+          </span>
+          <span className="text-slate-500 text-[12.5px]">
+            Made with <span className="font-bold text-slate-900">SwiftCard</span>
+          </span>
+          <span className="text-blue-600 text-[12.5px] font-semibold ml-0.5 inline-flex items-center gap-0.5 group-hover:gap-1.5 transition-all">
+            Get yours free
+            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </span>
         </a>
       )}
 
