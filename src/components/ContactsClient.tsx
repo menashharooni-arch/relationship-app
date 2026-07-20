@@ -222,13 +222,40 @@ export default function ContactsClient({
     let touring = false;
     try { touring = sessionStorage.getItem("sc_tour_running") === "1"; } catch { /* ignore */ }
     if (!touring) return;
+
+    const open = (c: Lead) => {
+      setSelected(c);
+      setDetailTab("info");
+      setWhereMetText(c.where_met ?? "");
+    };
+
     const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
     if (demo) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time tour bootstrap read from sessionStorage
-      setSelected(demo);
-      setDetailTab("info");
-      setWhereMetText(demo.where_met ?? "");
+      open(demo);
+      return;
     }
+
+    // No contact to demonstrate (older account, or the demo contact was deleted
+    // before replaying the tour). Seed the sample on the fly so the Contacts
+    // steps always have something to point at. Idempotent server-side.
+    const owner = cardFilter !== "all" ? cardFilter : (primaryUsername || userCards[0]?.username);
+    if (!owner) return;
+    let cancelled = false;
+    fetch("/api/contacts/seed-demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardOwner: owner }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.contact) return;
+        const c = data.contact as Lead;
+        setLeads((prev) => [c, ...prev]);
+        open(c);
+      })
+      .catch(() => { /* tour still works, the step just won't spotlight a contact */ });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
