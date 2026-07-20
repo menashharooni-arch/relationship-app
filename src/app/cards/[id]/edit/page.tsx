@@ -9,6 +9,7 @@ import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { getOwnedOfficeId, getPrimaryCardId } from "@/lib/office-primary";
 import type { CardData } from "@/components/card-templates/types";
 
 export default async function CardEditPage({
@@ -43,8 +44,24 @@ export default async function CardEditPage({
   // tab locks while the office's design lock is on. Resolved server-side —
   // the client is never trusted for role or brand.
   const subCtx = await getOfficeSubUserContext(user.id);
-  const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
-  const org = subCtx && brand
+
+  // Office OWNER editing a NON-primary card: it inherits the brand exactly like
+  // an employee's card (the save API overrides its company fields + logo with
+  // the brand), so the editor must show those fields — including the company
+  // logo — as inherited & locked here too, instead of an upload box that would
+  // silently revert. Company identity is changed on the PRIMARY card, which
+  // re-brands the whole team. The primary card itself stays fully editable.
+  let ownerNonPrimary = false;
+  if (!subCtx) {
+    const ownedOfficeId = await getOwnedOfficeId(user.id);
+    if (ownedOfficeId) {
+      const primaryId = await getPrimaryCardId(ownedOfficeId);
+      ownerNonPrimary = !!primaryId && primaryId !== card.id;
+    }
+  }
+
+  const brand = subCtx || ownerNonPrimary ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
+  const org = brand
     ? {
         company: brand.company,
         website: brand.website,
@@ -53,6 +70,10 @@ export default async function CardEditPage({
         fax: brand.fax,
         address: brand.address,
         lockDesign: brand.lockTemplate,
+        // True when the viewer is the office OWNER (not an employee) — lets the
+        // editor say "inherited from your Primary Card" instead of "managed by
+        // your organization", which reads wrong to the person who owns it.
+        ownerInherited: ownerNonPrimary,
       }
     : null;
 
