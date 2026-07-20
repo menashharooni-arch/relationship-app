@@ -91,7 +91,7 @@ function LinkExperience() {
           <img src="/marketing/demo-girl.jpg" alt="Alex Morgan" className="w-full h-full object-cover" />
         </div>
         <p className="mt-3 text-white text-[19px] font-extrabold tracking-tight">Alex Morgan</p>
-        <p className="text-white/50 text-[13px]">Founder & Principal · Coastline Realty</p>
+        <p className="text-white/50 text-[13px]">Founder & CEO · Morgan & Co.</p>
         <p className="mt-2.5 text-white/70 text-[13px] leading-relaxed">Helping people find the right home on the coast for 12 years. Book a viewing below</p>
 
         {/* socials */}

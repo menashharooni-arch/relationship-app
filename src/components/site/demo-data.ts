@@ -5,13 +5,13 @@ import type { CardData } from "@/components/card-templates/types";
 
 export const DEMO_CARD: CardData = {
   name: "Alex Morgan",
-  title: "Founder & Principal",
-  company: "Coastline Realty",
-  phone: "(415) 555-0188",
-  email: "alex@coastlinerealty.com",
-  website: "coastlinehomes.com",
-  address: "1200 Ocean Ave, San Francisco, CA",
-  instagram: "@coastline.homes",
+  title: "Founder & CEO",
+  company: "Morgan & Co.",
+  phone: "(555) 123-4567",
+  email: "alex@morganandco.com",
+  website: "www.morganandco.com",
+  address: "123 Main Street, New York, NY",
+  instagram: "@morganandco",
   linkedin: "in/alexmorgan",
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
@@ -19,10 +19,10 @@ export const DEMO_CARD: CardData = {
   cardUrl: "swiftcard.me/card/alexmorgan",
   customization: {
     accentColor: "#5D6BFF",
-    about: "Helping people find the right home on the coast for 12 years.",
+    about: "Helping brands grow with sharp strategy for 12 years.",
     links: [
-      { label: "Book a viewing", url: "https://swiftcard.me" },
-      { label: "See listings", url: "https://swiftcard.me" },
+      { label: "Book a call", url: "https://swiftcard.me" },
+      { label: "See our work", url: "https://swiftcard.me" },
     ],
   },
 };
@@ -34,11 +34,11 @@ export const DEMO_LINK_SOCIALS = [
   { label: "YouTube", href: "#", color: "#FF0000" },
 ];
 
-// Gallery variety — same sample person (Alex Morgan), different accents /
-// templates / roles to show how one card looks across every design.
+// Gallery variety — the SAME person and business everywhere on the site
+// (owner decision, Jul 2026): only the accent/template changes per tile.
 export const GALLERY = [
-  { template: "photo-first", accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & Principal", company: "Coastline Realty" },
-  { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Creative Director", company: "Northlight Studio" },
-  { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Partner", company: "Morgan & Co." },
-  { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Head of Growth", company: "Everbloom" },
+  { template: "photo-first", accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
+  { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
+  { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
+  { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
 ] as const;

@@ -14,17 +14,17 @@ import type { CardData } from "@/components/card-templates/types";
 
 const CARD_DATA: CardData = withoutSocials({
   name: "Alex Morgan",
-  title: "Realtor",
-  company: "Coastline Realty",
-  phone: "(415) 555-0188",
-  email: "alex@coastlinerealty.com",
-  website: "coastlinehomes.com",
+  title: "Founder & CEO",
+  company: "Morgan & Co.",
+  phone: "(555) 123-4567",
+  email: "alex@morganandco.com",
+  website: "www.morganandco.com",
   initials: "AM",
   photoUrl: null,
   logoUrl: null,
-  cardUrl: "swiftcard.me/card/demo-realty",
+  cardUrl: "swiftcard.me/card/alexmorgan",
 });
-const CARD_URL = "https://swiftcard.me/card/demo-realty";
+const CARD_URL = "https://swiftcard.me/card/alexmorgan";
 
 const TUCKED = [
   { grad: "linear-gradient(120deg,#1a1a2e,#3a3a5c)", tail: "2084", network: "VISA" },
@@ -116,7 +116,7 @@ function QrPhone() {
             <QRCodeSVG value={CARD_URL} size={150} bgColor="#ffffff" fgColor="#0d1b3e" level="M" />
           </div>
           <p className="text-[13px] font-medium pb-5 px-5 text-center" style={{ background: "linear-gradient(to right,#60a5fa,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            swiftcard.me/card/demo-realty
+            swiftcard.me/card/alexmorgan
           </p>
         </div>
       </div>
@@ -165,7 +165,7 @@ function SharePhone() {
           <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>AM</span>
           <span className="min-w-0 flex-1">
             <span className="block text-slate-900 text-[11px] font-bold leading-tight truncate">Alex Morgan&apos;s SwiftCard</span>
-            <span className="block text-slate-400 text-[9px] truncate">swiftcard.me/card/demo-realty</span>
+            <span className="block text-slate-400 text-[9px] truncate">swiftcard.me/card/alexmorgan</span>
           </span>
           <span className="text-slate-400 text-[10px] font-medium shrink-0">Options ›</span>
         </div>

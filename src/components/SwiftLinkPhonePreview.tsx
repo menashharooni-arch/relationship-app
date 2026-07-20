@@ -60,9 +60,9 @@ export default function SwiftLinkPhonePreview({ width = 340 }: { width?: number 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/demo/avatar.svg" alt="Sample profile avatar" className="w-20 h-20 rounded-full object-cover ring-2 ring-white shadow-md" style={{ background: "#e9eefc" }} />
             <p className="mt-3 text-slate-900 font-bold text-lg leading-tight">Alex Morgan</p>
-            <p className="text-slate-500 text-xs mt-0.5">Realtor® · Coastline Realty</p>
+            <p className="text-slate-500 text-xs mt-0.5">Founder &amp; CEO · Morgan &amp; Co.</p>
             <p className="text-slate-600 text-[12px] mt-3 leading-relaxed max-w-[240px]">
-              Helping first-time buyers find home. Tap a link below to connect — this is a sample preview.
+              Helping brands grow. Tap a link below to connect — this is a sample preview.
             </p>
 
             {/* Socials */}

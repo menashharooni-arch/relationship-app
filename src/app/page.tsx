@@ -75,8 +75,9 @@ export default function Home() {
                 ))}
               </ul>
               {/* ONE primary. The secondary is deliberately a quiet outline and
-                  goes to the demo rather than a page — "see how it works" should
-                  show the thing working, not describe it somewhere else. */}
+                  goes straight to the Swift Cards section — the live card demo
+                  with the phone (owner decision, Jul 2026): "see how it works"
+                  should show the card working, not the steps list. */}
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
                 <Link
                   id="hero-cta"
@@ -85,7 +86,7 @@ export default function Home() {
                 >
                   Create your free card
                 </Link>
-                <Link href="#how-it-works" className="rd-btn rd-btn-ghost-l rd-btn-lg">
+                <Link href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg">
                   See how it works
                 </Link>
               </div>
@@ -120,7 +121,7 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ DIGITAL CARDS ═══════════════ */}
-        <section id="cards" className="rd-light relative py-24 sm:py-28">
+        <section id="cards" className="rd-light relative py-24 sm:py-28 scroll-mt-16">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl" data-reveal>
               <Eyebrow dark={false}>Swift Cards</Eyebrow>
