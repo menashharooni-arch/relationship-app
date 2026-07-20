@@ -256,13 +256,31 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                       You&apos;ll be charged a smaller, partial amount today for the rest of this billing period.
                     </p>
                   )}
+                  {/* Explicit, unmistakable authorization statement directly above
+                      the pay button — the exact charge + the new recurring amount,
+                      to the card already on file, before any money moves. */}
+                  <p className="text-gray-400 text-[11px] leading-relaxed mb-3">
+                    By continuing, you authorize SwiftCard to charge your card on file{" "}
+                    <span className="font-semibold text-white">
+                      {seatInfo.nextSeatProrationCents != null ? usd(seatInfo.nextSeatProrationCents) : "the prorated amount"}
+                    </span>{" "}
+                    today
+                    {seatInfo.nextSeatTotalCents != null && (
+                      <> and <span className="font-semibold text-white">{usd(seatInfo.nextSeatTotalCents)}/{perWord(seatInfo.interval)}</span> going forward</>
+                    )}
+                    . Cancel or change seats anytime in Settings → Billing.
+                  </p>
                   {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
                   <button
                     onClick={addSeatAndInvite}
                     disabled={busy !== null}
                     className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors"
                   >
-                    {busy === "seat" ? "Adding seat…" : "Add seat & send invite"}
+                    {busy === "seat"
+                      ? "Charging your card…"
+                      : seatInfo.nextSeatProrationCents != null
+                        ? `Pay ${usd(seatInfo.nextSeatProrationCents)} & add seat`
+                        : "Pay & add seat"}
                   </button>
                   <button onClick={() => setNeedsSeat(false)} disabled={busy !== null}
                     className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors disabled:opacity-50">
