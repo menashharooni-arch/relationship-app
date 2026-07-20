@@ -642,7 +642,7 @@ export default function ContactsClient({
             {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
             <p className="text-gray-500 text-xs truncate">{lead.email || lead.phone}</p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <p className="text-gray-700 text-[10px]">{formatShort(lead.created_at)}</p>
+              <p suppressHydrationWarning className="text-gray-700 text-[10px]">{formatShort(lead.created_at)}</p>
               {lead.card_owner && userCards.length > 1 && (
                 <span className="text-[10px] text-gray-600">/{lead.card_owner}</span>
               )}
@@ -972,7 +972,8 @@ export default function ContactsClient({
                 <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
                 </svg>
-                <span className="text-gray-500 text-sm">Added {formatDate(selected.created_at)}</span>
+                {/* Viewer-TZ text: server SSRs in UTC — suppress the cosmetic mismatch */}
+                <span suppressHydrationWarning className="text-gray-500 text-sm">Added {formatDate(selected.created_at)}</span>
               </div>
               {selected.follow_up_date && (
                 <div className="flex items-center gap-3">
@@ -980,7 +981,7 @@ export default function ContactsClient({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className={`text-sm font-medium ${selected.follow_up_date.slice(0,10) <= today ? "text-amber-400" : "text-gray-400"}`}>
-                    Follow up: {formatDateOnly(selected.follow_up_date)}
+                    Follow up: <span suppressHydrationWarning>{formatDateOnly(selected.follow_up_date)}</span>
                     {selected.follow_up_date.slice(0,10) <= today && " · overdue"}
                   </span>
                 </div>
@@ -1229,7 +1230,7 @@ export default function ContactsClient({
                             {activeItems.map((it, i) => (
                               <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
                                 <div className="flex items-center justify-between gap-2 mb-1">
-                                  <span className="text-[10px] font-semibold text-gray-500">
+                                  <span suppressHydrationWarning className="text-[10px] font-semibold text-gray-500">
                                     {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day, it.time ?? "13:00")}`}
                                   </span>
                                   {it.sent_at
@@ -1335,7 +1336,7 @@ export default function ContactsClient({
                               <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
                                 {isSms ? "Text" : "Email"}
                               </span>
-                              <span>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
+                              <span suppressHydrationWarning>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
                             </span>
                           </div>
                         );
@@ -1346,7 +1347,7 @@ export default function ContactsClient({
                             <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
                               {it.body}
                             </div>
-                            <span className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
+                            <span suppressHydrationWarning className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
                           </div>
                         );
                       }
@@ -1357,7 +1358,7 @@ export default function ContactsClient({
                           {it.source && it.source !== "direct_link" && (
                             <span className="text-[10px] text-blue-400">via {getSourceLabel(it.source)}</span>
                           )}
-                          <span className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
+                          <span suppressHydrationWarning className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
                         </div>
                       );
                     })}

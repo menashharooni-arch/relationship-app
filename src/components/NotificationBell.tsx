@@ -260,7 +260,10 @@ export default function NotificationBell({
                               {cardLabels?.[n.card_owner] ?? n.card_owner}
                             </span>
                           )}
-                          <p className="text-gray-500 text-[11px] truncate">{timeAgo(n.created_at)}</p>
+                          {/* Relative time is clock-dependent: if the minute ticks
+                              between SSR and hydration the strings differ (React
+                              #418). The drift is cosmetic, so suppress it. */}
+                          <p suppressHydrationWarning className="text-gray-500 text-[11px] truncate">{timeAgo(n.created_at)}</p>
                         </div>
                       </div>
                       <button
