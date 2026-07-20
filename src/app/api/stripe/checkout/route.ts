@@ -231,6 +231,11 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId, quantity }],
       mode: "subscription",
       // First-time Pro subscribers start with a free trial, then auto-bill.
+      // payment_method_collection "always" is Stripe's subscription-mode
+      // default, but it's load-bearing here: the card MUST be collected during
+      // a trial checkout so billing starts automatically when the trial ends —
+      // pinned explicitly so a future Stripe default change can't loosen it.
+      payment_method_collection: "always",
       ...(trialDays ? { subscription_data: { trial_period_days: trialDays } } : {}),
       // Record the seat count so the webhook provisions the office reliably.
       ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
