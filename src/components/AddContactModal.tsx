@@ -167,7 +167,7 @@ export default function AddContactModal({
                   feature="scanner"
                   nativeCopy="Pro feature — The card scanner is only available on the Pro plan."
                 >
-                  <p className="text-[11px] text-center text-blue-300">{scanMsg} <Link href="/pricing" className="font-semibold underline">Upgrade →</Link></p>
+                  <p className="text-[11px] text-center text-blue-300">{scanMsg} <Link href="/upgrade" className="font-semibold underline">Upgrade →</Link></p>
                 </PlanGate>
               )}
               <div className="flex items-center gap-2 py-0.5">
@@ -249,7 +249,7 @@ export default function AddContactModal({
                 >
                   <div className="rounded-xl px-3 py-2.5 bg-blue-950/40 border border-blue-800/40">
                     <p className="text-blue-200 text-xs">{error}</p>
-                    <Link href="/pricing" className="inline-block mt-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro · keep capturing every lead →</Link>
+                    <Link href="/upgrade" className="inline-block mt-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro · keep capturing every lead →</Link>
                   </div>
                 </PlanGate>
               )}

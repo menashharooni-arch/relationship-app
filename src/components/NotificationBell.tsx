@@ -27,10 +27,15 @@ function timeAgo(iso: string) {
 export default function NotificationBell({
   initialNotifications,
   cardLabels,
+  activeCard,
 }: {
   initialNotifications: Notification[];
   // username → display label, for the per-card tag on each notification.
   cardLabels?: Record<string, string>;
+  // The currently selected card's username. Without it, "View all
+  // notifications" lands a multi-card account on the card PICKER (the
+  // dashboard only auto-selects when there's exactly one card).
+  activeCard?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -290,7 +295,7 @@ export default function NotificationBell({
 
             {/* Footer — jump to the full notifications list on the dashboard. */}
             <a
-              href="/dashboard?view=notifications"
+              href={activeCard ? `/dashboard?card=${encodeURIComponent(activeCard)}&view=notifications` : "/dashboard?view=notifications"}
               onClick={() => setOpen(false)}
               className="shrink-0 border-t border-gray-800 px-4 py-2.5 text-center text-xs font-semibold text-blue-400 hover:text-blue-300 hover:bg-gray-800/50 transition-colors"
             >

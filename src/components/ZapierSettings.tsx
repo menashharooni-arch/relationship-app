@@ -68,7 +68,7 @@ export default function ZapierSettings({
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<span className="ml-auto"><PlanBadge tier="pro" /></span>}
           >
-            <a href="/pricing" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
+            <a href="/upgrade" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
           </PlanGate>
         )}
       </div>

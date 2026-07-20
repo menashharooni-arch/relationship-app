@@ -44,6 +44,22 @@ export async function consumeSignupInvite(code: string, userId: string): Promise
   if (data) await admin.from("signup_invites").update({ uses: (data.uses ?? 0) + 1 }).eq("code", c);
 }
 
+// A friend arriving through a referral link (/r/CODE) may create an account
+// without a signup code — the referral IS their invite. The sc_ref cookie is
+// only a pass when it resolves to a real user's referral_code; attribution and
+// fraud checks still run in applyReferralOnSignup after provisioning.
+export async function isValidReferralPass(code: string | null | undefined): Promise<boolean> {
+  const c = String(code ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  if (!c) return false;
+  const admin = getAdminSupabase();
+  const { data } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("referral_code", c)
+    .limit(1);
+  return (data ?? []).length > 0;
+}
+
 // An invited teammate (pending office_members row for their email) may create
 // an account without a signup code — the invite itself is their pass.
 export async function hasPendingOfficeInvite(email: string | null | undefined): Promise<boolean> {

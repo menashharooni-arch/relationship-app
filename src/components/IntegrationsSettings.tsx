@@ -108,7 +108,7 @@ function IntegrationCard({
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
           >
-            <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+            <a href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
           </PlanGate>
         )}
       </div>
@@ -216,7 +216,7 @@ function HubSpotCard({
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
           >
-            <a href="/pricing" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
+            <a href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
           </PlanGate>
         ) : connected && !showForm ? (
           <button

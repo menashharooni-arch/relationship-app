@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
-import { isValidSignupInvite, consumeSignupInvite, hasPendingOfficeInvite, INVITE_COOKIE } from "@/lib/signup-invite";
+import { isValidSignupInvite, consumeSignupInvite, hasPendingOfficeInvite, isValidReferralPass, INVITE_COOKIE } from "@/lib/signup-invite";
 
 function accountHandle(email: string | undefined, userId: string): string {
   const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
@@ -38,10 +38,16 @@ export default async function OnboardingPage({
     // This is the single authoritative check — it covers email/password AND
     // Google/Apple signups, which all funnel through here. An uninvited new
     // user is removed (no profile is ever created) and bounced to /login.
-    const inviteCode = (await cookies()).get(INVITE_COOKIE)?.value ?? "";
+    const cookieJar = await cookies();
+    const inviteCode = cookieJar.get(INVITE_COOKIE)?.value ?? "";
     const invitedByCode = await isValidSignupInvite(inviteCode);
     const invitedByOffice = invitedByCode ? false : await hasPendingOfficeInvite(user.email);
-    if (!invitedByCode && !invitedByOffice) {
+    // A referral link is an invite too: /r/CODE set the sc_ref cookie, and a
+    // code that resolves to a real referrer is a pass. Attribution + fraud
+    // checks still run in applyReferralOnSignup below.
+    const invitedByReferral =
+      invitedByCode || invitedByOffice ? false : await isValidReferralPass(cookieJar.get(REF_COOKIE)?.value);
+    if (!invitedByCode && !invitedByOffice && !invitedByReferral) {
       // Remove the orphaned auth user so the code list can't be probed by
       // repeatedly creating accounts, and so a rejected email is free to retry
       // with a real invite. Best-effort — the gate blocks provisioning either way.

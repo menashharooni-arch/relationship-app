@@ -1283,7 +1283,7 @@ export default function ContactsClient({
                 >
                   <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
                     <p className="text-blue-200 text-sm">{aiUpgrade}</p>
-                    <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
+                    <a href="/upgrade" className="inline-block mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro →</a>
                   </div>
                 </PlanGate>
               )}

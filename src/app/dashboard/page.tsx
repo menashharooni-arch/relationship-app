@@ -6,6 +6,7 @@ import { canViewOfficeAdmin } from "@/lib/office-roles";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
+import ExportLeadsButton from "@/components/ExportLeadsButton";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
@@ -225,11 +226,27 @@ export default async function DashboardPage({
     // 60 days of raw view timestamps: powers the best-day stat (30d), the
     // Traffic bar graph buckets, and the vs-previous-window % change (which
     // needs a full prior window, hence 60d for the month view).
-    getAdminSupabase()
-      .from("card_views")
-      .select("viewed_at, username, visitor_id")
-      .in("username", [analyticsUsername, linkUsername])
-      .gte("viewed_at", daysAgoISO(60)),
+    // Paged: a single unbounded select is silently capped at the API's max-rows
+    // (1000), which made the graph/unique-visitors contradict the exact head
+    // counts above on busy cards. Newest-first, so if the cap below is ever hit
+    // it's the OLDEST tail of the window that's dropped.
+    (async () => {
+      const PAGE = 1000, MAX_PAGES = 10;
+      const all: { viewed_at: string; username: string; visitor_id: string | null }[] = [];
+      for (let p = 0; p < MAX_PAGES; p++) {
+        const { data } = await getAdminSupabase()
+          .from("card_views")
+          .select("viewed_at, username, visitor_id")
+          .in("username", [analyticsUsername, linkUsername])
+          .gte("viewed_at", daysAgoISO(60))
+          .order("viewed_at", { ascending: false })
+          .range(p * PAGE, p * PAGE + PAGE - 1);
+        if (!data?.length) break;
+        all.push(...data);
+        if (data.length < PAGE) break;
+      }
+      return { data: all };
+    })(),
     viewsRange === "locations"
       ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
       : Promise.resolve({ data: null }),
@@ -526,7 +543,7 @@ export default async function DashboardPage({
             <span data-tour="nav-settings" className="flex items-center"><SettingsLinkButton /></span>
             <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
-            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} /></span>
+            <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} activeCard={activeUsername} /></span>
             <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
             <SignOutButton />
           </div>
@@ -639,7 +656,7 @@ export default async function DashboardPage({
                   nativeCopy="Pro feature — Multiple cards are only available on the Pro plan."
                 >
                   <Link
-                    href="/pricing"
+                    href="/upgrade"
                     className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
                   >
                     <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
@@ -756,7 +773,7 @@ export default async function DashboardPage({
                       </div>
                       <p className="text-white text-sm font-semibold">See where your views come from</p>
                       <p className="text-gray-500 text-xs mt-1 mb-4 leading-relaxed max-w-[280px] mx-auto">Top locations are part of full analytics on Pro — see which cities are opening your card and links.</p>
-                      <Link href="/pricing" className="inline-block text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-colors">Upgrade to Pro →</Link>
+                      <Link href="/upgrade" className="inline-block text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full transition-colors">Upgrade to Pro →</Link>
                     </div>
                   </PlanGate>
                 ) : topLocations.length > 0 ? (
@@ -860,10 +877,7 @@ export default async function DashboardPage({
                     <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
                     {visibleLeads.length > 0 && (
                       isPro ? (
-                        <a href={`/api/leads/export?username=${activeUsername}`}
-                          className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
-                          Export
-                        </a>
+                        <ExportLeadsButton username={activeUsername} />
                       ) : (
                         <PlanGate
                           feature="csv-export"
@@ -875,7 +889,7 @@ export default async function DashboardPage({
                             </span>
                           }
                         >
-                          <Link href="/pricing" title="CSV export is a Pro feature"
+                          <Link href="/upgrade" title="CSV export is a Pro feature"
                             className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
                             Export · Pro
                           </Link>

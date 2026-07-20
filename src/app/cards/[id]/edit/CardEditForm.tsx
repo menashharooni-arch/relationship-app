@@ -764,7 +764,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               nativeCopy="This card is view-only. Editing multiple cards is only available on the Pro plan."
             >
               <p className="text-red-400 text-sm mt-4">
-                {error} <a href="/pricing" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</a>
+                {error} <a href="/upgrade" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</a>
               </p>
             </PlanGate>
           ) : (

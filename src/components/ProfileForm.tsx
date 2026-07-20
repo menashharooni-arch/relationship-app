@@ -374,7 +374,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
         >
           <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
-            Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/pricing" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
+            Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
           </p>
         </PlanGate>
       ) : (
@@ -591,7 +591,7 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
             <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
             <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
-            <a href="/pricing" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</a>
+            <a href="/upgrade" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</a>
           </div>
         </PlanGate>
       )}
