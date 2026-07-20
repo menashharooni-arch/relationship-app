@@ -103,6 +103,7 @@ export default function WebsiteAnalyticsClient({ initialInternalDevice }: { init
     }
   }, [includeInternal]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount + when the internal-filter toggle changes; load() owns its own loading/error state
   useEffect(() => { load(); }, [load]);
 
   async function toggleDevice() {

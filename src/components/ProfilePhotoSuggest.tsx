@@ -87,7 +87,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
     }
   }
 
-  async function useThisPhoto(c: Candidate) {
+  async function importPhoto(c: Candidate) {
     setState({ kind: "applying", source: c.source });
     try {
       // Import copies the photo into our storage (source CDN links can expire)
@@ -153,7 +153,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
                   <button
                     key={c.source}
                     type="button"
-                    onClick={() => useThisPhoto(c)}
+                    onClick={() => importPhoto(c)}
                     className="group flex flex-col items-center gap-1.5 rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-900/60 px-3 py-2.5 transition-colors"
                     title={`Use ${c.label.toLowerCase()}`}
                   >
