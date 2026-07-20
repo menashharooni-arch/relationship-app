@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import ImageUpload from "@/components/ImageUpload";
-import LogoSuggest from "@/components/LogoSuggest";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -73,10 +71,13 @@ function Section({ n, title, desc, children }: {
 }
 
 export default function OfficeBranding({ office }: { office: Brand }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(office.brand_logo_url ?? null);
-  const [company, setCompany] = useState(office.brand_company ?? "");
-  const [website, setWebsite] = useState(office.brand_website ?? "");
-  const [template, setTemplate] = useState(office.brand_template ?? "classic-pro");
+  // Company identity + look are READ-ONLY here — they come from the Primary Card
+  // (edit them there). This page manages only the office-only contact fields and
+  // the template lock. No setters for the inherited values.
+  const logoUrl = office.brand_logo_url ?? null;
+  const company = office.brand_company ?? "";
+  const website = office.brand_website ?? "";
+  const template = office.brand_template ?? "classic-pro";
   const [phone, setPhone] = useState(office.brand_phone ?? "");
   const [fax, setFax] = useState(office.brand_fax ?? "");
   const [address, setAddress] = useState<Addr>(office.brand_address ?? {});
@@ -127,37 +128,26 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         {/* 1 ── Company information ─────────────────────────────────────── */}
         <Section n={1} title="Company information" desc="What's true about your business. This is the same on everyone's card.">
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                Company logo <span className="text-red-400" aria-hidden="true">*</span>
-                <span className="sr-only">(required)</span>
-              </label>
-              <ImageUpload
-                field="logo"
-                currentUrl={logoUrl}
-                label="Company logo (shows on every card)"
-                shape="square"
-                defer
-                onUploaded={(url) => setLogoUrl(url || null)}
-              />
-              {/* Suggest the company's official logo from its name/domain, same
-                  as the card editor — this is the office's brand logo, so it's a
-                  logo-change surface and gets the suggestion too. */}
-              <LogoSuggest company={company} domain={website} onConfirm={(url) => setLogoUrl(url || null)} />
-              {!logoUrl && status === "error" && (
-                <p className="text-red-400 text-xs mt-1" role="alert">Add your logo first — it&apos;s what makes the cards yours.</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
-                <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Plumbing" className={inputCls} />
+            {/* Logo / company / website are INHERITED from the Primary Card
+                (read-only here — change them on your card, which re-brands the
+                whole team). Only the office-only contact fields below are edited
+                on this page. */}
+            <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="Company logo" className="w-12 h-12 rounded-lg object-cover bg-gray-900 shrink-0" />
+                ) : (
+                  <span className="w-12 h-12 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-600 text-[10px] shrink-0">No logo</span>
+                )}
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-semibold truncate">{company || "Set your company name on your card"}</p>
+                  <p className="text-gray-500 text-xs truncate">{website || "No website yet"}</p>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Website</label>
-                <input type="text" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="acmeplumbing.com" className={inputCls} />
-              </div>
+              <p className="text-[11px] text-gray-500 mt-2.5">
+                Logo, company name, website and card design come from your <span className="text-gray-300 font-medium">Primary Card</span>. Edit your card (link above) to change them for the whole team.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -192,26 +182,23 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         </Section>
 
         {/* 2 ── Card appearance ─────────────────────────────────────────── */}
-        <Section n={2} title="Card appearance" desc="Pick the style. The preview updates as you choose.">
+        <Section n={2} title="Card appearance" desc="The design your whole team inherits — set on your Primary Card.">
           <div className="flex flex-wrap gap-2">
             {TEMPLATES.map((t) => (
-              <button
+              <span
                 key={t.id}
-                type="button"
-                onClick={() => setTemplate(t.id)}
-                aria-pressed={template === t.id}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                   template === t.id
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-950 text-gray-400 border border-gray-800 hover:text-gray-200"
+                    ? "bg-purple-600/20 text-purple-200 border border-purple-500/40"
+                    : "bg-gray-950 text-gray-600 border border-gray-800"
                 }`}
               >
-                {t.label}
-              </button>
+                {t.label}{template === t.id ? " ✓" : ""}
+              </span>
             ))}
           </div>
           <p className="text-[11px] text-gray-600 mt-3">
-            Colors and fonts come from your own card — change your card once and everyone&apos;s updates with it.
+            The template, colors and fonts come from your <span className="text-gray-400 font-medium">Primary Card</span> — change your card once and everyone&apos;s updates with it. Use the lock below to decide whether the team&apos;s cards must match it.
           </p>
         </Section>
 
