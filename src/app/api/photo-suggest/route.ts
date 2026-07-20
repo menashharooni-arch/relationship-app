@@ -29,8 +29,11 @@ function googlePhotoUrl(user: User): string | null {
   if (!raw) return null;
   let u: URL;
   try { u = new URL(raw); } catch { return null; }
-  // Only trust Google's own CDN — metadata is user-adjacent data.
-  if (u.protocol !== "https:" || !u.hostname.endsWith("googleusercontent.com")) return null;
+  // Only trust Google's own CDN — user_metadata is CLIENT-writable via
+  // auth.updateUser, so this is attacker-controllable input. Dot-anchored so
+  // "evilgoogleusercontent.com" can't slip past the suffix check.
+  if (u.protocol !== "https:") return null;
+  if (u.hostname !== "googleusercontent.com" && !u.hostname.endsWith(".googleusercontent.com")) return null;
   // Google defaults to a 96px thumb; ask for a card-sized crop.
   return raw.replace(/=s\d+(-c)?$/, "=s400-c");
 }
@@ -87,7 +90,9 @@ export async function POST(req: NextRequest) {
 
   let body: Buffer;
   try {
-    const res = await fetch(chosen.photoUrl, { signal: AbortSignal.timeout(8000) });
+    // No redirects: both hosts serve images directly, and following one could
+    // hop the download off the allowlisted host.
+    const res = await fetch(chosen.photoUrl, { redirect: "error", signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`source ${res.status}`);
     const ct = res.headers.get("content-type") ?? "";
     if (!ct.startsWith("image/")) throw new Error("not an image");
