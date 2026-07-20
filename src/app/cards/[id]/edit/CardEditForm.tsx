@@ -122,6 +122,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("content");
 
+  // Broadcast the active tab so the header "View live" link (rendered in the
+  // server page, outside this component) can hide itself on the Design tab.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("sc:card-edit-tab", { detail: tab }));
+  }, [tab]);
+
   // Org-managed fields (office sub-users). Each flag is per-field: the office
   // manages exactly what it has set; blanks stay in the employee's hands.
   const orgCompany = org?.company?.trim() || null;
@@ -435,7 +441,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-                <CardUrlEditor cardId={card.id} currentSlug={card.username} />
+                <CardUrlEditor cardId={card.id} currentSlug={card.username} suggested={company.trim() ? `${name} ${company}` : name} />
               </div>
             )}
             <div>
@@ -792,7 +798,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       <div className="order-1 lg:order-2 lg:sticky lg:top-6">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
-          <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-400 hover:text-blue-300">View live →</a>
+          {/* Hidden on the Design tab (owner request) — both this and the header
+              "View live" link disappear while designing. */}
+          {tab !== "design" && (
+            <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-400 hover:text-blue-300">View live →</a>
+          )}
         </div>
         <div className="rounded-2xl overflow-hidden border border-gray-800">
           {/* Scale from the 460px natural width (same as the published card) so a
