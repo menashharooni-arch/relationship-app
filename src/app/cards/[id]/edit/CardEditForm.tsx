@@ -96,18 +96,22 @@ export type OrgManaged = {
   fax: string | null;
   address: CardAddress | null;
   lockDesign: boolean;
+  // True when the viewer is the office OWNER editing one of their NON-primary
+  // cards (which inherits the brand). Changes the copy from "managed by your
+  // organization" to "inherited from your Primary Card".
+  ownerInherited?: boolean;
 };
 
 type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean };
 
 // Small "who owns this field" tag shown next to org-controlled values.
-function ManagedTag() {
+function ManagedTag({ owner }: { owner?: boolean }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded-full px-2 py-0.5">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-2.5 h-2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
-      Managed by your organization
+      {owner ? "From your Primary Card" : "Managed by your organization"}
     </span>
   );
 }
@@ -389,10 +393,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-4">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className={sectionLabel}>Company information</p>
-                  <ManagedTag />
+                  <ManagedTag owner={org.ownerInherited} />
                 </div>
                 <p className="text-gray-500 text-xs mb-3">
-                  Your organization keeps these details up to date on every connected card.
+                  {org.ownerInherited
+                    ? "These come from your Primary Card and appear on every card on your team. Edit your Primary Card to change them."
+                    : "Your organization keeps these details up to date on every connected card."}
                 </p>
                 <dl className="space-y-1.5">
                   {orgLogo && (
@@ -511,13 +517,26 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             {/* Photos */}
             <div className="border-t border-gray-800 pt-4 mt-2 space-y-4">
               <p className={sectionLabel}>Photos</p>
-              {!(org && orgLogo) && (
+              {/* Company logo is editable only where it's the brand SOURCE: a
+                  non-office card, or the office's Primary Card. On any card that
+                  inherits the brand (org set — an employee card, or the owner's
+                  own non-primary card) the logo is shown inherited & locked in
+                  the Company-information panel above, and the upload is hidden so
+                  a manual change can't be attempted and silently reverted. */}
+              {!org && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
                   <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
                   <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
                   {!isPrimary && <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>}
                 </div>
+              )}
+              {org && !orgLogo && (
+                <p className="text-[11px] text-gray-500">
+                  {org.ownerInherited
+                    ? "Your company logo is set on your Primary Card — add it there and it appears on every card."
+                    : "Your company logo is managed by your organization."}
+                </p>
               )}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
