@@ -8,7 +8,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import { writeAudit } from "@/lib/audit";
-import { INVITE_TTL_MS } from "@/lib/office-invite";
+import { INVITE_TTL_MS, isInviteExpired } from "@/lib/office-invite";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { getOfficeBrand } from "@/lib/office-brand";
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   // Check for duplicate (case-insensitive — invite emails are stored lowercased).
   const { data: existing } = await admin
     .from("office_members")
-    .select("id, status")
+    .select("id, status, expires_at, created_at")
     .eq("office_id", office.id)
     .eq("invite_email", email.trim().toLowerCase())
     .maybeSingle();
@@ -69,11 +69,14 @@ export async function POST(req: Request) {
   }
 
   // Seat gate — required for a NEW invite AND for a resend that would newly
-  // consume a seat. A *pending* row already reserves its seat, but a revoked/
-  // declined/expired row does NOT count in getOfficeSeatUsage, so re-inviting
-  // one is effectively a new reservation and must pass the gate — otherwise the
-  // owner could overbook past their purchased seats. (billing audit #5)
-  const isPendingReservation = existing?.status === "pending";
+  // consume a seat. A *live* pending row already reserves its seat, but a
+  // revoked/declined/expired row does NOT count in getOfficeSeatUsage, so
+  // re-inviting one is effectively a new reservation and must pass the gate —
+  // otherwise the owner could over-reserve past their purchased seats.
+  // NOTE: an EXPIRED-but-unswept pending is still status='pending' yet is
+  // excluded from the usage count, so it must be gated too — use the SAME
+  // isInviteExpired() check the usage counter uses. (billing audit #5)
+  const isPendingReservation = existing?.status === "pending" && !isInviteExpired(existing);
   if (!existing || !isPendingReservation) {
     const usage = await getOfficeSeatUsage(office.id as string, seatCap);
     if (usage.available <= 0) {
