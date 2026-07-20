@@ -49,11 +49,18 @@ export async function PATCH(req: NextRequest) {
   const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
   const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
 
+  // Company IDENTITY + look (logo/company/website/template) come ONLY from the
+  // Primary Card (syncBrandFromPrimaryCard). The Branding form is a SECOND
+  // surface that must not be able to set or stale-overwrite them, or a
+  // non-owner admin's edit diverges from the owner's card and gets reverted on
+  // the owner's next card edit. So we IGNORE any identity fields in the request
+  // and carry the current (primary-card-sourced) values through unchanged; the
+  // form only manages the office-only contact fields + the template lock.
   const brand = {
-    brand_logo_url: typeof body.logoUrl === "string" && body.logoUrl ? body.logoUrl : null,
-    brand_company: typeof body.company === "string" ? body.company.trim() || null : null,
-    brand_website: typeof body.website === "string" ? body.website.trim() || null : null,
-    brand_template: typeof body.template === "string" && body.template ? body.template : null,
+    brand_logo_url: (office.brand_logo_url as string | null) ?? null,
+    brand_company: (office.brand_company as string | null) ?? null,
+    brand_website: (office.brand_website as string | null) ?? null,
+    brand_template: (office.brand_template as string | null) ?? null,
     brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
     brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
     brand_address: hasAddr ? cleanAddr : null,
