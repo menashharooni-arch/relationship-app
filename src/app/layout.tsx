@@ -6,6 +6,7 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import GuidedTour from "@/components/GuidedTour";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import SiteAnalytics from "@/components/SiteAnalytics";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -100,6 +101,7 @@ export default function RootLayout({
         {/* Capacitor shell only (no-op on web): universal-link → webview navigation. */}
         <NativeAppBridge />
         <AnalyticsProvider />
+        <SiteAnalytics />
         {children}
         <GuidedTour />
       </body>
