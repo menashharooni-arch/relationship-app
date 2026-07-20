@@ -75,7 +75,7 @@ function WalletPhone() {
 function LinkPhone() {
   return (
     <div className="rd-phone w-full">
-      <div className="rd-phone-screen h-[430px]" style={{ background: "#FBF8F0" }}>
+      <div className="rd-phone-screen h-[430px]" style={{ background: "#FCFAF4" }}>
         <div className="rd-notch" style={{ width: 60, height: 17 }} />
         <div className="absolute inset-0 overflow-hidden">
           {/* cover */}
