@@ -214,7 +214,7 @@ export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled,
             onUploaded={(url) => setPhotoUrl(url || null)}
           />
           <ProfilePhotoSuggest
-            enabled={linkedinEnabled}
+            linkedinEnabled={linkedinEnabled}
             returnTo="/welcome/team"
             onConfirm={(url) => setPhotoUrl(url)}
           />

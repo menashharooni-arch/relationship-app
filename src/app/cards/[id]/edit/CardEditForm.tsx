@@ -525,7 +525,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   onUploaded={(url) => setPhotoState(url || null)}
                 />
                 <ProfilePhotoSuggest
-                  enabled={linkedinEnabled}
+                  linkedinEnabled={linkedinEnabled}
                   returnTo={`/cards/${card.id}/edit`}
                   onConfirm={(url) => setPhotoState(url)}
                 />

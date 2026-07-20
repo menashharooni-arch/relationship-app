@@ -1056,7 +1056,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               {/* Guests can't OAuth mid-draft — the suggestion appears once signed in. */}
               {!guest && (
                 <ProfilePhotoSuggest
-                  enabled={linkedinEnabled}
+                  linkedinEnabled={linkedinEnabled}
                   returnTo="/cards/new?add=1"
                   onConfirm={(url) => setHeadshotUrl(url)}
                 />
