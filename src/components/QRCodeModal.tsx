@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 
 // qrcode.react only needs to load once a visitor actually opens this modal —
@@ -27,9 +28,12 @@ export default function QRCodeModal({ url, firstName }: { url: string; firstName
         Show QR Code
       </button>
 
-      {open && (
+      {/* Portaled to <body>: ancestors with will-change/transform (e.g. the
+          data-reveal scroll wrappers) become the containing block for
+          position:fixed and cage the overlay to their own box otherwise. */}
+      {open && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.85)" }}
           onClick={() => setOpen(false)}
         >
@@ -76,7 +80,8 @@ export default function QRCodeModal({ url, firstName }: { url: string; firstName
 
           {/* Tap to close hint */}
           <p className="absolute bottom-8 text-slate-500 text-xs">Tap outside to close</p>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`

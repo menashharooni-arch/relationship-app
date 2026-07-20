@@ -125,10 +125,10 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
             {/* Share this card */}
             <div className={PANEL} style={panelStyle}>
               <div className="flex items-center gap-3 mb-4"><SectionNumber n={4} /><p className="text-slate-900 font-semibold text-sm">Share this card</p></div>
-              <div style={showOnly}>
-                <ShareButton url={CARD_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-                <QRCodeModal url={CARD_URL} firstName={FIRST} />
-              </div>
+              {/* Live, like on a real card — the QR modal portals to <body> at
+                  z-[100], above this z-[90] popup. */}
+              <ShareButton url={CARD_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
+              <QRCodeModal url={CARD_URL} firstName={FIRST} />
               <span className="block text-center text-slate-400 text-[11px] mt-3">Create your card · swiftcard.me</span>
             </div>
 

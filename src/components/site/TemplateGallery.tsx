@@ -146,10 +146,10 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
             <SectionNum n={4} />
             <p className="text-slate-900 font-semibold text-[13px]">Share this card</p>
           </div>
-          <div style={{ pointerEvents: "none" }}>
-            <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-            <QRCodeModal url={DEMO_URL} firstName={FIRST} />
-          </div>
+          {/* Live, like on a real card: the share sheet and QR modal both work
+              so the demo shows the actual sharing experience. */}
+          <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
+          <QRCodeModal url={DEMO_URL} firstName={FIRST} />
           {/* The "Powered by SwiftCard" badge a free card carries — and a real
               conversion path, so it points at the builder. It used to be a hard
               link to https://swiftcard.me/?src=card, which on production merely
