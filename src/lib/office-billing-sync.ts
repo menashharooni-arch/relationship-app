@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
+import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
 import { insertNotification } from "@/lib/notify";
 
 type Admin = ReturnType<typeof getAdminSupabase>;
@@ -29,12 +30,28 @@ export function officeAccessEndedMessage(fallback: "pro" | "free"): string {
 // or already is — Office/enterprise on Stripe.
 export async function provisionOfficeForOwner(admin: Admin, ownerId: string, seats: number): Promise<void> {
   const { data: existing } = await admin.from("offices").select("id").eq("owner_id", ownerId).maybeSingle();
+  let officeId: string | null = null;
   if (existing) {
     await admin.from("offices").update({ seats }).eq("id", existing.id);
+    officeId = existing.id as string;
   } else {
     const { data: prof } = await admin.from("profiles").select("name, company").eq("id", ownerId).maybeSingle();
     const officeName = (prof?.company as string | null) || (prof?.name ? `${prof.name}'s Team` : "My Office");
-    await admin.from("offices").insert({ owner_id: ownerId, name: officeName, seats });
+    const { data: created } = await admin
+      .from("offices")
+      .insert({ owner_id: ownerId, name: officeName, seats })
+      .select("id")
+      .maybeSingle();
+    officeId = (created?.id as string | null) ?? null;
+  }
+
+  // Adopt the owner's earliest card as the office's Primary Card right now, so a
+  // freshly-provisioned office is branded from the moment it exists — for BOTH
+  // new Office signups and Pro→Office upgrades — instead of only once the admin
+  // first opens the console. Idempotent: no-ops once a primary card is set, and
+  // the /office/admin guard still backfills as a safety net.
+  if (officeId) {
+    try { await adoptPrimaryCardForOwner(officeId, ownerId); } catch { /* best-effort — the console backfill covers it */ }
   }
 }
 
