@@ -11,8 +11,10 @@ import { normalizeSlug } from "@/lib/slug";
 export default function CardUrlEditor({ cardId, currentSlug, suggested }: { cardId: string; currentSlug: string; suggested?: string }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(currentSlug);
-  const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "done">("idle");
   const [error, setError] = useState("");
+  // The slug we successfully renamed TO — shown in the manual-update checklist.
+  const [newSlug, setNewSlug] = useState("");
 
   const normalized = normalizeSlug(value);
   const changed = normalized && normalized !== currentSlug;
@@ -39,9 +41,12 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
         setStatus("idle");
         return;
       }
-      // Re-fetch the page so every server-rendered reference to the slug
-      // (this field, the card URL, share links) reflects the new value.
-      window.location.reload();
+      // Renamed. Everything INSIDE SwiftCard now points at the new slug (the card
+      // page, your SwiftLinks page, analytics, and leads all moved server-side).
+      // But things you shared OUTSIDE the app still point at the OLD URL — show a
+      // checklist of what to re-share manually before reloading.
+      setNewSlug(String(data?.slug || normalized));
+      setStatus("done");
     } catch {
       setError("Network error — please try again.");
       setStatus("idle");
@@ -73,6 +78,37 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
     );
   }
 
+  // Post-rename: the internal move is done; walk the owner through the external
+  // things they need to re-share by hand, since the old URL no longer resolves.
+  if (status === "done") {
+    return (
+      <div className="mt-2 bg-gray-900 border border-emerald-600/40 rounded-xl p-3 space-y-2">
+        <p className="text-emerald-400 text-xs font-semibold">
+          Your URL is now /card/{newSlug}
+        </p>
+        <p className="text-gray-400 text-[11px] leading-relaxed">
+          Inside SwiftCard everything already moved to the new URL — your card page, your{" "}
+          <span className="text-gray-200">SwiftLinks page</span> (/{newSlug}), and all your views, leads, and
+          analytics. But anything you shared <span className="text-gray-200">outside</span> the app still points at
+          your old URL and won&apos;t work, so please update these manually:
+        </p>
+        <ul className="text-[11px] text-gray-400 space-y-1 list-disc ml-4">
+          <li>Re-download and re-print your <span className="text-gray-200">QR code</span> (the old one is dead).</li>
+          <li>Re-add your card to <span className="text-gray-200">Apple Wallet</span> so the pass links to the new URL.</li>
+          <li>Re-copy your <span className="text-gray-200">email signature</span> into your email client.</li>
+          <li>Re-share your link anywhere you posted it — social bios, texts, DMs, your website.</li>
+        </ul>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+        >
+          Got it
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 bg-gray-900 border border-gray-700 rounded-xl p-3 space-y-2">
       <label className="block text-[11px] font-medium text-gray-400">Card URL</label>
@@ -90,8 +126,10 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
         <p className="text-gray-500 text-[11px]">Will be saved as <span className="text-gray-300">/card/{normalized}</span></p>
       )}
       <p className="text-amber-400/90 text-[11px] leading-relaxed">
-        Heads up: any QR codes, printed links, or Wallet passes with your old URL will stop working. Your views, leads,
-        and analytics move to the new URL automatically.
+        Heads up: everything inside SwiftCard — your card, your SwiftLinks page, and all your views, leads &amp;
+        analytics — moves to the new URL automatically. But anything already shared with your old URL (QR codes,
+        printed cards, Wallet passes, your email signature, links in your social bios) will stop working, so
+        you&apos;ll need to re-share those manually. We&apos;ll show you the list right after.
       </p>
       {error && <p className="text-red-400 text-[11px]">{error}</p>}
       <div className="flex items-center gap-2 pt-0.5">
