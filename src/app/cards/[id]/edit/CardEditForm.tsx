@@ -5,7 +5,7 @@
 // so every change is visible immediately. Same fields, labels, and save
 // behavior as before; only the layout changed from a 3-step wizard to tabs.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
@@ -125,6 +125,19 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("content");
+  // Tap-to-edit: tapping the live preview jumps to the color controls and flashes
+  // them, so "tap the card to change its colors" works (esp. on stacked mobile).
+  const styleControlsRef = useRef<HTMLDivElement | null>(null);
+  const [styleFlash, setStyleFlash] = useState(false);
+  function jumpToStyleControls() {
+    setTab("design");
+    // Wait a frame for the Design tab to mount its controls, then scroll+flash.
+    requestAnimationFrame(() => {
+      styleControlsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setStyleFlash(true);
+      setTimeout(() => setStyleFlash(false), 1400);
+    });
+  }
 
   // Broadcast the active tab so the header "View live" link (rendered in the
   // server page, outside this component) can hide itself on the Design tab.
@@ -618,7 +631,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
                   </p>
                 </div>
-                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
+                <div
+                  ref={styleControlsRef}
+                  className={`rounded-xl transition-shadow duration-500 ${styleFlash ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-950" : ""}`}
+                >
+                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
+                </div>
                 {!isPro && (
                   <PlanGate
                     feature="colors-fonts"
@@ -817,21 +835,39 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       <div className="order-1 lg:order-2 lg:sticky lg:top-6">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
-          {/* Hidden on the Design tab (owner request) — both this and the header
-              "View live" link disappear while designing. */}
-          {tab !== "design" && (
+          {/* Hidden on the Design and Socials tabs (owner request) — both this
+              and the header "View live" link disappear on those tabs. */}
+          {tab !== "design" && tab !== "sharing" && (
             <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-400 hover:text-blue-300">View live →</a>
           )}
         </div>
-        <div className="rounded-2xl overflow-hidden border border-gray-800">
-          {/* Scale from the 460px natural width (same as the published card) so a
-              long name/title/company never clips in-preview. */}
-          <CardScaler>
-            <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
-          </CardScaler>
-        </div>
+        {/* On the Design tab the preview is a tap target: tapping it jumps to the
+            color controls so you can recolor the card straight from the card.
+            Elsewhere it's a plain, non-interactive preview. */}
+        {tab === "design" && !customSelected ? (
+          <button
+            type="button"
+            onClick={jumpToStyleControls}
+            title="Tap to change this card's colors"
+            className="group block w-full text-left rounded-2xl overflow-hidden border border-gray-800 hover:border-blue-500/60 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+          >
+            <CardScaler>
+              <PreviewTemplate data={withoutSocials(previewData)} />
+            </CardScaler>
+          </button>
+        ) : (
+          <div className="rounded-2xl overflow-hidden border border-gray-800">
+            {/* Scale from the 460px natural width (same as the published card) so a
+                long name/title/company never clips in-preview. */}
+            <CardScaler>
+              <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+            </CardScaler>
+          </div>
+        )}
         {tab === "sharing" ? (
           <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title & contact details.</p>
+        ) : tab === "design" && !customSelected ? (
+          <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly. <span className="text-blue-400">Tap the card to edit its colors →</span></p>
         ) : (
           <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
         )}

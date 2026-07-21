@@ -36,7 +36,12 @@ type TemplateMeta = {
   bg: StyleField;
   text: StyleField;
   info: StyleField;
+  accent: StyleField;
 };
+
+// A broad, tasteful accent palette shared by every template's icon/accent
+// control (each template's own default is prepended so it's the first swatch).
+const ACCENT_PRESETS = ["#2563eb", "#6d28d9", "#0f766e", "#b45309", "#be123c", "#111827", "#b08d57", "#059669"];
 
 // Per-template descriptions, curated looks, and tailored fine-tune palettes.
 const META: Record<string, TemplateMeta> = {
@@ -69,6 +74,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#0e1b35", "#111827", "#334155", "#1c1612"],
       fallback: "#0e1b35",
     },
+    accent: {
+      label: "Accent / icons",
+      help: "The color of the phone, email, and address icons next to your details.",
+      presets: ACCENT_PRESETS,
+      fallback: "#2563eb",
+    },
   },
   "modern-bold": {
     name: "Modern Bold",
@@ -99,6 +110,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#f1f5f9", "#ffffff", "#cbd5e1", "#94a3b8"],
       fallback: "#f1f5f9",
     },
+    accent: {
+      label: "Accent / icons",
+      help: "The electric icon color next to your phone, email, and address.",
+      presets: ["#3b82f6", "#60a5fa", "#a78bfa", "#22d3ee", "#34d399", "#f472b6", "#fbbf24", "#ffffff"],
+      fallback: "#3b82f6",
+    },
   },
   "luxury-minimal": {
     name: "Luxury Minimal",
@@ -127,6 +144,12 @@ const META: Record<string, TemplateMeta> = {
       help: "Your contact details — deep ink on ivory, or a soft light or gold on the charcoal look.",
       presets: ["#1c1612", "#3f2d1a", "#8c6c34", "#d4af7a", "#e7dcc8"],
       fallback: "#1c1612",
+    },
+    accent: {
+      label: "Accent / icons",
+      help: "The gold accent used for the icons next to your details.",
+      presets: ["#b08d57", "#c9a96e", "#8c6c34", "#d4af7a", "#1c1612", "#0e1b35", "#3f2d1a", "#a16207"],
+      fallback: "#b08d57",
     },
   },
   "local-business": {
@@ -158,6 +181,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#7c2d12", "#78350f", "#92400e", "#1c1612"],
       fallback: "#7c2d12",
     },
+    accent: {
+      label: "Accent / icons",
+      help: "The color of the icons next to your phone, email, and address.",
+      presets: ["#b45309", "#d97706", "#166534", "#0f766e", "#0e1b35", "#be123c", "#7c2d12", "#f59e0b"],
+      fallback: "#b45309",
+    },
   },
   "photo-first": {
     name: "Photo First",
@@ -188,6 +217,12 @@ const META: Record<string, TemplateMeta> = {
       presets: ["#111827", "#1e1b4b", "#ffffff", "#e5e7eb"],
       fallback: "#111827",
     },
+    accent: {
+      label: "Accent / icons",
+      help: "The color of the icons next to your phone, email, and address.",
+      presets: ["#6d28d9", "#7c3aed", "#4f46e5", "#2563eb", "#be123c", "#10b981", "#0a0a0a", "#d4af7a"],
+      fallback: "#6d28d9",
+    },
   },
 };
 
@@ -216,6 +251,12 @@ const FALLBACK_META: TemplateMeta = {
     help: "The color of your contact details (phone, email, address).",
     presets: ["#111827", "#334155", "#ffffff", "#e5e7eb"],
     fallback: "#111827",
+  },
+  accent: {
+    label: "Accent / icons",
+    help: "The color of the icons next to your contact details.",
+    presets: ACCENT_PRESETS,
+    fallback: "#2563eb",
   },
 };
 
@@ -417,7 +458,14 @@ export default function TemplateStyleControls({
         <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} />
       </div>
 
-      {/* 4) Font */}
+      {/* 4) Accent / icon color — the phone/email/address icons (the purple) */}
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>{meta.accent.label}</p>
+        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.accent.help}</p>
+        <Swatches presets={meta.accent.presets} value={value.accentColor} fallbackHex={meta.accent.fallback} onPick={(v) => onChange({ accentColor: v })} />
+      </div>
+
+      {/* 5) Font */}
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Font</p>
         <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
