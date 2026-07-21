@@ -28,6 +28,7 @@ export default function MiniBuilderModal({
   preview,
   previewCaption,
   onLaunch,
+  onStartOver,
   launching = false,
   launchLabel = "Make it live →",
 }: {
@@ -40,6 +41,10 @@ export default function MiniBuilderModal({
   preview: React.ReactNode;
   previewCaption?: string;
   onLaunch: () => void;
+  /** Explicitly throw the whole draft away and start from a blank builder.
+   *  Closing does NOT do this — the three builders share one draft and a
+   *  visitor moving between products must not lose what they already typed. */
+  onStartOver?: () => void;
   launching?: boolean;
   launchLabel?: string;
 }) {
@@ -129,6 +134,16 @@ export default function MiniBuilderModal({
                 <p className="text-white/35 text-[11.5px] mt-3 leading-relaxed">
                   We&apos;ll carry over everything you entered — you&apos;ll just add the finishing touches.
                 </p>
+              )}
+
+              {onStartOver && (
+                <button
+                  type="button"
+                  onClick={onStartOver}
+                  className="mt-4 text-white/35 hover:text-white/70 text-[11.5px] underline underline-offset-2 transition-colors"
+                >
+                  Start over with a blank one
+                </button>
               )}
             </div>
 

@@ -171,17 +171,33 @@ describe("resetGuestFlow wiring", () => {
     expect(src.match(/resetGuestFlow\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
-  it("all three mini builders reset on close", () => {
+  // Closing a builder must NOT wipe the draft: the three builders share one
+  // draft and a visitor routinely closes one product to open another, so
+  // clearing here would make them retype everything. Only an explicit
+  // "Start over" — or heading Home — throws the work away.
+  it("closing a mini builder KEEPS the draft, so switching products keeps the info", () => {
     for (const f of [
       "src/components/site/CardMiniBuilder.tsx",
       "src/components/site/SwiftLinkMiniBuilder.tsx",
       "src/components/site/SignatureMiniBuilder.tsx",
     ]) {
       const src = read(f);
-      // Closing must go through the reset, not a bare setOpen(false)...
-      expect(src, f).toContain("onClose={closeAndReset}");
-      // ...and that path must actually clear the shared sketch.
-      expect(src, f).toMatch(/function closeAndReset\(\)[\s\S]*?reset\(\)/);
+      expect(src, f).toContain("onClose={close}");
+      // The close path must not reach the reset.
+      const closeFn = src.match(/function close\(\)\s*\{[\s\S]*?\n  \}/)?.[0] ?? "";
+      expect(closeFn, f).not.toContain("reset()");
+    }
+  });
+
+  it("every builder still offers an explicit Start over that clears everything", () => {
+    for (const f of [
+      "src/components/site/CardMiniBuilder.tsx",
+      "src/components/site/SwiftLinkMiniBuilder.tsx",
+      "src/components/site/SignatureMiniBuilder.tsx",
+    ]) {
+      const src = read(f);
+      expect(src, f).toContain("onStartOver={startOver}");
+      expect(src, f).toMatch(/function startOver\(\)[\s\S]*?reset\(\)/);
     }
     // The builders share one reset, which is what wipes the stored keys.
     expect(read("src/components/site/useProductSketch.ts")).toContain("resetGuestFlow()");
