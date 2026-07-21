@@ -9,7 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // NOTE: /templates is NOT public — it's an authenticated "choose your card
   // template" page gated by src/proxy.ts, redirecting anonymous visitors to
   // /login. Do not add it back here without also removing it from that gate.
-  const routes = ["", "/pricing", "/compare", "/contact", "/privacy", "/terms", "/login"];
+  const routes = ["", "/pricing", "/compare", "/contact", "/privacy", "/terms", "/company", "/sms-terms", "/sms-consent", "/login"];
   return routes.map((route) => ({
     url: `${APP_URL}${route}`,
     lastModified: new Date(),

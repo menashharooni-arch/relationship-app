@@ -53,7 +53,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .eq("id", id)
       .in("card_owner", usernames)
       .maybeSingle();
+    const clientTags = (Array.isArray(body.tags) ? body.tags : []).filter(
+      (t): t is string => typeof t === "string"
+    );
     body.tags = mergeClientTags(body.tags, cur?.tags as string[] | null);
+    // The two channel-pause tags are the dashboard's own Email/Text automation
+    // toggles — owner-facing controls, unlike the rest of the reserved set
+    // (sc-office-*, sc-locked, flow-*, preset-*), which stays server-owned.
+    // mergeClientTags preserves reserved tags verbatim, which silently froze
+    // these toggles in BOTH directions (flipping them never changed the row) —
+    // and once lead capture began recording a declined SMS consent as
+    // sms-paused, a frozen toggle meant no owner could ever re-enable texts at
+    // a contact's request. This caller is authenticated and every read/write is
+    // ownership-scoped, so honoring the client's state for exactly these two
+    // tags is safe.
+    const CHANNEL_PAUSE_TAGS = ["email-paused", "sms-paused"] as const;
+    let reconciled = body.tags as string[];
+    for (const t of CHANNEL_PAUSE_TAGS) {
+      reconciled = clientTags.includes(t)
+        ? Array.from(new Set([...reconciled, t]))
+        : reconciled.filter((x) => x !== t);
+    }
+    body.tags = reconciled;
   }
 
   const { error } = await admin

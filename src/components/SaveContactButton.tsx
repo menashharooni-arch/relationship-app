@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
@@ -86,6 +87,7 @@ export default function SaveContactButton({
   const [showSheet, setShowSheet] = useState(false);
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -217,6 +219,7 @@ export default function SaveContactButton({
           email: form.email || null,
           card_owner: cardOwner,
           source: "save_contact_conversion",
+          sms_consent: smsConsent,
         }),
       });
       if (!res.ok) throw new Error("lead capture failed");
@@ -326,6 +329,9 @@ export default function SaveContactButton({
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
                   />
+                  {/* SMS consent — separate affirmative opt-in (unchecked by
+                      default, optional); same block as every capture surface. */}
+                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
                   <button
                     type="submit"
                     disabled={status === "loading"}

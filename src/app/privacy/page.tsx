@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 // match the code. Update LAST_UPDATED whenever the policy meaningfully changes
 // (CalOPPA requires an effective date).
 
-const LAST_UPDATED = "July 14, 2026";
+const LAST_UPDATED = "July 21, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
-          SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;), a brand operated by ORION RE SERVICES INC,
+          SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;), a brand operated by Swift Card Inc,
           provides digital business cards, link-in-bio pages, and contact-management tools at swiftcard.me and in our
           mobile app (together, the &quot;Service&quot;). This policy explains what information we collect, how we use
           it, and the choices and rights you have. We keep it in plain English on purpose. For personal information of
@@ -164,6 +164,24 @@ export default function PrivacyPage() {
           policy continues to apply and we&apos;ll notify you of any successor).
         </P>
 
+        <H2>Text messaging (SMS) and mobile information</H2>
+        <P>
+          <strong>
+            We do not share, sell, or otherwise provide your mobile phone number or messaging consent
+            information to any third parties or affiliates for marketing or promotional purposes.
+          </strong>{" "}
+          Mobile numbers and SMS opt-in data are used only to deliver the messages described in our{" "}
+          <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link> — replies
+          and follow-ups from the SwiftCard user you shared your information with.
+        </P>
+        <P>
+          Necessary service providers (such as Twilio, our text-messaging provider) process mobile numbers
+          solely to deliver those messages on our instructions — never for their own marketing. Consent to
+          receive texts is collected through a separate, unchecked-by-default checkbox on the share form,
+          is always optional, and is never a condition of sharing your information, creating an account, or
+          making a purchase. Reply STOP to any text to opt out across all of SwiftCard, or HELP for help.
+        </P>
+
         <H2>International transfers</H2>
         <P>
           We are based in the United States and our providers process data primarily in the U.S. If you use SwiftCard
@@ -200,8 +218,10 @@ export default function PrivacyPage() {
         <P>
           If your information was collected by a SwiftCard user (you filled out someone&apos;s card form), that user
           controls it — contact them directly, or contact us and we&apos;ll assist. You can opt out of their messages at
-          any time: replying STOP to a text suppresses texts to your number across SwiftCard, and every automated email
-          includes an unsubscribe link.
+          any time: replying STOP to a text suppresses texts to your number across SwiftCard (reply HELP for help), and
+          every automated email includes an unsubscribe link. See our{" "}
+          <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link> for the full
+          messaging program.
         </P>
 
         <H2>Data retention &amp; deleting your account</H2>
@@ -241,9 +261,10 @@ export default function PrivacyPage() {
 
         <H2>Contact us</H2>
         <P>
-          Questions or requests (including data access, correction, or deletion): reach us through the{" "}
-          <Link href="/contact" className="text-brand underline">contact page</Link>.
-          SwiftCard, a brand operated by ORION RE SERVICES INC · New York, NY, USA.
+          Questions or requests (including data access, correction, or deletion): email{" "}
+          <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a> or reach us
+          through the <Link href="/contact" className="text-brand underline">contact page</Link>.
+          SwiftCard is operated by Swift Card Inc · New York, NY, USA.
         </P>
       </div>
 
