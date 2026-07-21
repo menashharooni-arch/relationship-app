@@ -22,7 +22,7 @@ function parseSocial(raw: string, platform: "instagram" | "twitter" | "tiktok" |
 }
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, SAMPLE_DATA_WITH_PHOTO } from "@/components/card-templates/types";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -286,7 +286,7 @@ export default function OnboardingForm({ userId }: { userId: string }) {
                 )}
                 <div className="rounded-[10px] overflow-hidden">
                 <div className="w-full pointer-events-none scale-[0.85] origin-top-left" style={{ width: "117%", height: "auto" }}>
-                  <Component data={SAMPLE_DATA} />
+                  <Component data={SAMPLE_DATA_WITH_PHOTO} />
                 </div>
                 <div className="bg-white px-2 pt-1.5 pb-2">
                   <p

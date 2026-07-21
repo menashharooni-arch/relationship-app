@@ -61,7 +61,7 @@ function ShareScreen() {
             <p className="text-[9px] font-semibold text-slate-700 truncate">swiftcard.me/card/alexmorgan</p>
           </div>
           <div className="px-3 py-2" style={{ background: "#fff" }}>
-            <p className="text-[10px] font-bold text-slate-900">Alex Morgan · Founder & CEO</p>
+            <p className="text-[10px] font-bold text-slate-900">Alex Morgan · Realtor®</p>
             <p className="text-[9px] text-slate-500">Tap to view card &amp; save contact</p>
           </div>
         </div>
@@ -157,8 +157,8 @@ function SaveScreen() {
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "#1D4ED8" }}>AM</div>
             <div>
               <p className="text-slate-900 text-[11px] font-semibold">Alex Morgan</p>
-              <p className="text-slate-400 text-[9px]">alex@morganandco.com</p>
-              <p className="text-slate-400 text-[9px]">(555) 123-4567</p>
+              <p className="text-slate-400 text-[9px]">alex@coastlinerealty.com</p>
+              <p className="text-slate-400 text-[9px]">(415) 555-0188</p>
             </div>
             <div className="ml-auto">
               <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "#E8F5E9" }}>

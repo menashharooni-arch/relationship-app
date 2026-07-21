@@ -25,14 +25,14 @@ import { buildConnectLinks } from "@/lib/social-url";
 // one company, everywhere on the site.
 const IDENTITY = {
   name: "Alex Morgan",
-  title: "Founder & CEO",
-  company: "Morgan & Co.",
-  phone: "(555) 123-4567",
-  email: "alex@morganandco.com",
-  website: "www.morganandco.com",
+  title: "Realtor®",
+  company: "Coastline Realty",
+  phone: "(415) 555-0188",
+  email: "alex@coastlinerealty.com",
+  website: "coastlinehomes.com",
   linkedin: "linkedin.com/in/alexmorgan",
-  instagram: "@morganandco",
-  tiktok: "@morganandco",
+  instagram: "@coastlinerealty",
+  tiktok: "@coastlinerealty",
   twitter: "@alexmorgan",
 };
 const FIRST = "Alex";
@@ -182,7 +182,7 @@ export default function SignatureDemo() {
 
           {/* signature */}
           <div className="mt-5 pt-5 border-t border-slate-100">
-            <p className="text-[14px] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Morgan &amp; Co.</span></p>
+            <p className="text-[14px] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Coastline Realty</span></p>
             <div className="relative w-[300px] max-w-full transition-transform hover:-translate-y-0.5">
               <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.4)]" style={{ pointerEvents: "none", background: "#FAF7F2" }}>
                 <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>

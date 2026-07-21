@@ -23,10 +23,10 @@ import { withoutSocials } from "@/components/card-templates/types";
 
 // Same demo identity as SAMPLE_DATA (card-templates/types.tsx) and every other
 // marketing demo (SwiftLinksPhone, SignatureDemo, DashboardDemo) — one person,
-// one company, everywhere on the site. Alex Morgan (Founder & CEO) is the
-// office owner; the team works under the same "Morgan & Co." brand.
-const COMPANY = "Morgan & Co.";
-const WEBSITE = "morganandco.com";
+// one company, everywhere on the site. Alex Morgan (Realtor®) is the
+// office owner; the team works under the same "Coastline Realty" brand.
+const COMPANY = "Coastline Realty";
+const WEBSITE = "coastlinehomes.com";
 const ACCENT = "#2563EB";
 
 const TEMPLATES = { "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst, "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal } as const;
@@ -43,14 +43,14 @@ type Person = {
 // Licensed stock headshots (free for commercial use, no attribution required) —
 // every team member gets a real photo, not just an initials circle.
 const PEOPLE: Person[] = [
-  { id: "alex", name: "Alex Morgan", title: "Founder & CEO", initials: "AM", email: "alex@morganandco.com", photo: "/marketing/team/person1.jpg", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true },
-  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@morganandco.com", photo: "/marketing/team/person2.jpg", views: 903, leads: 94, lastActive: "Yesterday", active: true },
-  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@morganandco.com", photo: "/marketing/team/person3.jpg", views: 588, leads: 61, lastActive: "3 days ago", active: true },
-  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@morganandco.com", photo: "/marketing/team/person4.jpg", views: 511, leads: 52, lastActive: "5 days ago", active: true },
-  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@morganandco.com", photo: "/marketing/team/person5.jpg", views: 96, leads: 4, lastActive: "3 weeks ago", active: false },
+  { id: "alex", name: "Alex Morgan", title: "Realtor®", initials: "AM", email: "alex@coastlinerealty.com", photo: "/marketing/team/person1.jpg", views: 1240, leads: 128, lastActive: "2 hours ago", active: true, owner: true },
+  { id: "sofia", name: "Sofia Reyes", title: "Senior Agent", initials: "SR", email: "sofia@coastlinehomes.com", photo: "/marketing/team/person2.jpg", views: 903, leads: 94, lastActive: "Yesterday", active: true },
+  { id: "marcus", name: "Marcus Lee", title: "Agent", initials: "ML", email: "marcus@coastlinehomes.com", photo: "/marketing/team/person3.jpg", views: 588, leads: 61, lastActive: "3 days ago", active: true },
+  { id: "elena", name: "Elena Diaz", title: "Agent", initials: "ED", email: "elena@coastlinehomes.com", photo: "/marketing/team/person4.jpg", views: 511, leads: 52, lastActive: "5 days ago", active: true },
+  { id: "dana", name: "Dana Ruiz", title: "Marketing Lead", initials: "DR", email: "dana@coastlinehomes.com", photo: "/marketing/team/person5.jpg", views: 96, leads: 4, lastActive: "3 weeks ago", active: false },
 ];
 
-const PENDING = { email: "priya@morganandco.com", initials: "PR", sent: "Jul 12" };
+const PENDING = { email: "priya@coastlinehomes.com", initials: "PR", sent: "Jul 12" };
 
 const LEADS = [
   { id: "l1", name: "Sarah Chen", email: "sarah@acme.com", phone: "(415) 555-0126", by: "Sofia Reyes", worked: true, label: "Contacted", when: "2 hours ago" },
