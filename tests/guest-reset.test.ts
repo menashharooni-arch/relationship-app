@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // resetGuestFlow() is what every "leave for Home" exit calls — the wizard's Home
 // link, the marketing nav's Home links, and closing any of the three homepage
@@ -139,5 +141,46 @@ describe("resetGuestFlow — abandoning a guest flow for Home", () => {
     const m = await freshModules(ls);
     expect(() => m.reset.resetGuestFlow()).not.toThrow();
     expect(ls.size()).toBe(0);
+  });
+});
+
+// ── Wiring: every "left the flow" exit must actually call the reset ──────────
+// resetGuestFlow() only helps if it's hooked up. These assert against the real
+// source so a refactor can't silently drop an exit and let a stale draft come
+// back as "We kept your work from last time".
+describe("resetGuestFlow wiring", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+  it("the homepage mounts GuestFlowReset — covers leaving by ANY means (tab close, Back, direct URL)", () => {
+    const page = read("src/app/page.tsx");
+    expect(page).toContain("GuestFlowReset");
+    const cmp = read("src/components/GuestFlowReset.tsx");
+    expect(cmp).toContain("resetGuestFlow()");
+    // Must bail out for signed-in users so a pending claim is never destroyed.
+    expect(cmp).toContain("isAuthenticated()");
+  });
+
+  it("the card wizard's guest Home link resets", () => {
+    const src = read("src/app/cards/new/NewCardWizard.tsx");
+    expect(src).toContain("resetGuestFlow()");
+  });
+
+  it("the marketing nav's Home links reset", () => {
+    const src = read("src/components/site/SiteNav.tsx");
+    // Desktop + mobile Home links.
+    expect(src.match(/resetGuestFlow\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("all three mini builders reset on close", () => {
+    for (const f of [
+      "src/components/site/CardMiniBuilder.tsx",
+      "src/components/site/SwiftLinkMiniBuilder.tsx",
+      "src/components/site/SignatureMiniBuilder.tsx",
+    ]) {
+      const src = read(f);
+      expect(src, f).toContain("resetGuestFlow()");
+      // Closing must go through the reset, not a bare setOpen(false).
+      expect(src, f).toContain("onClose={closeAndReset}");
+    }
   });
 });

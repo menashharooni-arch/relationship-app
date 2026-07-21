@@ -17,6 +17,7 @@ import TemplateGallery from "@/components/site/TemplateGallery";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
+import GuestFlowReset from "@/components/GuestFlowReset";
 
 export const metadata: Metadata = {
   title: "SwiftCard — The digital business card that shares itself",
@@ -36,6 +37,9 @@ function Eyebrow({ children, dark = true }: { children: React.ReactNode; dark?: 
 export default function Home() {
   return (
     <>
+      {/* Arriving Home as a guest abandons any half-built card/preview — see
+          GuestFlowReset. Renders nothing. */}
+      <GuestFlowReset />
       <ScrollProgress />
       <ScrollReveal />
       <SiteNav />
