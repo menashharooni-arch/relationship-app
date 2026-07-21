@@ -19,7 +19,7 @@ import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { ensureUserCards } from "@/lib/ensure-cards";
-import MobileNav from "@/components/MobileNav";
+import MobileNavGate from "@/components/MobileNavGate";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
 import SignOutButton from "@/components/SignOutButton";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
@@ -264,7 +264,7 @@ export default async function FlowSettingsPage({
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
-      <MobileNav />
+      <MobileNavGate />
 
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import OfficeAdminNav from "./OfficeAdminNav";
 import AdminGuidedTour from "@/components/office/AdminGuidedTour";
+import MobileNavGate from "@/components/MobileNavGate";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 
 // Every /office/admin page inherits this shell: the Office gate + one consistent
@@ -36,7 +37,12 @@ export default async function OfficeAdminLayout({ children }: { children: React.
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-5 pt-6 pb-16">{children}</main>
+      {/* pb clears the mobile tab bar; md+ keeps the original spacing. */}
+      <main className="max-w-6xl mx-auto px-5 pt-6 pb-28 md:pb-16">{children}</main>
+      {/* The same bottom tab bar as the rest of the app (Admin tab lit here),
+          so a phone user can move between the console and their own dashboard
+          without hunting for the small header link. */}
+      <MobileNavGate />
       <AdminGuidedTour />
     </div>
   );

@@ -5,7 +5,7 @@ import { getReferralProgress } from "@/lib/referral-server";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
-import MobileNav from "@/components/MobileNav";
+import MobileNavGate from "@/components/MobileNavGate";
 import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
 import NativeHidden from "@/components/NativeHidden";
@@ -64,7 +64,7 @@ export default async function GrowPage() {
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
-      <MobileNav />
+      <MobileNavGate />
       <HelpWidget floating />
 
       {/* Top accent stripe */}

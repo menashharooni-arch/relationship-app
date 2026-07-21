@@ -4,7 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import ProfileForm from "@/components/ProfileForm";
 import FlowSettingsForm from "@/components/FlowSettingsForm";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
-import MobileNav from "@/components/MobileNav";
+import MobileNavGate from "@/components/MobileNavGate";
 import CopyButton from "@/components/CopyButton";
 import DashboardLink from "@/components/DashboardLink";
 
@@ -34,7 +34,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-cream px-5 py-10 pb-24 md:pb-10">
-      <MobileNav />
+      <MobileNavGate />
       <div className="max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
