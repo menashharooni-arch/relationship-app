@@ -7,7 +7,9 @@ import { Redis } from "@upstash/redis";
 // The in-memory limiter (below) only throttles bursts hitting ONE warm
 // serverless instance — under real load, requests spread across instances each
 // keep their own counter, so the effective limit is looser than the number
-// suggests. Setting UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN switches
+// suggests. Setting UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (or the
+// KV_REST_API_URL + KV_REST_API_TOKEN pair the Vercel Marketplace install
+// injects) switches
 // every caller to a shared sliding window in Redis with NO code changes, making
 // the limits actually enforce globally. Without those env vars, behavior is
 // exactly as before.
@@ -32,8 +34,12 @@ let redisResolved = false;
 function getRedis(): Redis | null {
   if (redisResolved) return redis;
   redisResolved = true;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Accept either naming. Setting UPSTASH_REDIS_REST_* by hand works, and so
+  // does installing Upstash from the Vercel Marketplace, which injects the
+  // KV_REST_API_* pair — without this, a correctly-installed integration would
+  // silently leave every limiter on the weaker in-memory fallback.
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (url && token) redis = new Redis({ url, token });
   return redis;
 }
