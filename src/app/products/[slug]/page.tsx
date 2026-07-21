@@ -66,12 +66,16 @@ const PRODUCTS: Record<string, Product> = {
       { t: "Made for your bio", d: "Drop it in your Instagram or TikTok bio and send traffic that converts." },
     ],
     metaDesc: "SwiftLinks — one beautiful link-in-bio page for your bio, socials, and links, with lead capture built in.",
+    // Product-correct CTA — still lands on /cards/new (the SwiftLink lives on
+    // the same card record; the builder covers it), only the label changes.
+    ctaLabel: "Create your free SwiftLink",
   },
   "email-signatures": {
     eyebrow: "Swift Signature",
     title: <>Every email you send, <A>advertising you.</A></>,
     titlePlain: "Swift Signature",
     subtitle: "Drop your live SwiftCard into your email signature once with Swift Signature. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.",
+    ctaLabel: "Create your free Swift Signature",
     demo: (
       <div className="w-full rounded-[28px] bg-[#F5F0E3] p-5 sm:p-8 shadow-2xl">
         <SignatureDemo />
