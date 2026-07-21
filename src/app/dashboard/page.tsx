@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
+import { safeTimeZone, localDayKey, startOfLocalDayUtc } from "@/lib/tz-days";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
@@ -18,6 +20,7 @@ import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import TrafficChart from "@/components/TrafficChart";
+import TimezoneCookie from "@/components/TimezoneCookie";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
@@ -197,12 +200,41 @@ export default async function DashboardPage({
 
   // Traffic box: SwiftCard (card link) + SwiftLink (links page) views for the
   // chosen window (today / week / month).
-  const viewsCutoff = (() => {
-    if (viewsRange === "month") return daysAgoISO(30);
-    if (viewsRange === "week") return daysAgoISO(7);
-    const d = new Date();
-    d.setUTCHours(0, 0, 0, 0);
-    return d.toISOString();
+  //
+  // Views are stored in UTC, but the owner reads this dashboard on THEIR
+  // calendar. Bucketing/windowing by UTC put an 11pm-Pacific view on the next
+  // day and made "today" start at the wrong hour. We window by the owner's LOCAL
+  // day using the tz the browser reported (sc_tz cookie); absent it (first
+  // paint, cookies off), we fall back to UTC — same as the old behaviour, so no
+  // regression. tzNow is a single "now" so every window below is consistent.
+  const ownerTz = safeTimeZone((await cookies()).get("sc_tz")?.value);
+  const tzNow = new Date();
+  // Days-back that yields the required number of LOCAL day buckets, today
+  // included: month → 30 buckets (today + 29 prior), week → 7, today → 1.
+  const windowDaysBack = viewsRange === "month" ? 29 : viewsRange === "week" ? 6 : 0;
+  const windowStartDate = startOfLocalDayUtc(windowDaysBack, ownerTz, tzNow);
+  const windowStart = windowStartDate.getTime();
+  const viewsCutoff = windowStartDate.toISOString();
+
+  // Previous same-size window, immediately before the current one, for the
+  // "▲ 23% this week" trend. Computed as EXACT count queries (added to the batch
+  // below) rather than derived from the capped recentViews array — on a busy
+  // card the array's oldest tail (which IS the previous month window) gets
+  // dropped at the row cap, which silently inflated the delta.
+  // For "today" we compare the SAME ELAPSED slice of yesterday (midnight→now),
+  // not the full prior day — else every morning shows a false ▼ against a whole
+  // day's traffic.
+  const prevWindow = (() => {
+    if (viewsRange === "today") {
+      const yStart = startOfLocalDayUtc(1, ownerTz, tzNow).getTime();
+      const elapsed = tzNow.getTime() - windowStart; // ms into today, in local terms
+      return { start: new Date(yStart).toISOString(), end: new Date(yStart + elapsed).toISOString() };
+    }
+    const backToPrevStart = viewsRange === "month" ? 59 : 13;
+    return {
+      start: startOfLocalDayUtc(backToPrevStart, ownerTz, tzNow).toISOString(),
+      end: viewsCutoff,
+    };
   })();
   // ONE parallel batch for everything below-the-fold — previously 4 sequential
   // awaits (2 counts → best-day rows → locations → leads+notifications), i.e.
@@ -210,6 +242,8 @@ export default async function DashboardPage({
   const [
     { count: swiftCardViews },
     { count: swiftLinkViews },
+    { count: prevCardCount },
+    { count: prevLinkCount },
     { data: recentViews },
     locViewsRes,
     { data: leads },
@@ -223,6 +257,10 @@ export default async function DashboardPage({
     // safe: analyticsUsername is verified above to be one of THIS user's cards.
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
+    // Exact previous-window baselines for the trend %, so the comparison never
+    // depends on the capped recentViews array (see prevWindow above).
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", prevWindow.start).lt("viewed_at", prevWindow.end),
+    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", prevWindow.start).lt("viewed_at", prevWindow.end),
     // 60 days of raw view timestamps: powers the best-day stat (30d), the
     // Traffic bar graph buckets, and the vs-previous-window % change (which
     // needs a full prior window, hence 60d for the month view).
@@ -294,12 +332,14 @@ export default async function DashboardPage({
     bellNotifications ??= fallback;
   }
 
-  // Basic-panel "best day" (last 30d views) — available to every plan.
-  const thirtyDayCutoff = daysAgoISO(30);
+  // Basic-panel "best day" (last 30 LOCAL days) — available to every plan.
+  // Keyed by the owner's local calendar day (not UTC) so a busy evening isn't
+  // split across two dates. Cutoff is start of the local day 29 days ago.
+  const thirtyDayCutoff = startOfLocalDayUtc(29, ownerTz, tzNow).toISOString();
   const dayTally: Record<string, number> = {};
   for (const v of recentViews ?? []) {
     if ((v.viewed_at as string) < thirtyDayCutoff) continue;
-    const k = new Date(v.viewed_at as string).toISOString().slice(0, 10);
+    const k = localDayKey(v.viewed_at as string, ownerTz);
     dayTally[k] = (dayTally[k] ?? 0) + 1;
   }
   let bestDay: { date: string; views: number } | null = null;
@@ -309,36 +349,49 @@ export default async function DashboardPage({
 
   // ── Traffic graph + trend ────────────────────────────────────────────────────
   // Bucket the selected window's views into bars (today → 24 hours, week → 7
-  // days, month → 30 days) and compare each tile's total against the SAME-SIZE
-  // window immediately before it ("▲ 23% this week").
-  const windowMs = viewsRange === "month" ? 30 * 864e5 : viewsRange === "week" ? 7 * 864e5 : 864e5;
-  const windowStart = new Date(viewsCutoff).getTime();
-  const prevStart = windowStart - windowMs;
+  // days, month → 30 days), all in the owner's LOCAL calendar so a bar's label
+  // matches the views inside it. Day buckets key off localDayKey; hour buckets
+  // (today) index off local-midnight. Each bar carries the real instant of its
+  // start (local midnight / local hour) so the chart axis reads correctly.
   const bucketCount = viewsRange === "month" ? 30 : viewsRange === "week" ? 7 : 24;
-  const bucketMs = viewsRange === "today" ? 36e5 : 864e5;
   const trafficBars: number[] = Array.from({ length: bucketCount }, () => 0);
-  let prevCard = 0;
-  let prevLink = 0;
-  // (The per-surface unique-visitor tally that used to live here was removed
-  // with the "unique visitors" tile line — owner decision, Jul 2026.)
+  // Ordered day keys for the day views, oldest→newest, so a view maps to its bar.
+  const dayBarKeys =
+    viewsRange === "today"
+      ? []
+      : Array.from({ length: bucketCount }, (_, i) =>
+          localDayKey(startOfLocalDayUtc(bucketCount - 1 - i, ownerTz, tzNow), ownerTz),
+        );
+  const dayBarIndex = new Map(dayBarKeys.map((k, i) => [k, i]));
   for (const v of recentViews ?? []) {
-    const t = new Date(v.viewed_at as string).getTime();
-    const isLink = (v as { username?: string }).username === linkUsername;
-    if (t >= windowStart) {
-      const idx = Math.min(bucketCount - 1, Math.floor((t - windowStart) / bucketMs));
+    const iso = v.viewed_at as string;
+    const t = new Date(iso).getTime();
+    if (t < windowStart) continue; // previous-window rows are counted via exact queries
+    if (viewsRange === "today") {
+      const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((t - windowStart) / 36e5)));
       trafficBars[idx]++;
-    } else if (t >= prevStart) {
-      if (isLink) prevLink++; else prevCard++;
+    } else {
+      const idx = dayBarIndex.get(localDayKey(iso, ownerTz));
+      if (idx != null) trafficBars[idx]++;
     }
   }
   // % vs the previous window; null when there's no baseline to compare against.
+  const prevCard = prevCardCount ?? 0;
+  const prevLink = prevLinkCount ?? 0;
   const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
   const cardDelta = pct(swiftCardViews ?? 0, prevCard);
   const linkDelta = pct(swiftLinkViews ?? 0, prevLink);
   const deltaPeriod = viewsRange === "month" ? "this month" : viewsRange === "week" ? "this week" : "today";
   const maxBar = Math.max(1, ...trafficBars);
-  // Timeline for the chart: each bar's real start time so it can label an axis.
-  const trafficBuckets = trafficBars.map((count, i) => ({ count, ts: windowStart + i * bucketMs }));
+  // Timeline for the chart: each bar's real start instant (local hour / local
+  // midnight) so the axis labels line up with the buckets above.
+  const trafficBuckets = trafficBars.map((count, i) => ({
+    count,
+    ts:
+      viewsRange === "today"
+        ? windowStart + i * 36e5
+        : startOfLocalDayUtc(bucketCount - 1 - i, ownerTz, tzNow).getTime(),
+  }));
 
   // Locations view (on-demand): top places your card + links are viewed from,
   // with the SwiftCard vs Swift Links split per location. All-time totals.
@@ -477,6 +530,9 @@ export default async function DashboardPage({
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>
+      {/* Reports the viewer's timezone (sc_tz cookie) so analytics bucket by the
+          owner's local day. Safe no-op progressive enhancement. */}
+      <TimezoneCookie />
       {/* Backstop for the guest-signup flow: claims a still-pending localStorage
           draft ONLY on an explicit post-auth claim return (?claim=1). Never on a
           bare dashboard visit — otherwise logging into an existing account would
@@ -779,6 +835,7 @@ export default async function DashboardPage({
                   </PlanGate>
                 ) : topLocations.length > 0 ? (
                   <div className="space-y-2">
+                    <p className="text-gray-500 text-[11px] mb-1">Top locations · all time</p>
                     {topLocations.map((loc) => (
                       <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -828,6 +885,7 @@ export default async function DashboardPage({
                     buckets={trafficBuckets}
                     range={viewsRange as "today" | "week" | "month"}
                     max={maxBar}
+                    tz={ownerTz}
                   />
                 </div>
               )}
