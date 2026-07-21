@@ -1,17 +1,14 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import type { Area, MediaSize } from "react-easy-crop";
-import type CropperComponent from "react-easy-crop";
+import type { AspectOption } from "@/components/CropperLazy";
 
 // Deferred: the cropper only renders after a visitor picks a file (see the
 // rawSrc-gated block below) — most page loads using this component never
 // need it, including the marketing homepage's mini-builders (performance
-// audit). Cast back to the real component type (a type-only import, erased
-// at compile time — no bundle cost) so its optional/defaulted props stay
-// optional; dynamic()'s inferred type otherwise treats them as required.
-const Cropper = dynamic(() => import("@/components/CropperLazy"), { ssr: false }) as typeof CropperComponent;
+// audit).
+const CropModal = dynamic(() => import("@/components/CropperLazy"), { ssr: false });
 
 type Props = {
   field: "photo" | "logo";
@@ -31,6 +28,12 @@ type Props = {
   onUploaded: (url: string) => void;
 };
 
+const LOGO_ASPECTS: AspectOption[] = [
+  { label: "Square", value: 1 },
+  { label: "Wide", value: 16 / 9 },
+  { label: "Banner", value: 3 },
+];
+
 function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
@@ -40,61 +43,24 @@ function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
-// A centered, zoom=1 crop covering the largest area of the image that fits
-// `aspect` — the exact view react-easy-crop shows before the user touches
-// anything. Used as a fallback so "Apply" always has something valid to crop
-// even if the user taps it immediately: react-easy-crop's own onCropComplete
-// can miss its very first call right after the image loads (its internal
-// cropSize state hasn't finished updating yet), so waiting on it alone can
-// leave Apply silently doing nothing on an untouched image.
-function centeredCropPixels(naturalWidth: number, naturalHeight: number, aspect: number): Area {
-  const mediaAspect = naturalWidth / naturalHeight;
-  let width: number, height: number;
-  if (mediaAspect > aspect) {
-    height = naturalHeight;
-    width = height * aspect;
-  } else {
-    width = naturalWidth;
-    height = width / aspect;
-  }
-  return { x: (naturalWidth - width) / 2, y: (naturalHeight - height) / 2, width, height };
+// Downscale a canvas so its longest edge is at most `maxEdge`, preserving
+// aspect ratio (so wide/rectangular logos aren't squished into a square).
+// react-image-crop's cropToCanvas() already produced a full-resolution crop —
+// this keeps the uploaded file size reasonable.
+function downscaleCanvas(source: HTMLCanvasElement, maxEdge: number): HTMLCanvasElement {
+  let w = source.width;
+  let h = source.height;
+  if (Math.max(w, h) <= maxEdge) return source;
+  if (w >= h) { h = Math.round((h / w) * maxEdge); w = maxEdge; }
+  else { w = Math.round((w / h) * maxEdge); h = maxEdge; }
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  out.getContext("2d")!.drawImage(source, 0, 0, w, h);
+  return out;
 }
 
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = new Image();
-  image.src = imageSrc;
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = reject;
-  });
-
-  // Preserve the crop's aspect ratio (so wide/rectangular logos aren't squished
-  // into a square), capping the longest edge at 800px.
-  const MAX = 800;
-  let w = pixelCrop.width;
-  let h = pixelCrop.height;
-  if (Math.max(w, h) > MAX) {
-    if (w >= h) { h = Math.round((h / w) * MAX); w = MAX; }
-    else { w = Math.round((w / h) * MAX); h = MAX; }
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-
-  ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    w,
-    h
-  );
-
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Canvas export failed"))),
@@ -110,6 +76,10 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [rawSrc, setRawSrc] = useState<string | null>(null);
+  // Logos can be square or rectangular — let the user pick the frame that fits.
+  const [logoAspect, setLogoAspect] = useState(1);
+
   // Reflect an image applied from OUTSIDE this component in the tile — e.g. the
   // "Suggest my company logo" picker sets the parent's logo URL, which arrives
   // here as a new `currentUrl`. Without this the tile kept its mount-time value
@@ -122,62 +92,36 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync ONLY on external currentUrl changes; the guards are read as current-render snapshots.
   }, [currentUrl]);
 
-  // Crop state
-  const [rawSrc, setRawSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  // The image's real dimensions, captured as soon as it loads — used to build
-  // the centeredCropPixels() fallback above.
-  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
-  // Logos can be square or rectangular — let the user pick the frame that fits.
-  const [logoAspect, setLogoAspect] = useState(1);
-  const LOGO_ASPECTS = [
-    { label: "Square", value: 1 },
-    { label: "Wide", value: 16 / 9 },
-    { label: "Banner", value: 3 },
-  ];
-
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (rawSrc) URL.revokeObjectURL(rawSrc);
     setRawSrc(URL.createObjectURL(file));
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
-    setNaturalSize(null);
+    setErrorMsg("");
+    setUploadStatus("idle");
     e.target.value = "";
   }
 
-  const onCropComplete = useCallback((_: Area, pixels: Area) => {
-    setCroppedAreaPixels(pixels);
-  }, []);
+  function cancelCrop() {
+    if (rawSrc) URL.revokeObjectURL(rawSrc);
+    setRawSrc(null);
+    setUploadStatus("idle");
+    setErrorMsg("");
+  }
 
-  const onMediaLoaded = useCallback((mediaSize: MediaSize) => {
-    setNaturalSize({ width: mediaSize.naturalWidth, height: mediaSize.naturalHeight });
-  }, []);
-
-  // Plain function, not useCallback — this file's React Compiler pass
-  // memoizes it automatically and rejects a manual useCallback whose
-  // dependency list doesn't match its own inference.
-  async function applyCrop() {
+  async function applyCrop(canvas: HTMLCanvasElement) {
     if (!rawSrc || uploadStatus === "uploading") return;
-    // Fall back to a centered full-frame crop when react-easy-crop hasn't
-    // reported a crop area yet (untouched image — see centeredCropPixels).
-    const pixels = croppedAreaPixels ?? (naturalSize ? centeredCropPixels(naturalSize.width, naturalSize.height, field === "logo" ? logoAspect : 1) : null);
-    if (!pixels) return; // image genuinely hasn't finished loading yet
     setUploadStatus("uploading");
     setErrorMsg("");
 
     try {
-      const blob = await getCroppedImg(rawSrc, pixels);
+      const blob = await canvasToBlob(downscaleCanvas(canvas, 800));
 
       // Guest: no server upload — keep the image as a base64 data URL locally.
       if (guest) {
         const dataUrl = await blobToDataURL(blob);
         setPreview(dataUrl);
-        if (rawSrc) URL.revokeObjectURL(rawSrc);
+        URL.revokeObjectURL(rawSrc);
         setRawSrc(null);
         setUploadStatus("idle");
         onUploaded(dataUrl);
@@ -192,50 +136,24 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
       if (defer) form.append("defer", "true");
 
       const res = await fetch("/api/upload", { method: "POST", body: form });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setErrorMsg(json.error ?? "Upload failed");
+        setErrorMsg(json.error ?? "Upload failed — try again.");
         setUploadStatus("error");
         return;
       }
 
       setPreview(json.url);
-      if (rawSrc) URL.revokeObjectURL(rawSrc);
+      URL.revokeObjectURL(rawSrc);
       setRawSrc(null);
       setUploadStatus("idle");
       onUploaded(json.url);
     } catch {
-      setErrorMsg("Upload failed — check your connection");
+      setErrorMsg("Upload failed — check your connection and try again.");
       setUploadStatus("error");
     }
   }
-
-  function cancelCrop() {
-    if (rawSrc) URL.revokeObjectURL(rawSrc);
-    setRawSrc(null);
-    setUploadStatus("idle");
-    setCroppedAreaPixels(null);
-    setNaturalSize(null);
-  }
-
-  // Keyboard shortcuts while the crop overlay is open: Enter applies the crop
-  // (same as tapping "Apply"), Escape backs out without saving (same as
-  // "Cancel") — so a keyboard/desktop user isn't stuck reaching for the mouse.
-  useEffect(() => {
-    if (!rawSrc) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        applyCrop();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        cancelCrop();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [rawSrc, applyCrop, cancelCrop]);
 
   async function handleRemove() {
     // Persisted images (account photo/logo, or a saved card logo) are cleared
@@ -265,109 +183,18 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
     <>
       {/* Full-screen crop modal */}
       {rawSrc && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col" style={{ touchAction: "none" }}>
-          {/* Top bar */}
-          <div className="flex items-center justify-between px-5 shrink-0" style={{ paddingTop: "env(safe-area-inset-top, 16px)", paddingBottom: 12 }}>
-            <button
-              type="button"
-              onClick={cancelCrop}
-              className="text-white font-medium text-sm py-2 px-1"
-            >
-              Cancel
-            </button>
-            <p className="text-white font-semibold text-sm">
-              {isCircle ? "Adjust profile photo" : "Adjust logo"}
-            </p>
-            <button
-              type="button"
-              onClick={applyCrop}
-              disabled={uploadStatus === "uploading"}
-              className="text-sm font-bold py-2 px-4 rounded-full transition-colors disabled:opacity-50"
-              style={{ background: "#2563eb", color: "#fff" }}
-            >
-              {uploadStatus === "uploading" ? "Saving…" : "Apply"}
-            </button>
-          </div>
-
-          {/* Crop area — fills remaining space */}
-          <div className="relative flex-1 overflow-hidden">
-            <Cropper
-              image={rawSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={field === "logo" ? logoAspect : 1}
-              cropShape={isCircle ? "round" : "rect"}
-              objectFit="contain"
-              showGrid={false}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-              onMediaLoaded={onMediaLoaded}
-              style={{
-                containerStyle: { background: "#000" },
-                cropAreaStyle: {
-                  border: "2px solid rgba(255,255,255,0.85)",
-                  boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)",
-                },
-              }}
-            />
-          </div>
-
-          {/* Bottom controls */}
-          <div className="px-8 shrink-0" style={{ paddingTop: 20, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 28px)" }}>
-            {/* Logo shape presets — square or rectangular */}
-            {field === "logo" && (
-              <div className="flex items-center justify-center gap-2 mb-4">
-                {LOGO_ASPECTS.map((a) => (
-                  <button
-                    key={a.label}
-                    type="button"
-                    onClick={() => {
-                      setLogoAspect(a.value);
-                      // The previous crop area was measured for the OLD aspect
-                      // — react-easy-crop doesn't re-fire onCropComplete just
-                      // because the aspect prop changed, so without this,
-                      // Apply would crop the new frame using the old shape.
-                      setCroppedAreaPixels(null);
-                    }}
-                    className="text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors"
-                    style={{
-                      background: Math.abs(logoAspect - a.value) < 0.01 ? "#2563eb" : "rgba(255,255,255,0.1)",
-                      color: "#fff",
-                    }}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* Zoom slider */}
-            <div className="flex items-center gap-4 mb-3">
-              <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                style={{ accentColor: "#3b82f6" }}
-              />
-              <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
-              </svg>
-            </div>
-            <p className="text-center text-gray-600 text-xs">
-              Drag to move · pinch or slide to zoom
-            </p>
-            <p className="text-center text-gray-700 text-[11px] mt-1">
-              Press Enter to apply · Esc to cancel
-            </p>
-          </div>
-        </div>
+        <CropModal
+          src={rawSrc}
+          title={isCircle ? "Adjust profile photo" : "Adjust logo"}
+          aspect={isLogo ? logoAspect : 1}
+          circular={isCircle}
+          aspectOptions={isLogo ? LOGO_ASPECTS : undefined}
+          onAspectChange={isLogo ? setLogoAspect : undefined}
+          busy={uploadStatus === "uploading"}
+          error={uploadStatus === "error" ? errorMsg : ""}
+          onApply={applyCrop}
+          onCancel={cancelCrop}
+        />
       )}
 
       {/* Normal upload widget */}
@@ -422,7 +249,7 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
               )}
             </div>
             <p className="text-[11px] text-gray-600">JPG, PNG · max 5 MB</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Tap to select · then drag &amp; zoom to fit</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Tap to select · then drag corners to crop</p>
             {uploadStatus === "error" && (
               <p className="text-[11px] text-red-400 mt-1">{errorMsg}</p>
             )}
