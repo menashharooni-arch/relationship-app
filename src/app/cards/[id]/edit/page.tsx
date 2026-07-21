@@ -4,7 +4,6 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import DashboardLink from "@/components/DashboardLink";
-import EditViewLiveLink from "@/components/EditViewLiveLink";
 import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
@@ -125,7 +124,6 @@ export default async function CardEditPage({
             </svg>
             Dashboard
           </DashboardLink>
-          <EditViewLiveLink href={`${APP_URL}/card/${card.username}`} />
         </div>
 
         <div className="mb-6">

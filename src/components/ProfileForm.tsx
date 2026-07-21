@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import ImageUpload from "@/components/ImageUpload";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
+import LogoSuggest from "@/components/LogoSuggest";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -92,7 +94,7 @@ type Profile = {
   customization: CardCustomization | null;
 };
 
-export default function ProfileForm({ profile }: { profile: Profile }) {
+export default function ProfileForm({ profile, linkedinEnabled = false }: { profile: Profile; linkedinEnabled?: boolean }) {
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
   const [photoUrl, setPhotoUrl] = useState<string | null>(profile.photo_url);
   const [logoUrl, setLogoUrl] = useState<string | null>(profile.logo_url);
@@ -202,20 +204,32 @@ export default function ProfileForm({ profile }: { profile: Profile }) {
       {/* Photo + Logo uploads */}
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 space-y-4 shadow-sm">
         <p className="text-xs text-slate-500 font-medium">Photos & Logo</p>
-        <ImageUpload
-          field="photo"
-          currentUrl={photoUrl}
-          label="Profile photo (shown on Photo card template)"
-          shape="circle"
-          onUploaded={(url) => setPhotoUrl(url)}
-        />
-        <ImageUpload
-          field="logo"
-          currentUrl={logoUrl}
-          label="Company logo (shown on all card templates)"
-          shape="square"
-          onUploaded={(url) => setLogoUrl(url)}
-        />
+        <div>
+          <ImageUpload
+            field="photo"
+            currentUrl={photoUrl}
+            label="Profile photo (shown on Photo card template)"
+            shape="circle"
+            onUploaded={(url) => setPhotoUrl(url)}
+          />
+          {/* Suggest my headshot — same preview-first flow as the card editors. */}
+          <ProfilePhotoSuggest
+            linkedinEnabled={linkedinEnabled}
+            returnTo="/profile"
+            onConfirm={(url) => setPhotoUrl(url)}
+          />
+        </div>
+        <div>
+          <ImageUpload
+            field="logo"
+            currentUrl={logoUrl}
+            label="Company logo (shown on all card templates)"
+            shape="square"
+            onUploaded={(url) => setLogoUrl(url)}
+          />
+          {/* Suggest my company logo — fails safe (renders nothing) if unconfigured. */}
+          <LogoSuggest company={form.company} email={form.email} onConfirm={(url) => setLogoUrl(url || null)} />
+        </div>
       </div>
 
       {mainFields.map((f) => (

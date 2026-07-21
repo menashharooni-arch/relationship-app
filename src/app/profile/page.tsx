@@ -66,7 +66,7 @@ export default async function ProfilePage() {
           </a>
         </div>
 
-        <ProfileForm profile={profile} />
+        <ProfileForm profile={profile} linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)} />
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Follow-up Automation</h2>
