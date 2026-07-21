@@ -143,7 +143,9 @@ export default function OfficeBranding({ office }: { office: Brand }) {
           <div className="space-y-4">
             <div>
               <ImageUpload defer field="logo" shape="square" currentUrl={logoUrl} label="Company logo" onUploaded={(u) => setLogoUrl(u || null)} />
-              <LogoSuggest company={company} onConfirm={(u) => setLogoUrl(u)} />
+              {/* Auto-search uses the website domain when set — a far better hit
+                  rate than a name search — and falls back to the company name. */}
+              <LogoSuggest company={company} domain={website || null} onConfirm={(u) => setLogoUrl(u)} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
