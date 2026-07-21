@@ -13,10 +13,15 @@ export default function TrafficChart({
   buckets,
   range,
   max,
+  tz,
 }: {
   buckets: TrafficBucket[];
   range: "today" | "week" | "month";
   max: number;
+  // IANA zone the server bucketed the data in. Formatting the axis in the SAME
+  // zone keeps each label aligned to the bucket it sits under (a bar server-
+  // bucketed as "Jul 20 local" must also READ "Jul 20"). Omit → viewer-local.
+  tz?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const n = buckets.length;
@@ -24,13 +29,13 @@ export default function TrafficChart({
 
   const fmtAxis = (ts: number) =>
     range === "today"
-      ? new Date(ts).toLocaleTimeString("en-US", { hour: "numeric" })
-      : new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      ? new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", timeZone: tz })
+      : new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
 
   const fmtTip = (ts: number) =>
     range === "today"
-      ? new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-      : new Date(ts).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      ? new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })
+      : new Date(ts).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: tz });
 
   // ~4–5 evenly spaced ticks (or every day for the 7-day week view).
   const tickTarget = range === "week" ? 7 : range === "today" ? 4 : 5;

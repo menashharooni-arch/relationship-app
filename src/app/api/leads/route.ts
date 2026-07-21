@@ -97,6 +97,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
+    // Idempotency: a double-submit (double-tap, slow-response retry, or a
+    // client that fires on both click and form-submit) must not create two
+    // leads — that means two notifications, two pushes, and two CRM/Zapier
+    // syncs for one person. The (IP, card) rate limit is 3/10min, which is
+    // deliberately loose enough to let two DIFFERENT people at one venue (shared
+    // NAT IP) both submit — so it can't be the dedup. Instead, treat a lead as a
+    // duplicate of a very recent one from the SAME person to the SAME card:
+    // matched on visitor_id when present (the first-party per-browser id, so two
+    // different people never collide), else on the phone number (unique to a
+    // person). Window kept short (5 min) so a genuine second visit later still
+    // captures. On a hit we return success WITHOUT inserting — the visitor
+    // already succeeded the first time, so re-reporting success is correct and
+    // avoids a "something went wrong" re-submit loop.
+    const DEDUP_WINDOW_MS = 5 * 60 * 1000;
+    // Duplicate = same phone to the same card within the window (and same
+    // visitor_id too when the browser supplied one, for extra precision). Same
+    // phone → same person, so this catches the double-submit without dropping a
+    // genuinely different second contact. A corrected re-submit with a DIFFERENT
+    // phone is not a duplicate and still captures.
+    const dedupSince = new Date(Date.now() - DEDUP_WINDOW_MS).toISOString();
+    let dupQuery = admin
+      .from("leads")
+      .select("id")
+      .eq("card_owner", card_owner)
+      .eq("phone", phone)
+      .gte("created_at", dedupSince)
+      .limit(1);
+    if (visitor_id) dupQuery = dupQuery.eq("visitor_id", visitor_id);
+    const { data: recentDup } = await dupQuery;
+    if (recentDup?.length) return NextResponse.json({ success: true, deduped: true });
+
     // Free plan: 5 new leads/month. We NEVER reject a visitor's info — over the
     // cap the lead is still captured and stored, just flagged locked (blurred in
     // the owner's dashboard until they upgrade; unlocked instantly when they do).
