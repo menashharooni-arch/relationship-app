@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteNav from "@/components/site/SiteNav";
+import SiteFooter from "@/components/site/SiteFooter";
 import CardScaler from "@/components/CardScaler";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -65,44 +66,27 @@ export default function TemplatesPage() {
     setSaved(false);
   }
 
-  async function handleApply() {
+  // "Apply this design" starts the real card builder on this template —
+  // the same destination as every "Create your free card" button. It used to
+  // PATCH /api/profile, which silently did nothing for the signed-out visitors
+  // who now reach this page, and gave signed-in ones no next step either.
+  function handleApply() {
     if (!selected) return;
     localStorage.setItem("kontact_template", selected);
     setSaved(true);
-    await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ template: selected }),
-    });
-    setTimeout(() => setSaved(false), 2000);
+    router.push(`/cards/new?template=${encodeURIComponent(selected)}`);
   }
 
   const selectedTemplate = TEMPLATES.find((t) => t.id === selected);
 
   return (
     <main className="min-h-screen bg-gray-950 pb-28">
+      {/* The standard site header, so this page can be navigated away from
+          anywhere — it replaced a lone history-back button, which was a dead
+          end for anyone arriving from a link or the footer. */}
+      <SiteNav />
 
-      {/* Header */}
-      <div className="px-5 pt-10 pb-8 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          {/* A plain history-back control, not a jump into the Dashboard — this
-              page is reached from all over the app (nav, product pages), and
-              landing an authenticated visitor straight in their full Dashboard
-              after just browsing templates felt like an unexpected account
-              switch rather than a simple "go back." */}
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            Back
-          </button>
-          <SwiftCardLogo size={28} onDark />
-        </div>
-
+      <div className="px-5 pt-28 pb-8 max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-2">Your card, your way.</h1>
         <p className="text-gray-400">
           Choose the design that fits your business. You can change it anytime.
@@ -195,11 +179,14 @@ export default function TemplatesPage() {
               onClick={handleApply}
               className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors"
             >
-              {saved ? "Saved ✓" : "Apply this design →"}
+              {saved ? "Opening builder…" : "Apply this design →"}
             </button>
           </div>
         </div>
       )}
+
+      {/* Footer too, so the page has the same way out as every other page. */}
+      <SiteFooter />
     </main>
   );
 }

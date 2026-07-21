@@ -219,7 +219,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // Step 3 — media + design
   const [logoUrl, setLogoUrl] = useState<string | null>(orgLogo);
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
-  const [template, setTemplate] = useState("classic-pro");
+  // ?template=… — set by "Apply this design" on /templates, so the design the
+  // visitor picked there is already applied when the builder opens.
+  const presetTemplate = searchParams.get("template");
+  const validPresetTemplate = presetTemplate && TEMPLATES.some((t) => t.id === presetTemplate) ? presetTemplate : null;
+  const [template, setTemplate] = useState(validPresetTemplate ?? "classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(DEFAULT_CUSTOM_LAYOUT);
   // Preset-template styling (Pro). All fields optional → template defaults apply.
   const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({});
@@ -473,7 +477,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           twitter: s(p.twitter), facebook: s(cust.facebook), snapchat: s(cust.snapchat),
           youtube: s(cust.youtube),
         });
-        if (typeof p.template === "string") setTemplate(p.template);
+        // A ?template= from "Apply this design" is an explicit choice made
+        // seconds ago, so it beats whatever design a resumed draft happens to
+        // carry. Everything else in the draft is still restored.
+        if (typeof p.template === "string" && !validPresetTemplate) setTemplate(p.template);
         setBio(s(cust.bio));
         setFax(s(cust.fax));
         if (Array.isArray(cust.links)) setLinks(cust.links as CardLink[]);
@@ -503,6 +510,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       hydratedRef.current = true;
     })();
     return () => { live = false; };
+    // validPresetTemplate is read as a snapshot of the URL this page opened
+    // with; it can't change without a navigation that remounts the wizard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guest]);
 
   useEffect(() => {

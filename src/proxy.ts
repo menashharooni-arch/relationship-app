@@ -34,7 +34,11 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  const protectedPaths = ["/dashboard", "/onboarding", "/profile", "/templates", "/cards", "/settings", "/office", "/contacts"];
+  // NOTE: /templates is deliberately NOT here. The marketing nav and footer
+  // both link to it, so gating it bounced every signed-out visitor to /login
+  // the moment they clicked "Templates" — it's a gallery of designs with
+  // sample data and makes no authenticated calls.
+  const protectedPaths = ["/dashboard", "/onboarding", "/profile", "/cards", "/settings", "/office", "/contacts"];
   const isProtected = protectedPaths.some((p) => request.nextUrl.pathname.startsWith(p));
 
   // Guest card builder: /cards/new is deliberately open with NO login wall — a
@@ -70,5 +74,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/profile/:path*", "/templates/:path*", "/cards/:path*", "/settings/:path*", "/office/:path*", "/contacts/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/profile/:path*", "/cards/:path*", "/settings/:path*", "/office/:path*", "/contacts/:path*"],
 };
