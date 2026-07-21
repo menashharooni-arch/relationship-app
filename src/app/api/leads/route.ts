@@ -16,7 +16,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, phone, company, message, card_owner, tags, source, visitor_id } = await req.json();
+    const { name, email, phone, company, message, card_owner, tags, source, visitor_id, sms_consent } = await req.json();
 
     // This is a PUBLIC endpoint — require real strings, not just truthy values
     // (a JSON payload of {name: [], phone: {}} would otherwise pass and crash
@@ -32,6 +32,17 @@ export async function POST(req: NextRequest) {
     const safeTags = (Array.isArray(tags) ? tags : []).filter(
       (t): t is string => typeof t === "string" && CLIENT_TAG_WHITELIST.has(t)
     );
+
+    // SMS consent (TCPA/CTIA): the share forms carry an affirmative, unchecked-
+    // by-default checkbox. Declining it must not block the share — but the lead
+    // is created with the sms-paused tag, the same per-contact switch the
+    // follow-up cron already honors, so automated texts skip them until they
+    // (or the owner, at the contact's request) flip it. Only an EXPLICIT false
+    // pauses: an absent field means an older/other caller that never asked, and
+    // changing those would silently rewire existing capture paths. Kept OUT of
+    // safeTags — that array also feeds the Zapier webhook payload, and internal
+    // system tags must not start appearing in customers' Zaps.
+    const smsDeclined = sms_consent === false;
 
     // Rate limit: same IP submitting to the same card too frequently.
     // card_owner is normalized so "Alice " vs "alice" can't mint fresh buckets.
@@ -119,14 +130,30 @@ export async function POST(req: NextRequest) {
     const dedupSince = new Date(Date.now() - DEDUP_WINDOW_MS).toISOString();
     let dupQuery = admin
       .from("leads")
-      .select("id")
+      .select("id, tags")
       .eq("card_owner", card_owner)
       .eq("phone", phone)
       .gte("created_at", dedupSince)
       .limit(1);
     if (visitor_id) dupQuery = dupQuery.eq("visitor_id", visitor_id);
     const { data: recentDup } = await dupQuery;
-    if (recentDup?.length) return NextResponse.json({ success: true, deduped: true });
+    if (recentDup?.length) {
+      // A deduped re-submit can still carry a CHANGED consent choice (they
+      // shared without the SMS box, then immediately re-submitted with it
+      // checked, or vice versa). Reconcile the existing row's sms-paused tag to
+      // the latest explicit choice so the duplicate-drop never drops consent.
+      if (typeof sms_consent === "boolean") {
+        const dup = recentDup[0] as { id: string; tags: string[] | null };
+        const curTags = Array.isArray(dup.tags) ? dup.tags : [];
+        const nextTags = sms_consent
+          ? curTags.filter((t) => t !== "sms-paused")
+          : Array.from(new Set([...curTags, "sms-paused"]));
+        if (nextTags.length !== curTags.length) {
+          await admin.from("leads").update({ tags: nextTags }).eq("id", dup.id);
+        }
+      }
+      return NextResponse.json({ success: true, deduped: true });
+    }
 
     // Free plan: 5 new leads/month. We NEVER reject a visitor's info — over the
     // cap the lead is still captured and stored, just flagged locked (blurred in
@@ -150,8 +177,9 @@ export async function POST(req: NextRequest) {
         location: location || null,
         card_owner,
         // New reach-outs arrive unread; over the free monthly cap they're also
-        // tagged locked so the dashboard blurs them behind Pro.
-        tags: [...safeTags, "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
+        // tagged locked so the dashboard blurs them behind Pro. A declined SMS
+        // consent rides in as sms-paused (never via safeTags — see above).
+        tags: [...safeTags, ...(smsDeclined ? ["sms-paused"] : []), "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
         source: source || null,
         visitor_id: visitor_id || null,
       })

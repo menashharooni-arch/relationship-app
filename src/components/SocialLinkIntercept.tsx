@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { hasSharedWith, markSharedWith } from "@/lib/visitor";
 
@@ -78,6 +79,7 @@ export default function SocialLinkIntercept({
   const [pendingLabel, setPendingLabel] = useState<string>("");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -101,6 +103,7 @@ export default function SocialLinkIntercept({
     setPendingHref(link.href);
     setPendingLabel(link.label);
     setStatus("idle");
+    setSmsConsent(false); // reset the opt-in each open — never carry a prior check forward
     setForm({ name: "", phone: "", email: "" });
   }
 
@@ -131,6 +134,7 @@ export default function SocialLinkIntercept({
           email: form.email || null,
           card_owner: cardOwner,
           source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
+          sms_consent: smsConsent,
         }),
       });
       if (!res.ok) throw new Error("lead capture failed");
@@ -252,6 +256,9 @@ export default function SocialLinkIntercept({
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
                   />
+                  {/* SMS consent — separate affirmative opt-in (unchecked by
+                      default, optional); same block as every capture surface. */}
+                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
                   <button
                     type="submit"
                     disabled={status === "loading"}

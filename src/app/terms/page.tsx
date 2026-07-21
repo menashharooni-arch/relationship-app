@@ -30,7 +30,7 @@ export default function TermsPage() {
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: July 14, 2026</p>
+        <p className="text-slate-500 text-sm mb-8">Last updated: July 21, 2026</p>
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -41,13 +41,14 @@ export default function TermsPage() {
 
         <H2>Company information</H2>
         <P>
-          SwiftCard is a brand operated by <strong>ORION RE SERVICES INC.</strong> Aaron Lavi serves as
-          Co-Founder and CEO and is authorized to represent the company.
+          SwiftCard is a digital business card and link-in-bio platform operated by <strong>Swift Card Inc</strong>,
+          a corporation. Menash Harooni is the Founder and Authorized Representative of Swift Card Inc. More
+          details are on our <Link href="/company" className="text-brand underline">Company page</Link>.
         </P>
         <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Operating entity</dt>
-            <dd className="text-slate-800 text-[15px]">ORION RE SERVICES INC</dd>
+            <dd className="text-slate-800 text-[15px]">Swift Card Inc</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Brand</dt>
@@ -55,11 +56,13 @@ export default function TermsPage() {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Authorized representative</dt>
-            <dd className="text-slate-800 text-[15px]">Aaron Lavi — Co-Founder &amp; CEO</dd>
+            <dd className="text-slate-800 text-[15px]">Menash Harooni — Founder</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Contact</dt>
             <dd className="text-slate-800 text-[15px]">
+              <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>
+              {" · "}
               <Link href="/contact" className="text-brand underline">swiftcard.me/contact</Link>
             </dd>
           </div>
@@ -102,7 +105,7 @@ export default function TermsPage() {
         </P>
         <ul className="mb-3">
           <LI>You&apos;ll only collect and use it for legitimate business follow-up, in line with applicable privacy and anti-spam laws (including, where they apply to you, GDPR, CCPA/CPRA, CAN-SPAM, and TCPA).</LI>
-          <LI>You have a lawful basis to contact the people you message, and you&apos;ll honor opt-outs. Automated follow-up emails and texts you set up are sent on your behalf, and you&apos;re the sender responsible for them.</LI>
+          <LI>You have a lawful basis to contact the people you message, and you&apos;ll honor opt-outs. Automated follow-up emails and texts you set up are sent on your behalf, and you&apos;re the sender responsible for them. Text messaging is also governed by our <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.</LI>
           <LI>You won&apos;t upload contact data you obtained unlawfully, or use SwiftCard to send unsolicited bulk messages.</LI>
         </ul>
         <P>
@@ -159,7 +162,7 @@ export default function TermsPage() {
         <H2>Our intellectual property</H2>
         <P>
           The Service itself — the software, design, templates, logos, and everything that makes SwiftCard work — is
-          owned by ORION RE SERVICES INC and its licensors, and is protected by copyright, trademark, and other laws.
+          owned by Swift Card Inc and its licensors, and is protected by copyright, trademark, and other laws.
           These terms give you a limited, revocable, non-exclusive, non-transferable right to use the Service; they
           don&apos;t give you any ownership of it. If you send us ideas or feedback, we may use them freely, without
           any obligation or payment to you.
@@ -192,7 +195,7 @@ export default function TermsPage() {
 
         <H2>Indemnification</H2>
         <P>
-          You agree to defend, indemnify, and hold harmless ORION RE SERVICES INC, SwiftCard, and their officers,
+          You agree to defend, indemnify, and hold harmless Swift Card Inc, SwiftCard, and their officers,
           employees, and agents from any claims, damages, liabilities, and expenses (including reasonable
           attorneys&apos; fees) arising out of: your content; the contacts you collect and the messages you send
           through the Service; your use of the Service in violation of these terms or of applicable law (including
@@ -262,7 +265,7 @@ export default function TermsPage() {
 
       <footer className="border-t border-warm-border mt-auto">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500">
-          <span>SwiftCard, a brand operated by ORION RE SERVICES INC. · New York, NY</span>
+          <span>SwiftCard is operated by Swift Card Inc · New York, NY</span>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
             <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>

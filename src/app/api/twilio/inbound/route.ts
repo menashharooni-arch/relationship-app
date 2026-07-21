@@ -5,6 +5,15 @@ import { addOptOut, removeOptOut, normalizePhone, logMessage } from "@/lib/messa
 
 const STOP_WORDS = new Set(["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "stop all"]);
 const START_WORDS = new Set(["start", "unstop", "yes", "unsubscribe off"]);
+const HELP_WORDS = new Set(["help", "info"]);
+
+// HELP response (CTIA): program name, support contact, and opt-out reminder.
+// If Twilio Advanced Opt-Out is enabled it answers HELP before we ever see it;
+// this is the fail-safe so "Reply HELP for help" is true either way.
+const HELP_REPLY =
+  "SwiftCard (Swift Card Inc): follow-up messages sent on behalf of SwiftCard users. " +
+  "Msg frequency varies. Msg & data rates may apply. Reply STOP to opt out. " +
+  "Support: hello@swiftcard.me or swiftcard.me/contact";
 
 function twiml(message?: string) {
   const body = message
@@ -53,6 +62,9 @@ export async function POST(req: NextRequest) {
   if (START_WORDS.has(keyword)) {
     await removeOptOut("sms", from);
     return twiml();
+  }
+  if (HELP_WORDS.has(keyword)) {
+    return twiml(HELP_REPLY);
   }
 
   // Otherwise it's a real reply — log it into the matching contact's thread.

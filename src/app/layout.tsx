@@ -19,14 +19,15 @@ const ORG_JSONLD = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "SwiftCard",
-  legalName: "ORION RE SERVICES INC",
+  legalName: "Swift Card Inc",
   url: APP_URL,
   logo: `${APP_URL}/brand-icon.png`,
   description:
     "SwiftCard is a digital business card that shares itself — build your card once and share it by tap, QR code, Apple Wallet, or link, with built-in lead capture and automatic follow-up.",
-  founder: { "@type": "Person", name: "Aaron Lavi", jobTitle: "Co-Founder & CEO" },
+  founder: { "@type": "Person", name: "Menash Harooni", jobTitle: "Founder & Authorized Representative" },
+  email: "hello@swiftcard.me",
   foundingLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "New York", addressRegion: "NY", addressCountry: "US" } },
-  contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${APP_URL}/contact` },
+  contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "hello@swiftcard.me", url: `${APP_URL}/contact` },
 };
 
 const SITE_TITLE = "SwiftCard — The digital business card that shares itself";

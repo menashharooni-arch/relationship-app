@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
+import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
 
@@ -15,6 +16,7 @@ export default function LeadCaptureForm({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [alreadyShared, setAlreadyShared] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
 
   // If this visitor shared with this owner before, don't ask again — and
@@ -45,6 +47,7 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
+          sms_consent: smsConsent,
         }),
       });
     } catch {
@@ -142,11 +145,16 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* Consent disclosure — kept as small as it can be while still legible;
-          TCPA/CTIA only require it to be "clear and conspicuous", so don't go
-          below 8px or drop the contrast further. */}
+      {/* SMS consent — a SEPARATE affirmative opt-in (unchecked by default,
+          optional: submitting without it still shares, but the lead is created
+          with automated texts paused). Distinct from the email line below per
+          TCPA/CTIA — text consent can't ride along on a general disclosure. */}
+      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+      {/* Email disclosure — kept as small as it can be while still legible;
+          "clear and conspicuous" is the bar, so don't go below 8px or drop the
+          contrast further. */}
       <p className="text-slate-600 text-[8px] text-center leading-snug">
-        By sharing your info you agree to receive follow-up messages by email or text. Reply STOP to a text anytime to opt out.
+        By sharing your info you agree to receive follow-up messages by email. Every email includes an unsubscribe link.
       </p>
     </form>
   );

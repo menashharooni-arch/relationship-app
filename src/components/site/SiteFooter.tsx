@@ -31,9 +31,11 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
       { label: "Preview", href: "/preview" },
       { label: "Templates", href: "/templates" },
       { label: "Why SwiftCard", href: "/testimonials" },
+      { label: "Company", href: "/company" },
       { label: "Contact Us", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
       { label: "Terms & Legal", href: "/terms" },
+      { label: "SMS Terms", href: "/sms-terms" },
     ],
   },
 ];
@@ -79,7 +81,10 @@ export default function SiteFooter() {
         </div>
         <div className="rd-hair-d my-10" />
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-white/35 text-[13px]">© {new Date().getFullYear()} SwiftCard. All rights reserved.</p>
+          <p className="text-white/35 text-[13px]">
+            © {new Date().getFullYear()} SwiftCard. All rights reserved.{" "}
+            <Link href="/company" className="hover:text-white/60 transition-colors">SwiftCard is operated by Swift Card Inc.</Link>
+          </p>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Privacy</Link>
             <Link href="/contact" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Contact Us</Link>
