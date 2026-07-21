@@ -7,7 +7,7 @@
 // The single most important property proven here: the inserted row's `user_id`
 // is ALWAYS the session user id passed in by the route — never anything the
 // (untrusted) draft payload supplied. See buildClaimInsert + its tests.
-import { sanitizeCustomizationForPlan } from "@/lib/plan";
+import { sanitizeCustomizationForPlan, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 import { normalizeSocial } from "@/lib/social-url";
 
 // Keys we accept off a draft payload. Anything else (user_id, id, created_at,
@@ -53,7 +53,7 @@ export type ClaimInsert = {
 };
 
 export type BuildResult =
-  | { ok: true; insert: ClaimInsert }
+  | { ok: true; insert: ClaimInsert; designConverted: boolean }
   | { ok: false; error: string; status: number };
 
 // Same charset rule as api/cards: usernames flow into Supabase `.or()` filter
@@ -86,15 +86,17 @@ export function buildClaimInsert(
     return { ok: false, error: "Username can only contain letters, numbers, and hyphens.", status: 400 };
   }
 
-  // Strip Pro-only design keys / cap for Free — backend-enforced, not UI-hidden.
-  const customization = sanitizeCustomizationForPlan(
-    (p.customization ?? {}) as Record<string, unknown>,
-    paid,
-  );
-
   // Custom designer is Pro-only — Free can't claim a "custom" template.
   const rawTemplate = str(p.template) || "classic-pro";
   const template = !paid && rawTemplate === "custom" ? "classic-pro" : rawTemplate;
+
+  // Snap Pro-only design keys to the nearest Free-safe preset / cap links for
+  // Free — backend-enforced, not UI-hidden. `paid` here already accounts for a
+  // guest's picked-but-not-yet-paid-for Pro/Office intent (see claim route).
+  const rawCustomization = (p.customization ?? {}) as Record<string, unknown>;
+  const hadProKey = PRO_CUSTOMIZATION_KEYS.some((key) => rawCustomization[key] !== undefined && rawCustomization[key] !== "");
+  const designConverted = !paid && (hadProKey || rawTemplate === "custom");
+  const customization = sanitizeCustomizationForPlan(rawCustomization, paid, rawTemplate);
 
   const insert: ClaimInsert = {
     user_id: sessionUserId,
@@ -125,7 +127,7 @@ export function buildClaimInsert(
     insert[field] = normalizeSocial(insert[field], field);
   }
 
-  return { ok: true, insert };
+  return { ok: true, insert, designConverted };
 }
 
 // ── Idempotency ──────────────────────────────────────────────────────────────

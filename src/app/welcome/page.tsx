@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string }>;
+  searchParams: Promise<{ card?: string; designConverted?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -29,5 +29,5 @@ export default async function WelcomePage({
   if (isPaidPlan(profile?.plan)) redirect("/dashboard?welcome=1&tour=1");
 
   const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : null;
-  return <WelcomePlan cardSlug={cardSlug} />;
+  return <WelcomePlan cardSlug={cardSlug} designConverted={sp.designConverted === "1"} />;
 }

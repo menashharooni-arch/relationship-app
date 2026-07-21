@@ -14,6 +14,7 @@ import { getOfficeBrandForUser } from "@/lib/office-brand";
 const Wizard = NewCardWizard as ComponentType<{
   isPro: boolean;
   guest?: boolean;
+  isFirstCard?: boolean;
   appUrl?: string;
   walletEnabled?: boolean;
   org?: OrgManaged | null;
@@ -41,12 +42,14 @@ export default async function NewCardPage({
   // ALWAYS builds (or freshly sets up) that card first rather than being dropped
   // onto a bare "Review your order" screen — the card creation IS the first step
   // of Office onboarding. Everyone without a card falls through and builds first.
+  // Fetched once (when there's a signed-in user at all) and reused below for
+  // both the Pro-CTA redirect check and the first-card design-preview unlock.
+  const cardCount = user
+    ? ((await getAdminSupabase().from("cards").select("*", { count: "exact", head: true }).eq("user_id", user.id)).count ?? 0)
+    : 0;
+
   if (user && sp.plan === "pro" && sp.claim !== "1") {
-    const { count } = await getAdminSupabase()
-      .from("cards")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-    if ((count ?? 0) > 0) {
+    if (cardCount > 0) {
       const qs = new URLSearchParams({ plan: "pro", interval: sp.interval === "annual" ? "annual" : "monthly" });
       redirect(`/checkout?${qs.toString()}`);
     }
@@ -75,6 +78,12 @@ export default async function NewCardPage({
       .single();
     isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
   }
+
+  // First-card design preview: an already-authed Free account building its
+  // very first card (dashboard "Add Card" on an empty account) gets the same
+  // Pro-design-then-choose-plan treatment a guest gets. A plan-specific CTA
+  // (?plan=pro|office) already has a fixed target plan, so it's excluded.
+  const isFirstCard = !!user && authedAdd && !authedPlan && !isPro && cardCount === 0;
 
   // Office SUB-USER adding a card to their account: the company half of the
   // card (nickname, company, logo, website, office phone, fax, address) is
@@ -113,6 +122,7 @@ export default async function NewCardPage({
       <Wizard
         isPro={isPro}
         guest={!authedAdd}
+        isFirstCard={isFirstCard}
         appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
         walletEnabled={hasWalletConfig()}
         org={org}

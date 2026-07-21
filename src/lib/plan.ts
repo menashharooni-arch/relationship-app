@@ -2,6 +2,8 @@
 // All plan limits, the trial length, and the Pro-only design keys live here so
 // nothing drifts. If you change a number, change it HERE — every route and
 // component reads from this file.
+import { metaForTemplate } from "./template-style-presets";
+
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
   FREE_MAX_LINKS: 2,           // max additional Swift Links (action-link buttons) on Free; Pro/Office: unlimited
@@ -45,10 +47,11 @@ export const TRIAL_DAYS = 14;
 // Length of one app-level "free month" grant, in days (referral/promo rewards).
 export const FREE_MONTH_DAYS = 30;
 
-// Customization keys that are Pro-only design controls. Stripped server-side for
-// non-paid accounts so a downgraded or hand-crafted request can't keep them.
-// (Free baseline customization — about, address, bio, socials, testimonials,
-// links up to the cap — is never touched.)
+// Customization keys that are Pro-only design controls. Snapped to the nearest
+// Free-safe preset (or dropped, for the legacy `font` key) server-side for
+// non-paid accounts so a downgraded or hand-crafted request can't keep an
+// arbitrary custom value. (Free baseline customization — about, address, bio,
+// socials, testimonials, links up to the cap — is never touched.)
 export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
 
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
@@ -60,21 +63,112 @@ export function isOfficePlan(plan?: string | null): boolean {
   return plan === "enterprise";
 }
 
-// Enforce Free limits on a card's customization blob: strip Pro-only design keys
-// and cap link buttons. Returns a NEW object; never mutates the input. Paid
-// accounts pass through untouched.
+// ── Free-tier color matching ─────────────────────────────────────────────────
+// Free accounts can restyle a card using the SAME curated Looks/preset swatches
+// Pro sees (see template-style-presets.ts + TemplateStyleControls.tsx) — only
+// the arbitrary custom-color picker and the fully-custom designer stay Pro-only.
+// So a value that isn't one of the current template's presets (a raw Pro custom
+// pick, or a value left over from a different template) gets snapped to the
+// closest one instead of being deleted outright.
+
+function hexOf(color: string): [number, number, number] | null {
+  const m = color.match(/#([0-9a-f]{6})/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Perceptual-ish RGB distance (no need for anything fancier than Euclidean —
+// we're picking "closest of ~6 swatches", not doing color science).
+function colorDistance(a: string, b: string): number {
+  const ca = hexOf(a);
+  const cb = hexOf(b);
+  if (!ca || !cb) return a === b ? 0 : Infinity;
+  return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
+}
+
+// Snap `value` to whichever of `presets` is closest. An exact match passes
+// through untouched; `undefined` (never set) stays `undefined` — there's
+// nothing to convert, the template's own baked-in default already applies.
+export function nearestPreset(value: string | undefined, presets: string[], fallback: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (presets.includes(value)) return value;
+  const pool = presets.length ? presets : [fallback];
+  let best = pool[0];
+  let bestDist = colorDistance(value, best);
+  for (const p of pool.slice(1)) {
+    const d = colorDistance(value, p);
+    if (d < bestDist) { best = p; bestDist = d; }
+  }
+  return best;
+}
+
+// Convert a card's customization + template to the closest Free-tier
+// equivalent: every Pro-only color key gets snapped to the nearest preset for
+// the (possibly downgraded) target template; nothing about the actual card
+// CONTENT (name, links, photos, testimonials, address, …) is touched. Returns
+// `changed: true` when there was actually something to convert, so callers can
+// decide whether to show a "we applied a basic Free design" notice at all.
+export function convertCustomizationToFreeClosest(
+  customization: Record<string, unknown>,
+  template: string | undefined,
+): { customization: Record<string, unknown>; template: string; changed: boolean } {
+  const cust = { ...customization };
+  const hadCustomTemplate = template === "custom";
+  const targetTemplate = hadCustomTemplate ? "classic-pro" : template || "classic-pro";
+  const meta = metaForTemplate(targetTemplate);
+
+  const hadProKey = PRO_CUSTOMIZATION_KEYS.some((key) => cust[key] !== undefined && cust[key] !== "");
+  const changed = hadProKey || hadCustomTemplate;
+
+  const bgColor = pickStr(cust.bgColor);
+  const textColor = pickStr(cust.textColor);
+  const infoColor = pickStr(cust.infoColor);
+  const accentColor = pickStr(cust.accentColor);
+
+  // A fully-custom card has no standard-template style keys to snap — leave
+  // the target template's baked-in defaults in place rather than guessing.
+  if (!hadCustomTemplate) {
+    if (bgColor !== undefined) cust.bgColor = nearestPreset(bgColor, meta.bg.presets, meta.bg.fallback);
+    if (textColor !== undefined) cust.textColor = nearestPreset(textColor, meta.text.presets, meta.text.fallback);
+    if (infoColor !== undefined) cust.infoColor = nearestPreset(infoColor, meta.info.presets, meta.info.fallback);
+    if (accentColor !== undefined) cust.accentColor = nearestPreset(accentColor, meta.accent.presets, meta.accent.fallback);
+  } else {
+    delete cust.bgColor;
+    delete cust.textColor;
+    delete cust.infoColor;
+    delete cust.accentColor;
+    delete cust.customLayout;
+  }
+  // `fontFamily` is already a closed preset list (CARD_FONT_OPTIONS) with no
+  // custom-text-input equivalent, so the picked value IS its own closest
+  // match — left as-is. The legacy `font` key has no known preset mapping.
+  delete cust.font;
+
+  return { customization: cust, template: targetTemplate, changed };
+}
+
+function pickStr(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+// Enforce Free limits on a card's customization blob: snap Pro-only design keys
+// to the nearest Free-safe preset and cap link buttons. Returns a NEW object;
+// never mutates the input. Paid accounts pass through untouched. `template` is
+// used to pick the right preset set — omit it only for call sites that can't
+// resolve one, where it falls back to the generic FALLBACK_META presets.
 export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
   customization: T | null | undefined,
   paid: boolean,
+  template?: string,
 ): T {
-  const cust = { ...(customization ?? {}) } as Record<string, unknown>;
+  let cust = { ...(customization ?? {}) } as Record<string, unknown>;
   if (paid) return cust as T;
   // Free is capped at FREE_MAX_LINKS Swift Links (action-link buttons); extras
-  // are trimmed. Pro/Office get unlimited links plus the Pro-only design keys,
-  // which we strip here for Free.
+  // are trimmed. Pro/Office get unlimited links plus full design control.
   if (Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_MAX_LINKS) {
     cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
   }
-  for (const key of PRO_CUSTOMIZATION_KEYS) delete cust[key];
+  cust = convertCustomizationToFreeClosest(cust, template).customization;
   return cust as T;
 }

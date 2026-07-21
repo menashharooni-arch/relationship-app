@@ -18,7 +18,7 @@ import { detectNativeApp } from "@/lib/platform";
 // and an auto-started guided tour — everything a new account should get.
 const LANDING = "/dashboard?welcome=1&tour=1";
 
-export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
+export default function WelcomePlan({ cardSlug, designConverted = false }: { cardSlug: string | null; designConverted?: boolean }) {
   const router = useRouter();
   // undefined = not read yet (avoids a hydration flash); null = no stored choice.
   const [intent, setIntent] = useState<PlanIntent | null | undefined>(undefined);
@@ -125,6 +125,11 @@ export default function WelcomePlan({ cardSlug }: { cardSlug: string | null }) {
           <div className="max-w-md mx-auto text-center">
             <h2 className="text-white font-bold text-xl">You&apos;re on the Free plan</h2>
             <p className="text-gray-400 text-sm mt-1.5">Everything you need to start sharing and capturing leads — upgrade anytime.</p>
+            {designConverted && (
+              <p className="mt-4 rounded-xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left text-blue-200/90 text-xs leading-relaxed">
+                Custom colors and premium design options are available on Pro. Your card content will be saved, but we&apos;ll apply a basic Free design that you can still customize.
+              </p>
+            )}
             <button onClick={goFree} disabled={loading !== null} className="mt-5 w-full py-3.5 rounded-full text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50">
               {loading === "free" ? "Setting up…" : "Go to your dashboard →"}
             </button>

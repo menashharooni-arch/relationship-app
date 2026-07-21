@@ -107,11 +107,12 @@ export async function POST(req: NextRequest) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid draft." }, { status: 400 });
   }
-  const { draftId, payload, images, step } = body as {
+  const { draftId, payload, images, step, intendedPlan } = body as {
     draftId?: unknown;
     payload?: Record<string, unknown>;
     images?: Record<string, unknown>;
     step?: unknown;
+    intendedPlan?: unknown;
   };
 
   const safeDraftId = typeof draftId === "string" ? draftId : null;
@@ -147,10 +148,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Design-only bypass: a guest who just picked Pro/Office (checkout happens
+  // right after this, on /welcome) hasn't actually paid yet, so `profile.plan`
+  // is still "free" here — that must NOT strip the design they just built.
+  // This is safe: the public card render re-sanitizes against the REAL plan on
+  // every view, so an abandoned checkout gracefully snaps back to Free rather
+  // than staying stuck with Pro colors. The Free-card-count-limit check above
+  // deliberately still uses the real `paid`, not intent — intent alone must
+  // never bypass the actual card cap.
+  const safeIntendedPlan = typeof intendedPlan === "string" ? intendedPlan : null;
+  const treatAsPaidForDesign = paid || safeIntendedPlan === "pro" || safeIntendedPlan === "office";
+
   // ── Build the insert (ownership: user_id is ALWAYS this session user) ─────
-  const built = buildClaimInsert(user.id, (payload ?? {}) as Record<string, unknown>, paid);
+  const built = buildClaimInsert(user.id, (payload ?? {}) as Record<string, unknown>, treatAsPaidForDesign);
   if (!built.ok) return NextResponse.json({ error: built.error }, { status: built.status });
   const insert: ClaimInsert = built.insert;
+  const designConverted = built.designConverted;
 
   // ── Upload deferred base64 images ─────────────────────────────────────────
   const imgs = (images ?? {}) as Record<string, unknown>;
@@ -213,7 +226,7 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id)
       .eq("username", insert.username)
       .maybeSingle();
-    if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep, first: count === 0 });
+    if (mine) return NextResponse.json({ slug: mine.username, id: mine.id, step: safeStep, first: count === 0, designConverted });
     // Otherwise another account grabbed it — regenerate and try once more.
     insert.username = await ensureUniqueUsername(insert.username, admin);
     ({ data: card, error } = await admin.from("cards").insert(insert).select("id, username").single());
@@ -234,5 +247,5 @@ export async function POST(req: NextRequest) {
 
   // `first` tells the client this is the account's first card → send them
   // through the onboarding plan-selection step (/welcome) instead of the editor.
-  return NextResponse.json({ slug: card.username, id: card.id, step: safeStep, first: count === 0 });
+  return NextResponse.json({ slug: card.username, id: card.id, step: safeStep, first: count === 0, designConverted });
 }

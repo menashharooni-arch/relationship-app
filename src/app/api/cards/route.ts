@@ -45,7 +45,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label } = body;
+  const { username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, customization, logo_url, label, chosenPlan } = body;
+
+  // First-card design preview: a Free account building its FIRST card may have
+  // used unlocked Pro colors/custom designer, then explicitly chosen Pro/Office
+  // at the in-wizard plan gate — they're headed to checkout next, so keep the
+  // design as-designed rather than stripping it here. Safe even before payment
+  // completes: the public render always re-sanitizes against the REAL plan, so
+  // an abandoned checkout gracefully snaps back to the closest Free look.
+  const proIntent = chosenPlan === "pro" || chosenPlan === "office";
+  const treatAsPaid = paid || proIntent;
 
   // Server-side validation (the client validated too, but the API must not
   // accept a card with no name — it renders "Save 's contact" / a blank hero —
@@ -69,11 +78,12 @@ export async function POST(req: NextRequest) {
     normalizeSlug(String(email ?? "").split("@")[0] || "");
   const normalizedUsername = await ensureUniqueUsername(slugBase, admin);
 
-  // Enforce Free limits on the customization blob (Pro-only accent/font stripped,
-  // link buttons capped) — backend-enforced, not just hidden in the UI.
-  let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, paid);
+  // Enforce Free limits on the customization blob (Pro-only colors snapped to
+  // the nearest Free preset, link buttons capped) — backend-enforced, not just
+  // hidden in the UI.
+  let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, treatAsPaid, template);
   // Custom designer is Pro-only — Free can't save a "custom" template.
-  let safeTemplate = !paid && template === "custom" ? "classic-pro" : (template || "classic-pro");
+  let safeTemplate = !treatAsPaid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 
   // Office uniform branding: if the user is under an office with a brand, force
   // the logo, company, website and the whole look — every employee card is based

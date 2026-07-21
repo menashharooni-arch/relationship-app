@@ -5,7 +5,6 @@ import {
   isPaidPlan,
   isOfficePlan,
   sanitizeCustomizationForPlan,
-  PRO_CUSTOMIZATION_KEYS,
 } from "@/lib/plan";
 
 describe("plan gating", () => {
@@ -74,7 +73,7 @@ describe("PLAN_LIMITS — Free plan (keep in sync with plan-content.ts)", () => 
 });
 
 describe("sanitizeCustomizationForPlan", () => {
-  it("strips Pro-only design keys and caps Swift Links for a free account", () => {
+  it("snaps Pro-only colors to the nearest Free-safe preset (never deletes them outright) and caps Swift Links for a free account", () => {
     // Always start OVER the cap (whatever the cap currently is) so this proves
     // the trim rather than the input length. It previously hardcoded a 2-item
     // list against a cap of 1 and would silently stop testing the trim the
@@ -82,7 +81,11 @@ describe("sanitizeCustomizationForPlan", () => {
     const overCap = Array.from({ length: PLAN_LIMITS.FREE_MAX_LINKS + 2 }, (_, i) => i + 1);
     const input = { accentColor: "#ff0000", font: "serif", about: "hi", links: overCap };
     const out = sanitizeCustomizationForPlan(input, false);
-    for (const k of PRO_CUSTOMIZATION_KEYS) expect(out).not.toHaveProperty(k);
+    // `font` has no preset mapping and is dropped; `accentColor` is a real
+    // design key that gets SNAPPED (still present) rather than deleted.
+    expect(out).not.toHaveProperty("font");
+    expect(out).toHaveProperty("accentColor");
+    expect(typeof out.accentColor).toBe("string");
     // Free-baseline keys survive; Swift Links are trimmed to the Free cap.
     expect(out.about).toBe("hi");
     expect(out.links).toEqual(overCap.slice(0, PLAN_LIMITS.FREE_MAX_LINKS));

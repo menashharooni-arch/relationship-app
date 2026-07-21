@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeCustomizationForPlan, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
+import { sanitizeCustomizationForPlan, PRO_CUSTOMIZATION_KEYS, nearestPreset, convertCustomizationToFreeClosest } from "@/lib/plan";
+import { META, FALLBACK_META } from "@/lib/template-style-presets";
 
 // These cover the persistence contract for the new editable-template style keys
 // (bgColor / textColor / fontFamily) alongside the existing accent/font gating,
@@ -12,28 +13,94 @@ describe("editable-template style keys are Pro-gated", () => {
     }
   });
 
-  it("strips every style key for a Free account", () => {
+  it("snaps every color key to the nearest Free-safe preset for a Free account (never deletes them outright)", () => {
+    const meta = META["classic-pro"];
     const input = {
+      // An arbitrary Pro custom pick, close to (but not exactly) the
+      // template's fallback branding-panel color ("#0e1b35").
       accentColor: "#ff0000",
-      bgColor: "#101010",
+      bgColor: "#0e1a34",
       textColor: "#ffffff",
       fontFamily: "Georgia, serif",
       about: "hi",
       links: [{ label: "Site", url: "https://x.com" }],
     };
-    const out = sanitizeCustomizationForPlan(input, false);
-    expect(out).not.toHaveProperty("accentColor");
-    expect(out).not.toHaveProperty("bgColor");
-    expect(out).not.toHaveProperty("textColor");
-    expect(out).not.toHaveProperty("fontFamily");
+    const out = sanitizeCustomizationForPlan(input, false, "classic-pro");
+    // Snapped, not deleted: every key is still present, pointing at one of the
+    // template's own presets.
+    expect(meta.accent.presets).toContain(out.accentColor);
+    expect(meta.bg.presets).toContain(out.bgColor);
+    expect(meta.text.presets).toContain(out.textColor);
+    // Font has no custom-input equivalent to snap against — the picked value
+    // IS its own closest match, so it passes through untouched.
+    expect(out.fontFamily).toBe("Georgia, serif");
     // Free-baseline content is untouched.
     expect(out.about).toBe("hi");
     expect(out.links).toEqual([{ label: "Site", url: "https://x.com" }]);
   });
 
+  it("leaves keys that were never set as undefined (nothing to snap)", () => {
+    const out = sanitizeCustomizationForPlan({ about: "hi" }, false, "classic-pro");
+    expect(out.bgColor).toBeUndefined();
+    expect(out.textColor).toBeUndefined();
+    expect(out.accentColor).toBeUndefined();
+  });
+
+  it("passes through an exact preset value unchanged", () => {
+    const meta = META["classic-pro"];
+    const exact = meta.accent.presets[2];
+    const out = sanitizeCustomizationForPlan({ accentColor: exact }, false, "classic-pro");
+    expect(out.accentColor).toBe(exact);
+  });
+
+  it("downgrades the custom template to classic-pro and drops the freeform layout for Free", () => {
+    const out = sanitizeCustomizationForPlan(
+      { bgColor: "#123456", customLayout: { background: "#000", elements: [] } },
+      false,
+      "custom",
+    );
+    expect(out).not.toHaveProperty("customLayout");
+    // No standard-template style keys to snap from a custom layout — left at
+    // the target template's baked-in default rather than guessed.
+    expect(out.bgColor).toBeUndefined();
+  });
+
   it("keeps every style key for a paid account", () => {
     const input = { accentColor: "#ff0000", bgColor: "#101010", textColor: "#fff", fontFamily: "Mono" };
-    expect(sanitizeCustomizationForPlan(input, true)).toEqual(input);
+    expect(sanitizeCustomizationForPlan(input, true, "classic-pro")).toEqual(input);
+  });
+});
+
+describe("nearestPreset", () => {
+  it("passes an exact match through untouched", () => {
+    expect(nearestPreset("#2563eb", ["#2563eb", "#111827"], "#111827")).toBe("#2563eb");
+  });
+
+  it("returns undefined when the value was never set", () => {
+    expect(nearestPreset(undefined, ["#2563eb"], "#111827")).toBeUndefined();
+  });
+
+  it("picks the closest preset by color distance", () => {
+    // #000001 is 1 unit from black, ~ far from white.
+    expect(nearestPreset("#000001", ["#000000", "#ffffff"], "#000000")).toBe("#000000");
+  });
+});
+
+describe("convertCustomizationToFreeClosest", () => {
+  it("reports changed:false when there's nothing Pro-only to convert", () => {
+    const result = convertCustomizationToFreeClosest({ about: "hi" }, "classic-pro");
+    expect(result.changed).toBe(false);
+    expect(result.template).toBe("classic-pro");
+  });
+
+  it("reports changed:true when a Pro-only color was set", () => {
+    const result = convertCustomizationToFreeClosest({ accentColor: "#ff0000" }, "classic-pro");
+    expect(result.changed).toBe(true);
+  });
+
+  it("falls back to FALLBACK_META presets for an unknown template", () => {
+    const result = convertCustomizationToFreeClosest({ accentColor: "#ff0000" }, "some-unknown-template");
+    expect(FALLBACK_META.accent.presets).toContain(result.customization.accentColor);
   });
 });
 
