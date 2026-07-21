@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-// The "View live" link in the card-editor header. Hidden while the Design tab
-// is active (owner request) — it listens for the tab-change event the editor
-// broadcasts. Everywhere else the link behaves normally.
+// The "View live" link in the card-editor header. Hidden while the Design or
+// Socials tab is active (owner request) — it listens for the tab-change event
+// the editor broadcasts. Everywhere else the link behaves normally.
 export default function EditViewLiveLink({ href }: { href: string }) {
   const [tab, setTab] = useState("content");
 
@@ -17,7 +17,7 @@ export default function EditViewLiveLink({ href }: { href: string }) {
     return () => window.removeEventListener("sc:card-edit-tab", onTab);
   }, []);
 
-  if (tab === "design") return null;
+  if (tab === "design" || tab === "sharing") return null;
 
   return (
     <a
