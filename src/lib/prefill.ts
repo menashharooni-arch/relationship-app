@@ -69,6 +69,17 @@ export function stashSketch(data: CardPrefill): void {
   writePrefill(withoutStep);
 }
 
+// Drop the stashed sketch outright. Used when the visitor abandons a mini
+// builder (closes it / heads Home) — the next visit to any builder must start
+// from a blank slate rather than resurrecting what they half-typed earlier.
+export function clearPrefill(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage blocked — nothing was stashed to begin with */
+  }
+}
+
 // Read once and remove, so the prefill is consumed exactly one time.
 export function consumePrefill(): CardPrefill | null {
   try {

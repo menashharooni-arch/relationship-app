@@ -12,6 +12,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { writePrefill, stashSketch } from "@/lib/prefill";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // "See how your Swift Signature would look" builder for the homepage signature
@@ -94,6 +95,20 @@ export default function SignatureMiniBuilder() {
     router.push("/cards/new");
   }
 
+  // Closing this preview (X / Esc / backdrop) puts the visitor back on the
+  // homepage, which means they abandoned the sketch — so drop BOTH the stashed
+  // prefill and the in-memory field values, so the builder reopens blank rather
+  // than restoring (and re-stashing) what they typed.
+  function closeAndReset() {
+    setOpen(false);
+    setStep(0);
+    setLaunching(false);
+    setName(""); setTitle(""); setCompany(""); setEmail(""); setPhone("");
+    setHeadshot(null); setLogo(null);
+    setTemplate("classic-pro");
+    resetGuestFlow();
+  }
+
   const steps: MiniStep[] = [
     {
       title: "Who's signing off?",
@@ -167,7 +182,7 @@ export default function SignatureMiniBuilder() {
 
       <MiniBuilderModal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeAndReset}
         eyebrow="Build your Swift Signature"
         step={step}
         setStep={setStep}
