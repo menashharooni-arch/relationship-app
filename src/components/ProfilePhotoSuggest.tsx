@@ -18,6 +18,13 @@ import { useState } from "react";
 type Props = {
   /** LinkedIn OAuth is configured server-side (env keys present). */
   linkedinEnabled: boolean;
+  /** Signed-out visitor building on the marketing site. Google and LinkedIn
+   *  both need a session, so they're unavailable; Gravatar and the web
+   *  aggregator work from the email they typed, which is passed in below. */
+  guest?: boolean;
+  /** The email the visitor typed — used ONLY in guest mode. A signed-in user's
+   *  lookup always uses their session email, never anything from the client. */
+  email?: string | null;
   /** Called with the durable stored image URL once the user confirms. */
   onConfirm: (photoUrl: string) => void;
   /** Same-origin path to return to after the LinkedIn consent screen. */
@@ -40,7 +47,7 @@ type State =
   | { kind: "applying"; source: Candidate["source"] }
   | { kind: "error"; message: string };
 
-export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, returnTo }: Props) {
+export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, returnTo, guest = false, email }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [applied, setApplied] = useState(false);
 
@@ -51,9 +58,14 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
     setApplied(false);
     try {
       // Both sources in parallel; either failing alone must not sink the other.
+      const lookupUrl = guest && email
+        ? `/api/photo-suggest?email=${encodeURIComponent(email)}`
+        : "/api/photo-suggest";
       const [ownRes, liRes] = await Promise.all([
-        fetch("/api/photo-suggest").catch(() => null),
-        linkedinEnabled ? fetch("/api/integrations/linkedin").catch(() => null) : Promise.resolve(null),
+        fetch(lookupUrl).catch(() => null),
+        // LinkedIn needs the visitor's own authorized connection — impossible
+        // before an account exists, so guests skip it entirely.
+        !guest && linkedinEnabled ? fetch("/api/integrations/linkedin").catch(() => null) : Promise.resolve(null),
       ]);
 
       const candidates: Candidate[] = [];
@@ -62,7 +74,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
         for (const c of data.candidates ?? []) candidates.push(c);
       }
 
-      let linkedin: LinkedInState = linkedinEnabled ? "error" : "off";
+      let linkedin: LinkedInState = !guest && linkedinEnabled ? "error" : "off";
       if (liRes) {
         if (liRes.ok) {
           const li = await liRes.json() as { connected?: boolean; photo?: string | null; error?: string };
@@ -78,7 +90,12 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
       }
 
       if (!candidates.length && linkedin === "off") {
-        setState({ kind: "error", message: "We couldn't find a photo on your accounts — upload one above instead." });
+        setState({
+          kind: "error",
+          message: guest
+            ? "We couldn't find a photo for that email — upload one above instead."
+            : "We couldn't find a photo on your accounts — upload one above instead.",
+        });
         return;
       }
       setState({ kind: "results", candidates, linkedin });
@@ -97,7 +114,9 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
         : await fetch("/api/photo-suggest", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ source: c.source }),
+            // Guests get the bytes back as a data: URL (no account folder to
+            // store into yet); it rides in the draft and is uploaded at claim.
+            body: JSON.stringify({ source: c.source, ...(guest && email ? { email } : {}) }),
           });
       const data = await res.json().catch(() => ({} as { url?: string }));
       if (!res.ok || !data.url) {

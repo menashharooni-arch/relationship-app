@@ -47,6 +47,9 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input }),
       });
+      // 429 carries its own status the copy already covers — don't flatten a
+      // "slow down" into a scarier "something went wrong".
+      if (res.status === 429) { setState({ kind: "empty", status: "rate_limited" }); return; }
       if (!res.ok) { setState({ kind: "empty", status: "provider_error" }); return; }
       const data = await res.json() as { status: LogoSuggestStatus; candidates: LogoCandidate[] };
       if (data.status === "not_configured") { setState({ kind: "hidden" }); return; }

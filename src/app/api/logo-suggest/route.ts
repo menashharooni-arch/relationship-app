@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getLogoProvider } from "@/lib/logo-provider";
+import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 // Provider calls need Node (safeFetch uses undici + node:dns) — never edge.
 export const runtime = "nodejs";
@@ -8,12 +10,30 @@ export const runtime = "nodejs";
 // POST /api/logo-suggest  { input: "<company name | business email | domain>" }
 // → { status, candidates: [{ name, domain, logoUrl }] }
 //
-// Auth-gated: only a signed-in user can spend our provider quota. The response
-// NEVER auto-applies a logo — it only offers candidates the client must confirm.
+// The response NEVER auto-applies a logo — it only offers candidates the client
+// must confirm.
+//
+// Open to signed-out visitors so the homepage builders can suggest a logo
+// BEFORE an account exists (that's the point of "see how your card would
+// look"). The input is just a company name/domain they typed — no identity is
+// involved — so there's nothing user-specific to leak. Provider quota is the
+// real asset here, so guests get a much tighter per-IP budget than signed-in
+// users, who keep their existing per-user one.
+const SIGNED_IN_LIMIT = 60;   // per user / 10 min
+const GUEST_LIMIT = 10;       // per IP  / 10 min
+const WINDOW_MS = 10 * 60 * 1000;
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const key = user ? `logo-suggest:u:${user.id}` : `logo-suggest:ip:${clientIp(req)}`;
+  if (await isRateLimited(key, user ? SIGNED_IN_LIMIT : GUEST_LIMIT, WINDOW_MS)) {
+    return NextResponse.json(
+      { status: "rate_limited", candidates: [], message: "Too many logo searches — please wait a moment." },
+      { status: 429 },
+    );
+  }
 
   const provider = getLogoProvider();
   // Fail safe: if no credential is configured the feature is off. Return a

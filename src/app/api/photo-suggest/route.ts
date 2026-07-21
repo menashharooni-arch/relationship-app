@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 import type { User } from "@supabase/supabase-js";
 
 // sharp needs Node — never edge.
@@ -57,11 +59,15 @@ function gravatarUrl(email: string | undefined): string | null {
   return `https://www.gravatar.com/avatar/${hash}?s=400&d=404`;
 }
 
-async function resolveCandidates(user: User): Promise<Candidate[]> {
+// `user` is null for a signed-out visitor building a card on the homepage:
+// Google's avatar comes from the auth session so it simply isn't available to
+// them, but Gravatar and the aggregator are keyed on an EMAIL — which they have
+// typed into the builder — so those two sources still work pre-account.
+async function resolveCandidates(user: User | null, email: string | undefined): Promise<Candidate[]> {
   const out: Candidate[] = [];
-  const g = googlePhotoUrl(user);
+  const g = user ? googlePhotoUrl(user) : null;
   if (g) out.push({ source: "google", label: "Your Google photo", photoUrl: g });
-  const gr = gravatarUrl(user.email);
+  const gr = gravatarUrl(email);
   if (gr) {
     try {
       const res = await fetch(gr, { method: "HEAD", signal: AbortSignal.timeout(4000) });
@@ -72,7 +78,7 @@ async function resolveCandidates(user: User): Promise<Candidate[]> {
   // nothing (unavatar also checks Gravatar/Google, so this avoids duplicate
   // thumbnails while still catching a Twitter/GitHub/etc. photo they missed).
   if (out.length === 0) {
-    const u = unavatarUrl(user.email);
+    const u = unavatarUrl(email);
     if (u) {
       try {
         const res = await fetch(u, { signal: AbortSignal.timeout(5000) });
@@ -86,12 +92,37 @@ async function resolveCandidates(user: User): Promise<Candidate[]> {
   return out;
 }
 
+// A signed-out visitor may look up an email they typed, so this is throttled
+// per IP: the lookup hits third-party hosts (Gravatar/unavatar) and must not
+// become an open enumeration proxy. Signed-in users keep a roomier per-user
+// budget since the email is their own, from the session.
+const GUEST_LOOKUP_LIMIT = 12;   // per IP  / 10 min
+const USER_LOOKUP_LIMIT = 60;    // per user / 10 min
+const LOOKUP_WINDOW_MS = 10 * 60 * 1000;
+
+// The email to resolve against: ALWAYS the session's own for a signed-in user
+// (never client input, so one account can't fish for another's avatar), and the
+// typed one only for a guest, who has no session to draw from.
+function emailFor(user: User | null, requested: unknown): string | undefined {
+  if (user) return user.email;
+  return typeof requested === "string" && requested.includes("@") ? requested.trim().toLowerCase() : undefined;
+}
+
 // GET → the candidates the user may pick from (previews only, nothing applied).
-export async function GET() {
+// ?email= is honoured for guests only (see emailFor).
+export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const candidates = await resolveCandidates(user);
+
+  const key = user ? `photo-suggest:u:${user.id}` : `photo-suggest:ip:${clientIp(req)}`;
+  if (await isRateLimited(key, user ? USER_LOOKUP_LIMIT : GUEST_LOOKUP_LIMIT, LOOKUP_WINDOW_MS)) {
+    return NextResponse.json({ candidates: [], error: "rate_limited" }, { status: 429 });
+  }
+
+  const email = emailFor(user, req.nextUrl.searchParams.get("email"));
+  if (!user && !email) return NextResponse.json({ candidates: [] });
+
+  const candidates = await resolveCandidates(user, email);
   return NextResponse.json({ candidates });
 }
 
@@ -101,16 +132,25 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const rlKey = user ? `photo-import:u:${user.id}` : `photo-import:ip:${clientIp(req)}`;
+  if (await isRateLimited(rlKey, user ? USER_LOOKUP_LIMIT : GUEST_LOOKUP_LIMIT, LOOKUP_WINDOW_MS)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   let source: Source | "" = "";
+  let requestedEmail: unknown = null;
   try {
     const body = await req.json();
     if (body?.source === "google" || body?.source === "gravatar" || body?.source === "web") source = body.source;
+    requestedEmail = body?.email ?? null;
   } catch { /* handled below */ }
   if (!source) return NextResponse.json({ error: "invalid_source" }, { status: 400 });
 
-  const candidates = await resolveCandidates(user);
+  const email = emailFor(user, requestedEmail);
+  if (!user && !email) return NextResponse.json({ error: "no_photo" }, { status: 404 });
+
+  const candidates = await resolveCandidates(user, email);
   const chosen = candidates.find((c) => c.source === source);
   if (!chosen) return NextResponse.json({ error: "no_photo" }, { status: 404 });
 
@@ -128,6 +168,13 @@ export async function POST(req: NextRequest) {
     body = await sharp(bytes).rotate().resize(1000, 1000, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
   } catch {
     return NextResponse.json({ error: "fetch_failed" }, { status: 502 });
+  }
+
+  // A guest has no account folder to own the file yet. Hand the bytes back as a
+  // data: URL, which is precisely what a guest's own cropped upload produces —
+  // it rides in the localStorage draft and is uploaded for real at claim time.
+  if (!user) {
+    return NextResponse.json({ url: `data:image/jpeg;base64,${body.toString("base64")}` });
   }
 
   const admin = getAdminSupabase();
