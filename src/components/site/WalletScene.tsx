@@ -23,12 +23,12 @@ export default function WalletScene() {
             <div className="relative p-4">
               <div className="flex items-center justify-between">
                 <span className="text-white/90 text-[11px] font-bold tracking-[0.18em] uppercase">SwiftCard</span>
-                <span className="text-white/80 text-[11px] font-semibold">Morgan & Co.</span>
+                <span className="text-white/80 text-[11px] font-semibold">Coastline Realty</span>
               </div>
               <div className="mt-6 flex items-end justify-between">
                 <div>
                   <p className="text-white text-[18px] font-extrabold leading-tight">Alex Morgan</p>
-                  <p className="text-white/80 text-[12px]">Founder & CEO</p>
+                  <p className="text-white/80 text-[12px]">Realtor®</p>
                 </div>
                 <div className="rounded-lg bg-white p-1.5">
                   <MiniQR size={44} url="https://swiftcard.me/card/alexmorgan" fg="#0E1017" />

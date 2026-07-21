@@ -93,7 +93,7 @@ function Profile() {
           <VerifiedBadge className="w-[19px] h-[19px]" />
         </div>
         <p className="text-white/50 text-[14px] mt-0.5">@alexmorgan</p>
-        <p className="text-white/60 text-[12.5px] font-medium mt-2">Founder &amp; CEO&nbsp;&nbsp;·&nbsp;&nbsp;Morgan &amp; Co.</p>
+        <p className="text-white/60 text-[12.5px] font-medium mt-2">Realtor®&nbsp;&nbsp;·&nbsp;&nbsp;Coastline Realty</p>
         <p className="text-white/75 text-[13px] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look</p>
 
         {/* Social icons (display-only) */}

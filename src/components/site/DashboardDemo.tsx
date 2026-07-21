@@ -11,11 +11,11 @@ import type { CardData } from "@/components/card-templates/types";
 // one company, everywhere on the site.
 const DEMO_CARD: CardData = withoutSocials({
   name: "Alex Morgan",
-  title: "Founder & CEO",
-  company: "Morgan & Co.",
-  phone: "(555) 123-4567",
-  email: "alex@morganandco.com",
-  website: "www.morganandco.com",
+  title: "Realtor®",
+  company: "Coastline Realty",
+  phone: "(415) 555-0188",
+  email: "alex@coastlinerealty.com",
+  website: "coastlinehomes.com",
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,

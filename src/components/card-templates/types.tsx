@@ -100,21 +100,31 @@ export function withoutSocials(data: CardData): CardData {
 
 export const SAMPLE_DATA: CardData = {
   name: "Alex Morgan",
-  title: "Founder & CEO",
-  company: "Morgan & Co.",
-  phone: "(555) 123-4567",
-  email: "alex@morganandco.com",
-  website: "www.morganandco.com",
-  address: "123 Main Street, New York, NY",
-  instagram: "@morganandco",
+  title: "Realtor®",
+  company: "Coastline Realty",
+  phone: "(415) 555-0188",
+  email: "alex@coastlinerealty.com",
+  website: "coastlinehomes.com",
+  address: "1200 Ocean Ave, San Francisco, CA 94122",
+  instagram: "@coastlinerealty",
   twitter: "@alexmorgan",
-  tiktok: "@morganandco",
+  tiktok: "@coastlinerealty",
   linkedin: "linkedin.com/in/alexmorgan",
   initials: "AM",
   photoUrl: null,
   logoUrl: null,
   cardUrl: "swiftcard.me/card/alexmorgan",
 };
+
+// The one demo headshot used across the marketing site. Deliberately NOT on
+// SAMPLE_DATA: that object is spread into real users' live previews (see
+// OnboardingForm), and inheriting a stock face there would show a signed-in
+// person a stranger's photo on their own card.
+export const DEMO_HEADSHOT = "/marketing/demo-girl.jpg";
+
+// SAMPLE_DATA for marketing surfaces, where the demo person SHOULD have a face
+// — notably Photo First, which is nothing but the photo.
+export const SAMPLE_DATA_WITH_PHOTO: CardData = { ...SAMPLE_DATA, photoUrl: DEMO_HEADSHOT };
 
 // MiniQR moved to ./MiniQR.tsx — this module is value-imported by ~30 files
 // including several client homepage components, so it must stay free of the

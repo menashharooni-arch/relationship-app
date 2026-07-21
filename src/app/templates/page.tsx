@@ -9,7 +9,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
+import { SAMPLE_DATA_WITH_PHOTO, withoutSocials } from "@/components/card-templates/types";
 
 const TEMPLATES = [
   {
@@ -149,7 +149,7 @@ export default function TemplatesPage() {
                   }}
                 >
                   <CardScaler>
-                    <Component data={withoutSocials(SAMPLE_DATA)} />
+                    <Component data={withoutSocials(SAMPLE_DATA_WITH_PHOTO)} />
                   </CardScaler>
                 </div>
               </button>

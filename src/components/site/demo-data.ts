@@ -5,13 +5,13 @@ import type { CardData } from "@/components/card-templates/types";
 
 export const DEMO_CARD: CardData = {
   name: "Alex Morgan",
-  title: "Founder & CEO",
-  company: "Morgan & Co.",
-  phone: "(555) 123-4567",
-  email: "alex@morganandco.com",
-  website: "www.morganandco.com",
-  address: "123 Main Street, New York, NY",
-  instagram: "@morganandco",
+  title: "Realtor®",
+  company: "Coastline Realty",
+  phone: "(415) 555-0188",
+  email: "alex@coastlinerealty.com",
+  website: "coastlinehomes.com",
+  address: "1200 Ocean Ave, San Francisco, CA 94122",
+  instagram: "@coastlinerealty",
   linkedin: "in/alexmorgan",
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
@@ -37,8 +37,8 @@ export const DEMO_LINK_SOCIALS = [
 // Gallery variety — the SAME person and business everywhere on the site
 // (owner decision, Jul 2026): only the accent/template changes per tile.
 export const GALLERY = [
-  { template: "photo-first", accent: "#5D6BFF", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
-  { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
-  { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
-  { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Founder & CEO", company: "Morgan & Co." },
+  { template: "photo-first", accent: "#5D6BFF", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
+  { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
+  { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
+  { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
 ] as const;

@@ -114,7 +114,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     name: "Dana Lee",
     title: "Sales Manager",
     company: company || "Your company",
-    phone: phone || "(555) 123-4567",
+    phone: phone || "(415) 555-0188",
     email: "dana@" + (website ? website.replace(/^https?:\/\//, "").replace(/\/.*$/, "") : "company.com"),
     website: website || "",
     address: addrLine || undefined,
