@@ -68,8 +68,17 @@ export default function SignatureMiniBuilder() {
     router.push("/cards/new");
   }
 
-  // Closing = back to the homepage = abandoned (see resetGuestFlow).
-  function closeAndReset() {
+  // Closing just puts the builder away. The visitor's work is deliberately
+  // KEPT: they routinely close one product and open another, and the three
+  // builders share one draft, so wiping here would make them retype everything
+  // they'd already entered. Only an explicit Start over, or heading Home,
+  // clears it (see startOver / resetGuestFlow).
+  function close() {
+    setOpen(false);
+    setLaunching(false);
+  }
+
+  function startOver() {
     setOpen(false);
     setStep(0);
     setLaunching(false);
@@ -164,7 +173,8 @@ export default function SignatureMiniBuilder() {
 
       <MiniBuilderModal
         open={open}
-        onClose={closeAndReset}
+        onClose={close}
+        onStartOver={startOver}
         eyebrow="Build your Swift Signature"
         step={step}
         setStep={setStep}
