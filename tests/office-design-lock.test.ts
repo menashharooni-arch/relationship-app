@@ -4,7 +4,7 @@ import { cardIsOffline } from "@/lib/card-active";
 import { roleHasCapability } from "@/lib/office-roles";
 
 // The office owns the LOOK (template, colours, fonts) — every employee card is
-// based on the admin's primary card. Employees own only their personal content.
+// set on the office Branding page. Employees own only their personal content.
 
 const design = { accentColor: "#123456", font: "Inter", bgColor: "#ffffff" };
 
@@ -60,7 +60,7 @@ describe("overlayOfficeDesign — the office's look is forced onto member cards"
   });
 });
 
-describe("extractDesign — the office look is derived from the primary card", () => {
+describe("extractDesign — pulls just the design keys from a card (brand seeding)", () => {
   it("pulls only the design keys off the card", () => {
     const out = extractDesign({ accentColor: "#123456", font: "Inter", bio: "x", photoUrl: "y" });
     expect(out).toEqual({ accentColor: "#123456", font: "Inter" });
@@ -75,9 +75,9 @@ describe("extractDesign — the office look is derived from the primary card", (
     expect(extractDesign({ accentColor: "", font: null })).toBeNull();
   });
 
-  it("round-trips: what's extracted from the primary card is what gets forced", () => {
-    const primary = { accentColor: "#abcdef", fontFamily: "Georgia", bio: "admin bio" };
-    const extracted = extractDesign(primary)!;
+  it("round-trips: what's extracted from the seed card is what gets forced", () => {
+    const seedCard = { accentColor: "#abcdef", fontFamily: "Georgia", bio: "admin bio" };
+    const extracted = extractDesign(seedCard)!;
     const employee = overlayOfficeDesign({ accentColor: "#000000", bio: "employee bio" }, { design: extracted, lockTemplate: true });
     expect(employee.accentColor).toBe("#abcdef");
     expect(employee.fontFamily).toBe("Georgia");

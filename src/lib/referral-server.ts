@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "./supabase-admin";
+import { getAccountEmail } from "./account-email";
 import { getStripe } from "./stripe";
 import { isPaidPlan, TRIAL_DAYS } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
@@ -152,7 +153,11 @@ export async function applyReferralOnSignup(
   let flaggedReason: string | null = null;
   if (referrer) {
     const sameAccount = referrer.id === userId;
-    const sameEmail = !!opts.email && !!referrer.email && normEmail(opts.email) === normEmail(referrer.email);
+    // Compare against the referrer's AUTH signup email — profiles.email drifts
+    // to the card's public contact email, which would let a self-referral slip
+    // through (or falsely flag someone who shares a card inbox).
+    const referrerAuthEmail = await getAccountEmail(referrer.id, referrer.email);
+    const sameEmail = !!opts.email && !!referrerAuthEmail && normEmail(opts.email) === normEmail(referrerAuthEmail);
     if (sameAccount || sameEmail) {
       status = "self_referral";
       flaggedReason = "self_referral";

@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
-import { overlayOfficeContact, stripOfficeContact } from "@/lib/office-brand";
-import { propagateBrandToMembers } from "@/lib/office-primary";
+import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
-// Office admin sets the uniform brand (logo / company / website / template).
+// Office admin sets the uniform brand (logo / company / website / template /
+// colors & fonts). This page is THE brand source — there is no primary card.
 // Saves it on the office AND propagates it to every existing card under the
 // office (the admin's + every active member's), so all cards stay uniform.
 export async function PATCH(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest) {
   }
   const { data: office } = await admin
     .from("offices")
-    .select("id, brand_logo_url, brand_company, brand_website, brand_template, brand_phone, brand_fax, brand_address")
+    .select("id, brand_logo_url, brand_company, brand_website, brand_template, brand_phone, brand_fax, brand_address, brand_design")
     .eq("id", ctx.officeId)
     .maybeSingle();
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
@@ -49,22 +49,44 @@ export async function PATCH(req: NextRequest) {
   const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
   const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
 
-  // Company IDENTITY + look (logo/company/website/template) come ONLY from the
-  // Primary Card (syncBrandFromPrimaryCard). The Branding form is a SECOND
-  // surface that must not be able to set or stale-overwrite them, or a
-  // non-owner admin's edit diverges from the owner's card and gets reverted on
-  // the owner's next card edit. So we IGNORE any identity fields in the request
-  // and carry the current (primary-card-sourced) values through unchanged; the
-  // form only manages the office-only contact fields + the template lock.
+  // Company IDENTITY + look are set HERE — the Branding page is the brand's
+  // single source of truth (the primary-card concept is gone). A field the
+  // request omits keeps its current value; an explicitly-empty field clears it.
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : undefined);
+  const OFFICE_TEMPLATES = ["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "custom"];
+  const templateIn = str(body.template);
+  const template =
+    templateIn === undefined ? ((office.brand_template as string | null) ?? null)
+    : OFFICE_TEMPLATES.includes(templateIn) ? templateIn
+    : ((office.brand_template as string | null) ?? null);
+
+  // The locked look — only known design keys, only string values, so a crafted
+  // request can't smuggle arbitrary JSON into every member card's customization.
+  let design: Record<string, unknown> | null | undefined = undefined;
+  if ("design" in body) {
+    const d = body.design;
+    if (d && typeof d === "object" && !Array.isArray(d)) {
+      const clean: Record<string, unknown> = {};
+      for (const key of OFFICE_DESIGN_KEYS) {
+        const v = (d as Record<string, unknown>)[key];
+        if (typeof v === "string" && v.trim()) clean[key] = v.trim();
+      }
+      design = Object.keys(clean).length ? clean : null;
+    } else {
+      design = null; // explicit clear
+    }
+  }
+
   const brand = {
-    brand_logo_url: (office.brand_logo_url as string | null) ?? null,
-    brand_company: (office.brand_company as string | null) ?? null,
-    brand_website: (office.brand_website as string | null) ?? null,
-    brand_template: (office.brand_template as string | null) ?? null,
+    brand_logo_url: "logoUrl" in body ? (str(body.logoUrl) || null) : ((office.brand_logo_url as string | null) ?? null),
+    brand_company: "company" in body ? (str(body.company) || null) : ((office.brand_company as string | null) ?? null),
+    brand_website: "website" in body ? (str(body.website) || null) : ((office.brand_website as string | null) ?? null),
+    brand_template: template,
     brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
     brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
     brand_address: hasAddr ? cleanAddr : null,
     brand_locks: { template: lockTemplate },
+    ...(design !== undefined ? { brand_design: design } : {}),
   };
 
   // Save, retrying without the newer columns if the migration isn't run yet, so
@@ -167,14 +189,12 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Push the locked LOOK (colors/fonts) to member cards on a brand save too.
-  // Contact/logo/company/website/template propagate above, but the design keys
-  // only travel via the primary-card sync path — so re-enabling the design lock
-  // never reached member cards, which is what caused the sub-user save-lockout
-  // (office audit H1). Re-applying the full brand overlay per member is
-  // idempotent and best-effort.
+  // Push the locked LOOK (colors/fonts) to every card on a brand save — the
+  // design keys live in customization, so the top-level propagation above never
+  // carries them. Re-applying the full brand overlay per card is idempotent and
+  // best-effort; with no primary card, the owner's cards are included too.
   try {
-    await propagateBrandToMembers(office.id as string);
+    await propagateBrandToOfficeCards(office.id as string);
   } catch { /* best-effort — a member re-syncs on their next edit */ }
 
   await writeAudit({

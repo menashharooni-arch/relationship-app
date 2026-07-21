@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 // The admin's controls for ONE team card: edit the employee's personal details,
 // or take the card offline. Company fields and the look aren't editable here on
-// purpose — they come from the primary card, so the admin changes them once for
-// the whole team instead of card by card.
+// purpose — they're set once on the Branding page for the whole team instead of
+// card by card.
 
 type Card = {
   id: string;
@@ -16,7 +16,6 @@ type Card = {
   email: string | null;
   phone: string | null;
   is_offline: boolean;
-  isPrimary: boolean;
 };
 
 export default function OfficeCardActions({ card, appUrl }: { card: Card; appUrl: string }) {
@@ -125,7 +124,7 @@ export default function OfficeCardActions({ card, appUrl }: { card: Card; appUrl
               {busy ? "Saving…" : "Save changes"}
             </button>
             <p className="text-[11px] text-gray-600">
-              Company logo, office number, fax, website and the design come from the primary card.
+              Company logo, office number, fax, website and the design are set on the Branding page.
             </p>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmailMap } from "@/lib/account-email";
 
 // ── Which cards does an office actually control? ─────────────────────────────
 // The office admin may only ever touch cards owned by the office's OWNER or by
@@ -23,7 +24,6 @@ export type OfficeCard = {
   // Who owns it, for the admin's list.
   ownerEmail: string | null;
   ownerName: string | null;
-  isPrimary: boolean;
 };
 
 // Every user id whose cards this office controls: the owner + active members.
@@ -55,7 +55,7 @@ export function isOfficeMember(teamIds: string[], userId: string): boolean {
 // True when `targetUserId` is the office OWNER themself. officeOwnsCard's
 // controlled-user set (getOfficeUserIds, above) deliberately includes the
 // owner — but a delegated (non-owner) admin's manage_member_cards capability
-// is scoped to "any EMPLOYEE's card", never the owner's own primary/brand
+// is scoped to "any EMPLOYEE's card", never the owner's own
 // card. Callers must combine this with the caller's OWN isOwner flag: the
 // owner editing their own card is always fine.
 export function isOwnersCard(ownerId: string, targetUserId: string | null | undefined): boolean {
@@ -72,7 +72,7 @@ export async function officeOwnsCard(officeId: string, cardId: string): Promise<
   return ids.includes(card.user_id as string);
 }
 
-// Every card in the office, annotated with its owner and whether it's primary.
+// Every card in the office, annotated with its owner.
 export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
   const admin = getAdminSupabase();
   const userIds = await getOfficeUserIds(officeId);
@@ -101,9 +101,10 @@ export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
 
   const { data: profiles } = await admin.from("profiles").select("id, email, name").in("id", userIds);
   const byId = new Map((profiles ?? []).map((p) => [p.id as string, p]));
-
-  const { data: office } = await admin.from("offices").select("primary_card_id").eq("id", officeId).maybeSingle();
-  const primaryId = (office?.primary_card_id as string | null) ?? null;
+  // ownerEmail identifies the ACCOUNT that owns the card, so it must be the
+  // auth signup email — profiles.email drifts to the card's public contact
+  // email and is only a fallback (see lib/account-email).
+  const authEmails = await getAccountEmailMap();
 
   return cards.map((c) => {
     const prof = byId.get(c.user_id as string);
@@ -120,9 +121,8 @@ export async function listOfficeCards(officeId: string): Promise<OfficeCard[]> {
       logo_url: (c.logo_url as string | null) ?? null,
       is_offline: c.is_offline === true,
       created_at: (c.created_at as string | null) ?? null,
-      ownerEmail: (prof?.email as string | null) ?? null,
+      ownerEmail: authEmails.get(c.user_id as string) ?? (prof?.email as string | null) ?? null,
       ownerName: (prof?.name as string | null) ?? null,
-      isPrimary: !!primaryId && primaryId === c.id,
     };
   });
 }

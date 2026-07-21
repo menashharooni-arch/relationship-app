@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmailMap } from "@/lib/account-email";
 import { getOfficeAnalytics, type EmployeeAnalytics } from "@/lib/office-analytics";
 import { getOfficeSeatUsage, type SeatUsage } from "@/lib/office-seats";
 import { isInviteExpired } from "@/lib/office-invite";
@@ -240,6 +241,7 @@ export async function getTeamOverview(
     cardCounts.set(uid, cur);
   }
 
+  const authEmails = await getAccountEmailMap();
   const people: TeamPerson[] = analytics.employees.map((e, i) => {
     const counts = cardCounts.get(e.userId) ?? { total: 0, live: 0 };
     const prof = profById.get(e.userId);
@@ -249,7 +251,9 @@ export async function getTeamOverview(
       kind: "member" as const,
       memberRowId: rowByUser.get(e.userId)?.id ?? null,
       title: (prof?.title as string | null) || null,
-      email: (prof?.email as string | null) || null,
+      // A member's identity is their AUTH signup email — profiles.email drifts
+      // to the card's public contact email and is only the fallback.
+      email: authEmails.get(e.userId) || (prof?.email as string | null) || null,
       photoUrl: (prof?.photo_url as string | null) || null,
       lastActiveAt,
       liveCards: counts.live,

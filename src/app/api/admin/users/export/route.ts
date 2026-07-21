@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmailMap } from "@/lib/account-email";
 import { requireAdmin } from "@/lib/admin";
 
 // GET /api/admin/users/export — the full user directory as a CSV download
@@ -50,6 +51,8 @@ export async function GET() {
   const header = ["email", "name", "company", "plan", "plan_expires_at", "signup_source", "referral_code", "cards", "leads", "views", "signed_up"];
   const lines = [header.join(",")];
 
+  const authEmails = await getAccountEmailMap();
+
   for (const p of profiles ?? []) {
     if ((p.customization as { _deleted?: boolean } | null)?._deleted) continue;
     const usernames = new Set<string>([p.username as string, ...(cardsByUser[p.id as string] ?? [])].filter(Boolean));
@@ -59,7 +62,8 @@ export async function GET() {
       views += viewsByUsername[u] ?? 0;
     }
     lines.push([
-      csv(p.email), csv(p.name), csv(p.company),
+      // Account email column = auth signup email (see lib/account-email).
+      csv(authEmails.get(p.id as string) ?? p.email), csv(p.name), csv(p.company),
       csv(p.plan), csv(p.plan_expires_at ?? ""), csv(p.signup_source ?? "direct"), csv(p.referral_code ?? ""),
       csv((cardsByUser[p.id as string] ?? []).length), csv(leads), csv(views),
       csv(String(p.created_at ?? "").slice(0, 10)),

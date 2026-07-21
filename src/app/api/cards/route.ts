@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
+import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
-import { ensurePrimaryCard, getOwnedOfficeId } from "@/lib/office-primary";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 export async function POST(req: NextRequest) {
@@ -159,14 +158,14 @@ export async function POST(req: NextRequest) {
     await seedDemoContact(data.username);
   }
 
-  // Office seat 1: the owner's first card becomes the office's PRIMARY card —
-  // every employee card is then based on it (logo/company/website/template/look).
-  // Only the owner's card can be primary, and only when the slot is still empty.
+  // Office seat 1: if the owner's office brand is still blank, seed it once
+  // from this card (a plain copy — no primary card, no ongoing link; from then
+  // on the Branding page is the only brand writer).
   try {
-    const ownedOfficeId = await getOwnedOfficeId(user.id);
-    if (ownedOfficeId) await ensurePrimaryCard(ownedOfficeId, data.id as string);
+    const { data: owned } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
+    if (owned?.id) await seedBrandFromOwnersFirstCard(owned.id as string, user.id);
   } catch {
-    // Best-effort: never fail card creation because the brand sync hiccuped.
+    // Best-effort: never fail card creation because the brand seed hiccuped.
   }
 
   return NextResponse.json({ card: data });

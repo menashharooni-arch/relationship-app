@@ -39,18 +39,11 @@ export default async function OfficeCardDetailPage({ params }: { params: Promise
             <h1 className="text-xl font-bold text-white tracking-tight truncate">
               {card.label || card.name || "Untitled card"}
             </h1>
-            {card.isPrimary && <Badge tone="purple">Primary</Badge>}
             {card.is_offline ? <Badge tone="gray">Offline</Badge> : <Badge tone="green">Live</Badge>}
           </div>
           <p className="text-gray-500 text-sm mt-0.5">/card/{card.username}</p>
         </div>
       </div>
-
-      {card.isPrimary && (
-        <p className="text-[11px] text-purple-300/80 bg-purple-500/10 border border-purple-500/20 rounded-xl px-3 py-2 mb-5">
-          This is your team&apos;s primary card. Its logo, company, website and design are what every other card on the team inherits — editing it re-brands everyone.
-        </p>
-      )}
 
       <div className="grid grid-cols-3 gap-3 mb-8">
         <StatTile label="Card views" value={stats.views} />
@@ -86,7 +79,6 @@ export default async function OfficeCardDetailPage({ params }: { params: Promise
           email: card.email,
           phone: card.phone,
           is_offline: card.is_offline,
-          isPrimary: card.isPrimary,
         }}
         appUrl={APP_URL}
       />

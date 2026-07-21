@@ -1,6 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
-import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
+import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan , seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 import { insertNotification } from "@/lib/notify";
 
 type Admin = ReturnType<typeof getAdminSupabase>;
@@ -45,13 +44,12 @@ export async function provisionOfficeForOwner(admin: Admin, ownerId: string, sea
     officeId = (created?.id as string | null) ?? null;
   }
 
-  // Adopt the owner's earliest card as the office's Primary Card right now, so a
-  // freshly-provisioned office is branded from the moment it exists — for BOTH
-  // new Office signups and Pro→Office upgrades — instead of only once the admin
-  // first opens the console. Idempotent: no-ops once a primary card is set, and
-  // the /office/admin guard still backfills as a safety net.
+  // Seed the brand from the owner's earliest card right now, so a freshly-
+  // provisioned office is branded from the moment it exists — for BOTH new
+  // Office signups and Pro→Office upgrades. Idempotent: no-ops the moment any
+  // brand identity is set; the /office/admin guard self-heals as a safety net.
   if (officeId) {
-    try { await adoptPrimaryCardForOwner(officeId, ownerId); } catch { /* best-effort — the console backfill covers it */ }
+    try { await seedBrandFromOwnersFirstCard(officeId, ownerId); } catch { /* best-effort — the console self-heal covers it */ }
   }
 }
 

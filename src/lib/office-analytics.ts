@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmail } from "@/lib/account-email";
 
 type Admin = ReturnType<typeof getAdminSupabase>;
 
@@ -191,7 +192,8 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
   return {
     userId,
     name: (prof.name as string) || (prof.username as string) || "Member",
-    email: (prof.email as string | null) ?? null,
+    // Auth signup email — the account's identity, not the card's contact email.
+    email: await getAccountEmail(userId, prof.email as string | null),
     username: (prof.username as string) || "",
     joinedAt: null,
     totals: { cards: cards.length, views, leads, views30 },

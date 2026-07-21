@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmail } from "@/lib/account-email";
 import { requireAdmin } from "@/lib/admin";
 import { REFERRAL, freeMonthDays } from "@/lib/referral";
 
@@ -75,11 +76,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // referred_by is the REFERRER'S user id — resolve it to a human identity.
+  // referred_by is the REFERRER'S user id — resolve it to a human identity,
+  // labeled by the referrer's AUTH signup email (profiles.email drifts to the
+  // card's public contact email — see lib/account-email).
   let referredBy: { id: string; name: string | null; email: string | null } | null = null;
   if (p.referred_by) {
     const { data: ref } = await admin.from("profiles").select("id, name, email").eq("id", p.referred_by).maybeSingle();
-    if (ref) referredBy = { id: ref.id as string, name: ref.name as string | null, email: ref.email as string | null };
+    if (ref) {
+      const refEmail = await getAccountEmail(ref.id as string, ref.email as string | null);
+      referredBy = { id: ref.id as string, name: ref.name as string | null, email: refEmail };
+    }
   }
 
   const cardList = (cards ?? []).map((c) => ({
@@ -95,7 +101,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({
     user: {
-      id: p.id, username: p.username, name: p.name, email: p.email, plan: p.plan,
+      id: p.id, username: p.username, name: p.name,
+      // Account identity = auth signup email, never the card's contact email.
+      email: await getAccountEmail(p.id as string, p.email as string | null),
+      plan: p.plan,
       plan_expires_at: p.plan_expires_at ?? null, created_at: p.created_at,
       company: p.company, title: p.title, phone: p.phone, website: p.website, photo_url: p.photo_url,
       signup_source: p.signup_source ?? "direct", referral_code: p.referral_code ?? null,

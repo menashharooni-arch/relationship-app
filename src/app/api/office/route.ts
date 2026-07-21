@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 import { PLAN_LIMITS } from "@/lib/plan";
-import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
 import { NextResponse } from "next/server";
 
 // Reads/writes go through the service-role client with the caller's identity
@@ -68,12 +68,13 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // The admin builds their seat-1 card BEFORE the office exists, so adopt it now
-  // as the primary card — every employee card is based on it.
+  // The admin builds their seat-1 card BEFORE the office exists — seed the
+  // brand from it once, so the office starts branded. A plain copy; the
+  // Branding page owns the brand from here on.
   try {
-    await adoptPrimaryCardForOwner(office.id as string, user.id);
+    await seedBrandFromOwnersFirstCard(office.id as string, user.id);
   } catch {
-    // Best-effort — /office/admin backfills this on load if it didn't take.
+    // Best-effort — /office/admin self-heals a blank brand on load.
   }
 
   return NextResponse.json(office);
