@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if ("customization" in updates) {
     const { data: existingCard } = await admin
       .from("cards")
-      .select("customization")
+      .select("customization, template")
       .eq("id", id)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -80,7 +80,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...incoming,
     };
-    updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false);
+    const effectiveTemplate = (updates.template as string | undefined) ?? (existingCard?.template as string | undefined);
+    updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false, effectiveTemplate);
   }
 
   // The office's PRIMARY card is the brand's source, so it is exempt from the

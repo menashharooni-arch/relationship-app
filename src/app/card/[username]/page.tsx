@@ -173,7 +173,8 @@ export default async function CardPage({
   // always reflects the owner's CURRENT plan (Swift Links page already does).
   const customization = sanitizeCustomizationForPlan(
     (profile.customization ?? {}) as Record<string, unknown>,
-    isPaidPlan(profile.plan)
+    isPaidPlan(profile.plan),
+    (profile.template as string) || "classic-pro"
   ) as {
     bio?: string;
     facebook?: string;

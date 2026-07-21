@@ -34,7 +34,7 @@ import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefil
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
-import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
+import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
@@ -103,9 +103,13 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, appUrl = "https://swiftcard.me", walletEnabled = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, appUrl = "https://swiftcard.me", walletEnabled = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
   guest?: boolean;
+  /** The account's FIRST card (count === 0) being built while signed in and on
+   *  Free — unlocks the Pro design controls as a preview, same as a guest, then
+   *  gates on an explicit Free/Pro choice before the card is created. */
+  isFirstCard?: boolean;
   /** Absolute origin for the share link/QR — passed in so a preview deploy
    *  shares its own URL rather than hardcoding production. */
   appUrl?: string;
@@ -177,6 +181,15 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   const orgFax = org?.fax?.trim() || null;
   const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
   const designLocked = !!org?.lockDesign;
+
+  // First-card design preview: a guest (account unknown pre-signup) or an
+  // already-authed Free account building its first card get the Pro design
+  // controls unlocked to try, then must explicitly pick Free or Pro before the
+  // card is created (see the plan-choice modal below). A plan-specific CTA
+  // (?plan=pro/office, presetPlan below) already has a fixed target plan, so it
+  // skips this extra choice.
+  const designUnlocked = isPro || guest || isFirstCard;
+  const showAuthedFirstCardGate = !guest && isFirstCard && !isPro && !presetPlan;
 
   // Step 1 — card details. Managed fields start (and stay) on the org's values;
   // the server enforces them again on create.
@@ -253,9 +266,50 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
   const [multiCardBlocked, setMultiCardBlocked] = useState(false);
   // Guest flow: after building the card, pick a plan BEFORE creating the account.
   // The choice is stashed (plan-intent) and honored on /welcome after signup —
-  // Free → dashboard, Pro/Office → checkout. Authed users skip this (they already
-  // have an account/plan) and create the card directly.
+  // Free → dashboard, Pro/Office → checkout. An authed first-card builder shares
+  // this same modal (showAuthedFirstCardGate) but creates the card directly —
+  // Free converts the design in place (pendingFreeConfirm shows the notice
+  // first if anything Pro-only was actually used), Pro/Office creates then
+  // sends them to checkout.
   const [showPlan, setShowPlan] = useState(false);
+  const [pendingFreeConfirm, setPendingFreeConfirm] = useState(false);
+
+  // Snap the current draft's design down to the closest Free-safe preset in
+  // place (never touches actual content — name, links, photos, etc. are a
+  // separate part of the customization object). Returns whether anything Pro-
+  // only was actually present to convert, which drives whether the "we applied
+  // a basic Free design" notice is shown at all.
+  function applyFreeDesignConversion(): boolean {
+    const draftStyle: Record<string, unknown> = { ...templateStyleState, ...(template === "custom" ? { customLayout } : {}) };
+    const result = convertCustomizationToFreeClosest(draftStyle, template);
+    setTemplate(result.template);
+    setTemplateStyleState({
+      accentColor: result.customization.accentColor as string | undefined,
+      bgColor: result.customization.bgColor as string | undefined,
+      textColor: result.customization.textColor as string | undefined,
+      infoColor: result.customization.infoColor as string | undefined,
+      fontFamily: result.customization.fontFamily as string | undefined,
+    });
+    return result.changed;
+  }
+
+  function handleAuthedFirstCardFree() {
+    const changed = applyFreeDesignConversion();
+    if (changed) { setPendingFreeConfirm(true); return; }
+    setShowPlan(false);
+    handleCreate();
+  }
+
+  function confirmFreeDesignAndCreate() {
+    setPendingFreeConfirm(false);
+    setShowPlan(false);
+    handleCreate();
+  }
+
+  function handleAuthedFirstCardPaid(plan: "pro" | "office", annual: boolean, seats: number) {
+    setShowPlan(false);
+    handleCreate({ plan, annual, seats });
+  }
 
   function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
     writePlanIntent(intent);
@@ -474,7 +528,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
       customLayout, logoUrl, headshotUrl]);
 
-  async function handleCreate() {
+  async function handleCreate(planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number }) {
     if (!name.trim() || !username) {
       setStep(1);
       setError("Full name is required.");
@@ -524,6 +578,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
             photoUrl: headshotUrl ?? null,
             ...(template === "custom" ? { customLayout } : {}),
           },
+          ...(planChoice ? { chosenPlan: planChoice.plan } : {}),
         }),
       });
     } catch {
@@ -574,6 +629,16 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
       // Without this the code is silently dropped mid-flow and the buyer pays
       // full price for an offer they were shown.
       if (presetPromo) qs.set("promo", presetPromo);
+      router.push(`/checkout?${qs.toString()}`);
+      return;
+    }
+
+    // First-card design preview, Pro/Office chosen at the in-wizard plan gate:
+    // the card is saved as-designed (server kept it thanks to chosenPlan — see
+    // /api/cards), now send them to pay for it.
+    if (!guest && planChoice) {
+      const qs = new URLSearchParams({ plan: planChoice.plan, interval: planChoice.annual ? "annual" : "monthly" });
+      if (planChoice.plan === "office") qs.set("seats", String(planChoice.seats));
       router.push(`/checkout?${qs.toString()}`);
       return;
     }
@@ -1080,9 +1145,15 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-2">Choose your design</label>
 
+              {!isPro && designUnlocked && (
+                <p className="text-[11px] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                  Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.
+                </p>
+              )}
+
               {/* Custom designer is the editing surface for the custom template;
                   the standard card preview lives in the pinned preview column. */}
-              {customSelected && isPro && (
+              {customSelected && designUnlocked && (
                 <div className="mb-3">
                   <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
                 </div>
@@ -1090,7 +1161,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
 
               {/* Custom design — the freeform "edit every element" path */}
               <div className="mb-2">
-                <CustomDesignCard isPro={isPro} selected={customSelected} onSelect={() => setTemplate("custom")} />
+                <CustomDesignCard isPro={designUnlocked} selected={customSelected} onSelect={() => setTemplate("custom")} />
               </div>
 
               {/* Standard templates */}
@@ -1115,11 +1186,11 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-medium text-gray-400">
                       Customize colors &amp; font
-                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
+                      {!designUnlocked && <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>}
                     </label>
                   </div>
-                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
-                  {!isPro && (
+                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} />
+                  {!isPro && !designUnlocked && (
                     <PlanGate
                       feature="colors-fonts"
                       nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
@@ -1150,7 +1221,14 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               </button>
               <button
                 onClick={() => {
-                  if (!guest) { requireAuth("save", handleCreate); return; }
+                  if (!guest) {
+                    // First-card design preview on an authed Free account →
+                    // force the same Free/Pro choice a guest gets, since they
+                    // may have used Pro-only colors/the custom designer.
+                    if (showAuthedFirstCardGate) { setShowPlan(true); return; }
+                    requireAuth("save", handleCreate);
+                    return;
+                  }
                   // Plan-specific entry → skip the chooser, carry the plan to payment.
                   if (presetPlan) {
                     pickPlanThenSignUp({ plan: presetPlan, annual: presetAnnual, seats: presetPlan === "office" ? presetSeats : 1, ...(presetPromo ? { promo: presetPromo } : {}) });
@@ -1163,6 +1241,7 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
               >
                 {status === "loading" ? "Creating…"
                   : (presetPlan && !postCheckout) ? `Continue to ${presetPlan === "office" ? "Office" : "Pro"} →`
+                  : showAuthedFirstCardGate ? "Continue to plans →"
                   : !guest ? "Create card →"
                   : "Continue to plans →"}
               </button>
@@ -1186,26 +1265,49 @@ export default function NewCardWizard({ isPro, guest = false, appUrl = "https://
         </div>{/* grid */}
       </div>
     </main>
-    {/* Guest plan step — after the card is built, pick a plan, THEN create the
-        account. The choice is stashed and finalized on /welcome post-signup. */}
-    {showPlan && guest && (
+    {/* Plan-choice gate — after the card is built, pick Free or Pro/Office
+        before it's created/goes live. Guest: the choice is stashed and
+        finalized on /welcome after signup. Authed first-card: creates the
+        card directly — Free converts any Pro-only design in place (with a
+        confirmation if anything actually needs converting), Pro/Office
+        creates then sends them to checkout. */}
+    {showPlan && (guest || showAuthedFirstCardGate) && (
       <div className="fixed inset-0 z-[90] overflow-y-auto bg-gray-950/97 backdrop-blur-sm">
         <div className="min-h-full flex items-start justify-center py-10 px-5">
           <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
-              <button onClick={() => setShowPlan(false)} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
+              <button onClick={() => { setShowPlan(false); setPendingFreeConfirm(false); }} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                 Back to your card
               </button>
               <h2 className="text-white font-bold text-2xl">Choose your plan</h2>
-              <p className="text-gray-400 text-sm mt-1.5">Pick a plan, then create your free account. Free to start — upgrade anytime.</p>
+              <p className="text-gray-400 text-sm mt-1.5">
+                {guest ? "Pick a plan, then create your free account. Free to start — upgrade anytime." : "Pick a plan for this card. Free to start — upgrade anytime."}
+              </p>
             </div>
-            <PlanCards
-              onFree={() => pickPlanThenSignUp({ plan: "free" })}
-              onPaid={(plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })}
-              busy={null}
-              freeLabel="Start free →"
-            />
+            {!guest && pendingFreeConfirm ? (
+              <div className="max-w-md mx-auto text-center">
+                <p className="rounded-xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left text-blue-200/90 text-sm leading-relaxed">
+                  Custom colors and premium design options are available on Pro. Your card content will be saved, but we&apos;ll apply a basic Free design that you can still customize.
+                </p>
+                <button
+                  onClick={confirmFreeDesignAndCreate}
+                  disabled={status === "loading"}
+                  className="mt-5 w-full py-3.5 rounded-full text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors"
+                >
+                  {status === "loading" ? "Saving…" : "Continue →"}
+                </button>
+              </div>
+            ) : (
+              <PlanCards
+                onFree={guest ? () => pickPlanThenSignUp({ plan: "free" }) : handleAuthedFirstCardFree}
+                onPaid={guest
+                  ? (plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })
+                  : handleAuthedFirstCardPaid}
+                busy={null}
+                freeLabel="Start free →"
+              />
+            )}
           </div>
         </div>
       </div>

@@ -33,3 +33,14 @@ export function consumePlanIntent(): PlanIntent | null {
     return null;
   }
 }
+
+// Read WITHOUT clearing — used by the claim POST, which needs to know the
+// picked plan before /welcome does its own one-time consumePlanIntent().
+export function peekPlanIntent(): PlanIntent | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? (JSON.parse(raw) as PlanIntent) : null;
+  } catch {
+    return null;
+  }
+}
