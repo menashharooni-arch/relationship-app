@@ -30,7 +30,7 @@ import { socialUrl } from "@/lib/social-url";
 import { normalizeSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
 import { resetGuestFlow } from "@/lib/guest-reset";
-import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefill";
+import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
 import { normalizeSocial } from "@/lib/social-url";
@@ -252,8 +252,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     if (p.website) setWebsite(p.website);
     if (p.socials) setSocials((prev) => ({ ...prev, ...p.socials }));
     if (p.links?.length) setLinks(p.links.map((l) => ({ label: l.label, url: l.url })));
+    if (p.fax) setFax(p.fax);
     if (p.template) setTemplate(p.template);
-    if (p.accentColor) setTemplateStyleState((prev) => ({ ...prev, accentColor: p.accentColor }));
+    // Carry the WHOLE colour/font scheme, not just the accent — the homepage
+    // builders expose the same TemplateStyleControls the editor does, so
+    // dropping any of these would lose design work the visitor already did.
+    setTemplateStyleState((prev) => {
+      const next = { ...prev };
+      for (const k of PREFILL_STYLE_KEYS) {
+        const v = p[k];
+        if (typeof v === "string" && v) next[k] = v;
+      }
+      return next;
+    });
     if (p.logoUrl) setLogoUrl(p.logoUrl);
     if (p.headshotUrl) setHeadshotUrl(p.headshotUrl);
     setPendingPrefill(null);

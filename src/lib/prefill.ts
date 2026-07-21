@@ -20,17 +20,34 @@ export type CardPrefill = {
   company?: string;
   email?: string;
   phone?: string;
+  fax?: string;
   address?: PrefillAddress;
   bio?: string;
   website?: string;
   socials?: PrefillSocials;
   links?: { label: string; url: string }[];
   template?: string;
+  // ── Design (mirrors TemplateStyle in lib/template-style) ──────────────────
+  // The homepage builders offer the SAME colour/font controls as the real
+  // editor, so every key the editor can set has to survive the hand-off —
+  // carrying only accentColor silently dropped a visitor's whole colour scheme
+  // the moment they continued into the wizard.
   accentColor?: string;
+  bgColor?: string;
+  textColor?: string;
+  infoColor?: string;
+  fontFamily?: string;
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
+  /** Which product the visitor was building — picks the step the wizard opens
+   *  on and which preview the builder shows. */
+  product?: "card" | "swiftlink" | "signature";
   step?: number; // which wizard step to open on (1 details · 2 links · 3 design)
 };
+
+// Every design key a builder may carry over. Kept as one list so the sketch
+// writer, the wizard's autofill, and the tests can't drift apart.
+export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
 
 const KEY = "swiftcard_prefill";
 
@@ -47,10 +64,13 @@ export function writePrefill(data: CardPrefill): void {
 export function hasSketchContent(data: CardPrefill): boolean {
   return Boolean(
     data.name || data.title || data.company || data.email || data.phone ||
-    data.bio || data.website || data.headshotUrl || data.logoUrl ||
+    data.fax || data.bio || data.website || data.headshotUrl || data.logoUrl ||
     (data.links && data.links.length) ||
     (data.socials && Object.values(data.socials).some(Boolean)) ||
-    (data.address && Object.values(data.address).some(Boolean)),
+    (data.address && Object.values(data.address).some(Boolean)) ||
+    // A visitor who ONLY restyled the card still sketched something worth
+    // carrying — otherwise their colour/font work is dropped on hand-off.
+    PREFILL_STYLE_KEYS.some((k) => data[k]),
   );
 }
 

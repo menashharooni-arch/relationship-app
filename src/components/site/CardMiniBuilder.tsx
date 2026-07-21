@@ -1,27 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
 import ImageUpload from "@/components/ImageUpload";
+import LogoSuggest from "@/components/LogoSuggest";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
+import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import { writePrefill, stashSketch } from "@/lib/prefill";
-import { resetGuestFlow } from "@/lib/guest-reset";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
+import { useProductSketch } from "./useProductSketch";
+import { Field, SocialFields, LinkButtons } from "./BuilderFields";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
-// "+" that opens a real card builder. It collects everything a card actually
-// needs — name/title/company, phone/email/address, headshot + logo, template +
-// accent — and skips only what isn't on the card itself (socials live in Swift
-// Links). The real template renders live; "Make it live" hands off to
-// /cards/new with everything (including the cropped images) prefilled.
+// "+" that opens the REAL card builder — the same controls the signed-in editor
+// uses (TemplateStyleControls for colours/fonts, ImageUpload for the cropped
+// headshot/logo, LogoSuggest + ProfilePhotoSuggest for the automatic
+// suggestions), just scoped to what a digital card actually renders.
+//
+// Everything a visitor does here survives into /cards/new and, from there, into
+// their account — see useProductSketch → CardPrefill.
 
 const TEMPLATES = [
   { id: "classic-pro", label: "Classic", Component: ClassicPro },
@@ -31,126 +35,82 @@ const TEMPLATES = [
   { id: "luxury-minimal", label: "Luxury", Component: LuxuryMinimal },
 ];
 
-const ACCENTS = ["#2563EB", "#7C3AED", "#059669", "#E11D48", "#D97706", "#0E1B35"];
-
-const inputCls =
-  "w-full bg-[#15171F] border border-white/10 text-white placeholder-white/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors";
-
-function Field({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="block">
-      <span className="block text-white/55 text-[12px] font-medium mb-1.5">{label}</span>
-      <input className={inputCls} {...props} />
-    </label>
-  );
-}
-
 export default function CardMiniBuilder() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
+  const { sketch, patch, patchStyle, patchSocial, handOff, reset } = useProductSketch("card", open);
 
-  const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [street, setStreet] = useState("");
-  const [city, setCity] = useState("");
-  const [stateRegion, setStateRegion] = useState("");
-  const [zip, setZip] = useState("");
-  const [headshot, setHeadshot] = useState<string | null>(null);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [template, setTemplate] = useState("classic-pro");
-  const [accent, setAccent] = useState("");
+  const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
+  const addressStr = [
+    sketch.street,
+    sketch.city,
+    [sketch.stateRegion, sketch.zip].filter(Boolean).join(" "),
+  ].filter(Boolean).join("\n");
 
-  const Preview = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
-  const addressStr = [street, city, [stateRegion, zip].filter(Boolean).join(" ")].filter(Boolean).join("\n");
-  const data: CardData = withoutSocials({
-    name: name || "Your Name",
-    title: title || "Your Title",
-    company: company || "Your Company",
-    phone: phone || "(555) 000-0000",
-    email: email || "you@email.com",
-    website: "",
+  // The live card, driven straight off the sketch — same CardData shape the
+  // real editor and the published page build.
+  const data: CardData = {
+    name: sketch.name || "Your Name",
+    title: sketch.title || "Your Title",
+    company: sketch.company || "Your Company",
+    phone: sketch.phone || "(555) 000-0000",
+    email: sketch.email || "you@email.com",
+    website: sketch.website,
     address: addressStr,
-    initials: (name || "Y")[0].toUpperCase(),
-    photoUrl: headshot,
-    logoUrl: logo,
+    initials: (sketch.name || "Y")[0].toUpperCase(),
+    photoUrl: sketch.headshot,
+    logoUrl: sketch.logo,
     cardUrl: "swiftcard.me/card/your-card",
-    customization: accent ? { accentColor: accent } : {},
-  });
-
-  // What the visitor has sketched so far, in wizard-prefill shape.
-  const sketch = () => ({
-    name: name.trim(),
-    title: title.trim(),
-    company: company.trim(),
-    phone: phone.trim(),
-    email: email.trim(),
-    address: { street: street.trim(), city: city.trim(), state: stateRegion.trim(), zip: zip.trim() },
-    template,
-    accentColor: accent || undefined,
-    headshotUrl: headshot,
-    logoUrl: logo,
-  });
-
-  // Keep the sketch stashed as they type, so a generic "Get started" /
-  // "Create your free card" click elsewhere carries it too (lands on step 1).
-  useEffect(() => {
-    if (open) stashSketch(sketch());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, name, title, company, phone, email, street, city, stateRegion, zip, template, accent, headshot, logo]);
+    linkedin: sketch.socials.linkedin,
+    instagram: sketch.socials.instagram,
+    twitter: sketch.socials.twitter,
+    tiktok: sketch.socials.tiktok,
+    customization: { ...sketch.style, links: sketch.links },
+  };
 
   function launch() {
     setLaunching(true);
-    // Explicit "Make it live" → jump straight to the first info step, prefilled.
-    writePrefill({ ...sketch(), step: 1 });
+    handOff();
     router.push("/cards/new");
   }
 
-  // Closing this preview (X / Esc / backdrop) puts the visitor back on the
-  // homepage, which means they abandoned the sketch — so drop BOTH the stashed
-  // prefill and the in-memory field values. Without the local reset the
-  // component stays mounted and reopening would show everything they typed
-  // (and re-stash it), so the builder must reopen genuinely blank.
+  // Closing = back to the homepage = abandoned. Drop the shared sketch so this
+  // and every other builder reopens blank.
   function closeAndReset() {
     setOpen(false);
     setStep(0);
     setLaunching(false);
-    setName(""); setTitle(""); setCompany(""); setPhone(""); setEmail("");
-    setStreet(""); setCity(""); setStateRegion(""); setZip("");
-    setHeadshot(null); setLogo(null);
-    setTemplate("classic-pro"); setAccent("");
-    resetGuestFlow();
+    reset();
   }
 
   const steps: MiniStep[] = [
     {
       title: "Who's on the card?",
       subtitle: "Just the basics — you can change any of it later.",
-      canAdvance: name.trim().length > 0,
+      canAdvance: sketch.name.trim().length > 0,
       content: (
         <>
-          <Field label="Full name" placeholder="Alex Morgan" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          <Field label="Title" placeholder="Founder & CEO" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Field label="Company" placeholder="Morgan & Co." value={company} onChange={(e) => setCompany(e.target.value)} />
+          <Field label="Full name" placeholder="Alex Morgan" value={sketch.name} onChange={(e) => patch({ name: e.target.value })} autoFocus />
+          <Field label="Title" placeholder="Founder & CEO" value={sketch.title} onChange={(e) => patch({ title: e.target.value })} />
+          <Field label="Company" placeholder="Morgan & Co." value={sketch.company} onChange={(e) => patch({ company: e.target.value })} />
         </>
       ),
     },
     {
       title: "How do people reach you?",
-      subtitle: "Phone and email get tap-to-call and tap-to-email on the card.",
+      subtitle: "Phone and email get tap-to-call and tap-to-email on the real card.",
       content: (
         <>
-          <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
-          <Field label="Email" type="email" placeholder="alex@morganco.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Field label="Street address" placeholder="123 Main Street" value={street} onChange={(e) => setStreet(e.target.value)} />
+          <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={sketch.phone} onChange={(e) => patch({ phone: e.target.value })} autoFocus />
+          <Field label="Email" type="email" placeholder="alex@morganco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} />
+          <Field label="Website" placeholder="morganco.com" value={sketch.website} onChange={(e) => patch({ website: e.target.value })} />
+          <Field label="Street address" placeholder="123 Main Street" value={sketch.street} onChange={(e) => patch({ street: e.target.value })} />
           <div className="grid grid-cols-3 gap-2">
-            <Field label="City" placeholder="New York" value={city} onChange={(e) => setCity(e.target.value)} />
-            <Field label="State" placeholder="NY" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} />
-            <Field label="ZIP" placeholder="10001" value={zip} onChange={(e) => setZip(e.target.value)} />
+            <Field label="City" placeholder="New York" value={sketch.city} onChange={(e) => patch({ city: e.target.value })} />
+            <Field label="State" placeholder="NY" value={sketch.stateRegion} onChange={(e) => patch({ stateRegion: e.target.value })} />
+            <Field label="ZIP" placeholder="10001" value={sketch.zip} onChange={(e) => patch({ zip: e.target.value })} />
           </div>
         </>
       ),
@@ -160,27 +120,45 @@ export default function CardMiniBuilder() {
       subtitle: "A headshot and a company logo make the card unmistakably yours.",
       content: (
         <div className="space-y-5">
-          <ImageUpload guest field="photo" shape="circle" currentUrl={headshot} label="Headshot" onUploaded={(u) => setHeadshot(u || null)} />
-          <ImageUpload guest field="logo" shape="square" currentUrl={logo} label="Company logo" onUploaded={(u) => setLogo(u || null)} />
+          <div>
+            <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="Headshot" onUploaded={(u) => patch({ headshot: u || null })} />
+            {/* Looks your headshot up from the email you entered. Shows what it
+                found and applies nothing until you pick it. */}
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={false} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+          </div>
+          <div>
+            <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />
+            <LogoSuggest company={sketch.company} email={sketch.email} onConfirm={(u) => patch({ logo: u })} />
+          </div>
         </div>
       ),
     },
     {
-      title: "Pick a look",
-      subtitle: "Choose a template and an accent — everything updates live.",
+      title: "Social & link buttons",
+      subtitle: "Optional — these become tappable buttons on your card.",
       content: (
-        <>
+        <div className="space-y-4">
+          <SocialFields socials={sketch.socials} onChange={patchSocial} />
+          <LinkButtons links={sketch.links} onChange={(links) => patch({ links })} />
+        </div>
+      ),
+    },
+    {
+      title: "Make it yours",
+      subtitle: "Pick a template, then fine-tune the colours and font — exactly like the real editor.",
+      content: (
+        <div className="space-y-4">
           <div>
             <span className="block text-white/55 text-[12px] font-medium mb-2">Template</span>
             <div className="grid grid-cols-5 gap-1.5">
               {TEMPLATES.map((t) => (
                 <button
                   key={t.id}
-                  onClick={() => setTemplate(t.id)}
+                  onClick={() => patch({ template: t.id })}
                   className="rounded-lg px-1 py-2 text-[11px] font-medium transition-colors"
                   style={{
-                    background: template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
-                    color: template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
+                    background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
+                    color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
                   }}
                 >
                   {t.label}
@@ -188,26 +166,9 @@ export default function CardMiniBuilder() {
               ))}
             </div>
           </div>
-          <div>
-            <span className="block text-white/55 text-[12px] font-medium mb-2">Accent color</span>
-            <div className="flex items-center gap-2">
-              {ACCENTS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setAccent(c)}
-                  aria-label={`Accent ${c}`}
-                  className="w-8 h-8 rounded-full transition-transform hover:scale-110"
-                  style={{ background: c, outline: accent === c ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }}
-                />
-              ))}
-              {/* Custom — pick any color, not just the presets */}
-              <label className="relative w-8 h-8 rounded-full cursor-pointer overflow-hidden shrink-0" title="Custom color"
-                style={{ background: accent && !ACCENTS.includes(accent) ? accent : "conic-gradient(from 0deg, #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ef4444)", outline: accent && !ACCENTS.includes(accent) ? "2px solid #fff" : "2px solid transparent", outlineOffset: 2 }}>
-                <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2563EB"} onChange={(e) => setAccent(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" aria-label="Custom accent color" />
-              </label>
-            </div>
-          </div>
-        </>
+          {/* The very same control the signed-in card editor renders. */}
+          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
+        </div>
       ),
     },
   ];
@@ -225,11 +186,7 @@ export default function CardMiniBuilder() {
         <p className="text-[13.5px] font-semibold mb-2 text-slate-500 group-hover:text-[#2563EB] transition-colors">Start from scratch</p>
         <div
           className="rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 group-hover:-translate-y-[3px]"
-          style={{
-            aspectRatio: "1.75",
-            border: "2px dashed #C9BEA8",
-            background: "rgba(37,99,235,0.03)",
-          }}
+          style={{ aspectRatio: "1.75", border: "2px dashed #C9BEA8", background: "rgba(37,99,235,0.03)" }}
         >
           <span className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110" style={{ background: "var(--rd-aurora)" }}>
             <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
@@ -253,11 +210,11 @@ export default function CardMiniBuilder() {
         launchLabel="Make it live →"
         previewCaption="This is your real card — same as recipients see."
         preview={
-          <div className="w-[260px] max-w-full">
+          <InertPreview className="w-[260px] max-w-full">
             <div className="rounded-2xl overflow-hidden shadow-2xl">
-              <InertPreview><CardScaler><Preview data={data} /></CardScaler></InertPreview>
+              <CardScaler><Preview data={data} /></CardScaler>
             </div>
-          </div>
+          </InertPreview>
         }
       />
     </>

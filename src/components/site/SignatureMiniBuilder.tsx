@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
@@ -10,11 +10,13 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import { writePrefill, stashSketch } from "@/lib/prefill";
-import { resetGuestFlow } from "@/lib/guest-reset";
+import LogoSuggest from "@/components/LogoSuggest";
+import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
+import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
+import { useProductSketch } from "./useProductSketch";
+import { Field, SocialFields } from "./BuilderFields";
 
 // "See how your Swift Signature would look" builder for the homepage signature
 // section. Your signature IS your card rendered under your name, so it needs the
@@ -30,96 +32,60 @@ const TEMPLATES = [
   { id: "luxury-minimal", label: "Luxury", Component: LuxuryMinimal },
 ];
 
-const inputCls =
-  "w-full bg-[#15171F] border border-white/10 text-white placeholder-white/30 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors";
-
-function Field({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="block">
-      <span className="block text-white/55 text-[12px] font-medium mb-1.5">{label}</span>
-      <input className={inputCls} {...props} />
-    </label>
-  );
-}
 
 export default function SignatureMiniBuilder() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
+  const { sketch, patch, patchStyle, patchSocial, handOff, reset } = useProductSketch("signature", open);
 
-  const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [headshot, setHeadshot] = useState<string | null>(null);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [template, setTemplate] = useState("classic-pro");
+  const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
 
-  const Preview = TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro;
-  const data: CardData = withoutSocials({
-    name: name || "Your Name",
-    title: title || "Your Title",
-    company: company || "Your Company",
-    phone: phone || "(555) 000-0000",
-    email: email || "you@email.com",
-    website: "",
-    initials: (name || "Y")[0].toUpperCase(),
-    photoUrl: headshot,
-    logoUrl: logo,
+  // A signature renders the card itself, so it shares CardData — but only the
+  // fields a signature actually shows (no street address, no card-only extras).
+  const data: CardData = {
+    name: sketch.name || "Your Name",
+    title: sketch.title || "Your Title",
+    company: sketch.company || "Your Company",
+    phone: sketch.phone || "(555) 000-0000",
+    email: sketch.email || "you@email.com",
+    website: sketch.website,
+    address: "",
+    initials: (sketch.name || "Y")[0].toUpperCase(),
+    photoUrl: sketch.headshot,
+    logoUrl: sketch.logo,
     cardUrl: "swiftcard.me/card/your-card",
-    customization: {},
-  });
-
-  const sketch = () => ({
-    name: name.trim(),
-    title: title.trim(),
-    company: company.trim(),
-    email: email.trim(),
-    phone: phone.trim(),
-    template,
-    headshotUrl: headshot,
-    logoUrl: logo,
-  });
-
-  // Keep the sketch stashed as they type, so a generic "Get started" /
-  // "Create your free card" click elsewhere carries it too (lands on step 1).
-  useEffect(() => {
-    if (open) stashSketch(sketch());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, name, title, company, email, phone, template, headshot, logo]);
+    linkedin: sketch.socials.linkedin,
+    instagram: sketch.socials.instagram,
+    twitter: sketch.socials.twitter,
+    customization: { ...sketch.style },
+  };
 
   function launch() {
     setLaunching(true);
-    writePrefill({ ...sketch(), step: 1 });
+    handOff();
     router.push("/cards/new");
   }
 
-  // Closing this preview (X / Esc / backdrop) puts the visitor back on the
-  // homepage, which means they abandoned the sketch — so drop BOTH the stashed
-  // prefill and the in-memory field values, so the builder reopens blank rather
-  // than restoring (and re-stashing) what they typed.
+  // Closing = back to the homepage = abandoned (see resetGuestFlow).
   function closeAndReset() {
     setOpen(false);
     setStep(0);
     setLaunching(false);
-    setName(""); setTitle(""); setCompany(""); setEmail(""); setPhone("");
-    setHeadshot(null); setLogo(null);
-    setTemplate("classic-pro");
-    resetGuestFlow();
+    reset();
   }
 
   const steps: MiniStep[] = [
     {
       title: "Who's signing off?",
       subtitle: "Your Swift Signature is your card under your name — start with the basics.",
-      canAdvance: name.trim().length > 0,
+      canAdvance: sketch.name.trim().length > 0,
       content: (
         <>
-          <Field label="Full name" placeholder="Alex Morgan" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          <Field label="Title" placeholder="Founder & CEO" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Field label="Company" placeholder="Morgan & Co." value={company} onChange={(e) => setCompany(e.target.value)} />
+          <Field label="Full name" placeholder="Alex Morgan" value={sketch.name} onChange={(e) => patch({ name: e.target.value })} autoFocus />
+          <Field label="Title" placeholder="Founder & CEO" value={sketch.title} onChange={(e) => patch({ title: e.target.value })} />
+          <Field label="Company" placeholder="Morgan & Co." value={sketch.company} onChange={(e) => patch({ company: e.target.value })} />
         </>
       ),
     },
@@ -128,8 +94,9 @@ export default function SignatureMiniBuilder() {
       subtitle: "These sit inside the card so anyone can reach you in one tap.",
       content: (
         <>
-          <Field label="Email" type="email" placeholder="alex@morganandco.com" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
-          <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Field label="Email" type="email" placeholder="alex@morganandco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} autoFocus />
+          <Field label="Phone" type="tel" placeholder="(555) 123-4567" value={sketch.phone} onChange={(e) => patch({ phone: e.target.value })} />
+          <Field label="Website" placeholder="morganco.com" value={sketch.website} onChange={(e) => patch({ website: e.target.value })} />
         </>
       ),
     },
@@ -138,32 +105,46 @@ export default function SignatureMiniBuilder() {
       subtitle: "A headshot and logo make your Swift Signature unmistakably yours.",
       content: (
         <div className="space-y-5">
-          <ImageUpload guest field="photo" shape="circle" currentUrl={headshot} label="Headshot" onUploaded={(u) => setHeadshot(u || null)} />
-          <ImageUpload guest field="logo" shape="square" currentUrl={logo} label="Company logo" onUploaded={(u) => setLogo(u || null)} />
+          <div>
+            <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="Headshot" onUploaded={(u) => patch({ headshot: u || null })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={false} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+          </div>
+          <div>
+            <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />
+            <LogoSuggest company={sketch.company} email={sketch.email} onConfirm={(u) => patch({ logo: u })} />
+          </div>
         </div>
       ),
     },
     {
-      title: "Pick a template",
-      subtitle: "Your signature renders in this design — it updates live.",
+      title: "Social links",
+      subtitle: "Optional — the ones you pick appear in your signature.",
+      content: <SocialFields socials={sketch.socials} onChange={patchSocial} only={["linkedin", "instagram", "twitter"]} />,
+    },
+    {
+      title: "Design your signature",
+      subtitle: "Pick a layout, then fine-tune the colours and font — it updates live.",
       content: (
-        <div>
-          <span className="block text-white/55 text-[12px] font-medium mb-2">Template</span>
-          <div className="grid grid-cols-5 gap-1.5">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTemplate(t.id)}
-                className="rounded-lg px-1 py-2 text-[11px] font-medium transition-colors"
-                style={{
-                  background: template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
-                  color: template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
+        <div className="space-y-4">
+          <div>
+            <span className="block text-white/55 text-[12px] font-medium mb-2">Layout</span>
+            <div className="grid grid-cols-5 gap-1.5">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => patch({ template: t.id })}
+                  className="rounded-lg px-1 py-2 text-[11px] font-medium transition-colors"
+                  style={{
+                    background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
+                    color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
+          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
       ),
     },
@@ -195,8 +176,8 @@ export default function SignatureMiniBuilder() {
         preview={
           <div className="w-[280px] max-w-full rounded-2xl p-4" style={{ background: "#FAF7F2" }}>
             <p className="text-[13px] text-slate-900 mb-2">
-              <strong>{name || "Your Name"}</strong>
-              {company ? <span className="text-slate-500"> | {company}</span> : null}
+              <strong>{sketch.name || "Your Name"}</strong>
+              {sketch.company ? <span className="text-slate-500"> | {sketch.company}</span> : null}
             </p>
             <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.5)]">
               <InertPreview><CardScaler><Preview data={data} /></CardScaler></InertPreview>

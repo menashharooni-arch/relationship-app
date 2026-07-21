@@ -178,9 +178,12 @@ describe("resetGuestFlow wiring", () => {
       "src/components/site/SignatureMiniBuilder.tsx",
     ]) {
       const src = read(f);
-      expect(src, f).toContain("resetGuestFlow()");
-      // Closing must go through the reset, not a bare setOpen(false).
+      // Closing must go through the reset, not a bare setOpen(false)...
       expect(src, f).toContain("onClose={closeAndReset}");
+      // ...and that path must actually clear the shared sketch.
+      expect(src, f).toMatch(/function closeAndReset\(\)[\s\S]*?reset\(\)/);
     }
+    // The builders share one reset, which is what wipes the stored keys.
+    expect(read("src/components/site/useProductSketch.ts")).toContain("resetGuestFlow()");
   });
 });
