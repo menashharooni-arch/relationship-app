@@ -27,13 +27,19 @@ type Props = {
   redirectTo?: string;
   // Rendered fallback label matching the app's existing button copy.
   className?: string;
+  /** Also show Google One Tap (the floating account chip): a returning user
+   *  signs in with a single tap without finding the button. Login page only —
+   *  anywhere account choice must be explicit (the guest gate) leaves it off.
+   *  auto_select stays false on purpose: zero-click auto sign-in would violate
+   *  the "visitor explicitly picks an account" rule of the guest card flow. */
+  oneTap?: boolean;
 };
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 type Phase = "loading" | "ready" | "authenticating" | "error";
 
-export default function GoogleSignInButton({ redirectTo, className }: Props) {
+export default function GoogleSignInButton({ redirectTo, className, oneTap = false }: Props) {
   const btnRef = useRef<HTMLDivElement>(null);
   // A missing client ID is known at first render (build-time NEXT_PUBLIC var),
   // so start in the right state instead of setState-ing inside the effect.
@@ -126,6 +132,13 @@ export default function GoogleSignInButton({ redirectTo, className }: Props) {
             width: 320,
           });
         }
+        // One Tap: surfaces the returning user's Google account as a floating
+        // chip (FedCM UI) — one tap signs them in via the SAME handleCredential
+        // as the button, whose inFlight guard already covers both firing.
+        // Failures are silent by design: the rendered button is always there.
+        if (oneTap) {
+          try { googleId.prompt(); } catch { /* chip is best-effort */ }
+        }
         setPhase("ready");
       })
       .catch(() => {
@@ -135,10 +148,15 @@ export default function GoogleSignInButton({ redirectTo, className }: Props) {
       });
 
     return () => { cancelled = true; };
-  }, [redirectTo]);
+  }, [redirectTo, oneTap]);
 
   return (
     <div className={className}>
+      {/* Warm up Google's origin the moment this renders — cuts the GIS script
+          fetch (the "Loading Google…" gap) by a round-trip. React hoists these
+          into <head>. */}
+      <link rel="preconnect" href="https://accounts.google.com" />
+      <link rel="dns-prefetch" href="https://accounts.google.com" />
       {/* Google's official rendered button (branding-compliant). Hidden until
           ready so we don't flash an empty box. */}
       <div ref={btnRef} className={`flex justify-center ${phase === "ready" ? "" : "hidden"}`} aria-hidden={phase !== "ready"} />

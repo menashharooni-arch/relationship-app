@@ -351,7 +351,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
           Continue with Google
         </button>
       ) : (
-        <GoogleSignInButton redirectTo={redirectTo} />
+        <GoogleSignInButton redirectTo={redirectTo} oneTap />
       )}
 
       {/* Native app only: Sign in with Apple (Apple requires it alongside other
