@@ -32,7 +32,8 @@ export async function DELETE(req: Request) {
 
   // Clear the account-level photo or logo.
   const column = field === "photo" ? "photo_url" : "logo_url";
-  const { error } = await supabase.from("profiles").update({ [column]: null }).eq("id", user.id);
+  const admin = getAdminSupabase();
+  const { error } = await admin.from("profiles").update({ [column]: null }).eq("id", user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
@@ -116,13 +117,22 @@ export async function POST(req: Request) {
 
   const path = `${user.id}/${field}-${Date.now()}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
+  // Admin client (service role, bypasses RLS) — ownership is already enforced
+  // here in application code: `path` is built from the SERVER-VERIFIED
+  // `user.id`, never client input, so a user can only ever write into their
+  // own folder. Matches every other write path in this app (cards, drafts,
+  // profiles below) rather than relying on storage.objects RLS, which was
+  // rejecting legitimate same-user uploads ("new row violates row-level
+  // security policy") even though the path matched the user's own folder.
+  const admin = getAdminSupabase();
+
+  const { error: uploadError } = await admin.storage
     .from("card-uploads")
     .upload(path, body, { contentType, upsert: true });
 
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 });
 
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = admin.storage
     .from("card-uploads")
     .getPublicUrl(path);
 
@@ -134,7 +144,6 @@ export async function POST(req: Request) {
 
   // If field is "logo" and card_id is provided, save to cards table instead
   if (field === "logo" && cardId) {
-    const admin = getAdminSupabase();
     const { error: cardUpdateError } = await admin
       .from("cards")
       .update({ logo_url: publicUrl })
@@ -146,7 +155,7 @@ export async function POST(req: Request) {
 
   // Save url directly to the correct profile column
   const column = field === "photo" ? "photo_url" : "logo_url";
-  const { error: updateError } = await supabase
+  const { error: updateError } = await admin
     .from("profiles")
     .update({ [column]: publicUrl })
     .eq("id", user.id);
