@@ -32,7 +32,6 @@ import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
 import CardUrlEditor from "@/components/CardUrlEditor";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
@@ -138,12 +137,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       setTimeout(() => setStyleFlash(false), 1400);
     });
   }
-
-  // Broadcast the active tab so the header "View live" link (rendered in the
-  // server page, outside this component) can hide itself on the Design tab.
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent("sc:card-edit-tab", { detail: tab }));
-  }, [tab]);
 
   // Org-managed fields (office sub-users). Each flag is per-field: the office
   // manages exactly what it has set; blanks stay in the employee's hands.
@@ -835,11 +828,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       <div className="order-1 lg:order-2 lg:sticky lg:top-6">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
-          {/* Hidden on the Design and Socials tabs (owner request) — both this
-              and the header "View live" link disappear on those tabs. */}
-          {tab !== "design" && tab !== "sharing" && (
-            <a href={`${APP_URL}/card/${card.username}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-400 hover:text-blue-300">View live →</a>
-          )}
+          {/* "View live" removed entirely (owner request) — both the header and
+              this preview link are gone from the card editor. */}
         </div>
         {/* On the Design tab the preview is a tap target: tapping it jumps to the
             color controls so you can recolor the card straight from the card.
