@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmailMap } from "@/lib/account-email";
 import { requireAdmin } from "@/lib/admin";
 
 // Full user directory for the admin Users page: identity, plan (+expiry),
@@ -41,6 +42,10 @@ export async function GET() {
     if (u) viewsByUsername[u] = (viewsByUsername[u] ?? 0) + 1;
   }
 
+  // Accounts are identified by their AUTH signup email; profiles.email is only
+  // the fallback for anyone the auth listing missed.
+  const authEmails = await getAccountEmailMap();
+
   const users = profiles
     .filter((p) => !((p.customization as { _deleted?: boolean } | null)?._deleted))
     .map((p) => {
@@ -61,7 +66,9 @@ export async function GET() {
         username: p.username,
         primary_username,
         name: p.name,
-        email: p.email,
+        // The ACCOUNT's email is the auth signup address — profiles.email
+        // drifts to the card's public contact email (see lib/account-email).
+        email: authEmails.get(p.id as string) ?? p.email,
         plan: p.plan,
         plan_expires_at: p.plan_expires_at ?? null,
         signup_source: p.signup_source ?? null,

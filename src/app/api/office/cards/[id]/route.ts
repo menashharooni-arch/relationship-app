@@ -4,14 +4,13 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { officeOwnsCard, isOwnersCard } from "@/lib/office-cards";
 import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
-import { getPrimaryCardId, syncBrandFromPrimaryCard } from "@/lib/office-primary";
 import { normalizeSocial } from "@/lib/social-url";
 import { writeAudit } from "@/lib/audit";
 
 // The office admin edits an employee's PERSONAL details and can take the card
 // offline. Company-controlled fields (logo/company/website/office contact) and
-// the locked look are deliberately NOT editable here — they come from the
-// primary card, so the admin changes them there once for the whole team.
+// the locked look are deliberately NOT editable here — they're set once on the
+// Branding page for the whole team.
 const ALLOWED = ["name", "title", "phone", "email", "linkedin", "instagram", "twitter", "tiktok", "customization", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
 
@@ -35,8 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // manage_member_cards means "any EMPLOYEE's card" — the office OWNER's own
   // card is exempt from a delegated (non-owner) admin's reach here. Without
   // this, officeOwnsCard's controlled-user set (which includes the owner)
-  // would let a non-owner admin edit or take offline the owner's own
-  // primary/brand card.
+  // would let a non-owner admin edit or take offline the owner's own card.
   if (!ctx.isOwner) {
     const { data: targetCard } = await admin.from("cards").select("user_id").eq("id", id).maybeSingle();
     if (isOwnersCard(ctx.ownerId, targetCard?.user_id as string | null | undefined)) {
@@ -60,9 +58,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (!Object.keys(updates).length) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
 
-  const primaryCardId = await getPrimaryCardId(ctx.officeId);
-  const isPrimaryCard = !!primaryCardId && primaryCardId === id;
-
   // Merge customization onto the card's own existing blob so keys the admin's
   // form doesn't send (bio, links, testimonials, the employee's headshot) aren't
   // wiped. Server-owned "_"-prefixed keys never come from the client.
@@ -74,9 +69,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...incoming,
     };
-    // Re-assert the office brand on a MEMBER card, exactly as the member's own
-    // save would. The primary card is the brand's source, so it's exempt.
-    if (!isPrimaryCard) {
+    // Re-assert the office brand, exactly as the card owner's own save would.
+    // No card is exempt — the brand lives on the Branding page, and every card
+    // under the office (the owner's included) carries it uniformly.
+    {
       const brand = await getOfficeBrand(ctx.officeId);
       if (brand) {
         if (brand.phone || brand.fax || brand.address) merged = overlayOfficeContact(merged, brand);
@@ -88,15 +84,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { error } = await admin.from("cards").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // The admin edited the brand's source → re-brand the whole team.
-  if (isPrimaryCard) {
-    try {
-      await syncBrandFromPrimaryCard(ctx.officeId, id);
-    } catch {
-      // Best-effort — the save already landed.
-    }
-  }
 
   if (offlineChanged) {
     await writeAudit({

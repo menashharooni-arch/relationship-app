@@ -98,7 +98,7 @@ export type OrgManaged = {
   lockDesign: boolean;
   // True when the viewer is the office OWNER editing one of their NON-primary
   // cards (which inherits the brand). Changes the copy from "managed by your
-  // organization" to "inherited from your Primary Card".
+  // organization" to "set on your office's Branding page".
   ownerInherited?: boolean;
 };
 
@@ -111,7 +111,7 @@ function ManagedTag({ owner }: { owner?: boolean }) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-2.5 h-2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
-      {owner ? "From your Primary Card" : "Managed by your organization"}
+      {owner ? "From your Branding page" : "Managed by your organization"}
     </span>
   );
 }
@@ -391,7 +391,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
                 <p className="text-gray-500 text-xs mb-3">
                   {org.ownerInherited
-                    ? "These come from your Primary Card and appear on every card on your team. Edit your Primary Card to change them."
+                    ? "These are set on your office's Branding page and appear on every card on your team — yours included."
                     : "Your organization keeps these details up to date on every connected card."}
                 </p>
                 <dl className="space-y-1.5">
@@ -511,12 +511,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             {/* Photos */}
             <div className="border-t border-gray-800 pt-4 mt-2 space-y-4">
               <p className={sectionLabel}>Photos</p>
-              {/* Company logo is editable only where it's the brand SOURCE: a
-                  non-office card, or the office's Primary Card. On any card that
-                  inherits the brand (org set — an employee card, or the owner's
-                  own non-primary card) the logo is shown inherited & locked in
-                  the Company-information panel above, and the upload is hidden so
-                  a manual change can't be attempted and silently reverted. */}
+              {/* Company logo is editable only on a NON-office card. Every card
+                  under an office (org set — employee or owner alike) inherits
+                  the brand logo, which is set on the office Branding page; the
+                  upload is hidden here so a manual change can't be attempted
+                  and silently reverted. */}
               {!org && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
@@ -528,7 +527,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {org && !orgLogo && (
                 <p className="text-[11px] text-gray-500">
                   {org.ownerInherited
-                    ? "Your company logo is set on your Primary Card — add it there and it appears on every card."
+                    ? "Your company logo is set on your office's Branding page — add it there and it appears on every card."
                     : "Your company logo is managed by your organization."}
                 </p>
               )}

@@ -3,9 +3,9 @@ import { PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 
 export type OfficeAddress = { street?: string; unit?: string; city?: string; state?: string; zip?: string };
 
-// The look an office owns: colors + fonts, copied from the primary card. These
-// are the ONLY customization keys the office overwrites — an employee's personal
-// content (photoUrl, bio, links, socials, testimonials) is never touched.
+// The look an office owns: colors + fonts, set on the office Branding page.
+// These are the ONLY customization keys the office overwrites — an employee's
+// personal content (photoUrl, bio, links, socials, testimonials) is never touched.
 export const OFFICE_DESIGN_KEYS = PRO_CUSTOMIZATION_KEYS;
 
 export type OfficeBrand = {
@@ -14,9 +14,9 @@ export type OfficeBrand = {
   website: string | null;
   template: string | null;
   customLayout: unknown | null;
-  // The locked look (colors + fonts) taken from the primary card. Applied only
-  // while lockTemplate is on — it travels with the template, since a template
-  // without its colors/fonts isn't a consistent look.
+  // The locked look (colors + fonts), set on the office Branding page. Applied
+  // only while lockTemplate is on — it travels with the template, since a
+  // template without its colors/fonts isn't a consistent look.
   design: Record<string, unknown> | null;
   // Company-controlled uniform contact (spec §8) — applied to member cards' data.
   phone: string | null;
@@ -29,8 +29,8 @@ export type OfficeBrand = {
   lockTemplate: boolean;
 };
 
-// Pull just the design keys out of a card's customization blob. Used to derive
-// the office look from the admin's primary card.
+// Pull just the design keys out of a card's customization blob. Used to seed a
+// fresh office's look from the admin's first card (one-time copy).
 export function extractDesign(
   customization: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
@@ -174,14 +174,19 @@ export async function getOfficeBrandForUser(userId: string): Promise<OfficeBrand
 // ACCEPTS an invite. Without this, a member who had cards before joining keeps
 // unbranded cards until their next edit, breaking the "one brand across
 // everyone" promise for the most common onboarding path.
-export async function applyBrandToUserCards(userId: string, brand: OfficeBrand): Promise<void> {
+export async function applyBrandToUserCards(
+  userId: string,
+  brand: OfficeBrand,
+  opts: { setLabel?: boolean } = {},
+): Promise<void> {
   const admin = getAdminSupabase();
   const topLevel: Record<string, unknown> = {};
   if (brand.logoUrl) topLevel.logo_url = brand.logoUrl;
   if (brand.company) topLevel.company = brand.company;
-  // The card nickname is company-controlled on member cards, sourced from the
+  // The card nickname is company-controlled on MEMBER cards, sourced from the
   // company name — every connected card shows the same label on the dashboard.
-  if (brand.company) topLevel.label = brand.company;
+  // The OWNER keeps their own labels (setLabel:false when propagating to them).
+  if (brand.company && opts.setLabel !== false) topLevel.label = brand.company;
   if (brand.website) topLevel.website = brand.website;
   if (brand.lockTemplate && brand.template) topLevel.template = brand.template;
 
@@ -208,6 +213,91 @@ export async function applyBrandToUserCards(userId: string, brand: OfficeBrand):
     }
     await admin.from("cards").update({ ...topLevel, customization: merged ?? {} }).eq("id", c.id);
   }
+}
+
+// Re-apply the office brand to every card under the office — the owner's AND
+// every active member's. With no primary card, no card is a "source" that must
+// be skipped: the brand lives on the office row (edited on /office/admin/
+// branding) and every card under the office carries it uniformly.
+export async function propagateBrandToOfficeCards(officeId: string): Promise<void> {
+  const admin = getAdminSupabase();
+  const brand = await getOfficeBrand(officeId);
+  if (!brand) return;
+
+  const { data: officeRow } = await admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle();
+  const ownerId = (officeRow?.owner_id as string | null) ?? null;
+
+  const { data: members } = await admin
+    .from("office_members")
+    .select("user_id")
+    .eq("office_id", officeId)
+    .eq("status", "active");
+
+  const seen = new Set<string>();
+  const targets: Array<{ uid: string; isOwner: boolean }> = [];
+  if (ownerId) { targets.push({ uid: ownerId, isOwner: true }); seen.add(ownerId); }
+  for (const m of members ?? []) {
+    const uid = m.user_id as string | null;
+    if (uid && !seen.has(uid)) { targets.push({ uid, isOwner: false }); seen.add(uid); }
+  }
+
+  for (const t of targets) {
+    try {
+      await applyBrandToUserCards(t.uid, brand, { setLabel: !t.isOwner });
+    } catch {
+      // Best-effort per user — one bad card must not abort the rest. Their
+      // next card edit re-applies the overlay anyway.
+    }
+  }
+}
+
+// One-time brand seed for a freshly provisioned office: copy the owner's OLDEST
+// card's identity + look into offices.brand_* so the team doesn't start
+// unbranded. A plain COPY — no ongoing link, no primary card. Never overwrites
+// a brand the admin has already set (any identity/design field present = no-op);
+// from then on the Branding page is the only writer.
+export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: string): Promise<void> {
+  const admin = getAdminSupabase();
+
+  const { data: office } = await admin
+    .from("offices")
+    .select("brand_logo_url, brand_company, brand_website, brand_template, brand_design")
+    .eq("id", officeId)
+    .maybeSingle();
+  if (!office) return;
+  const design = office.brand_design as Record<string, unknown> | null;
+  const alreadyBranded =
+    !!office.brand_logo_url || !!office.brand_company || !!office.brand_website ||
+    !!office.brand_template || (!!design && Object.keys(design).length > 0);
+  if (alreadyBranded) return;
+
+  const { data: card } = await admin
+    .from("cards")
+    .select("logo_url, company, website, template, customization")
+    .eq("user_id", ownerId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!card) return; // owner has no card yet — the Branding page starts blank
+
+  const cust = (card.customization as Record<string, unknown> | null) ?? {};
+  const update: Record<string, unknown> = {
+    brand_logo_url: (card.logo_url as string | null) ?? null,
+    brand_company: (card.company as string | null) || null,
+    brand_website: (card.website as string | null) || null,
+    brand_template: (card.template as string | null) || null,
+    brand_custom_layout: cust.customLayout ?? null,
+    brand_design: extractDesign(cust),
+  };
+
+  const { error } = await admin.from("offices").update(update).eq("id", officeId);
+  if (error) {
+    // brand_design missing (pre-migration schema) — seed what we can.
+    delete update.brand_design;
+    await admin.from("offices").update(update).eq("id", officeId);
+  }
+
+  await propagateBrandToOfficeCards(officeId);
 }
 
 // Strip the office brand from a departing member's cards — used on removal and

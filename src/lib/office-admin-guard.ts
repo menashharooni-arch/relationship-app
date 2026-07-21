@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveOfficeContext, roleHasCapability, type OfficeRole } from "@/lib/office-roles";
-import { adoptPrimaryCardForOwner } from "@/lib/office-primary";
+import { seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 
 // ── One gate for every /office/admin page ────────────────────────────────────
 // Each page in the portal needs the same three things: the caller is on Office,
@@ -32,7 +32,7 @@ export type OfficeAdminCtx = {
 
 // cache(): the layout AND every page under /office/admin call this guard, so
 // without request-level memoization the entire chain (auth round trip, profile
-// read, office-context resolution, office fetch, primary-card self-heal) ran
+// read, office-context resolution, office fetch, brand-seed self-heal) ran
 // TWICE per page load — roughly doubling time-to-first-byte for the whole
 // admin section. cache() shares one execution across the layout and page
 // within a single request; a fresh request always re-runs it, so nothing is
@@ -67,11 +67,11 @@ export const requireOfficeAdmin = cache(async (): Promise<OfficeAdminCtx> => {
     ? await admin.from("offices").select("*, office_members(*)").eq("id", ctx.officeId).maybeSingle()
     : await admin.from("offices").select("*, office_members(*)").eq("owner_id", user.id).maybeSingle();
 
-  // Backfill the primary card: an office can be created by the Stripe webhook or
-  // a plan change, neither of which can adopt the owner's card at the time.
-  // No-ops once set — a self-heal for every creation path.
+  // Self-heal the brand seed: an office can be created by the Stripe webhook or
+  // a plan change before the owner has any card to copy from. Seeding no-ops
+  // the moment ANY brand identity exists, so this only ever fills a blank brand.
   if (office?.id && office?.owner_id) {
-    try { await adoptPrimaryCardForOwner(office.id as string, office.owner_id as string); } catch { /* best-effort */ }
+    try { await seedBrandFromOwnersFirstCard(office.id as string, office.owner_id as string); } catch { /* best-effort */ }
   }
 
   return {

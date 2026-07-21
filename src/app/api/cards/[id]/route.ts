@@ -4,7 +4,6 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
-import { getOwnedOfficeId, getPrimaryCardId, syncBrandFromPrimaryCard } from "@/lib/office-primary";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
@@ -84,18 +83,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false, effectiveTemplate);
   }
 
-  // The office's PRIMARY card is the brand's source, so it is exempt from the
-  // brand overlay: applying the lock to it would pin the admin to the look they
-  // first saved and make the company brand impossible to ever change. Only the
-  // owner's own primary card qualifies.
-  const ownedOfficeId = await getOwnedOfficeId(user.id);
-  const primaryCardId = ownedOfficeId ? await getPrimaryCardId(ownedOfficeId) : null;
-  const isPrimaryCard = !!primaryCardId && primaryCardId === id;
-
   // Office uniform branding: force company-controlled fields so members can't
   // override them (spec §8). Template + the look are forced only when locked
-  // (§9) — an unlocked office lets employees choose their own.
-  const brand = isPrimaryCard ? null : await getOfficeBrandForUser(user.id);
+  // (§9) — an unlocked office lets employees choose their own. This applies to
+  // EVERY card under the office, the owner's included — the brand is edited on
+  // /office/admin/branding, not by exempting any particular card.
+  const brand = await getOfficeBrandForUser(user.id);
   if (brand) {
     // A SUB-USER (active member, not the owner) explicitly trying to CHANGE an
     // org-managed field is refused outright — even a hand-crafted request never
@@ -158,17 +151,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Editing the primary card re-brands the whole office: copy its identity/look
-  // back onto the office and push it to every member's cards, so employees never
-  // drift from the admin's card.
-  if (isPrimaryCard && ownedOfficeId) {
-    try {
-      await syncBrandFromPrimaryCard(ownedOfficeId, id);
-    } catch {
-      // Best-effort — the save already succeeded; members re-sync on next edit.
-    }
-  }
 
   return NextResponse.json({ ok: true });
 }

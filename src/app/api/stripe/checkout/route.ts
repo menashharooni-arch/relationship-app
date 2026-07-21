@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { isFreeDays } from "@/lib/promo";
@@ -225,9 +226,12 @@ export async function POST(req: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       client_reference_id: user.id,
       // Reuse the existing Stripe customer so re-subscribing doesn't create duplicates.
+      // A NEW customer is registered under the account's AUTH email — the
+      // address they signed up with — never profiles.email, which drifts to
+      // the card's public contact email (see lib/account-email).
       ...(profile.stripe_customer_id
         ? { customer: profile.stripe_customer_id as string }
-        : { customer_email: profile.email }),
+        : { customer_email: await getAccountEmail(user.id, profile.email as string | null) ?? undefined }),
       line_items: [{ price: priceId, quantity }],
       mode: "subscription",
       // First-time Pro subscribers start with a free trial, then auto-bill.

@@ -9,9 +9,15 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
+import ImageUpload from "@/components/ImageUpload";
+import LogoSuggest from "@/components/LogoSuggest";
+import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import type { TemplateStyle } from "@/components/card-templates/shared";
 
 // Dark-theme form matching the /office/admin shell (bg-gray-900 panels, purple
-// accent), organised into the three questions an owner actually has:
+// accent). THE brand source — with no primary card, everything the team
+// inherits (logo, company, website, template, colors & fonts) is set right
+// here. Organised into the three questions an owner actually has:
 //   1. Company information — what's true about the business
 //   2. Card appearance     — what it looks like
 //   3. What team members can edit — where their control ends
@@ -47,6 +53,7 @@ type Brand = {
   brand_fax?: string | null;
   brand_address?: Addr | null;
   brand_locks?: { template?: boolean } | null;
+  brand_design?: Record<string, unknown> | null;
 };
 
 const inputCls =
@@ -72,13 +79,18 @@ function Section({ n, title, desc, children }: {
 }
 
 export default function OfficeBranding({ office }: { office: Brand }) {
-  // Company identity + look are READ-ONLY here — they come from the Primary Card
-  // (edit them there). This page manages only the office-only contact fields and
-  // the template lock. No setters for the inherited values.
-  const logoUrl = office.brand_logo_url ?? null;
-  const company = office.brand_company ?? "";
-  const website = office.brand_website ?? "";
-  const template = office.brand_template ?? "classic-pro";
+  // Everything here is editable — this page IS the brand source.
+  const [logoUrl, setLogoUrl] = useState<string | null>(office.brand_logo_url ?? null);
+  const [company, setCompany] = useState(office.brand_company ?? "");
+  const [website, setWebsite] = useState(office.brand_website ?? "");
+  const [template, setTemplate] = useState(office.brand_template ?? "classic-pro");
+  // The team look (colors & fonts) — same keys the card editor writes.
+  const [design, setDesign] = useState<TemplateStyle>(() => {
+    const d = (office.brand_design ?? {}) as Record<string, unknown>;
+    const pick = (k: string) => (typeof d[k] === "string" && (d[k] as string).trim() ? (d[k] as string) : undefined);
+    return { accentColor: pick("accentColor"), bgColor: pick("bgColor"), textColor: pick("textColor"), infoColor: pick("infoColor"), fontFamily: pick("fontFamily") };
+  });
+  const patchDesign = (p: Partial<TemplateStyle>) => setDesign((prev) => ({ ...prev, ...p }));
   const [phone, setPhone] = useState(office.brand_phone ?? "");
   const [fax, setFax] = useState(office.brand_fax ?? "");
   const [address, setAddress] = useState<Addr>(office.brand_address ?? {});
@@ -89,13 +101,12 @@ export default function OfficeBranding({ office }: { office: Brand }) {
 
   async function save() {
     if (status === "saving") return;
-    if (!logoUrl) { setStatus("error"); return; }
     setStatus("saving");
     try {
       const res = await fetch("/api/office/brand", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl, company, website, template, phone, fax, address, lockTemplate }),
+        body: JSON.stringify({ logoUrl, company, website, template, design, phone, fax, address, lockTemplate }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2500);
@@ -121,6 +132,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     initials: "DL",
     logoUrl,
     cardUrl: "swiftcard.me/card/dana",
+    customization: { ...design },
   });
 
   return (
@@ -129,26 +141,20 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         {/* 1 ── Company information ─────────────────────────────────────── */}
         <Section n={1} title="Company information" desc="What's true about your business. This is the same on everyone's card.">
           <div className="space-y-4">
-            {/* Logo / company / website are INHERITED from the Primary Card
-                (read-only here — change them on your card, which re-brands the
-                whole team). Only the office-only contact fields below are edited
-                on this page. */}
-            <div className="rounded-xl border border-gray-800 bg-gray-950/40 p-3">
-              <div className="flex items-center gap-3">
-                {logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoUrl} alt="Company logo" className="w-12 h-12 rounded-lg object-cover bg-gray-900 shrink-0" />
-                ) : (
-                  <span className="w-12 h-12 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center text-gray-600 text-[10px] shrink-0">No logo</span>
-                )}
-                <div className="min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">{company || "Set your company name on your card"}</p>
-                  <p className="text-gray-500 text-xs truncate">{website || "No website yet"}</p>
-                </div>
+            <div>
+              <ImageUpload defer field="logo" shape="square" currentUrl={logoUrl} label="Company logo" onUploaded={(u) => setLogoUrl(u || null)} />
+              <LogoSuggest company={company} onConfirm={(u) => setLogoUrl(u)} />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
+                <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Coastline Realty" className={inputCls} />
               </div>
-              <p className="text-[11px] text-gray-500 mt-2.5">
-                Logo, company name, website and card design come from your <span className="text-gray-300 font-medium">Primary Card</span>. Edit your card (link above) to change them for the whole team.
-              </p>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Website</label>
+                <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="coastlinehomes.com" className={inputCls} />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -183,23 +189,31 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         </Section>
 
         {/* 2 ── Card appearance ─────────────────────────────────────────── */}
-        <Section n={2} title="Card appearance" desc="The design your whole team inherits — set on your Primary Card.">
+        <Section n={2} title="Card appearance" desc="The design your whole team inherits — template, colors and fonts.">
           <div className="flex flex-wrap gap-2">
             {TEMPLATES.map((t) => (
-              <span
+              <button
                 key={t.id}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                type="button"
+                onClick={() => setTemplate(t.id)}
+                aria-pressed={template === t.id}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   template === t.id
                     ? "bg-purple-600/20 text-purple-200 border border-purple-500/40"
-                    : "bg-gray-950 text-gray-600 border border-gray-800"
+                    : "bg-gray-950 text-gray-500 border border-gray-800 hover:text-gray-300"
                 }`}
               >
                 {t.label}{template === t.id ? " ✓" : ""}
-              </span>
+              </button>
             ))}
           </div>
+          <div className="mt-4">
+            {/* The exact colour/font control the card editor uses — one look
+                system everywhere. Writes offices.brand_design on save. */}
+            <TemplateStyleControls value={design} onChange={patchDesign} template={template} />
+          </div>
           <p className="text-[11px] text-gray-600 mt-3">
-            The template, colors and fonts come from your <span className="text-gray-400 font-medium">Primary Card</span> — change your card once and everyone&apos;s updates with it. Use the lock below to decide whether the team&apos;s cards must match it.
+            Use the lock below to decide whether every team card must match this design.
           </p>
         </Section>
 
@@ -249,7 +263,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             {status === "saving" ? "Saving…" : "Save & apply to all cards"}
           </button>
           {status === "saved" && <span className="text-green-400 text-sm font-medium" role="status">Applied to every card ✓</span>}
-          {status === "error" && logoUrl && (
+          {status === "error" && (
             <span className="text-red-400 text-sm" role="alert">Something went wrong — please try again.</span>
           )}
         </div>
