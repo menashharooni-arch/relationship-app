@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import SiteNav from "@/components/site/SiteNav";
+import PortalNavPreview, { type PortalTabId } from "@/components/site/PortalNavPreview";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
@@ -189,6 +190,8 @@ const VIEWS = ["Notifications", "List", "Pipeline"] as const;
 
 export default function PreviewClient({ embedded = false }: { embedded?: boolean }) {
   const [activeKey, setActiveKey] = useState<DemoCard["key"]>("realestate");
+  // Which portal page the demo is showing, driven by PortalNavPreview's tabs.
+  const [portalTab, setPortalTab] = useState<PortalTabId>("dashboard");
   const [range, setRange] = useState<Range>("week");
   const [view, setView] = useState<(typeof VIEWS)[number]>("Notifications");
   const [modal, setModal] = useState<null | "card" | "links" | "signature">(null);
@@ -253,8 +256,13 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   return (
     <Wrapper className={embedded ? "text-white" : "min-h-screen bg-gray-950 text-white"}>
       {!embedded && <SiteNav />}
+      {/* The signed-in portal's own navbar, replicated so the demo looks like
+          the real thing rather than a marketing page wearing its data. Its
+          tabs switch which section below is shown, same as the real app's
+          Dashboard / Contacts / Links pages. */}
+      {!embedded && <PortalNavPreview tab={portalTab} onTabChange={setPortalTab} />}
 
-      <div className={embedded ? "max-w-5xl mx-auto px-5 py-7" : "max-w-5xl mx-auto px-5 pt-24 pb-7"}>
+      <div className={embedded ? "max-w-5xl mx-auto px-5 py-7" : "max-w-5xl mx-auto px-5 pt-7 pb-7"}>
         {!embedded && (
           <div className="mb-6">
             <h1 className="text-2xl font-bold">This is your dashboard — try it out</h1>
@@ -262,6 +270,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           </div>
         )}
 
+        {portalTab === "dashboard" && (<>
         {/* Plain-language guide so a first-time visitor knows what this is and what to tap */}
         <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-4 sm:p-5 mb-5">
           <p className="text-blue-100 text-sm font-bold mb-3">New here? Start with these three:</p>
@@ -388,8 +397,33 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           </Box>
         </div>
 
-        {/* Main: contacts + card panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+        </>)}
+
+        {/* Links tab — the Swift Links page, the way the real /share route
+            leads with it rather than burying it beside the traffic boxes. */}
+        {portalTab === "links" && (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+            <Box>
+              <p className="text-white text-base font-semibold">Swift Links</p>
+              <p className="text-gray-500 text-xs leading-relaxed mt-1.5 mb-4">
+                Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your
+                Instagram, TikTok, or other social bios.
+              </p>
+              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-3">
+                <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
+              </div>
+              <button type="button" onClick={() => openDemo("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">
+                Open Swift Links →
+              </button>
+            </Box>
+            <div className="hidden lg:flex lg:flex-col gap-4">{cardSharePanel}</div>
+          </div>
+        )}
+
+        {/* Main: contacts + card panel. On the Contacts tab the list takes the
+            full width, matching the real /contacts page. */}
+        {portalTab !== "links" && (
+        <div className={portalTab === "contacts" ? "grid grid-cols-1 gap-5" : "grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5"}>
           {/* Contacts */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -476,10 +510,13 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           </div>
 
           {/* Right column (desktop): Your Card + Share — on mobile it's shown under My Cards */}
-          <div className="hidden lg:flex lg:flex-col gap-4">
-            {cardSharePanel}
-          </div>
+          {portalTab !== "contacts" && (
+            <div className="hidden lg:flex lg:flex-col gap-4">
+              {cardSharePanel}
+            </div>
+          )}
         </div>
+        )}
 
         <div className="mt-10 text-center">
           <p className="text-gray-400 text-sm mb-4">This is exactly what you get — set up your own in under 30 seconds.</p>
