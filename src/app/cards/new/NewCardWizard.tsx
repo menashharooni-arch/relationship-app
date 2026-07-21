@@ -10,6 +10,7 @@ import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
 import CardScaler from "@/components/CardScaler";
+import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -1265,11 +1266,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         {step !== 4 && (
           <div className="order-1 lg:order-2 lg:sticky lg:top-6">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
-            <div className="rounded-2xl overflow-hidden border border-gray-800">
+            {/* Look-only — design is changed with the controls, never by
+                clicking the card itself. See InertPreview. */}
+            <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
               <CardScaler>
                 <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
               </CardScaler>
-            </div>
+            </InertPreview>
             <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
           </div>
         )}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
+import InertPreview from "@/components/InertPreview";
 import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -198,7 +199,7 @@ export default function SignatureMiniBuilder() {
               {company ? <span className="text-slate-500"> | {company}</span> : null}
             </p>
             <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.5)]">
-              <CardScaler><Preview data={data} /></CardScaler>
+              <InertPreview><CardScaler><Preview data={data} /></CardScaler></InertPreview>
             </div>
             <p className="mt-2 text-[13px] font-bold" style={{ color: "#2563eb" }}>Contact me →</p>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
+import InertPreview from "@/components/InertPreview";
 import { IcoInsta, IcoLinkedIn, IcoX, IcoTikTok } from "@/components/card-templates/shared";
 import { writePrefill, stashSketch } from "@/lib/prefill";
 import { resetGuestFlow } from "@/lib/guest-reset";
@@ -225,57 +226,61 @@ export default function SwiftLinkMiniBuilder() {
         launching={launching}
         launchLabel="Make it live →"
         previewCaption="Lives in your Instagram, TikTok, or email bio."
+        // Look-only preview — the real SwiftLink page keeps its tappable
+        // links; see InertPreview.
         preview={
-          <div className="w-[236px] rounded-[26px] overflow-hidden shadow-2xl" style={{ background: "#191a1a" }}>
-            {/* Hero */}
-            <div className="relative w-full aspect-square overflow-hidden">
-              {photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(160deg,#181538,#2A2466 60%,#4338ca)" }}>
-                  <span className="text-white/90 font-extrabold text-5xl">{initials}</span>
-                </div>
-              )}
-              <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style={{ background: "linear-gradient(180deg,rgba(25,26,26,0),#191a1a)" }} />
-            </div>
-            {/* Sheet */}
-            <div className="relative -mt-6 rounded-t-[22px] px-4 pt-4 pb-6 text-center" style={{ background: "#191a1a" }}>
-              <div className="flex items-center justify-center gap-1">
-                <p className="text-white font-extrabold text-[19px] leading-tight truncate">{name || "Your Name"}</p>
-                <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0"><path d="M12 1.5l2.35 2.03 3.08-.45 1.07 2.92 2.92 1.07-.45 3.08L23 12l-2.03 2.35.45 3.08-2.92 1.07-1.07 2.92-3.08-.45L12 23l-2.35-2.03-3.08.45-1.07-2.92-2.92-1.07.45-3.08L1 12l2.03-2.35-.45-3.08 2.92-1.07 1.07-2.92 3.08.45L12 1.5z" fill="#2196F3" /><path d="M7.5 12.2l3 3 6-6.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
+          <InertPreview>
+            <div className="w-[236px] rounded-[26px] overflow-hidden shadow-2xl" style={{ background: "#191a1a" }}>
+              {/* Hero */}
+              <div className="relative w-full aspect-square overflow-hidden">
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photo} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(160deg,#181538,#2A2466 60%,#4338ca)" }}>
+                    <span className="text-white/90 font-extrabold text-5xl">{initials}</span>
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style={{ background: "linear-gradient(180deg,rgba(25,26,26,0),#191a1a)" }} />
               </div>
-              <p className="text-white/45 text-[12px]">@{handle}</p>
-              {business && <p className="text-white/55 text-[11px] font-medium mt-1.5">{business}</p>}
-              {bio && <p className="text-white/75 text-[11.5px] leading-snug mt-2 line-clamp-3">{bio}</p>}
-              {activeSocials.length > 0 && (
-                <div className="flex items-center justify-center gap-2.5 mt-3">
-                  {activeSocials.map((s) => (
-                    <span key={s.key} className="w-8 h-8 rounded-full bg-white flex items-center justify-center" style={{ color: SOCIAL_ICONS[s.key].color }}>
-                      <span className="scale-[1.3] flex">{SOCIAL_ICONS[s.key].node}</span>
-                    </span>
-                  ))}
+              {/* Sheet */}
+              <div className="relative -mt-6 rounded-t-[22px] px-4 pt-4 pb-6 text-center" style={{ background: "#191a1a" }}>
+                <div className="flex items-center justify-center gap-1">
+                  <p className="text-white font-extrabold text-[19px] leading-tight truncate">{name || "Your Name"}</p>
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0"><path d="M12 1.5l2.35 2.03 3.08-.45 1.07 2.92 2.92 1.07-.45 3.08L23 12l-2.03 2.35.45 3.08-2.92 1.07-1.07 2.92-3.08-.45L12 23l-2.35-2.03-3.08.45-1.07-2.92-2.92-1.07.45-3.08L1 12l2.03-2.35-.45-3.08 2.92-1.07 1.07-2.92 3.08.45L12 1.5z" fill="#2196F3" /><path d="M7.5 12.2l3 3 6-6.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>
                 </div>
-              )}
-              <div className="mt-3.5 w-full py-2.5 rounded-2xl text-white text-[12.5px] font-semibold" style={{ background: "#1D4ED8" }}>
-                Connect with {firstName}
+                <p className="text-white/45 text-[12px]">@{handle}</p>
+                {business && <p className="text-white/55 text-[11px] font-medium mt-1.5">{business}</p>}
+                {bio && <p className="text-white/75 text-[11.5px] leading-snug mt-2 line-clamp-3">{bio}</p>}
+                {activeSocials.length > 0 && (
+                  <div className="flex items-center justify-center gap-2.5 mt-3">
+                    {activeSocials.map((s) => (
+                      <span key={s.key} className="w-8 h-8 rounded-full bg-white flex items-center justify-center" style={{ color: SOCIAL_ICONS[s.key].color }}>
+                        <span className="scale-[1.3] flex">{SOCIAL_ICONS[s.key].node}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3.5 w-full py-2.5 rounded-2xl text-white text-[12.5px] font-semibold" style={{ background: "#1D4ED8" }}>
+                  Connect with {firstName}
+                </div>
+                {links.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {links.slice(0, 3).map((l, i) => (
+                      <div key={i} className="w-full rounded-2xl px-3 py-2.5 text-left bg-white/[0.04] border border-white/10">
+                        <span className="block text-white text-[12px] font-semibold truncate">{l.label}</span>
+                        <span className="block text-white/40 text-[10px] truncate">{hostOf(l.url)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-white/35 text-[10px] mt-4 flex items-center justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#1D4ED8" }} />
+                  Powered by SwiftCard.me
+                </p>
               </div>
-              {links.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {links.slice(0, 3).map((l, i) => (
-                    <div key={i} className="w-full rounded-2xl px-3 py-2.5 text-left bg-white/[0.04] border border-white/10">
-                      <span className="block text-white text-[12px] font-semibold truncate">{l.label}</span>
-                      <span className="block text-white/40 text-[10px] truncate">{hostOf(l.url)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-white/35 text-[10px] mt-4 flex items-center justify-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: "#1D4ED8" }} />
-                Powered by SwiftCard.me
-              </p>
             </div>
-          </div>
+          </InertPreview>
         }
       />
     </>

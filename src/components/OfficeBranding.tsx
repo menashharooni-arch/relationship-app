@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CardScaler from "@/components/CardScaler";
+import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -259,7 +260,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
           <div className="rounded-xl overflow-hidden">
-            <CardScaler><Preview data={previewData} /></CardScaler>
+            <InertPreview><CardScaler><Preview data={previewData} /></CardScaler></InertPreview>
           </div>
           <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
             An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.

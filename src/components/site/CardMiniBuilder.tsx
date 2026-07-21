@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
+import InertPreview from "@/components/InertPreview";
 import ImageUpload from "@/components/ImageUpload";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -254,7 +255,7 @@ export default function CardMiniBuilder() {
         preview={
           <div className="w-[260px] max-w-full">
             <div className="rounded-2xl overflow-hidden shadow-2xl">
-              <CardScaler><Preview data={data} /></CardScaler>
+              <InertPreview><CardScaler><Preview data={data} /></CardScaler></InertPreview>
             </div>
           </div>
         }
