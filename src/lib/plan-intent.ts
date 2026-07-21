@@ -34,6 +34,16 @@ export function consumePlanIntent(): PlanIntent | null {
   }
 }
 
+// Drop a stashed choice outright — used when the visitor abandons the guest
+// card flow (heads Home), so a stale plan pick can't resurface later.
+export function clearPlanIntent(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage blocked — nothing was stashed to begin with */
+  }
+}
+
 // Read WITHOUT clearing — used by the claim POST, which needs to know the
 // picked plan before /welcome does its own one-time consumePlanIntent().
 export function peekPlanIntent(): PlanIntent | null {

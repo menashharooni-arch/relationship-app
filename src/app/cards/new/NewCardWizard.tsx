@@ -28,6 +28,7 @@ import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayo
 import { socialUrl } from "@/lib/social-url";
 import { normalizeSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import { consumePrefill, hasSketchContent, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
@@ -659,7 +660,17 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             • signed-in "Add Card" from the dashboard (add=1 → guest=false, the
               server verified the session) → "Dashboard", back to their cards. */}
         {guest ? (
-          <Link href="/" className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
+          <Link
+            href="/"
+            // Leaving for Home abandons this card: wipe the whole unfinished
+            // guest draft (text, photos, logo, links, colors, plan pick, and any
+            // marketing-sketch prefill) so /cards/new — and every mini builder —
+            // reopens blank instead of restoring it. Only touches this browser's
+            // localStorage; a signed-in user's saved cards live in the DB and
+            // are unaffected (and this link is guest-only anyway).
+            onClick={() => resetGuestFlow()}
+            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>

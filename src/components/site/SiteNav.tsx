@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { trackCta } from "@/lib/events";
 import { useIsNativeApp } from "@/lib/platform";
+import { resetGuestFlow } from "@/lib/guest-reset";
 
 // ── SwiftCard 2.0 marketing navigation ──────────────────────────────────────
 // Floating graphite-glass bar: transparent over the dark hero, condenses into a
@@ -142,6 +143,10 @@ export default function SiteNav() {
             <Link
               href="/"
               onClick={(e) => {
+                // Heading Home abandons any half-built guest card/preview — see
+                // resetGuestFlow. Never touches a signed-in user's saved cards
+                // (those live in the DB, not localStorage).
+                resetGuestFlow();
                 // Already on the homepage → a same-route Link no-ops, so scroll to top.
                 if (window.location.pathname === "/") { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }
               }}
@@ -204,6 +209,8 @@ export default function SiteNav() {
               <Link
                 href="/"
                 onClick={() => {
+                  // Same abandon-on-Home rule as the desktop link above.
+                  resetGuestFlow();
                   setOpen(false);
                   if (window.location.pathname === "/") window.scrollTo(0, 0);
                 }}

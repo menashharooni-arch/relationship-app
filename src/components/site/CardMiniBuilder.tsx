@@ -12,6 +12,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { writePrefill, stashSketch } from "@/lib/prefill";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
@@ -106,6 +107,22 @@ export default function CardMiniBuilder() {
     // Explicit "Make it live" → jump straight to the first info step, prefilled.
     writePrefill({ ...sketch(), step: 1 });
     router.push("/cards/new");
+  }
+
+  // Closing this preview (X / Esc / backdrop) puts the visitor back on the
+  // homepage, which means they abandoned the sketch — so drop BOTH the stashed
+  // prefill and the in-memory field values. Without the local reset the
+  // component stays mounted and reopening would show everything they typed
+  // (and re-stash it), so the builder must reopen genuinely blank.
+  function closeAndReset() {
+    setOpen(false);
+    setStep(0);
+    setLaunching(false);
+    setName(""); setTitle(""); setCompany(""); setPhone(""); setEmail("");
+    setStreet(""); setCity(""); setStateRegion(""); setZip("");
+    setHeadshot(null); setLogo(null);
+    setTemplate("classic-pro"); setAccent("");
+    resetGuestFlow();
   }
 
   const steps: MiniStep[] = [
@@ -225,7 +242,7 @@ export default function CardMiniBuilder() {
 
       <MiniBuilderModal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeAndReset}
         eyebrow="Build your card"
         step={step}
         setStep={setStep}

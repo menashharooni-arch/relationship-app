@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
 import { IcoInsta, IcoLinkedIn, IcoX, IcoTikTok } from "@/components/card-templates/shared";
 import { writePrefill, stashSketch } from "@/lib/prefill";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 
 // "See how your SwiftLink would look" builder for the homepage SwiftLinks
@@ -109,6 +110,20 @@ export default function SwiftLinkMiniBuilder() {
     router.push("/cards/new");
   }
 
+  // Closing this preview (X / Esc / backdrop) puts the visitor back on the
+  // homepage, which means they abandoned the sketch — so drop BOTH the stashed
+  // prefill and the in-memory field values, so the builder reopens blank rather
+  // than restoring (and re-stashing) what they typed.
+  function closeAndReset() {
+    setOpen(false);
+    setStep(0);
+    setLaunching(false);
+    setName(""); setBusiness(""); setPhoto(null); setBio("");
+    setInstagram(""); setTiktok(""); setLinkedin(""); setTwitter("");
+    setLinks([]); setNewLink({ label: "", url: "" });
+    resetGuestFlow();
+  }
+
   const steps: MiniStep[] = [
     {
       title: "Name your SwiftLink",
@@ -201,7 +216,7 @@ export default function SwiftLinkMiniBuilder() {
 
       <MiniBuilderModal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeAndReset}
         eyebrow="Build your SwiftLink"
         step={step}
         setStep={setStep}
