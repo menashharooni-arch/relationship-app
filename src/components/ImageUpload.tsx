@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
-import type { Area } from "react-easy-crop";
+import type { Area, MediaSize } from "react-easy-crop";
 import type CropperComponent from "react-easy-crop";
 
 // Deferred: the cropper only renders after a visitor picks a file (see the
@@ -38,6 +38,26 @@ function blobToDataURL(blob: Blob): Promise<string> {
     fr.onerror = () => reject(new Error("read failed"));
     fr.readAsDataURL(blob);
   });
+}
+
+// A centered, zoom=1 crop covering the largest area of the image that fits
+// `aspect` — the exact view react-easy-crop shows before the user touches
+// anything. Used as a fallback so "Apply" always has something valid to crop
+// even if the user taps it immediately: react-easy-crop's own onCropComplete
+// can miss its very first call right after the image loads (its internal
+// cropSize state hasn't finished updating yet), so waiting on it alone can
+// leave Apply silently doing nothing on an untouched image.
+function centeredCropPixels(naturalWidth: number, naturalHeight: number, aspect: number): Area {
+  const mediaAspect = naturalWidth / naturalHeight;
+  let width: number, height: number;
+  if (mediaAspect > aspect) {
+    height = naturalHeight;
+    width = height * aspect;
+  } else {
+    width = naturalWidth;
+    height = width / aspect;
+  }
+  return { x: (naturalWidth - width) / 2, y: (naturalHeight - height) / 2, width, height };
 }
 
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
@@ -107,6 +127,9 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  // The image's real dimensions, captured as soon as it loads — used to build
+  // the centeredCropPixels() fallback above.
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   // Logos can be square or rectangular — let the user pick the frame that fits.
   const [logoAspect, setLogoAspect] = useState(1);
   const LOGO_ASPECTS = [
@@ -122,6 +145,8 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
     setRawSrc(URL.createObjectURL(file));
     setCrop({ x: 0, y: 0 });
     setZoom(1);
+    setCroppedAreaPixels(null);
+    setNaturalSize(null);
     e.target.value = "";
   }
 
@@ -129,13 +154,24 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
     setCroppedAreaPixels(pixels);
   }, []);
 
+  const onMediaLoaded = useCallback((mediaSize: MediaSize) => {
+    setNaturalSize({ width: mediaSize.naturalWidth, height: mediaSize.naturalHeight });
+  }, []);
+
+  // Plain function, not useCallback — this file's React Compiler pass
+  // memoizes it automatically and rejects a manual useCallback whose
+  // dependency list doesn't match its own inference.
   async function applyCrop() {
-    if (!rawSrc || !croppedAreaPixels) return;
+    if (!rawSrc || uploadStatus === "uploading") return;
+    // Fall back to a centered full-frame crop when react-easy-crop hasn't
+    // reported a crop area yet (untouched image — see centeredCropPixels).
+    const pixels = croppedAreaPixels ?? (naturalSize ? centeredCropPixels(naturalSize.width, naturalSize.height, field === "logo" ? logoAspect : 1) : null);
+    if (!pixels) return; // image genuinely hasn't finished loading yet
     setUploadStatus("uploading");
     setErrorMsg("");
 
     try {
-      const blob = await getCroppedImg(rawSrc, croppedAreaPixels);
+      const blob = await getCroppedImg(rawSrc, pixels);
 
       // Guest: no server upload — keep the image as a base64 data URL locally.
       if (guest) {
@@ -179,7 +215,27 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
     if (rawSrc) URL.revokeObjectURL(rawSrc);
     setRawSrc(null);
     setUploadStatus("idle");
+    setCroppedAreaPixels(null);
+    setNaturalSize(null);
   }
+
+  // Keyboard shortcuts while the crop overlay is open: Enter applies the crop
+  // (same as tapping "Apply"), Escape backs out without saving (same as
+  // "Cancel") — so a keyboard/desktop user isn't stuck reaching for the mouse.
+  useEffect(() => {
+    if (!rawSrc) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applyCrop();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelCrop();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [rawSrc, applyCrop, cancelCrop]);
 
   async function handleRemove() {
     // Persisted images (account photo/logo, or a saved card logo) are cleared
@@ -246,6 +302,7 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
+              onMediaLoaded={onMediaLoaded}
               style={{
                 containerStyle: { background: "#000" },
                 cropAreaStyle: {
@@ -265,7 +322,14 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
                   <button
                     key={a.label}
                     type="button"
-                    onClick={() => setLogoAspect(a.value)}
+                    onClick={() => {
+                      setLogoAspect(a.value);
+                      // The previous crop area was measured for the OLD aspect
+                      // — react-easy-crop doesn't re-fire onCropComplete just
+                      // because the aspect prop changed, so without this,
+                      // Apply would crop the new frame using the old shape.
+                      setCroppedAreaPixels(null);
+                    }}
                     className="text-xs font-semibold px-3.5 py-1.5 rounded-full transition-colors"
                     style={{
                       background: Math.abs(logoAspect - a.value) < 0.01 ? "#2563eb" : "rgba(255,255,255,0.1)",
@@ -298,6 +362,9 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
             </div>
             <p className="text-center text-gray-600 text-xs">
               Drag to move · pinch or slide to zoom
+            </p>
+            <p className="text-center text-gray-700 text-[11px] mt-1">
+              Press Enter to apply · Esc to cancel
             </p>
           </div>
         </div>
