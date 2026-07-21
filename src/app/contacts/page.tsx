@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
-import MobileNav from "@/components/MobileNav";
+import MobileNavGate from "@/components/MobileNavGate";
 import HelpWidget from "@/components/HelpWidget";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
@@ -82,7 +82,7 @@ export default async function ContactsPage({
 
   return (
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
-      <MobileNav />
+      <MobileNavGate />
       <HelpWidget floating />
       {/* Native-only one-time AI-consent notice (shown before first AI use). */}
       <AiConsentGate accepted={!!(profile.customization as { _aiConsentAccepted?: boolean } | null)?._aiConsentAccepted} />

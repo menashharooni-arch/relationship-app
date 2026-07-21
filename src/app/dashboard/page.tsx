@@ -33,7 +33,7 @@ import TrackEvent from "@/components/TrackEvent";
 import AddContactModal from "@/components/AddContactModal";
 import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
-import MobileNav from "@/components/MobileNav";
+import MobileNavGate from "@/components/MobileNavGate";
 import HelpWidget from "@/components/HelpWidget";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
@@ -596,7 +596,7 @@ export default async function DashboardPage({
         </div>
       </nav>
 
-      <MobileNav />
+      <MobileNavGate />
       <HelpWidget floating />
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
