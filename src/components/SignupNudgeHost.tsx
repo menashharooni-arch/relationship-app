@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { nudgeCopy } from "@/lib/referral";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
 
 // The hero: a tilted, floating "your card" mockup with a shine sweep — the
@@ -136,6 +137,10 @@ export default function SignupNudgeHost() {
 
           <a
             href={`/cards/new?src=${encodeURIComponent(source)}`}
+            // Start blank: a visitor who reaches this popup from a card/links
+            // page may still carry a leftover mini-builder sketch / guest draft
+            // from an earlier visit. Wipe it so the builder always opens fresh.
+            onClick={() => resetGuestFlow()}
             className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
             style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
           >

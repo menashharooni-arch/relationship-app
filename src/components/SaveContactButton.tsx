@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 
@@ -271,6 +272,9 @@ export default function SaveContactButton({
           </p>
           <a
             href="/cards/new?src=save_contact_cta"
+            // Start blank: wipe any leftover mini-builder sketch / guest draft /
+            // plan pick from an earlier visit so this always opens a fresh card.
+            onClick={() => resetGuestFlow()}
             className="w-full text-center font-semibold py-3 px-6 rounded-full text-sm transition-colors flex items-center justify-center gap-1.5 border"
             style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
           >
