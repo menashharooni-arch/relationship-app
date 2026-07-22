@@ -192,16 +192,27 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Office uniform branding overlay (mirror api/cards) ────────────────────
-  const brand = await getOfficeBrandForUser(user.id);
-  if (brand) {
-    if (brand.logoUrl) insert.logo_url = brand.logoUrl;
-    if (brand.company) insert.company = brand.company;
-    if (brand.website) insert.website = brand.website;
-    if (brand.lockTemplate && brand.template) insert.template = brand.template;
-    if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust.customLayout = brand.customLayout;
-    // Company phone/fax/address (spec §8).
-    if (brand.phone || brand.fax || brand.address) {
-      Object.assign(cust, overlayOfficeContact(cust as Record<string, unknown>, brand));
+  // Only auto-applied (and flagged is_office_card) on the account's FIRST card
+  // — the one built right after accepting an office invite. Any card after
+  // that is a deliberate, separate ADD from the dashboard (a second business,
+  // a personal card) and must not be silently rebranded just because the
+  // account happens to belong to an office — that was the office-branding
+  // leak into personal cards bug. is_office_card also gates every future
+  // office/admin/branding save (office-brand.ts), so this card keeps getting
+  // re-branded going forward while a later personal card never does.
+  if (count === 0) {
+    const brand = await getOfficeBrandForUser(user.id);
+    if (brand) {
+      insert.is_office_card = true;
+      if (brand.logoUrl) insert.logo_url = brand.logoUrl;
+      if (brand.company) insert.company = brand.company;
+      if (brand.website) insert.website = brand.website;
+      if (brand.lockTemplate && brand.template) insert.template = brand.template;
+      if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust.customLayout = brand.customLayout;
+      // Company phone/fax/address (spec §8).
+      if (brand.phone || brand.fax || brand.address) {
+        Object.assign(cust, overlayOfficeContact(cust as Record<string, unknown>, brand));
+      }
     }
   }
 

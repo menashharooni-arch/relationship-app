@@ -36,6 +36,11 @@ const RESOURCES: Item[] = [
   { label: "Contact Us", href: "/contact", desc: "Talk to the team" },
   { label: "Privacy", href: "/privacy", desc: "How we protect your data" },
 ];
+// Mobile-only: Contact Us and Privacy get pulled out to stand on their own
+// (alongside Home/Pricing) in the mobile sheet, so Resources there holds only
+// the items that are genuinely "more to explore." Desktop's Resources
+// dropdown is untouched and still lists all five.
+const MOBILE_RESOURCES: Item[] = RESOURCES.filter((it) => it.label !== "Contact Us" && it.label !== "Privacy");
 
 function Caret() {
   return (
@@ -110,10 +115,16 @@ function Dropdown({ label, items }: { label: string; items: Item[] }) {
 
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
+  // Mobile sheet only: Products/Solutions/Resources collapse into one
+  // "Explore" accordion instead of three always-expanded lists, so Home,
+  // Pricing, Privacy and Contact (the direct destinations) aren't buried
+  // under a long scroll of dropdown categories.
+  const [exploreOpen, setExploreOpen] = useState(false);
   const native = useIsNativeApp();
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
+    if (!open) setExploreOpen(false); // collapsed again next time the sheet opens
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
@@ -218,38 +229,64 @@ export default function SiteNav() {
               >
                 Home
               </Link>
-              {[["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", RESOURCES]].map(([title, items]) => (
-                <div key={title as string}>
-                  <p className="rd-eyebrow text-white/40 mb-2">{title as string}</p>
-                  <div className="grid grid-cols-1 gap-0.5">
-                    {(items as Item[]).map((it) => (
-                      <Link
-                        key={it.label}
-                        href={it.href}
-                        onClick={() => {
-                          setOpen(false);
-                          // Same as the desktop dropdown: "Overview" on the
-                          // homepage scrolls to the top (a same-route Link no-ops).
-                          if (it.href === "/" && window.location.pathname === "/") window.scrollTo(0, 0);
-                        }}
-                        className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]"
-                      >
-                        {/* Both menus read the SAME items array, but this one
-                            rendered only `label` and dropped `desc` — so every
-                            subheader the desktop dropdown shows ("Apple Watch →
-                            Share from your wrist") was invisible on a phone.
-                            Same source, same words, on both. */}
-                        <span className="min-w-0">
-                          <span className="block text-[15px] font-medium">{it.label}</span>
-                          <span className="block text-[12.5px] text-white/45 leading-snug mt-0.5">{it.desc}</span>
-                        </span>
-                        <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/30 shrink-0" fill="currentColor"><path fillRule="evenodd" d="M7.3 4.3a1 1 0 011.4 0l5 5a1 1 0 010 1.4l-5 5a1 1 0 01-1.4-1.4L11.6 10 7.3 5.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
-                      </Link>
+              {/* Products / Solutions / Resources collapse into one "Explore"
+                  accordion — collapsed by default — instead of three
+                  always-expanded lists standing between Home and the direct
+                  links below. */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setExploreOpen((v) => !v)}
+                  aria-expanded={exploreOpen}
+                  className="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06] transition-colors"
+                >
+                  Explore
+                  <svg viewBox="0 0 12 12" className={`w-3 h-3 opacity-60 transition-transform duration-200 ${exploreOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={1.7}>
+                    <path d="M2.5 4.5L6 8l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {exploreOpen && (
+                  <div className="mt-2 space-y-4">
+                    {[["Products", PRODUCTS], ["Solutions", SOLUTIONS], ["Resources", MOBILE_RESOURCES]].map(([title, items]) => (
+                      <div key={title as string}>
+                        <p className="rd-eyebrow text-white/40 mb-2">{title as string}</p>
+                        <div className="grid grid-cols-1 gap-0.5">
+                          {(items as Item[]).map((it) => (
+                            <Link
+                              key={it.label}
+                              href={it.href}
+                              onClick={() => {
+                                setOpen(false);
+                                // Same as the desktop dropdown: "Overview" on the
+                                // homepage scrolls to the top (a same-route Link no-ops).
+                                if (it.href === "/" && window.location.pathname === "/") window.scrollTo(0, 0);
+                              }}
+                              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-white/85 hover:bg-white/[0.06]"
+                            >
+                              {/* Both menus read the SAME items array, but this one
+                                  rendered only `label` and dropped `desc` — so every
+                                  subheader the desktop dropdown shows ("Apple Watch →
+                                  Share from your wrist") was invisible on a phone.
+                                  Same source, same words, on both. */}
+                              <span className="min-w-0">
+                                <span className="block text-[15px] font-medium">{it.label}</span>
+                                <span className="block text-[12.5px] text-white/45 leading-snug mt-0.5">{it.desc}</span>
+                              </span>
+                              <svg viewBox="0 0 20 20" className="w-4 h-4 text-white/30 shrink-0" fill="currentColor"><path fillRule="evenodd" d="M7.3 4.3a1 1 0 011.4 0l5 5a1 1 0 010 1.4l-5 5a1 1 0 01-1.4-1.4L11.6 10 7.3 5.7a1 1 0 010-1.4z" clipRule="evenodd" /></svg>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
+
+              {/* Direct destinations — always their own tappable row, never
+                  nested inside the Explore accordion. */}
               {!native && <Link href="/pricing" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Pricing</Link>}
+              <Link href="/privacy" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Privacy</Link>
+              <Link href="/contact" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Contact</Link>
             </div>
             <div className="mt-5 grid shrink-0 grid-cols-2 gap-2.5">
               <Link href="/login" onClick={() => setOpen(false)} className="rd-btn rd-btn-ghost-d w-full">Log in</Link>

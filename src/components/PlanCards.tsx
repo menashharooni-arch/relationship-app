@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
+import { useIsMobile } from "@/lib/use-is-mobile";
+import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -46,6 +48,8 @@ export default function PlanCards({
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const disabled = busy !== null;
   const native = useIsNativeApp();
+  const isMobile = useIsMobile();
+  const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
 
   // NATIVE (App Store 3.1.1): this is the shared selling widget — prices, paid
   // plans, checkout hand-off. None of that may render inside the Capacitor
@@ -81,9 +85,11 @@ export default function PlanCards({
         </div>
       </div>
 
+      <MobilePlanTabs active={mobileTier} onChangeAction={setMobileTier} dark />
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
         {/* Free */}
-        <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
+        <div className={`${isMobile && mobileTier !== "free" ? "hidden" : ""} rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]`}>
           <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free</p>
           <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
@@ -96,7 +102,7 @@ export default function PlanCards({
         </div>
 
         {/* Pro — highlighted, glistening */}
-        <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
+        <div className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[28px] p-7 flex flex-col overflow-hidden`} style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
           <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative z-[2] flex flex-col flex-1">
@@ -124,7 +130,7 @@ export default function PlanCards({
         </div>
 
         {/* Office */}
-        <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
+        <div className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]`}>
           <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
           <div className="mb-1">
             <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>

@@ -136,9 +136,16 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   });
 
   return (
-    <div className="grid lg:grid-cols-[1fr_300px] gap-4 items-start">
-      <div className="space-y-4 min-w-0">
-        {/* 1 ── Company information ─────────────────────────────────────── */}
+    // Flattened (no wrapping "left column" div) so mobile — where this is a
+    // plain flex-col, not a grid — stacks children in DOCUMENT order: Company
+    // info, then the preview, then everything else. That's the point: on a
+    // phone you fill in company info and immediately see the card update,
+    // instead of scrolling past every section to find the preview at the
+    // bottom. Desktop pins each item back into its column/row explicitly, so
+    // the two-column sticky-preview layout is unchanged there.
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
+      {/* 1 ── Company information ─────────────────────────────────────── */}
+      <div className="lg:col-start-1 min-w-0">
         <Section n={1} title="Company information" desc="What's true about your business. This is the same on everyone's card.">
           <div className="space-y-4">
             <div>
@@ -189,7 +196,24 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             </div>
           </div>
         </Section>
+      </div>
 
+      {/* Live preview — moved here in DOCUMENT order (right after Company
+          information) so mobile sees it right away. On desktop this becomes
+          the sticky right-hand column via explicit grid placement below. */}
+      <aside className="lg:col-start-2 lg:[grid-row:1/-1] lg:sticky lg:top-24">
+        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
+          <div className="rounded-xl overflow-hidden">
+            <InertPreview><CardScaler><Preview data={previewData} /></CardScaler></InertPreview>
+          </div>
+          <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
+            An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
+          </p>
+        </div>
+      </aside>
+
+      <div className="lg:col-start-1 min-w-0 flex flex-col gap-4">
         {/* 2 ── Card appearance ─────────────────────────────────────────── */}
         <Section n={2} title="Card appearance" desc="The design your whole team inherits — template, colors and fonts.">
           <div className="flex flex-wrap gap-2">
@@ -270,19 +294,6 @@ export default function OfficeBranding({ office }: { office: Brand }) {
           )}
         </div>
       </div>
-
-      {/* Live preview */}
-      <aside className="lg:sticky lg:top-24">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
-          <div className="rounded-xl overflow-hidden">
-            <InertPreview><CardScaler><Preview data={previewData} /></CardScaler></InertPreview>
-          </div>
-          <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
-            An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
-          </p>
-        </div>
-      </aside>
     </div>
   );
 }

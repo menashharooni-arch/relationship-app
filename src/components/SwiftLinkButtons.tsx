@@ -101,9 +101,17 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
           );
         }
 
-        const tileClasses = `relative overflow-hidden rounded-[14px] mb-2.5 block group transition-transform active:scale-[0.98] ${
+        // A fixed pixel height here (vs a percentage width) forced the tile
+        // toward square as the viewport narrowed — on a phone the tile's real
+        // aspect ratio drifted far from the ~1.91:1 link-preview image's own
+        // ratio, so object-cover had to crop far more off the sides to fill
+        // it (cutting off the logo/wordmark). An aspect-ratio box instead of a
+        // fixed height keeps width and height scaling together at every
+        // viewport, matching the image's natural ratio so it fits without
+        // cropping instead of getting cut off.
+        const tileClasses = `relative overflow-hidden rounded-[14px] mb-2.5 block group transition-transform active:scale-[0.98] aspect-[1.91/1] ${
           big ? "w-full" : "w-[calc(50%-6px)]"
-        } ${big ? "h-[200px]" : "h-[151px]"}`;
+        }`;
 
         const inner = (
           <>

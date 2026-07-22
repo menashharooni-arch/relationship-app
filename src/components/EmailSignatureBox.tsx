@@ -38,33 +38,56 @@ function hashStr(s: string): string {
   return h.toString(36);
 }
 
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 // Replace every <img> src with an inlined data URL BEFORE capturing. html-to-image
 // otherwise re-fetches each image while rasterizing, which (with cache-busting or
 // a slow proxy MISS) was dropping the photo/logo and leaving a blank panel. Once
 // the src is a data URL there's nothing to fetch — the image always embeds.
-async function inlineImages(el: HTMLElement): Promise<void> {
+//
+// Was previously "best effort": a failed fetch just kept the original (non-data)
+// src and moved on, so a transient proxy hiccup silently shipped a signature
+// missing the headshot/logo instead of failing loudly. Now every image must
+// actually become a data URL (retrying, and falling back to the un-proxied
+// source) or the whole capture is rejected by the caller.
+async function inlineImages(el: HTMLElement, fallbackSrc: Map<string, string>): Promise<boolean> {
   const imgs = Array.from(el.querySelectorAll("img"));
-  await Promise.all(imgs.map(async (img) => {
+  const results = await Promise.all(imgs.map(async (img) => {
     const src = img.currentSrc || img.getAttribute("src") || "";
-    if (!src || src.startsWith("data:")) return;
-    try {
-      const res = await fetch(src, { cache: "force-cache" });
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onloadend = () => resolve(r.result as string);
-        r.onerror = reject;
-        r.readAsDataURL(blob);
-      });
-      await new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-        img.src = dataUrl;
-        setTimeout(resolve, 3000);
-      });
-    } catch { /* keep the original src — better a proxied fetch than nothing */ }
+    if (!src || src.startsWith("data:")) return true; // nothing to inline — not a failure
+    const fallback = fallbackSrc.get(src);
+    const candidates = fallback ? [src, fallback] : [src];
+    for (const candidate of candidates) {
+      // A couple of attempts per candidate — proxy/hosts sometimes fail transiently.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const dataUrl = await fetchAsDataUrl(candidate);
+        if (!dataUrl) continue;
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = dataUrl;
+          setTimeout(resolve, 3000);
+        });
+        if (img.src.startsWith("data:")) return true;
+      }
+    }
+    return false; // every attempt (proxied AND un-proxied) failed to embed this image
   }));
+  return results.every(Boolean);
 }
 
 function CardPreview({ src, ready, status, onLoad, onError }: {
@@ -132,8 +155,27 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // Wait for the lazy-loaded template to actually render…
       for (let i = 0; i < 80 && el.offsetHeight < 150; i++) await new Promise((r) => setTimeout(r, 100));
       // …then inline the photo/logo as data URLs so they always embed (this is
-      // what makes the signature a faithful copy of the real card).
-      await inlineImages(el);
+      // what makes the signature a faithful copy of the real card). Falls back
+      // to the un-proxied source if the same-origin proxy fetch fails.
+      const fallbackSrc = new Map<string, string>();
+      if (captureData.photoUrl && cardData.photoUrl && captureData.photoUrl !== cardData.photoUrl) {
+        fallbackSrc.set(captureData.photoUrl, cardData.photoUrl);
+      }
+      const proxiedLogo = (captureData as { logoUrl?: string | null }).logoUrl;
+      const originalLogo = (cardData as { logoUrl?: string | null }).logoUrl;
+      if (proxiedLogo && originalLogo && proxiedLogo !== originalLogo) {
+        fallbackSrc.set(proxiedLogo, originalLogo);
+      }
+      let inlined = await inlineImages(el, fallbackSrc);
+      if (!inlined) {
+        // One retry from scratch — proxy hiccups are usually transient.
+        await new Promise((r) => setTimeout(r, 400));
+        inlined = await inlineImages(el, fallbackSrc);
+      }
+      // Refuse to ship a signature that's missing the photo/logo — better to
+      // show "couldn't generate, reopen to retry" than silently upload one
+      // that's forgotten pieces of the real card.
+      if (!inlined) { setStatus("error"); return null; }
 
       // NO modifications to the card here — the signature is a PIXEL-EXACT copy of
       // the real SwiftCard: same fonts, sizes, placement, photo, logo, and the QR

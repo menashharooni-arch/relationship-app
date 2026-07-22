@@ -18,6 +18,7 @@ import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
 import GuestFlowReset from "@/components/GuestFlowReset";
+import BadgeCloseButton from "@/components/BadgeCloseButton";
 
 export const metadata: Metadata = {
   title: "SwiftCard — The digital business card that shares itself",
@@ -40,6 +41,7 @@ export default function Home() {
       {/* Arriving Home as a guest abandons any half-built card/preview — see
           GuestFlowReset. Renders nothing. */}
       <GuestFlowReset />
+      <BadgeCloseButton />
       <ScrollProgress />
       <ScrollReveal />
       <SiteNav />
