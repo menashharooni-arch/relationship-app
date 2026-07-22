@@ -111,10 +111,11 @@ export default function SaveContactButton({
     // Guard against a double-tap while the headshot is still fetching — one save
     // per click, no duplicate downloads or duplicate activity entries.
     if (downloading) return;
-    // Conversion moment: the visitor just engaged — show the "create your free
-    // card" popup right away (once per session). The save still completes
-    // behind it, so the card owner never loses the contact save.
-    triggerSignupNudge("vcard");
+    // NOTE: the "create your free card" popup is DELIBERATELY not fired here.
+    // The order is: Save Contact → the owner's "share your info back" sheet →
+    // and only once that sheet is submitted or dismissed does the signup nudge
+    // appear (closeSheet / shareBack own that trigger). Firing it up front made
+    // it collide with the share sheet.
     setDownloading(true);
     try {
     // Native shell: a Blob/anchor download no-ops in WKWebView. Hand the user
@@ -260,11 +261,23 @@ export default function SaveContactButton({
           </>
         )}
       </button>
-      {/* Small, unobtrusive pointer to the phone's confirm step */}
+      {/* Once saved: the phone-confirm pointer, plus a persistent "create your
+          free card" CTA right under the button — so after they dismiss the
+          popups the invite is still one tap away on the page itself. */}
       {saved && (
-        <p className="text-center text-[11px] mt-1.5" style={{ color: "#94a3b8" }}>
-          Save — then tap &ldquo;Create New Contact&rdquo;
-        </p>
+        <div className="mt-1.5 flex flex-col items-center gap-2.5">
+          <p className="text-center text-[11px]" style={{ color: "#94a3b8" }}>
+            Save — then tap &ldquo;Create New Contact&rdquo;
+          </p>
+          <a
+            href="/cards/new?src=save_contact_cta"
+            className="w-full text-center font-semibold py-3 px-6 rounded-full text-sm transition-colors flex items-center justify-center gap-1.5 border"
+            style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
+          >
+            Create your free card
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
+          </a>
+        </div>
       )}
 
       {/* Conversion bottom sheet */}
