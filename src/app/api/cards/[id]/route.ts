@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 
@@ -88,7 +88,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // (§9) — an unlocked office lets employees choose their own. This applies to
   // EVERY card under the office, the owner's included — the brand is edited on
   // /office/admin/branding, not by exempting any particular card.
-  const brand = await getOfficeBrandForUser(user.id);
+  const brand = await getMemberBrandForUser(user.id);
   if (brand) {
     // A SUB-USER (active member, not the owner) explicitly trying to CHANGE an
     // org-managed field is refused outright — even a hand-crafted request never

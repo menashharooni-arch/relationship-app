@@ -96,7 +96,16 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     snapchat?: string;
     youtube?: string;
     links?: { emoji: string; label: string; url: string }[];
+    // "Social design" — the owner's Swift Links page look (Pro).
+    linkBgColor?: string;
+    linkTextColor?: string;
+    linkFontFamily?: string;
   };
+  // Page theming is part of premium Swift Links: applied for paid owners only,
+  // matching sanitizeCustomizationForPlan (which strips these keys for Free).
+  const pageStyle = ownerPaid
+    ? { bg: customization.linkBgColor, text: customization.linkTextColor, font: customization.linkFontFamily }
+    : undefined;
   const bio = customization.bio || "";
   // Free is capped at FREE_MAX_LINKS Swift Links buttons; paid plans get
   // unlimited. Trimmed here so the cap applies to existing accounts on view,
@@ -132,6 +141,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         links={actionLinks}
         ownerPaid={ownerPaid}
         appUrl={APP_URL}
+        pageStyle={pageStyle}
       />
       {/* In-app only (App Review 1.2): report affordance for public Swift
           Links pages. Renders null on web/SSR — the public page is unchanged. */}

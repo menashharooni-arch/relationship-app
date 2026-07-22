@@ -6,7 +6,7 @@ import ImageUpload from "@/components/ImageUpload";
 import InertPreview from "@/components/InertPreview";
 import { IcoInsta, IcoLinkedIn, IcoX, IcoTikTok } from "@/components/card-templates/shared";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
-import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import { SwiftLinkStyleControls, LINK_DEFAULT_BG, LINK_DEFAULT_TEXT } from "@/components/SwiftLinkDesign";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
 import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
@@ -40,7 +40,7 @@ export default function SwiftLinkMiniBuilder() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const { sketch, patch, patchStyle, patchSocial, handOff, reset } = useProductSketch("swiftlink", open);
+  const { sketch, patch, patchLinkStyle, patchSocial, handOff, reset } = useProductSketch("swiftlink", open);
 
   // Handle is derived exactly like the real builder: name + business, slugified.
   const handle = slugify(sketch.company.trim() ? `${sketch.name} ${sketch.company}` : sketch.name) || "yourname";
@@ -53,12 +53,12 @@ export default function SwiftLinkMiniBuilder() {
     sketch.socials.twitter && { key: "twitter", handle: sketch.socials.twitter },
   ].filter(Boolean) as { key: string; handle: string }[];
 
-  // The SwiftLink page's own look. bgColor/textColor/fontFamily are the same
-  // keys the card editor writes, so a visitor's palette follows them across
-  // products and into the account.
-  const pageBg = sketch.style.bgColor || "#191a1a";
-  const pageText = sketch.style.textColor || "#ffffff";
-  const pageFont = sketch.style.fontFamily;
+  // The SwiftLink page's OWN look (linkBgColor/linkTextColor/linkFontFamily) —
+  // separate keys from the card's design, so styling the page here never
+  // restyles the card, and it carries into the wizard's "Social design" step.
+  const pageBg = sketch.linkStyle.linkBgColor || LINK_DEFAULT_BG;
+  const pageText = sketch.linkStyle.linkTextColor || LINK_DEFAULT_TEXT;
+  const pageFont = sketch.linkStyle.linkFontFamily;
 
   function launch() {
     setLaunching(true);
@@ -130,11 +130,11 @@ export default function SwiftLinkMiniBuilder() {
         </div>
       ),
     },
-    // 3 — style your page
+    // 3 — style your page (the Swift Links page's own design keys)
     {
       title: "Style your page",
-      subtitle: "Background, text colour and font — your page updates live.",
-      content: <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />,
+      subtitle: "Background, text colour and font — your Swift Links page updates live.",
+      content: <SwiftLinkStyleControls value={sketch.linkStyle} onChange={patchLinkStyle} />,
     },
   ];
 

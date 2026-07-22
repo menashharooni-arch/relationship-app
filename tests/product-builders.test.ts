@@ -43,7 +43,11 @@ describe("builders reuse the real editor components", () => {
     it(`${product} uses the shared sketch + the editor's own style controls`, () => {
       const src = read(file);
       expect(src, file).toContain("useProductSketch");
-      expect(src, file).toContain("TemplateStyleControls");
+      // The card & signature builders restyle the CARD (TemplateStyleControls);
+      // the SwiftLink builder styles the Swift Links PAGE, which has its own
+      // separate design keys and control (SwiftLinkStyleControls) — so styling
+      // one surface never restyles the other.
+      expect(src, file).toContain(product === "swiftlink" ? "SwiftLinkStyleControls" : "TemplateStyleControls");
       expect(src, file).toContain("InertPreview");
     });
   }

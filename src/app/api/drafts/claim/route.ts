@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import {
   buildClaimInsert,
@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
   // office/admin/branding save (office-brand.ts), so this card keeps getting
   // re-branded going forward while a later personal card never does.
   if (count === 0) {
-    const brand = await getOfficeBrandForUser(user.id);
+    const brand = await getMemberBrandForUser(user.id);
     if (brand) {
       insert.is_office_card = true;
       if (brand.logoUrl) insert.logo_url = brand.logoUrl;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   let finalWebsite = website || "";
   let finalLogo = logo_url || null;
   let finalLabel = label || null;
-  const brand = await getOfficeBrandForUser(user.id);
+  const brand = await getMemberBrandForUser(user.id);
   if (brand) {
     if (brand.logoUrl) finalLogo = brand.logoUrl;
     if (brand.company) finalCompany = brand.company;

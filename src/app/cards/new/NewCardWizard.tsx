@@ -30,13 +30,14 @@ import { socialUrl } from "@/lib/social-url";
 import { normalizeSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
 import { resetGuestFlow } from "@/lib/guest-reset";
-import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
+import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
-import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
+import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
+import { SwiftLinkStyleControls, SwiftLinkPagePreview, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
@@ -230,6 +231,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
   }
+  // "Social design" — the Swift Links PAGE's look (step 4). Separate keys from
+  // the card's style above, so styling one surface never restyles the other.
+  const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>({});
+  function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
+    setLinkStyleState((prev) => ({ ...prev, ...patch }));
+  }
 
   // The card starts EMPTY. If the visitor sketched a card / SwiftLink /
   // signature on the marketing site, we stash it here and offer a one-tap
@@ -277,6 +284,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setTemplateStyleState((prev) => {
       const next = { ...prev };
       for (const k of PREFILL_STYLE_KEYS) {
+        const v = p[k];
+        if (typeof v === "string" && v) next[k] = v;
+      }
+      return next;
+    });
+    // Swift Links page design ("Social design") rides its own keys.
+    setLinkStyleState((prev) => {
+      const next = { ...prev };
+      for (const k of PREFILL_LINK_STYLE_KEYS) {
         const v = p[k];
         if (typeof v === "string" && v) next[k] = v;
       }
@@ -512,12 +528,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         const style: Record<string, unknown> = {};
         for (const k of PRO_CUSTOMIZATION_KEYS) if (cust[k] !== undefined) style[k] = cust[k];
         if (Object.keys(style).length) setTemplateStyleState(style as TemplateStyle);
+        // Swift Links page design keys ride alongside the card's, on their own list.
+        const ls: Record<string, unknown> = {};
+        for (const k of LINK_STYLE_KEYS) if (cust[k] !== undefined) ls[k] = cust[k];
+        if (Object.keys(ls).length) setLinkStyleState(ls as SwiftLinkStyle);
 
         // Images ride as base64 data URLs (a guest can't reach the upload route).
         if (draft.images?.logo) setLogoUrl(draft.images.logo);
         if (draft.images?.photo) setHeadshotUrl(draft.images.photo);
 
-        if (typeof draft.step === "number" && draft.step >= 1 && draft.step <= 3) setStep(draft.step);
+        if (typeof draft.step === "number" && draft.step >= 1 && draft.step <= 4) setStep(draft.step);
         setRestored(true);
       }
       hydratedRef.current = true;
@@ -551,6 +571,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           youtube: normalizeSocial(socials.youtube, "youtube"),
           links, address, phones: cleanPhones, fax: fax.trim(),
           ...templateStyleState,
+          ...linkStyleState,
           photoUrl: null,
           ...(template === "custom" ? { customLayout } : {}),
         },
@@ -562,7 +583,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     });
   }, [guest, step, username, cardLabel, name, company, title, primaryPhone, email, website,
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
-      customLayout, logoUrl, headshotUrl]);
+      linkStyleState, customLayout, logoUrl, headshotUrl]);
 
   async function handleCreate(planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number }) {
     if (!name.trim() || !username) {
@@ -609,6 +630,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             // Preset-template style overrides (Pro; stripped server-side on Free).
             // Only fields the user actually set are present here.
             ...templateStyleState,
+            // Swift Links page design ("Social design" — Pro, stripped on Free).
+            ...linkStyleState,
             // Headshot is per-card (explicit key, null when none) — never inherits
             // another card's photo.
             photoUrl: headshotUrl ?? null,
@@ -682,7 +705,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // Card created — last step: turn on notifications for this card so the
     // owner gets contact alerts + view milestones on their device.
     setStatus("idle");
-    setStep(4);
+    setStep(5);
   }
 
   // Shared with two render sites: the pinned sidebar (desktop, and mobile on
@@ -707,7 +730,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   return (
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
-      <div className={step === 4 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
+      <div className={step === 5 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
         {/* Back-link matches how the user got here:
             • guest / marketing entry → "Home" (no jump into a lingering session's
               account without a fresh sign-in);
@@ -739,15 +762,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </DashboardLink>
         )}
 
-        {/* Steps 1–3: form on the left, a live card preview pinned alongside
-            (right on desktop, top on mobile). Step 4 (success) is full-width. */}
-        <div className={step === 4 ? "" : "grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start"}>
-        <div className={step === 4 ? "" : "min-w-0 order-2 lg:order-1"}>
+        {/* Steps 1–4: form on the left, a live card preview pinned alongside
+            (right on desktop, top on mobile). Step 5 (success) is full-width. */}
+        <div className={step === 5 ? "" : "grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start"}>
+        <div className={step === 5 ? "" : "min-w-0 order-2 lg:order-1"}>
 
-        {/* Step indicator (hidden on the post-create success screen) */}
-        {step <= 3 && (
+        {/* Step indicator (hidden on the post-create success screen) —
+            1 Card information · 2 Card design · 3 Socials · 4 Social design */}
+        {step <= 4 && (
           <div className="flex items-center gap-2 mb-6">
-            {[1, 2, 3].map((n) => (
+            {[1, 2, 3, 4].map((n) => (
               <div key={n} className="flex items-center gap-2 flex-1">
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
@@ -755,7 +779,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 >
                   {n}
                 </div>
-                {n < 3 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
+                {n < 4 && <div className="flex-1 h-px" style={{ background: step > n ? "#2563eb" : "#1f2937" }} />}
               </div>
             ))}
           </div>
@@ -931,17 +955,17 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
             <button onClick={goNextFrom1} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm mt-2">
-              Next: Socials →
+              Next: Card design →
             </button>
           </div>
         )}
 
-        {/* Step 2 — bio, social links, additional links */}
-        {step === 2 && (
+        {/* Step 3 — Socials: bio, social links, additional links */}
+        {step === 3 && (
           <div className="space-y-5">
             <div className="mb-1">
-              <h1 className="text-2xl font-bold text-white">Swift Links</h1>
-              <p className="text-gray-400 text-sm mt-1">Your bio, social profiles, and extra links. All optional.</p>
+              <h1 className="text-2xl font-bold text-white">Socials</h1>
+              <p className="text-gray-400 text-sm mt-1">Your bio, social profiles, and extra links — they live on your Swift Links page. All optional.</p>
             </div>
 
             {/* Swiftlinks bio */}
@@ -1080,18 +1104,18 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </div>
 
             <div className="flex gap-3 mt-2">
-              <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
+              <button onClick={() => setStep(2)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
                 ← Back
               </button>
-              <button onClick={() => setStep(3)} className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm">
-                Next: Logo & design →
+              <button onClick={() => setStep(4)} className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm">
+                Next: Social design →
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 4 — card created: turn on notifications for this card */}
-        {step === 4 && (
+        {/* Step 5 — card created: turn on notifications for this card */}
+        {step === 5 && (
           <div className="space-y-5 text-center">
             <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto">
               <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1141,11 +1165,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </div>
         )}
 
-        {/* Step 3 — media + design */}
-        {step === 3 && (
+        {/* Step 2 — Card design: photos + template + colors */}
+        {step === 2 && (
           <div className="space-y-5">
             <div className="mb-1">
-              <h1 className="text-2xl font-bold text-white">Photos & design</h1>
+              <h1 className="text-2xl font-bold text-white">Card design</h1>
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
@@ -1278,6 +1302,57 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </div>
             )}
 
+            <div className="flex gap-3 mt-1">
+              <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
+                ← Back
+              </button>
+              <button onClick={() => setStep(3)} className="flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm">
+                Next: Socials →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Social design: the Swift Links page's look, with a live
+            preview of the page itself. Separate keys from the card design, so
+            the two steps never fight over the same values. */}
+        {step === 4 && (
+          <div className="space-y-5">
+            <div className="mb-1">
+              <h1 className="text-2xl font-bold text-white">Social design</h1>
+              <p className="text-gray-400 text-sm mt-1">
+                Style your Swift Links page — the page where your bio, socials and links live.
+              </p>
+            </div>
+
+            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!designUnlocked} />
+            {!isPro && !designUnlocked && (
+              <PlanGate
+                feature="colors-fonts"
+                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+              >
+                <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300">
+                  Unlock custom colors &amp; fonts with Pro →
+                </Link>
+              </PlanGate>
+            )}
+
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Your Swift Links page — this is how it will look
+              </p>
+              <SwiftLinkPagePreview
+                style={linkStyleState}
+                name={name}
+                handle={username || "yourname"}
+                company={company}
+                bio={bio}
+                photoUrl={headshotUrl}
+                socialKeys={(Object.keys(socials) as (keyof typeof socials)[]).filter((k) => socials[k].trim())}
+                links={links}
+              />
+            </div>
+
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {/* Native-only: shown in place of the /upgrade redirect when a Free
                 user hits the card cap. Never renders on web (multiCardBlocked
@@ -1289,7 +1364,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             )}
 
             <div className="flex gap-3 mt-1">
-              <button onClick={() => setStep(2)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
+              <button onClick={() => setStep(3)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
                 ← Back
               </button>
               <button
@@ -1324,13 +1399,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         </div>{/* editor column */}
 
         {/* Live preview — pinned alongside on desktop always. On mobile:
-            steps 1-2 reorder it to the BOTTOM of the page (below the form,
-            below the Next button) via `order`; step 3 hides this sidebar copy
-            entirely on mobile because that step renders its own inline copy
-            positioned mid-form, right above "Choose your design" (plain CSS
-            order can't move a sibling to a point INSIDE the form column). */}
-        {step !== 4 && (
-          <div className={`${step === 3 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
+            steps 1/3/4 reorder it to the BOTTOM of the page (below the form,
+            below the Next button) via `order`; step 2 (Card design) hides this
+            sidebar copy entirely on mobile because that step renders its own
+            inline copy positioned mid-form, right above "Choose your design"
+            (plain CSS order can't move a sibling INSIDE the form column). */}
+        {step !== 5 && (
+          <div className={`${step === 2 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
             {livePreview}
           </div>
         )}

@@ -16,7 +16,7 @@ import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
-import { Field, SocialFields } from "./BuilderFields";
+import { Field } from "./BuilderFields";
 
 // "See how your Swift Signature would look" builder for the homepage signature
 // section. Your signature IS your card rendered under your name, so it needs the
@@ -38,7 +38,7 @@ export default function SignatureMiniBuilder() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const { sketch, patch, patchStyle, patchSocial, handOff, reset } = useProductSketch("signature", open);
+  const { sketch, patch, patchStyle, handOff, reset } = useProductSketch("signature", open);
 
   const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
 
@@ -56,9 +56,8 @@ export default function SignatureMiniBuilder() {
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
     cardUrl: "swiftcard.me/card/your-card",
-    linkedin: sketch.socials.linkedin,
-    instagram: sketch.socials.instagram,
-    twitter: sketch.socials.twitter,
+    // No socials: the Swift Signature is a replica of the card, and cards
+    // render withoutSocials() — the preview must match the real thing.
     customization: { ...sketch.style },
   };
 
@@ -125,11 +124,10 @@ export default function SignatureMiniBuilder() {
         </div>
       ),
     },
-    {
-      title: "Social links",
-      subtitle: "Optional — the ones you pick appear in your signature.",
-      content: <SocialFields socials={sketch.socials} onChange={patchSocial} only={["linkedin", "instagram", "twitter"]} />,
-    },
+    // NOTE: no socials step — the Swift Signature is a replica of the CARD, and
+    // cards render withoutSocials(); asking for socials here collected fields
+    // the signature never shows. Socials belong to the Swift Links page and are
+    // collected in the real wizard's Socials step after "Make it live".
     {
       title: "Design your signature",
       subtitle: "Pick a layout, then fine-tune the colours and font — it updates live.",

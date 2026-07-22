@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
-import { getOfficeBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 
 // `logo_url` was previously missing here, so a logo chosen in the legacy
 // profile-card editor was silently dropped on save (cards audit H2).
@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
   // like /api/cards/[id]. The office owner's own card is unaffected.
   const subCtx = await getOfficeSubUserContext(user.id);
   if (subCtx) {
-    const brand = await getOfficeBrandForUser(user.id).catch(() => null);
+    const brand = await getMemberBrandForUser(user.id).catch(() => null);
     if (brand) {
       const violations = findManagedFieldViolations(body, brand, {
         company: planRow?.company,
