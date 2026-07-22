@@ -31,7 +31,7 @@ export default function SmsConsentCheckbox({
         className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 accent-blue-600"
       />
       <span className="text-slate-500 text-[8px] leading-tight">
-        By checking this box, you allow {who} to text you via SwiftCard. Msg frequency varies,
+        Check this box to have {who} reach out to you by text via SwiftCard. Msg frequency varies,
         msg &amp; data rates may apply, reply STOP/HELP. Not required to share.{" "}
         <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>{" "}
         &amp;{" "}
