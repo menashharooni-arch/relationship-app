@@ -12,11 +12,12 @@ import { useProductSketch } from "./useProductSketch";
 import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
 
 // "See how your SwiftLink would look" builder for the homepage SwiftLinks
-// section. Mirrors how a SwiftLink is really created: your @handle is generated
-// from your name + business name, you add a profile photo, a bio, your socials,
-// and any custom links. The preview is the real link.me-style profile driven by
-// what you type; "Make it live" hands off to /cards/new (the SwiftLink lives on
-// the same card record) on the Swift Links step with everything prefilled.
+// section. Three steps: (1) name, business & profile photo, (2) bio, socials &
+// additional links, (3) style your page. The preview is the real link.me-style
+// profile driven by what you type; "Make it live" hands off to /cards/new (the
+// SwiftLink lives on the same card record) starting at the FIRST wizard step
+// with everything prefilled, so the visitor walks through card creation +
+// account setup from the beginning.
 
 function slugify(str: string): string {
   return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
@@ -83,6 +84,7 @@ export default function SwiftLinkMiniBuilder() {
   }
 
   const steps: MiniStep[] = [
+    // 1 — name, business & profile photo
     {
       title: "Name your SwiftLink",
       subtitle: "Your @handle is built from your name and business — this is the page that lives in your bio.",
@@ -99,15 +101,18 @@ export default function SwiftLinkMiniBuilder() {
             <span className="block text-white/55 text-[12px] font-medium mb-1.5">Profile photo</span>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="" onUploaded={(u) => patch({ headshot: u || null })} />
             <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={false} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            {/* Only used to look your headshot up — never shown on the page. */}
+            <Field label="Email (only used to find your headshot)" type="email" placeholder="alex@morganco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} />
           </div>
         </>
       ),
     },
+    // 2 — bio, all socials & additional links
     {
-      title: "Add a short bio",
-      subtitle: "One or two lines about what you do — this sits under your name.",
+      title: "Your bio, socials & links",
+      subtitle: "A line about you, the socials you have, and any links you want front and center.",
       content: (
-        <>
+        <div className="space-y-4">
           <TextArea
             label="Bio"
             placeholder="Founder & CEO at Morgan & Co. Helping brands grow"
@@ -115,28 +120,17 @@ export default function SwiftLinkMiniBuilder() {
             onChange={(e) => patch({ bio: e.target.value })}
             autoFocus
           />
-          {/* Only used to look a profile photo up — never shown on the page. */}
-          <Field label="Email (for photo suggestions)" type="email" placeholder="alex@morganco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} />
-        </>
+          <SocialFields socials={sketch.socials} onChange={patchSocial} />
+          <LinkButtons
+            links={sketch.links}
+            onChange={(links) => patch({ links })}
+            label="Additional links"
+            hint="These become the big tappable buttons down your page."
+          />
+        </div>
       ),
     },
-    {
-      title: "Link your socials",
-      subtitle: "Add the ones you have — they show as tappable icons on your page.",
-      content: <SocialFields socials={sketch.socials} onChange={patchSocial} />,
-    },
-    {
-      title: "Add your links",
-      subtitle: "Booking pages, your website, a latest drop — anything you want front and center.",
-      content: (
-        <LinkButtons
-          links={sketch.links}
-          onChange={(links) => patch({ links })}
-          label="Links"
-          hint="These become the big tappable buttons down your page."
-        />
-      ),
-    },
+    // 3 — style your page
     {
       title: "Style your page",
       subtitle: "Background, text colour and font — your page updates live.",

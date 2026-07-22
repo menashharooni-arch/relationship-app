@@ -237,14 +237,27 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const [pendingPrefill, setPendingPrefill] = useState<CardPrefill | null>(null);
   useEffect(() => {
     const p = consumePrefill();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of a localStorage handoff after mount
-    if (p && hasSketchContent(p)) setPendingPrefill(p);
+    if (!p || !hasSketchContent(p)) return;
+    // A mini-builder "Make it live" stamps `step` on the prefill — an EXPLICIT
+    // hand-off, so autofill immediately and start at the beginning (they still
+    // walk through every step, socials and design included). An ambient sketch
+    // (no step — e.g. a leftover from a generic "Get started") keeps the opt-in
+    // "Autofill / start blank" prompt so nothing is silently applied.
+    if (typeof p.step === "number") {
+      // Explicit hand-off — autofill now and begin at step 1.
+      applyPrefillData(p);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time handoff: always begin at step 1
+      setStep(1);
+    } else {
+      // Ambient sketch — offer the opt-in "Autofill / start blank" prompt.
+      setPendingPrefill(p);
+    }
   }, []);
 
-  // Apply the stashed sketch into the form — only ever called from the explicit
-  // "Autofill" action. Leaves the current step where it is.
-  function applyPrefill() {
-    const p = pendingPrefill;
+  // Apply a stashed sketch into the form. Used by the explicit "Autofill"
+  // button (with pendingPrefill) AND by the auto-apply hand-off path above.
+  // Leaves the current step where it is.
+  function applyPrefillData(p: CardPrefill | null) {
     if (!p) return;
     if (p.name) setName(p.name);
     if (p.title) setTitle(p.title);
@@ -772,7 +785,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   We saved the details you sketched on the homepage. Autofill them, or start with a blank card.
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <button type="button" onClick={applyPrefill} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 rounded-full transition-colors">
+                  <button type="button" onClick={() => applyPrefillData(pendingPrefill)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 rounded-full transition-colors">
                     Autofill my details
                   </button>
                   <button type="button" onClick={() => setPendingPrefill(null)} className="px-4 text-gray-400 hover:text-white text-xs font-medium transition-colors">
