@@ -16,7 +16,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import type { CardData } from "@/components/card-templates/types";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
-import { Field, SocialFields, LinkButtons } from "./BuilderFields";
+import { Field } from "./BuilderFields";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
 // "+" that opens the REAL card builder — the same controls the signed-in editor
@@ -40,7 +40,7 @@ export default function CardMiniBuilder() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const { sketch, patch, patchStyle, patchSocial, handOff, reset } = useProductSketch("card", open);
+  const { sketch, patch, patchStyle, handOff, reset } = useProductSketch("card", open);
 
   const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
   const addressStr = [
@@ -142,16 +142,6 @@ export default function CardMiniBuilder() {
       ),
     },
     {
-      title: "Social & link buttons",
-      subtitle: "Optional — these become tappable buttons on your card.",
-      content: (
-        <div className="space-y-4">
-          <SocialFields socials={sketch.socials} onChange={patchSocial} />
-          <LinkButtons links={sketch.links} onChange={(links) => patch({ links })} />
-        </div>
-      ),
-    },
-    {
       title: "Make it yours",
       subtitle: "Pick a template, then fine-tune the colours and font — exactly like the real editor.",
       content: (
@@ -174,12 +164,26 @@ export default function CardMiniBuilder() {
               ))}
             </div>
           </div>
+
+          {/* Mobile-only: the shared preview column (see hidePreviewOnMobile
+              below) is hidden for this step, and this inline copy sits right
+              next to the template choices instead of at the bottom of the
+              whole sheet, past the nav buttons. */}
+          <div className="md:hidden flex justify-center">
+            <InertPreview className="rounded-2xl overflow-hidden border border-white/10 w-[220px]">
+              <CardScaler>
+                <Preview data={data} />
+              </CardScaler>
+            </InertPreview>
+          </div>
+
           {/* The very same control the signed-in card editor renders. */}
           <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
       ),
     },
   ];
+  const isLastStep = step >= steps.length - 1;
 
   return (
     <>
@@ -218,6 +222,7 @@ export default function CardMiniBuilder() {
         launching={launching}
         launchLabel="Make it live →"
         previewCaption="This is your real card — same as recipients see."
+        hidePreviewOnMobile={isLastStep}
         preview={
           <InertPreview className="w-[260px] max-w-full">
             <div className="rounded-2xl overflow-hidden shadow-2xl">
