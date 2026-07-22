@@ -672,6 +672,25 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setStep(4);
   }
 
+  // Shared with two render sites: the pinned sidebar (desktop, and mobile on
+  // steps 1-2 where it's reordered to the bottom) AND an inline copy dropped
+  // into step 3's own form flow on mobile (see mobilePreviewInline below) —
+  // step 3 needs it positioned mid-form (right above "Choose your design"),
+  // which plain CSS `order` on a sibling can't express.
+  const livePreview = (
+    <>
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+      {/* Look-only — design is changed with the controls, never by
+          clicking the card itself. See InertPreview. */}
+      <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
+        <CardScaler>
+          <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+        </CardScaler>
+      </InertPreview>
+      <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
+    </>
+  );
+
   return (
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
@@ -1161,6 +1180,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               )}
             </div>
 
+            {/* Mobile-only: the live preview lives in the sidebar on desktop
+                (see below), but on step 3 specifically it's inlined here,
+                right above the design section — the sidebar copy is hidden
+                on mobile for this step so it doesn't show up twice. */}
+            <div className="lg:hidden">{livePreview}</div>
+
             {/* Design — locked for sub-users while the office's Lock Card Design
                 setting is on; the server enforces the office look regardless. */}
             {designLocked ? (
@@ -1283,18 +1308,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         )}
         </div>{/* editor column */}
 
-        {/* Live preview — pinned alongside on desktop, above the form on mobile */}
+        {/* Live preview — pinned alongside on desktop always. On mobile:
+            steps 1-2 reorder it to the BOTTOM of the page (below the form,
+            below the Next button) via `order`; step 3 hides this sidebar copy
+            entirely on mobile because that step renders its own inline copy
+            positioned mid-form, right above "Choose your design" (plain CSS
+            order can't move a sibling to a point INSIDE the form column). */}
         {step !== 4 && (
-          <div className="order-1 lg:order-2 lg:sticky lg:top-6">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
-            {/* Look-only — design is changed with the controls, never by
-                clicking the card itself. See InertPreview. */}
-            <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
-              <CardScaler>
-                <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
-              </CardScaler>
-            </InertPreview>
-            <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
+          <div className={`${step === 3 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
+            {livePreview}
           </div>
         )}
         </div>{/* grid */}
