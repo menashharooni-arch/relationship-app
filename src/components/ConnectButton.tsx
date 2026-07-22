@@ -3,7 +3,7 @@
 import { useState } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
-import { getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
+import { getVisitorInfo, markSharedWith } from "@/lib/visitor";
 
 export default function ConnectButton({
   cardOwner,
@@ -24,7 +24,11 @@ export default function ConnectButton({
   function openModal() {
     const v = getVisitorInfo();
     setForm({ name: v?.name ?? "", phone: v?.phone ?? "", email: v?.email ?? "", message: "" });
-    setKnownInfo(!!v && hasSharedWith(cardOwner));
+    // Collapse the contact fields whenever we already know this visitor — even
+    // if they shared with a DIFFERENT owner before. Once someone has shared
+    // their info anywhere, no SwiftLink re-asks for it; they just add a message
+    // and send. (hasSharedWith stays imported for back-compat callers.)
+    setKnownInfo(!!v);
     setSmsConsent(false); // reset the opt-in each open — never carry a prior check forward
     setStatus("idle");
     setError("");
