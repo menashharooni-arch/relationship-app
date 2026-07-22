@@ -223,9 +223,20 @@ export async function POST(req: NextRequest) {
     // canceled/abandoned checkout can be retried without re-choosing (spec §1).
     const cancelPath = `/checkout?plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}&canceled=1`;
 
+    // Reuse the existing Stripe customer so re-subscribing doesn't create
+    // duplicates — and re-sync its email to the AUTH signup email, since a
+    // customer created earlier while profiles.email held a card contact address
+    // would otherwise show the wrong email on Stripe's portal/invoices forever.
+    if (profile.stripe_customer_id) {
+      const authEmail = await getAccountEmail(user.id, profile.email as string | null);
+      if (authEmail) {
+        try { await stripe.customers.update(profile.stripe_customer_id as string, { email: authEmail }); }
+        catch { /* never block checkout on the email sync */ }
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       client_reference_id: user.id,
-      // Reuse the existing Stripe customer so re-subscribing doesn't create duplicates.
       // A NEW customer is registered under the account's AUTH email — the
       // address they signed up with — never profiles.email, which drifts to
       // the card's public contact email (see lib/account-email).

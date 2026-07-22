@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { getAccountEmail } from "@/lib/account-email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -33,7 +34,7 @@ export async function POST() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("stripe_customer_id")
+    .select("stripe_customer_id, email")
     .eq("id", user.id)
     .single();
 
@@ -43,6 +44,18 @@ export async function POST() {
 
   try {
     const stripe = getStripe();
+    // Heal the customer's email to the account's AUTH signup email before
+    // opening the portal. The Stripe customer email is only set at creation and
+    // was never re-synced, so a customer created while profiles.email held one
+    // of the owner's CARD contact emails showed the wrong address on Stripe's
+    // portal + invoice PDFs forever ("recognized by the wrong email"). This
+    // reconciles it every time billing is opened. Best-effort — never block the
+    // portal on it.
+    const authEmail = await getAccountEmail(user.id, profile.email as string | null);
+    if (authEmail) {
+      try { await stripe.customers.update(profile.stripe_customer_id, { email: authEmail }); }
+      catch { /* portal still opens even if the email sync hiccups */ }
+    }
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
       return_url: `${APP_URL}/settings/flows`,

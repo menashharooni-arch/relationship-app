@@ -902,7 +902,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-gray-500 text-xs">Company logo</dt>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-cover bg-gray-900" /></dd>
+                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-contain bg-white p-0.5" /></dd>
                     </div>
                   )}
                   {([
@@ -1242,7 +1242,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 </div>
                 <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3.5 py-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-cover bg-gray-900" />
+                  <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
                   <p className="text-gray-500 text-xs">Your organization&apos;s logo is used on every connected card.</p>
                 </div>
               </div>
