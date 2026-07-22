@@ -55,19 +55,23 @@ function SwatchRow({
   customLocked: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    // The presets lean dark (the page's link cards are designed for rich/dark
+    // surfaces), so on the editor's own dark panel they read as faded blobs.
+    // A light well behind them + bigger swatches with a crisp ring makes each
+    // color clearly visible.
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-200/90 px-2.5 py-2">
       {presets.map((p) => (
         <button
           key={p}
           type="button"
           onClick={() => onPick(p)}
           aria-label="Color preset"
-          className="w-7 h-7 rounded-lg transition-transform hover:scale-110"
-          style={{ background: p, border: value === p ? "2px solid #3b82f6" : "1px solid #374151" }}
+          className="w-8 h-8 rounded-lg transition-transform hover:scale-110 shadow-sm"
+          style={{ background: p, border: value === p ? "2.5px solid #2563eb" : "1px solid rgba(15,23,42,0.25)" }}
         />
       ))}
       <label
-        className={`flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
+        className={`flex items-center gap-1 text-[10px] text-gray-600 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
         aria-disabled={customLocked}
       >
         custom{customLocked && <ProTag />}
@@ -76,14 +80,14 @@ function SwatchRow({
           value={isHex(value) ? value : fallbackHex}
           onChange={(e) => onPick(e.target.value)}
           disabled={customLocked}
-          className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer disabled:cursor-default"
+          className="w-8 h-8 rounded bg-transparent border border-gray-400 cursor-pointer disabled:cursor-default"
         />
       </label>
       <button
         type="button"
         onClick={() => onPick(undefined)}
         className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
-          value === undefined ? "border-blue-600 text-blue-300" : "border-gray-700 text-gray-500 hover:text-gray-300"
+          value === undefined ? "border-blue-600 text-blue-700 font-semibold" : "border-gray-400 text-gray-600 hover:text-gray-900"
         }`}
       >
         Default

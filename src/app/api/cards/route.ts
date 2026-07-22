@@ -98,6 +98,19 @@ export async function POST(req: NextRequest) {
   // cards are individual and must never be touched by office propagation.
   const subCtx = await getOfficeSubUserContext(user.id);
   const brand = await getMemberBrandForUser(user.id);
+  // Company-level fields are org territory for a SUB-USER (owner decision,
+  // Jul 2026): the UI never asks a member for them, and the server backstops
+  // that here — whatever a crafted request supplies is discarded, then the
+  // brand's own values (where set) are applied below. Owners are unaffected.
+  if (subCtx) {
+    finalCompany = "";
+    finalWebsite = "";
+    finalLogo = null;
+    if (cust && typeof cust === "object") {
+      delete (cust as Record<string, unknown>).fax;
+      delete (cust as Record<string, unknown>).address;
+    }
+  }
   if (brand) {
     if (brand.logoUrl) finalLogo = brand.logoUrl;
     if (brand.company) finalCompany = brand.company;

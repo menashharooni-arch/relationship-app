@@ -176,7 +176,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                  Fax <span className="text-gray-600 font-normal">(optional)</span>
+                  Fax number <span className="text-gray-600 font-normal">(optional)</span>
                 </label>
                 <input type="tel" value={fax} onChange={(e) => setFax(e.target.value)} placeholder="(555) 123-4568" className={inputCls} />
               </div>
@@ -256,7 +256,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             </ul>
             <p className="text-[11px] font-semibold text-gray-400 mt-3 mb-2">They can never change:</p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {["Company logo", "Company name", "Website", "Office phone", "Address"].map((t) => (
+              {["Company logo", "Company name", "Website", "Office phone", "Fax number", "Address"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5 text-[11px] text-gray-500">
                   <span className="text-gray-600" aria-hidden="true">🔒</span>{t}
                 </li>
