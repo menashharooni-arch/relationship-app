@@ -31,6 +31,7 @@ export default function MiniBuilderModal({
   onStartOver,
   launching = false,
   launchLabel = "Make it live →",
+  hidePreviewOnMobile = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,6 +48,13 @@ export default function MiniBuilderModal({
   onStartOver?: () => void;
   launching?: boolean;
   launchLabel?: string;
+  /** Hides this shared preview column on mobile only (still shown on desktop,
+   *  where it's pinned beside the form regardless of step). Used by the card
+   *  builder's last step (the template picker), which drops its OWN inline
+   *  copy of `preview` right next to the template choices instead — on mobile
+   *  that reads better than the picker followed by nav buttons followed by
+   *  the preview all the way at the bottom of the sheet. */
+  hidePreviewOnMobile?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -148,7 +156,7 @@ export default function MiniBuilderModal({
             </div>
 
             {/* ── Right: live preview ────────────────────── */}
-            <div className="relative flex flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10" style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
+            <div className={`${hidePreviewOnMobile ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
               <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[11px] font-semibold uppercase tracking-widest">Live preview</span>
               <div className="w-full flex items-center justify-center mt-4">{preview}</div>
               {previewCaption && <p className="text-white/40 text-[12px] mt-4 text-center">{previewCaption}</p>}
