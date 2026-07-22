@@ -193,13 +193,13 @@ export default function CardMiniBuilder() {
       >
         <p className="text-[13.5px] font-semibold mb-2 text-slate-500 group-hover:text-[#2563EB] transition-colors">Start from scratch</p>
         <div
-          className="rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 group-hover:-translate-y-[3px]"
+          className="rounded-2xl flex flex-col items-center justify-center text-center gap-3 p-4 min-h-[150px] transition-all duration-200 group-hover:-translate-y-[3px]"
           style={{ aspectRatio: "1.75", border: "2px dashed #C9BEA8", background: "rgba(37,99,235,0.03)" }}
         >
-          <span className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110" style={{ background: "var(--rd-aurora)" }}>
+          <span className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 shrink-0" style={{ background: "var(--rd-aurora)" }}>
             <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
           </span>
-          <div className="px-4">
+          <div className="px-2">
             <p className="text-slate-800 font-semibold text-[14px] leading-tight">See how your card would look</p>
             <p className="text-slate-500 text-[12px] mt-1">Takes 60 seconds — no signup</p>
           </div>
