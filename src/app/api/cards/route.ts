@@ -92,6 +92,11 @@ export async function POST(req: NextRequest) {
   let finalWebsite = website || "";
   let finalLogo = logo_url || null;
   let finalLabel = label || null;
+  // Is this creator an office SUB-USER (active member, not the owner)? Resolved
+  // once — it decides both the company nickname AND whether the card is flagged
+  // is_office_card (below). The owner is deliberately excluded: their personal
+  // cards are individual and must never be touched by office propagation.
+  const subCtx = await getOfficeSubUserContext(user.id);
   const brand = await getMemberBrandForUser(user.id);
   if (brand) {
     if (brand.logoUrl) finalLogo = brand.logoUrl;
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
     if (brand.website) finalWebsite = brand.website;
     // Member cards carry the company-controlled nickname (the company name), so
     // every connected card is labeled consistently. Owners keep their own labels.
-    if (brand.company && (await getOfficeSubUserContext(user.id))) finalLabel = brand.company;
+    if (brand.company && subCtx) finalLabel = brand.company;
     if (brand.lockTemplate && brand.template) safeTemplate = brand.template;
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) cust = { ...cust, customLayout: brand.customLayout };
     // Company phone/fax/address (spec §8) — uniform on every member card.
@@ -127,6 +132,14 @@ export async function POST(req: NextRequest) {
     customization: cust,
     logo_url: finalLogo,
     label: finalLabel,
+    // Flag a SUB-USER's card as office-managed so the office Branding page can
+    // keep it in sync afterward and strip the brand if they ever leave. Without
+    // this, all propagation (which is scoped .eq("is_office_card", true)) skips
+    // the card — brand changes never reach it and a departing member walks away
+    // with the company logo baked onto their public card. The OWNER's own cards
+    // stay unflagged (getMemberBrandForUser/subCtx are null for them), so their
+    // personal cards remain individual.
+    is_office_card: !!subCtx,
   };
 
   let { data, error } = await admin

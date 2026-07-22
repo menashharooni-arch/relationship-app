@@ -1,7 +1,15 @@
 import { escapeHtml, safeUrlAttr } from "./escape";
+import { htmlToText } from "./email-text";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
+
+// Every builder returns html AND a plain-text alternative. Passing `text` to
+// Resend makes the message multipart/alternative — HTML-only mail is a strong
+// spam signal, so this materially improves inbox placement. See email-text.ts.
+function built(from: string, subject: string, html: string) {
+  return { from, subject, html, text: htmlToText(html) };
+}
 
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
 function layout(body: string, unsubscribeUrl?: string) {
@@ -83,11 +91,7 @@ export function welcomeEmail(opts: {
       <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Swift Signature</strong> — add "Save my contact → ${cardUrlText}" to the bottom of your emails</p>
     `)}
   `;
-  return {
-    from: FROM,
-    subject: `Your SwiftCard is live, ${opts.firstName}!`,
-    html: layout(body, opts.unsubscribeUrl),
-  };
+  return built(FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
 }
 
 // What a user keeps on Free vs. loses when their Pro access ends — reused by
@@ -120,11 +124,7 @@ export function trialEndingSoonEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
     ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
   `;
-  return {
-    from: FROM,
-    subject: `${day} left of your ${what}`,
-    html: layout(body, opts.unsubscribeUrl),
-  };
+  return built(FROM, `${day} left of your ${what}`, layout(body, opts.unsubscribeUrl));
 }
 
 // Sent on the day the trial / free-month grant downgrades to Free.
@@ -142,11 +142,7 @@ export function trialEndedEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
     ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
   `;
-  return {
-    from: FROM,
-    subject: what,
-    html: layout(body, opts.unsubscribeUrl),
-  };
+  return built(FROM, what, layout(body, opts.unsubscribeUrl));
 }
 
 // (The old "never shared your card" nudge email was removed for good — no
@@ -175,11 +171,7 @@ export function promoEmail(opts: {
     ${btn(safeUrlAttr(`${APP_URL}/pricing?code=${encodeURIComponent(opts.code)}`), `Apply code & upgrade →`)}
     ${p(`Apply it at checkout on the pricing page. If you have any questions, just reply to this email.`)}
   `;
-  return {
-    from: FROM,
-    subject: opts.headline,
-    html: layout(body, opts.unsubscribeUrl),
-  };
+  return built(FROM, opts.headline, layout(body, opts.unsubscribeUrl));
 }
 
 export function receiptEmail(opts: {
@@ -228,11 +220,7 @@ export function receiptEmail(opts: {
     `)}
     ${p(`If you have any questions about this charge, just reply to this email.`)}
   `;
-  return {
-    from: FROM,
-    subject: `Your SwiftCard receipt — ${opts.amount}`,
-    html: layout(body),
-  };
+  return built(FROM, `Your SwiftCard receipt — ${opts.amount}`, layout(body));
 }
 
 // Sent when a renewal charge fails (card expired, declined, insufficient funds).
@@ -261,11 +249,7 @@ export function paymentFailedEmail(opts: {
     `)}
     ${p(`If you have any questions, just reply to this email.`)}
   `;
-  return {
-    from: FROM,
-    subject: `Action needed: your SwiftCard payment failed`,
-    html: layout(body),
-  };
+  return built(FROM, `Action needed: your SwiftCard payment failed`, layout(body));
 }
 
 export function marketingEmail(opts: {
@@ -282,11 +266,7 @@ export function marketingEmail(opts: {
     ${p(escapeHtml(opts.body))}
     ${btn(safeUrlAttr(opts.ctaUrl), escapeHtml(opts.ctaLabel))}
   `;
-  return {
-    from: FROM,
-    subject: opts.subject,
-    html: layout(emailBody, opts.unsubscribeUrl),
-  };
+  return built(FROM, opts.subject, layout(emailBody, opts.unsubscribeUrl));
 }
 
 // ─── Unsubscribe URL helper ───────────────────────────────────────────────────

@@ -158,11 +158,7 @@ export async function POST(req: Request) {
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   let emailSent = true;
-  await resend.emails.send({
-    from: await getMarketingFrom(), // verified domain when set up, safe fallback otherwise
-    to: email.trim(),
-    subject: `${ownerFirst} invited you to create your ${office.name} digital business card`,
-    html: `
+  const inviteHtml = `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
         ${brandLogoUrl
           ? `<img src="${escapeHtml(brandLogoUrl)}" width="48" height="48" alt="" style="border-radius:10px;display:block;margin:0 0 20px;" />`
@@ -179,7 +175,26 @@ export async function POST(req: Request) {
         <p style="color:#999;font-size:12px;margin-top:28px;">This invite expires in 14 days. If you didn't expect this, you can ignore this email.</p>
         <p style="color:#ccc;font-size:11px;margin:0;">Powered by SwiftCard</p>
       </div>
-    `,
+    `;
+  // Plain-text version: the invite greeting + the link, so the mail is
+  // multipart/alternative (HTML-only is a spam signal) and works in text-only
+  // clients. Uses the unescaped values — text/plain is not HTML.
+  const inviteText = [
+    `${inviteeFirst ? `${inviteeFirst}, you're` : "You're"} invited`,
+    "",
+    `${ownerFirst} invited you to create your ${office.name} digital business card. It takes 2 minutes.`,
+    "",
+    `Create my card: ${inviteUrl}`,
+    "",
+    "This invite expires in 14 days. If you didn't expect this, you can ignore this email.",
+    "Powered by SwiftCard",
+  ].join("\n");
+  await resend.emails.send({
+    from: await getMarketingFrom(), // verified domain when set up, safe fallback otherwise
+    to: email.trim(),
+    subject: `${ownerFirst} invited you to create your ${office.name} digital business card`,
+    html: inviteHtml,
+    text: inviteText,
   }).catch(() => { emailSent = false; });
 
   // `resent` lets the caller tell the truth: there is only ever ONE invite row
