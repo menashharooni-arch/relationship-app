@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
-import { hasSharedWith, markSharedWith } from "@/lib/visitor";
+import { hasSharedWith, markSharedWith, getVisitorInfo } from "@/lib/visitor";
 
 export type SocialLinkData = {
   label: string;
@@ -104,7 +104,11 @@ export default function SocialLinkIntercept({
     setPendingLabel(link.label);
     setStatus("idle");
     setSmsConsent(false); // reset the opt-in each open — never carry a prior check forward
-    setForm({ name: "", phone: "", email: "" });
+    // Pre-fill from what the visitor shared on ANY card before, so they never
+    // retype their details on a different owner's SwiftLink — they just confirm
+    // and go. (Empty for a genuine first-time visitor.)
+    const known = getVisitorInfo();
+    setForm({ name: known?.name ?? "", phone: known?.phone ?? "", email: known?.email ?? "" });
   }
 
   function skip() {

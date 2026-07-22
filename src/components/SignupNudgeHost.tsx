@@ -4,6 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { nudgeCopy } from "@/lib/referral";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
+import { getVisitorInfo } from "@/lib/visitor";
+
+// Does the visitor already have a SwiftCard account? The "create your free
+// card" nudge must never show to an existing customer (owner request). The
+// endpoint answers yes when the caller is signed in OR the email they shared
+// is tied to an account. Cached per session; fails OPEN (shows the nudge) so a
+// network hiccup never suppresses a genuine new-visitor signup.
+async function visitorHasAccount(): Promise<boolean> {
+  try {
+    const cached = sessionStorage.getItem("sc_has_acct");
+    if (cached != null) return cached === "1";
+  } catch { /* private mode */ }
+  try {
+    const email = getVisitorInfo()?.email || "";
+    const r = await fetch("/api/account-exists", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const d = await r.json();
+    const exists = !!d?.exists;
+    try { sessionStorage.setItem("sc_has_acct", exists ? "1" : "0"); } catch { /* ignore */ }
+    return exists;
+  } catch {
+    return false; // fail open
+  }
+}
 
 // The hero: a tilted, floating "your card" mockup with a shine sweep — the
 // popup SHOWS the product (the Blinq loop: you just used a card this smooth,
@@ -71,7 +98,7 @@ export default function SignupNudgeHost() {
   const native = useIsNativeApp();
 
   useEffect(() => {
-    function onNudge(e: Event) {
+    async function onNudge(e: Event) {
       const src = (e as CustomEvent).detail?.source ?? "default";
       try {
         const guard = src === "share_info" ? "sc_nudged_share" : "sc_nudged";
@@ -80,6 +107,10 @@ export default function SignupNudgeHost() {
         // A share_info popup also uses up the generic slot — no double nudging.
         sessionStorage.setItem("sc_nudged", "1");
       } catch { /* private mode — show once anyway */ }
+      // Existing SwiftCard customers are never nudged to create a card — they
+      // already have one. Checked after the once-per-session guard so an
+      // account-holder's slot is spent silently rather than popping later.
+      if (await visitorHasAccount()) return;
       // A newer nudge can arrive while an older one's dismiss-fade is still
       // scheduled — cancel that stale timer so it can't clear the new popup.
       if (dismissTimer.current) {
