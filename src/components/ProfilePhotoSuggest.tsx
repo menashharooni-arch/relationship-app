@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { markClaimConsent } from "@/lib/guest-draft";
 
 // "Suggest my profile picture" — drops in next to the headshot uploader in the
 // card editors. Gathers photo candidates from every outlet we can reach for the
@@ -18,9 +19,10 @@ import { useState } from "react";
 type Props = {
   /** LinkedIn OAuth is configured server-side (env keys present). */
   linkedinEnabled: boolean;
-  /** Signed-out visitor building on the marketing site. Google and LinkedIn
-   *  both need a session, so they're unavailable; Gravatar and the web
-   *  aggregator work from the email they typed, which is passed in below. */
+  /** Signed-out visitor building on the marketing site. Google needs a session
+   *  so it's unavailable; Gravatar and the web aggregator work from the email
+   *  they typed (passed in below), and LinkedIn is offered as a connect button
+   *  that routes through signup and claims the draft on return. */
   guest?: boolean;
   /** The email the visitor typed — used ONLY in guest mode. A signed-in user's
    *  lookup always uses their session email, never anything from the client. */
@@ -52,6 +54,16 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
   const [applied, setApplied] = useState(false);
 
   const connectUrl = `/api/integrations/linkedin/connect?next=${encodeURIComponent(returnTo)}`;
+  // A guest has no session to attach the LinkedIn token to, so their Connect
+  // button routes through signup first, then straight into the LinkedIn consent
+  // screen, and returns to /cards/new?claim=1 — the post-auth path that claims
+  // the localStorage draft into the new account (see GuestDraftClaim). Clicking
+  // it marks claim consent, same as choosing an account at the guest gate:
+  // "connect MY LinkedIn" is an explicit choice to attach an account to this
+  // draft, and without the mark the draft would strand unclaimed after signup.
+  const guestConnectHref = `/login?mode=signup&next=${encodeURIComponent(
+    `/api/integrations/linkedin/connect?next=${encodeURIComponent("/cards/new?claim=1")}`
+  )}`;
 
   async function suggest() {
     setState({ kind: "loading" });
@@ -74,7 +86,10 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
         for (const c of data.candidates ?? []) candidates.push(c);
       }
 
-      let linkedin: LinkedInState = !guest && linkedinEnabled ? "error" : "off";
+      // Guests can't have a LinkedIn connection yet, but when the integration
+      // is configured we still OFFER it ("connect") — the button walks them
+      // through signup + consent and brings the draft along.
+      let linkedin: LinkedInState = !linkedinEnabled ? "off" : guest ? "connect" : "error";
       if (liRes) {
         if (liRes.ok) {
           const li = await liRes.json() as { connected?: boolean; photo?: string | null; error?: string };
@@ -148,8 +163,9 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               option up front instead of only after clicking Suggest (which
               buries it behind a click + fetch round trip before the "Connect
               LinkedIn" button ever appears). Desktop already has the room to
-              discover it via the button above, so this nudge is mobile-only. */}
-          {linkedinEnabled && !guest && (
+              discover it via the button above, so this nudge is mobile-only.
+              Guests see it too — their Connect button routes through signup. */}
+          {linkedinEnabled && (
             <p className="lg:hidden text-[11px] text-gray-500 mt-1">
               Tip: connect your LinkedIn and we&apos;ll pull your photo from there automatically.
             </p>
@@ -163,7 +179,13 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
         </p>
       )}
 
-      {state.kind === "loading" && <p className="text-xs text-gray-500">Looking for your photo on Google, Gravatar{linkedinEnabled ? ", and LinkedIn" : ""}…</p>}
+      {state.kind === "loading" && (
+        <p className="text-xs text-gray-500">
+          {guest
+            ? "Looking for a photo registered to your email…"
+            : `Looking for your photo on Google, Gravatar${linkedinEnabled ? ", and LinkedIn" : ""}…`}
+        </p>
+      )}
       {state.kind === "applying" && <p className="text-xs text-gray-500">Adding your photo…</p>}
 
       {state.kind === "error" && (
@@ -199,14 +221,22 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
             </>
           ) : (
             <p className="text-[11px] text-gray-400 mb-2">
-              No photo found on your Google account or Gravatar.
+              {guest ? "No photo found for that email." : "No photo found on your Google account or Gravatar."}
             </p>
           )}
 
           {state.linkedin === "connect" && (
             <div className="mt-1 pt-2 border-t border-gray-800 flex items-center gap-3 flex-wrap">
-              <p className="text-[11px] text-gray-500">Also on LinkedIn? Connect to import your profile photo:</p>
-              <a href={connectUrl} className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors">
+              <p className="text-[11px] text-gray-500">
+                {guest
+                  ? "Also on LinkedIn? Create your free account and connect it to import your photo — your card comes with you."
+                  : "Also on LinkedIn? Connect to import your profile photo:"}
+              </p>
+              <a
+                href={guest ? guestConnectHref : connectUrl}
+                onClick={guest ? () => markClaimConsent() : undefined}
+                className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
+              >
                 Connect LinkedIn
               </a>
             </div>
