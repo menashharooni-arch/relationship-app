@@ -926,7 +926,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </div>
             )}
 
-            {!(org && orgCompany) && (
+            {/* Company-level fields are the ORGANIZATION's territory for a
+                sub-user — hidden whether or not the admin filled them in, so a
+                member can never add their own company info. (Owner decision,
+                Jul 2026: gate on `org`, not per-field values.) */}
+            {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
                 <input type="text" placeholder="e.g. Sales Card" value={nickname} onChange={(e) => setNickname(e.target.value)} className={inputCls} />
@@ -938,7 +942,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
               <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
-            {!(org && orgCompany) && (
+            {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
@@ -1000,25 +1004,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
             {/* Website is CARD information — it renders on the card itself (and
                 on Swift Links too), so it's asked here with the other card
-                fields, not on the Socials step. */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-gray-400">Website</label>
-                {org && orgWebsite && <ManagedTag />}
+                fields, not on the Socials step. Company-level for a sub-user:
+                the org decides it, so members never get the input. */}
+            {!org && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Website</label>
+                <input
+                  type="text"
+                  placeholder="yoursite.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className={inputCls}
+                />
               </div>
-              <input
-                type="text"
-                placeholder="yoursite.com"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                disabled={!!(org && orgWebsite)}
-                className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
-              />
-            </div>
+            )}
 
-            {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
+            {!org && <AddressInput value={address} onChange={setAddress} />}
 
-            {!(org && orgFax) && (
+            {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
                   Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
@@ -1234,16 +1237,25 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
-            {org && orgLogo ? (
+            {/* The company logo is org territory for a sub-user — managed tile
+                when the admin has set one, and NO upload either way (a member
+                can never add their own; the branding page is the only source). */}
+            {org ? (
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-medium text-gray-400">Company logo</label>
                   <ManagedTag />
                 </div>
                 <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3.5 py-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
-                  <p className="text-gray-500 text-xs">Your organization&apos;s logo is used on every connected card.</p>
+                  {orgLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
+                  ) : null}
+                  <p className="text-gray-500 text-xs">
+                    {orgLogo
+                      ? "Your organization's logo is used on every connected card."
+                      : "Your organization manages the company logo — it appears here once your admin sets it on the Branding page."}
+                  </p>
                 </div>
               </div>
             ) : (

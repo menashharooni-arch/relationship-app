@@ -42,9 +42,13 @@ export default function JoinButton({ token }: { token: string }) {
         return;
       }
       setStatus("done");
-      // Straight into the 2-minute card setup — the whole point of accepting.
-      // (The setup page sends people who already have a card to the dashboard.)
-      setTimeout(() => { window.location.href = "/welcome/team"; }, 900);
+      // Straight into the REAL card builder — the same 4-step wizard everyone
+      // uses (Card info → Card design → Socials → Social design). The wizard's
+      // ?add=1 path resolves their office context server-side: branding fields
+      // (company/logo/website/phone/fax/address) render as "Managed by your
+      // organization" and Card design locks when the admin locked it. (Owner
+      // decision, Jul 2026 — replaced the old simplified /welcome/team form.)
+      setTimeout(() => { window.location.href = "/cards/new?add=1"; }, 900);
     } catch {
       setError("Network error — please try again.");
       setStatus("error");

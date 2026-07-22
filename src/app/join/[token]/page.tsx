@@ -1,9 +1,9 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrand } from "@/lib/office-brand";
 import { isInviteExpired } from "@/lib/office-invite";
 import JoinButton from "@/components/JoinButton";
+import JoinSignIn from "@/components/JoinSignIn";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import Link from "next/link";
 
@@ -78,12 +78,35 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const officeName = officeRef?.name ?? "your team";
   const brand = await getOfficeBrand(officeRef?.id ?? (invite.office_id as string)).catch(() => null);
 
-  // Check if user is logged in
+  // Check if user is logged in. A signed-out invitee signs in RIGHT HERE —
+  // Google, or a passwordless email link to the invited address — instead of
+  // being bounced to the login page's password form (owner request).
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?next=/join/${token}`);
+    return (
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              {brand?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={brand.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-contain bg-white p-1.5" />
+              ) : (
+                <SwiftCardLogo size={32} onDark />
+              )}
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Create your {officeName} card</h1>
+            <p className="text-gray-400 text-sm">
+              Your company logo and design are already set up. You just add your
+              name, photo and contact info — it takes about 2 minutes.
+            </p>
+          </div>
+          <JoinSignIn token={token} inviteEmail={invite.invite_email as string} />
+        </div>
+      </main>
+    );
   }
 
   return (

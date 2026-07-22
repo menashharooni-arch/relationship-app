@@ -445,7 +445,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
             {org && <p className={sectionLabel}>Your information</p>}
 
-            {!isPrimary && !(org && orgCompany) && (
+            {/* Company-level fields are the ORGANIZATION's territory for a
+                sub-user — hidden whether or not the admin filled them in, so a
+                member can never add their own company info. (Owner decision,
+                Jul 2026: gate on `org`, not per-field values.) */}
+            {!isPrimary && !org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Card nickname</label>
                 <input type="text" placeholder="e.g. Sales Card" value={label} onChange={(e) => setLabel(e.target.value)} className={inputCls} />
@@ -457,7 +461,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
               <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
-            {!(org && orgCompany) && (
+            {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
@@ -519,25 +523,24 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
             {/* Website is CARD information — it renders on the card itself (and
                 on Swift Links too), so it's asked here with the other card
-                fields, not on the Socials tab. */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-gray-400">Website</label>
-                {org && orgWebsite && <ManagedTag />}
+                fields, not on the Socials tab. Company-level for a sub-user:
+                the org decides it, so members never get the input. */}
+            {!org && (
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Website</label>
+                <input
+                  type="text"
+                  placeholder="yoursite.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className={inputCls}
+                />
               </div>
-              <input
-                type="text"
-                placeholder="yoursite.com"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                disabled={!!(org && orgWebsite)}
-                className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
-              />
-            </div>
+            )}
 
-            {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
+            {!org && <AddressInput value={address} onChange={setAddress} />}
 
-            {!(org && orgFax) && (
+            {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
                   Fax number <span className="text-gray-600 font-normal">· shows on your card only</span>
