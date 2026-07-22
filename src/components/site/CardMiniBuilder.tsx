@@ -170,7 +170,7 @@ export default function CardMiniBuilder() {
               next to the template choices instead of at the bottom of the
               whole sheet, past the nav buttons. */}
           <div className="md:hidden flex justify-center">
-            <InertPreview className="rounded-2xl overflow-hidden border border-white/10 w-[220px]">
+            <InertPreview className="rounded-xl overflow-hidden border border-white/10 w-full max-w-[170px]">
               <CardScaler>
                 <Preview data={data} />
               </CardScaler>
