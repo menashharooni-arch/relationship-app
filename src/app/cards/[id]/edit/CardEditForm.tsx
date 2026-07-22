@@ -419,7 +419,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-gray-500 text-xs">Company logo</dt>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-cover bg-gray-900" /></dd>
+                      <dd><img src={orgLogo} alt="Company logo" className="w-8 h-8 rounded-lg object-contain bg-white p-0.5" /></dd>
                     </div>
                   )}
                   {([
