@@ -1170,14 +1170,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 guest={guest}
                 onUploaded={(url) => setHeadshotUrl(url || null)}
               />
-              {/* Guests can't OAuth mid-draft — the suggestion appears once signed in. */}
-              {!guest && (
-                <ProfilePhotoSuggest
-                  linkedinEnabled={linkedinEnabled}
-                  returnTo="/cards/new?add=1"
-                  onConfirm={(url) => setHeadshotUrl(url)}
-                />
-              )}
+              {/* Guests can't OAuth mid-draft, so LinkedIn is unavailable — but
+                  Gravatar/web lookup by typed email still works pre-account,
+                  same as LogoSuggest above. */}
+              <ProfilePhotoSuggest
+                linkedinEnabled={linkedinEnabled}
+                returnTo="/cards/new?add=1"
+                guest={guest}
+                email={email}
+                onConfirm={(url) => setHeadshotUrl(url)}
+              />
             </div>
 
             {/* Mobile-only: the live preview lives in the sidebar on desktop
