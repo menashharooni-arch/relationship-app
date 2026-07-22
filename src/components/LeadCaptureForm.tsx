@@ -149,7 +149,7 @@ export default function LeadCaptureForm({
           optional: submitting without it still shares, but the lead is created
           with automated texts paused). Distinct from the email line below per
           TCPA/CTIA — text consent can't ride along on a general disclosure. */}
-      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} recipientName={cardOwner} />
       {/* Email disclosure — kept as small as it can be while still legible;
           "clear and conspicuous" is the bar, so don't go below 8px or drop the
           contrast further. */}

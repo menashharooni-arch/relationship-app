@@ -102,11 +102,9 @@ export default function SmsConsentPage() {
         <H2>The exact disclosure shown</H2>
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <p className="text-slate-700 text-[14px] leading-relaxed italic">
-            &quot;By checking this box, you agree to receive text messages from SwiftCard at the number
-            provided — follow-up and reply messages from the person you&apos;re sharing your info with.
-            Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for
-            help. Consent is not a condition of sharing your info. See our SMS Terms and Privacy
-            Policy.&quot;
+            &quot;By checking this box, you allow [the card owner&apos;s name] to text you via SwiftCard.
+            Msg frequency varies, msg &amp; data rates may apply, reply STOP/HELP. Not required to share.
+            See our SMS Terms and Privacy Policy.&quot;
           </p>
         </div>
         <P>
