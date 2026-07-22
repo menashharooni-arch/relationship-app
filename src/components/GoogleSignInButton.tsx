@@ -71,6 +71,10 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
     const safeNext =
       redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
 
+    // Raw nonce sent to Supabase; Google gets its SHA-256 hash and embeds the
+    // hash in the ID token's nonce claim, which Supabase re-hashes to compare.
+    const rawNonce = crypto.randomUUID();
+
     async function handleCredential(resp: { credential?: string }) {
       if (inFlight.current) return; // never run the exchange twice
       if (!resp?.credential) {
@@ -85,6 +89,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
         const { error } = await supabase.auth.signInWithIdToken({
           provider: "google",
           token: resp.credential,
+          nonce: rawNonce,
         });
         if (error) {
           inFlight.current = false;
@@ -110,8 +115,13 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
       }
     }
 
-    loadGoogleIdentity()
-      .then((googleId) => {
+    async function sha256Hex(value: string) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+      return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    Promise.all([loadGoogleIdentity(), sha256Hex(rawNonce)])
+      .then(([googleId, hashedNonce]) => {
         if (cancelled) return;
         googleId.initialize({
           client_id: CLIENT_ID!,
@@ -119,6 +129,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
           auto_select: false,
           cancel_on_tap_outside: true,
           use_fedcm_for_prompt: true,
+          nonce: hashedNonce,
         });
         if (btnRef.current) {
           btnRef.current.replaceChildren(); // clear any prior render (no innerHTML)
