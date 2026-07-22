@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { markClaimConsent } from "@/lib/guest-draft";
 
 // "Suggest my profile picture" — drops in next to the headshot uploader in the
 // card editors. Gathers photo candidates from every outlet we can reach for the
@@ -21,8 +20,8 @@ type Props = {
   linkedinEnabled: boolean;
   /** Signed-out visitor building on the marketing site. Google needs a session
    *  so it's unavailable; Gravatar and the web aggregator work from the email
-   *  they typed (passed in below), and LinkedIn is offered as a connect button
-   *  that routes through signup and claims the draft on return. */
+   *  they typed (passed in below), and LinkedIn runs a one-shot photo import
+   *  (guest=1 OAuth — no account required, photo returns via ?li_photo=). */
   guest?: boolean;
   /** The email the visitor typed — used ONLY in guest mode. A signed-in user's
    *  lookup always uses their session email, never anything from the client. */
@@ -54,16 +53,12 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
   const [applied, setApplied] = useState(false);
 
   const connectUrl = `/api/integrations/linkedin/connect?next=${encodeURIComponent(returnTo)}`;
-  // A guest has no session to attach the LinkedIn token to, so their Connect
-  // button routes through signup first, then straight into the LinkedIn consent
-  // screen, and returns to /cards/new?claim=1 — the post-auth path that claims
-  // the localStorage draft into the new account (see GuestDraftClaim). Clicking
-  // it marks claim consent, same as choosing an account at the guest gate:
-  // "connect MY LinkedIn" is an explicit choice to attach an account to this
-  // draft, and without the mark the draft would strand unclaimed after signup.
-  const guestConnectHref = `/login?mode=signup&next=${encodeURIComponent(
-    `/api/integrations/linkedin/connect?next=${encodeURIComponent("/cards/new?claim=1")}`
-  )}`;
+  // A guest has no session to attach a LinkedIn token to, so their Connect
+  // button runs a one-shot photo import instead: straight into LinkedIn's
+  // consent screen (guest=1 — no signup detour), and the callback copies the
+  // consented photo into storage and returns it via ?li_photo= for the builder
+  // to apply to the draft. Nothing is persisted server-side beyond the photo.
+  const guestConnectHref = `/api/integrations/linkedin/connect?guest=1&next=${encodeURIComponent(returnTo)}`;
 
   async function suggest() {
     setState({ kind: "loading" });
@@ -228,13 +223,10 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
           {state.linkedin === "connect" && (
             <div className="mt-1 pt-2 border-t border-gray-800 flex items-center gap-3 flex-wrap">
               <p className="text-[11px] text-gray-500">
-                {guest
-                  ? "Also on LinkedIn? Create your free account and connect it to import your photo — your card comes with you."
-                  : "Also on LinkedIn? Connect to import your profile photo:"}
+                Also on LinkedIn? Connect to import your profile photo:
               </p>
               <a
                 href={guest ? guestConnectHref : connectUrl}
-                onClick={guest ? () => markClaimConsent() : undefined}
                 className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Connect LinkedIn

@@ -517,6 +517,24 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
+            {/* Website is CARD information — it renders on the card itself (and
+                on Swift Links too), so it's asked here with the other card
+                fields, not on the Socials tab. */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-400">Website</label>
+                {org && orgWebsite && <ManagedTag />}
+              </div>
+              <input
+                type="text"
+                placeholder="yoursite.com"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                disabled={!!(org && orgWebsite)}
+                className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
+              />
+            </div>
+
             {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
 
             {!(org && orgFax) && (
@@ -682,25 +700,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </p>
             </div>
 
-            {/* Social links — website first */}
+            {/* Social links (website lives on the Card info tab — it's card
+                information) */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
               <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs text-gray-500">Website</label>
-                    {org && orgWebsite && <ManagedTag />}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="yoursite.com"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    disabled={!!(org && orgWebsite)}
-                    className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
-                  />
-                </div>
                 {SOCIALS.map(({ key, label: socialLabel, placeholder }) => {
                   const linked = socials[key].trim().length > 0;
                   return (
@@ -818,21 +823,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </Link>
               </PlanGate>
             )}
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Your Swift Links page — this is how it will look
-              </p>
-              <SwiftLinkPagePreview
-                style={linkStyleState}
-                name={name || card.username}
-                handle={card.username}
-                company={company}
-                bio={bio}
-                photoUrl={photoState}
-                socialKeys={(Object.keys(socials) as SocialKey[]).filter((k) => socials[k].trim())}
-                links={links}
-              />
-            </div>
+            {/* The page preview itself renders in the pinned preview slot (top
+                on mobile / right on desktop) — it REPLACES the card preview on
+                this tab, since the Swift Links page is what's being styled. */}
           </div>
         )}
 
@@ -867,27 +860,50 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         </div>
       </div>
 
-      {/* ── LIVE PREVIEW (right on desktop / top on mobile, pinned) ── */}
+      {/* ── LIVE PREVIEW (right on desktop / top on mobile, pinned).
+          On the Social design tab the Swift Links page preview REPLACES the
+          card preview — that's what's being styled there. ── */}
       <div className="order-1 lg:order-2 lg:sticky lg:top-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
-          {/* "View live" removed entirely (owner request) — both the header and
-              this preview link are gone from the card editor. */}
-        </div>
-        {/* Look-only: the card's own phone/email/links stay clickable on the
-            PUBLISHED card, but never here — design is changed with the controls
-            on the left, not by clicking the picture. See InertPreview. */}
-        <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
-          {/* Scale from the 460px natural width (same as the published card) so a
-              long name/title/company never clips in-preview. */}
-          <CardScaler>
-            <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
-          </CardScaler>
-        </InertPreview>
-        {tab === "sharing" || tab === "linkdesign" ? (
-          <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title & contact details.</p>
+        {tab === "linkdesign" ? (
+          <>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              Your Swift Links page — this is how it will look
+            </p>
+            <SwiftLinkPagePreview
+              style={linkStyleState}
+              name={name || card.username}
+              handle={card.username}
+              company={company}
+              bio={bio}
+              photoUrl={photoState}
+              socialKeys={(Object.keys(socials) as SocialKey[]).filter((k) => socials[k].trim())}
+              links={links}
+            />
+            <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
+          </>
         ) : (
-          <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
+              {/* "View live" removed entirely (owner request) — both the header and
+                  this preview link are gone from the card editor. */}
+            </div>
+            {/* Look-only: the card's own phone/email/links stay clickable on the
+                PUBLISHED card, but never here — design is changed with the controls
+                on the left, not by clicking the picture. See InertPreview. */}
+            <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
+              {/* Scale from the 460px natural width (same as the published card) so a
+                  long name/title/company never clips in-preview. */}
+              <CardScaler>
+                <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+              </CardScaler>
+            </InertPreview>
+            {tab === "sharing" ? (
+              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title & contact details.</p>
+            ) : (
+              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
+            )}
+          </>
         )}
       </div>
     </div>

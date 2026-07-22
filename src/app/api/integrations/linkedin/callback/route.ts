@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
 import { verifyState } from "@/lib/oauth-state";
-import { exchangeLinkedInCode, isLinkedInEnabled } from "@/lib/sync-linkedin";
+import { exchangeLinkedInCode, fetchLinkedInProfile, GUEST_STATE, isLinkedInEnabled } from "@/lib/sync-linkedin";
 
 export const runtime = "nodejs";
 
@@ -40,6 +40,49 @@ export async function GET(request: NextRequest) {
 
   const tokens = await exchangeLinkedInCode(code);
   if (!tokens?.access_token) return DONE("error");
+
+  // ── Guest one-shot photo import ────────────────────────────────────────────
+  // A signed-out visitor on the free-card builder: there is no account row to
+  // store tokens on, so nothing is persisted — we use the access token once,
+  // right here, to read the consented userinfo photo, copy it into our storage
+  // (LinkedIn CDN URLs expire), and hand the durable URL back to the builder
+  // via ?li_photo=. The token is then simply dropped.
+  if (userId === GUEST_STATE) {
+    const profile = await fetchLinkedInProfile(tokens.access_token);
+    if (!profile?.picture) return DONE("nophoto");
+    try {
+      // Same download/cap/re-encode pipeline as every other photo import.
+      const imgRes = await fetch(profile.picture, { redirect: "follow", signal: AbortSignal.timeout(8000) });
+      if (!imgRes.ok) throw new Error(`source ${imgRes.status}`);
+      const ct = imgRes.headers.get("content-type") ?? "";
+      if (!ct.startsWith("image/")) throw new Error("not an image");
+      const bytes = Buffer.from(await imgRes.arrayBuffer());
+      if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("too large");
+      const sharp = (await import("sharp")).default;
+      const body = await sharp(bytes).rotate().resize(1000, 1000, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+
+      const admin = getAdminSupabase();
+      const path = `guest-linkedin/${crypto.randomUUID()}.jpg`;
+      const { error: upErr } = await admin.storage
+        .from("card-uploads")
+        .upload(path, body, { contentType: "image/jpeg", upsert: false });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = admin.storage.from("card-uploads").getPublicUrl(path);
+
+      // The photo rides back as a query param the builder reads and applies to
+      // the draft (mirrors DONE, plus li_photo).
+      const url = new URL(returnTo, APP_URL);
+      url.searchParams.set("integration", "linkedin");
+      url.searchParams.set("status", "photo");
+      url.searchParams.set("li_photo", publicUrl);
+      const res = NextResponse.redirect(url.toString());
+      res.cookies.set("li_return_to", "", { maxAge: 0, path: "/" });
+      return res;
+    } catch (e) {
+      console.error("[linkedin/callback] guest photo import failed:", e);
+      return DONE("error");
+    }
+  }
 
   try {
     const admin = getAdminSupabase();
