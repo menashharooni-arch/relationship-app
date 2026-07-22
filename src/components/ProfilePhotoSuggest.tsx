@@ -175,15 +175,15 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
 
       {applied && state.kind === "idle" && (
         <p className="text-[11px] text-emerald-400 mt-1">
-          Photo added — it&apos;s saved when you save your card. Not right? Upload your own above.
+          Headshot added — it&apos;s saved when you save your card. Not right? Upload your own above.
         </p>
       )}
 
       {state.kind === "loading" && (
         <p className="text-xs text-gray-500">
           {guest
-            ? "Looking for a photo registered to your email…"
-            : `Looking for your photo on Google, Gravatar${linkedinEnabled ? ", and LinkedIn" : ""}…`}
+            ? "Looking for a headshot registered to your email…"
+            : `Looking for your headshot on Google, Gravatar${linkedinEnabled ? ", and LinkedIn" : ""}…`}
         </p>
       )}
       {state.kind === "applying" && <p className="text-xs text-gray-500">Adding your photo…</p>}

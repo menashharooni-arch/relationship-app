@@ -30,7 +30,7 @@ type Props = {
   // Only true when the Apple Wallet signing certs are configured — otherwise the
   // button would hand them a download that fails.
   walletEnabled: boolean;
-  // LinkedIn OAuth configured — enables "Suggest my profile picture".
+  // LinkedIn OAuth configured — enables "Suggest my headshot".
   linkedinEnabled?: boolean;
 };
 
