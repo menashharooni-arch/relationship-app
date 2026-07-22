@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import { stashSketch, consumePrefill, writePrefill, type CardPrefill } from "@/lib/prefill";
 import { resetGuestFlow } from "@/lib/guest-reset";
+import { clearDraft } from "@/lib/guest-draft";
 
 // ── One sketch, three products ──────────────────────────────────────────────
 // The homepage builders ("see how your card / SwiftLink / signature would
@@ -149,8 +150,17 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
     if (open) stashSketch(toPrefill(sketch, product));
   }, [open, sketch, product]);
 
-  // Hand off to the real wizard, landing on its first step with everything set.
+  // Hand off to the real wizard, landing on its FIRST step with everything set.
+  //
+  // clearDraft() first: the wizard reads its step from a leftover guest draft,
+  // so a draft from an earlier /cards/new visit (where they'd reached step 3)
+  // would drop them on "Photos & design" and skip the beginning — even though
+  // this is a fresh "Make it live". Dropping the stale draft lets the wizard
+  // start at step 1; the `step: 1` marker below tells it to auto-apply this
+  // sketch and begin there, so they still walk through every step (socials
+  // included) to create the real card.
   const handOff = useCallback(() => {
+    clearDraft();
     writePrefill({ ...toPrefill(sketch, product), step: 1 });
   }, [sketch, product]);
 
