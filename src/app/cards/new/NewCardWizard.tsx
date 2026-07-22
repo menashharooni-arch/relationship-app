@@ -480,8 +480,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   //
   // Two parts to the fix: read the draft back in, and refuse to autosave until
   // we have (hydratedRef), so the blank first render can't clobber it.
+  // Freshly-connected guest LinkedIn photo (see the ?li_photo= effect below) —
+  // applied at the END of the restore so a resumed draft's older photo can't
+  // overwrite the one the user just connected for.
+  const liPhotoRef = useRef<string | null>(null);
+  const applyLiPhoto = () => {
+    if (liPhotoRef.current) {
+      setHeadshotUrl(liPhotoRef.current);
+      liPhotoRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    if (!guest) { hydratedRef.current = true; return; }
+    if (!guest) { hydratedRef.current = true; applyLiPhoto(); return; }
     let live = true;
     // Async so the setState calls aren't synchronous inside the effect body;
     // the autosave effect below runs first and no-ops on !hydratedRef.
@@ -541,12 +552,35 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         setRestored(true);
       }
       hydratedRef.current = true;
+      applyLiPhoto();
     })();
     return () => { live = false; };
     // validPresetTemplate is read as a snapshot of the URL this page opened
     // with; it can't change without a navigation that remounts the wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guest]);
+
+  // ── Guest LinkedIn photo return (?li_photo=) ──────────────────────────────
+  // A guest's "Connect LinkedIn" in the headshot suggester runs a one-shot
+  // OAuth import (no account) and lands back here with the stored photo URL.
+  // The value is stashed here (mount effects run before the async draft
+  // restore above resumes) and applied by the restore effect once hydration is
+  // done — applying it directly here would race the restore, whose draft photo
+  // would then overwrite the photo the user just connected for.
+  // Only our own storage host is accepted — the param is never trusted blind.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const photo = url.searchParams.get("li_photo");
+    if (!photo) return;
+    const supa = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supa && photo.startsWith(`${supa}/storage/v1/object/public/`)) {
+      liPhotoRef.current = photo;
+    }
+    url.searchParams.delete("li_photo");
+    url.searchParams.delete("integration");
+    url.searchParams.delete("status");
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   useEffect(() => {
     if (!guest) return;
@@ -724,6 +758,29 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         </CardScaler>
       </InertPreview>
       <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
+    </>
+  );
+
+  // Step 4's sidebar copy: on Social design the thing being styled is the
+  // Swift Links page, so the page preview REPLACES the card's Live Preview in
+  // the pinned top-right slot (and inline on mobile) instead of sitting next
+  // to it.
+  const linkPagePreview = (
+    <>
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+        Your Swift Links page — this is how it will look
+      </p>
+      <SwiftLinkPagePreview
+        style={linkStyleState}
+        name={name}
+        handle={username || "yourname"}
+        company={company}
+        bio={bio}
+        photoUrl={headshotUrl}
+        socialKeys={(Object.keys(socials) as (keyof typeof socials)[]).filter((k) => socials[k].trim())}
+        links={links}
+      />
+      <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
     </>
   );
 
@@ -941,6 +998,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
+            {/* Website is CARD information — it renders on the card itself (and
+                on Swift Links too), so it's asked here with the other card
+                fields, not on the Socials step. */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-gray-400">Website</label>
+                {org && orgWebsite && <ManagedTag />}
+              </div>
+              <input
+                type="text"
+                placeholder="yoursite.com"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                disabled={!!(org && orgWebsite)}
+                className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
+              />
+            </div>
+
             {!(org && orgAddress) && <AddressInput value={address} onChange={setAddress} />}
 
             {!(org && orgFax) && (
@@ -986,25 +1061,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </p>
             </div>
 
-            {/* Social links — website first */}
+            {/* Social links (website lives on step 1 — it's card information) */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
               <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs text-gray-500">Website</label>
-                    {org && orgWebsite && <ManagedTag />}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="yoursite.com"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    disabled={!!(org && orgWebsite)}
-                    className={`${inputCls} ${org && orgWebsite ? "opacity-60 cursor-not-allowed" : ""}`}
-                  />
-                </div>
                 {SOCIALS.map(({ key, label, placeholder }) => {
                   const linked = socials[key].trim().length > 0;
                   return (
@@ -1207,12 +1268,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 guest={guest}
                 onUploaded={(url) => setHeadshotUrl(url || null)}
               />
-              {/* Guests can't OAuth mid-draft, so LinkedIn is unavailable — but
-                  Gravatar/web lookup by typed email still works pre-account,
-                  same as LogoSuggest above. */}
+              {/* Gravatar/web lookup works from the typed email pre-account;
+                  a guest's Connect LinkedIn runs the one-shot guest OAuth
+                  photo import and returns here via ?li_photo= (see the effect
+                  above) — their draft stays local the whole time. */}
               <ProfilePhotoSuggest
                 linkedinEnabled={linkedinEnabled}
-                returnTo="/cards/new?add=1"
+                returnTo={guest ? "/cards/new" : "/cards/new?add=1"}
                 guest={guest}
                 email={email}
                 onConfirm={(url) => setHeadshotUrl(url)}
@@ -1337,21 +1399,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </PlanGate>
             )}
 
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                Your Swift Links page — this is how it will look
-              </p>
-              <SwiftLinkPagePreview
-                style={linkStyleState}
-                name={name}
-                handle={username || "yourname"}
-                company={company}
-                bio={bio}
-                photoUrl={headshotUrl}
-                socialKeys={(Object.keys(socials) as (keyof typeof socials)[]).filter((k) => socials[k].trim())}
-                links={links}
-              />
-            </div>
+            {/* Mobile-only inline copy — on desktop the SAME preview replaces
+                the card's Live Preview in the pinned sidebar (see below), so
+                rendering it here too would show it twice. */}
+            <div className="lg:hidden">{linkPagePreview}</div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {/* Native-only: shown in place of the /upgrade redirect when a Free
@@ -1398,15 +1449,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         )}
         </div>{/* editor column */}
 
-        {/* Live preview — pinned alongside on desktop always. On mobile:
-            steps 1/3/4 reorder it to the BOTTOM of the page (below the form,
-            below the Next button) via `order`; step 2 (Card design) hides this
-            sidebar copy entirely on mobile because that step renders its own
-            inline copy positioned mid-form, right above "Choose your design"
-            (plain CSS order can't move a sibling INSIDE the form column). */}
+        {/* Pinned preview — alongside on desktop always. Steps 1-3 show the
+            card's Live Preview; step 4 (Social design) REPLACES it with the
+            Swift Links page preview, since that's what's being styled. On
+            mobile: steps 1/3 reorder it to the BOTTOM of the page via `order`;
+            steps 2 and 4 hide this sidebar copy entirely on mobile because
+            those steps render their own inline copy mid-form (plain CSS order
+            can't move a sibling INSIDE the form column). */}
         {step !== 5 && (
-          <div className={`${step === 2 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
-            {livePreview}
+          <div className={`${step === 2 || step === 4 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
+            {step === 4 ? linkPagePreview : livePreview}
           </div>
         )}
         </div>{/* grid */}

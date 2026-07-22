@@ -22,6 +22,12 @@ export const LINKEDIN_SCOPES = "openid profile email";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 export const LINKEDIN_REDIRECT_URI = `${APP_URL}/api/integrations/linkedin/callback`;
 
+/** Sentinel carried in the signed OAuth `state` for a signed-out visitor doing
+ *  a one-shot photo import from the free-card builder. Not a valid user id, so
+ *  it can never collide with a real account — the callback branches on it and
+ *  never persists tokens for it. */
+export const GUEST_STATE = "guest-photo-import";
+
 /** True only when both LinkedIn OAuth credentials are configured. Everything
  *  upstream (Connect button, connect route) hides/fails-safe when this is false. */
 export function isLinkedInEnabled(): boolean {

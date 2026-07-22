@@ -119,10 +119,14 @@ export function LinkButtons({
         </div>
       )}
 
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+      {/* Same add flow as the real builder (/cards/new "Additional links"):
+          name field, then URL, then a full-width "+ Add link" that lights up
+          once both are filled — so what visitors learn here is exactly what
+          they'll do in the wizard. */}
+      <div className="space-y-2">
         <input
           className={inputCls}
-          placeholder="Button label"
+          placeholder="Link name (e.g. Leave a review)"
           value={draft.label}
           onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
         />
@@ -133,14 +137,23 @@ export function LinkButtons({
           onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
         />
-        <button
-          type="button"
-          onClick={add}
-          disabled={!draft.label.trim() || !draft.url.trim()}
-          className="rd-btn rd-btn-primary text-[13px] px-3.5 disabled:opacity-40"
-        >
-          Add
-        </button>
+        {(() => {
+          const readyToAdd = !!draft.label.trim() && !!draft.url.trim();
+          return (
+            <button
+              type="button"
+              onClick={add}
+              disabled={!readyToAdd}
+              className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                readyToAdd
+                  ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                  : "border border-dashed border-white/15 text-white/40 disabled:opacity-60"
+              }`}
+            >
+              + Add link
+            </button>
+          );
+        })()}
       </div>
     </div>
   );

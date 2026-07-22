@@ -67,11 +67,9 @@ export default function SignatureMiniBuilder() {
     router.push("/cards/new");
   }
 
-  // Closing just puts the builder away. The visitor's work is deliberately
-  // KEPT: they routinely close one product and open another, and the three
-  // builders share one draft, so wiping here would make them retype everything
-  // they'd already entered. Only an explicit Start over, or heading Home,
-  // clears it (see startOver / resetGuestFlow).
+  // Closing just puts the builder away; opening always starts BLANK (owner
+  // decision, Jul 2026): the open button calls reset() so a half-filled sketch
+  // from an earlier play never greets the next visit.
   function close() {
     setOpen(false);
     setLaunching(false);
@@ -162,7 +160,7 @@ export default function SignatureMiniBuilder() {
       <div className="flex justify-center mt-8" data-reveal="fade">
         <button
           type="button"
-          onClick={() => { setStep(0); setOpen(true); }}
+          onClick={() => { reset(); setStep(0); setOpen(true); }}
           className="rd-btn rd-btn-primary rd-btn-lg"
         >
           See how your Swift Signature would look
