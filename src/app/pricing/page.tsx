@@ -12,6 +12,8 @@ import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
 import { promoLabel } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
+import { useIsMobile } from "@/lib/use-is-mobile";
+import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 
 
 // Display prices (USD) — sourced from PLAN_PRICES (src/lib/plan.ts), the same
@@ -56,6 +58,8 @@ export default function PricingPage() {
   // (every price + checkout CTA) paints in the shell for a frame before the
   // redirect commits (App Review 3.1.1). Hydration-safe: false on SSR/web.
   const native = useIsNativeApp();
+  const isMobile = useIsMobile();
+  const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
 
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
@@ -137,9 +141,12 @@ export default function PricingPage() {
         {/* Plans — Pro is deliberately not a peer of the other two: it sits
             taller, on top, and is the only card with the aurora fill, so the
             eye lands on it first and the free plan reads as the trial it is. */}
+        <div className="max-w-6xl mx-auto w-full px-5 sm:px-6">
+          <MobilePlanTabs active={mobileTier} onChangeAction={setMobileTier} />
+        </div>
         <section className="max-w-6xl mx-auto w-full px-5 sm:px-6 pb-14 grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch md:pt-6">
           {/* Free */}
-          <div data-reveal className="rounded-[28px] p-6 sm:p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]">
+          <div data-reveal className={`${isMobile && mobileTier !== "free" ? "hidden" : ""} rounded-[28px] p-6 sm:p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]`}>
             <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900 mb-3">Free</p>
             <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
             <p className="text-slate-500 text-sm mb-7 mt-2">{PLAN_DESCRIPTIONS.free}</p>
@@ -150,7 +157,7 @@ export default function PricingPage() {
           </div>
 
           {/* Pro — highlighted, glistening */}
-          <div data-reveal className="relative rounded-[28px] p-6 sm:p-8 flex flex-col overflow-hidden md:-mt-6 md:mb-0 md:z-10 ring-1 ring-blue-500/20" style={{ transitionDelay: "90ms", background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
+          <div data-reveal className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[28px] p-6 sm:p-8 flex flex-col overflow-hidden md:-mt-6 md:mb-0 md:z-10 ring-1 ring-blue-500/20`} style={{ transitionDelay: "90ms", background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
             <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
             <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
             <div className="relative z-[2] flex flex-col flex-1">
@@ -181,7 +188,7 @@ export default function PricingPage() {
           </div>
 
           {/* Office */}
-          <div data-reveal style={{ transitionDelay: "180ms" }} className="rounded-[28px] p-6 sm:p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]">
+          <div data-reveal style={{ transitionDelay: "180ms" }} className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[28px] p-6 sm:p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]`}>
             <div className="flex items-center gap-2 mb-3">
               <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900">Office</p>
               <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">FOR TEAMS</span>

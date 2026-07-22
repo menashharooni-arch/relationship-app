@@ -50,6 +50,7 @@ export type ClaimInsert = {
   customization: Record<string, unknown>;
   logo_url: string | null;
   label: string | null;
+  is_office_card?: boolean;
 };
 
 export type BuildResult =

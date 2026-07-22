@@ -130,15 +130,18 @@ export async function PATCH(req: NextRequest) {
   if (brand.brand_website) cardUpdate.website = brand.brand_website;
   if (lockTemplate && brand.brand_template) cardUpdate.template = brand.brand_template; // only force template when locked
 
+  // Every query below is scoped to is_office_card=true — a card a member/owner
+  // owns that ISN'T flagged as under the office (a separate personal venture)
+  // must never be rewritten just because it shares their user_id.
   if (Object.keys(cardUpdate).length && userIds.length) {
-    await admin.from("cards").update(cardUpdate).in("user_id", userIds);
+    await admin.from("cards").update(cardUpdate).in("user_id", userIds).eq("is_office_card", true);
   }
 
   // Card nickname is company-controlled on MEMBER cards only (sourced from the
   // company name) — the owner's own card labels are theirs. verifiedInOffice is
   // the members-only subset of userIds, so the owner is naturally excluded.
   if (brand.brand_company && verifiedInOffice.length) {
-    await admin.from("cards").update({ label: brand.brand_company }).in("user_id", verifiedInOffice);
+    await admin.from("cards").update({ label: brand.brand_company }).in("user_id", verifiedInOffice).eq("is_office_card", true);
   }
 
   // Company phone/fax/address live in customization → per-card overlay so every
@@ -146,7 +149,7 @@ export async function PATCH(req: NextRequest) {
   // card's personal fields.
   if (userIds.length && (brand.brand_phone || brand.brand_fax || brand.brand_address)) {
     const contact = { phone: brand.brand_phone, fax: brand.brand_fax, address: brand.brand_address };
-    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", userIds);
+    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", userIds).eq("is_office_card", true);
     for (const c of memberCards ?? []) {
       const merged = overlayOfficeContact(c.customization as Record<string, unknown> | null, contact);
       await admin.from("cards").update({ customization: merged }).eq("id", c.id);
@@ -163,11 +166,11 @@ export async function PATCH(req: NextRequest) {
     if (!brand.brand_company && office.brand_company) cleared.push({ column: "company", old: office.brand_company as string, to: "" });
     // Company name cleared → member card nicknames that still carry it come off too.
     if (!brand.brand_company && office.brand_company && verifiedInOffice.length) {
-      await admin.from("cards").update({ label: null }).in("user_id", verifiedInOffice).eq("label", office.brand_company as string);
+      await admin.from("cards").update({ label: null }).in("user_id", verifiedInOffice).eq("is_office_card", true).eq("label", office.brand_company as string);
     }
     if (!brand.brand_website && office.brand_website) cleared.push({ column: "website", old: office.brand_website as string, to: "" });
     for (const c of cleared) {
-      await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq(c.column, c.old);
+      await admin.from("cards").update({ [c.column]: c.to }).in("user_id", userIds).eq("is_office_card", true).eq(c.column, c.old);
     }
   }
 
@@ -182,7 +185,7 @@ export async function PATCH(req: NextRequest) {
   const clearedAddr = !brand.brand_address && hadAddr;
   if (verifiedInOffice.length && (clearedPhone || clearedFax || clearedAddr)) {
     const oldBrandContact = { phone: office.brand_phone as string | null, fax: office.brand_fax as string | null, address: hadAddr ? oldAddr : null };
-    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", verifiedInOffice);
+    const { data: memberCards } = await admin.from("cards").select("id, customization").in("user_id", verifiedInOffice).eq("is_office_card", true);
     for (const c of memberCards ?? []) {
       const stripped = stripOfficeContact(c.customization as Record<string, unknown> | null, oldBrandContact);
       await admin.from("cards").update({ customization: stripped }).eq("id", c.id);

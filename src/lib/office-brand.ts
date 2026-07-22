@@ -197,13 +197,15 @@ export async function applyBrandToUserCards(
   if (!Object.keys(topLevel).length && !hasContact && !hasDesign) return;
 
   if (!hasContact && !hasDesign) {
-    await admin.from("cards").update(topLevel).eq("user_id", userId);
+    await admin.from("cards").update(topLevel).eq("user_id", userId).eq("is_office_card", true);
     return;
   }
 
   // Company contact + locked look live in customization → per-card read/merge/
-  // write so the employee's personal fields are preserved.
-  const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId);
+  // write so the employee's personal fields are preserved. Scoped to cards
+  // actually flagged as under the office — a card the user owns that ISN'T
+  // part of the office (a separate personal venture) must never be touched.
+  const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId).eq("is_office_card", true);
   for (const c of cards ?? []) {
     let merged = c.customization as Record<string, unknown> | null;
     if (hasContact) merged = overlayOfficeContact(merged, brand);
@@ -273,7 +275,7 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
 
   const { data: card } = await admin
     .from("cards")
-    .select("logo_url, company, website, template, customization")
+    .select("id, logo_url, company, website, template, customization")
     .eq("user_id", ownerId)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -297,6 +299,12 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
     await admin.from("offices").update(update).eq("id", officeId);
   }
 
+  // This card is now the office's brand source — flag it so future brand
+  // propagation (which is scoped to is_office_card) keeps reaching it. Without
+  // this the very card just used to seed the brand would be silently excluded
+  // from every subsequent /office/admin/branding save.
+  await admin.from("cards").update({ is_office_card: true }).eq("id", card.id as string);
+
   await propagateBrandToOfficeCards(officeId);
 }
 
@@ -309,18 +317,18 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
   if (!brand) return;
   const admin = getAdminSupabase();
   if (brand.logoUrl) {
-    await admin.from("cards").update({ logo_url: null }).eq("user_id", userId).eq("logo_url", brand.logoUrl);
+    await admin.from("cards").update({ logo_url: null }).eq("user_id", userId).eq("is_office_card", true).eq("logo_url", brand.logoUrl);
   }
   if (brand.company) {
-    await admin.from("cards").update({ company: "" }).eq("user_id", userId).eq("company", brand.company);
-    await admin.from("cards").update({ label: null }).eq("user_id", userId).eq("label", brand.company);
+    await admin.from("cards").update({ company: "" }).eq("user_id", userId).eq("is_office_card", true).eq("company", brand.company);
+    await admin.from("cards").update({ label: null }).eq("user_id", userId).eq("is_office_card", true).eq("label", brand.company);
   }
   if (brand.website) {
-    await admin.from("cards").update({ website: "" }).eq("user_id", userId).eq("website", brand.website);
+    await admin.from("cards").update({ website: "" }).eq("user_id", userId).eq("is_office_card", true).eq("website", brand.website);
   }
   // Company contact (phone/fax/address) lives in customization → per-card strip.
   if (brand.phone || brand.fax || brand.address) {
-    const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId);
+    const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId).eq("is_office_card", true);
     for (const c of cards ?? []) {
       const stripped = stripOfficeContact(c.customization as Record<string, unknown> | null, brand);
       await admin.from("cards").update({ customization: stripped }).eq("id", c.id);

@@ -586,7 +586,11 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span data-tour="nav-settings" className="flex items-center"><SettingsLinkButton /></span>
+            {/* Mobile already has Settings in the bottom tab bar (MobileNav) —
+                same /settings/flows destination — so this top-bar gear is
+                redundant clutter on small screens; keep it for desktop, which
+                has no bottom tab bar. */}
+            <span data-tour="nav-settings" className="hidden md:flex items-center"><SettingsLinkButton /></span>
             <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} activeCard={activeUsername} /></span>

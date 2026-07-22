@@ -8,6 +8,8 @@ import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import { useIsMobile } from "@/lib/use-is-mobile";
+import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 
 // Two plans, no Free column, no trial. Every route out of here carries
 // `trial=0`, so /checkout drops the trial copy and the checkout API creates a
@@ -29,6 +31,8 @@ export default function UpgradeClient() {
   const router = useRouter();
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
+  const isMobile = useIsMobile();
+  const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
 
   // Native app: the /upgrade selling screen must not appear. Redirect to the
   // dashboard on mount, and (below) never paint the page while the redirect
@@ -78,9 +82,11 @@ export default function UpgradeClient() {
         </div>
       </div>
 
+      <MobilePlanTabs active={mobileTier} onChangeAction={setMobileTier} tiers={["pro", "office"]} dark />
+
       <div className="grid md:grid-cols-2 gap-4 items-stretch">
         {/* Pro */}
-        <div className="relative rounded-[24px] p-7 flex flex-col overflow-hidden" style={{ background: "linear-gradient(150deg,#2563EB,#4f46e5)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
+        <div className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[24px] p-7 flex flex-col overflow-hidden`} style={{ background: "linear-gradient(150deg,#2563EB,#4f46e5)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
           <div className="absolute top-6 right-6 bg-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative flex flex-col flex-1">
@@ -107,7 +113,7 @@ export default function UpgradeClient() {
         </div>
 
         {/* Office */}
-        <div className="rounded-[24px] p-7 flex flex-col bg-gray-900 border border-gray-800">
+        <div className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[24px] p-7 flex flex-col bg-gray-900 border border-gray-800`}>
           <div className="flex items-center gap-2 mb-3">
             <p className="text-[1.3rem] font-extrabold tracking-tight text-white">Office</p>
             <span className="text-[10px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">FOR TEAMS</span>
