@@ -37,6 +37,10 @@ export type CardPrefill = {
   textColor?: string;
   infoColor?: string;
   fontFamily?: string;
+  // Swift Links PAGE design ("Social design") — separate surface, separate keys.
+  linkBgColor?: string;
+  linkTextColor?: string;
+  linkFontFamily?: string;
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   /** Which product the visitor was building — picks the step the wizard opens
@@ -48,6 +52,10 @@ export type CardPrefill = {
 // Every design key a builder may carry over. Kept as one list so the sketch
 // writer, the wizard's autofill, and the tests can't drift apart.
 export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
+
+// Swift Links page design keys — separate list so the wizard can hydrate them
+// into its OWN "Social design" state instead of the card's style state.
+export const PREFILL_LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"] as const;
 
 const KEY = "swiftcard_prefill";
 
@@ -68,9 +76,11 @@ export function hasSketchContent(data: CardPrefill): boolean {
     (data.links && data.links.length) ||
     (data.socials && Object.values(data.socials).some(Boolean)) ||
     (data.address && Object.values(data.address).some(Boolean)) ||
-    // A visitor who ONLY restyled the card still sketched something worth
-    // carrying — otherwise their colour/font work is dropped on hand-off.
-    PREFILL_STYLE_KEYS.some((k) => data[k]),
+    // A visitor who ONLY restyled the card (or their Swift Links page) still
+    // sketched something worth carrying — otherwise their colour/font work is
+    // dropped on hand-off.
+    PREFILL_STYLE_KEYS.some((k) => data[k]) ||
+    PREFILL_LINK_STYLE_KEYS.some((k) => data[k]),
   );
 }
 

@@ -157,6 +157,8 @@ export function stripOfficeContact(
 }
 
 // Resolves the office (as owner OR member) for a user, then its brand.
+// Display/read-only surfaces may use this; card WRITES must use
+// getMemberBrandForUser below so the owner's own cards stay personal.
 export async function getOfficeBrandForUser(userId: string): Promise<OfficeBrand | null> {
   const admin = getAdminSupabase();
   const { data: profile } = await admin.from("profiles").select("office_id").eq("id", userId).maybeSingle();
@@ -165,6 +167,21 @@ export async function getOfficeBrandForUser(userId: string): Promise<OfficeBrand
     const { data: owned } = await admin.from("offices").select("id").eq("owner_id", userId).maybeSingle();
     officeId = (owned?.id as string | null) ?? null;
   }
+  return getOfficeBrand(officeId);
+}
+
+// The brand to APPLY to a user's cards — MEMBERS ONLY. The office OWNER's
+// personal cards are individual to the admin (owner decision, Jul 2026):
+// uniform branding governs sub-users' cards, never the admin's own. Returns
+// null for the owner so every card-write overlay (create, save, claim,
+// profile) leaves their cards untouched.
+export async function getMemberBrandForUser(userId: string): Promise<OfficeBrand | null> {
+  const admin = getAdminSupabase();
+  const { data: profile } = await admin.from("profiles").select("office_id").eq("id", userId).maybeSingle();
+  const officeId = (profile?.office_id as string | null) ?? null;
+  if (!officeId) return null;
+  const { data: office } = await admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle();
+  if (((office?.owner_id as string | null) ?? null) === userId) return null; // owner is exempt
   return getOfficeBrand(officeId);
 }
 
@@ -217,10 +234,12 @@ export async function applyBrandToUserCards(
   }
 }
 
-// Re-apply the office brand to every card under the office — the owner's AND
-// every active member's. With no primary card, no card is a "source" that must
-// be skipped: the brand lives on the office row (edited on /office/admin/
-// branding) and every card under the office carries it uniformly.
+// Re-apply the office brand to every ACTIVE MEMBER's cards. The OWNER is
+// deliberately excluded: the admin's personal cards are individual to them
+// (owner decision, Jul 2026) — an earlier version included the owner here,
+// which silently rewrote the admin's own cards with the office template on
+// every Branding save. The brand lives on the office row (edited on
+// /office/admin/branding) and governs sub-user cards only.
 export async function propagateBrandToOfficeCards(officeId: string): Promise<void> {
   const admin = getAdminSupabase();
   const brand = await getOfficeBrand(officeId);
@@ -236,16 +255,15 @@ export async function propagateBrandToOfficeCards(officeId: string): Promise<voi
     .eq("status", "active");
 
   const seen = new Set<string>();
-  const targets: Array<{ uid: string; isOwner: boolean }> = [];
-  if (ownerId) { targets.push({ uid: ownerId, isOwner: true }); seen.add(ownerId); }
+  const targets: string[] = [];
   for (const m of members ?? []) {
     const uid = m.user_id as string | null;
-    if (uid && !seen.has(uid)) { targets.push({ uid, isOwner: false }); seen.add(uid); }
+    if (uid && uid !== ownerId && !seen.has(uid)) { targets.push(uid); seen.add(uid); }
   }
 
-  for (const t of targets) {
+  for (const uid of targets) {
     try {
-      await applyBrandToUserCards(t.uid, brand, { setLabel: !t.isOwner });
+      await applyBrandToUserCards(uid, brand);
     } catch {
       // Best-effort per user — one bad card must not abort the rest. Their
       // next card edit re-applies the overlay anyway.
@@ -299,11 +317,10 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
     await admin.from("offices").update(update).eq("id", officeId);
   }
 
-  // This card is now the office's brand source — flag it so future brand
-  // propagation (which is scoped to is_office_card) keeps reaching it. Without
-  // this the very card just used to seed the brand would be silently excluded
-  // from every subsequent /office/admin/branding save.
-  await admin.from("cards").update({ is_office_card: true }).eq("id", card.id as string);
+  // NOTE: the seed card is deliberately NOT flagged is_office_card. It used to
+  // be — so branding saves kept reaching it — but that made the admin's own
+  // card follow the office template forever. The seed is a one-time COPY of
+  // the owner's look into the office brand; the owner's cards stay personal.
 
   await propagateBrandToOfficeCards(officeId);
 }

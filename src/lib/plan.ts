@@ -54,6 +54,12 @@ export const FREE_MONTH_DAYS = 30;
 // socials, testimonials, links up to the cap — is never touched.)
 export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
 
+// Swift Links PAGE design keys ("Social design" step) — deliberately separate
+// from the card's design keys above so styling the card never restyles the
+// Swift Links page or vice versa (they are different surfaces with different
+// looks). Pro-gated the same way: stripped server-side for non-paid accounts.
+export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"] as const;
+
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
 export function isPaidPlan(plan?: string | null): boolean {
   return plan === "pro" || plan === "enterprise";
@@ -170,5 +176,8 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
     cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
   }
   cust = convertCustomizationToFreeClosest(cust, template).customization;
+  // Swift Links page theming ("Social design") is part of premium Swift Links —
+  // Free serves the standard dark page, so stored link-style keys are dropped.
+  for (const key of LINK_STYLE_KEYS) delete cust[key];
   return cust as T;
 }

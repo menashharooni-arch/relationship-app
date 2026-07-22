@@ -11,8 +11,12 @@ import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 
-const SHEET = "#191a1a"; // link.me's dark sheet color
+const SHEET = "#191a1a"; // link.me's dark sheet color (stock look)
 const PAGE = "#09090B"; // page background behind the column
+
+// Owner-picked "Social design" (Pro): background / text / font for THIS page.
+// Absent (Free, or never styled) → the stock dark look above.
+export type SwiftLinkPageStyle = { bg?: string; text?: string; font?: string };
 
 type LinkItem = { emoji: string; label: string; url: string };
 
@@ -44,6 +48,7 @@ export default function SwiftLinkProfile({
   links,
   ownerPaid,
   appUrl,
+  pageStyle,
 }: {
   name: string;
   username: string;
@@ -55,6 +60,8 @@ export default function SwiftLinkProfile({
   links: LinkItem[];
   ownerPaid: boolean;
   appUrl: string;
+  /** Owner's "Social design" (Pro) — falls back to the stock dark look. */
+  pageStyle?: SwiftLinkPageStyle;
 }) {
   // Mini header fades in once the hero photo scrolls out from under it.
   const [scrolled, setScrolled] = useState(false);
@@ -68,11 +75,16 @@ export default function SwiftLinkProfile({
   const firstName = name.split(" ")[0] || username;
   const initials = initialsOf(name || username);
 
+  // Resolved page look — owner style over the stock dark theme.
+  const sheetBg = pageStyle?.bg || SHEET;
+  const textColor = pageStyle?.text || "#ffffff";
+  const pageFont = pageStyle?.font;
+
   return (
     <main className="min-h-[100dvh]" style={{ background: PAGE }}>
       <div
         className="relative mx-auto w-full max-w-[430px] min-h-[100dvh] md:min-h-0 md:my-8 md:rounded-[30px] md:overflow-hidden md:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
-        style={{ background: SHEET }}
+        style={{ background: sheetBg, fontFamily: pageFont }}
       >
         {/* Sticky mini header — zero-height wrapper so it draws over the hero */}
         <div className="sticky top-0 z-30 h-0">
@@ -80,7 +92,7 @@ export default function SwiftLinkProfile({
             className={`flex items-center gap-2.5 px-4 h-[54px] transition-opacity duration-300 md:rounded-t-[30px] ${
               scrolled ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
-            style={{ background: "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+            style={{ background: pageStyle?.bg ? sheetBg : "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
           >
             <div className="w-8 h-8 rounded-full overflow-hidden shrink-0" style={{ background: "#2c2d2d" }}>
               {photoUrl ? (
@@ -90,7 +102,7 @@ export default function SwiftLinkProfile({
                 <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white/80">{initials}</div>
               )}
             </div>
-            <span className="text-white font-bold text-[15px] truncate">{name}</span>
+            <span className="font-bold text-[15px] truncate" style={{ color: textColor }}>{name}</span>
             {verified && <VerifiedBadge className="w-4 h-4" />}
           </div>
         </div>
@@ -111,26 +123,26 @@ export default function SwiftLinkProfile({
           {/* Soft fade into the sheet */}
           <div
             className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
-            style={{ background: `linear-gradient(180deg, rgba(25,26,26,0) 0%, ${SHEET} 100%)` }}
+            style={{ background: `linear-gradient(180deg, rgba(25,26,26,0) 0%, ${sheetBg} 100%)` }}
           />
         </div>
 
         {/* Sheet */}
-        <div className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center" style={{ background: SHEET }}>
+        <div className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center" style={{ background: sheetBg }}>
           {/* Name + verified badge */}
           <div className="flex items-center justify-center gap-1.5 px-2">
             <h1
-              className="text-white font-extrabold overflow-hidden whitespace-nowrap text-ellipsis"
-              style={{ fontSize: 32, letterSpacing: "0.25px", lineHeight: 1.15 }}
+              className="font-extrabold overflow-hidden whitespace-nowrap text-ellipsis"
+              style={{ fontSize: 32, letterSpacing: "0.25px", lineHeight: 1.15, color: textColor }}
             >
               {name}
             </h1>
             {verified && <VerifiedBadge />}
           </div>
-          <p className="text-white/50 text-[15px] mt-0.5">@{username}</p>
+          <p className="text-[15px] mt-0.5" style={{ color: textColor, opacity: 0.5 }}>@{username}</p>
 
-          {subtitle && <p className="text-white/60 text-[13px] font-medium mt-2">{subtitle}</p>}
-          {bio && <p className="text-white/75 text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap">{bio}</p>}
+          {subtitle && <p className="text-[13px] font-medium mt-2" style={{ color: textColor, opacity: 0.6 }}>{subtitle}</p>}
+          {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
 
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
           <SocialIcons socials={socials} />
@@ -147,7 +159,8 @@ export default function SwiftLinkProfile({
           <div className="flex justify-center mt-10">
             <a
               href={`/card/${username}`}
-              className="inline-block px-4 py-2 text-white/40 text-xs hover:text-white/80 hover:bg-white/10 rounded-lg transition-colors"
+              className="inline-block px-4 py-2 text-xs hover:bg-white/10 rounded-lg transition-colors"
+              style={{ color: textColor, opacity: 0.5 }}
             >
               View SwiftCard →
             </a>

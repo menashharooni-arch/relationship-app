@@ -77,17 +77,20 @@ describe("ownsLead — cross-account contact isolation", () => {
 });
 
 // ── Office uniform branding (a stale membership cannot rebrand a card) ────────
+// The OWNER is always excluded: the admin's personal cards are individual
+// (owner decision, Jul 2026) — branding governs sub-user cards only.
 describe("resolveBrandTargetIds — office branding blast radius", () => {
-  it("targets the owner plus members still verifiably in the office", () => {
+  it("targets members still verifiably in the office — never the owner", () => {
     const targets = resolveBrandTargetIds("owner", ["m1", "m2"], ["m1", "m2"]);
-    expect(targets).toEqual(["owner", "m1", "m2"]);
+    expect(targets).toEqual(["m1", "m2"]);
+    expect(targets).not.toContain("owner");
   });
 
   it("EXCLUDES a member with a stale office_members row whose profile left the office", () => {
     // m2 switched teams / office lapsed: active in office_members but no longer
     // pointed at this office. Their live card must NOT be overwritten.
     const targets = resolveBrandTargetIds("owner", ["m1", "m2"], ["m1"]);
-    expect(targets).toEqual(["owner", "m1"]);
+    expect(targets).toEqual(["m1"]);
     expect(targets).not.toContain("m2");
   });
 
@@ -95,16 +98,16 @@ describe("resolveBrandTargetIds — office branding blast radius", () => {
     const targets = resolveBrandTargetIds("owner", ["m1"], ["m1", "cross-office-user"]);
     // cross-office-user isn't in the active-member list, so it's never targeted
     // even though it appears in the verified set.
-    expect(targets).toEqual(["owner", "m1"]);
+    expect(targets).toEqual(["m1"]);
   });
 
-  it("owner is always included exactly once, even if also listed as a member", () => {
+  it("the owner is excluded even when listed as a member of their own office", () => {
     const targets = resolveBrandTargetIds("owner", ["owner", "m1"], ["owner", "m1"]);
-    expect(targets).toEqual(["owner", "m1"]);
+    expect(targets).toEqual(["m1"]);
   });
 
-  it("with no members, only the owner's own cards are branded", () => {
-    expect(resolveBrandTargetIds("owner", [], [])).toEqual(["owner"]);
+  it("with no members, NOTHING is rebranded — the owner's cards are personal", () => {
+    expect(resolveBrandTargetIds("owner", [], [])).toEqual([]);
   });
 });
 

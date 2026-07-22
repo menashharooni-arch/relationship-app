@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { TemplateStyle } from "@/components/card-templates/shared";
+import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { stashSketch, consumePrefill, writePrefill, type CardPrefill } from "@/lib/prefill";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { clearDraft } from "@/lib/guest-draft";
@@ -49,6 +50,8 @@ export type Sketch = {
   logo: string | null;
   template: string;
   style: TemplateStyle;
+  /** Swift Links PAGE design — separate surface, separate keys (see lib/plan). */
+  linkStyle: SwiftLinkStyle;
   socials: SketchSocials;
   links: SketchLink[];
 };
@@ -63,6 +66,7 @@ export const EMPTY_SKETCH: Sketch = {
   headshot: null, logo: null,
   template: "classic-pro",
   style: {},
+  linkStyle: {},
   socials: { ...EMPTY_SOCIALS },
   links: [],
 };
@@ -80,6 +84,7 @@ export function toPrefill(s: Sketch, product: CardPrefill["product"]): CardPrefi
     address: { street: s.street.trim(), city: s.city.trim(), state: s.stateRegion.trim(), zip: s.zip.trim() },
     template: s.template,
     ...s.style,
+    ...s.linkStyle,
     socials: Object.fromEntries(
       Object.entries(s.socials).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()]),
     ),
@@ -116,6 +121,11 @@ function fromPrefill(p: CardPrefill): Sketch {
       infoColor: p.infoColor,
       fontFamily: p.fontFamily,
     },
+    linkStyle: {
+      linkBgColor: p.linkBgColor,
+      linkTextColor: p.linkTextColor,
+      linkFontFamily: p.linkFontFamily,
+    },
     socials: { ...EMPTY_SOCIALS, ...(p.socials ?? {}) } as SketchSocials,
     links: p.links ?? [],
   };
@@ -127,6 +137,10 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
   const patch = useCallback((p: Partial<Sketch>) => setSketch((prev) => ({ ...prev, ...p })), []);
   const patchStyle = useCallback(
     (p: Partial<TemplateStyle>) => setSketch((prev) => ({ ...prev, style: { ...prev.style, ...p } })),
+    [],
+  );
+  const patchLinkStyle = useCallback(
+    (p: Partial<SwiftLinkStyle>) => setSketch((prev) => ({ ...prev, linkStyle: { ...prev.linkStyle, ...p } })),
     [],
   );
   const patchSocial = useCallback(
@@ -171,5 +185,5 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
     resetGuestFlow();
   }, []);
 
-  return { sketch, patch, patchStyle, patchSocial, handOff, reset };
+  return { sketch, patch, patchStyle, patchLinkStyle, patchSocial, handOff, reset };
 }

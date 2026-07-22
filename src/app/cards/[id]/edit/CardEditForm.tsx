@@ -1,9 +1,9 @@
 "use client";
 
-// Editing a card is organized into three tabs — Content, Design, Sharing —
-// with a live card preview pinned alongside (right on desktop, top on mobile),
-// so every change is visible immediately. Same fields, labels, and save
-// behavior as before; only the layout changed from a 3-step wizard to tabs.
+// Editing a card is organized into four tabs — Card info, Card design,
+// Socials, Social design — the same four sections (and order) as the new-card
+// wizard, with a live card preview pinned alongside (right on desktop, top on
+// mobile) so every change is visible immediately.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,7 @@ import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/C
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import { SwiftLinkStyleControls, SwiftLinkPagePreview, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -57,11 +58,14 @@ const TEMPLATES = [
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
 
-type TabId = "content" | "design" | "sharing";
+// The same four sections as the new-card wizard, in the same order:
+// 1 Card information · 2 Card design · 3 Socials · 4 Social design.
+type TabId = "content" | "design" | "sharing" | "linkdesign";
 const TABS: { id: TabId; label: string; hint: string }[] = [
-  { id: "content", label: "Card", hint: "Name, contact details & photos" },
-  { id: "design", label: "Design", hint: "Template, colors & fonts" },
-  { id: "sharing", label: "Socials", hint: "Socials, bio & Swift Links" },
+  { id: "content", label: "Card info", hint: "Name & contact details" },
+  { id: "design", label: "Card design", hint: "Photos, template, colors & fonts" },
+  { id: "sharing", label: "Socials", hint: "Bio, socials & additional links" },
+  { id: "linkdesign", label: "Social design", hint: "Style your Swift Links page" },
 ];
 
 const sectionLabel = "text-xs font-semibold text-gray-400 uppercase tracking-wider";
@@ -81,7 +85,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -197,6 +201,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   });
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
+  }
+  // "Social design" — the Swift Links PAGE's look. Separate keys from the
+  // card's style, so styling one surface never restyles the other.
+  const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>({
+    linkBgColor: card.customization?.linkBgColor ?? undefined,
+    linkTextColor: card.customization?.linkTextColor ?? undefined,
+    linkFontFamily: card.customization?.linkFontFamily ?? undefined,
+  });
+  function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
+    setLinkStyleState((prev) => ({ ...prev, ...patch }));
   }
 
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -325,6 +339,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             textColor: templateStyleState.textColor ?? null,
             infoColor: templateStyleState.infoColor ?? null,
             fontFamily: templateStyleState.fontFamily ?? null,
+            // Swift Links page design ("Social design" — Pro, stripped on Free).
+            linkBgColor: linkStyleState.linkBgColor ?? null,
+            linkTextColor: linkStyleState.linkTextColor ?? null,
+            linkFontFamily: linkStyleState.linkFontFamily ?? null,
             // Headshot is per-card (explicit key, null when removed).
             photoUrl: photoState ?? null,
           },
@@ -368,7 +386,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`flex-1 text-sm font-semibold py-2 rounded-lg transition-colors ${on ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+                // text-[11px] on phones: four tabs share the row now, and
+                // "Social design" must never clip inside its pill.
+                className={`flex-1 text-[11px] sm:text-sm leading-tight font-semibold py-2 px-0.5 rounded-lg transition-colors ${on ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
               >
                 {t.label}
               </button>
@@ -508,8 +528,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* ── CARD DESIGN — photos + template + colors (matches the wizard's
+            step 2). Photos stay editable even under an office design lock:
+            the lock covers template/colors, never someone's own headshot. ── */}
+        {tab === "design" && (
+          <div className="space-y-4">
             {/* Photos */}
-            <div className="border-t border-gray-800 pt-4 mt-2 space-y-4">
+            <div className="space-y-4">
               <p className={sectionLabel}>Photos</p>
               {/* Company logo is editable only on a NON-office card. Every card
                   under an office (org set — employee or owner alike) inherits
@@ -549,27 +577,24 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 />
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ── DESIGN — locked for sub-users while the office's Lock Card Design
-            setting is on. The server rejects locked-design writes regardless;
-            this just makes the rule visible instead of surprising. ── */}
-        {tab === "design" && designLocked && (
-          <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <p className={sectionLabel}>Card design</p>
-              <ManagedTag />
-            </div>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Your organization keeps every card matching, so the template, colors and fonts
-              are set by your Office admin. If they turn off the design lock, you&apos;ll be able
-              to customize your card&apos;s look right here.
-            </p>
-          </div>
-        )}
-        {tab === "design" && !designLocked && (
-          <div className="space-y-4">
+            {/* Template + colors — locked for sub-users while the office's Lock
+                Card Design setting is on. The server rejects locked-design
+                writes regardless; this just makes the rule visible. */}
+            {designLocked ? (
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className={sectionLabel}>Card design</p>
+                  <ManagedTag />
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Your organization keeps every card matching, so the template, colors and fonts
+                  are set by your Office admin. If they turn off the design lock, you&apos;ll be able
+                  to customize your card&apos;s look right here.
+                </p>
+              </div>
+            ) : (
+            <div className="space-y-4 border-t border-gray-800 pt-4">
             {/* Custom designer is the editing surface for the custom template */}
             {customSelected && isPro && (
               <div>
@@ -623,6 +648,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   </PlanGate>
                 )}
               </div>
+            )}
+            </div>
             )}
           </div>
         )}
@@ -775,6 +802,40 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </div>
         )}
 
+        {/* ── SOCIAL DESIGN — the Swift Links page's look, with a live preview
+            of the page itself. Separate keys from the card design, so the two
+            tabs never fight over the same values. ── */}
+        {tab === "linkdesign" && (
+          <div className="space-y-4">
+            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!isPro} />
+            {!isPro && (
+              <PlanGate
+                feature="colors-fonts"
+                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+              >
+                <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300">
+                  Unlock custom colors &amp; fonts with Pro →
+                </Link>
+              </PlanGate>
+            )}
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Your Swift Links page — this is how it will look
+              </p>
+              <SwiftLinkPagePreview
+                style={linkStyleState}
+                name={name || card.username}
+                handle={card.username}
+                company={company}
+                bio={bio}
+                photoUrl={photoState}
+                socialKeys={(Object.keys(socials) as SocialKey[]).filter((k) => socials[k].trim())}
+                links={links}
+              />
+            </div>
+          </div>
+        )}
+
         {error && (
           viewOnly ? (
             <PlanGate
@@ -823,7 +884,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
           </CardScaler>
         </InertPreview>
-        {tab === "sharing" ? (
+        {tab === "sharing" || tab === "linkdesign" ? (
           <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title & contact details.</p>
         ) : (
           <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>

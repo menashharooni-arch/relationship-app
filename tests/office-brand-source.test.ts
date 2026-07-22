@@ -4,10 +4,11 @@ import { join } from "node:path";
 
 // The primary-card concept is GONE (owner decision, Jul 2026): the office
 // Branding page is the single source of the team brand, seeded once from the
-// owner's first card at provision, and every card under the office — the
-// owner's included — carries the brand uniformly. Accounts are identified by
-// their AUTH signup email, never the email typed on a card. These tests pin
-// both doctrines at the source level so neither quietly comes back.
+// owner's first card at provision, and every SUB-USER card under the office
+// carries the brand uniformly. The OWNER's personal cards are individual to
+// the admin and are never rebranded. Accounts are identified by their AUTH
+// signup email, never the email typed on a card. These tests pin these
+// doctrines at the source level so none quietly comes back.
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -80,10 +81,23 @@ describe("the Branding page is the brand source", () => {
     }
   });
 
-  it("brand propagation now covers the owner's cards too (labels excluded)", () => {
+  it("brand propagation targets MEMBERS only — never the owner's personal cards", () => {
+    // Owner decision (Jul 2026): the admin's own cards are individual. An
+    // earlier version propagated the brand to the owner too, which rewrote
+    // the admin's personal cards with the office template.
     const lib = read("src/lib/office-brand.ts");
     expect(lib).toContain("propagateBrandToOfficeCards");
-    expect(lib).toMatch(/setLabel: !t\.isOwner/);
+    expect(lib).toMatch(/uid !== ownerId/);
+    // And the card-write overlays resolve the brand member-only.
+    expect(lib).toContain("getMemberBrandForUser");
+    for (const f of [
+      "src/app/api/cards/route.ts",
+      "src/app/api/cards/[id]/route.ts",
+      "src/app/api/profile/route.ts",
+      "src/app/api/drafts/claim/route.ts",
+    ]) {
+      expect(read(f), f).toContain("getMemberBrandForUser");
+    }
   });
 });
 

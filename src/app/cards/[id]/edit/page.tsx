@@ -43,18 +43,13 @@ export default async function CardEditPage({
   // the client is never trusted for role or brand.
   const subCtx = await getOfficeSubUserContext(user.id);
 
-  // Office OWNER editing any of their cards: every card under the office —
-  // the owner's included — inherits the brand (the save API re-asserts it), so
-  // the editor shows those fields as inherited & locked instead of an input
-  // that would silently revert. The brand itself is changed on the office
-  // Branding page, which re-brands the whole team at once.
-  let ownerOfOffice = false;
-  if (!subCtx) {
-    const { data: owned } = await admin.from("offices").select("id").eq("owner_id", user.id).maybeSingle();
-    ownerOfOffice = !!owned?.id;
-  }
-
-  const brand = subCtx || ownerOfOffice ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
+  // Office branding governs SUB-USER cards only. The office OWNER's personal
+  // cards are individual to the admin (owner decision, Jul 2026) — an earlier
+  // version also locked the owner's editor to the brand, which forced the
+  // admin's own cards onto the office template. Owners now edit their cards
+  // completely freely; the brand is managed on /office/admin/branding and
+  // applies to the team.
+  const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
   const org = brand
     ? {
         company: brand.company,
@@ -64,10 +59,6 @@ export default async function CardEditPage({
         fax: brand.fax,
         address: brand.address,
         lockDesign: brand.lockTemplate,
-        // True when the viewer is the office OWNER (not an employee) — lets the
-        // editor say "set on your Branding page" instead of "managed by your
-        // organization", which reads wrong to the person who owns it.
-        ownerInherited: ownerOfOffice,
       }
     : null;
 
