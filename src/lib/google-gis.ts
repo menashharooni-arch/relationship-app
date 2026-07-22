@@ -16,6 +16,12 @@ type GoogleIdConfig = {
   auto_select?: boolean;
   cancel_on_tap_outside?: boolean;
   use_fedcm_for_prompt?: boolean;
+  // Hashed (SHA-256 hex) nonce — required once FedCM mediates the flow (e.g.
+  // One Tap): Chrome embeds a nonce claim in the returned ID token regardless,
+  // and Supabase's signInWithIdToken rejects a token whose nonce claim it
+  // wasn't told to expect ("nonce and nonce in id_token should either both
+  // exist or not"). Pass the RAW nonce separately to signInWithIdToken.
+  nonce?: string;
 };
 
 type GoogleId = {
