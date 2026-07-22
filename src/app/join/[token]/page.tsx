@@ -92,8 +92,11 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
             {brand?.logoUrl ? (
+              // object-CONTAIN + padding: a company logo is rarely square, and
+              // object-cover cropped wide/tall logos (the "logo cut out" bug).
+              // Contain shows the whole mark inside the rounded tile.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={brand.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-cover bg-gray-900" />
+              <img src={brand.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-contain bg-white p-1.5" />
             ) : (
               <SwiftCardLogo size={32} onDark />
             )}

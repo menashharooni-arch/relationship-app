@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import twilio from "twilio";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { htmlToText } from "@/lib/email-text";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -196,6 +197,9 @@ export async function sendRawEmail(opts: { to: string; subject: string; html: st
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,
       html: opts.html,
+      // multipart/alternative: a plain-text part is a major deliverability
+      // signal (HTML-only mail scores as spam). See email-text.ts.
+      text: htmlToText(opts.html),
       // Every email to a lead carries one-click unsubscribe (RFC 8058).
       headers: unsubHeaders(opts.to),
     });
@@ -347,6 +351,7 @@ export async function sendBrandedEmail(opts: {
     signatureImageUrl,
   });
 
+  const html = personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to), opts.senderPaid);
   try {
     await resend.emails.send({
       // Recipient sees the person's name; replies go to the user's own inbox.
@@ -354,7 +359,9 @@ export async function sendBrandedEmail(opts: {
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject,
-      html: personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to), opts.senderPaid),
+      html,
+      // Plain-text alternative (multipart) — deliverability. See email-text.ts.
+      text: htmlToText(html),
       headers: unsubHeaders(opts.to),
     });
     return "sent";

@@ -158,9 +158,14 @@ export async function POST(req: Request) {
   // would leave the seat we just activated above permanently spent with no
   // enterprise access ever granted, and nothing later reconciles it (auth
   // audit).
+  // plan_expires_at is cleared: enterprise here is granted by the office seat,
+  // not a timed free-month grant. If a member still carried a referral/promo
+  // expiry (plan_expires_at set, no Stripe sub), the downgrade cron
+  // (expireFreeMonths) would later flip this active member back to "free" —
+  // silently pausing their automations while they still occupy a paid seat.
   const { data: updatedProfile } = await admin
     .from("profiles")
-    .update({ plan: "enterprise", office_id: officeId })
+    .update({ plan: "enterprise", office_id: officeId, plan_expires_at: null })
     .eq("id", user.id)
     .select("id")
     .maybeSingle();

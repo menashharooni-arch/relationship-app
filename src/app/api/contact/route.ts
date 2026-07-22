@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
           <p style="font-size:12px;color:#9ca3af;margin-top:24px;">Reply directly to this email to respond to ${eName}.</p>
         </div>
       `,
+      // Plain-text alternative (multipart/alternative) — uses the raw, unescaped
+      // values since text/plain is not HTML.
+      text: `New message from ${name}\n\nFrom: ${name}\nEmail: ${email}\n\n${message}\n\nReply directly to this email to respond.`,
     });
 
     return NextResponse.json({ success: true });

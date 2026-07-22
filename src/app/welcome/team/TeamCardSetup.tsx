@@ -149,8 +149,10 @@ export default function TeamCardSetup({ appUrl, prefill, company, walletEnabled,
     <div className="max-w-md mx-auto">
       <div className="text-center mb-7">
         {company.logoUrl && (
+          // object-CONTAIN + padding so a non-square company logo shows fully
+          // (object-cover cropped it — the "logo cut out" report).
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={company.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-cover bg-gray-900 mx-auto mb-4" />
+          <img src={company.logoUrl} alt="" className="w-14 h-14 rounded-2xl object-contain bg-white p-1.5 mx-auto mb-4" />
         )}
         <h1 className="text-2xl font-bold text-white mb-1.5">
           {company.name ? `Your ${company.name} card` : "Your company card"}
