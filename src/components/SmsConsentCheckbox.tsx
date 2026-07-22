@@ -7,7 +7,9 @@
 // general share disclosure, optional (submitting without checking still works —
 // the lead is then created with the sms-paused tag so automated texts skip
 // them), sender identified, frequency/rates/STOP/HELP stated, and direct links
-// to the SMS Terms and Privacy Policy. Keep the copy legible — never below 8px.
+// to the SMS Terms and Privacy Policy. Copy is trimmed to the legal essentials
+// to save space — keep it legible (never below 8px) and keep every required
+// element above, don't cut further.
 export default function SmsConsentCheckbox({
   checked,
   onChange,
@@ -23,13 +25,12 @@ export default function SmsConsentCheckbox({
         onChange={(e) => onChange(e.target.checked)}
         className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 accent-blue-600"
       />
-      <span className="text-slate-600 text-[8px] leading-snug">
-        By checking this box, you agree to receive text messages from SwiftCard at the number
-        provided — follow-up and reply messages from the person you&apos;re sharing your info with.
-        Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP
-        for help. Consent is not a condition of sharing your info. See our{" "}
-        <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a> and{" "}
-        <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy Policy</a>.
+      <span className="text-slate-500 text-[8px] leading-tight">
+        Get text updates from SwiftCard/the person you&apos;re sharing with. Msg frequency varies,
+        msg &amp; data rates may apply, reply STOP/HELP. Not required to share.{" "}
+        <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>{" "}
+        &amp;{" "}
+        <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>.
       </span>
     </label>
   );
