@@ -120,7 +120,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   walletEnabled?: boolean;
   /** Office sub-users only: the org-managed company half of the card. */
   org?: OrgManaged | null;
-  /** LinkedIn OAuth configured — enables "Suggest my profile picture". */
+  /** LinkedIn OAuth configured — enables "Suggest my headshot". */
   linkedinEnabled?: boolean;
 }) {
   const router = useRouter();

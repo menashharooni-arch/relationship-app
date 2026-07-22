@@ -99,7 +99,7 @@ export default async function FlowSettingsPage({
   const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const hubspotSyncError = (hubspotIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   // LinkedIn no longer appears in Settings — its OAuth now powers the "Suggest
-  // my profile picture" button in the card editors instead.
+  // my headshot" button in the card editors instead.
 
   // One section per area of the product, rendered one at a time by SettingsShell.
   // Everything that existed before still exists — it's grouped instead of stacked:

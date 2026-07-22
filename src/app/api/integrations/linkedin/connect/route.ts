@@ -11,7 +11,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // LinkedIn's official OAuth consent screen. Profile-photo import is a card-
 // building convenience, so it's available to any signed-in user (not Pro-gated).
 // `?next=<same-origin path>` returns the user to where they started (the card
-// editor's "Suggest my profile picture") instead of Settings.
+// editor's "Suggest my headshot") instead of Settings.
 export async function GET(request: Request) {
   const nextRaw = new URL(request.url).searchParams.get("next") ?? "";
   // Same-origin relative paths only — anything else falls back to Settings.

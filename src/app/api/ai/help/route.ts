@@ -136,9 +136,9 @@ const KB: KbEntry[] = [
       "Add your address in Step 1 of the card wizard (or the Edit card form). It appears inside your card design and on your card page.",
   },
   {
-    triggers: ["logo", "headshot", "photo", "profile picture", "upload image", "upload photo", "company logo"],
+    triggers: ["logo", "headshot", "photo", "profile picture", "upload image", "upload photo", "company logo", "suggest headshot", "suggest my headshot"],
     answer:
-      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Logos support square, wide, or banner crops. Each card has its OWN headshot — a card with no headshot won't show one from another card.",
+      "Upload your company logo and headshot in Step 3 of the card wizard (or the Edit form). Don't have a photo handy? Tap \"Suggest my headshot\" under the headshot field and we'll pull one from your Google account, Gravatar, or your connected LinkedIn — preview it and choose to use it. Logos support square, wide, or banner crops. Each card has its OWN headshot — a card with no headshot won't show one from another card.",
   },
   {
     triggers: ["multiple cards", "more than one card", "switch card", "select a card", "select card", "my cards", "active card", "second card"],
