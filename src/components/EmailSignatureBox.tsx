@@ -133,6 +133,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   // font enlarging, QR kept, card-page background) — forces everyone to re-capture.
   const contentSig = "v10|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
+  // Separate from hashKey (which tracks the last CAPTURE): this tracks the last
+  // content the user actually COPIED into their email. If the card design has
+  // changed since then, the signature already pasted in their inbox is stale —
+  // and email apps cache the old image for ~a day unless they re-copy & paste a
+  // fresh (cache-busted) URL. We surface a prompt so they know to do exactly that.
+  const copiedKey = `sc_sigcopied_${username}`;
+  const [changedSinceCopy, setChangedSinceCopy] = useState(false);
 
   // Photo/logo through a same-origin proxy so html2canvas can read them.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
@@ -231,6 +238,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- image capture only runs client-side
     setMounted(true);
+    // Prompt to re-copy only if they've copied at least once AND the card has
+    // changed since — a fresh account with no prior copy shows no nag.
+    try {
+      const copied = localStorage.getItem(copiedKey) || "";
+      setChangedSinceCopy(!!copied && copied !== contentSig);
+    } catch { /* ignore */ }
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
     if (prev !== contentSig) {
@@ -267,6 +280,10 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     }
     setStatus("idle");
     setCopied(true);
+    // They now hold a signature that matches the current design — clear the
+    // "re-copy" prompt and remember what content they copied.
+    setChangedSinceCopy(false);
+    try { localStorage.setItem(copiedKey, contentSig); } catch { /* ignore */ }
     setTimeout(() => setCopied(false), 2500);
   }
 
@@ -290,12 +307,17 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
         <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
           Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
         </p>
+        {changedSinceCopy && (
+          <p className="mt-2 text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 leading-relaxed">
+            You&apos;ve changed your card design since you last copied your signature. Copy it again and re-paste to refresh it.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => { if (status === "error" && !ready) captureAndUpload(); setOpen(true); }}
           className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors"
         >
-          Preview &amp; copy
+          {changedSinceCopy ? "Update my signature" : "Preview & copy"}
         </button>
       </div>
 
@@ -337,6 +359,9 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
                 {status === "working" ? "Generating from your card…" : copied ? "Copied ✓" : "Copy signature"}
               </button>
+              <p className="mt-2 text-[11px] text-gray-500 leading-relaxed text-center">
+                Changed your card design? Copy again and re-paste — email apps keep showing the old image for about a day otherwise.
+              </p>
 
               {/* Concise 3-step directions */}
               <ol className="mt-4 space-y-2.5">
