@@ -1,42 +1,35 @@
-// SMS consent for visitor-facing share-info forms (TCPA/CTIA + Twilio A2P).
-// No "use client" directive on purpose: every consumer is already a client
-// component (the capture forms), and marking this file a client ENTRY would
-// trip the serializable-props rule on the onChange callback.
-// Requirements this implements, in one shared block so every capture surface
-// is identical: affirmative opt-in (unchecked by default), separate from the
-// general share disclosure, optional (submitting without checking still works —
-// the lead is then created with the sms-paused tag so automated texts skip
-// them), sender identified, frequency/rates/STOP/HELP stated, and direct links
-// to the SMS Terms and Privacy Policy. Copy is trimmed to the legal essentials
-// to save space — keep it legible (never below 8px) and keep every required
-// element above, don't cut further.
+// Share-form consent DISCLOSURE (no checkbox). Owner decision (Jul 2026):
+// sharing your number + email IS the consent to be followed up with — so there
+// is no separate opt-in box. Submitting the share form is the affirmative act;
+// this line is the clear-and-conspicuous disclosure shown right next to that
+// submit button, which is a recognized SMS-consent pattern (and, just as
+// important, keeps the STOP/rate language the carrier/A2P rules require so the
+// texts actually deliver instead of getting filtered).
+//
+// Every required element is here in one shared block so every capture surface
+// is identical: sender identified, BOTH channels named, frequency/rates,
+// STOP to opt out, and links to the SMS Terms + Privacy Policy. Keep it legible
+// (never below 8px) and keep every element — don't cut further.
+//
+// The old `checked`/`onChange` props are accepted-and-ignored so the four
+// capture forms didn't all have to change signatures at once; they pass
+// sms_consent:true on submit now (consent via submission).
 export default function SmsConsentCheckbox({
-  checked,
-  onChange,
   recipientName,
 }: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  /** The person the visitor is sharing with — leads the copy when known
-   *  ("allow Alex to text you") instead of the generic fallback. */
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+  /** The person the visitor is sharing with — leads the copy when known. */
   recipientName?: string | null;
 }) {
   const who = recipientName?.trim() || "the person you're sharing with";
   return (
-    <label className="flex items-start gap-2 text-left cursor-pointer select-none">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 accent-blue-600"
-      />
-      <span className="text-slate-500 text-[8px] leading-tight">
-        Check this box to have {who} reach out to you by text via SwiftCard. Msg frequency varies,
-        msg &amp; data rates may apply, reply STOP/HELP. Not required to share.{" "}
-        <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>{" "}
-        &amp;{" "}
-        <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>.
-      </span>
-    </label>
+    <p className="text-slate-500 text-[8px] leading-tight text-left">
+      By sharing your info you agree to let {who} follow up by text and email. Msg frequency
+      varies, msg &amp; data rates may apply, reply STOP to opt out.{" "}
+      <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>{" "}
+      &amp;{" "}
+      <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>.
+    </p>
   );
 }

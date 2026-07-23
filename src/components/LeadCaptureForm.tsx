@@ -16,7 +16,6 @@ export default function LeadCaptureForm({
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [alreadyShared, setAlreadyShared] = useState(false);
-  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
 
   // If this visitor shared with this owner before, don't ask again — and
@@ -47,7 +46,7 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
-          sms_consent: smsConsent,
+          sms_consent: true, // sharing = consent (disclosure above the button)
         }),
       });
     } catch {
@@ -149,12 +148,11 @@ export default function LeadCaptureForm({
           optional: submitting without it still shares, but the lead is created
           with automated texts paused). Distinct from the email line below per
           TCPA/CTIA — text consent can't ride along on a general disclosure. */}
-      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} recipientName={cardOwner} />
-      {/* Email disclosure — kept as small as it can be while still legible;
-          "clear and conspicuous" is the bar, so don't go below 8px or drop the
-          contrast further. */}
+      {/* One disclosure now covers BOTH channels (text + email) — submitting is
+          the consent. Kept ≥8px and legible ("clear and conspicuous"). */}
+      <SmsConsentCheckbox recipientName={cardOwner} />
       <p className="text-slate-600 text-[8px] text-center leading-snug">
-        By sharing your info you agree to receive follow-up messages by email. Every email includes an unsubscribe link.
+        Every email includes an unsubscribe link.
       </p>
     </form>
   );

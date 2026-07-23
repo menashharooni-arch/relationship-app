@@ -79,7 +79,6 @@ export default function SocialLinkIntercept({
   const [pendingLabel, setPendingLabel] = useState<string>("");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -103,7 +102,6 @@ export default function SocialLinkIntercept({
     setPendingHref(link.href);
     setPendingLabel(link.label);
     setStatus("idle");
-    setSmsConsent(false); // reset the opt-in each open — never carry a prior check forward
     // Pre-fill from what the visitor shared on ANY card before, so they never
     // retype their details on a different owner's SwiftLink — they just confirm
     // and go. (Empty for a genuine first-time visitor.)
@@ -138,7 +136,7 @@ export default function SocialLinkIntercept({
           email: form.email || null,
           card_owner: cardOwner,
           source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
-          sms_consent: smsConsent,
+          sms_consent: true, // sharing = consent (disclosure above the button)
         }),
       });
       if (!res.ok) throw new Error("lead capture failed");
@@ -262,7 +260,7 @@ export default function SocialLinkIntercept({
                   />
                   {/* SMS consent — separate affirmative opt-in (unchecked by
                       default, optional); same block as every capture surface. */}
-                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+                  <SmsConsentCheckbox recipientName={ownerFirstName} />
                   <button
                     type="submit"
                     disabled={status === "loading"}
