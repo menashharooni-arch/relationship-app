@@ -239,13 +239,16 @@ export default function TeamList({ people, invites, appUrl, caps }: {
           {invites.map((inv) => (
             <div key={inv.memberRowId} className="grid grid-cols-12 gap-3 px-5 py-3.5 items-center">
               <div className="col-span-12 lg:col-span-4 min-w-0 flex items-center gap-3">
-                <Avatar name={inv.email} photoUrl={null} />
+                <Avatar name={inv.name || inv.email} photoUrl={null} />
                 <div className="min-w-0">
-                  <p className="text-sm text-gray-300 truncate">{inv.email}</p>
+                  {/* Show WHO the invite went to: their name (when the admin
+                      gave one) as the headline, the email under it. */}
+                  <p className="text-sm text-white font-medium truncate">{inv.name || inv.email}</p>
+                  {inv.name && <p className="text-[11px] text-gray-500 truncate">{inv.email}</p>}
                   <p className="text-[11px] text-gray-600">
                     {inv.status === "invite_expired"
                       ? "Invitation expired"
-                      : `Invite sent ${shortDate(inv.sentAt)}`}
+                      : `Invited ${shortDate(inv.sentAt)}`}
                   </p>
                 </div>
               </div>
@@ -257,6 +260,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                 {caps.canInvite && (
                   <InviteRowActions
                     memberId={inv.memberRowId}
+                    name={inv.name}
                     email={inv.email}
                     inviteUrl={inv.inviteToken ? `${appUrl}/join/${inv.inviteToken}` : null}
                   />

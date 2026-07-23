@@ -345,30 +345,35 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
 
 // ── Pending-invite row actions ────────────────────────────────────────────────
 
-export function InviteRowActions({ memberId, email, inviteUrl }: {
+export function InviteRowActions({ memberId, name, email, inviteUrl }: {
   memberId: string;
+  name?: string | null;
   email: string;
   inviteUrl: string | null;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "resend" | "cancel">(null);
+  const [busy, setBusy] = useState<null | "remind" | "retract">(null);
   const [note, setNote] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [copied, setCopied] = useState(false);
+  const who = (name || email.split("@")[0] || "them").split(/\s+/)[0];
 
-  async function resend() {
+  // "Remind" re-sends the invite email (and restarts the 14-day window) — a
+  // nudge for the invitee to accept. The seat stays reserved either way.
+  async function remind() {
     if (busy) return;
-    setBusy("resend"); setNote(null);
+    setBusy("remind"); setNote(null);
     try {
       const res = await fetch("/api/office/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Resend to the same email; name is already stored so the row keeps it.
         body: JSON.stringify({ email }),
       });
-      if (res.ok) { setNote("Invite re-sent ✓"); router.refresh(); }
+      if (res.ok) { setNote("Reminder sent ✓"); router.refresh(); }
       else {
         const j = await res.json().catch(() => ({}));
-        setNote(j.message ?? j.error ?? "Couldn't resend — try again.");
+        setNote(j.message ?? j.error ?? "Couldn't send the reminder — try again.");
       }
     } catch {
       setNote("Couldn't reach the server — try again.");
@@ -377,37 +382,30 @@ export function InviteRowActions({ memberId, email, inviteUrl }: {
     }
   }
 
-  async function cancel() {
+  // "Retract" cancels the pending invite and FREES the seat it was holding.
+  async function retract() {
     if (busy) return;
-    setBusy("cancel"); setNote(null);
+    setBusy("retract"); setNote(null);
     try {
       const res = await fetch(`/api/office/members?id=${memberId}`, { method: "DELETE" });
-      if (res.ok) { setNote("Invite canceled ✓"); router.refresh(); }
-      else setNote("Couldn't cancel — try again.");
+      if (res.ok) { setNote("Invitation retracted — seat freed ✓"); router.refresh(); }
+      else setNote("Couldn't retract — try again.");
     } catch {
       setNote("Couldn't reach the server — try again.");
     } finally {
       setBusy(null);
-      setConfirming(false);
+      setManaging(false);
     }
   }
 
   return (
     <span className="inline-flex items-center gap-2 flex-wrap justify-end">
-      {confirming ? (
+      {managing ? (
         <>
-          <span className="text-[11px] text-gray-400">Cancel this invite?</span>
-          <button onClick={cancel} disabled={busy !== null}
+          <span className="text-[11px] text-gray-400">Retract {who}&apos;s invite &amp; free the seat?</span>
+          <button onClick={retract} disabled={busy !== null}
             className="text-[11px] font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/15 px-2 py-1 rounded-full disabled:opacity-50">
-            {busy === "cancel" ? "…" : "Yes, cancel"}
-          </button>
-          <button onClick={() => setConfirming(false)} className="text-[11px] text-gray-500 hover:text-gray-300 px-1">Keep</button>
-        </>
-      ) : (
-        <>
-          <button onClick={resend} disabled={busy !== null}
-            className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
-            {busy === "resend" ? "Sending…" : "Resend"}
+            {busy === "retract" ? "…" : "Yes, retract"}
           </button>
           {inviteUrl && (
             <button
@@ -419,9 +417,17 @@ export function InviteRowActions({ memberId, email, inviteUrl }: {
               {copied ? "Copied ✓" : "Copy link"}
             </button>
           )}
-          <button onClick={() => setConfirming(true)} disabled={busy !== null}
-            className="text-[11px] font-semibold text-gray-500 hover:text-gray-300 px-1.5 py-1 transition-colors disabled:opacity-50">
-            Cancel
+          <button onClick={() => setManaging(false)} className="text-[11px] text-gray-500 hover:text-gray-300 px-1">Keep</button>
+        </>
+      ) : (
+        <>
+          <button onClick={remind} disabled={busy !== null}
+            className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
+            {busy === "remind" ? "Sending…" : "Remind"}
+          </button>
+          <button onClick={() => setManaging(true)} disabled={busy !== null}
+            className="text-[11px] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
+            Manage
           </button>
         </>
       )}
