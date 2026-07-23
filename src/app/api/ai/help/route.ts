@@ -9,12 +9,12 @@ IMPORTANT: You can ONLY give directions and answer questions. You cannot make an
 
 WHAT SWIFTCARD IS
 - A digital business card. One account can hold multiple cards. Each card has a card page (swiftcard.me/card/<url>) and a Swift Links page (swiftcard.me/links/<url>) — a link-in-bio with photo, bio, social icons, video previews, and custom buttons.
-- Free (monthly meters that reset on the 1st): 1 card, 5 new leads/month, 3 AI drafts/month, all templates, 2 additional Swift Links buttons, basic analytics (views & best day), a Day-1 follow-up email, and a "Powered by SwiftCard" badge. Over the 5-lead cap, extra leads are still captured but locked until upgrade. The AI business-card scanner is NOT on Free — it's a Pro feature. Pro: unlimited leads/drafts, unlimited cards, AI business-card scanner, custom card designer, automated email + text follow-up sequences (Light/Medium/Aggressive), premium Swift Links (video previews, featured tiles, themes), full who/when/where analytics, CSV export, integrations (Zapier, Google, HubSpot), no SwiftCard branding. Office = everything in Pro for each seat, $1/user cheaper, min 2 seats, with an admin who makes cards for the team.
+- Free (monthly meters that reset on the 1st): 1 card, 5 new leads/month, 3 AI drafts/month, all templates, 2 additional Swift Links buttons, basic analytics (views & best day), a Day-1 follow-up email, the standard dark Swift Links page, and a "Powered by SwiftCard" badge. Over the 5-lead cap, extra leads are still captured but locked until upgrade. The AI business-card scanner is NOT on Free — it's a Pro feature. Pro: unlimited leads/drafts, unlimited cards, AI business-card scanner, custom card designer, Social design (style your Swift Links page — background, text color & font), automated email + text follow-up sequences (Light/Medium/Aggressive), premium Swift Links (video previews, featured tiles), full who/when/where analytics, CSV export, integrations (Zapier, Google, HubSpot), no SwiftCard branding on your pages or automated emails/texts. Office = everything in Pro for each seat, $1/user cheaper, min 2 seats, with an admin console: company branding (logo, contact info, design + optional design lock) applied to every team card, passwordless invites (Google or email link), per-person analytics.
 
 KEY PLACES
 - Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
-- Create a card: dashboard "+ Add card" → 3 steps (details + address → Swift Links bio/socials/links → logo, headshot, design).
-- Edit a card: My Cards → Edit, or Settings → Your cards → Edit. Tabs: Card info, Design (templates + Pro custom designer).
+- Create a card: dashboard "+ Add card" → 4 steps (1 Card information: name, title, phones, email, website, address → 2 Card design: logo, headshot, template, colors → 3 Socials: bio, social profiles, additional links → 4 Social design: style your Swift Links page).
+- Edit a card: My Cards → Edit, or Settings → Your cards → Edit. Tabs: Card info, Card design (photos + templates + Pro custom designer), Socials, Social design (Swift Links page look).
 - Contacts: everyone who saved your card or messaged you; read/unread, conversation, notes, status, AI follow-up, SMS, export.
 - Settings: Your cards, Need help, Integrations, General (email/cards), Billing (change plan, cancel, keep subscription, seats, payment method), Account → Danger Zone (delete + 1-month reopen).
 
@@ -45,7 +45,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["create a card", "make a card", "new card", "add card", "add a card", "create my card", "get started", "first card", "set up a card"],
     answer:
-      "From your dashboard, click \"+ Add card\" (or the big \"Create your card\" button if you don't have one yet). It's a quick 3-step wizard: 1) your details + address, 2) Swift Links bio, social links & extra buttons, 3) upload your logo/headshot and choose a design.",
+      "From your dashboard, click \"+ Add card\" (or the big \"Create your card\" button if you don't have one yet). It's a quick 4-step wizard: 1) Card information — your details, address & website, 2) Card design — logo, headshot & template, 3) Socials — bio, social links & extra buttons, 4) Social design — style your Swift Links page.",
   },
   {
     triggers: ["edit a card", "edit card", "edit my card", "update my card", "change my info", "change my name", "change my phone", "change my email", "change my number"],
@@ -65,7 +65,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["swift link", "swift links", "links page", "bio page", "linktree", "link tree", "bio link"],
     answer:
-      "Every card has a Swift Links page at swiftcard.me/links/<yourname> — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Set the bio, socials and extra links in Step 2 when creating or editing a card.",
+      "Every card has a Swift Links page at swiftcard.me/links/<yourname> — a modern link-in-bio with your photo, bio, social icons, video previews, and custom buttons. Set the bio, socials and extra links in the Socials step (step 3) when creating a card, or the Socials tab when editing — and style the page (background, color & font) in Social design (Pro).",
   },
   {
     triggers: ["contacts", "leads", "my leads", "see contacts", "where are my contacts", "who saved my card", "view contacts"],
