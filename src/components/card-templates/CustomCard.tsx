@@ -3,6 +3,7 @@
 // NO hooks here — this renders server-side on the public card page.
 import type { CardData, CustomElement, CustomLayout, CustomSocial } from "./types";
 import { MiniQR } from "./MiniQR";
+import { fitName } from "./shared";
 import PlatformIcon from "@/components/PlatformIcon";
 
 // Map a per-platform social element to its value in the card data + icon label.
@@ -155,10 +156,15 @@ export function CustomElementContent({
   const shown = value || (placeholder ? (el.type === "field" ? `{${el.field}}` : "Text") : "");
   if (!shown) return null;
   const multiline = el.type === "field" && el.field === "address";
+  // The name field is nowrap at a fixed size, so a long first name would run off
+  // the card — auto-fit it down past a 9-letter word, same rule the standard
+  // templates use.
+  const baseFs = el.fontSize ?? 12;
+  const fs = el.type === "field" && el.field === "name" ? fitName(baseFs, value, 16) : baseFs;
   return (
     <span
       style={{
-        fontSize: el.fontSize ?? 12,
+        fontSize: fs,
         color: el.color ?? layout.textColor,
         fontWeight: el.bold ? 700 : 400,
         fontStyle: el.italic ? "italic" : "normal",

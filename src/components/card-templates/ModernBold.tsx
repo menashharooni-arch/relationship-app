@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -86,7 +86,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: fitPx(28 * heroGrow(f), data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
+            style={{ fontSize: fitName(28 * heroGrow(f), data.name, 15), lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
           >
             {data.name}
           </h2>
