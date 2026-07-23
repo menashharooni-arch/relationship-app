@@ -5,8 +5,11 @@
 //     Leads tab (cross-org pollution), or
 //   • strip `sc-locked` from their own capped Free lead to unlock it for free,
 //     or pause/unpause automation (`flow-paused`, `email-paused`, `sms-paused`,
-//     `preset-*`) they aren't meant to touch directly.
-export const RESERVED_LEAD_TAG = /^(sc-office-|sc-locked$|flow-|email-paused$|sms-paused$|preset-)/;
+//     `sms-ok`, `preset-*`) they aren't meant to touch directly.
+// `sms-ok` is the affirmative SMS-consent marker (TCPA opt-in): the cron sends
+// an automated text ONLY when it's present. It is server-owned so a client
+// can't forge consent by PATCHing it, and so it survives unrelated tag edits.
+export const RESERVED_LEAD_TAG = /^(sc-office-|sc-locked$|flow-|email-paused$|sms-paused$|sms-ok$|preset-)/;
 
 // Merge a client-supplied tag array with the row's existing tags so that the
 // server-owned (reserved) tags are preserved exactly as they were and only

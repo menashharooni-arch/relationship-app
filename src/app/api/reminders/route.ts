@@ -301,7 +301,17 @@ export async function GET(req: NextRequest) {
       // contact's per-channel switch: a paused channel sends NOTHING.
       const itemChannel: "email" | "sms" =
         item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : (seqLead.email ? "email" : "sms");
-      if (channelPaused(seqLead.tags, itemChannel)) continue;
+      // SMS is OPT-IN (TCPA): an automated text sends ONLY to a contact who
+      // affirmatively consented — the sms-ok tag (checked the SMS box, or the
+      // owner turned texts on for them). No consent tag, or an explicit
+      // sms-paused, means NO automated text — even a phone-only lead. Email is
+      // opt-in-by-sharing and only honors the email-paused toggle.
+      if (itemChannel === "sms") {
+        const t = seqLead.tags ?? [];
+        if (!t.includes("sms-ok") || t.includes("sms-paused")) continue;
+      } else if (channelPaused(seqLead.tags, "email")) {
+        continue;
+      }
       const asEmail = itemChannel === "email";
 
       const r = await deliverToLead({

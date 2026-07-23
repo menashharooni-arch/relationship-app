@@ -74,6 +74,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ? Array.from(new Set([...reconciled, t]))
         : reconciled.filter((x) => x !== t);
     }
+    // Affirmative SMS consent (sms-ok) is set ONLY by an EXPLICIT owner signal:
+    // the Text-automation toggle sends `sms_consent` (the owner asserting they
+    // have permission to text this contact). sms-ok is server-owned, so this is
+    // the only post-capture way it changes — an unrelated tag edit (adding a
+    // label) never fabricates or revokes consent. The cron requires sms-ok to
+    // send any automated text.
+    const rawSmsConsent = typeof raw.sms_consent === "boolean" ? raw.sms_consent : undefined;
+    if (rawSmsConsent === true) {
+      reconciled = Array.from(new Set([...reconciled.filter((x) => x !== "sms-paused"), "sms-ok"]));
+    } else if (rawSmsConsent === false) {
+      reconciled = Array.from(new Set([...reconciled.filter((x) => x !== "sms-ok"), "sms-paused"]));
+    }
     body.tags = reconciled;
   }
 

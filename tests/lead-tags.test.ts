@@ -33,6 +33,13 @@ describe("mergeClientTags — server-owned tags are protected", () => {
     expect(mergeClientTags([], ["flow-paused"])).toEqual(["flow-paused"]);
   });
 
+  it("protects the SMS consent marker (sms-ok) — client can't forge or strip it", () => {
+    // A client can't fabricate consent by injecting sms-ok…
+    expect(mergeClientTags(["sms-ok", "unread"], [])).toEqual(["unread"]);
+    // …and can't strip an existing consent (or lack of it) off the row.
+    expect(mergeClientTags(["unread"], ["sms-ok"])).toContain("sms-ok");
+  });
+
   it("de-duplicates and tolerates non-string / non-array input", () => {
     expect(mergeClientTags(["a", "a", "b"], [])).toEqual(["a", "b"]);
     expect(mergeClientTags(null, ["sc-locked"])).toEqual(["sc-locked"]);
