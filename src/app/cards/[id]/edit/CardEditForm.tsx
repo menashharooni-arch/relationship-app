@@ -25,7 +25,8 @@ import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/C
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
-import { SwiftLinkStyleControls, SwiftLinkPagePreview, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -872,15 +873,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
               Your Swift Links page — this is how it will look
             </p>
-            <SwiftLinkPagePreview
+            <SwiftLinkLivePreview
               style={linkStyleState}
               name={name || card.username}
               handle={card.username}
               company={company}
+              title={title}
               bio={bio}
               photoUrl={photoState}
-              socialKeys={(Object.keys(socials) as SocialKey[]).filter((k) => socials[k].trim())}
+              socials={{
+                instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
+                twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
+                youtube: socials.youtube, website,
+              }}
               links={links}
+              paid={isPro}
             />
             <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
           </>

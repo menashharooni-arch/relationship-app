@@ -164,7 +164,7 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
   );
 }
 
-export default function TemplateGallery() {
+export default function TemplateGallery({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const [active, setActive] = useState(TEMPLATES[0].id);
   const activeT = TEMPLATES.find((t) => t.id === active) ?? TEMPLATES[0];
 
@@ -228,7 +228,7 @@ export default function TemplateGallery() {
           })}
 
           {/* 6th tile — build your own in 60 seconds */}
-          <CardMiniBuilder />
+          <CardMiniBuilder linkedinEnabled={linkedinEnabled} />
         </div>
       </div>
     </div>

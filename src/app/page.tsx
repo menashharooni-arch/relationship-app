@@ -36,6 +36,11 @@ function Eyebrow({ children, dark = true }: { children: React.ReactNode; dark?: 
 }
 
 export default function Home() {
+  // LinkedIn photo-import is offered in the homepage builders' "Suggest my
+  // photo" only when the OAuth app is configured server-side — otherwise the
+  // Connect button would route into a dead end. Read here (server component)
+  // and threaded into every mini-builder.
+  const linkedinEnabled = !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET);
   return (
     <>
       {/* Arriving Home as a guest abandons any half-built card/preview — see
@@ -140,7 +145,7 @@ export default function Home() {
             </div>
 
             <div className="mt-14" data-reveal>
-              <TemplateGallery />
+              <TemplateGallery linkedinEnabled={linkedinEnabled} />
             </div>
           </div>
         </section>
@@ -171,7 +176,7 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <SwiftLinkMiniBuilder />
+              <SwiftLinkMiniBuilder linkedinEnabled={linkedinEnabled} />
             </div>
             <div className="flex justify-center" data-reveal="scale">
               <SwiftLinksPhone />
@@ -192,7 +197,7 @@ export default function Home() {
               </p>
             </div>
             <div data-reveal="fade"><SignatureDemo /></div>
-            <SignatureMiniBuilder />
+            <SignatureMiniBuilder linkedinEnabled={linkedinEnabled} />
           </div>
         </section>
 

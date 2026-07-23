@@ -2,12 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Renders a card template at a fixed design width where all its content fits,
-// then scales it down to the container width. This stops the QR / bottom rows
-// from being clipped on narrow screens (the card has a fixed aspect ratio).
-const NATURAL = 460;
+// Renders content at a fixed design width where everything fits, then scales it
+// down to the container width. Cards use it (fixed 460px so the QR / bottom rows
+// never clip on narrow screens); the Swift Links live preview passes a phone
+// width (~390) so the real profile renders at true phone proportions and is then
+// shrunk into the preview slot — pixel-identical to the published page, just
+// smaller.
+const DEFAULT_NATURAL = 460;
 
-export default function CardScaler({ children }: { children: React.ReactNode }) {
+export default function CardScaler({ children, natural = DEFAULT_NATURAL }: { children: React.ReactNode; natural?: number }) {
+  const NATURAL = natural;
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
@@ -26,7 +30,7 @@ export default function CardScaler({ children }: { children: React.ReactNode }) 
     if (outerRef.current) ro.observe(outerRef.current);
     if (innerRef.current) ro.observe(innerRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [NATURAL]);
 
   return (
     // contain:size — the inner card keeps a fixed LAYOUT width of 460px (the
