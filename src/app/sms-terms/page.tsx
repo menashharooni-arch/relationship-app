@@ -83,7 +83,7 @@ export default function SmsTermsPage() {
         <H2>How consent is collected</H2>
         <P>
           When you share your contact information on a SwiftCard user&apos;s card, the share form includes a
-          separate, <strong>unchecked-by-default</strong> checkbox asking whether you agree to receive text
+          separate, <strong>unchecked-by-default</strong>{" "}checkbox asking whether you agree to receive text
           messages. Checking it is optional — you can always share your info without agreeing to texts, and
           consent is never a condition of sharing, of purchase, or of creating an account. If you don&apos;t
           check the box, automated follow-up texts are switched off for your number. See the{" "}
