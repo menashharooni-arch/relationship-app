@@ -33,7 +33,7 @@ const TEMPLATES = [
 ];
 
 
-export default function SignatureMiniBuilder() {
+export default function SignatureMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -113,7 +113,7 @@ export default function SignatureMiniBuilder() {
         <div className="space-y-5">
           <div>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="Headshot" onUploaded={(u) => patch({ headshot: u || null })} />
-            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={false} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
           </div>
           <div>
             <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />

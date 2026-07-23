@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
-import InertPreview from "@/components/InertPreview";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
-import { SwiftLinkStyleControls, SwiftLinkPagePreview } from "@/components/SwiftLinkDesign";
+import { SwiftLinkStyleControls } from "@/components/SwiftLinkDesign";
+import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
 import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
@@ -23,7 +23,7 @@ function slugify(str: string): string {
 }
 
 
-export default function SwiftLinkMiniBuilder() {
+export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -32,12 +32,6 @@ export default function SwiftLinkMiniBuilder() {
 
   // Handle is derived exactly like the real builder: name + business, slugified.
   const handle = slugify(sketch.company.trim() ? `${sketch.name} ${sketch.company}` : sketch.name) || "yourname";
-  const activeSocials = [
-    sketch.socials.instagram && { key: "instagram", handle: sketch.socials.instagram },
-    sketch.socials.tiktok && { key: "tiktok", handle: sketch.socials.tiktok },
-    sketch.socials.linkedin && { key: "linkedin", handle: sketch.socials.linkedin },
-    sketch.socials.twitter && { key: "twitter", handle: sketch.socials.twitter },
-  ].filter(Boolean) as { key: string; handle: string }[];
 
   function launch() {
     setLaunching(true);
@@ -77,7 +71,7 @@ export default function SwiftLinkMiniBuilder() {
           <div className="pt-1">
             <span className="block text-white/55 text-[12px] font-medium mb-1.5">Profile photo</span>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="" onUploaded={(u) => patch({ headshot: u || null })} />
-            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={false} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
             {/* Only used to look your headshot up — never shown on the page. */}
             <Field label="Email (only used to find your headshot)" type="email" placeholder="alex@morganco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} />
           </div>
@@ -138,24 +132,29 @@ export default function SwiftLinkMiniBuilder() {
         launching={launching}
         launchLabel="Make it live →"
         previewCaption="Lives in your Instagram, TikTok, or email bio."
-        // Look-only preview — the real SwiftLink page keeps its tappable
-        // links; see InertPreview. This is the SAME SwiftLinkPagePreview
-        // component the portal's "Social design" step renders, so the demo
-        // phone here shows exactly what the real Swift Links page will look
-        // like — one mock, no drift.
+        // The demo phone renders the REAL Swift Links page (SwiftLinkLivePreview
+        // → SwiftLinkProfile), scaled to phone width — the exact hero, full bio,
+        // real brand social icons and real featured-link cards the published
+        // page shows. Zero drift: long bios aren't clamped, every social shows,
+        // links look identical to the live page.
         preview={
-          <InertPreview>
-            <SwiftLinkPagePreview
-              style={sketch.linkStyle}
-              name={sketch.name}
-              handle={handle}
-              company={sketch.company}
-              bio={sketch.bio}
-              photoUrl={sketch.headshot}
-              socialKeys={activeSocials.map((s) => s.key)}
-              links={sketch.links}
-            />
-          </InertPreview>
+          <SwiftLinkLivePreview
+            style={sketch.linkStyle}
+            name={sketch.name}
+            handle={handle}
+            company={sketch.company}
+            title={sketch.title}
+            bio={sketch.bio}
+            photoUrl={sketch.headshot}
+            socials={{
+              instagram: sketch.socials.instagram, tiktok: sketch.socials.tiktok,
+              linkedin: sketch.socials.linkedin, twitter: sketch.socials.twitter,
+              facebook: sketch.socials.facebook, youtube: sketch.socials.youtube,
+              website: sketch.website,
+            }}
+            links={sketch.links}
+            paid
+          />
         }
       />
     </>

@@ -6,15 +6,14 @@
 // surfaces, so each has its own keys (LINK_STYLE_KEYS in lib/plan) and styling
 // one never restyles the other.
 //
-// Two exports:
-//   • SwiftLinkStyleControls — background / text color / font pickers
-//   • SwiftLinkPagePreview   — a live mock of the real /links page, driven by
-//     the same fields the wizard already holds, so the visitor sees exactly
-//     how their Swift Links page will look as they edit.
+// Exports SwiftLinkStyleControls — the background / text color / font pickers.
+// The live PREVIEW is no longer a mock here: SwiftLinkLivePreview renders the
+// REAL SwiftLinkProfile (embedded + scaled) so the wizard/editor/mini-builder
+// previews are byte-for-byte the published page — see SwiftLinkLivePreview.tsx.
 // Free accounts keep the standard dark page (keys are stripped server-side);
 // the custom color pickers carry the same PRO gating as the card controls.
 
-import { CARD_FONT_OPTIONS, IcoInsta, IcoLinkedIn, IcoX, IcoTikTok } from "@/components/card-templates/shared";
+import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
 
 export type SwiftLinkStyle = {
   linkBgColor?: string;
@@ -160,96 +159,3 @@ export function SwiftLinkStyleControls({
   );
 }
 
-// ── Live preview of the real /links page ────────────────────────────────────
-
-const SOCIAL_PREVIEW: Record<string, { node: React.ReactNode; color: string }> = {
-  instagram: { node: <IcoInsta />, color: "#E1306C" },
-  tiktok: { node: <IcoTikTok />, color: "#0f172a" },
-  linkedin: { node: <IcoLinkedIn />, color: "#0A66C2" },
-  twitter: { node: <IcoX />, color: "#0f172a" },
-};
-
-function hostOf(url: string) {
-  try { return new URL(url.includes("://") ? url : `https://${url}`).host.replace(/^www\./, ""); } catch { return url; }
-}
-
-export function SwiftLinkPagePreview({
-  style,
-  name,
-  handle,
-  company,
-  bio,
-  photoUrl,
-  socialKeys,
-  links,
-}: {
-  style: SwiftLinkStyle;
-  name: string;
-  handle: string;
-  company?: string;
-  bio?: string;
-  photoUrl?: string | null;
-  /** Which socials are filled in (e.g. ["instagram","linkedin"]). */
-  socialKeys: string[];
-  links: { label: string; url: string }[];
-}) {
-  const bg = style.linkBgColor || LINK_DEFAULT_BG;
-  const text = style.linkTextColor || LINK_DEFAULT_TEXT;
-  const font = style.linkFontFamily;
-  const firstName = (name || "me").split(" ")[0];
-  const initials = (name || "Y").trim().split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "Y";
-  const shown = socialKeys.filter((k) => SOCIAL_PREVIEW[k]);
-  const extra = socialKeys.length - shown.length;
-
-  return (
-    <div className="w-[236px] max-w-full rounded-[26px] overflow-hidden shadow-2xl mx-auto" style={{ background: bg, fontFamily: font }}>
-      {/* Hero */}
-      <div className="relative w-full aspect-square overflow-hidden">
-        {photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(160deg,#181538,#2A2466 60%,#4338ca)" }}>
-            <span className="text-white/90 font-extrabold text-5xl">{initials}</span>
-          </div>
-        )}
-        <div className="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style={{ background: `linear-gradient(180deg,transparent,${bg})` }} />
-      </div>
-      {/* Sheet */}
-      <div className="relative -mt-6 rounded-t-[22px] px-4 pt-4 pb-6 text-center" style={{ background: bg, color: text }}>
-        <p className="font-extrabold text-[19px] leading-tight truncate" style={{ color: text }}>{name || "Your Name"}</p>
-        <p className="text-[12px]" style={{ color: text, opacity: 0.45 }}>@{handle || "yourname"}</p>
-        {company && <p className="text-[11px] font-medium mt-1.5" style={{ color: text, opacity: 0.55 }}>{company}</p>}
-        {bio && <p className="text-[11.5px] leading-snug mt-2 line-clamp-3" style={{ color: text, opacity: 0.75 }}>{bio}</p>}
-        {(shown.length > 0 || extra > 0) && (
-          <div className="flex items-center justify-center gap-2.5 mt-3">
-            {shown.map((k) => (
-              <span key={k} className="w-8 h-8 rounded-full bg-white flex items-center justify-center" style={{ color: SOCIAL_PREVIEW[k].color }}>
-                <span className="scale-[1.3] flex">{SOCIAL_PREVIEW[k].node}</span>
-              </span>
-            ))}
-            {extra > 0 && (
-              <span className="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-bold" style={{ color: text }}>+{extra}</span>
-            )}
-          </div>
-        )}
-        <div className="mt-3.5 w-full py-2.5 rounded-2xl text-white text-[12.5px] font-semibold" style={{ background: "#1D4ED8" }}>
-          Connect with {firstName}
-        </div>
-        {links.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {links.slice(0, 3).map((l, i) => (
-              <div key={i} className="w-full rounded-2xl px-3 py-2.5 text-left bg-white/[0.06] border border-white/10">
-                <span className="block text-[12px] font-semibold truncate" style={{ color: text }}>{l.label}</span>
-                <span className="block text-[10px] truncate" style={{ color: text, opacity: 0.4 }}>{hostOf(l.url)}</span>
-              </div>
-            ))}
-            {links.length > 3 && (
-              <p className="text-[10px]" style={{ color: text, opacity: 0.4 }}>+{links.length - 3} more link{links.length - 3 === 1 ? "" : "s"}</p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

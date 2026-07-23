@@ -49,6 +49,7 @@ export default function SwiftLinkProfile({
   ownerPaid,
   appUrl,
   pageStyle,
+  embedded = false,
 }: {
   name: string;
   username: string;
@@ -62,15 +63,23 @@ export default function SwiftLinkProfile({
   appUrl: string;
   /** Owner's "Social design" (Pro) — falls back to the stock dark look. */
   pageStyle?: SwiftLinkPageStyle;
+  /** Rendered inside a live PREVIEW (card wizard/editor, mini-builders) rather
+   *  than as the standalone page: flow at the container width with no full-page
+   *  height/background/margins, and skip the scroll-driven mini header (there's
+   *  no page scroll to drive it). Everything else — hero, bio, socials, link
+   *  cards, footer — is byte-for-byte the real page, so the preview is exact. */
+  embedded?: boolean;
 }) {
-  // Mini header fades in once the hero photo scrolls out from under it.
+  // Mini header fades in once the hero photo scrolls out from under it. Not in
+  // a preview: there's no page scroll, so it would just sit invisible.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
+    if (embedded) return;
     const onScroll = () => setScrolled(window.scrollY > 230);
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [embedded]);
 
   const firstName = name.split(" ")[0] || username;
   const initials = initialsOf(name || username);
@@ -81,34 +90,41 @@ export default function SwiftLinkProfile({
   const pageFont = pageStyle?.font;
 
   return (
-    <main className="min-h-[100dvh]" style={{ background: PAGE }}>
+    <main className={embedded ? "" : "min-h-[100dvh]"} style={{ background: embedded ? "transparent" : PAGE }}>
       <div
-        className="relative mx-auto w-full max-w-[430px] min-h-[100dvh] md:min-h-0 md:my-8 md:rounded-[30px] md:overflow-hidden md:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+        className={`relative mx-auto w-full max-w-[430px] overflow-hidden ${
+          embedded
+            ? "rounded-[30px]"
+            : "min-h-[100dvh] md:min-h-0 md:my-8 md:rounded-[30px] md:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+        }`}
         style={{ background: sheetBg, fontFamily: pageFont }}
       >
-        {/* Sticky mini header — zero-height wrapper so it draws over the hero */}
-        <div className="sticky top-0 z-30 h-0">
-          <div
-            className={`flex items-center gap-2.5 px-4 h-[54px] transition-opacity duration-300 md:rounded-t-[30px] ${
-              scrolled ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-            style={{ background: pageStyle?.bg ? sheetBg : "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
-          >
-            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0" style={{ background: "#2c2d2d" }}>
-              {photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white/80">{initials}</div>
-              )}
+        {/* Sticky mini header — zero-height wrapper so it draws over the hero.
+            Skipped in a preview (no page scroll to reveal it). */}
+        {!embedded && (
+          <div className="sticky top-0 z-30 h-0">
+            <div
+              className={`flex items-center gap-2.5 px-4 h-[54px] transition-opacity duration-300 md:rounded-t-[30px] ${
+                scrolled ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+              style={{ background: pageStyle?.bg ? sheetBg : "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+            >
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0" style={{ background: "#2c2d2d" }}>
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white/80">{initials}</div>
+                )}
+              </div>
+              <span className="font-bold text-[15px] truncate" style={{ color: textColor }}>{name}</span>
+              {verified && <VerifiedBadge className="w-4 h-4" />}
             </div>
-            <span className="font-bold text-[15px] truncate" style={{ color: textColor }}>{name}</span>
-            {verified && <VerifiedBadge className="w-4 h-4" />}
           </div>
-        </div>
+        )}
 
         {/* Hero — full-bleed photo the sheet scrolls over */}
-        <div className="relative w-full aspect-square max-h-[520px] overflow-hidden md:rounded-t-[30px]">
+        <div className="relative w-full aspect-square max-h-[520px] overflow-hidden rounded-t-[30px]">
           {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />

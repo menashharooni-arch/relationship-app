@@ -37,7 +37,8 @@ import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
-import { SwiftLinkStyleControls, SwiftLinkPagePreview, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
@@ -770,15 +771,21 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
         Your Swift Links page — this is how it will look
       </p>
-      <SwiftLinkPagePreview
+      <SwiftLinkLivePreview
         style={linkStyleState}
         name={name}
         handle={username || "yourname"}
         company={company}
+        title={title}
         bio={bio}
         photoUrl={headshotUrl}
-        socialKeys={(Object.keys(socials) as (keyof typeof socials)[]).filter((k) => socials[k].trim())}
+        socials={{
+          instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
+          twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
+          youtube: socials.youtube, website,
+        }}
         links={links}
+        paid={designUnlocked}
       />
       <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
     </>
