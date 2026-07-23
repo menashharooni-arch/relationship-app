@@ -51,10 +51,11 @@ export async function POST(req: Request) {
 
   const { email, name } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "Email required" }, { status: 400 });
-  // Optional display name, used only to personalise the email greeting —
-  // never stored (office_members has no name column; their profile name is
-  // theirs to set when they build their card).
-  const inviteeFirst = typeof name === "string" && name.trim() ? name.trim().split(/\s+/)[0] : null;
+  // Optional display name: personalises the invite email AND is stored on the
+  // office_members row (invite_name) so the admin's Team dashboard can show WHO
+  // a pending invite went to, not just the email.
+  const inviteName = typeof name === "string" && name.trim() ? name.trim() : null;
+  const inviteeFirst = inviteName ? inviteName.split(/\s+/)[0] : null;
 
   // Check for duplicate (case-insensitive — invite emails are stored lowercased).
   const { data: existing } = await admin
@@ -102,10 +103,13 @@ export async function POST(req: Request) {
     // same email can always be re-invited). expires_at is best-effort (column may
     // not exist pre-migration — an unknown-column error just leaves it null and
     // the join route falls back to created_at + TTL).
+    // Only overwrite the stored name when this invite carries one, so a plain
+    // "Remind" (no name) never blanks the name shown on the dashboard.
+    const nameField = inviteName ? { invite_name: inviteName } : {};
     let member: { invite_token: string } | null = null;
     ({ data: member } = await admin
       .from("office_members")
-      .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso })
+      .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso, ...nameField })
       .eq("id", existing.id)
       .select("invite_token")
       .maybeSingle());
@@ -113,7 +117,7 @@ export async function POST(req: Request) {
       // Retry without expires_at in case the column isn't there yet.
       ({ data: member } = await admin
         .from("office_members")
-        .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null })
+        .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, ...nameField })
         .eq("id", existing.id)
         .select("invite_token")
         .maybeSingle());
@@ -123,16 +127,17 @@ export async function POST(req: Request) {
   } else {
     let member: { invite_token: string } | null = null;
     let error: { message: string } | null = null;
+    const nameField = inviteName ? { invite_name: inviteName } : {};
     ({ data: member, error } = await admin
       .from("office_members")
-      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), expires_at: expiresIso })
+      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), expires_at: expiresIso, ...nameField })
       .select("invite_token")
       .single());
     if (error) {
       // Retry without expires_at (pre-migration) before giving up.
       ({ data: member, error } = await admin
         .from("office_members")
-        .insert({ office_id: office.id, invite_email: email.trim().toLowerCase() })
+        .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), ...nameField })
         .select("invite_token")
         .single());
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

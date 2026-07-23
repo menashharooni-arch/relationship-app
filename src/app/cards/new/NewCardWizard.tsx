@@ -89,6 +89,12 @@ export type OrgManaged = {
   fax: string | null;
   address: CardAddress | null;
   lockDesign: boolean;
+  // The office's locked look — so the sub-user's LIVE PREVIEW shows the real
+  // template + colors/fonts while they build, not a default that only snaps to
+  // the brand after saving. Only meaningful when lockDesign is true.
+  template: string | null;
+  design: Record<string, unknown> | null;
+  customLayout: unknown | null;
 };
 
 // Small "who owns this field" tag shown next to org-controlled values.
@@ -225,10 +231,21 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // visitor picked there is already applied when the builder opens.
   const presetTemplate = searchParams.get("template");
   const validPresetTemplate = presetTemplate && TEMPLATES.some((t) => t.id === presetTemplate) ? presetTemplate : null;
-  const [template, setTemplate] = useState(validPresetTemplate ?? "classic-pro");
-  const [customLayout, setCustomLayout] = useState<CustomLayout>(DEFAULT_CUSTOM_LAYOUT);
+  // When the office LOCKS the design, seed the design state from the office
+  // brand so the live preview shows the real template + colors/fonts from the
+  // first render — not the default that only snapped to the brand after saving.
+  // (Unlocked office / non-office: the visitor designs freely, as before.)
+  const [template, setTemplate] = useState(
+    designLocked && org?.template ? org.template : (validPresetTemplate ?? "classic-pro")
+  );
+  const [customLayout, setCustomLayout] = useState<CustomLayout>(
+    designLocked && org?.customLayout ? (org.customLayout as CustomLayout) : DEFAULT_CUSTOM_LAYOUT
+  );
   // Preset-template styling (Pro). All fields optional → template defaults apply.
-  const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({});
+  // Seeded from the office design when locked (see the template seed above).
+  const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>(
+    designLocked && org?.design ? (org.design as TemplateStyle) : {}
+  );
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
   }

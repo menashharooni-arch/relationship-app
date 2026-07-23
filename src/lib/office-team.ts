@@ -40,7 +40,7 @@ export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
   card_incomplete: "Card not completed",
   card_deactivated: "Card deactivated",
   idle: "Not using it yet",
-  invite_sent: "Invite sent",
+  invite_sent: "Pending",
   invite_expired: "Invite expired",
 };
 
@@ -60,6 +60,8 @@ export type TeamPerson = EmployeeAnalytics & {
 export type TeamInvite = {
   kind: "invite";
   memberRowId: string;
+  /** The name the admin typed when inviting (null if they gave only an email). */
+  name: string | null;
   email: string;
   inviteToken: string | null;
   sentAt: string | null;
@@ -150,6 +152,7 @@ type MemberRow = {
   id: string;
   user_id: string | null;
   invite_email: string | null;
+  invite_name: string | null;
   invite_token: string | null;
   status: string;
   created_at?: string | null;
@@ -218,7 +221,7 @@ export async function getTeamOverview(
     countLeads(thisMonth),
     countLeads(lastMonth, thisMonth),
     admin.from("office_members")
-      .select("id, user_id, invite_email, invite_token, status, created_at, expires_at")
+      .select("id, user_id, invite_email, invite_name, invite_token, status, created_at, expires_at")
       .eq("office_id", officeId),
     admin.from("profiles").select("id, title, email, photo_url").in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     admin.from("cards").select("user_id, is_offline").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
@@ -270,6 +273,7 @@ export async function getTeamOverview(
     .map((r) => ({
       kind: "invite" as const,
       memberRowId: r.id,
+      name: (r.invite_name as string | null) ?? null,
       email: (r.invite_email as string) ?? "",
       inviteToken: (r.invite_token as string | null) ?? null,
       sentAt: r.created_at ?? null,
