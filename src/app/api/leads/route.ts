@@ -42,13 +42,15 @@ export async function POST(req: NextRequest) {
     // changing those would silently rewire existing capture paths. Kept OUT of
     // safeTags — that array also feeds the Zapier webhook payload, and internal
     // system tags must not start appearing in customers' Zaps.
-    // SMS is OPT-IN (TCPA): an automated marketing text only ever goes to a
-    // contact who affirmatively consented — the checkbox. Checked → sms-ok
-    // (the one tag the cron requires to send a text); unchecked/declined →
-    // sms-paused. An ABSENT field (a capture path that never asked — scanner,
-    // manual add, legacy) records NEITHER, so the cron's "requires sms-ok"
-    // rule means those contacts are never auto-texted. Email is unaffected —
-    // it's opt-in-by-sharing, stated on the form.
+    // SMS consent (TCPA/CTIA + A2P). The public share forms show a clear
+    // disclosure right above the Send button ("by sharing you agree to be
+    // followed up by text and email…, reply STOP") and post sms_consent:true —
+    // i.e. SUBMITTING THE FORM IS THE CONSENT. So every real share opts in and
+    // gets sms-ok (the one tag the cron requires to send a text). An explicit
+    // false (the owner revoking per-contact) records sms-paused; an ABSENT
+    // field (a path that never showed the disclosure — scanner, manual add,
+    // legacy) records neither, so those are never auto-texted until the owner
+    // enables it. Email is unaffected — opt-in-by-sharing with an unsubscribe.
     const smsConsented = sms_consent === true;
     const smsDeclined = sms_consent === false;
 

@@ -17,7 +17,7 @@ export default function ConnectButton({
   // True when we already know who the visitor is (they shared with this owner
   // before) — we collapse the contact fields so they're never asked twice.
   const [knownInfo, setKnownInfo] = useState(false);
-  const [smsConsent, setSmsConsent] = useState(false); // affirmative opt-in — never pre-checked
+  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -29,7 +29,6 @@ export default function ConnectButton({
     // their info anywhere, no SwiftLink re-asks for it; they just add a message
     // and send. (hasSharedWith stays imported for back-compat callers.)
     setKnownInfo(!!v);
-    setSmsConsent(false); // reset the opt-in each open — never carry a prior check forward
     setStatus("idle");
     setError("");
     setOpen(true);
@@ -58,7 +57,9 @@ export default function ConnectButton({
           message: form.message.trim() || null,
           card_owner: cardOwner,
           source: "swift_connect",
-          sms_consent: smsConsent,
+          // Submitting the share form IS the consent (the disclosure sits right
+          // above the Send button) — so every share opts in to text + email.
+          sms_consent: true,
         }),
       });
       const data = await res.json();
@@ -143,7 +144,7 @@ export default function ConnectButton({
                   {error && <p className="text-red-500 text-xs">{error}</p>}
                   {/* SMS consent — separate affirmative opt-in (unchecked by
                       default, optional); same block as every capture surface. */}
-                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+                  <SmsConsentCheckbox recipientName={ownerFirstName} />
                   <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: "#1D4ED8" }}>
                     {status === "loading" ? "Sending…" : "Send message"}
                   </button>
