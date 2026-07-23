@@ -186,7 +186,16 @@ export async function POST(req: Request) {
   // Uniform branding: strip any OLD office brand first, then adopt the new one,
   // so switching teams never leaves the previous company's contact details on
   // the card. (cards created/edited later already get the overlay in the APIs.)
+  //
+  // FLAG FIRST: every brand operation (apply here, Branding-page propagation,
+  // strip on removal) is scoped .eq("is_office_card", true) — so a member's
+  // PRE-EXISTING cards must be flagged at join or the apply below is a no-op,
+  // later brand edits never reach them, and strip-on-exit misses them (an
+  // ex-member would walk away with the company logo baked on). A member's
+  // cards are ALL office cards while they serve under the team; leaving is
+  // what un-flags/strips them.
   try {
+    await admin.from("cards").update({ is_office_card: true }).eq("user_id", user.id);
     for (const r of oldRows ?? []) {
       const oldBrand = await getOfficeBrand(r.office_id as string).catch(() => null);
       if (oldBrand) await stripBrandFromUserCards(user.id, oldBrand);

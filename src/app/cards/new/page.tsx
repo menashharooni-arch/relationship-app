@@ -93,16 +93,20 @@ export default async function NewCardPage({
   let org: OrgManaged | null = null;
   if (user && authedAdd) {
     const subCtx = await getOfficeSubUserContext(user.id);
-    const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
-    if (subCtx && brand) {
+    // `org` exists for EVERY sub-user, even before the admin has set any
+    // branding: company-level fields are org territory regardless, and the
+    // server discards them from a member's request either way — showing the
+    // inputs on an unbranded office silently lost whatever the member typed.
+    if (subCtx) {
+      const brand = await getOfficeBrandForUser(user.id).catch(() => null);
       org = {
-        company: brand.company,
-        website: brand.website,
-        logoUrl: brand.logoUrl,
-        phone: brand.phone,
-        fax: brand.fax,
-        address: brand.address,
-        lockDesign: brand.lockTemplate,
+        company: brand?.company ?? null,
+        website: brand?.website ?? null,
+        logoUrl: brand?.logoUrl ?? null,
+        phone: brand?.phone ?? null,
+        fax: brand?.fax ?? null,
+        address: brand?.address ?? null,
+        lockDesign: brand?.lockTemplate ?? false,
       };
     }
   }
