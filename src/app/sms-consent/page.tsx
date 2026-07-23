@@ -45,7 +45,7 @@ export default function SmsConsentPage() {
           Every SwiftCard user has a public card page (for example, swiftcard.me/card/their-name). When a
           visitor wants to share their contact information with that person, they use the{" "}
           <strong>&quot;Share your info&quot;</strong> form on the card. The SMS opt-in is a separate,{" "}
-          <strong>unchecked-by-default</strong> checkbox directly on that form — the same block appears on
+          <strong>unchecked-by-default</strong>{" "}checkbox directly on that form — the same block appears on
           every variation of the share form across the site (the card&apos;s share form, the post-save
           share-back sheet, the &quot;reach out&quot; message modal, and the social-link share prompt).
         </P>

@@ -24,6 +24,25 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async redirects() {
+    return [
+      // Canonicalize the domain: send www.swiftcard.me → apex so search engines
+      // don't index two copies of every page. 308 keeps the method + is cached.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.swiftcard.me" }],
+        destination: "https://swiftcard.me/:path*",
+        permanent: true,
+      },
+      // /signup is the most-guessed URL for a product like this; land it on the
+      // real card-creation flow instead of a 404.
+      {
+        source: "/signup",
+        destination: "/cards/new",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
