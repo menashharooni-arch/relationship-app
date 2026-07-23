@@ -112,6 +112,27 @@ export function fitPx(base: number, text: string | null | undefined, comfy: numb
   return Math.max(base * 0.45, (base * comfy) / len);
 }
 
+// Auto-fit specifically for the NAME (hero text). fitPx alone keys off the WHOLE
+// string, so it catches a long full name — but a single long WORD (a 10+ letter
+// FIRST name) can't wrap at a space, so it pokes off the side of the card while
+// the total length still looks "comfy". This also shrinks by the LONGEST word:
+// once any word passes NAME_WORD_COMFY (9) letters, every extra letter scales
+// the size down inversely so the rendered word width stays put — "slightly
+// minimize with every letter after the 9th". Returns the SMALLER of the two
+// fits, floored so a pathological name stays legible. A normal name (≤9-letter
+// words) is never touched, so templates that never needed it are unaffected.
+const NAME_WORD_COMFY = 9;
+export function fitName(base: number, name: string | null | undefined, comfyTotal: number): number {
+  const s = (name ?? "").trim();
+  if (!s) return base;
+  const byTotal = fitPx(base, s, comfyTotal);
+  const longestWord = s.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
+  const byWord = longestWord <= NAME_WORD_COMFY
+    ? base
+    : Math.max(base * 0.5, (base * NAME_WORD_COMFY) / longestWord);
+  return Math.min(byTotal, byWord);
+}
+
 // QR stays on the card at every density — it grows on sparse cards (more
 // scannable from further away) and gives up a little room when packed.
 export function qrSize(f: number): number {

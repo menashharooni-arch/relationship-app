@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -76,7 +76,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="absolute bottom-0 left-0 px-5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(20 * heroGrow(f), data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
+            style={{ fontSize: fitName(20 * heroGrow(f), data.name, 18), lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
           >
             {data.name}
           </h2>

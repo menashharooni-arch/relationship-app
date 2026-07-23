@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -93,7 +93,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: fitPx(23 * heroGrow(f), data.name, 17),
+              fontSize: fitName(23 * heroGrow(f), data.name, 17),
               fontWeight: 400,
               letterSpacing: "0.01em",
               color: nameColor,

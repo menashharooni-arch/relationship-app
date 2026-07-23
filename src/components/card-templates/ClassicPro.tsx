@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -86,7 +86,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(24 * heroGrow(f), data.name, 16), lineHeight: 1.12, color: style.textColor }}
+            style={{ fontSize: fitName(24 * heroGrow(f), data.name, 16), lineHeight: 1.12, color: style.textColor }}
           >
             {data.name}
           </h2>

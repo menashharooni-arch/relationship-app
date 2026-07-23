@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -97,7 +97,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div className="relative px-3.5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitPx(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
+            style={{ fontSize: fitName(18 * heroGrow(f), data.name, 16), textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
           >
             {data.name}
           </h2>
