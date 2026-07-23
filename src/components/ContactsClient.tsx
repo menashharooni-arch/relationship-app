@@ -329,14 +329,26 @@ export default function ContactsClient({
   // off stops emails. (The old master flow-paused toggle is gone — any channel
   // interaction also clears a legacy flow-paused tag so old contacts unblock.)
   function channelPausedFor(ch: "email" | "sms") {
-    return (selected?.tags ?? []).includes(ch === "email" ? "email-paused" : "sms-paused");
+    const tags = selected?.tags ?? [];
+    if (ch === "email") return tags.includes("email-paused");
+    // SMS is opt-IN: it's only "active" when the contact has affirmative
+    // consent (sms-ok) and isn't paused. No consent → shown as off, because the
+    // cron won't text them until the owner turns it on (asserting consent).
+    return !tags.includes("sms-ok") || tags.includes("sms-paused");
   }
   async function toggleChannelPause(ch: "email" | "sms") {
     if (!selected) return;
-    const tag = ch === "email" ? "email-paused" : "sms-paused";
     const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused");
-    const next = tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
-    await updateTags(selected.id, next);
+    if (ch === "email") {
+      const next = tags.includes("email-paused") ? tags.filter((t) => t !== "email-paused") : [...tags, "email-paused"];
+      await updateTags(selected.id, next);
+      return;
+    }
+    // Turning SMS ON asserts consent to text this contact (grants sms-ok);
+    // turning it OFF pauses and revokes it. The server owns sms-ok — the
+    // sms_consent flag drives it.
+    const turningOn = channelPausedFor("sms"); // currently off → this turns it on
+    await updateTags(selected.id, tags, turningOn);
   }
 
   // Reset a channel: wipe its automation entirely (the other channel keeps
@@ -360,9 +372,10 @@ export default function ContactsClient({
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : prev));
     // Un-pause the channel + clear any legacy master pause so the NEW automation
-    // runs as soon as it's submitted (toggle on = it works).
+    // runs as soon as it's submitted (toggle on = it works). Setting up a TEXT
+    // automation asserts consent to text this contact (grants sms-ok).
     const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused" && t !== (ch === "email" ? "email-paused" : "sms-paused"));
-    await updateTags(selected.id, tags);
+    await updateTags(selected.id, tags, ch === "sms" ? true : undefined);
     startDraft(ch);
   }
 
@@ -482,10 +495,15 @@ export default function ContactsClient({
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: payload } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: payload } : prev));
     // Submitting turns this channel ON: clear any stale pause (and the legacy
-    // master pause) so the new automation runs immediately.
+    // master pause) so the new automation runs immediately. Building a TEXT
+    // automation asserts consent to text this contact (grants sms-ok, which the
+    // cron requires) — always send it for SMS, even if it wasn't paused, so a
+    // never-consented contact's new text automation actually sends.
     const pauseTag = draftCh === "email" ? "email-paused" : "sms-paused";
     const curTags = selected.tags ?? [];
-    if (curTags.includes(pauseTag) || curTags.includes("flow-paused")) {
+    if (draftCh === "sms") {
+      await updateTags(selected.id, curTags.filter((t) => t !== "sms-paused" && t !== "flow-paused"), true);
+    } else if (curTags.includes(pauseTag) || curTags.includes("flow-paused")) {
       await updateTags(selected.id, curTags.filter((t) => t !== pauseTag && t !== "flow-paused"));
     }
     cancelDraft();
@@ -593,19 +611,26 @@ export default function ContactsClient({
   }
 
   // tags is a Postgres text[] — send the real array, not a stringified one.
-  async function updateTags(leadId: string, tags: string[]): Promise<boolean> {
+  // `smsConsent` (optional) is the owner asserting they DO / DON'T have consent
+  // to text this contact — the server sets the server-owned sms-ok tag from it
+  // (the one tag the cron requires to send an automated text). Reflected in the
+  // optimistic local tags so the toggle shows the right state immediately.
+  async function updateTags(leadId: string, tags: string[], smsConsent?: boolean): Promise<boolean> {
+    let nextTags = tags;
+    if (smsConsent === true) nextTags = Array.from(new Set([...tags.filter((t) => t !== "sms-paused"), "sms-ok"]));
+    else if (smsConsent === false) nextTags = Array.from(new Set([...tags.filter((t) => t !== "sms-ok"), "sms-paused"]));
     try {
       const res = await fetch(`/api/leads/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags }),
+        body: JSON.stringify({ tags, ...(typeof smsConsent === "boolean" ? { sms_consent: smsConsent } : {}) }),
       });
       if (!res.ok) return false;
     } catch {
       return false;
     }
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags } : l)));
-    setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags } : prev));
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, tags: nextTags } : l)));
+    setSelected((prev) => (prev && prev.id === leadId ? { ...prev, tags: nextTags } : prev));
     return true;
   }
 

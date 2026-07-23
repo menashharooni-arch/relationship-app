@@ -42,6 +42,14 @@ export async function POST(req: NextRequest) {
     // changing those would silently rewire existing capture paths. Kept OUT of
     // safeTags — that array also feeds the Zapier webhook payload, and internal
     // system tags must not start appearing in customers' Zaps.
+    // SMS is OPT-IN (TCPA): an automated marketing text only ever goes to a
+    // contact who affirmatively consented — the checkbox. Checked → sms-ok
+    // (the one tag the cron requires to send a text); unchecked/declined →
+    // sms-paused. An ABSENT field (a capture path that never asked — scanner,
+    // manual add, legacy) records NEITHER, so the cron's "requires sms-ok"
+    // rule means those contacts are never auto-texted. Email is unaffected —
+    // it's opt-in-by-sharing, stated on the form.
+    const smsConsented = sms_consent === true;
     const smsDeclined = sms_consent === false;
 
     // Rate limit: same IP submitting to the same card too frequently.
@@ -145,10 +153,12 @@ export async function POST(req: NextRequest) {
       if (typeof sms_consent === "boolean") {
         const dup = recentDup[0] as { id: string; tags: string[] | null };
         const curTags = Array.isArray(dup.tags) ? dup.tags : [];
-        const nextTags = sms_consent
-          ? curTags.filter((t) => t !== "sms-paused")
-          : Array.from(new Set([...curTags, "sms-paused"]));
-        if (nextTags.length !== curTags.length) {
+        // Set the consent pair to the latest explicit choice: consent → sms-ok
+        // (and clear sms-paused); decline → sms-paused (and clear sms-ok).
+        const base = curTags.filter((t) => t !== "sms-ok" && t !== "sms-paused");
+        const nextTags = Array.from(new Set([...base, sms_consent ? "sms-ok" : "sms-paused"]));
+        const changed = nextTags.length !== curTags.length || nextTags.some((t) => !curTags.includes(t));
+        if (changed) {
           await admin.from("leads").update({ tags: nextTags }).eq("id", dup.id);
         }
       }
@@ -177,9 +187,16 @@ export async function POST(req: NextRequest) {
         location: location || null,
         card_owner,
         // New reach-outs arrive unread; over the free monthly cap they're also
-        // tagged locked so the dashboard blurs them behind Pro. A declined SMS
-        // consent rides in as sms-paused (never via safeTags — see above).
-        tags: [...safeTags, ...(smsDeclined ? ["sms-paused"] : []), "unread", ...(locked ? [LOCKED_LEAD_TAG] : [])],
+        // tagged locked so the dashboard blurs them behind Pro. SMS consent
+        // rides in as sms-ok (opted in) or sms-paused (declined) — never via
+        // safeTags (see above); neither, if the form didn't ask.
+        tags: [
+          ...safeTags,
+          ...(smsConsented ? ["sms-ok"] : []),
+          ...(smsDeclined ? ["sms-paused"] : []),
+          "unread",
+          ...(locked ? [LOCKED_LEAD_TAG] : []),
+        ],
         source: source || null,
         visitor_id: visitor_id || null,
       })
