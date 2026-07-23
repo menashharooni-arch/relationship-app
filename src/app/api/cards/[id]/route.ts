@@ -58,6 +58,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (updates.template === "custom") updates.template = "classic-pro";
   }
 
+  // Resolved once, used by the merge below AND the branding section: is the
+  // caller an office SUB-USER (active member, not the owner)?
+  const subCtx = await getOfficeSubUserContext(user.id);
+
   // Merge the incoming customization onto THIS card's existing customization
   // (same card, ownership-scoped) rather than replacing the whole JSON. The form
   // only sends the keys it manages, so without this a key it doesn't send (e.g.
@@ -75,6 +79,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // payload tries to send so a crafted request can't overwrite internal flags.
     const incoming = { ...(updates.customization as Record<string, unknown>) };
     for (const k of Object.keys(incoming)) if (k.startsWith("_")) delete incoming[k];
+    // Company fax/address are org territory for a sub-user (even on an office
+    // with no brand set yet — the UI never shows a member those inputs, so a
+    // crafted value must not land either). Dropping them from `incoming` means
+    // the merge below keeps the card's existing values; when a brand exists,
+    // the overlay further down re-applies the org's own.
+    if (subCtx) {
+      delete incoming.fax;
+      delete incoming.address;
+    }
     const merged = {
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...incoming,
@@ -89,13 +102,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // EVERY card under the office, the owner's included — the brand is edited on
   // /office/admin/branding, not by exempting any particular card.
   const brand = await getMemberBrandForUser(user.id);
+  // Company-level fields are org territory for a SUB-USER even when the office
+  // has no brand set yet (the UI never shows those inputs to a member): a
+  // crafted request must not write them either. Dropped from the update here
+  // (fax/address were already dropped in the customization merge above); when
+  // a brand exists, its own values are re-applied just below.
+  if (subCtx) {
+    delete updates.company;
+    delete updates.website;
+    delete updates.logo_url;
+    delete updates.label;
+  }
   if (brand) {
     // A SUB-USER (active member, not the owner) explicitly trying to CHANGE an
     // org-managed field is refused outright — even a hand-crafted request never
     // silently rewrites company data. Values that match the brand pass through
     // (the editor sends the whole card back), and the overlays below stay as
     // the normalization backstop.
-    const subCtx = await getOfficeSubUserContext(user.id);
     if (subCtx) {
       // Compare against the card's CURRENT stored values too, so echoing a
       // value the card already holds (managed data that lagged the brand) is

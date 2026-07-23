@@ -58,15 +58,18 @@ function SwatchRow({
     // The presets lean dark (the page's link cards are designed for rich/dark
     // surfaces), so on the editor's own dark panel they read as faded blobs.
     // A light well behind them + bigger swatches with a crisp ring makes each
-    // color clearly visible.
+    // color clearly visible. When the whole feature is plan-locked (Free in
+    // the editor), the presets disable too — a Free pick previewed live but
+    // was stripped server-side on save, silently reverting (audit fix).
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-200/90 px-2.5 py-2">
       {presets.map((p) => (
         <button
           key={p}
           type="button"
           onClick={() => onPick(p)}
+          disabled={customLocked}
           aria-label="Color preset"
-          className="w-8 h-8 rounded-lg transition-transform hover:scale-110 shadow-sm"
+          className="w-8 h-8 rounded-lg transition-transform hover:scale-110 shadow-sm disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-default"
           style={{ background: p, border: value === p ? "2.5px solid #2563eb" : "1px solid rgba(15,23,42,0.25)" }}
         />
       ))}

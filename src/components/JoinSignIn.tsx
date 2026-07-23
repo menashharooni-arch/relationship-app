@@ -4,8 +4,6 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
 // Sign-in shown INLINE on the /join/[token] invite page for a signed-out
 // invitee (owner request): no detour to the login page, no password.
 //   • Google — one tap with the invited email's Google account, or
@@ -35,7 +33,11 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
           // New invitees get an account created by the link itself — that's the
           // whole point: no password, no signup form.
           shouldCreateUser: true,
-          emailRedirectTo: `${APP_URL}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+          // The CURRENT origin, not a hardcoded APP_URL: the magic link must
+          // return to the same host that requested it — the PKCE code-verifier
+          // cookie lives there, so a preview-deploy request redirected to prod
+          // would fail its code exchange.
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       });
       if (otpError) {

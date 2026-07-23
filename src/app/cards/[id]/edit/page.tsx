@@ -49,16 +49,20 @@ export default async function CardEditPage({
   // admin's own cards onto the office template. Owners now edit their cards
   // completely freely; the brand is managed on /office/admin/branding and
   // applies to the team.
+  // `org` exists for EVERY sub-user, even before the admin has set any
+  // branding: company-level fields are org territory regardless, so the
+  // editor hides those inputs for a member of an unbranded office too
+  // (matching the server, which discards them from a member's request).
   const brand = subCtx ? await getOfficeBrandForUser(user.id).catch(() => null) : null;
-  const org = brand
+  const org = subCtx
     ? {
-        company: brand.company,
-        website: brand.website,
-        logoUrl: brand.logoUrl,
-        phone: brand.phone,
-        fax: brand.fax,
-        address: brand.address,
-        lockDesign: brand.lockTemplate,
+        company: brand?.company ?? null,
+        website: brand?.website ?? null,
+        logoUrl: brand?.logoUrl ?? null,
+        phone: brand?.phone ?? null,
+        fax: brand?.fax ?? null,
+        address: brand?.address ?? null,
+        lockDesign: brand?.lockTemplate ?? false,
       }
     : null;
 
