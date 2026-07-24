@@ -48,7 +48,10 @@ describe("builders reuse the real editor components", () => {
       // separate design keys and control (SwiftLinkStyleControls) — so styling
       // one surface never restyles the other.
       expect(src, file).toContain(product === "swiftlink" ? "SwiftLinkStyleControls" : "TemplateStyleControls");
-      expect(src, file).toContain("InertPreview");
+      // The SwiftLink builder renders its (inert) preview via SwiftLinkLivePreview
+      // — which wraps InertPreview — while the card/signature builders use it
+      // directly. Either way the preview is non-interactive.
+      expect(src, file).toContain(product === "swiftlink" ? "SwiftLinkLivePreview" : "InertPreview");
     });
   }
 

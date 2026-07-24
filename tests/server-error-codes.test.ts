@@ -82,7 +82,9 @@ describe("Area 4 — additive error codes (message unchanged, code added)", () =
       for (const part of c.messageParts) expect(src).toContain(part);
       // The original discriminator fields are all still present.
       expect(src).toMatch(/error:\s*"(limit|upgrade|view_only)"/);
-      expect(src).toContain('upgrade: "/pricing"');
+      // The upgrade CTA points at a real upgrade destination (both /pricing and
+      // the dedicated /upgrade page are valid — some routes use each).
+      expect(src).toMatch(/upgrade: "\/(pricing|upgrade)"/);
     });
 
     it(`${c.file} adds code: "${c.code}"`, () => {

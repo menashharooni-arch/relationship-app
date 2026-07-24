@@ -7,6 +7,7 @@ import NativeAppBridge from "@/components/NativeAppBridge";
 import GuidedTour from "@/components/GuidedTour";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import SiteAnalytics from "@/components/SiteAnalytics";
+import ClientErrorReporter from "@/components/ClientErrorReporter";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -99,6 +100,8 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
         />
         <ServiceWorkerRegistrar />
+        {/* Reports uncaught browser errors / promise rejections to the team. */}
+        <ClientErrorReporter />
         {/* Capacitor shell only (no-op on web): universal-link → webview navigation. */}
         <NativeAppBridge />
         <AnalyticsProvider />

@@ -148,14 +148,15 @@ describe("native OAuth 'next' survives cold kill (localStorage, not sessionStora
 
 describe("iOS shell config hardening", () => {
   it("allowNavigation drops the unused OAuth provider hosts", () => {
-    // The generated JSON is pure data (the .ts source explains the removal in
-    // a comment, which would trip a plain string match).
-    const cfg = JSON.parse(read("ios/App/App/capacitor.config.json"));
-    expect(cfg.server.allowNavigation).toEqual([
-      "swiftcard.me",
-      "www.swiftcard.me",
-      "grxmovpmlgmjncnyiyrt.supabase.co",
-    ]);
+    // Read the COMMITTED source (capacitor.config.ts); the generated .json is
+    // gitignored, so it's absent on a fresh checkout / in CI. Assert each allowed
+    // host is present and the removed OAuth-provider hosts are NOT.
+    const s = read("capacitor.config.ts");
+    expect(s).toContain('"swiftcard.me"');
+    expect(s).toContain('"www.swiftcard.me"');
+    expect(s).toContain('"grxmovpmlgmjncnyiyrt.supabase.co"');
+    expect(s).not.toMatch(/allowNavigation:[\s\S]*"accounts\.google\.com"/);
+    expect(s).not.toMatch(/allowNavigation:[\s\S]*"appleid\.apple\.com"/);
   });
   it("privacy manifests exist for app and widget targets", () => {
     const app = read("ios/App/App/PrivacyInfo.xcprivacy");
