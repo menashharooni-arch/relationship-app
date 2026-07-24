@@ -77,11 +77,19 @@ const showOnly = { pointerEvents: "none" as const };
 function SwiftCardPopup({ onClose }: { onClose: () => void }) {
   return (
     <>
+    {/* Dim + blur backdrop as its OWN fixed layer, behind the scroll container.
+        Critical: backdrop-filter must NOT live on the same element as
+        overflow-y-auto — on iOS Safari that combination silently kills touch
+        scrolling. Keeping it on a separate non-scrolling layer lets the popup
+        scroll again while preserving the frosted look. */}
+    <div
+      className="fixed inset-0 z-[88]"
+      style={{ background: "rgba(4,7,15,0.72)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+      aria-hidden
+    />
     {/* Faded grey X — the reliable way out on a phone, where the tall card fills
-        the screen and leaves almost no backdrop to tap. Kept OUTSIDE the blurred
-        overlay below: that overlay's backdrop-filter would make a `fixed` child
-        scroll with the content, so this sits on its own and stays pinned to the
-        viewport corner. z above the overlay. */}
+        the screen and leaves almost no backdrop to tap. Sits above the scroll
+        container and stays pinned to the viewport corner. */}
     <button
       onClick={onClose}
       aria-label="Close preview"
@@ -89,7 +97,8 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
     >
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" /></svg>
     </button>
-    <div className="fixed inset-0 z-[90] overflow-y-auto" style={{ background: "rgba(4,7,15,0.72)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+    {/* Clean scroll container — no backdrop-filter here, so touch scroll works. */}
+    <div className="fixed inset-0 z-[90] overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-start justify-center py-8 px-4">
         <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col items-center gap-5 rounded-3xl px-4 py-6" style={{ background: "#FAF7F2" }}>
