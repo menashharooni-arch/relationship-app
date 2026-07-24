@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { NextResponse } from "next/server";
 
@@ -32,6 +33,17 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // A managed office SUB-USER (an active member of someone else's office)
+  // inherits plan='enterprise' from their seat and owns no office — so the
+  // enterprise-plan + no-existing-office checks below would BOTH pass and let
+  // them mint their OWN office. That flips them to role 'owner'
+  // (resolveOfficeContext checks the owner path first), handing back the
+  // personal billing / referrals / account-deletion the managed model blocks
+  // and a console to invite unpaid enterprise seats. Fail closed for sub-users
+  // before anything is created. (security audit — office self-provisioning)
+  const subUserBlock = await officeSubUserBlockMessage(user.id);
+  if (subUserBlock) return NextResponse.json({ error: subUserBlock }, { status: 403 });
 
   const admin = getAdminSupabase();
 

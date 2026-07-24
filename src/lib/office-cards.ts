@@ -27,9 +27,10 @@ export type OfficeCard = {
 };
 
 // Every user id whose cards this office controls: the owner + active members.
+// This is the authorization gate for officeOwnsCard / getOfficeLeads /
+// isOfficeMember, so it must never over-include.
 export async function getOfficeUserIds(officeId: string): Promise<string[]> {
   const admin = getAdminSupabase();
-  const ids: string[] = [];
 
   // Independent reads (the member query only needs officeId, not the owner
   // lookup's result) — run together instead of serially (performance audit).
@@ -37,10 +38,25 @@ export async function getOfficeUserIds(officeId: string): Promise<string[]> {
     admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle(),
     admin.from("office_members").select("user_id").eq("office_id", officeId).eq("status", "active"),
   ]);
+
+  const memberIds = (members ?? []).map((m) => m.user_id as string | null).filter(Boolean) as string[];
+
+  // Defense-in-depth: an active office_members row only grants access if the
+  // member's profile STILL points at this office. Mirrors getOfficeTeam and the
+  // Branding route, which already cross-check this — a stale membership row (a
+  // partial join/removal failure) must never let an old office read or edit a
+  // user who has since moved on. The OWNER is included unconditionally (their
+  // own profile.office_id may be null and they can't be "stale"). (security audit)
+  let verifiedMembers: string[] = [];
+  if (memberIds.length) {
+    const { data } = await admin.from("profiles").select("id").in("id", memberIds).eq("office_id", officeId);
+    verifiedMembers = (data ?? []).map((p) => p.id as string);
+  }
+
+  const ids: string[] = [];
   if (office?.owner_id) ids.push(office.owner_id as string);
-  for (const m of members ?? []) {
-    const uid = m.user_id as string | null;
-    if (uid && !ids.includes(uid)) ids.push(uid);
+  for (const uid of verifiedMembers) {
+    if (!ids.includes(uid)) ids.push(uid);
   }
   return ids;
 }
