@@ -2,7 +2,27 @@ import { escapeHtml, safeUrlAttr } from "./escape";
 import { htmlToText } from "./email-text";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
+// Default sender = the app's VERIFIED, authenticated domain (SPF + DKIM + DMARC
+// are live on swiftcard.me). RESEND_FROM_EMAIL overrides when set. Never default
+// to onboarding@resend.dev — that shared sandbox domain isn't authenticated for
+// us and only delivers to the Resend account owner, so real sends spam-out or
+// bounce. Sending from the aligned, authenticated domain is the #1 deliverability
+// requirement.
+const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
+
+// RFC 8058 one-click unsubscribe headers. Gmail & Yahoo REQUIRE these on bulk /
+// marketing / automated-lifecycle mail (their Feb-2024 sender rules) — a visible
+// footer link alone is NOT enough and is a leading reason legitimate mail lands
+// in spam. Attach to EVERY marketing or lifecycle send that carries an
+// unsubscribe URL (both List-Unsubscribe and the -Post header must be present for
+// one-click to be honored). Our /unsubscribe and /api/unsubscribe/contact routes
+// both handle the POST these headers point mail clients at.
+export function marketingHeaders(unsubscribeUrl: string): Record<string, string> {
+  return {
+    "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
 
 // Every builder returns html AND a plain-text alternative. Passing `text` to
 // Resend makes the message multipart/alternative — HTML-only mail is a strong

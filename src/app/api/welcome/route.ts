@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { welcomeEmail, unsubUrl } from "@/lib/email-templates";
+import { welcomeEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -60,6 +60,9 @@ export async function POST() {
     const { data: sent } = await resend.emails.send({
       ...template,
       to: accountEmail,
+      // One-click unsubscribe headers (Gmail/Yahoo requirement) — a footer link
+      // alone is not enough. Points mail clients at our /unsubscribe POST handler.
+      headers: marketingHeaders(unsubUrl(token)),
     });
 
     await admin.from("email_logs").insert({
