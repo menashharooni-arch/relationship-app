@@ -36,11 +36,11 @@ export default async function OfficeAdminLayout({ children }: { children: React.
                 <span className="text-xs text-gray-500 truncate hidden sm:block">{officeName}</span>
               </Link>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {officeId && <OfficeNotificationBell initialNotifications={teamNotifications} />}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <Link href="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors shrink-0">
                 ← My dashboard
               </Link>
+              {officeId && <OfficeNotificationBell initialNotifications={teamNotifications} />}
             </div>
           </div>
           <OfficeAdminNav />
