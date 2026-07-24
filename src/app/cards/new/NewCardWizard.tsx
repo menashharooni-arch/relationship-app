@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import CardLiveShare from "@/components/CardLiveShare";
 import ImageUpload from "@/components/ImageUpload";
 import DashboardLink from "@/components/DashboardLink";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -113,7 +112,7 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, appUrl = "https://swiftcard.me", walletEnabled = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
   guest?: boolean;
   /** The account's FIRST card (count === 0) being built while signed in and on
@@ -1215,29 +1214,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{createdUsername || username}</p>
             </div>
 
-            {/* A card that nobody sees is worth nothing, and this is the moment
-                its owner most wants to hand it to someone. Sharing used to live
-                only on the dashboard and /share — i.e. only after they'd left. */}
-            <CardLiveShare
-              username={createdUsername || username}
-              appUrl={appUrl}
-              walletEnabled={walletEnabled}
-            />
-
-            <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 text-center">
-              <p className="text-blue-200 font-semibold text-sm">Press here to turn on notifications</p>
-              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
-                Get an instant alert the moment someone shares their info through your card.
-              </p>
-            </div>
-
             <EnablePushButton />
 
             {postCheckout === "office" ? (
               <button
                 type="button"
                 onClick={() => router.push("/office/admin")}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-3 rounded-full transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
               >
                 Go to your Office dashboard →
               </button>
@@ -1245,7 +1228,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <button
                 type="button"
                 onClick={() => router.push(doneHref)}
-                className="text-gray-500 hover:text-gray-300 text-xs transition-colors"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
               >
                 Continue to dashboard →
               </button>

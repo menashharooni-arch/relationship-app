@@ -28,23 +28,46 @@ const SUGGESTIONS = [
 // Native app: drop the "How do I upgrade to Pro?" canned question.
 const NATIVE_SUGGESTIONS = SUGGESTIONS.filter((s) => s !== "How do I upgrade to Pro?");
 
+// Office Admin console scope — a separate persona/knowledge base server-side
+// (area:"office-admin"). Greeting + suggestions are framed around the console.
+const ADMIN_GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hi! I'm your Admin Console assistant. Ask me where to find things or how to do them across your Team, Analytics, Leads, and Branding tabs — e.g. \"How do I invite a teammate?\" or \"Where do I set our company branding?\"",
+};
+
+const ADMIN_SUGGESTIONS = [
+  "How do I invite a teammate?",
+  "Where do I set our company branding?",
+  "Where are all our leads?",
+  "How do I see per-person analytics?",
+];
+
+type Area = "app" | "office-admin";
+
 // Two presentations of the same assistant:
 //   default  — the full-width "Need help?" button used inline on Settings.
 //   floating — a chatbot bubble pinned bottom-right on app pages (sits above
 //              the mobile bottom nav; the open panel overlays it).
-export default function HelpWidget({ floating = false }: { floating?: boolean }) {
+export default function HelpWidget({ floating = false, area = "app" }: { floating?: boolean; area?: Area }) {
+  const isAdmin = area === "office-admin";
   const [open, setOpen] = useState(false);
   // Hydration-safe native detection (false on SSR and first client paint) — the
   // module-level isNativeApp constant must never be read during render, or the
   // shell's first render mismatches the server HTML (platform.ts's own warning).
   const native = useIsNativeApp();
-  const [messages, setMessages] = useState<Msg[]>(() => [GREETING]);
+  const [messages, setMessages] = useState<Msg[]>(() => [isAdmin ? ADMIN_GREETING : GREETING]);
   useEffect(() => {
     // Swap in the no-selling greeting once the shell reveals itself — but only
-    // while the conversation is still just the greeting.
-    if (native) setMessages((prev) => (prev.length === 1 ? [NATIVE_GREETING] : prev));
-  }, [native]);
-  const suggestions = native ? NATIVE_SUGGESTIONS : SUGGESTIONS;
+    // while the conversation is still just the greeting. The admin greeting has
+    // no pricing copy, so it's already native-safe and never swapped.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time greeting swap once native detection resolves
+    if (native && !isAdmin) setMessages((prev) => (prev.length === 1 ? [NATIVE_GREETING] : prev));
+  }, [native, isAdmin]);
+  const suggestions = isAdmin ? ADMIN_SUGGESTIONS : native ? NATIVE_SUGGESTIONS : SUGGESTIONS;
+  // The admin console is purple-themed; the app assistant is blue.
+  const accentBtn = isAdmin ? "bg-purple-600 hover:bg-purple-500" : "bg-blue-600 hover:bg-blue-500";
+  const accentShadow = isAdmin ? "shadow-purple-900/40" : "shadow-blue-900/40";
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,8 +88,9 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Skip the static greeting when sending history. The `native` flag lets
-        // the server apply the in-app guardrail (no pricing/upgrade/website).
-        body: JSON.stringify({ messages: next.slice(1), native }),
+        // the server apply the in-app guardrail (no pricing/upgrade/website);
+        // `area` selects the admin-console persona + knowledge base.
+        body: JSON.stringify({ messages: next.slice(1), native, area }),
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply || "Sorry, I couldn't answer that." }]);
@@ -85,9 +109,9 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
           <button
             type="button"
             onClick={() => setOpen(true)}
-            title="Chat with the SwiftCard assistant"
+            title={isAdmin ? "Chat with the Admin Console assistant" : "Chat with the SwiftCard assistant"}
             aria-label="Open chat assistant"
-            className="fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/40 flex items-center justify-center transition-all hover:scale-105"
+            className={`fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full ${accentBtn} shadow-lg ${accentShadow} flex items-center justify-center transition-all hover:scale-105`}
             style={{ width: 52, height: 52 }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.9} className="w-6 h-6">
@@ -115,14 +139,14 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900 shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <div className={`w-7 h-7 rounded-lg ${accentBtn} flex items-center justify-center`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 17h.008v.008H12V17z" />
                 </svg>
               </div>
               <div>
-                <p className="text-white text-sm font-semibold leading-none">SwiftCard Help</p>
-                <p className="text-gray-500 text-[11px] mt-0.5">Ask anything about the app</p>
+                <p className="text-white text-sm font-semibold leading-none">{isAdmin ? "Admin Help" : "SwiftCard Help"}</p>
+                <p className="text-gray-500 text-[11px] mt-0.5">{isAdmin ? "Ask about your admin console" : "Ask anything about the app"}</p>
               </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white text-xl leading-none">
@@ -136,7 +160,7 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${
-                    m.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
+                    m.role === "user" ? `${isAdmin ? "bg-purple-600" : "bg-blue-600"} text-white` : "bg-gray-800 text-gray-200"
                   }`}
                 >
                   {m.content}
@@ -182,7 +206,7 @@ export default function HelpWidget({ floating = false }: { floating?: boolean })
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="shrink-0 w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 flex items-center justify-center transition-colors"
+              className={`shrink-0 w-9 h-9 rounded-full ${accentBtn} disabled:opacity-40 flex items-center justify-center transition-colors`}
               aria-label="Send"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} className="w-4 h-4">
