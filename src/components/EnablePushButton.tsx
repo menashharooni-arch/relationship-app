@@ -281,10 +281,14 @@ export default function EnablePushButton({
     <div className="space-y-2">
       <div className="w-full flex items-center justify-between gap-3 bg-gray-800/50 border border-gray-700/60 rounded-2xl py-2.5 px-4">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-100">Push notifications</p>
-          <p className="text-[11px] text-gray-500">
-            {busy ? "One moment…" : isOn ? "On for this device" : "Get a buzz when someone shares their info"}
+          <p className="text-sm font-semibold text-gray-100">
+            {isOn ? "Push notifications" : "Turn on Push notifications!"}
           </p>
+          {(busy || isOn) && (
+            <p className="text-[11px] text-gray-500">
+              {busy ? "One moment…" : "On for this device"}
+            </p>
+          )}
         </div>
         <Switch on={isOn} busy={busy} onClick={toggle} />
       </div>

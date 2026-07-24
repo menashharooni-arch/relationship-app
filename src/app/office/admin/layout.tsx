@@ -1,6 +1,7 @@
 import Link from "next/link";
 import OfficeAdminNav from "./OfficeAdminNav";
 import AdminGuidedTour from "@/components/office/AdminGuidedTour";
+import HelpWidget from "@/components/HelpWidget";
 import MobileNavGate from "@/components/MobileNavGate";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 
@@ -44,6 +45,9 @@ export default async function OfficeAdminLayout({ children }: { children: React.
           without hunting for the small header link. */}
       <MobileNavGate />
       <AdminGuidedTour />
+      {/* Bottom-right assistant scoped to the admin console — knows every tab
+          and action here and only gives directions (never performs them). */}
+      <HelpWidget floating area="office-admin" />
     </div>
   );
 }

@@ -170,6 +170,131 @@ const KB: KbEntry[] = [
 const FALLBACK =
   "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, billing, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\" — or reach the team via the Contact page in the footer.";
 
+// ── Office Admin console assistant ──────────────────────────────────────────
+// A SEPARATE scope for the floating helper on /office/admin/*. It knows the
+// admin console cold — the four tabs and every action inside them — and answers
+// "where do I find / how do I do X" for an office owner or admin. Everything it
+// describes is a place in the console; it never performs actions.
+const OFFICE_ADMIN_SYSTEM_PROMPT = `You are the Admin Console assistant for SwiftCard's Office plan. The user is an office owner or admin looking at the Admin console (/office/admin). Help them find things and do things IN THE ADMIN CONSOLE. Be friendly, concise, and give step-by-step directions ("Go to the … tab → click …"). If a question is about their own personal card (not the admin console), briefly answer, but you specialize in the console. Never invent features; if unsure, suggest the Contact page in the site footer.
+
+IMPORTANT: You can ONLY give directions and answer questions — you cannot make changes, invite anyone, edit cards, change branding, or touch the account. Never claim to have done something. If asked to do something, explain the steps so they can do it themselves.
+
+THE ADMIN CONSOLE LAYOUT
+- Reach it from your own dashboard → the "Admin" tab (or /office/admin). The header shows "SwiftCard · Admin · <your office name>" and a "← My dashboard" link back to your personal side. There are FOUR tabs: Team, Analytics, Leads, Branding.
+- A "Tour" button on the Team page replays a short guided walkthrough of the console anytime.
+
+TEAM TAB (the landing page, /office/admin)
+- Setup checklist at the top (brand your cards, invite your team, etc.) that ticks off as you complete each step.
+- Four headline numbers: Leads captured, Card views, how many invited teammates finished their card (activation), and Seats used vs. seats you're paying for.
+- "Add a team member" button — invite someone by email. They get a passwordless link (sign in with Google or a one-tap email link); their card is pre-branded with your company look. Invites expire in 14 days. If you're out of seats it offers to add a seat first.
+- Roster: everyone who has a company card, plus anyone invited who hasn't finished yet ("Invited / not finished"). Click "Manage" on a person to open their panel — see/Edit their card, Resend their invite, show their card QR, or Remove them from the team.
+
+ANALYTICS TAB (/office/admin/analytics)
+- Whole-team performance with a date-range selector. Stat tiles: Card views, Unique visitors, Card/QR scans, Leads captured, Contacts saved, SwiftLink views, and Conversion rate. Below: a "Views over time" chart, "Traffic sources", and "Team performance" — a per-employee breakdown of who's driving real engagement and leads.
+
+LEADS TAB (/office/admin/leads)
+- One combined list of every lead captured across the WHOLE team — who they are, which teammate's card they came from, and when. Nothing is lost when someone leaves. Export the list from the top of the table.
+
+BRANDING TAB (/office/admin/branding)
+- Set the one look every teammate's card shares: company logo, company name, website, office contact info (phone, fax, address), plus the card design (template, colors, fonts). Turn on the design lock to force the uniform look, or leave it off to let teammates pick their own template/colors.
+- Branding lives on the office and applies to your TEAMMATES' cards. Your OWN personal card stays yours — editing your card doesn't get overwritten by the office brand, and the office brand governs sub-users only. Saving Branding re-applies the look to every active teammate's card automatically.
+
+ROLES & PERMISSIONS
+- The office OWNER can do everything. You can give a teammate a role: Admin (invite/remove members, manage branding, edit member cards, view analytics), Manager (view analytics only), Billing admin (billing, seats, analytics), or Employee (their own card only). Only the owner assigns roles.
+
+BILLING & SEATS
+- Plan, payment method, invoices, and seat count live in Settings → Billing (on your personal side — use "← My dashboard", then Settings → Billing). Office needs at least 2 seats. You can also add a seat on the spot when inviting past your current seat count.`;
+
+const OFFICE_ADMIN_KB: KbEntry[] = [
+  {
+    triggers: ["hello", "hi", "hey", "what can you do", "what can you help", "help me", "get started"],
+    answer:
+      "Hi! I'm your Admin Console assistant. Ask me where to find things or how to do them in your Office admin — e.g. \"How do I invite a teammate?\", \"Where do I set our company branding?\", \"Where are all our leads?\", or \"How do I see per-person analytics?\"",
+  },
+  {
+    triggers: ["invite", "invite a member", "invite teammate", "invite employee", "add a member", "add member", "add teammate", "add employee", "add someone", "onboard", "send invite"],
+    answer:
+      "On the Team tab (the admin landing page), click \"Add a team member\" and enter their email. They get a passwordless invite — they sign in with Google or a one-tap email link and their card is already branded with your company look. Invites expire in 14 days. If you're out of seats it'll offer to add one first.",
+    nativeAnswer:
+      "On the Team tab (the admin landing page), tap \"Add a team member\" and enter their email. They get a passwordless invite — Google or a one-tap email link — and their card comes pre-branded with your company look. Invites expire in 14 days.",
+  },
+  {
+    triggers: ["resend", "resend invite", "invite again", "they didn't get", "didnt get the invite", "send invite again", "pending invite", "not finished", "hasn't finished", "havent finished"],
+    answer:
+      "On the Team tab, find the person in the roster (invited people show as \"not finished\"), click \"Manage\", then \"Resend invite\" to send the link again. You can also copy the invite link to send it yourself.",
+  },
+  {
+    triggers: ["remove", "remove member", "remove teammate", "remove employee", "delete member", "take someone off", "someone left", "offboard", "suspend"],
+    answer:
+      "On the Team tab, click \"Manage\" on the person, then \"Remove\". Their leads stay with the office (nothing is lost), and your company logo/branding is stripped from the card they walk away with. Removing frees up their seat.",
+  },
+  {
+    triggers: ["branding", "logo", "company logo", "company name", "brand", "our look", "company look", "set branding", "upload logo", "change logo", "company info", "office contact", "company address", "company phone"],
+    answer:
+      "Open the Branding tab. There you set your company logo, company name, website, and office contact info (phone, fax, address), plus the card design (template, colors, fonts). Saving applies the look to every teammate's card automatically. Your own personal card stays yours.",
+  },
+  {
+    triggers: ["design lock", "lock design", "lock template", "force design", "uniform", "stop employees changing", "let employees pick", "unlock design"],
+    answer:
+      "On the Branding tab there's a design lock. Turn it ON to force one uniform template/colors/fonts across every teammate's card; leave it OFF to let each teammate pick their own template and colors (your company logo, name, and contact info stay company-controlled either way).",
+  },
+  {
+    triggers: ["analytics", "stats", "performance", "views", "card views", "who is performing", "per person", "per employee", "team performance", "conversion", "traffic sources", "scans", "leads captured"],
+    answer:
+      "Open the Analytics tab. Pick a date range, then see whole-team tiles (Card views, Unique visitors, Card/QR scans, Leads captured, Contacts saved, SwiftLink views, Conversion rate), a Views-over-time chart, Traffic sources, and a per-employee \"Team performance\" breakdown.",
+  },
+  {
+    triggers: ["leads", "our leads", "team leads", "all leads", "see leads", "where are the leads", "who contacted", "export leads", "download leads", "csv"],
+    answer:
+      "Open the Leads tab — it's one combined list of every lead captured across your whole team, showing who they are, which teammate's card they came from, and when. Export the list from the top of the table. Leads stay with the office even if the person who captured them leaves.",
+  },
+  {
+    triggers: ["seats", "add seats", "add a seat", "seat count", "how many seats", "buy seats", "more seats", "out of seats", "no seats", "remove seat"],
+    answer:
+      "Seats are managed in Settings → Billing (on your personal side — use \"← My dashboard\", then Settings → Billing). You can also add a seat on the spot when you invite someone past your current seat count. Office needs at least 2 seats.",
+    nativeAnswer:
+      "You can add a seat on the spot when you invite someone past your current seat count — the invite dialog offers it. Office needs at least 2 seats.",
+  },
+  {
+    triggers: ["billing", "payment", "invoice", "change plan", "cancel", "manage subscription", "update card", "receipt", "subscription"],
+    answer:
+      "Billing lives on your personal side: click \"← My dashboard\" in the admin header, then go to Settings → Billing to change plan, update your payment method, see invoices, or manage seats.",
+    nativeAnswer:
+      "That isn't something I can help with in the app. I can still help you with the Team, Analytics, Leads, and Branding tabs of your admin console — just ask.",
+  },
+  {
+    triggers: ["role", "roles", "make admin", "assign role", "permission", "permissions", "manager", "billing admin", "give access", "make someone admin"],
+    answer:
+      "The office owner can give teammates roles: Admin (invite/remove members, manage branding, edit member cards, view analytics), Manager (analytics only), Billing admin (billing/seats/analytics), or Employee (their own card only). Only the owner assigns roles.",
+  },
+  {
+    triggers: ["edit member card", "edit someone card", "edit employee card", "manage member card", "fix their card", "change their card", "take card offline"],
+    answer:
+      "On the Team tab, click \"Manage\" on the person, then \"Edit card\" to view or adjust their company card (available to the owner and Admins).",
+  },
+  {
+    triggers: ["tour", "walkthrough", "guided", "show me around", "replay tour"],
+    answer:
+      "Click the \"Tour\" button on the Team page for a short guided walkthrough of the Team, Analytics, Leads, and Branding tabs. You can replay it anytime.",
+  },
+  {
+    triggers: ["back to dashboard", "my own card", "my dashboard", "personal", "leave admin", "exit admin"],
+    answer:
+      "Use the \"← My dashboard\" link in the top-left of the admin header to go back to your personal side (your own card, contacts, and Settings).",
+  },
+  {
+    triggers: ["contact support", "talk to someone", "talk to a human", "support", "contact you", "get help from a person"],
+    answer:
+      "You can reach the team through the Contact page — there's a link in the footer of the site.",
+  },
+];
+
+const OFFICE_ADMIN_FALLBACK =
+  "I'm your Admin Console assistant. I can help you find things in the Team, Analytics, Leads, and Branding tabs — like inviting a teammate, setting company branding, seeing per-person analytics, or exporting your team's leads. Try asking \"How do I invite someone?\" or \"Where do I set our branding?\" — or reach the team via the Contact page in the footer.";
+
+const OFFICE_ADMIN_NATIVE_FALLBACK =
+  "I'm your Admin Console assistant. I can help you find things in the Team, Analytics, Leads, and Branding tabs — like inviting a teammate, setting company branding, seeing per-person analytics, or exporting your team's leads. Try asking \"How do I invite someone?\" or \"Where do I set our branding?\"";
+
 // Native-safe fallback: same helpfulness, no upgrade/billing/website copy.
 export const NATIVE_FALLBACK =
   "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I share my card?\"";
@@ -181,10 +306,10 @@ function normalize(s: string): string {
 // Score each KB entry by matching triggers; multi-word phrases weigh more.
 // In native sessions, an entry's `nativeAnswer` (when present) is returned in
 // place of `answer` so the fast-path can't leak pricing/upgrade/billing copy.
-export function localAnswer(question: string, native = false): string | null {
+export function localAnswer(question: string, native = false, kb: KbEntry[] = KB): string | null {
   const q = normalize(question);
   let best: { score: number; entry: KbEntry | null } = { score: 0, entry: null };
-  for (const entry of KB) {
+  for (const entry of kb) {
     let score = 0;
     for (const t of entry.triggers) {
       const words = t.split(" ").length;
@@ -197,8 +322,9 @@ export function localAnswer(question: string, native = false): string | null {
 }
 
 // Build the LLM prompt; appends the hard native guardrail for native sessions.
-export function buildHelpPrompt(convo: string, native = false): string {
-  return `${SYSTEM_PROMPT}${native ? NATIVE_RULES : ""}\n\nConversation so far:\n${convo}\n\nReply as the assistant to the user's last message.`;
+// `system` swaps the base prompt so the office-admin scope gets its own persona.
+export function buildHelpPrompt(convo: string, native = false, system: string = SYSTEM_PROMPT): string {
+  return `${system}${native ? NATIVE_RULES : ""}\n\nConversation so far:\n${convo}\n\nReply as the assistant to the user's last message.`;
 }
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -215,6 +341,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const native = body.native === true;
+  // `area` scopes the assistant. "office-admin" gives the admin-console persona +
+  // KB (with the general KB as a fallback so an admin's personal-card questions
+  // still get instant answers); anything else is the default app assistant.
+  const isAdmin = body.area === "office-admin";
+  const kb = isAdmin ? [...OFFICE_ADMIN_KB, ...KB] : KB;
+  const systemPrompt = isAdmin ? OFFICE_ADMIN_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  const fallback = isAdmin
+    ? (native ? OFFICE_ADMIN_NATIVE_FALLBACK : OFFICE_ADMIN_FALLBACK)
+    : (native ? NATIVE_FALLBACK : FALLBACK);
   const raw = Array.isArray(body.messages) ? body.messages : [];
   const messages: ChatMessage[] = raw
     .filter((m: unknown): m is ChatMessage =>
@@ -229,17 +364,17 @@ export async function POST(req: NextRequest) {
 
   // 1) Answer instantly from the built-in knowledge base (free, always works).
   //    Native sessions get the native-safe answer for any leaky entry.
-  const local = localAnswer(lastUser.content, native);
+  const local = localAnswer(lastUser.content, native, kb);
   if (local) return NextResponse.json({ reply: local });
 
   // 2) For anything the KB can't confidently answer, use the LLM IF a provider
   //    is configured. If not (or it errors), fall back to the helpful default.
   if (hasAiProvider()) {
     const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
-    const prompt = buildHelpPrompt(convo, native);
+    const prompt = buildHelpPrompt(convo, native, systemPrompt);
     const reply = await aiComplete(prompt, { maxTokens: 700 });
     if (reply) return NextResponse.json({ reply });
   }
 
-  return NextResponse.json({ reply: native ? NATIVE_FALLBACK : FALLBACK });
+  return NextResponse.json({ reply: fallback });
 }

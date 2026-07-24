@@ -154,11 +154,24 @@ export async function POST(req: Request) {
   const safeInviteeFirst = inviteeFirst ? escapeHtml(inviteeFirst) : null;
 
   // Company logo when branding is set — the email should look like it comes
-  // from THEIR company, not from us.
+  // from THEIR company, not from us. If the Branding page has no logo yet, fall
+  // back to the OWNER's own card logo (the same mark their cards already carry)
+  // so a team that never opened Branding still gets a branded invite.
   let brandLogoUrl: string | null = null;
   try {
     const brand = await getOfficeBrand(office.id as string);
     brandLogoUrl = brand?.logoUrl ?? null;
+    if (!brandLogoUrl) {
+      const { data: ownerCard } = await admin
+        .from("cards")
+        .select("logo_url")
+        .eq("user_id", ctx.ownerId)
+        .not("logo_url", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      brandLogoUrl = (ownerCard?.logo_url as string | null) ?? null;
+    }
   } catch { /* logo is a nicety, never block the invite */ }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -166,10 +179,9 @@ export async function POST(req: Request) {
   const inviteHtml = `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
         ${brandLogoUrl
-          ? `<img src="${escapeHtml(brandLogoUrl)}" width="48" height="48" alt="" style="border-radius:10px;display:block;margin:0 0 20px;" />`
+          ? `<img src="${escapeHtml(brandLogoUrl)}" width="56" height="56" alt="${safeOfficeName}" style="border-radius:10px;display:block;margin:0 0 20px;" />`
           : `<div style="margin:0 0 20px;">
-               <img src="${APP_URL}/brand-icon.png" width="28" height="28" alt="" style="vertical-align:middle;border-radius:7px;margin-right:8px;" />
-               <span style="font-size:14px;font-weight:800;color:#111827;vertical-align:middle;">SwiftCard</span>
+               <span style="font-size:20px;font-weight:800;color:#111827;">${safeOfficeName}</span>
              </div>`}
         <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 10px;">${safeInviteeFirst ? `${safeInviteeFirst}, you're` : "You're"} invited</h2>
         <p style="color:#444;font-size:15px;line-height:1.5;margin:0 0 24px;">
