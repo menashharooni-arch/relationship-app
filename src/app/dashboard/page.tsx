@@ -71,29 +71,39 @@ export default async function DashboardPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles").select("*").eq("id", user.id).single();
+  // Profile + cards are both keyed only to user.id, so fetch them together — one
+  // parallel batch instead of two sequential round-trips (a real TTFB win on
+  // mobile/cellular). For the common already-migrated account this initial cards
+  // read is final; the rare migration paths below mutate the table and re-read.
+  const adminDb = getAdminSupabase();
+  const cardsQuery = () =>
+    adminDb.from("cards").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
+  const [{ data: profile }, cardsRes0] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    cardsQuery(),
+  ]);
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
   // Migrate any legacy "primary card" (stored on the profile) into the cards table,
   // then treat the cards table as the single source of truth — no primary card.
   // Skip entirely once migrated (the common case) — saves DB round trips per load.
+  let ranCardMigration = false;
   if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
     await ensureUserCards(user.id, profile as Record<string, unknown>);
+    ranCardMigration = true;
   }
 
   // One-time: make every card's headshot explicit so none can inherit another
   // card's photo (oldest keeps the shared account photo, newer ones blank).
   if (!(profile.customization as { _photoMigrated?: boolean } | null)?._photoMigrated) {
-    await backfillCardPhotos(getAdminSupabase(), user.id, profile.customization as Record<string, unknown> | null, profile.photo_url as string | null);
+    await backfillCardPhotos(adminDb, user.id, profile.customization as Record<string, unknown> | null, profile.photo_url as string | null);
+    ranCardMigration = true;
   }
 
-  const { data: cards } = await getAdminSupabase()
-    .from("cards")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  // Only the (rare) migration paths above touch the cards table, so re-read then;
+  // otherwise the parallel read is already current.
+  const { data: cards } = ranCardMigration ? await cardsQuery() : cardsRes0;
 
   const allCards = cards ?? [];
   const hasCards = allCards.length > 0;

@@ -50,6 +50,20 @@ function SectionNumber({ n }: { n: number }) {
   );
 }
 
+// Short, stable content hash (djb2) — used to VERSION the share-preview image
+// URL so a card edit busts the aggressive image cache in iMessage / WhatsApp /
+// social (they cache by URL, so a static URL keeps showing the OLD card forever).
+// When any visible field changes, `v` changes → they refetch the fresh preview.
+function metaVersion(p: NonNullable<Awaited<ReturnType<typeof resolveCardMeta>>>): string {
+  const s = JSON.stringify([
+    p.name, p.title, p.company, p.photoUrl, p.logoUrl, p.template,
+    p.accentColor, p.phone, p.email, p.website, p.address,
+  ]);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -67,6 +81,12 @@ export async function generateMetadata({
     ? `Connect with ${name} — ${parts}. Save their contact instantly.`
     : `Connect with ${name} on SwiftCard. Save their contact instantly.`;
 
+  // Explicit, content-versioned image URL (overrides the auto-injected static
+  // one) so the unfurl updates whenever the card changes. Dimensions MUST match
+  // the opengraph-image route's `size` (1200×686) so messengers reserve the
+  // right box and never letterbox/crop the card.
+  const ogImageUrl = `${APP_URL}/card/${username}/opengraph-image?v=${metaVersion(p)}`;
+
   return {
     title: `${name}${parts ? ` — ${parts}` : ""}`,
     description,
@@ -76,11 +96,13 @@ export async function generateMetadata({
       url: `${APP_URL}/card/${username}`,
       siteName: "SwiftCard",
       type: "profile",
+      images: [{ url: ogImageUrl, width: 1200, height: 686, alt: `${name}'s SwiftCard` }],
     },
     twitter: {
       card: "summary_large_image",
       title: name,
       description,
+      images: [ogImageUrl],
     },
   };
 }

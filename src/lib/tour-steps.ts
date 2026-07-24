@@ -36,6 +36,13 @@ export type TourStep = {
    * the tour — the real control runs.
    */
   interactive?: boolean;
+  /**
+   * Settings only. SettingsShell shows ONE section at a time (a desktop panel /
+   * a mobile accordion), so a step whose anchor lives inside a collapsed section
+   * would never be found. Naming the section here makes the engine open it (via
+   * the #hash SettingsShell already listens to) before spotlighting the anchor.
+   */
+  section?: string;
 };
 
 // Which plan the running tour describes. Office covers both owner and member;
@@ -276,6 +283,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-cards",
     path: SETTINGS,
+    section: "cards",
     anchor: "settings-cards",
     title: "Your cards",
     body: "Rename, edit, or add cards.",
@@ -285,6 +293,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-help",
     path: SETTINGS,
+    section: "help",
     anchor: "settings-help",
     title: "Help & this tour",
     body: "Ask the built-in assistant anything — and replay this tour from here anytime.",
@@ -294,6 +303,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-refer",
     path: SETTINGS,
+    section: "help",
     anchor: "settings-refer",
     title: "Refer a friend",
     body: "Share your link: 3 sign-ups = a free month of Pro (up to 3). Your friends get a free month too.",
@@ -303,6 +313,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-integrations",
     path: SETTINGS,
+    section: "notifications",
     anchor: "settings-integrations",
     title: "Integrations",
     body: "Connect Zapier or Google Contacts so new leads sync to your tools automatically.",
@@ -311,6 +322,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-general",
     path: SETTINGS,
+    section: "profile",
     anchor: "settings-general",
     title: "General",
     body: "Your email, cards, and current plan at a glance.",
@@ -320,6 +332,7 @@ const STEP_DEFS: TourStepDef[] = [
   {
     id: "settings-billing",
     path: SETTINGS,
+    section: "billing",
     anchor: "settings-billing",
     title: "Billing",
     body: "Change plan, manage Office seats, or cancel — and if you ever schedule a cancellation, one tap brings it back.",
@@ -369,10 +382,12 @@ export function buildTourSteps(ctx: TourContext): TourStep[] {
 export const TOUR_STEPS: TourStep[] = STEP_DEFS.map((d) => toStep(d));
 
 // Dashboard/Contacts steps should stay on the card the tour started with, so the
-// dashboard doesn't bounce to the card picker mid-tour.
+// dashboard doesn't bounce to the card picker mid-tour. Settings steps carry
+// their section as a #hash so SettingsShell opens the right panel on arrival.
 export function resolveTourPath(step: TourStep, card: string | null): string {
   if ((step.path === "/dashboard" || step.path === "/contacts" || step.path === "/share") && card) {
     return `${step.path}?card=${encodeURIComponent(card)}`;
   }
+  if (step.section) return `${step.path}#${step.section}`;
   return step.path;
 }

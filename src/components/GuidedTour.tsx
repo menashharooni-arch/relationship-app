@@ -174,6 +174,20 @@ export default function GuidedTour({
       return;
     }
 
+    // Settings steps: open the target section BEFORE looking for its anchor.
+    // SettingsShell shows one section at a time and reacts to the #hash, so a
+    // step whose anchor lives in a collapsed section would otherwise never be
+    // found. replaceState + a synthetic hashchange switches the panel without
+    // pushing a history entry. The anchor polling below waits for it to render.
+    if (cur.section) {
+      try {
+        if (window.location.hash !== `#${cur.section}`) {
+          window.history.replaceState(null, "", `#${cur.section}`);
+          window.dispatchEvent(new Event("hashchange"));
+        }
+      } catch { /* ignore */ }
+    }
+
     // Centered message (no anchor) — nothing to find.
     if (!cur.anchor) {
       targetRef.current = null;
