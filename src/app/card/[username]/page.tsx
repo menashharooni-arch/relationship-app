@@ -353,11 +353,10 @@ export default async function CardPage({
         </div>
       ) : (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-4">
             <SectionNumber n={2} />
             <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
           </div>
-          <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
           <LeadCaptureForm cardOwner={profile.username} source={source} />
         </div>
       )}

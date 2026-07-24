@@ -15,9 +15,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { TOUR_STEPS, resolveTourPath, type TourStep } from "@/lib/tour-steps";
+import { TOUR_STEPS, buildTourSteps, resolveTourPath, type TourStep } from "@/lib/tour-steps";
 import {
-  TOUR_RUNNING, TOUR_INDEX, TOUR_CARD, TOUR_START_EVENT, endTour,
+  TOUR_RUNNING, TOUR_INDEX, TOUR_CARD, TOUR_START_EVENT, endTour, readTourContext,
 } from "@/lib/tour";
 
 const PAD = 8;        // spotlight padding around the element
@@ -42,7 +42,12 @@ function findAnchor(anchor: string): HTMLElement | null {
 }
 
 type Props = {
-  /** The ordered step list to run. Defaults to the main dashboard tour. */
+  /**
+   * The ordered step list to run. When omitted (the main dashboard tour), the
+   * list is built PER PLAN from the persisted account context so it only ever
+   * describes what this account has. Passing an explicit list (e.g. the Office
+   * admin tour) opts out of plan-tailoring and runs exactly that list.
+   */
   steps?: TourStep[];
   /** sessionStorage keys — pass a distinct set to run an independent tour. */
   runningKey?: string;
@@ -55,7 +60,7 @@ type Props = {
 };
 
 export default function GuidedTour({
-  steps = TOUR_STEPS,
+  steps: propSteps,
   runningKey = TOUR_RUNNING,
   indexKey = TOUR_INDEX,
   cardKey = TOUR_CARD,
@@ -67,6 +72,12 @@ export default function GuidedTour({
 
   const [running, setRunning] = useState(false);
   const [idx, setIdx] = useState(0);
+  // Plan-tailored steps for the main tour. Rebuilt from the persisted account
+  // context each time the tour starts (see boot()). An explicit `propSteps`
+  // (Office admin tour) always wins and skips the plan tailoring. Falls back to
+  // the full base list until context is read.
+  const [builtSteps, setBuiltSteps] = useState<TourStep[]>(TOUR_STEPS);
+  const steps = propSteps ?? builtSteps;
   // Bumped whenever the spotlight target is (re)resolved, so the render reads
   // fresh clickToAdvance state. Positions themselves are handled by the rAF loop.
   const [, forceTick] = useState(0);
@@ -130,7 +141,14 @@ export default function GuidedTour({
         active = sessionStorage.getItem(runningKey) === "1";
         i = parseInt(sessionStorage.getItem(indexKey) || "0", 10) || 0;
       } catch { /* ignore */ }
-      if (active) { setIdx(Math.min(Math.max(i, 0), steps.length - 1)); setRunning(true); }
+      if (!active) return;
+      // Main tour: (re)build the plan-tailored list from the account context now,
+      // so a resume on a fresh page load uses the same variant. The admin tour
+      // passes its own list and skips this.
+      const list = propSteps ?? buildTourSteps(readTourContext());
+      if (!propSteps) setBuiltSteps(list);
+      setIdx(Math.min(Math.max(i, 0), list.length - 1));
+      setRunning(true);
     }
     boot();
     window.addEventListener(startEvent, boot);
