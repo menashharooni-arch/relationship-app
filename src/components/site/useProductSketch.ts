@@ -64,7 +64,10 @@ export const EMPTY_SKETCH: Sketch = {
   name: "", title: "", company: "", phone: "", email: "", website: "", bio: "",
   street: "", city: "", stateRegion: "", zip: "",
   headshot: null, logo: null,
-  template: "classic-pro",
+  // Photo First is the most popular, best-looking default, so the "see how your
+  // card / signature would look" live preview leads with it the moment someone
+  // starts typing. They can still switch template + colours on the design step.
+  template: "photo-first",
   style: {},
   linkStyle: {},
   socials: { ...EMPTY_SOCIALS },
@@ -113,7 +116,7 @@ function fromPrefill(p: CardPrefill): Sketch {
     zip: p.address?.zip ?? "",
     headshot: p.headshotUrl ?? null,
     logo: p.logoUrl ?? null,
-    template: p.template ?? "classic-pro",
+    template: p.template ?? "photo-first",
     style: {
       accentColor: p.accentColor,
       bgColor: p.bgColor,

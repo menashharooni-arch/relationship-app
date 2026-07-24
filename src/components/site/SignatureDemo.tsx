@@ -76,6 +76,19 @@ const showOnly = { pointerEvents: "none" as const };
 // card-page boxes, built from the live components.
 function SwiftCardPopup({ onClose }: { onClose: () => void }) {
   return (
+    <>
+    {/* Faded grey X — the reliable way out on a phone, where the tall card fills
+        the screen and leaves almost no backdrop to tap. Kept OUTSIDE the blurred
+        overlay below: that overlay's backdrop-filter would make a `fixed` child
+        scroll with the content, so this sits on its own and stays pinned to the
+        viewport corner. z above the overlay. */}
+    <button
+      onClick={onClose}
+      aria-label="Close preview"
+      className="fixed top-4 right-4 z-[95] w-9 h-9 rounded-full flex items-center justify-center bg-white/10 text-white/60 hover:bg-white/20 hover:text-white/90 backdrop-blur-sm transition-colors"
+    >
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" /></svg>
+    </button>
     <div className="fixed inset-0 z-[90] overflow-y-auto" style={{ background: "rgba(4,7,15,0.72)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div className="min-h-full flex items-start justify-center py-8 px-4">
         <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
@@ -140,6 +153,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

@@ -194,10 +194,17 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         style={{ transitionDelay: "350ms" }}
       >
         <p className="text-[13.5px] font-semibold mb-2 text-slate-500 group-hover:text-[#2563EB] transition-colors">Start from scratch</p>
+        {/* w-full + no aspect-ratio: previously `aspect-ratio:1.75` combined with
+            `min-h-[150px]` derived the WIDTH from the min-height (150×1.75 =
+            262px), blowing past the grid column on a phone and clipping the box
+            off the screen edge. Width now follows the column; height floors at
+            150px. `relative overflow-hidden` clips the glare sweep. */}
         <div
-          className="rounded-2xl flex flex-col items-center justify-center text-center gap-3 p-4 min-h-[150px] transition-all duration-200 group-hover:-translate-y-[3px]"
-          style={{ aspectRatio: "1.75", border: "2px dashed #C9BEA8", background: "rgba(37,99,235,0.03)" }}
+          className="relative overflow-hidden w-full rounded-2xl flex flex-col items-center justify-center text-center gap-3 p-4 min-h-[150px] transition-all duration-200 group-hover:-translate-y-[3px]"
+          style={{ border: "2px dashed #C9BEA8", background: "rgba(37,99,235,0.03)" }}
         >
+          {/* Glare sweep — the same shine the SwiftLink featured tiles use. */}
+          <span className="rd-ll-shine" aria-hidden="true" />
           <span className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 shrink-0" style={{ background: "var(--rd-aurora)" }}>
             <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
           </span>
