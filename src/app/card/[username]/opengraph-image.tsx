@@ -40,6 +40,31 @@ function initialsOf(name: string | null | undefined) {
   return (name ?? "").split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2) || "SC";
 }
 
+// Pre-fetch a remote image into a data: URI so the Satori render EMBEDS it and
+// can never throw on a slow/failed image fetch (which would blow up the whole OG
+// render and drop to the brand fallback — a card with no photo at all). On any
+// problem we return null, so the Photo component just draws initials and the
+// card still renders. Bounded by a short timeout so a stuck host can't hang the
+// preview. (Only the Tier-2 rendered path uses this; Tier-1 is a stored PNG.)
+async function embedImage(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:")) return url;
+  if (!/^https?:\/\//.test(url)) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 2500);
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" }).finally(() => clearTimeout(t));
+    if (!res.ok) return null;
+    const type = res.headers.get("content-type") || "image/png";
+    if (!/^image\//.test(type)) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength < 100 || buf.byteLength > 6_000_000) return null;
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 // Guaranteed-renderable branded fallback — ASCII text only, so it can NEVER
 // hit Satori's "missing glyph" error the way an arbitrary name/company could.
 function BrandFallback() {
@@ -308,6 +333,11 @@ export default async function Image({
     };
     // Never hand the renderers a null name (used for initials/hero text).
     if (!(typeof meta.name === "string" && meta.name.trim())) meta.name = "SwiftCard";
+
+    // Embed the photo + logo as data URIs so Satori can't fail fetching them
+    // (a failed fetch would throw the whole render → brand fallback with no
+    // card). If embedding fails, the field is null and the card draws initials.
+    [meta.photoUrl, meta.logoUrl] = await Promise.all([embedImage(meta.photoUrl), embedImage(meta.logoUrl)]);
 
     let card: React.ReactElement;
     switch (meta.template) {

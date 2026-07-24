@@ -33,6 +33,56 @@ function hashStr(s: string): string {
   return h.toString(36);
 }
 
+// Fetch a URL and turn it into a data: URL. Used to INLINE the photo/logo into
+// the card node before rasterizing (see inlineImages).
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Replace every <img> src with an inlined data URL BEFORE capturing. html-to-image
+// otherwise re-fetches each image while rasterizing, which (with a slow/cache-miss
+// proxy) intermittently DROPPED the headshot/logo and shipped a card-share image
+// missing the photo — the exact "sometimes my picture doesn't show" bug. Once the
+// src is a data URL there's nothing to re-fetch, so the image always embeds.
+// Returns false if ANY image failed to embed (proxied AND un-proxied), so the
+// caller can reject the capture instead of poisoning storage with a photo-less one.
+async function inlineImages(el: HTMLElement, fallbackSrc: Map<string, string>): Promise<boolean> {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  const results = await Promise.all(imgs.map(async (img) => {
+    const src = img.currentSrc || img.getAttribute("src") || "";
+    if (!src || src.startsWith("data:")) return true; // nothing to inline — not a failure
+    const fallback = fallbackSrc.get(src);
+    const candidates = fallback ? [src, fallback] : [src];
+    for (const candidate of candidates) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const dataUrl = await fetchAsDataUrl(candidate);
+        if (!dataUrl) continue;
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = dataUrl;
+          setTimeout(resolve, 3000);
+        });
+        if (img.src.startsWith("data:")) return true;
+      }
+    }
+    return false; // every attempt failed to embed this image
+  }));
+  return results.every(Boolean);
+}
+
 // PNG dimensions straight from the header (width @ byte 16, height @ byte 20)
 // of a data:image/png;base64 URL — no Image() round-trip needed.
 function pngDims(dataUrl: string): { w: number; h: number } | null {
@@ -62,8 +112,10 @@ export default function ShareCardCapture({
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
 
   // Capture-logic version. Bump to force a global re-capture
-  // ("v4" = max-space sizing: sparse cards grow text/logo/QR, banner-aware logos).
-  const contentSig = "share-v4|" + hashStr(JSON.stringify(cardData) + "|" + template);
+  // ("v5" = images inlined as data URLs before rasterizing + capture rejected
+  // when the photo/logo can't embed, so a share preview never drops the headshot;
+  // "v4" = max-space sizing: sparse cards grow text/logo/QR, banner-aware logos).
+  const contentSig = "share-v5|" + hashStr(JSON.stringify(cardData) + "|" + template);
   const hashKey = `sc_sharehash_${username}`;
 
   // Photo/logo through a same-origin proxy so the browser can read them into the canvas.
@@ -87,6 +139,29 @@ export default function ShareCardCapture({
     await Promise.all(imgs.map((img) => (img.complete && img.naturalWidth > 0)
       ? Promise.resolve()
       : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); setTimeout(() => r(), 6000); })));
+
+    // INLINE the photo/logo as data URLs so html-to-image can't drop them while
+    // rasterizing (the intermittent "picture doesn't show in the share preview"
+    // bug). Fall back from the same-origin proxy to the un-proxied source. If any
+    // image still won't embed, REJECT this attempt — better to keep the previous
+    // (or rendered-fallback) preview than upload a card missing its headshot.
+    const fallbackSrc = new Map<string, string>();
+    const proxiedPhoto = captureData.photoUrl;
+    if (proxiedPhoto && cardData.photoUrl && proxiedPhoto !== cardData.photoUrl) {
+      fallbackSrc.set(proxiedPhoto, cardData.photoUrl);
+    }
+    const proxiedLogo = (captureData as { logoUrl?: string | null }).logoUrl;
+    const originalLogo = (cardData as { logoUrl?: string | null }).logoUrl;
+    if (proxiedLogo && originalLogo && proxiedLogo !== originalLogo) {
+      fallbackSrc.set(proxiedLogo, originalLogo);
+    }
+    let inlined = await inlineImages(el, fallbackSrc);
+    if (!inlined) {
+      await new Promise((r) => setTimeout(r, 400)); // transient proxy hiccup — one retry
+      inlined = await inlineImages(el, fallbackSrc);
+    }
+    if (!inlined) return null;
+
     await new Promise((r) => setTimeout(r, 200)); // let fonts/reflow settle
 
     // Render the node NATIVELY larger (transform scale) rather than bumping

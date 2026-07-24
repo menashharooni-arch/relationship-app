@@ -16,6 +16,11 @@ export type MiniStep = {
   subtitle?: string;
   content: React.ReactNode;
   canAdvance?: boolean; // false disables Next/Make-it-live on this step
+  /** On mobile, show the live preview ABOVE the form for this step (used by the
+   *  design step, so edits to template/colours/font are visible as you make
+   *  them instead of being pushed to the bottom of the sheet). Desktop is
+   *  unchanged — the preview is always pinned beside the form there. */
+  previewFirst?: boolean;
 };
 
 export default function MiniBuilderModal({
@@ -95,6 +100,19 @@ export default function MiniBuilderModal({
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
           </button>
 
+          {/* Mobile-only preview pinned ABOVE the form on preview-first steps
+              (the design step). Desktop keeps the side preview below. Extra top
+              padding clears the absolute close button. */}
+          {current.previewFirst && (
+            <div
+              className="md:hidden flex flex-col items-center px-6 pt-12 pb-5 border-b border-white/10"
+              style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}
+            >
+              <span className="text-white/35 text-[11px] font-semibold uppercase tracking-widest mb-3">Live preview</span>
+              <div className="w-full flex items-center justify-center">{preview}</div>
+            </div>
+          )}
+
           <div className="grid md:grid-cols-2">
             {/* ── Left: form ─────────────────────────────── */}
             <div className="p-6 sm:p-8">
@@ -156,7 +174,7 @@ export default function MiniBuilderModal({
             </div>
 
             {/* ── Right: live preview ────────────────────── */}
-            <div className={`${hidePreviewOnMobile ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
+            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
               <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[11px] font-semibold uppercase tracking-widest">Live preview</span>
               <div className="w-full flex items-center justify-center mt-4">{preview}</div>
               {previewCaption && <p className="text-white/40 text-[12px] mt-4 text-center">{previewCaption}</p>}

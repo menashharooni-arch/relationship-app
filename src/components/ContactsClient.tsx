@@ -123,27 +123,29 @@ function SourceBadge({ source }: { source: string | null }) {
   );
 }
 
-function getPreset(tags: string[] | null): string | null {
-  for (const t of tags ?? []) {
-    if (t === "preset-1") return "1";
-    if (t === "preset-2") return "2";
-    if (t === "preset-3") return "3";
+// The automation status shown under the contact's name, derived from the ACTUAL
+// follow-up sequence (email + text steps combined), not a tag:
+//   • no sequence at all         → "no flow"   (grey)  — nothing set up yet
+//   • some steps still unsent    → "mid-flow"  (yellow)— running / scheduled
+//   • every step has a sent_at   → "flow done" (green) — the whole flow has run
+function FlowBadge({ sequence }: { sequence: Lead["follow_up_sequence"] }) {
+  const seq = sequence ?? [];
+  if (seq.length === 0) {
+    return <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">no flow</span>;
   }
-  return null;
-}
-
-function FlowBadge({ tags }: { tags: string[] | null }) {
-  const paused = (tags ?? []).includes("flow-paused");
-  const preset = getPreset(tags);
-  if (paused) return (
-    <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">⏸ paused</span>
-  );
-  if (preset) return (
-    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/40">
-      Preset {preset}
+  const done = seq.every((s) => !!s.sent_at);
+  if (done) {
+    return (
+      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/40">
+        flow done
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-800/40">
+      mid-flow
     </span>
   );
-  return <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">no flow</span>;
 }
 
 export default function ContactsClient({
@@ -231,7 +233,6 @@ export default function ContactsClient({
 
     const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
     if (demo) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time tour bootstrap read from sessionStorage
       open(demo);
       return;
     }
@@ -842,7 +843,7 @@ export default function ContactsClient({
                       <option key={s.value} value={s.value} className="bg-gray-900 text-gray-200">{s.label}</option>
                     ))}
                   </select>
-                  <FlowBadge tags={selected.tags} />
+                  <FlowBadge sequence={selected.follow_up_sequence} />
                 </div>
               </div>
               <button
@@ -888,12 +889,16 @@ export default function ContactsClient({
               />
               <button
                 onClick={saveContactToPhone}
-                className="flex items-center justify-center gap-1.5 flex-1 text-sm font-semibold py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 transition-colors"
+                title="Save this contact to your phone"
+                className="flex items-center justify-center gap-1.5 flex-1 min-w-0 whitespace-nowrap text-sm font-semibold py-2.5 px-2 rounded-xl bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 transition-colors"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4 shrink-0">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
                 </svg>
-                Save to phone
+                {/* "Save" on a phone (three buttons across is tight); the full
+                    label where there's room. */}
+                <span className="sm:hidden">Save</span>
+                <span className="hidden sm:inline">Save to phone</span>
               </button>
             </div>
 
