@@ -24,20 +24,32 @@ export async function POST(req: Request) {
   // Idempotent: declining an already-declined/revoked invite is a no-op success.
   if (member.status === "declined" || member.status === "revoked") return NextResponse.json({ ok: true });
 
-  const { error } = await admin.from("office_members").update({ status: "declined" }).eq("id", member.id);
+  // Guard the pending→declined transition at the DB level. Two near-simultaneous
+  // POSTs of the same token can both pass the status pre-checks above; scoping the
+  // UPDATE to status='pending' means only ONE of them actually changes a row (the
+  // other matches zero), so the audit + team-inbox notification fire exactly once.
+  const { data: declined, error } = await admin
+    .from("office_members")
+    .update({ status: "declined" })
+    .eq("id", member.id)
+    .eq("status", "pending")
+    .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await writeAudit({ action: "invite.declined", orgId: member.office_id as string, targetId: (member.invite_email as string) ?? member.id });
+  // Only when THIS request performed the transition — never double-fire on a race.
+  if ((declined?.length ?? 0) > 0) {
+    await writeAudit({ action: "invite.declined", orgId: member.office_id as string, targetId: (member.invite_email as string) ?? member.id });
 
-  // Team inbox (admin bell): the admin should know so they can re-invite or reuse
-  // the now-free seat. Best-effort; never blocks the decline.
-  await notifyOffice(member.office_id as string, {
-    type: "invite_declined",
-    title: "An invitation was declined",
-    body: member.invite_email
-      ? `${member.invite_email} declined the invitation — their seat is free again.`
-      : "An invitee declined — their seat is free again.",
-  });
+    // Team inbox (admin bell): the admin should know so they can re-invite or reuse
+    // the now-free seat. Best-effort; never blocks the decline.
+    await notifyOffice(member.office_id as string, {
+      type: "invite_declined",
+      title: "An invitation was declined",
+      body: member.invite_email
+        ? `${member.invite_email} declined the invitation — their seat is free again.`
+        : "An invitee declined — their seat is free again.",
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

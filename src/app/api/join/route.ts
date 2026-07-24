@@ -116,13 +116,19 @@ export async function POST(req: Request) {
   // permanent unpaid enterprise that no cascade could ever clean up. (office
   // audit H2)
 
-  // Accept: mark active, link user_id
-  const { error: updateError } = await admin
+  // Accept: mark active, link user_id. Scope the UPDATE to status='pending' so two
+  // near-simultaneous accepts of the same token can't both count as an activation —
+  // only one changes a row; `didActivate` gates the team notification below so the
+  // "joined your team" bell entry never doubles on a double-submit.
+  const { data: activated, error: updateError } = await admin
     .from("office_members")
     .update({ user_id: user.id, status: "active", joined_at: new Date().toISOString() })
-    .eq("id", member.id);
+    .eq("id", member.id)
+    .eq("status", "pending")
+    .select("id");
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  const didActivate = (activated?.length ?? 0) > 0;
 
   // Count-then-update above isn't atomic — two invitees accepting the LAST
   // seat simultaneously can both pass the pre-check. Recount after activating
@@ -216,22 +222,26 @@ export async function POST(req: Request) {
   await writeAudit({ action: "invite.accepted", actorId: user.id, orgId: officeId, targetId: user.email ?? user.id });
 
   // Team inbox (admin bell): a genuinely important event — someone JOINED. And
-  // for each office this user just LEFT, tell that office too. Best-effort; the
-  // notify helper swallows its own errors so accept is never blocked.
-  const joinerLabel = displayLabelFrom(member.invite_name as string | null, user.email);
-  await notifyOffice(officeId, {
-    type: "member_joined",
-    title: `${joinerLabel} joined your team`,
-    body: user.email ? `${user.email} accepted their invitation and is now on your team.` : "A new teammate accepted their invitation.",
-    meta: { userId: user.id },
-  });
-  for (const r of oldRows ?? []) {
-    await notifyOffice(r.office_id as string, {
-      type: "member_left",
-      title: `${joinerLabel} left your team`,
-      body: user.email ? `${user.email} moved to another team.` : "A teammate moved to another team.",
+  // for each office this user just LEFT, tell that office too. Only when THIS
+  // request performed the activation (didActivate) so a concurrent double-submit
+  // never doubles the entry. Best-effort; the notify helper swallows its own
+  // errors so accept is never blocked.
+  if (didActivate) {
+    const joinerLabel = displayLabelFrom(member.invite_name as string | null, user.email);
+    await notifyOffice(officeId, {
+      type: "member_joined",
+      title: `${joinerLabel} joined your team`,
+      body: user.email ? `${user.email} accepted their invitation and is now on your team.` : "A new teammate accepted their invitation.",
       meta: { userId: user.id },
     });
+    for (const r of oldRows ?? []) {
+      await notifyOffice(r.office_id as string, {
+        type: "member_left",
+        title: `${joinerLabel} left your team`,
+        body: user.email ? `${user.email} moved to another team.` : "A teammate moved to another team.",
+        meta: { userId: user.id },
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, officeName: (member.offices as { name: string } | null)?.name });
