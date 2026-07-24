@@ -4,12 +4,33 @@
 // lives in sessionStorage so it survives navigation, and "have they seen it"
 // lives in localStorage so the first-run banner only shows once.
 
-import { TOUR_STEPS, resolveTourPath } from "./tour-steps";
+import { TOUR_STEPS, resolveTourPath, type TourContext } from "./tour-steps";
 
 // sessionStorage — per-tab, cleared when the tour ends.
 export const TOUR_RUNNING = "sc_tour_running";
 export const TOUR_INDEX = "sc_tour_index";
 export const TOUR_CARD = "sc_tour_card"; // the card slug to keep selected across pages
+
+// localStorage — the account's plan/role, written by the dashboard so the tour
+// (mounted globally, with no server data of its own) can describe the RIGHT
+// plan. Persists across the tour's page navigations and between visits.
+export const TOUR_CTX_KEY = "sc_tour_ctx";
+
+// Read the persisted plan context. Defaults to the free shape when nothing is
+// stored yet (brand-new tab that hasn't loaded the dashboard) — the safest,
+// least-overclaiming tour.
+export function readTourContext(): TourContext {
+  if (typeof window === "undefined") return { tier: "free", isOfficeMember: false };
+  try {
+    const raw = localStorage.getItem(TOUR_CTX_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<TourContext>;
+      const tier = p.tier === "pro" || p.tier === "office" ? p.tier : "free";
+      return { tier, isOfficeMember: !!p.isOfficeMember };
+    }
+  } catch { /* ignore */ }
+  return { tier: "free", isOfficeMember: false };
+}
 
 // localStorage — persists so we don't nag a returning user.
 export const TOUR_DONE = "sc_tour_completed";

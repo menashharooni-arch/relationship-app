@@ -38,6 +38,7 @@ import HelpWidget from "@/components/HelpWidget";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
+import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { readUsage } from "@/lib/usage";
@@ -431,6 +432,13 @@ export default async function DashboardPage({
   // ADMIN_EMAILS (`isAdmin` below).
   const canSeeOfficeAdmin = ownedOffice ? true : await canViewOfficeAdmin(user.id, profile.plan);
 
+  // Plan/role for the guided tour, derived from data already loaded (no extra
+  // queries). Office members are plan="enterprise" WITH an office_id but no
+  // owned office; owners have an owned office (or are an enterprise owner-to-be
+  // who hasn't created one yet, so has no office_id).
+  const tourTier: "free" | "pro" | "office" = isEnterprise ? "office" : isPro ? "pro" : "free";
+  const isOfficeMember = isEnterprise && !ownedOffice && !!profile.office_id;
+
   const cardUrl = `${APP_URL}/card/${activeUsername}`;
 
   // Bell tags: username → human label, so every notification shows which card
@@ -539,6 +547,8 @@ export default async function DashboardPage({
       <Suspense>
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>
+      {/* Persist plan/role so the guided tour describes the right plan. */}
+      <TourContextPersist tier={tourTier} isOfficeMember={isOfficeMember} />
 
       {/* Top accent stripe */}
       <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />

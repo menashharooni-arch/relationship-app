@@ -96,8 +96,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
 
             {/* Share your info */}
             <div className={PANEL} style={panelStyle}>
-              <div className="flex items-center gap-3 mb-1"><SectionNumber n={2} /><p className="text-slate-900 font-semibold text-sm">Share your info with {FIRST}</p></div>
-              <p className="text-slate-400 text-xs mb-4 ml-9">They&apos;ll get your details and can follow up directly.</p>
+              <div className="flex items-center gap-3 mb-4"><SectionNumber n={2} /><p className="text-slate-900 font-semibold text-sm">Share your info with {FIRST}</p></div>
               <div style={showOnly}>
                 {/* Blank form — a faithful copy of the real LeadCaptureForm, empty. */}
                 <div className="w-full space-y-3">

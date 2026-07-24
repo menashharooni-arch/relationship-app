@@ -9,6 +9,25 @@ import { getOfficeSubUserContext } from "@/lib/office-roles";
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
 
+// Scalar fields that are printed ON the card (and therefore baked into the Swift
+// Signature snapshot). "label" is deliberately excluded — it's the dashboard
+// nickname, never shown on the card. `template` + `customization` (design/photo/
+// bio/layout) are compared separately below.
+const ON_CARD_SCALARS = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "logo_url"] as const;
+
+// Stable, key-order-independent JSON so a no-op customization save (Postgres jsonb
+// re-orders keys) isn't mistaken for a real design change.
+function canonicalize(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalize);
+  if (v && typeof v === "object") {
+    return Object.keys(v as Record<string, unknown>).sort().reduce<Record<string, unknown>>((o, k) => {
+      o[k] = canonicalize((v as Record<string, unknown>)[k]);
+      return o;
+    }, {});
+  }
+  return v;
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -27,6 +46,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const admin = getAdminSupabase();
+
+  // Snapshot the card's on-card fields BEFORE the write, so after saving we can
+  // tell whether anything the Swift Signature SHOWS actually changed and, if so,
+  // nudge the owner to re-copy their email signature (it's a snapshot image, so
+  // an edit leaves the pasted signature stale). A no-op save must never nag.
+  const { data: beforeCard } = await admin
+    .from("cards")
+    .select("username, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, logo_url, customization")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   // Enforce Pro-only features on the backend: custom template, Pro-only design
   // keys (accent/font), and the link-button cap — all stripped for non-paid.
@@ -174,6 +204,54 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Swift Signature freshness nudge: if anything shown ON the card actually
+  // changed (a scalar on-card field, the template, or the design/customization
+  // JSON), drop a bell + quick-contact notification telling the owner to re-copy
+  // their email signature. Compared against the pre-write snapshot so opening the
+  // editor and saving unchanged never notifies; deduped to one unread reminder
+  // per card so a burst of edits doesn't spam. Best-effort — never fails a save.
+  try {
+    if (beforeCard) {
+      const b = beforeCard as Record<string, unknown>;
+      let cardChanged = false;
+      for (const k of ON_CARD_SCALARS) {
+        if (k in updates && String((updates as Record<string, unknown>)[k] ?? "") !== String(b[k] ?? "")) {
+          cardChanged = true;
+          break;
+        }
+      }
+      if (!cardChanged && "customization" in updates) {
+        cardChanged =
+          JSON.stringify(canonicalize(updates.customization ?? {})) !==
+          JSON.stringify(canonicalize(b.customization ?? {}));
+      }
+      if (cardChanged) {
+        const username = b.username as string;
+        // One pending (unread) reminder per card is enough — skip if one exists.
+        const { data: pending } = await admin
+          .from("notifications")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("type", "signature_stale")
+          .eq("card_owner", username)
+          .eq("read", false)
+          .limit(1);
+        if (!pending?.length) {
+          const { insertNotification } = await import("@/lib/notify");
+          await insertNotification({
+            user_id: user.id,
+            card_owner: username,
+            type: "signature_stale",
+            title: "Update your email signature",
+            body: "You changed your card — re-copy your Swift Signature so the version in your email matches.",
+          });
+        }
+      }
+    }
+  } catch {
+    /* notification is a nicety; a card save must still succeed */
+  }
 
   return NextResponse.json({ ok: true });
 }
