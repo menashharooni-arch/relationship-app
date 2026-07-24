@@ -1,9 +1,11 @@
 import Link from "next/link";
 import OfficeAdminNav from "./OfficeAdminNav";
+import OfficeNotificationBell from "@/components/office/OfficeNotificationBell";
 import AdminGuidedTour from "@/components/office/AdminGuidedTour";
 import HelpWidget from "@/components/HelpWidget";
 import MobileNavGate from "@/components/MobileNavGate";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
+import { listOfficeNotifications } from "@/lib/office-notify";
 
 // Every /office/admin page inherits this shell: the Office gate + one consistent
 // nav, so each area is a proper page instead of one crammed scroll.
@@ -12,8 +14,12 @@ import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 // this is the team's own admin, gated on Office membership. /admin is
 // ADMIN_EMAILS-only and office users must never reach it — nothing here links there.
 export default async function OfficeAdminLayout({ children }: { children: React.ReactNode }) {
-  const { office } = await requireOfficeAdmin();
+  const { office, officeId } = await requireOfficeAdmin();
   const officeName = (office?.name as string) ?? "Your team";
+
+  // Team-inbox notifications for the header bell — office-scoped, separate table
+  // from the personal dashboard bell. Empty when the office isn't set up yet.
+  const teamNotifications = officeId ? await listOfficeNotifications(officeId) : [];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -30,9 +36,12 @@ export default async function OfficeAdminLayout({ children }: { children: React.
                 <span className="text-xs text-gray-500 truncate hidden sm:block">{officeName}</span>
               </Link>
             </div>
-            <Link href="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors shrink-0">
-              ← My dashboard
-            </Link>
+            <div className="flex items-center gap-3 shrink-0">
+              {officeId && <OfficeNotificationBell initialNotifications={teamNotifications} />}
+              <Link href="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors shrink-0">
+                ← My dashboard
+              </Link>
+            </div>
           </div>
           <OfficeAdminNav />
         </div>
