@@ -57,7 +57,7 @@ export type SendResult = "sent" | "not_configured" | "failed";
 // (RESEND_FROM_EMAIL), so recipients see the person who messaged them — not a
 // generic "SwiftCard" — while every user still sends from the same verified domain.
 function senderFrom(displayName: string | null | undefined): string {
-  const configured = process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>";
+  const configured = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
   const addr = configured.match(/<([^>]+)>/)?.[1] ?? configured.trim();
   const name = (displayName || "SwiftCard").replace(/[<>"\r\n]/g, "").trim() || "SwiftCard";
   return `${name} <${addr}>`;
@@ -192,7 +192,7 @@ export async function sendRawEmail(opts: { to: string; subject: string; html: st
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     await resend.emails.send({
-      from: opts.fromName ? senderFrom(opts.fromName) : (process.env.RESEND_FROM_EMAIL || "SwiftCard <onboarding@resend.dev>"),
+      from: opts.fromName ? senderFrom(opts.fromName) : (process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>"),
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,

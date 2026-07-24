@@ -9,7 +9,7 @@ import { expireFreeMonths } from "@/lib/referral-server";
 import { purgeExpiredDeletedAccounts } from "@/lib/account-purge";
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
-import { trialEndingSoonEmail, trialEndedEmail, unsubUrl } from "@/lib/email-templates";
+import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
 
 
@@ -104,12 +104,16 @@ export async function GET(req: NextRequest) {
       // (which can be the card's public contact address).
       const to = await getAccountEmail(u.id, u.email);
       if (!to) continue;
+      const unsub = await getUnsubscribeUrl(supabase, u.id);
       const tpl = trialEndedEmail({
         firstName: u.name?.split(" ")[0] || "there",
         isTrial: u.wasTrial,
-        unsubscribeUrl: await getUnsubscribeUrl(supabase, u.id),
+        unsubscribeUrl: unsub,
       });
-      const { data: sent } = await resend.emails.send({ ...tpl, to }).catch(() => ({ data: null }));
+      // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
+      const { data: sent } = await resend.emails
+        .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
+        .catch(() => ({ data: null }));
       try {
         await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ended", subject: tpl.subject, resend_id: sent?.id });
       } catch { /* logging is best-effort */ }
@@ -140,13 +144,17 @@ export async function GET(req: NextRequest) {
       const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
       const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
       if (to) {
+        const unsub = await getUnsubscribeUrl(supabase, u.id as string);
         const tpl = trialEndingSoonEmail({
           firstName: (u.name as string)?.split(" ")[0] || "there",
           daysLeft,
           isTrial: cust._trial === true,
-          unsubscribeUrl: await getUnsubscribeUrl(supabase, u.id as string),
+          unsubscribeUrl: unsub,
         });
-        const { data: sent } = await resend.emails.send({ ...tpl, to }).catch(() => ({ data: null }));
+        // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
+        const { data: sent } = await resend.emails
+          .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
+          .catch(() => ({ data: null }));
         try {
           await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent?.id });
         } catch { /* logging is best-effort */ }

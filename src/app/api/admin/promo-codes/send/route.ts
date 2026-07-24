@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { promoEmail, unsubUrl } from "@/lib/email-templates";
+import { promoEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { requireAdmin } from "@/lib/admin";
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         ...template,
         from,
         to: recipient,
-        headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` },
+        headers: marketingHeaders(unsubUrl(token)),
       });
       if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
 
