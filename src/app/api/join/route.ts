@@ -43,9 +43,17 @@ export async function POST(req: Request) {
   // person actually invited, regardless of whether their own email matches.
   const inviteEmail = (member.invite_email as string | null)?.trim().toLowerCase();
   const userEmail = user.email?.trim().toLowerCase();
-  if (inviteEmail && userEmail && inviteEmail !== userEmail) {
+  // Fail CLOSED: the accepting session must carry a verifiable email that
+  // matches the invite. A session with NO email (e.g. a phone/OAuth-without-
+  // email account) can't be proven to be the invited person, so it must not be
+  // able to consume the seat — the earlier `inviteEmail && userEmail && …` form
+  // skipped the check entirely when either side was empty (fail-open). When the
+  // invite carries an email, it must match exactly. (security audit)
+  if (!userEmail || (inviteEmail && inviteEmail !== userEmail)) {
     return NextResponse.json(
-      { error: `This invite was sent to ${member.invite_email}. Sign in with that email address to accept it.` },
+      { error: inviteEmail
+          ? `This invite was sent to ${member.invite_email}. Sign in with that email address to accept it.`
+          : "Sign in with the email address this invite was sent to in order to accept it." },
       { status: 403 }
     );
   }
