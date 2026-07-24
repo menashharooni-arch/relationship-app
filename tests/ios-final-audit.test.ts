@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
+const fileExists = (p: string) => existsSync(join(root, p));
 
 // ── Final App Store audit (2026-07-17) — locks for every fix in this pass ────
 
@@ -104,39 +105,28 @@ describe("5.1.1 — deletion dialog disclosures", () => {
   });
 });
 
-describe("invite-only signups", () => {
-  it("the site is public again (no lockdown gate in proxy)", () => {
+describe("open signups (invite-only removed)", () => {
+  it("the site is public (no lockdown gate in proxy)", () => {
     const s = read("src/proxy.ts");
     expect(s).not.toMatch(/LOCKDOWN|SITE_PUBLIC|isPublicPath/);
   });
-  it("signup-invite lib verifies, consumes, and honors office invites", () => {
-    const s = read("src/lib/signup-invite.ts");
-    expect(s).toMatch(/export async function isValidSignupInvite/);
-    expect(s).toMatch(/export async function consumeSignupInvite/);
-    expect(s).toMatch(/export async function hasPendingOfficeInvite/);
-    expect(s).toMatch(/signup_invites/);
+  it("the signup-invite lib and verify endpoint are gone", () => {
+    expect(fileExists("src/lib/signup-invite.ts")).toBe(false);
+    expect(fileExists("src/app/api/invite/verify/route.ts")).toBe(false);
   });
-  it("the verify endpoint is rate-limited and sets the cookie", () => {
-    const s = read("src/app/api/invite/verify/route.ts");
-    expect(s).toMatch(/isRateLimited/);
-    expect(s).toMatch(/INVITE_COOKIE/);
-    expect(s).toMatch(/isValidSignupInvite/);
-  });
-  it("onboarding is the authoritative gate (code OR pending office invite, else reject+delete)", () => {
+  it("onboarding no longer gates signup on an invite code — it provisions anyone", () => {
     const s = read("src/app/onboarding/page.tsx");
-    expect(s).toMatch(/invitedByCode/);
-    expect(s).toMatch(/invitedByOffice/);
-    expect(s).toMatch(/deleteUser\(user\.id\)/);
-    expect(s).toMatch(/error=invite_only/);
-    expect(s).toMatch(/consumeSignupInvite/);
+    expect(s).not.toMatch(/invitedByCode/);
+    expect(s).not.toMatch(/error=invite_only/);
+    expect(s).not.toMatch(/consumeSignupInvite/);
+    // Still provisions a brand-new account (the profiles insert survives).
+    expect(s).toMatch(/from\("profiles"\)\.insert/);
   });
-  it("LoginForm verifies the code before every signup path, office invites exempt", () => {
+  it("LoginForm has no invite-code field or verification", () => {
     const s = read("src/components/LoginForm.tsx");
-    expect(s).toMatch(/ensureInviteVerified/);
-    expect(s).toMatch(/isOfficeInvite/);
-    expect(s).toMatch(/placeholder="Invite code"/);
-    // called in all three signup entry points
-    expect((s.match(/ensureInviteVerified\(\)/g) || []).length).toBeGreaterThanOrEqual(3);
+    expect(s).not.toMatch(/ensureInviteVerified/);
+    expect(s).not.toMatch(/placeholder="Invite code"/);
+    expect(s).not.toMatch(/invite-only/i);
   });
 });
 

@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
-import { isValidSignupInvite, consumeSignupInvite, hasPendingOfficeInvite, isValidReferralPass, INVITE_COOKIE } from "@/lib/signup-invite";
 
 function accountHandle(email: string | undefined, userId: string): string {
   const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
@@ -16,7 +15,7 @@ function accountHandle(email: string | undefined, userId: string): string {
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; intent?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,37 +23,31 @@ export default async function OnboardingPage({
 
   // Only honour a same-origin relative redirect (no open-redirect). Used to send
   // a brand-new signup back to the guest editor so their pending draft is claimed.
-  const { next } = await searchParams;
+  const { next, intent } = await searchParams;
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
 
   const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
 
   if (!profile) {
-    const admin = getAdminSupabase();
-
-    // ── Invite-only gate ──────────────────────────────────────────────────
-    // A brand-new account (no profile yet) is provisioned only if it presents
-    // a valid signup invite code OR the email has a pending office-team invite.
-    // This is the single authoritative check — it covers email/password AND
-    // Google/Apple signups, which all funnel through here. An uninvited new
-    // user is removed (no profile is ever created) and bounced to /login.
-    const cookieJar = await cookies();
-    const inviteCode = cookieJar.get(INVITE_COOKIE)?.value ?? "";
-    const invitedByCode = await isValidSignupInvite(inviteCode);
-    const invitedByOffice = invitedByCode ? false : await hasPendingOfficeInvite(user.email);
-    // A referral link is an invite too: /r/CODE set the sc_ref cookie, and a
-    // code that resolves to a real referrer is a pass. Attribution + fraud
-    // checks still run in applyReferralOnSignup below.
-    const invitedByReferral =
-      invitedByCode || invitedByOffice ? false : await isValidReferralPass(cookieJar.get(REF_COOKIE)?.value);
-    if (!invitedByCode && !invitedByOffice && !invitedByReferral) {
-      // Remove the orphaned auth user so the code list can't be probed by
-      // repeatedly creating accounts, and so a rejected email is free to retry
-      // with a real invite. Best-effort — the gate blocks provisioning either way.
-      try { await admin.auth.admin.deleteUser(user.id); } catch { /* best-effort */ }
-      redirect("/login?error=invite_only");
+    // Task 4: they tried to SIGN IN (intent=signin, set by the Google button on
+    // the Sign-in tab) but have no SwiftCard account yet. Don't silently create
+    // one — sign them out and bounce to Create-account with a clear message. Any
+    // other path (create-account, a claimed guest draft, an office-team invite,
+    // an email-confirmation link) has no signin intent and provisions normally.
+    if (intent === "signin") {
+      try { await supabase.auth.signOut(); } catch { /* best-effort */ }
+      // Preserve a same-origin continuation (e.g. a guest's card-draft claim) so
+      // it survives the bounce and resumes once they create the account.
+      redirect(`/login?error=no_account${safeNext ? `&next=${encodeURIComponent(safeNext)}` : ""}`);
     }
 
+    const admin = getAdminSupabase();
+
+    // SwiftCard is open to everyone — anyone who authenticates (email/password
+    // OR Google/Apple) and has no profile yet gets one provisioned here. There is
+    // NO signup invite code / invite-only gate. (The Task-4 "you don't have an
+    // account" check runs earlier, in the auth callback, only for a SIGN-IN
+    // attempt — a genuine Create-account flow always provisions.)
     const { error: insertErr } = await admin.from("profiles").insert({
       id: user.id,
       username: accountHandle(user.email ?? undefined, user.id),
@@ -99,10 +92,6 @@ export default async function OnboardingPage({
     // actually WON the insert race runs this — a concurrent duplicate must
     // never re-apply it (this used to double-grant a free month/credit).
     if (!isDuplicate) {
-      // Count the invite code against its use limit (idempotent per user).
-      if (invitedByCode) {
-        try { await consumeSignupInvite(inviteCode, user.id); } catch { /* best-effort */ }
-      }
       try {
         const c = await cookies();
         const h = await headers();

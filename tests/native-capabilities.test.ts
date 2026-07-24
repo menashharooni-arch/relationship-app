@@ -40,10 +40,10 @@ describe("native OAuth uses the system browser, not the webview", () => {
   const login = read("src/components/LoginForm.tsx");
   const auth = read("src/lib/native-auth.ts");
   it("LoginForm's native Google handler routes through startNativeOAuth", () => {
-    expect(login).toMatch(/if \(native\) \{[\s\S]*?startNativeOAuth\(supabase, "google", redirectTo\)/);
+    expect(login).toMatch(/if \(native\) \{[\s\S]*?startNativeOAuth\(supabase, "google", redirectTo, mode\)/);
   });
   it("Apple handler routes through startNativeOAuth", () => {
-    expect(login).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo\)/);
+    expect(login).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo, mode\)/);
   });
   it("native-auth opens the provider URL via @capacitor/browser with skipBrowserRedirect", () => {
     expect(auth).toMatch(/skipBrowserRedirect: true/);

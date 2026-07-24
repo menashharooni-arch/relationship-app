@@ -3,13 +3,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 
-// Settings layout: a section rail + one panel at a time, rather than one long
-// scroll of everything. Same pattern as Stripe/Linear/Vercel — you pick the area
-// you came for and see only that, so nothing competes for attention and
-// destructive actions aren't sitting next to routine ones.
+// Settings layout:
+//   • DESKTOP — a section rail + one panel at a time (Stripe/Linear/Vercel
+//     style): you pick the area you came for and see only that.
+//   • PHONE — a vertical ACCORDION: every section tab is listed, and tapping one
+//     drops its content down inline. So on a phone you can see all the tabs at a
+//     glance and expand whichever you need, instead of a cramped horizontal strip.
 //
 // Sections are rendered on the SERVER and passed in as content, so this file
 // stays presentational: what's visible per plan/role is decided in the page.
+// Each section's content is mounted at most ONCE (the open accordion panel on a
+// phone, the active panel on desktop) — never twice — so there are no duplicate
+// element ids or double effect/fetch runs.
 
 export type SettingsSection = {
   id: string;
@@ -39,26 +44,45 @@ export default function SettingsShell({
   const first = sections[0]?.id ?? "";
   const valid = (id: string | undefined) => (id && sections.some((s) => s.id === id) ? id : null);
 
+  // Desktop: the panel that's showing. Phone accordion: which section is
+  // expanded (null = all collapsed, so you first see just the list of tabs).
   const [active, setActive] = useState<string>(valid(initialSection) ?? first);
+  const [mobileOpen, setMobileOpen] = useState<string | null>(valid(initialSection));
+
+  // Which layout to render. Starts false (matches SSR + desktop) and corrects to
+  // the accordion on a phone after mount — same post-mount pattern as
+  // useIsNativeApp above, which this file already relies on.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   // Deep links keep working: /settings/flows?billing=1#billing and any #section
-  // hash open that panel directly (receipt emails and the Office dashboard both
-  // link straight to billing).
+  // hash open that panel (desktop) AND expand it (phone). Receipt emails and the
+  // Office dashboard both link straight to billing.
   useEffect(() => {
-    const fromHash = valid(window.location.hash.replace("#", ""));
-    if (fromHash) setActive(fromHash);
-    const onHash = () => {
-      const next = valid(window.location.hash.replace("#", ""));
-      if (next) setActive(next);
+    const apply = (id: string | null) => {
+      if (id) { setActive(id); setMobileOpen(id); }
     };
+    apply(valid(window.location.hash.replace("#", "")));
+    const onHash = () => apply(valid(window.location.hash.replace("#", "")));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections.length]);
 
-  function go(id: string) {
+  function goDesktop(id: string) {
     setActive(id);
     // Replace rather than push so Back leaves Settings instead of walking the tabs.
+    window.history.replaceState(null, "", `#${id}`);
+  }
+
+  function toggleMobile(id: string) {
+    setMobileOpen((cur) => (cur === id ? null : id));
     window.history.replaceState(null, "", `#${id}`);
   }
 
@@ -66,19 +90,66 @@ export default function SettingsShell({
   const main = sections.filter((s) => !s.quiet);
   const quiet = sections.filter((s) => s.quiet);
 
+  // ── Phone: accordion ───────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div className="flex flex-col gap-2.5">
+        {sections.map((s) => {
+          const openHere = mobileOpen === s.id;
+          return (
+            <div
+              key={s.id}
+              className={`rounded-2xl border overflow-hidden transition-colors ${
+                openHere ? "border-gray-700 bg-gray-900/60" : s.quiet ? "border-gray-800/60 bg-gray-900/30" : "border-gray-800 bg-gray-900/40"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => toggleMobile(s.id)}
+                aria-expanded={openHere}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+              >
+                <span className={`shrink-0 ${openHere ? "text-blue-400" : "text-gray-600"}`}>{s.icon}</span>
+                <span className="flex-1 min-w-0">
+                  <span className={`block text-sm font-semibold ${s.quiet && !openHere ? "text-gray-400" : "text-white"}`}>{s.label}</span>
+                  <span className="block text-gray-500 text-[11px] mt-0.5 truncate">{s.desc}</span>
+                </span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  className={`w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200 ${openHere ? "rotate-180" : ""}`}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              {openHere && (
+                <div className="px-4 pb-4 pt-1 border-t border-gray-800/60">
+                  <div className="space-y-3 pt-3">{s.content}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ── Desktop: rail + one panel ──────────────────────────────────────────────
   return (
     <div className="flex flex-col md:flex-row md:gap-10">
-      {/* Rail — a sidebar on desktop, a scrollable strip on mobile. */}
+      {/* Rail — a sidebar on desktop. */}
       <nav aria-label="Settings sections" className="md:w-56 md:shrink-0 mb-6 md:mb-0">
         <div className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible -mx-5 px-5 md:mx-0 md:px-0 pb-2 md:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {main.map((s) => (
-            <RailItem key={s.id} section={s} active={active === s.id} onClick={() => go(s.id)} />
+            <RailItem key={s.id} section={s} active={active === s.id} onClick={() => goDesktop(s.id)} />
           ))}
           {quiet.length > 0 && (
             <>
               <div className="hidden md:block h-px bg-gray-800/80 my-2" />
               {quiet.map((s) => (
-                <RailItem key={s.id} section={s} active={active === s.id} onClick={() => go(s.id)} quiet />
+                <RailItem key={s.id} section={s} active={active === s.id} onClick={() => goDesktop(s.id)} quiet />
               ))}
             </>
           )}
