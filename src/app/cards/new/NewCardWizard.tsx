@@ -1244,6 +1244,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
+            {/* Mobile: the live card is pinned at the TOP of the design step and
+                stays put (sticky) as you scroll, so every logo / headshot /
+                template / colour change is visible while you make it. Desktop
+                keeps the preview in the right sidebar. */}
+            <div className="lg:hidden sticky top-2 z-20 pt-1 pb-3 bg-gray-950/95 backdrop-blur">
+              <div className="max-w-[280px] mx-auto">{livePreview}</div>
+            </div>
+
             {/* The company logo is org territory for a sub-user — managed tile
                 when the admin has set one, and NO upload either way (a member
                 can never add their own; the branding page is the only source). */}
@@ -1299,12 +1307,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 onConfirm={(url) => setHeadshotUrl(url)}
               />
             </div>
-
-            {/* Mobile-only: the live preview lives in the sidebar on desktop
-                (see below), but on step 3 specifically it's inlined here,
-                right above the design section — the sidebar copy is hidden
-                on mobile for this step so it doesn't show up twice. */}
-            <div className="lg:hidden">{livePreview}</div>
 
             {/* Design — locked for sub-users while the office's Lock Card Design
                 setting is on; the server enforces the office look regardless. */}

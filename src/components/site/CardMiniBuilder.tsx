@@ -142,6 +142,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     {
       title: "Make it yours",
       subtitle: "Pick a template, then fine-tune the colours and font — exactly like the real editor.",
+      previewFirst: true,
       content: (
         <div className="space-y-4">
           <div>
@@ -163,25 +164,14 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
             </div>
           </div>
 
-          {/* Mobile-only: the shared preview column (see hidePreviewOnMobile
-              below) is hidden for this step, and this inline copy sits right
-              next to the template choices instead of at the bottom of the
-              whole sheet, past the nav buttons. */}
-          <div className="md:hidden flex justify-center">
-            <InertPreview className="rounded-xl overflow-hidden border border-white/10 w-full max-w-[170px]">
-              <CardScaler>
-                <Preview data={data} />
-              </CardScaler>
-            </InertPreview>
-          </div>
-
-          {/* The very same control the signed-in card editor renders. */}
+          {/* The very same control the signed-in card editor renders. On mobile
+              the live preview sits pinned above this step (previewFirst), so
+              there's no separate inline copy here. */}
           <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
       ),
     },
   ];
-  const isLastStep = step >= steps.length - 1;
 
   return (
     <>
@@ -227,7 +217,6 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         launching={launching}
         launchLabel="Make it live →"
         previewCaption="This is your real card — same as recipients see."
-        hidePreviewOnMobile={isLastStep}
         preview={
           <InertPreview className="w-[260px] max-w-full">
             <div className="rounded-2xl overflow-hidden shadow-2xl">

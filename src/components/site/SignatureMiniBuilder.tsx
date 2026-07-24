@@ -129,6 +129,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
     {
       title: "Design your signature",
       subtitle: "Pick a layout, then fine-tune the colours and font — it updates live.",
+      previewFirst: true,
       content: (
         <div className="space-y-4">
           <div>
