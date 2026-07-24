@@ -228,6 +228,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       if (cardChanged) {
         const username = b.username as string;
+
+        // SHARE-PREVIEW freshness: the stored pixel-perfect capture
+        // (card-shares/<username>.png) is now stale. Delete it so the card's
+        // link preview immediately falls back to the LIVE-rendered Tier-2 image
+        // (built from the current card data) instead of serving the OLD card,
+        // until the client re-captures an exact copy on the next dashboard/editor
+        // render. The versioned og:image URL busts the messenger cache in step.
+        // Best-effort — never blocks the save.
+        admin.storage.from("card-shares").remove([`${username}.png`]).then(() => {}, () => {});
+
         // One pending (unread) reminder per card is enough — skip if one exists.
         const { data: pending } = await admin
           .from("notifications")

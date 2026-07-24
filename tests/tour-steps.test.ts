@@ -3,7 +3,9 @@ import { TOUR_STEPS, resolveTourPath, type TourStep } from "@/lib/tour-steps";
 
 describe("resolveTourPath", () => {
   const dash = TOUR_STEPS.find((s) => s.path === "/dashboard")!;
-  const settings = TOUR_STEPS.find((s) => s.path === "/settings/flows")!;
+  // The last settings step ("finish") has no section — a plain settings path.
+  const settingsFinish = TOUR_STEPS.find((s) => s.id === "finish")!;
+  const settingsCards = TOUR_STEPS.find((s) => s.id === "settings-cards")!;
 
   it("pins dashboard/contacts steps to the active card", () => {
     expect(resolveTourPath(dash, "work")).toBe("/dashboard?card=work");
@@ -11,8 +13,11 @@ describe("resolveTourPath", () => {
     expect(resolveTourPath(contacts, "alex morgan")).toBe("/contacts?card=alex%20morgan");
   });
 
-  it("leaves settings steps and card-less calls untouched", () => {
-    expect(resolveTourPath(settings, "work")).toBe("/settings/flows");
+  it("settings steps carry their section as a #hash (never a ?card param)", () => {
+    // A step with a section opens that SettingsShell panel on arrival.
+    expect(resolveTourPath(settingsCards, "work")).toBe("/settings/flows#cards");
+    // A section-less settings step (and any card-less call) stays bare.
+    expect(resolveTourPath(settingsFinish, "work")).toBe("/settings/flows");
     expect(resolveTourPath(dash, null)).toBe("/dashboard");
   });
 });

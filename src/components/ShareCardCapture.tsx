@@ -109,7 +109,10 @@ export default function ShareCardCapture({
   template: string;
   username: string;
 }) {
-  const [mounted, setMounted] = useState(false);
+  // Only true once we know a fresh capture is due (stored hash ≠ current). Until
+  // then the off-screen card isn't rendered at all — so a normal dashboard load
+  // where the card hasn't changed pays ZERO render cost for this component.
+  const [needsCapture, setNeedsCapture] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const capturingRef = useRef(false);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
@@ -233,21 +236,22 @@ export default function ShareCardCapture({
     }
   }
 
-  // On load / whenever this card's content changes, regenerate so the share
-  // preview always matches the current card.
+  // On load / whenever this card's content changes: if the stored capture is
+  // already current, render nothing and do nothing. Only when it's stale do we
+  // mount the off-screen card and (re)generate — so the share preview always
+  // matches the current card, without re-rendering the template every visit.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- image capture only runs client-side
-    setMounted(true);
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
-    if (prev !== contentSig) {
-      const t = setTimeout(() => { captureAndUpload(); }, 800);
-      return () => clearTimeout(t);
-    }
+    if (prev === contentSig) return; // up to date — nothing to render or capture
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- gate the off-screen render on a real capture need
+    setNeedsCapture(true);
+    const t = setTimeout(() => { captureAndUpload(); }, 800);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, contentSig]);
 
-  if (!mounted) return null;
+  if (!needsCapture) return null;
 
   // Hidden, off-screen render of the card EXACTLY as the public page shows it
   // (withoutSocials for standard templates; QR kept; natural sizing).
