@@ -66,7 +66,7 @@ const GUARDS: Guard[] = [
   },
   {
     file: "src/components/HelpWidget.tsx",
-    patterns: [/NATIVE_GREETING/, /NATIVE_SUGGESTIONS/, /native: isNativeApp/],
+    patterns: [/NATIVE_GREETING/, /NATIVE_SUGGESTIONS/, /useIsNativeApp\(\)/],
   },
   { file: "src/components/SignupNudgeHost.tsx", patterns: [/if \(!source \|\| native\) return null/] },
   { file: "src/components/AppStorePopup.tsx", patterns: [/if \(!open \|\| native\) return null/] },

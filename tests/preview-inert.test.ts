@@ -16,7 +16,18 @@ const EDITOR_PREVIEWS = [
   "src/components/site/SwiftLinkMiniBuilder.tsx",
   "src/components/site/SignatureMiniBuilder.tsx",
   "src/components/OfficeBranding.tsx",
+  // The SwiftLink builders render their live preview through this dedicated
+  // component, which is the one that actually wraps InertPreview — so the
+  // inertness is pinned HERE (SwiftLinkMiniBuilder delegates to it, below).
+  "src/components/SwiftLinkLivePreview.tsx",
 ];
+
+// Files whose (inert) preview is delegated to another component rather than
+// wrapping InertPreview directly. Their assertion checks the delegation; the
+// delegate itself is in EDITOR_PREVIEWS above so its InertPreview is verified.
+const INERT_VIA: Record<string, string> = {
+  "src/components/site/SwiftLinkMiniBuilder.tsx": "SwiftLinkLivePreview",
+};
 
 // Rendering the real card, for real, for the public. Must NOT be locked.
 const PUBLIC_SURFACES = [
@@ -37,8 +48,14 @@ describe("editor previews are non-interactive", () => {
   for (const file of EDITOR_PREVIEWS) {
     it(`${file} renders its live preview inside InertPreview`, () => {
       const src = read(file);
-      expect(src).toContain("InertPreview");
-      expect(src).toContain('from "@/components/InertPreview"');
+      const via = INERT_VIA[file];
+      if (via) {
+        // Delegates its inert preview to a dedicated (also-checked) component.
+        expect(src).toContain(via);
+      } else {
+        expect(src).toContain("InertPreview");
+        expect(src).toContain('from "@/components/InertPreview"');
+      }
     });
   }
 

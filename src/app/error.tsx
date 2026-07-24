@@ -7,6 +7,21 @@ import { useEffect } from "react";
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error("[app error boundary]", error);
+    // Report the crash so a page-level failure any user hits is visible to the
+    // team (React boundary errors never surface as window.onerror). Best-effort.
+    try {
+      fetch("/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          context: "react.boundary",
+          message: error?.message || "render error",
+          stack: error?.stack ?? "",
+          url: typeof location !== "undefined" ? location.href : "",
+        }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch { /* never throw from the boundary */ }
   }, [error]);
 
   return (
