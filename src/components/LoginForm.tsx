@@ -12,71 +12,44 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 // therefore routes through swiftcard.me.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-export default function LoginForm({ redirectTo, initialMode = "signin", isReferral = false }: { redirectTo?: string; initialMode?: "signin" | "signup"; isReferral?: boolean }) {
+export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
+  // A failed email/password sign-in: Supabase can't reveal whether the email
+  // has no account or the password was wrong (by design), so we surface an
+  // honest "create one if you're new" affordance rather than a false claim.
+  const [signinFailed, setSigninFailed] = useState(false);
   const native = useIsNativeApp();
 
-  // SwiftCard is invite-only for new accounts. Office-team invitees (arriving
-  // with next=/join/<token>) are pre-authorized by their invite, so they don't
-  // need a code — the /onboarding gate lets their pending office invite through.
-  // Referred friends (/r/CODE → ?ref=1) are likewise pre-authorized: their
-  // sc_ref cookie is validated server-side at /onboarding.
-  const isOfficeInvite = !!(redirectTo && redirectTo.startsWith("/join/"));
-  const skipInviteCode = isOfficeInvite || isReferral;
-
-  // Verify the invite code before any signup path (email OR Google/Apple). On
-  // success the server sets a short-lived cookie that /onboarding re-checks
-  // before it will provision the account. No-op for sign-in and office invites.
-  async function ensureInviteVerified(): Promise<boolean> {
-    if (mode !== "signup" || skipInviteCode) return true;
-    const code = inviteCode.trim();
-    if (!code) {
-      setErrorMsg("An invite code is required to create an account.");
-      setStatus("error");
-      return false;
-    }
-    try {
-      const res = await fetch("/api/invite/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        setErrorMsg(data.error || "That invite code isn't valid.");
-        setStatus("error");
-        return false;
-      }
-      return true;
-    } catch {
-      setErrorMsg("Couldn't verify your invite code — please try again.");
-      setStatus("error");
-      return false;
-    }
-  }
-
   // Surface a failed OAuth round-trip (auth/callback redirects here with
-  // ?error=oauth) instead of silently landing the visitor back on the form.
-  // Read after mount — reading the URL during render would mismatch SSR.
+  // ?error=oauth) or a sign-in attempt for an email with no account
+  // (?error=no_account) instead of silently landing the visitor back on the
+  // form. Read after mount — reading the URL during render would mismatch SSR.
   useEffect(() => {
+    let msg = "";
+    let toSignup = false;
     try {
       const err = new URLSearchParams(window.location.search).get("error");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after mount, avoids SSR mismatch
       if (err === "oauth") {
-        setErrorMsg("Google sign-in didn't complete — please try again.");
-      } else if (err === "invite_only") {
-        // Onboarding rejected an uninvited new account — nudge them to the
-        // invite-code signup instead of leaving them confused on the sign-in tab.
-        setErrorMsg("SwiftCard is invite-only right now — you need an invite code to create an account.");
-        setMode("signup");
+        msg = "Google sign-in didn't complete — please try again.";
+      } else if (err === "no_account") {
+        // They tried to SIGN IN with Google but have no SwiftCard account yet —
+        // flip to Create-account and tell them so, instead of leaving them
+        // confused on the sign-in tab (Task 4).
+        msg = "You don't have an account yet — create one to get started.";
+        toSignup = true;
       }
     } catch { /* ignore */ }
+    // One-time reads of the URL after mount (SSR-safe): applying them is the
+    // whole point of this effect.
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time post-mount URL read */
+    if (msg) setErrorMsg(msg);
+    if (toSignup) setMode("signup");
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const supabase = createBrowserClient(
@@ -93,7 +66,6 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
   }
 
   async function handleGoogle() {
-    if (mode === "signup" && !(await ensureInviteVerified())) return;
     if (mode === "signup") await clearExistingSession();
     // NATIVE: OAuth must run in the SYSTEM browser (SFSafariViewController) —
     // Google blocks embedded-webview OAuth (403 disallowed_useragent). The
@@ -101,7 +73,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
     // completes the session in the webview. See src/lib/native-auth.ts.
     if (native) {
       const { startNativeOAuth } = await import("@/lib/native-auth");
-      const err = await startNativeOAuth(supabase, "google", redirectTo);
+      const err = await startNativeOAuth(supabase, "google", redirectTo, mode);
       if (err) { setErrorMsg(err); setStatus("error"); }
       return;
     }
@@ -126,13 +98,12 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
   // action), so today this call returns an error; we catch it and surface it as
   // a normal user-facing message rather than letting it throw. Inert but safe.
   async function handleApple() {
-    if (mode === "signup" && !(await ensureInviteVerified())) return;
     if (mode === "signup") await clearExistingSession();
     try {
       // Same system-browser flow as native Google — consistent, and avoids
       // running Apple's auth page inside the embedded webview.
       const { startNativeOAuth } = await import("@/lib/native-auth");
-      const err = await startNativeOAuth(supabase, "apple", redirectTo);
+      const err = await startNativeOAuth(supabase, "apple", redirectTo, mode);
       if (err) {
         setErrorMsg(err.includes("not enabled") ? "Apple sign-in isn't available right now — please try again." : err);
         setStatus("error");
@@ -151,13 +122,19 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setErrorMsg(error.message === "Invalid login credentials" ? "Wrong email or password." : error.message);
+        if (error.message === "Invalid login credentials") {
+          // Could be a wrong password OR no account — Supabase won't say which.
+          // Guide them to Create-account without a false "no account" claim.
+          setErrorMsg("We couldn't sign you in. If you don't have an account yet, create one — it's free.");
+          setSigninFailed(true);
+        } else {
+          setErrorMsg(error.message);
+        }
         setStatus("error");
       } else {
         window.location.href = redirectTo ?? "/dashboard";
       }
     } else {
-      if (!(await ensureInviteVerified())) return;
       await clearExistingSession();
       // Carry a same-origin `next` (e.g. a team invite, or the guest editor)
       // through email-confirmation too — mirrors handleGoogle/handleApple.
@@ -241,7 +218,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
           <button
             key={m}
             type="button"
-            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); }}
+            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
             className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
             style={{
               background: mode === m ? "#1D4ED8" : "transparent",
@@ -272,25 +249,21 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
           className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
         />
 
-        {mode === "signup" && !skipInviteCode && (
-          <div>
-            <input
-              type="text"
-              placeholder="Invite code"
-              required
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              autoCapitalize="characters"
-              className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
-            />
-            <p className="text-center text-[11px] text-slate-400 mt-1.5">
-              SwiftCard is invite-only right now. Have a code? Enter it to join.
-            </p>
-          </div>
-        )}
-
         {errorMsg && (
           <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+        )}
+
+        {/* After a failed sign-in, a one-tap path to Create-account (keeps the
+            email they typed) — the "redirect to create account" affordance for
+            the email/password case, where Supabase can't confirm no-account. */}
+        {mode === "signin" && signinFailed && (
+          <button
+            type="button"
+            onClick={() => { setMode("signup"); setSigninFailed(false); setErrorMsg(""); setStatus("idle"); }}
+            className="w-full text-center text-[#1D4ED8] hover:text-[#1740C4] font-semibold text-sm py-1 transition-colors"
+          >
+            Create an account →
+          </button>
         )}
 
         <button
@@ -351,7 +324,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin", isReferr
           Continue with Google
         </button>
       ) : (
-        <GoogleSignInButton redirectTo={redirectTo} oneTap />
+        <GoogleSignInButton redirectTo={redirectTo} oneTap intent={mode} />
       )}
 
       {/* Native app only: Sign in with Apple (Apple requires it alongside other

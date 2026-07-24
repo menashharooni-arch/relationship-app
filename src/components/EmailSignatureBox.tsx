@@ -76,13 +76,18 @@ async function inlineImages(el: HTMLElement, fallbackSrc: Map<string, string>): 
       for (let attempt = 0; attempt < 2; attempt++) {
         const dataUrl = await fetchAsDataUrl(candidate);
         if (!dataUrl) continue;
-        await new Promise<void>((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
+        // Count it embedded ONLY when the data URL actually DECODES (naturalWidth
+        // > 0). A proxy that answered 200 with an HTML error page would otherwise
+        // pass the old `startsWith("data:")` check yet render as a broken image —
+        // exactly the "headshot missing" glitch. A failed decode falls through to
+        // the next candidate / retry, and ultimately rejects the whole capture.
+        const decoded = await new Promise<boolean>((resolve) => {
+          img.onload = () => resolve(img.naturalWidth > 0);
+          img.onerror = () => resolve(false);
           img.src = dataUrl;
-          setTimeout(resolve, 3000);
+          setTimeout(() => resolve(img.naturalWidth > 0), 3000);
         });
-        if (img.src.startsWith("data:")) return true;
+        if (decoded) return true;
       }
     }
     return false; // every attempt (proxied AND un-proxied) failed to embed this image
@@ -129,9 +134,10 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v10" bump = signature is now a pixel-exact copy of the card (no
-  // font enlarging, QR kept, card-page background) — forces everyone to re-capture.
-  const contentSig = "v10|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // card's image. "v11" bump = wait for web fonts + verify each inlined image
+  // actually decodes before shipping, so a capture can never miss the headshot/logo
+  // or bake in a fallback font. "v10" = pixel-exact copy of the card.
+  const contentSig = "v11|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
   // Separate from hashKey (which tracks the last CAPTURE): this tracks the last
   // content the user actually COPIED into their email. If the card design has
@@ -190,8 +196,11 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // public card page uses). The wording is deliberately NOT enlarged and the QR
       // is deliberately NOT hidden, so it matches the card the visitor sees 1:1.
 
-      // Let fonts + reflow settle so text metrics are identical on every capture
-      // (deterministic output — the signature looks the same every time).
+      // Wait for web fonts to finish loading BEFORE rasterizing — otherwise the
+      // capture can bake in a fallback font (wrong metrics, clipped/oddly-wrapped
+      // text) or, worse, glyphs that haven't painted yet. Then a short settle so
+      // reflow is done and every capture is byte-deterministic.
+      try { await (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts?.ready; } catch { /* fonts API absent — best effort */ }
       await new Promise((r) => setTimeout(r, 200));
 
       // html-to-image renders via the browser engine (SVG foreignObject), so it

@@ -69,13 +69,16 @@ async function inlineImages(el: HTMLElement, fallbackSrc: Map<string, string>): 
       for (let attempt = 0; attempt < 2; attempt++) {
         const dataUrl = await fetchAsDataUrl(candidate);
         if (!dataUrl) continue;
-        await new Promise<void>((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
+        // Count it embedded only when the data URL actually DECODES (naturalWidth
+        // > 0) — a proxy 200 with an HTML error body would otherwise pass yet
+        // render as a broken image. A failed decode retries / rejects the capture.
+        const decoded = await new Promise<boolean>((resolve) => {
+          img.onload = () => resolve(img.naturalWidth > 0);
+          img.onerror = () => resolve(false);
           img.src = dataUrl;
-          setTimeout(resolve, 3000);
+          setTimeout(() => resolve(img.naturalWidth > 0), 3000);
         });
-        if (img.src.startsWith("data:")) return true;
+        if (decoded) return true;
       }
     }
     return false; // every attempt failed to embed this image
@@ -112,10 +115,10 @@ export default function ShareCardCapture({
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
 
   // Capture-logic version. Bump to force a global re-capture
-  // ("v5" = images inlined as data URLs before rasterizing + capture rejected
-  // when the photo/logo can't embed, so a share preview never drops the headshot;
-  // "v4" = max-space sizing: sparse cards grow text/logo/QR, banner-aware logos).
-  const contentSig = "share-v5|" + hashStr(JSON.stringify(cardData) + "|" + template);
+  // ("v6" = wait for web fonts + verify each inlined image actually decodes, so a
+  // capture never bakes a fallback font or a broken headshot; "v5" = images inlined
+  // + reject on missing; "v4" = max-space sizing, banner-aware logos).
+  const contentSig = "share-v6|" + hashStr(JSON.stringify(cardData) + "|" + template);
   const hashKey = `sc_sharehash_${username}`;
 
   // Photo/logo through a same-origin proxy so the browser can read them into the canvas.
@@ -162,6 +165,9 @@ export default function ShareCardCapture({
     }
     if (!inlined) return null;
 
+    // Wait for web fonts before rasterizing so text can't bake in a fallback
+    // font (wrong metrics / clipped) or unpainted glyphs; then let reflow settle.
+    try { await (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts?.ready; } catch { /* fonts API absent */ }
     await new Promise((r) => setTimeout(r, 200)); // let fonts/reflow settle
 
     // Render the node NATIVELY larger (transform scale) rather than bumping

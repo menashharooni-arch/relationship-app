@@ -8,9 +8,9 @@ export default async function LoginPage({
 }) {
   const { next, mode, ref } = await searchParams;
   const initialMode = mode === "signup" ? "signup" : "signin";
-  // Arrived through a referral link (/r/CODE): the referral is their invite, so
-  // the signup form must not demand an invite code. The authoritative check is
-  // still server-side at /onboarding (sc_ref cookie → real referrer).
+  // Arrived through a referral link (/r/CODE → ?ref=1): show the "your first
+  // month of Pro is free" copy. The reward itself is applied server-side at
+  // /onboarding from the sc_ref cookie. (Signup is open to everyone — no code.)
   const isReferral = ref === "1";
   return (
     <main className="min-h-screen bg-cream flex items-center justify-center px-5">
@@ -33,7 +33,7 @@ export default async function LoginPage({
           </p>
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">
-          <LoginForm redirectTo={next} initialMode={initialMode} isReferral={isReferral} />
+          <LoginForm redirectTo={next} initialMode={initialMode} />
         </div>
       </div>
     </main>

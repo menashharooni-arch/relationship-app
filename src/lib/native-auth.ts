@@ -38,14 +38,19 @@ export const NATIVE_OAUTH_REDIRECT = "swiftcard://auth-callback";
 // sessionStorage stash — the PKCE verifier survives (cookies), so login
 // completes, but the post-login destination would be dropped.
 const NEXT_KEY = "swiftcard_native_oauth_next";
+// Sign-in vs create intent, stashed alongside `next` so the post-callback
+// navigation can tell /onboarding to bounce a no-account SIGN-IN (Task 4).
+const INTENT_KEY = "swiftcard_native_oauth_intent";
 
-export function stashNativeOAuthNext(next: string | null | undefined): void {
+export function stashNativeOAuthNext(next: string | null | undefined, intent?: "signin" | "signup"): void {
   try {
     if (next && next.startsWith("/") && !next.startsWith("//")) {
       localStorage.setItem(NEXT_KEY, next);
     } else {
       localStorage.removeItem(NEXT_KEY);
     }
+    if (intent === "signin") localStorage.setItem(INTENT_KEY, "signin");
+    else localStorage.removeItem(INTENT_KEY);
   } catch { /* private mode — land on the default */ }
 }
 
@@ -53,6 +58,16 @@ function consumeNativeOAuthNext(): string | null {
   try {
     const v = localStorage.getItem(NEXT_KEY);
     localStorage.removeItem(NEXT_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+function consumeNativeOAuthIntent(): string | null {
+  try {
+    const v = localStorage.getItem(INTENT_KEY);
+    localStorage.removeItem(INTENT_KEY);
     return v;
   } catch {
     return null;
@@ -68,8 +83,9 @@ export async function startNativeOAuth(
   supabase: SupabaseClient,
   provider: "google" | "apple",
   redirectTo?: string | null,
+  intent?: "signin" | "signup",
 ): Promise<string | null> {
-  stashNativeOAuthNext(redirectTo);
+  stashNativeOAuthNext(redirectTo, intent);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
@@ -112,6 +128,7 @@ export async function completeNativeOAuth(supabase: SupabaseClient, url: string)
   }
 
   const next = consumeNativeOAuthNext();
+  const intent = consumeNativeOAuthIntent();
 
   if (!code) {
     // Provider round-trip failed or was cancelled — back to login with the
@@ -127,7 +144,12 @@ export async function completeNativeOAuth(supabase: SupabaseClient, url: string)
   }
 
   // Mirror the web GIS flow: new-or-existing users route through /onboarding,
-  // which provisions and forwards to `next` (or the dashboard).
-  window.location.href = next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding";
+  // which provisions and forwards to `next` (or the dashboard) — or, for a
+  // no-account SIGN-IN, bounces to Create-account (Task 4).
+  const params = new URLSearchParams();
+  if (next) params.set("next", next);
+  if (intent === "signin") params.set("intent", "signin");
+  const qs = params.toString();
+  window.location.href = qs ? `/onboarding?${qs}` : "/onboarding";
   return true;
 }

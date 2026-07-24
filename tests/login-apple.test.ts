@@ -35,7 +35,7 @@ describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
   it("routes Apple sign-in through the system-browser native flow and handles errors", () => {
     // The native Apple handler now uses startNativeOAuth (system browser +
     // swiftcard:// return) — embedded-webview OAuth is unreliable on iOS.
-    expect(src).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo\)/);
+    expect(src).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo, mode\)/);
     expect(src).toMatch(/setErrorMsg/);
   });
   it("the button is rendered only when native", () => {

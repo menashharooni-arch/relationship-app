@@ -33,14 +33,23 @@ type Props = {
    *  auto_select stays false on purpose: zero-click auto sign-in would violate
    *  the "visitor explicitly picks an account" rule of the guest card flow. */
   oneTap?: boolean;
+  /** Which tab the visitor is on. "signin" tells /onboarding to bounce a visitor
+   *  who has no account yet to Create-account (Task 4) instead of provisioning
+   *  one. "signup" (or undefined) provisions normally. */
+  intent?: "signin" | "signup";
 };
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 type Phase = "loading" | "ready" | "authenticating" | "error";
 
-export default function GoogleSignInButton({ redirectTo, className, oneTap = false }: Props) {
+export default function GoogleSignInButton({ redirectTo, className, oneTap = false, intent }: Props) {
   const btnRef = useRef<HTMLDivElement>(null);
+  // Read at credential-callback time (via ref) so switching the Sign-in/Create
+  // tab doesn't re-initialise the Google button. Kept current via an effect
+  // (updating a ref during render is disallowed).
+  const intentRef = useRef(intent);
+  useEffect(() => { intentRef.current = intent; }, [intent]);
   // A missing client ID is known at first render (build-time NEXT_PUBLIC var),
   // so start in the right state instead of setState-ing inside the effect.
   const [phase, setPhase] = useState<Phase>(() => (CLIENT_ID ? "loading" : "error"));
@@ -104,10 +113,13 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
         }
         // Session created. Reuse the existing post-login path (idempotent for
         // both brand-new and returning users). A full navigation ensures the
-        // new auth cookies are sent on the next request.
-        window.location.href = safeNext
-          ? `/onboarding?next=${encodeURIComponent(safeNext)}`
-          : "/onboarding";
+        // new auth cookies are sent on the next request. Carry the sign-in
+        // intent so /onboarding can bounce a no-account sign-in (Task 4).
+        const params = new URLSearchParams();
+        if (safeNext) params.set("next", safeNext);
+        if (intentRef.current === "signin") params.set("intent", "signin");
+        const qs = params.toString();
+        window.location.href = qs ? `/onboarding?${qs}` : "/onboarding";
       } catch {
         inFlight.current = false;
         setPhase("error");
