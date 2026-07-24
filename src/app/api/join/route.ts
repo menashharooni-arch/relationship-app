@@ -4,6 +4,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards } from "@/lib/office-brand";
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
+import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
 import { NextResponse } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
@@ -213,6 +214,25 @@ export async function POST(req: Request) {
   } catch { /* best-effort — the next card edit applies the overlay anyway */ }
 
   await writeAudit({ action: "invite.accepted", actorId: user.id, orgId: officeId, targetId: user.email ?? user.id });
+
+  // Team inbox (admin bell): a genuinely important event — someone JOINED. And
+  // for each office this user just LEFT, tell that office too. Best-effort; the
+  // notify helper swallows its own errors so accept is never blocked.
+  const joinerLabel = displayLabelFrom(member.invite_name as string | null, user.email);
+  await notifyOffice(officeId, {
+    type: "member_joined",
+    title: `${joinerLabel} joined your team`,
+    body: user.email ? `${user.email} accepted their invitation and is now on your team.` : "A new teammate accepted their invitation.",
+    meta: { userId: user.id },
+  });
+  for (const r of oldRows ?? []) {
+    await notifyOffice(r.office_id as string, {
+      type: "member_left",
+      title: `${joinerLabel} left your team`,
+      body: user.email ? `${user.email} moved to another team.` : "A teammate moved to another team.",
+      meta: { userId: user.id },
+    });
+  }
 
   return NextResponse.json({ ok: true, officeName: (member.offices as { name: string } | null)?.name });
 }

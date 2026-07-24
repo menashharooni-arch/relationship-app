@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { writeAudit } from "@/lib/audit";
+import { notifyOffice } from "@/lib/office-notify";
 import { NextResponse } from "next/server";
 
 // POST /api/office/decline { token }
@@ -27,5 +28,16 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await writeAudit({ action: "invite.declined", orgId: member.office_id as string, targetId: (member.invite_email as string) ?? member.id });
+
+  // Team inbox (admin bell): the admin should know so they can re-invite or reuse
+  // the now-free seat. Best-effort; never blocks the decline.
+  await notifyOffice(member.office_id as string, {
+    type: "invite_declined",
+    title: "An invitation was declined",
+    body: member.invite_email
+      ? `${member.invite_email} declined the invitation — their seat is free again.`
+      : "An invitee declined — their seat is free again.",
+  });
+
   return NextResponse.json({ ok: true });
 }
