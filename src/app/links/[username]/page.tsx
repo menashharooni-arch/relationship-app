@@ -110,7 +110,10 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   // Free is capped at FREE_MAX_LINKS Swift Links buttons; paid plans get
   // unlimited. Trimmed here so the cap applies to existing accounts on view,
   // not only after their next save.
-  const allActionLinks = (customization.links ?? []).filter((l) => l.label && l.url);
+  // Array.isArray, not `?? []`: a corrupted/legacy customization where `links`
+  // is an object or string would throw on .filter and 500 this PUBLIC page.
+  // Same guard the card page already applies (cards audit M4).
+  const allActionLinks = (Array.isArray(customization.links) ? customization.links : []).filter((l) => l.label && l.url);
   const actionLinks = ownerPaid ? allActionLinks : allActionLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   const socials = buildConnectLinks({

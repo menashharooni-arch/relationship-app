@@ -48,16 +48,29 @@ function channelPaused(tags: string[] | null | undefined, channel: "email" | "sm
   return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
 }
 
-// Best-effort unsubscribe link for the two owner-directed plan-status emails
-// below — same token/row the welcome email uses. Undefined (no link shown)
-// if the row hasn't been created yet, never blocks the send.
-async function getUnsubscribeUrl(supabase: ReturnType<typeof getAdminSupabase>, userId: string): Promise<string | undefined> {
+// Email preferences for the two owner-directed plan-status emails below — same
+// token/row the welcome email uses.
+//   • unsubscribeUrl: the footer link + List-Unsubscribe header. Undefined (no
+//     link shown) if the row hasn't been created yet; never blocks the send.
+//   • marketingOk: whether this owner still accepts marketing mail. Someone who
+//     one-click unsubscribed must NOT keep receiving upgrade-pitch mail carrying
+//     a fresh unsubscribe link — that reads as ignoring their opt-out and is a
+//     direct spam-complaint driver. The admin broadcast and promo senders
+//     already skip these users; the cron didn't. A missing prefs row means
+//     nobody has opted out yet → allowed.
+async function getEmailPrefs(
+  supabase: ReturnType<typeof getAdminSupabase>,
+  userId: string,
+): Promise<{ unsubscribeUrl?: string; marketingOk: boolean }> {
   const { data } = await supabase
     .from("email_preferences")
-    .select("unsubscribe_token")
+    .select("unsubscribe_token, marketing_emails")
     .eq("user_id", userId)
     .maybeSingle();
-  return data?.unsubscribe_token ? unsubUrl(data.unsubscribe_token as string) : undefined;
+  return {
+    unsubscribeUrl: data?.unsubscribe_token ? unsubUrl(data.unsubscribe_token as string) : undefined,
+    marketingOk: data?.marketing_emails !== false,
+  };
 }
 
 
@@ -104,7 +117,10 @@ export async function GET(req: NextRequest) {
       // (which can be the card's public contact address).
       const to = await getAccountEmail(u.id, u.email);
       if (!to) continue;
-      const unsub = await getUnsubscribeUrl(supabase, u.id);
+      const { unsubscribeUrl: unsub, marketingOk } = await getEmailPrefs(supabase, u.id);
+      // Honor the opt-out — the downgrade still happened, they just don't get
+      // mail about it (the plan change is visible in-app).
+      if (!marketingOk) continue;
       const tpl = trialEndedEmail({
         firstName: u.name?.split(" ")[0] || "there",
         isTrial: u.wasTrial,
@@ -144,20 +160,25 @@ export async function GET(req: NextRequest) {
       const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
       const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
       if (to) {
-        const unsub = await getUnsubscribeUrl(supabase, u.id as string);
-        const tpl = trialEndingSoonEmail({
-          firstName: (u.name as string)?.split(" ")[0] || "there",
-          daysLeft,
-          isTrial: cust._trial === true,
-          unsubscribeUrl: unsub,
-        });
-        // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
-        const { data: sent } = await resend.emails
-          .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
-          .catch(() => ({ data: null }));
-        try {
-          await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent?.id });
-        } catch { /* logging is best-effort */ }
+        const { unsubscribeUrl: unsub, marketingOk } = await getEmailPrefs(supabase, u.id as string);
+        // This one is an upgrade pitch — never send it to someone who opted out.
+        // (The _proWarnedFor stamp below still runs, so they aren't re-evaluated
+        // every night.)
+        if (marketingOk) {
+          const tpl = trialEndingSoonEmail({
+            firstName: (u.name as string)?.split(" ")[0] || "there",
+            daysLeft,
+            isTrial: cust._trial === true,
+            unsubscribeUrl: unsub,
+          });
+          // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
+          const { data: sent } = await resend.emails
+            .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
+            .catch(() => ({ data: null }));
+          try {
+            await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent?.id });
+          } catch { /* logging is best-effort */ }
+        }
       }
       await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 // The /office/admin team-inbox bell. A DISTINCT component from the personal
 // NotificationBell: it polls /api/office/notifications (office_notifications
@@ -160,8 +161,13 @@ export default function OfficeNotificationBell({
         )}
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
+          {/* PORTALED to document.body for the same reason as the personal bell:
+              this sits inside the backdrop-blur admin header, which becomes the
+              containing block for `fixed` children — so in place this click-away
+              layer only covered the header strip and clicks on the page below
+              never closed the panel. */}
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
           <div
             role="dialog"
@@ -242,7 +248,8 @@ export default function OfficeNotificationBell({
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
