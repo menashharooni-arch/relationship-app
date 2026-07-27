@@ -23,3 +23,11 @@ CREATE TABLE IF NOT EXISTS message_opt_outs (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (channel, contact)
 );
+
+-- 3) RLS. Both tables are read/written ONLY through the service role
+--    (getAdminSupabase in src/lib/messaging.ts), which bypasses RLS — so RLS on
+--    with NO policies is the correct end state, matching every other table here.
+--    Without this, Supabase's default grants expose them through PostgREST to
+--    anyone holding the public anon key, and lead_messages holds message bodies.
+ALTER TABLE lead_messages    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE message_opt_outs ENABLE ROW LEVEL SECURITY;
