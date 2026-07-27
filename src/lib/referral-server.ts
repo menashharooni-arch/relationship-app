@@ -425,7 +425,7 @@ export async function expireFreeMonths(): Promise<DowngradedUser[]> {
   const admin = getAdminSupabase();
   const { data: expired } = await admin
     .from("profiles")
-    .select("id, email, name, stripe_subscription_id, customization")
+    .select("id, email, name, plan, stripe_subscription_id, customization")
     .not("plan_expires_at", "is", null)
     .lte("plan_expires_at", new Date().toISOString());
 
@@ -435,6 +435,19 @@ export async function expireFreeMonths(): Promise<DowngradedUser[]> {
       // A real subscriber whose grant window lapsed — just clear the expiry so
       // the row is never mistaken for an app grant. Never downgrade them.
       await admin.from("profiles").update({ plan_expires_at: null }).eq("id", u.id);
+      continue;
+    }
+    // Already on Free with a stale expiry: there is nothing to downgrade, so
+    // clear the leftover fields but DON'T report them as downgraded — they'd
+    // otherwise be emailed "your trial has ended" for a plan they left long ago.
+    if (u.plan !== "pro" && u.plan !== "enterprise") {
+      const cleanCust = { ...((u.customization ?? {}) as Record<string, unknown>) };
+      delete cleanCust._trial;
+      delete cleanCust._proWarnedFor;
+      await admin
+        .from("profiles")
+        .update({ plan_expires_at: null, customization: cleanCust })
+        .eq("id", u.id);
       continue;
     }
     const cust = (u.customization ?? {}) as Record<string, unknown>;

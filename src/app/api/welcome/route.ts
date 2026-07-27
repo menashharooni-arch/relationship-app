@@ -56,8 +56,24 @@ export async function POST() {
       unsubscribeUrl: unsubUrl(token),
     });
 
+    // CLAIM the welcome before sending. The alreadySent check above is a
+    // check-then-act that two concurrent requests (a double-submitted signup)
+    // can both pass — and because the log row was only written AFTER the send,
+    // both would deliver a welcome email. email_logs_welcome_once_idx makes this
+    // insert the atomic gate instead: the loser fails here and sends nothing.
+    const { error: claimError } = await admin.from("email_logs").insert({
+      user_id: user.id,
+      email: accountEmail,
+      type: "welcome",
+      subject: template.subject,
+    });
+    if (claimError) {
+      // Unique violation = someone else already claimed it and is sending.
+      return NextResponse.json({ success: true, skipped: "already_sent" });
+    }
+
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { data: sent } = await resend.emails.send({
+    const { data: sent, error: sendError } = await resend.emails.send({
       ...template,
       to: accountEmail,
       // One-click unsubscribe headers (Gmail/Yahoo requirement) — a footer link
@@ -65,13 +81,18 @@ export async function POST() {
       headers: marketingHeaders(unsubUrl(token)),
     });
 
-    await admin.from("email_logs").insert({
-      user_id: user.id,
-      email: accountEmail,
-      type: "welcome",
-      subject: template.subject,
-      resend_id: sent?.id,
-    });
+    if (sendError) {
+      // Release the claim so the welcome can still be delivered on a retry —
+      // otherwise a transient provider error would silently cost this user their
+      // welcome email forever.
+      await admin.from("email_logs").delete().eq("user_id", user.id).eq("type", "welcome");
+      return NextResponse.json({ error: "Failed" }, { status: 500 });
+    }
+
+    // Stamp the provider id onto the row we already claimed.
+    if (sent?.id) {
+      await admin.from("email_logs").update({ resend_id: sent.id }).eq("user_id", user.id).eq("type", "welcome");
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

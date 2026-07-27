@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
+import { ensureUniqueUsername } from "@/lib/username";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
 function accountHandle(email: string | undefined, userId: string): string {
@@ -48,9 +49,15 @@ export default async function OnboardingPage({
     // NO signup invite code / invite-only gate. (The Task-4 "you don't have an
     // account" check runs earlier, in the auth callback, only for a SIGN-IN
     // attempt — a genuine Create-account flow always provisions.)
+    // Card slugs and profile handles share ONE public namespace (/card/<slug>
+    // resolves against both), and getOwnerUsernames treats a profile's handle as
+    // an owned slug. Minting this handle without checking the cards table meant a
+    // collision would silently hand the new account read/write access to another
+    // user's leads for that slug. ensureUniqueUsername checks BOTH tables (and
+    // suffixes on collision) — the same guard every other slug writer uses.
     const { error: insertErr } = await admin.from("profiles").insert({
       id: user.id,
-      username: accountHandle(user.email ?? undefined, user.id),
+      username: await ensureUniqueUsername(accountHandle(user.email ?? undefined, user.id), admin),
       name: "",
       title: "",
       company: "",
