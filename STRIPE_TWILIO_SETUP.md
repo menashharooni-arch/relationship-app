@@ -128,6 +128,29 @@ reference, or if you ever need to redo this on a new Stripe account:
 
 ## Twilio
 
+### 0. What is live today (as of July 27, 2026)
+
+This repo is **public** — the SIDs below are recorded in `CREDENTIALS-RUNBOOK.md`
+(gitignored), not here.
+
+| Thing | Value |
+| --- | --- |
+| Account | Twilio CLI profile `swiftcard`; Account SID in the runbook |
+| Sending number | **+1 (917) 905-7335** — friendly name "SwiftCard NYC", SMS/MMS/Voice (public: it's printed on `/sms-terms`) |
+| Messaging Service | "SwiftCard" (`MG…`, see runbook); the number is its only sender |
+| Inbound webhook | `https://swiftcard.me/api/twilio/inbound` (POST), set on **both** the Messaging Service and the number itself |
+| `useInboundWebhookOnNumber` | `false` — the Service webhook wins; the number's own webhook is the fallback if it ever leaves the Service |
+| Vercel env (Production) | `TWILIO_ACCOUNT_SID`, `TWILIO_MESSAGING_SERVICE_SID`, `TWILIO_PHONE_NUMBER` set. `TWILIO_AUTH_TOKEN` **not yet set** |
+| A2P 10DLC | **Not registered** — no brand, no campaign. See step 5; US delivery is blocked until this is done |
+
+`sendSms()` requires Account SID **and** Auth Token **and** a sender, so with the
+Auth Token missing it returns `not_configured` and the app behaves exactly as it
+did before the number existed — no sends, no errors. Adding
+`TWILIO_AUTH_TOKEN` is the single switch that turns SMS on.
+
+The number is named in the customer-facing compliance copy at `/sms-terms` and
+`/sms-consent`; if the sending number ever changes, update those two pages.
+
 ### 1. Get a sender
 
 Either:

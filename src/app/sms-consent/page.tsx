@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     "How people opt in to receive text messages on SwiftCard: where the consent checkbox appears, the exact disclosure shown, and how opt-out works.",
 };
 
-const LAST_UPDATED = "July 21, 2026";
+const LAST_UPDATED = "July 27, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -111,6 +111,13 @@ export default function SmsConsentPage() {
           The &quot;SMS Terms&quot; and &quot;Privacy Policy&quot; text in the disclosure link directly to{" "}
           <Link href="/sms-terms" className="text-brand underline">swiftcard.me/sms-terms</Link> and{" "}
           <Link href="/privacy" className="text-brand underline">swiftcard.me/privacy</Link>.
+        </P>
+
+        <H2>The number messages come from</H2>
+        <P>
+          Every SwiftCard text — replies, card links, and follow-ups alike — is sent from one shared
+          number: <strong>(917) 905-7335</strong>. The SwiftCard user who is writing to you is named in the
+          message itself.
         </P>
 
         <H2>Opting out</H2>

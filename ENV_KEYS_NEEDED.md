@@ -114,16 +114,22 @@ Test/live mode are **completely separate catalogs** in Stripe — a test Price I
 
 ---
 
-## Needed Later (SMS)
+## SMS (Twilio)
 
-See **`STRIPE_TWILIO_SETUP.md`** for the full dashboard walkthrough (buying a number, Messaging Service, inbound webhook).
+See **`STRIPE_TWILIO_SETUP.md` § Twilio** for what is already provisioned and the full dashboard walkthrough.
 
-| Variable | Where to get it |
-|---|---|
-| `TWILIO_ACCOUNT_SID` | console.twilio.com → Account Info → Account SID (`AC...`) |
-| `TWILIO_AUTH_TOKEN` | console.twilio.com → Account Info → Auth Token |
-| `TWILIO_MESSAGING_SERVICE_SID` | console.twilio.com → Messaging → Services → your service SID (`MG...`). Preferred over a bare phone number — set this OR `TWILIO_PHONE_NUMBER` below. |
-| `TWILIO_PHONE_NUMBER` | console.twilio.com → Phone Numbers → your number (e.g. `+15550001234`). Only needed if you're not using a Messaging Service. |
+Sender, Messaging Service, and inbound webhook are **live**; three of the four
+variables are already set in Vercel Production. Only `TWILIO_AUTH_TOKEN` is
+outstanding — until it's set, `sendSms()` returns `not_configured` and nothing
+sends. A2P 10DLC brand + campaign registration is still required before US
+carriers will actually deliver.
+
+| Variable | Where to get it | Status |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID` | console.twilio.com → Account Info → Account SID (`AC...`) | ✅ set |
+| `TWILIO_AUTH_TOKEN` | console.twilio.com → Account Info → Auth Token | ❌ **not set** — the one switch that turns SMS on |
+| `TWILIO_MESSAGING_SERVICE_SID` | console.twilio.com → Messaging → Services → your service SID (`MG...`). Preferred over a bare phone number — set this OR `TWILIO_PHONE_NUMBER` below. | ✅ set — the "SwiftCard" service |
+| `TWILIO_PHONE_NUMBER` | console.twilio.com → Phone Numbers → your number (e.g. `+15550001234`). Only needed if you're not using a Messaging Service. | ✅ set (`+19179057335`) — kept as the fallback sender |
 | `TWILIO_SKIP_VALIDATION` | Leave unset/`false` everywhere except local dev without a public tunnel. Bypasses the inbound-webhook signature check — never set to `true` in production. |
 
 ---
