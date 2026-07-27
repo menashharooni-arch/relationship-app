@@ -2,6 +2,7 @@ import Link from "next/link";
 import OfficeAdminNav from "./OfficeAdminNav";
 import OfficeNotificationBell from "@/components/office/OfficeNotificationBell";
 import AdminGuidedTour from "@/components/office/AdminGuidedTour";
+import AdminTourAutoStart from "@/components/office/AdminTourAutoStart";
 import HelpWidget from "@/components/HelpWidget";
 import MobileNavGate from "@/components/MobileNavGate";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
@@ -54,6 +55,9 @@ export default async function OfficeAdminLayout({ children }: { children: React.
           without hunting for the small header link. */}
       <MobileNavGate />
       <AdminGuidedTour />
+      {/* First visit to a REAL office (not the "Name your team" form) kicks off
+          the admin tour once. */}
+      {officeId && <AdminTourAutoStart />}
       {/* Bottom-right assistant scoped to the admin console — knows every tab
           and action here and only gives directions (never performs them). */}
       <HelpWidget floating area="office-admin" />

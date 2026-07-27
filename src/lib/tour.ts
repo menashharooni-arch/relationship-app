@@ -104,6 +104,12 @@ import { ADMIN_TOUR_STEPS } from "./admin-tour-steps";
 export const ADMIN_TOUR_RUNNING = "sc_admin_tour_running";
 export const ADMIN_TOUR_INDEX = "sc_admin_tour_index";
 export const ADMIN_TOUR_DONE = "sc_admin_tour_completed";
+// Separate from DONE: DONE is only set when the tour is FINISHED, so gating the
+// first-visit auto-start on it alone would re-launch the tour on every visit for
+// anyone who skipped it. This records that we've offered it once, so the
+// auto-start fires exactly once either way. Replaying via the "Take a tour"
+// button is unaffected.
+export const ADMIN_TOUR_SEEN = "sc_admin_tour_seen";
 export const ADMIN_TOUR_START_EVENT = "sc:admin-tour-start";
 export const ADMIN_TOUR_END_EVENT = "sc:admin-tour-end";
 
@@ -119,6 +125,23 @@ export function startAdminTour(): void {
     window.dispatchEvent(new CustomEvent(ADMIN_TOUR_START_EVENT));
   } else {
     window.location.assign(first.path);
+  }
+}
+
+// Should the admin console auto-launch its tour right now? True only on the
+// FIRST visit for someone who hasn't already finished it. Marks itself as
+// offered, so this returns true at most once per browser.
+export function claimAdminTourAutoStart(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (localStorage.getItem(ADMIN_TOUR_DONE)) return false;
+    if (localStorage.getItem(ADMIN_TOUR_SEEN)) return false;
+    localStorage.setItem(ADMIN_TOUR_SEEN, "1");
+    return true;
+  } catch {
+    // Private mode / storage blocked: don't auto-start, since we couldn't record
+    // that we did and would otherwise relaunch on every single page view.
+    return false;
   }
 }
 

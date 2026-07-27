@@ -155,7 +155,7 @@ type MemberRow = {
   invite_name: string | null;
   invite_token: string | null;
   status: string;
-  created_at?: string | null;
+  invited_at?: string | null;
   expires_at?: string | null;
 };
 
@@ -221,7 +221,10 @@ export async function getTeamOverview(
     countLeads(thisMonth),
     countLeads(lastMonth, thisMonth),
     admin.from("office_members")
-      .select("id, user_id, invite_email, invite_name, invite_token, status, created_at, expires_at")
+      // invited_at, NOT created_at: office_members has no created_at column, and
+      // naming a missing column fails the ENTIRE select — which returned null
+      // here and silently emptied both the member list and the pending invites.
+      .select("id, user_id, invite_email, invite_name, invite_token, status, invited_at, expires_at")
       .eq("office_id", officeId),
     admin.from("profiles").select("id, title, email, photo_url").in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     admin.from("cards").select("user_id, is_offline").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
@@ -276,7 +279,7 @@ export async function getTeamOverview(
       name: (r.invite_name as string | null) ?? null,
       email: (r.invite_email as string) ?? "",
       inviteToken: (r.invite_token as string | null) ?? null,
-      sentAt: r.created_at ?? null,
+      sentAt: r.invited_at ?? null,
       status: isInviteExpired(r) ? ("invite_expired" as const) : ("invite_sent" as const),
     }));
 
