@@ -147,6 +147,24 @@ export async function POST(req: NextRequest) {
   // be the card's public contact address). One listUsers page → id→auth-email map.
   const authEmails = await getAccountEmailMap();
 
+  // Email preferences for the WHOLE list in one read (chunked) instead of one
+  // query per recipient. At ~1,000 users that was 1,000 extra serial round trips
+  // inside a single function invocation — a real timeout risk that could strand
+  // a broadcast half-sent. Same values, same skip rules, just fetched up front.
+  const prefsById = new Map<string, { marketing_emails?: boolean | null; unsubscribe_token?: string | null }>();
+  {
+    const ids = (profiles ?? []).map((p) => p.id as string);
+    for (let i = 0; i < ids.length; i += 500) {
+      const { data: rows } = await admin
+        .from("email_preferences")
+        .select("user_id, marketing_emails, unsubscribe_token")
+        .in("user_id", ids.slice(i, i + 500));
+      for (const r of rows ?? []) {
+        prefsById.set(r.user_id as string, r as { marketing_emails?: boolean | null; unsubscribe_token?: string | null });
+      }
+    }
+  }
+
   let sent = 0;
   let skipped = 0;
   let failed = 0;
@@ -160,11 +178,8 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const { data: prefs } = await admin
-      .from("email_preferences")
-      .select("marketing_emails, unsubscribe_token")
-      .eq("user_id", profile.id)
-      .single();
+    // Missing row = never opted out (same as the old .single() returning null).
+    const prefs = prefsById.get(profile.id as string);
 
     if (prefs?.marketing_emails === false) {
       skipped++;

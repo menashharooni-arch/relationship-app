@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
 // ── Office roles & capabilities (spec §6/§7) ─────────────────────────────────
@@ -49,7 +50,16 @@ export type OfficeContext = {
 // Resolve the caller's office + role. A user is either the OWNER of an office,
 // or an ACTIVE member of one, or neither. Returns null when they're in no office.
 // A missing `role` column (pre-migration) or null role degrades to 'employee'.
-export async function resolveOfficeContext(userId: string): Promise<OfficeContext | null> {
+//
+// cache(): this 1-3 query chain sits under EVERY helper below
+// (requireOfficeCapability, getOfficeSubUserContext, officeSubUserBlockMessage,
+// resolveBillingSubjectId, canViewOfficeAdmin) plus the admin guard and the
+// settings page — so a single request routinely resolved the same office two or
+// three times over. Memoized per request, so the first caller pays and the rest
+// are free; a fresh request always re-runs it, and nothing is shared across
+// users or requests. Same pattern as requireOfficeAdmin in office-admin-guard.
+// Safe against staleness: no route re-reads this after mutating membership.
+export const resolveOfficeContext = cache(async (userId: string): Promise<OfficeContext | null> => {
   const admin = getAdminSupabase();
 
   // Owner path.
@@ -77,7 +87,7 @@ export async function resolveOfficeContext(userId: string): Promise<OfficeContex
     role,
     isOwner: false,
   };
-}
+});
 
 // Whose SUBSCRIPTION a billing action (cancel, change-plan, discount, preview,
 // keep) operates on. For an office OWNER — or a plain user with no office — it's
