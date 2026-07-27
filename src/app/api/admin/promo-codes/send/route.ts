@@ -53,6 +53,24 @@ export async function POST(req: NextRequest) {
   // Send to each user's ACCOUNT (auth) email, not profiles.email (which can be
   // the card's public contact address).
   const authEmails = await getAccountEmailMap();
+
+  // One chunked prefs read for the whole target list rather than a query per
+  // recipient — same reason as the broadcast sender: N extra serial round trips
+  // in one invocation is a timeout risk that can strand a send half-finished.
+  const prefsById = new Map<string, { marketing_emails?: boolean | null; unsubscribe_token?: string | null }>();
+  {
+    const ids = (profiles ?? []).map((p) => p.id as string);
+    for (let i = 0; i < ids.length; i += 500) {
+      const { data: rows } = await admin
+        .from("email_preferences")
+        .select("user_id, marketing_emails, unsubscribe_token")
+        .in("user_id", ids.slice(i, i + 500));
+      for (const r of rows ?? []) {
+        prefsById.set(r.user_id as string, r as { marketing_emails?: boolean | null; unsubscribe_token?: string | null });
+      }
+    }
+  }
+
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -61,11 +79,8 @@ export async function POST(req: NextRequest) {
     const recipient = authEmails.get(profile.id) ?? profile.email;
     if (!recipient) { skipped++; continue; }
 
-    const { data: prefs } = await admin
-      .from("email_preferences")
-      .select("marketing_emails, unsubscribe_token")
-      .eq("user_id", profile.id)
-      .single();
+    // Missing row = never opted out (same as the old .single() returning null).
+    const prefs = prefsById.get(profile.id as string);
 
     if (prefs?.marketing_emails === false) { skipped++; continue; }
 

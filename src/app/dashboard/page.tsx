@@ -490,9 +490,16 @@ export default async function DashboardPage({
     // Render-time plan enforcement (matches the public card page): a downgraded
     // card's saved Pro design keys are stripped so the preview + the signature/
     // share captures always reflect the CURRENT plan.
+    // The TEMPLATE argument matters: for a downgraded account, colours snap to
+    // the nearest preset OF THAT TEMPLATE. Omitting it snapped this preview (and
+    // the signature / share-image captures built from the same cardData) to
+    // classic-pro's presets while the live card snapped to the real template's —
+    // so the preview and the exported signature didn't match the actual card.
+    // Same third argument the public card page passes.
     customization: sanitizeCustomizationForPlan(
       (activeSource.customization ?? {}) as Record<string, unknown>,
-      isPro
+      isPro,
+      (activeSource.template as string) || "classic-pro"
     ),
   };
   // Custom designer is Pro-only — downgraded cards render the standard template.
@@ -516,10 +523,15 @@ export default async function DashboardPage({
           </Link>
         </div>
         <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
+        {/* previewUrl powers the NATIVE path: in the iOS shell WKWebView can't
+            save a generated PNG data URL, so DownloadCardButton shares this link
+            via the native share sheet instead of dead-tapping. Omitting it also
+            hid the adjacent "Preview" link entirely. */}
         <CardPreviewDownload
           data={cardData}
           template={activeTemplate}
           username={activeUsername}
+          previewUrl={cardUrl}
         />
         {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>

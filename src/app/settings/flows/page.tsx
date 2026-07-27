@@ -63,10 +63,24 @@ export default async function FlowSettingsPage({
 
   const isPro = profile.plan === "pro" || profile.plan === "enterprise";
 
-  await ensureUserCards(user.id);
+  // Skip the one-time card migration entirely once it's done (the common case).
+  // Unconditionally calling it re-read the whole profile row inside
+  // ensure-cards on every single load. Same guard the contacts page uses.
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id);
+  }
 
+  // Everything below keys only on user.id (and the plan we already have), so it
+  // runs together instead of as a 4-deep serial chain after the query batch.
   const admin = getAdminSupabase();
-  const [{ data: integrations }, { data: cards }, { data: emailPrefs }] = await Promise.all([
+  const [
+    { data: integrations },
+    { data: cards },
+    { data: emailPrefs },
+    officeCtx,
+    isOfficeAdmin,
+    referral,
+  ] = await Promise.all([
     admin.from("integrations").select("provider, sync_error").eq("user_id", user.id),
     admin
       .from("cards")
@@ -74,6 +88,9 @@ export default async function FlowSettingsPage({
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
     admin.from("email_preferences").select("marketing_emails, receipt_emails").eq("user_id", user.id).maybeSingle(),
+    resolveOfficeContext(user.id),
+    canViewOfficeAdmin(user.id, profile.plan),
+    getReferralProgress(user.id),
   ]);
 
   // An office SUB-USER is an active member who is NOT the owner — an employee on
@@ -85,13 +102,9 @@ export default async function FlowSettingsPage({
   // Billing is gated on the CAPABILITY rather than plain membership, so a
   // delegated billing_admin (a real role in this office model) keeps the section
   // they exist to use.
-  const officeCtx = await resolveOfficeContext(user.id);
   const isOfficeSubUser = !!officeCtx && !officeCtx.isOwner;
   const canSeeBilling = !isOfficeSubUser || roleHasCapability(officeCtx.role, "manage_billing");
 
-  const isOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
-
-  const referral = await getReferralProgress(user.id);
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
   const googleConnected = !!googleIntegration;
