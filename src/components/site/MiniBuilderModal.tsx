@@ -80,9 +80,19 @@ export default function MiniBuilderModal({
   const canGo = current.canAdvance !== false;
 
   return createPortal(
+    <>
+    {/* Dim + blur as their OWN non-scrolling layer, behind the scroll container.
+        backdrop-filter on the SAME element as overflow-y-auto silently kills
+        touch scrolling on iOS Safari — this shell hosts all three homepage
+        "see how it would look" builders, so that would freeze the whole
+        interactive funnel on iPhone. Same split as SignatureDemo's popup. */}
+    <div
+      className="fixed inset-0 z-[94]"
+      style={{ background: "rgba(4,7,15,0.74)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+      aria-hidden
+    />
     <div
       className="fixed inset-0 z-[95] overflow-y-auto"
-      style={{ background: "rgba(4,7,15,0.74)", backdropFilter: "blur(6px)" }}
       onClick={onClose}
     >
       <div className="min-h-full flex items-start sm:items-center justify-center py-6 px-4">
@@ -182,7 +192,8 @@ export default function MiniBuilderModal({
           </div>
         </div>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body,
   );
 }

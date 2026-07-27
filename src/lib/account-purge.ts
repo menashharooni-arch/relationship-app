@@ -95,6 +95,18 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
   await safeDelete(() => admin.from("promo_code_redemptions").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("referrals").delete().eq("referrer_id", userId));
 
+  // Stored card IMAGES live in PUBLIC storage buckets keyed by card slug, so
+  // deleting the rows above does not remove them: without this, a purged
+  // account's full card image (name, phone, email, headshot) stays downloadable
+  // at its public URL forever — contradicting the deletion promise — and any
+  // freed slug re-registered later would serve this account's image on the new
+  // owner's link previews and email signature.
+  if (usernames.length) {
+    const objects = usernames.map((u) => `${u}.png`);
+    await safeDelete(() => admin.storage.from("card-shares").remove(objects));
+    await safeDelete(() => admin.storage.from("card-signatures").remove(objects));
+  }
+
   // Cards, then the profile row, then the auth identity.
   await safeDelete(() => admin.from("cards").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("profiles").delete().eq("id", userId));

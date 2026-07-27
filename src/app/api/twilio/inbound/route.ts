@@ -67,7 +67,19 @@ export async function POST(req: NextRequest) {
     return twiml(HELP_REPLY);
   }
 
-  // Otherwise it's a real reply — log it into the matching contact's thread.
+  // Otherwise it's a real reply — log it into the ONE thread it belongs to.
+  //
+  // The phone lookup is global (a number can be a contact of several accounts —
+  // normal when two users meet the same person at an event), and SwiftCard sends
+  // through ONE shared Messaging Service, so `To` can't tell us who was messaged.
+  // Writing the reply to every match would put a private answer meant for one
+  // user into another user's conversation thread — a cross-account leak. Instead:
+  //   • exactly one match  → that account holds this contact alone; log it there.
+  //   • several matches    → attribute to whoever actually texted them last
+  //                          (most recent OUTBOUND sms), never to the others.
+  //   • several, none of whom ever texted → unattributable; log to none rather
+  //                          than guess and leak.
+  // STOP/START suppression above stays global on purpose (carrier requirement).
   const digits = normalizePhone(from);
   if (digits.length >= 7) {
     try {
@@ -78,8 +90,28 @@ export async function POST(req: NextRequest) {
         .ilike("phone", `%${digits.slice(-7)}%`)
         .limit(25);
       const matches = (leads ?? []).filter((l) => l.phone && normalizePhone(l.phone) === digits);
-      for (const lead of matches) {
-        await logMessage({ leadId: lead.id, cardOwner: lead.card_owner, direction: "in", channel: "sms", body: bodyText, status: "received" });
+
+      let target: { id: string; card_owner: string | null } | null = null;
+      if (matches.length === 1) {
+        target = matches[0] as { id: string; card_owner: string | null };
+      } else if (matches.length > 1) {
+        const { data: lastOut } = await admin
+          .from("lead_messages")
+          .select("lead_id")
+          .in("lead_id", matches.map((m) => m.id as string))
+          .eq("direction", "out")
+          .eq("channel", "sms")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const winnerId = lastOut?.lead_id as string | undefined;
+        target = winnerId
+          ? ((matches.find((m) => m.id === winnerId) ?? null) as { id: string; card_owner: string | null } | null)
+          : null;
+      }
+
+      if (target) {
+        await logMessage({ leadId: target.id, cardOwner: target.card_owner, direction: "in", channel: "sms", body: bodyText, status: "received" });
       }
     } catch { /* ignore */ }
   }

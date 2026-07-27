@@ -294,6 +294,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     admin.from("card_views").delete().in("username", [username, `${username}__links`]),
     admin.from("card_events").delete().eq("card_owner_username", username),
     admin.from("notifications").delete().eq("user_id", user.id).eq("card_owner", username).then(() => {}, () => {}),
+    // Stored card IMAGES are keyed by slug too, in PUBLIC buckets. Without this
+    // they outlive the card forever: the deleted card's full image (name, phone,
+    // email, headshot) stays downloadable at its public URL, and whoever
+    // registers this freed slug next would have THEIR link previews and email
+    // signatures serve THIS card's image. Same cross-account reasoning as the
+    // table cleanup above. Best-effort — a missing object must not fail the delete.
+    admin.storage.from("card-shares").remove([`${username}.png`]).then(() => {}, () => {}),
+    admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {}),
   ]);
 
   const { error } = await admin
