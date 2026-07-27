@@ -231,20 +231,25 @@ export async function getOfficeAnalytics(officeId: string, ownerId: string): Pro
   const admin = getAdminSupabase();
   const team = await getOfficeTeam(admin, officeId, ownerId);
 
-  const employees: EmployeeAnalytics[] = [];
-  for (const m of team) {
-    const usernames = memberSlugs(m);
-    const [views, leads] = await Promise.all([countViews(admin, usernames), countLeads(admin, usernames)]);
-    employees.push({
-      userId: m.userId,
-      name: m.name,
-      username: m.username,
-      isOwner: m.isOwner,
-      cards: m.cardSlugs.length,
-      views,
-      leads,
-    });
-  }
+  // Per-member counts run for the WHOLE team at once. Awaiting each member in
+  // sequence made the /office/admin landing page cost 2 serial round trips per
+  // seat — roughly 1.5-2s of pure latency for a 20-seat office, growing linearly
+  // with the team. Same queries, same results, just not one-at-a-time.
+  const employees: EmployeeAnalytics[] = await Promise.all(
+    team.map(async (m) => {
+      const usernames = memberSlugs(m);
+      const [views, leads] = await Promise.all([countViews(admin, usernames), countLeads(admin, usernames)]);
+      return {
+        userId: m.userId,
+        name: m.name,
+        username: m.username,
+        isOwner: m.isOwner,
+        cards: m.cardSlugs.length,
+        views,
+        leads,
+      };
+    }),
+  );
 
   // Owner first, then by views desc.
   employees.sort((a, b) => (a.isOwner ? -1 : b.isOwner ? 1 : b.views - a.views));

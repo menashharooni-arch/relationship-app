@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 type Notification = {
   id: string;
@@ -198,9 +199,16 @@ export default function NotificationBell({
         )}
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
-          {/* Backdrop — click anywhere outside to close. */}
+          {/* Backdrop — click anywhere outside to close.
+              PORTALED to document.body: this bell sits inside a backdrop-blur
+              nav bar, and backdrop-filter makes that bar the containing block
+              for `fixed` descendants — so rendered in place this "full screen"
+              layer was only as tall as the ~56px nav, leaving clicks on the page
+              below to fall through to whatever was under the cursor instead of
+              closing the panel. The dropdown is portaled with it so both keep
+              measuring against the real viewport. */}
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
 
           {/* Dropdown menu — pinned to the VIEWPORT (below the nav bar, inset
@@ -305,7 +313,8 @@ export default function NotificationBell({
               View all notifications
             </a>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
