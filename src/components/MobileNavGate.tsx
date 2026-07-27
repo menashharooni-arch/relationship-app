@@ -31,7 +31,11 @@ const resolveShowAdmin = cache(async (): Promise<boolean> => {
   }
 });
 
-export default async function MobileNavGate() {
-  const showAdmin = await resolveShowAdmin();
-  return <MobileNav showAdmin={showAdmin} />;
+// `showAdmin` lets a page that ALREADY resolved this (dashboard, contacts,
+// share, settings all compute it for their desktop nav) hand it over, skipping a
+// duplicate auth.getUser() round trip plus a profiles read on every render.
+// Omitted → resolves it itself, so callers that don't have it still work.
+export default async function MobileNavGate({ showAdmin }: { showAdmin?: boolean }) {
+  const resolved = showAdmin ?? (await resolveShowAdmin());
+  return <MobileNav showAdmin={resolved} />;
 }

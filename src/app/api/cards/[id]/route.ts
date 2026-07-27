@@ -289,8 +289,23 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!cardRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const username = cardRow.username as string;
+
+  // Lead-child rows are keyed by lead_id, so they must be cleared BEFORE the
+  // leads themselves — otherwise deleting the card orphaned every message and
+  // reminder belonging to its contacts. Same children the account purge clears.
+  const { data: cardLeads } = await admin.from("leads").select("id").eq("card_owner", username);
+  const cardLeadIds = (cardLeads ?? []).map((l) => l.id as string).filter(Boolean);
+  if (cardLeadIds.length) {
+    await Promise.all([
+      admin.from("lead_messages").delete().in("lead_id", cardLeadIds).then(() => {}, () => {}),
+      admin.from("lead_reminders").delete().in("lead_id", cardLeadIds).then(() => {}, () => {}),
+    ]);
+  }
+
   await Promise.all([
     admin.from("leads").delete().eq("card_owner", username),
+    // Slug-keyed like the rest — otherwise the next owner of this slug inherits it.
+    admin.from("analytics_events").delete().eq("username", username).then(() => {}, () => {}),
     admin.from("card_views").delete().in("username", [username, `${username}__links`]),
     admin.from("card_events").delete().eq("card_owner_username", username),
     admin.from("notifications").delete().eq("user_id", user.id).eq("card_owner", username).then(() => {}, () => {}),

@@ -162,3 +162,20 @@ but documented nowhere and set in no environment, so the funnel recorded nothing
 
 `NEXT_PUBLIC_POSTHOG_HOST` — optional, defaults to `https://us.i.posthog.com`.
 Set to `https://eu.i.posthog.com` for an EU project.
+
+## Referenced in code but previously undocumented
+
+These are all read somewhere in `src/` but appeared in no env file or doc, so
+they were invisible when provisioning a new environment. Every one is optional —
+the feature behind it degrades quietly when unset.
+
+| Key | What it turns on / what breaks without it |
+|---|---|
+| `ALERT_WEBHOOK_URL` | Production error alerts (`lib/report-error.ts`). Unset = errors are logged but nothing is pushed anywhere. |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Shared rate-limit store (`lib/rate-limit.ts`). Unset = limits fall back to per-instance memory, so they reset on every cold start. |
+| `HUBSPOT_CLIENT_ID` / `HUBSPOT_CLIENT_SECRET` | HubSpot CRM integration OAuth. Unset = the Connect button can't complete. |
+| `STRIPE_RETENTION_COUPON_ID` | Coupon offered in the account-DELETION retention flow (`/api/account/retain`). |
+| `STRIPE_RETENTION_DISCOUNT_COUPON_ID` | Separate coupon offered in the subscription CANCEL flow (`/api/stripe/subscription/discount`). Note: two different coupons — easy to confuse. |
+| `APPLE_PUSH_KEY_ID` / `APPLE_PUSH_PRIVATE_KEY` / `APPLE_PUSH_TOPIC` / `APPLE_PUSH_SANDBOX` | Native iOS push. Unset = push is skipped; in-app bell notifications still work. |
+| `APPLE_SIGN_IN_CLIENT_ID` / `APPLE_SIGN_IN_KEY_ID` / `APPLE_SIGN_IN_PRIVATE_KEY` | Sign in with Apple (also see `docs/ios-review/SHELL-RUNBOOK.md`). |
+| `APP_STORE_ID` / `APP_STORE_COUNTRY` | App Store links in the native shell / marketing surfaces. |

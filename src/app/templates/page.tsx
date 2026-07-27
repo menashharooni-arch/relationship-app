@@ -168,8 +168,19 @@ export default function TemplatesPage() {
       </div>
 
       {/* Sticky bottom bar — appears when a template is selected */}
+      {/* paddingBottom clears the iPhone home indicator — a flat py-4 left the
+          Apply button sitting partly under it on notched devices. Same
+          safe-area handling MobileNav and the preview CTA already use. */}
       {selected && (
-        <div className="fixed bottom-0 left-0 right-0 px-5 py-4" style={{ background: "rgba(3,7,18,0.95)", backdropFilter: "blur(12px)", borderTop: "1px solid #1f2937" }}>
+        <div
+          className="fixed bottom-0 left-0 right-0 px-5 pt-4"
+          style={{
+            background: "rgba(3,7,18,0.95)",
+            backdropFilter: "blur(12px)",
+            borderTop: "1px solid #1f2937",
+            paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+          }}
+        >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-white font-semibold text-sm truncate">{selectedTemplate?.name}</p>

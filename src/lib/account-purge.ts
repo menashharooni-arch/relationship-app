@@ -60,6 +60,12 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
   if (usernames.length) {
     await safeDelete(() => admin.from("leads").delete().in("card_owner", usernames));
     await safeDelete(() => admin.from("card_events").delete().in("card_owner_username", usernames));
+    // analytics_events is keyed by USERNAME, not user_id. The delete further
+    // down used .eq("user_id", …) against a column that doesn't exist, so
+    // safeDelete swallowed the error and nothing was ever removed — the rows
+    // outlived the account (a deletion-promise gap) and would be inherited by
+    // whoever registered the slug next.
+    await safeDelete(() => admin.from("analytics_events").delete().in("username", usernames));
   }
   if (viewKeys.length) {
     await safeDelete(() => admin.from("card_views").delete().in("username", viewKeys));
@@ -91,7 +97,7 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
   await safeDelete(() => admin.from("push_subscriptions").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("email_preferences").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("email_logs").delete().eq("user_id", userId));
-  await safeDelete(() => admin.from("analytics_events").delete().eq("user_id", userId));
+  // (analytics_events is slug-keyed and handled above — it has no user_id column.)
   await safeDelete(() => admin.from("promo_code_redemptions").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("referrals").delete().eq("referrer_id", userId));
 

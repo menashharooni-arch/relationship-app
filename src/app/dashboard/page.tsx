@@ -632,7 +632,7 @@ export default async function DashboardPage({
         </div>
       </nav>
 
-      <MobileNavGate />
+      <MobileNavGate showAdmin={canSeeOfficeAdmin} />
       <HelpWidget floating />
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">

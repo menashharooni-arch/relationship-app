@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { ensureUniqueUsername } from "@/lib/username";
+import { clientIpFromHeaders } from "@/lib/client-ip";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
 function accountHandle(email: string | undefined, userId: string): string {
@@ -102,7 +103,12 @@ export default async function OnboardingPage({
       try {
         const c = await cookies();
         const h = await headers();
-        const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+        // The LEFTMOST x-forwarded-for hop is attacker-controlled — anyone can
+        // prepend a fake IP and mint a fresh identity, which is exactly what the
+        // referral IP-dedup fraud check is trying to catch. Use the shared
+        // trusted-IP rule (x-real-ip, else the LAST hop) like every other caller.
+        const trustedIp = clientIpFromHeaders(h);
+        const ip = trustedIp === "unknown" ? null : trustedIp;
         await applyReferralOnSignup(user.id, {
           code: c.get(REF_COOKIE)?.value ?? null,
           source: c.get(SRC_COOKIE)?.value ?? null,
