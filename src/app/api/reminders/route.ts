@@ -148,7 +148,10 @@ export async function GET(req: NextRequest) {
     const { data: ending } = await supabase
       .from("profiles")
       .select("id, email, name, plan_expires_at, customization")
-      .eq("plan", "pro")
+      // enterprise too: a TIMED enterprise grant expires straight to Free with no
+      // heads-up when this is pro-only. Office sub-users are never caught here —
+      // accepting an invite clears plan_expires_at, and this query requires it.
+      .in("plan", ["pro", "enterprise"])
       .is("stripe_subscription_id", null)
       .not("plan_expires_at", "is", null)
       .gt("plan_expires_at", nowIso)
@@ -158,12 +161,16 @@ export async function GET(req: NextRequest) {
       const expiresAt = u.plan_expires_at as string;
       if (cust._proWarnedFor === expiresAt) continue; // already warned for this expiry
       const daysLeft = Math.max(1, Math.ceil((new Date(expiresAt).getTime() - nowMs) / 86400000));
+      // CLAIM this warning before sending, not after. The check above plus a
+      // post-send stamp let two overlapping runs (the scheduled cron plus a
+      // manual retry) both pass and both email the same user. Stamping first
+      // means the second run sees _proWarnedFor and skips. Behaviour is
+      // otherwise unchanged: this stamp always ran regardless of send outcome.
+      await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
       const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
       if (to) {
         const { unsubscribeUrl: unsub, marketingOk } = await getEmailPrefs(supabase, u.id as string);
         // This one is an upgrade pitch — never send it to someone who opted out.
-        // (The _proWarnedFor stamp below still runs, so they aren't re-evaluated
-        // every night.)
         if (marketingOk) {
           const tpl = trialEndingSoonEmail({
             firstName: (u.name as string)?.split(" ")[0] || "there",
@@ -180,7 +187,6 @@ export async function GET(req: NextRequest) {
           } catch { /* logging is best-effort */ }
         }
       }
-      await supabase.from("profiles").update({ customization: { ...cust, _proWarnedFor: expiresAt } }).eq("id", u.id);
     }
   } catch (e) {
     console.error("[reminders] trial-ending warn failed:", e);
@@ -293,6 +299,14 @@ export async function GET(req: NextRequest) {
   const seqPausedNotified = new Set<string>();
 
   for (const seqLead of seqLeads ?? []) {
+    // One bad lead must not kill the whole run. deliverToLead swallows provider
+    // errors, but a genuine throw (network failure resolving the card owner, a
+    // notification write, a leads update) aborted the ENTIRE remaining loop and
+    // 500'd the cron — every lead after the failing one silently skipped until
+    // the next day. Every other phase of this cron is individually try/caught;
+    // this loop was the exception. Body indentation left as-is to keep the diff
+    // to the two lines that actually changed.
+    try {
     const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null; anchor?: string }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
@@ -411,6 +425,9 @@ export async function GET(req: NextRequest) {
         await supabase.from("leads").update({ follow_up_sequence: curSeq }).eq("id", seqLead.id);
         if (r.status === "sent") totalSent++;
       }
+    }
+    } catch (e) {
+      await reportError("reminders.sequences.lead", e);
     }
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===

@@ -77,15 +77,23 @@ function normContact(channel: "sms" | "email", contact: string): string {
 export async function isOptedOut(channel: "sms" | "email", contact: string | null | undefined): Promise<boolean> {
   if (!contact) return false;
   try {
-    const { data } = await getAdminSupabase()
+    const { data, error } = await getAdminSupabase()
       .from("message_opt_outs")
       .select("id")
       .eq("channel", channel)
       .eq("contact", normContact(channel, contact))
       .maybeSingle();
+    // FAIL CLOSED. This is the suppression gate in front of every send: if we
+    // can't confirm someone HASN'T opted out, we must not message them. The old
+    // blanket `return false` meant one transient database error silently
+    // disabled opt-out enforcement for that whole run and texted/emailed people
+    // who had explicitly said stop. The single exception is 42P01 (relation does
+    // not exist) — the pre-migration case this catch was written for, where no
+    // opt-out can exist yet anyway.
+    if (error) return (error as { code?: string }).code !== "42P01";
     return !!data;
-  } catch {
-    return false; // table missing before migration → don't block sends
+  } catch (e) {
+    return (e as { code?: string })?.code !== "42P01";
   }
 }
 

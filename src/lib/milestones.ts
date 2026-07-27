@@ -58,13 +58,18 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
     }
 
     const { insertNotification } = await import("@/lib/notify");
-    await insertNotification({
+    // The SELECT above is a check-then-insert: two views straddling a milestone
+    // can both pass it. The notifications_milestone_once_idx unique index is the
+    // real ledger — whoever loses that race gets no row back here and must NOT
+    // go on to send a push for a notification it didn't create.
+    const created = await insertNotification({
       user_id: ownerId,
       card_owner: base,
       type,
       title: m.title,
       body: `${m.body} (/${base})`,
     });
+    if (!created) return;
 
     await sendPushToUser(ownerId, {
       title: m.title,
