@@ -83,12 +83,27 @@ export default async function SharePage({
     twitter: activeSource.twitter || "",
     tiktok: activeSource.tiktok || "",
     linkedin: activeSource.linkedin || "",
+    // snapchat lives in the customization blob, and ONLY the custom template
+    // renders it (withoutSocials strips it for every other template). Omitting
+    // it here meant a Pro/Office custom card showed Snapchat on the live card
+    // but not in the Swift Signature — the one field that wasn't carried over.
+    snapchat: ((activeSource.customization as { snapchat?: string } | null)?.snapchat) || "",
     initials: activeSource.name ? initials(activeSource.name) : "SC",
     photoUrl: cardHeadshot(activeSource.customization, profile.photo_url),
     logoUrl: activeSource.logo_url || null,
     cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
     address: activeAddress,
-    customization: sanitizeCustomizationForPlan((activeSource.customization ?? {}) as Record<string, unknown>, isPro),
+    // The TEMPLATE argument is required for fidelity: on Free, colours snap to
+    // the nearest preset OF THAT TEMPLATE. Omitting it snapped this card to
+    // classic-pro's palette while the live /card page snapped to the real
+    // template's — so a Free account on any non-classic template got a Swift
+    // Signature whose colours didn't match their actual card. Paid plans return
+    // early inside the sanitizer, so they were always identical.
+    customization: sanitizeCustomizationForPlan(
+      (activeSource.customization ?? {}) as Record<string, unknown>,
+      isPro,
+      (activeSource.template as string) || "classic-pro"
+    ),
   };
   const activeTemplate = (activeSource.template ?? "classic-pro") === "custom" && !isPro
     ? "classic-pro"

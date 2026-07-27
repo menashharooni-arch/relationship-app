@@ -34,7 +34,18 @@ export async function PATCH(req: Request) {
   if (!isPaidPlan(planRow?.plan)) {
     if (updates.template === "custom") updates.template = "classic-pro";
     if ("customization" in updates) {
-      updates.customization = sanitizeCustomizationForPlan(updates.customization as Record<string, unknown>, false);
+      // Pass the EFFECTIVE template (the incoming one if this save changes it,
+      // else the stored one). Colours snap to the nearest preset OF THAT
+      // TEMPLATE, so omitting it REWROTE a non-classic card's saved colours to
+      // classic-pro's palette on every save — corrupting the stored card, which
+      // the public card and the Swift Signature then both faithfully render.
+      const effectiveTemplate =
+        (updates.template as string) || (planRow?.template as string) || "classic-pro";
+      updates.customization = sanitizeCustomizationForPlan(
+        updates.customization as Record<string, unknown>,
+        false,
+        effectiveTemplate
+      );
     }
   }
 
