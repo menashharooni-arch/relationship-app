@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "How text messaging works on SwiftCard: the messages we send, how consent is collected, message frequency, rates, and how to opt out with STOP or get help with HELP.",
 };
 
-const LAST_UPDATED = "July 21, 2026";
+const LAST_UPDATED = "July 27, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -45,6 +45,7 @@ export default function SmsTermsPage() {
           <ul>
             <LI>SwiftCard sends texts <strong>on behalf of its users</strong> to people who shared contact info with them — replies, a card link when someone shares their card with you, and follow-up messages a user sets up.</LI>
             <LI>SwiftCard does <strong>not</strong> send marketing text blasts of its own, and never texts its own account holders.</LI>
+            <LI>Every SwiftCard text comes from one number: <strong>(917) 905-7335</strong>.</LI>
             <LI>Message frequency varies. Message and data rates may apply.</LI>
             <LI>Reply <strong>STOP</strong> to any message to opt out. Reply <strong>HELP</strong> for help.</LI>
             <LI>We never sell or share your mobile number or opt-in data for third-party marketing.</LI>
@@ -56,7 +57,8 @@ export default function SmsTermsPage() {
           SwiftCard is a digital business card platform. When you share your contact information with a
           SwiftCard user — for example, through the share form on their card page — that person can follow
           up with you. Where a follow-up is sent by text, it goes out through SwiftCard&apos;s shared
-          messaging number, with the sender identified by name in the message itself.
+          messaging number — <strong>(917) 905-7335</strong> — with the sender identified by name in the
+          message itself.
         </P>
 
         <H2>The types of messages we send</H2>
