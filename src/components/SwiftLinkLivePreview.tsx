@@ -4,6 +4,7 @@ import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 import { buildConnectLinks } from "@/lib/social-url";
+import { PLAN_LIMITS } from "@/lib/plan";
 import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -70,9 +71,13 @@ export default function SwiftLinkLivePreview({
 
   // Only real, filled links carry to the page (same filter the live page uses),
   // with an emoji default so the tile fallback still renders.
-  const cleanLinks = (links ?? [])
+  const allCleanLinks = (links ?? [])
     .filter((l) => (l.label || "").trim() && (l.url || "").trim())
     .map((l) => ({ emoji: l.emoji ?? "", label: l.label, url: l.url }));
+  // Free is capped at FREE_MAX_LINKS on the LIVE page, which trims on view — so
+  // a Pro→Free downgrade with more saved links saw a preview promising buttons
+  // the public page doesn't render. Mirror the cap here.
+  const cleanLinks = paid ? allCleanLinks : allCleanLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   return (
     <InertPreview className="rounded-[30px] overflow-hidden shadow-2xl">

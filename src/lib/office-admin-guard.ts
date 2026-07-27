@@ -50,6 +50,14 @@ export const requireOfficeAdmin = cache(async (): Promise<OfficeAdminCtx> => {
     resolveOfficeContext(user.id),
   ]);
   if (!profile) redirect("/onboarding");
+  // Deliberately /pricing, NOT /upgrade. The "Item 7" guard test locks this line
+  // byte-for-byte AND asserts this file mentions no app-shell detection at all —
+  // including in comments — so keep that vocabulary out of here.
+  // Rationale: this runs server-side and can't reliably tell which shell the
+  // request came from, so the protection lives downstream — /pricing itself
+  // client-redirects to /dashboard inside the app shell, so a non-Office user
+  // there never sees a selling page (an App Store requirement). Don't "fix" this
+  // to match the in-app /upgrade convention without moving that whole contract.
   if (profile.plan !== "enterprise") redirect("/pricing");
 
   // An Office user with no office yet is the owner-to-be (they'll see the

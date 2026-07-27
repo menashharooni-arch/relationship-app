@@ -9,7 +9,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import { SAMPLE_DATA } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import { PlanGate } from "@/components/PlanGate";
 import { PLAN_LIMITS } from "@/lib/plan";
 import type { ComponentType } from "react";
@@ -191,6 +191,9 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
     initials: form.name ? form.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : SAMPLE_DATA.initials,
     photoUrl,
     logoUrl,
+    // Without this the preview's QR encoded MiniQR's generic swiftcard.me
+    // fallback instead of this person's actual card.
+    cardUrl: `${(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/^https?:\/\//, "")}/card/${profile.username}`,
     customization,
   };
 
@@ -483,9 +486,11 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       <div className="h-px bg-slate-200 my-2" />
       <p className="text-xs text-slate-500 font-medium">Card design</p>
 
-      {/* Live preview */}
+      {/* Live preview — withoutSocials so it matches the PUBLISHED card, which
+          strips the social row. Without it this preview promised a row of social
+          links the real card never renders. */}
       <div className="w-full pointer-events-none">
-        <SelectedTemplate data={previewData} />
+        <SelectedTemplate data={withoutSocials(previewData)} />
       </div>
 
       <div className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-3 pt-3">

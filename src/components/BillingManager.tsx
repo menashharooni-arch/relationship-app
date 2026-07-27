@@ -363,7 +363,10 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
       const data = await res.json();
       if (res.status === 409 && data.needsCheckout) {
         // No subscription yet → send them through checkout to add a card.
-        window.location.href = "/pricing";
+        // /upgrade, not /pricing: this person is signed in and already in
+        // billing, so the public marketing page (with its Free column) is the
+        // wrong surface — same convention as every other in-app upsell.
+        window.location.href = "/upgrade";
         return;
       }
       if (!res.ok) { setErr(data.error || "Couldn't change plan."); return; }

@@ -14,7 +14,9 @@ export default function robots(): MetadataRoute.Robots {
         "/settings",
         "/onboarding",
         "/profile",
-        "/templates",
+        // NOT /templates — it's a PUBLIC marketing gallery linked from the main
+        // nav and footer (it isn't in the src/proxy.ts auth matcher), so blocking
+        // it here was hiding an indexable page from search.
         "/cards",
         "/office",
         "/api",
