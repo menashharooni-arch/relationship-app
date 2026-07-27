@@ -1492,7 +1492,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         confirmation if anything actually needs converting), Pro/Office
         creates then sends them to checkout. */}
     {showPlan && (guest || showAuthedFirstCardGate) && (
-      <div className="fixed inset-0 z-[90] overflow-y-auto bg-gray-950/97 backdrop-blur-sm">
+      <>
+      {/* Dim + blur live on their OWN non-scrolling layer. backdrop-filter on the
+          SAME element as overflow-y-auto silently kills touch scrolling on iOS
+          Safari — here that would trap a phone user in the plan gate, unable to
+          scroll down to the plan cards. Same split as SignatureDemo's popup. */}
+      <div className="fixed inset-0 z-[89] bg-gray-950/97 backdrop-blur-sm" aria-hidden />
+      <div className="fixed inset-0 z-[90] overflow-y-auto">
         <div className="min-h-full flex items-start justify-center py-10 px-5">
           <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
@@ -1531,6 +1537,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </div>
         </div>
       </div>
+      </>
     )}
     {/* Self-contained auth gate — the useGuestDraft hook opens it via a window
         event when a guest triggers a protected action. */}

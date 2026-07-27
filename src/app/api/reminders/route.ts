@@ -218,11 +218,49 @@ export async function GET(req: NextRequest) {
   todayStart.setUTCHours(0, 0, 0, 0);
   const todayEnd = new Date(todayStart.getTime() + 86400000);
 
-  const { data: seqLeads } = await supabase
-    .from("leads")
-    .select("id, name, email, phone, card_owner, created_at, follow_up_sequence, tags, status")
-    .neq("status", "dissolved")
-    .not("follow_up_sequence", "is", null);
+  // Page through EVERY lead that has a sequence. A single unpaginated select is
+  // capped by PostgREST (1000 rows by default), and a fully-sent sequence stays
+  // non-null forever — so once historical sequence-bearing contacts pass that
+  // cap, every lead beyond it silently stops receiving follow-ups, with no error
+  // anywhere. Keyset pagination on id (stable while rows are being updated in
+  // the loop below) walks the whole set instead. The per-lead loop skips
+  // already-stamped steps immediately, so completed sequences cost nothing.
+  const SEQ_PAGE = 500;
+  const SEQ_MAX = 50_000; // safety valve — reported, never silent
+  const seqLeads: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    card_owner: string;
+    created_at: string;
+    follow_up_sequence: unknown;
+    tags: string[] | null;
+    status: string | null;
+  }[] = [];
+  let seqAfterId: string | null = null;
+  for (;;) {
+    let pageQuery = supabase
+      .from("leads")
+      .select("id, name, email, phone, card_owner, created_at, follow_up_sequence, tags, status")
+      .neq("status", "dissolved")
+      .not("follow_up_sequence", "is", null)
+      .order("id", { ascending: true })
+      .limit(SEQ_PAGE);
+    if (seqAfterId) pageQuery = pageQuery.gt("id", seqAfterId);
+    const { data: page } = await pageQuery;
+    if (!page?.length) break;
+    seqLeads.push(...(page as typeof seqLeads));
+    seqAfterId = page[page.length - 1].id as string;
+    if (page.length < SEQ_PAGE) break;
+    if (seqLeads.length >= SEQ_MAX) {
+      await reportError(
+        "reminders.sequences.page-cap",
+        new Error(`Sequence scan stopped at ${SEQ_MAX} leads — remaining follow-ups roll to the next run.`),
+      );
+      break;
+    }
+  }
 
   // Resolve each card owner once (identity + plan), cached across their leads.
   const ownerCache = new Map<string, Awaited<ReturnType<typeof resolveCardSender>>>();

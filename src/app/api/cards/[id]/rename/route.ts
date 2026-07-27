@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Couldn't change the URL right now. Please try again." }, { status: 500 });
   }
 
-  const result = (data ?? {}) as { ok?: boolean; error?: string; unchanged?: boolean; new?: string };
+  const result = (data ?? {}) as { ok?: boolean; error?: string; unchanged?: boolean; old?: string; new?: string };
   if (!result.ok) {
     if (result.error === "taken") {
       return NextResponse.json({ error: "That URL is already taken — try another." }, { status: 409 });
@@ -48,6 +48,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "That card isn't yours to rename." }, { status: 404 });
     }
     return NextResponse.json({ error: "That URL isn't valid — use letters, numbers, and dashes." }, { status: 400 });
+  }
+
+  // The RPC migrates every slug-keyed TABLE, but the stored card images live in
+  // public storage buckets keyed by slug — they don't move. Drop the ones at the
+  // OLD slug: they're stale for this card (the live-rendered fallback takes over
+  // and self-heals on the next capture), and leaving them means whoever takes the
+  // freed slug next inherits this card's image on their public link previews and
+  // email signature. Best-effort — never fail a completed rename over an image.
+  if (!result.unchanged && result.old) {
+    const oldSlug = result.old;
+    await Promise.all([
+      admin.storage.from("card-shares").remove([`${oldSlug}.png`]).then(() => {}, () => {}),
+      admin.storage.from("card-signatures").remove([`${oldSlug}.png`]).then(() => {}, () => {}),
+    ]);
   }
 
   return NextResponse.json({ ok: true, slug, unchanged: !!result.unchanged });
