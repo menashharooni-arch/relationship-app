@@ -227,14 +227,18 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     setPhones((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   }
   function addPhone() {
-    setPhones((prev) => [...prev, { number: "", label: "office", showOnCard: true }]);
+    // On an office team the company number is set by the admin and injected by
+    // the server, so anything the member adds here is a personal (mobile) line.
+    setPhones((prev) => [...prev, { number: "", label: org ? "mobile" : "office", showOnCard: true }]);
   }
   function removePhone(i: number) {
     setPhones((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
   }
   const cleanPhones: CardPhone[] = phones
     .filter((p) => p.number.trim())
-    .map((p) => ({ number: p.number.trim(), label: p.label, showOnCard: p.showOnCard }));
+    // Force mobile for office members: the office line is the admin's to set,
+    // so a member can never save a second "Office" number on their card.
+    .map((p) => ({ number: p.number.trim(), label: org ? ("mobile" as PhoneLabel) : p.label, showOnCard: p.showOnCard }));
   const primaryPhone =
     (cleanPhones.find((p) => p.showOnCard) ?? cleanPhones[0])?.number ?? "";
 
@@ -481,14 +485,26 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div className="space-y-2">
                 {phones.map((p, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <select
-                      value={p.label}
-                      onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
-                      className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
-                    >
-                      <option value="mobile">Mobile</option>
-                      <option value="office">Office</option>
-                    </select>
+                    {/* Office members don't choose a type — see the wizard: the
+                        company number is admin-set and server-injected, so every
+                        number added here is a personal mobile. */}
+                    {org ? (
+                      <span
+                        title="Your organization sets the office number — numbers you add are your mobile."
+                        className="bg-gray-900 border border-gray-700 text-gray-400 rounded-xl px-3 py-3 text-sm shrink-0"
+                      >
+                        Mobile
+                      </span>
+                    ) : (
+                      <select
+                        value={p.label}
+                        onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
+                        className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
+                      >
+                        <option value="mobile">Mobile</option>
+                        <option value="office">Office</option>
+                      </select>
+                    )}
                     <input
                       type="tel"
                       placeholder="+1 (555) 000-0000"

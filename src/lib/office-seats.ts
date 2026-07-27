@@ -44,7 +44,10 @@ export async function getOfficeSeatUsage(officeId: string, purchasedSeats: numbe
   const admin = getAdminSupabase();
   const [{ count: active }, { data: pendingRows }] = await Promise.all([
     admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", officeId).eq("status", "active"),
-    admin.from("office_members").select("id, status, expires_at, created_at").eq("office_id", officeId).eq("status", "pending"),
+    // invited_at — selecting a non-existent created_at failed this query outright,
+    // so pending invites counted as ZERO reserved seats and the office could
+    // over-invite past its purchased seat count.
+    admin.from("office_members").select("id, status, expires_at, invited_at").eq("office_id", officeId).eq("status", "pending"),
   ]);
   const pending = (pendingRows ?? []).filter((r) => !isInviteExpired(r)).length;
   return computeSeatUsage(purchasedSeats, active ?? 0, pending);

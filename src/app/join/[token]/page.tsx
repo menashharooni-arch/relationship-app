@@ -53,7 +53,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   // Revoked/declined/expired invites must not show an enabled "Accept" CTA
   // that's guaranteed to fail against the API — mirrors the API's own
   // rejection logic (isInviteExpired) so the page and API agree (auth audit).
-  if (invite.status === "revoked" || invite.status === "declined" || isInviteExpired(invite as { status?: string; expires_at?: string | null; created_at?: string | null })) {
+  if (invite.status === "revoked" || invite.status === "declined" || isInviteExpired(invite as { status?: string; expires_at?: string | null; invited_at?: string | null })) {
     const message =
       invite.status === "revoked"
         ? "This invitation was canceled by the team admin."

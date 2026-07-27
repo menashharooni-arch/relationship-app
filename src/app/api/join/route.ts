@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   // Invites expire after 14 days (matches the deadline stated in the invite email)
   // — otherwise a leaked/forwarded link would work indefinitely. Uses stored
   // expires_at when present, else created_at + TTL.
-  if (isInviteExpired(member as { status?: string; expires_at?: string | null; created_at?: string | null })) {
+  if (isInviteExpired(member as { status?: string; expires_at?: string | null; invited_at?: string | null })) {
     return NextResponse.json({ error: "This invite has expired. Ask the team admin to send a new one." }, { status: 410 });
   }
 

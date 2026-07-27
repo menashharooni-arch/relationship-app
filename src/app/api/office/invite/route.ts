@@ -60,7 +60,10 @@ export async function POST(req: Request) {
   // Check for duplicate (case-insensitive — invite emails are stored lowercased).
   const { data: existing } = await admin
     .from("office_members")
-    .select("id, status, expires_at, created_at")
+    // invited_at — office_members has no created_at, and naming a missing column
+    // fails the whole select, which made this duplicate check silently return
+    // nothing (so a resend looked like a brand-new invite).
+    .select("id, status, expires_at, invited_at")
     .eq("office_id", office.id)
     .eq("invite_email", email.trim().toLowerCase())
     .maybeSingle();
@@ -109,7 +112,7 @@ export async function POST(req: Request) {
     let member: { invite_token: string } | null = null;
     ({ data: member } = await admin
       .from("office_members")
-      .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso, ...nameField })
+      .update({ invited_at: nowIso, status: "pending", user_id: null, joined_at: null, expires_at: expiresIso, ...nameField })
       .eq("id", existing.id)
       .select("invite_token")
       .maybeSingle());
@@ -117,7 +120,7 @@ export async function POST(req: Request) {
       // Retry without expires_at in case the column isn't there yet.
       ({ data: member } = await admin
         .from("office_members")
-        .update({ created_at: nowIso, status: "pending", user_id: null, joined_at: null, ...nameField })
+        .update({ invited_at: nowIso, status: "pending", user_id: null, joined_at: null, ...nameField })
         .eq("id", existing.id)
         .select("invite_token")
         .maybeSingle());

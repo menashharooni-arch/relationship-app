@@ -27,7 +27,14 @@ export default function CreateOfficeForm() {
         return;
       }
 
-      window.location.reload();
+      // Send a brand-new Office owner to their OWN dashboard first, with the
+      // main tour running — dropping them straight into the admin console (what
+      // a reload did, since this form renders inside it) skipped the product
+      // itself and started them on team management. They reach the admin from
+      // the nav when they're ready, and it runs its own tour on first visit.
+      // ?tour=1 respects the "already toured" flag, so an existing user who
+      // upgrades isn't shown it twice.
+      window.location.assign("/dashboard?tour=1");
     } catch {
       setError("Couldn't reach the server — check your connection and try again.");
       setStatus("error");
