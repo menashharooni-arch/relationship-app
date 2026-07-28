@@ -9,10 +9,16 @@
 // sender name — the visitor is already on that person's card, and interpolating
 // a name here rendered the raw slug ("some-card-slug") with a missing space.
 //
-// SIZE IS LOAD-BEARING: 12px, set 2026-07-28 for A2P campaign review. It was
+// SIZE IS LOAD-BEARING: 11px, set 2026-07-28 for A2P campaign review. It was
 // 8px, which is not "clear and conspicuous" under TCPA and reads to a campaign
-// reviewer as burying the disclosure. Never shrink it below 12px.
-// `/sms-consent` quotes this copy verbatim — change one, change both.
+// reviewer as burying the disclosure. 11px is the floor — never go below it.
+//
+// The copy is already trimmed to the shortest form that keeps all six required
+// elements. Do not shorten further: dropping "data" from "Msg & data rates may
+// apply" breaks the recognized CTIA phrasing, and dropping the sender, the
+// frequency, STOP, HELP, or either link fails campaign review outright.
+// Quoted verbatim in /sms-consent, /sms-terms, /privacy, and step 5b of
+// STRIPE_TWILIO_SETUP.md — change one, change all five.
 //
 // `recipientName`/`checked`/`onChange` are accepted-and-ignored for back-compat
 // with the four capture forms (they pass sms_consent:true on submit).
@@ -24,9 +30,9 @@ type Props = {
 export default function SmsConsentCheckbox(_props: Props = {}) {
   void _props;
   return (
-    <p className="text-slate-500 text-[12px] leading-snug text-left">
-      By sharing your info you agree to receive follow-up texts &amp; emails via SwiftCard. Msg
-      frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.{" "}
+    <p className="text-slate-500 text-[11px] leading-snug text-left">
+      By sharing, you agree to texts &amp; emails via SwiftCard. Msg frequency varies. Msg &amp; data
+      rates may apply. Reply STOP to opt out, HELP for help.{" "}
       <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>
       {" · "}
       <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>
