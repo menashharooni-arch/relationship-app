@@ -315,9 +315,9 @@ it must describe what the form *actually* does. SwiftCard uses
 > SwiftCard user's physical card, which opens that user's card page. The visitor
 > then chooses to submit their own name, phone number and email through the
 > "Share My Info" form. Directly adjacent to the submit button, visible before
-> submission, the form states: "By sharing your info you agree to receive
-> follow-up texts & emails via SwiftCard. Msg frequency varies. Msg & data rates
-> may apply. Reply STOP to opt out, HELP for help," followed by links
+> submission, the form states: "By sharing, you agree to texts & emails via
+> SwiftCard. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt
+> out, HELP for help," followed by links
 > to the SMS Terms and the Privacy Policy. Submitting the form is the
 > affirmative opt-in. Consent is then recorded server-side as an `sms-ok` flag
 > that the browser cannot set on its own; automated messages are sent only to
@@ -328,9 +328,11 @@ it must describe what the form *actually* does. SwiftCard uses
 >
 > The disclosure used to render at **8px**, which is not "clear and conspicuous"
 > under TCPA/CTIA and reads to a campaign reviewer as burying it. The owner
-> approved the change and it is now **12px** (`SmsConsentCheckbox.tsx`), with
+> approved the change and it is now **11px** (`SmsConsentCheckbox.tsx`), with
 > the two missing CTIA elements — message frequency and HELP — added, since
-> submission is the only consent signal. Never shrink it below 12px.
+> submission is the only consent signal. 11px is the floor — never go below it.
+> The copy is also trimmed to the shortest form that keeps all six required
+> elements; shortening it further fails review.
 >
 > Also note the component is *named* `SmsConsentCheckbox` but renders no
 > checkbox — it is a disclosure paragraph. The name is historical.

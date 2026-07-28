@@ -111,8 +111,8 @@ export default function SmsConsentPage() {
         <H2>The exact disclosure shown</H2>
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <p className="text-slate-700 text-[14px] leading-relaxed italic">
-            &quot;By sharing your info you agree to receive follow-up texts &amp; emails via SwiftCard.
-            Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
+            &quot;By sharing, you agree to texts &amp; emails via SwiftCard. Msg frequency varies.
+            Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
             SMS Terms · Privacy&quot;
           </p>
         </div>
