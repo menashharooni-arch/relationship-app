@@ -144,12 +144,10 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* SMS consent — a SEPARATE affirmative opt-in (unchecked by default,
-          optional: submitting without it still shares, but the lead is created
-          with automated texts paused). Distinct from the email line below per
-          TCPA/CTIA — text consent can't ride along on a general disclosure. */}
-      {/* One disclosure now covers BOTH channels (text + email) — submitting is
-          the consent. Kept ≥8px and legible ("clear and conspicuous"). */}
+      {/* One disclosure covers BOTH channels (text + email) — SUBMITTING is the
+          consent, which is why this form posts sms_consent:true. Despite the
+          component name there is no checkbox; it renders a disclosure line.
+          Kept ≥8px and legible ("clear and conspicuous"). */}
       <SmsConsentCheckbox recipientName={cardOwner} />
       <p className="text-slate-600 text-[8px] text-center leading-snug">
         Every email includes an unsubscribe link.
