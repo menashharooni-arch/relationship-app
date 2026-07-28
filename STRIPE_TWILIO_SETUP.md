@@ -206,14 +206,129 @@ own opt-out list would never get updated. Pick one:
 - Turn it on and separately sync Twilio's suppression list into
   `message_opt_outs` (not currently built).
 
-### 5. A2P 10DLC registration (US SMS, required)
+### 5. A2P 10DLC registration (US SMS, required) — **the current blocker**
 
-If you're sending to US numbers from a long code, Twilio (and US carriers)
-require **A2P 10DLC brand + campaign registration**, or messages will be
-filtered/throttled/blocked. Console → Messaging → Regulatory Compliance →
-A2P 10DLC. This is a compliance step on Twilio's side, independent of any code
-here — budget a few business days for carrier vetting before relying on SMS
-in production.
+US carriers require **brand + campaign registration** before they will deliver
+traffic from a 10-digit long code. Until this is done every text is accepted by
+Twilio and then silently dropped by the carrier (error 30034). Console →
+Messaging → Regulatory Compliance → A2P 10DLC.
+
+**This cannot be automated.** It is a legal attestation tied to a real business
+identity (EIN, registered address, an authorized representative) submitted to
+The Campaign Registry, and it bills a one-time brand fee plus a monthly campaign
+fee. It has to be submitted by the account holder. Everything below is the
+answer sheet so the console session is short — the app-side facts are filled in;
+only the business identity fields are blank, because nobody but you can supply
+them and a wrong value means rejection and a re-vetting fee.
+
+#### 5a. You supply these (Customer Profile + Brand)
+
+| Field | Value |
+|---|---|
+| Legal business name | ⬜ **exactly** as on the IRS EIN letter — "Inc"/"LLC" included, no DBA |
+| Business Tax ID (EIN) | ⬜ 9 digits |
+| Business type | ⬜ e.g. Corporation / LLC |
+| Business industry | Technology / Professional Services |
+| Registered address | ⬜ must match IRS records, not a mailbox |
+| Business website | `https://swiftcard.me` |
+| Authorized representative | ⬜ name, job title, business email, phone |
+| Brand contact email | ⬜ receives a 2FA code — must be reachable |
+
+> `HELP_REPLY` in `src/app/api/twilio/inbound/route.ts` already tells recipients
+> the business is **"Swift Card Inc"**. If the EIN letter says anything else,
+> that string is wrong and must be corrected — a mismatch between the registered
+> brand and the name in the HELP message is a compliance defect on its own.
+
+Brand type: choose **Low-Volume Standard** (under ~6,000 segments/day, lower
+monthly fee). It is the same vetting as Standard with cheaper throughput, and
+current volume is nowhere near the ceiling.
+
+#### 5b. Campaign — use these values verbatim
+
+Campaign vetting is where registrations fail, almost always because the opt-in
+description doesn't match the real product or the samples don't match real
+traffic. These are taken from the actual code, so they will.
+
+**Use case:** Mixed / Customer Care.
+
+**Campaign description:**
+> SwiftCard is a digital business card service. When someone taps or scans a
+> SwiftCard user's card, they may choose to submit their own contact details and
+> separately consent to receive text messages. Those consenting recipients get a
+> follow-up text from the card owner containing a link to that owner's contact
+> card, and optionally the owner's scheduled follow-up messages.
+
+**Sample message 1** (`src/app/api/leads/share-card/route.ts`):
+> Hi Alex! Jordan Reed here - save my contact information in the link below.
+> https://swiftcard.me/card/jordanreed?shared=1
+> via SwiftCard · Reply STOP to opt out
+
+**Sample message 2** (HELP auto-reply, `api/twilio/inbound`):
+> SwiftCard (Swift Card Inc): follow-up messages sent on behalf of SwiftCard
+> users. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt
+> out. Support: hello@swiftcard.me or swiftcard.me/contact
+
+**Opt-in description** — this is the field that gets registrations rejected, so
+it must describe what the form *actually* does. SwiftCard uses
+**consent-by-submission with an adjacent disclosure**, not a separate checkbox
+(see the warning below before you submit):
+> Web form, following an in-person interaction. A visitor taps or scans a
+> SwiftCard user's physical card, which opens that user's card page. The visitor
+> then chooses to submit their own name, phone number and email through the
+> "Share My Info" form. Directly adjacent to the submit button, visible before
+> submission, the form states: "By sharing you agree to follow-up texts &
+> emails. Msg & data rates may apply. Reply STOP to opt out," followed by links
+> to the SMS Terms and the Privacy Policy. Submitting the form is the
+> affirmative opt-in. Consent is then recorded server-side as an `sms-ok` flag
+> that the browser cannot set on its own; automated messages are sent only to
+> contacts carrying that flag, and capture paths that never displayed the
+> disclosure (business-card scanner, manual entry) are never auto-texted.
+
+> #### ⚠️ Read this before submitting the campaign
+>
+> The disclosure above is rendered at **8px** (`SmsConsentCheckbox.tsx`).
+> "Clear and conspicuous" is the actual legal standard for TCPA/CTIA consent,
+> and a campaign reviewer will open the live opt-in URL and look at it. 8px is
+> small enough that it is a plausible rejection reason and a real TCPA exposure
+> independent of registration. **Recommend bumping it to ~11–12px before you
+> submit** — it changes the look of every public card page, so it is left as
+> your call rather than changed unilaterally.
+>
+> Also note the component is *named* `SmsConsentCheckbox` but renders no
+> checkbox — it is a disclosure paragraph. The name is historical.
+
+**Opt-in evidence URLs:** `https://swiftcard.me/sms-consent` and
+`https://swiftcard.me/sms-terms` (both name the sending number).
+
+**Campaign attributes:** subscriber opt-in **YES**, opt-out **YES**, HELP
+**YES**, embedded link **YES** (`swiftcard.me` only — the app never uses a
+public URL shortener, which carriers reject), embedded phone number NO,
+age-gated NO, direct lending NO, affiliate marketing NO.
+
+> **Know this before you submit.** SwiftCard sends on behalf of its users, which
+> is adjacent to ISV/reseller territory. Registering as a Direct brand is
+> defensible here — one number, owned by Swift Card, and every message carries
+> "via SwiftCard" attribution and SwiftCard's own STOP/HELP handling — but it is
+> the detail a reviewer is most likely to question. The description and samples
+> above state it openly rather than hiding it, which is the safer posture.
+
+#### 5c. Attach the campaign
+
+Attach the approved campaign to the existing **"SwiftCard"** Messaging Service
+(`MG…`, in the runbook). +1 (917) 905-7335 is already its only sender, so no
+number changes are needed. Nothing in the app changes — `sendSms()` already
+sends through that Service.
+
+#### 5d. Verify it actually worked
+
+Brand review is usually minutes but can take 7+ business days if it goes to
+manual vetting; **campaign review is currently running 10–15 days**. When the
+campaign shows `APPROVED`, send one real text from Share → Share by Text and
+watch the contact's conversation thread: the status callback added in `85e92c3`
+will flip it to **Delivered**. If it still reads "Not delivered", the campaign
+is approved but the number isn't attached to it — check the Messaging Service's
+sender pool. Don't trust the green "Sent" check for this; that only means Twilio
+accepted the message, which was true the whole time it was failing.
 
 ### 6. Local development
 
