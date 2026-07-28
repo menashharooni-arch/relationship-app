@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import CardEditForm from "@/app/cards/[id]/edit/CardEditForm";
 import Link from "next/link";
+import { isPaidPlan } from "@/lib/plan";
 
 export default async function PrimaryCardEditPage() {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function PrimaryCardEditPage() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
 
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isPro = isPaidPlan(profile.plan);
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const card = {

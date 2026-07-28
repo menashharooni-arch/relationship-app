@@ -31,14 +31,20 @@ const resolve = cache(async (username: string) => {
   const ownerDeleted = cardRow
     ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
     : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
-  let profile = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
+  // The CARD row whenever one exists — every rendered field (bio, socials,
+  // links, styling) is per-card, so a user with several cards gets several
+  // independent Swift Links pages. It falls back to the profile row ONLY for
+  // legacy accounts that predate the cards table and never migrated. Named for
+  // what it holds rather than "profile": reading account-level customization
+  // here is what caused the headshot to bleed between cards once already.
+  let cardOrLegacy = ownerDeleted ? null : (cardRow ?? (legacyOk ? profileRow : null));
   const ownerPlan = (cardRow ? cardOwner?.plan : profileRow?.plan) as string | null | undefined;
   // Office kill-switch: a card taken offline serves no Swift Links page either.
-  if (cardIsOffline(cardRow)) profile = null;
+  if (cardIsOffline(cardRow)) cardOrLegacy = null;
   // Plan kill-switch: a Free account's extra (Pro-era) cards serve no Swift
   // Links page either — same rule as the card page, no bypass.
-  if (profile && cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerPlan))) {
-    profile = null;
+  if (cardOrLegacy && cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, ownerPlan))) {
+    cardOrLegacy = null;
   }
   // Per-card headshot: use the card's OWN headshot (customization.photoUrl) and
   // only fall back to the account photo for legacy cards that never set one —
@@ -46,14 +52,14 @@ const resolve = cache(async (username: string) => {
   const photoUrl = cardRow
     ? cardHeadshot(cardRow.customization, cardOwner?.photo_url)
     : (legacyOk ? (profileRow?.photo_url ?? null) : null);
-  return { profile, photoUrl, ownerPlan };
+  return { cardOrLegacy, photoUrl, ownerPlan };
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
-  const { profile } = await resolve(username);
-  if (!profile) return { title: "Swift Links" };
-  const name = profile.name || username;
+  const { cardOrLegacy } = await resolve(username);
+  if (!cardOrLegacy) return { title: "Swift Links" };
+  const name = cardOrLegacy.name || username;
   const description = `Connect with ${name} — all their links in one place.`;
   return {
     title: `${name} — Swift Links`,
@@ -75,14 +81,14 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const { username } = await params;
   const { embed } = await searchParams;
   const isEmbed = embed === "1"; // rendered inside the /preview demo — don't log a view or nudge
-  const { profile, photoUrl, ownerPlan } = await resolve(username);
-  if (!profile) notFound();
+  const { cardOrLegacy, photoUrl, ownerPlan } = await resolve(username);
+  if (!cardOrLegacy) notFound();
 
   // Don't count the owner viewing their own Swift Links page as a view.
   // getUser() refreshes the Supabase session cookie, which can throw for a
   // public viewer carrying a stale/invalid cookie — a public page must never
   // 500 on that (the card page guards this identically). Default to not-owner.
-  const ownerId = (profile as { user_id?: string; id?: string }).user_id ?? (profile as { id?: string }).id;
+  const ownerId = (cardOrLegacy as { user_id?: string; id?: string }).user_id ?? (cardOrLegacy as { id?: string }).id;
   let viewer: { id: string } | null = null;
   try {
     ({ data: { user: viewer } } = await (await createClient()).auth.getUser());
@@ -90,7 +96,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const isOwnerView = !!viewer && viewer.id === ownerId;
 
   const ownerPaid = isPaidPlan(ownerPlan);
-  const customization = (profile.customization ?? {}) as {
+  const customization = (cardOrLegacy.customization ?? {}) as {
     bio?: string;
     facebook?: string;
     snapchat?: string;
@@ -117,24 +123,24 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const actionLinks = ownerPaid ? allActionLinks : allActionLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   const socials = buildConnectLinks({
-    website: profile.website,
-    linkedin: profile.linkedin,
-    instagram: profile.instagram,
-    tiktok: profile.tiktok,
+    website: cardOrLegacy.website,
+    linkedin: cardOrLegacy.linkedin,
+    instagram: cardOrLegacy.instagram,
+    tiktok: cardOrLegacy.tiktok,
     facebook: customization.facebook,
-    twitter: profile.twitter,
+    twitter: cardOrLegacy.twitter,
     snapchat: customization.snapchat,
     youtube: customization.youtube,
   });
 
-  const subtitle = [profile.title, profile.company].filter(Boolean).join("  ·  ");
+  const subtitle = [cardOrLegacy.title, cardOrLegacy.company].filter(Boolean).join("  ·  ");
 
   return (
     <>
       {!isEmbed && !isOwnerView && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
       {!isEmbed && !isOwnerView && <SignupNudgeHost />}
       <SwiftLinkProfile
-        name={profile.name || username}
+        name={cardOrLegacy.name || username}
         username={username}
         photoUrl={photoUrl}
         subtitle={subtitle}

@@ -7,6 +7,7 @@ import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
+import { isPaidPlan } from "@/lib/plan";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
 // Forward-declare it here so this wrapper can pass guest mode before/after that
@@ -76,7 +77,7 @@ export default async function NewCardPage({
       .select("plan")
       .eq("id", user.id)
       .single();
-    isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
+    isPro = isPaidPlan(profile?.plan);
   }
 
   // First-card design preview: an already-authed Free account building its

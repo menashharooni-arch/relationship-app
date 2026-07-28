@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { isPaidPlan } from "@/lib/plan";
 
 // Called when a paid user accepts the "stay and get a free month" retention offer.
 // Applies a retention coupon to their subscription if one is configured.
@@ -26,7 +27,7 @@ export async function POST() {
     .eq("id", user.id)
     .single();
 
-  const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
+  const isPro = isPaidPlan(profile?.plan);
   const couponId = process.env.STRIPE_RETENTION_COUPON_ID;
 
   // Once per customer, exactly like /api/stripe/subscription/discount. Without

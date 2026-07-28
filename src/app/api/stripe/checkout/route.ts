@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
-import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
 import { isFreeDays } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Duplicate-subscription guard: a paying customer must NOT start a second
     // checkout (that would create a duplicate subscription / double charge).
     // Send them to Billing to CHANGE their plan instead.
-    if ((profile.plan === "pro" || profile.plan === "enterprise") && profile.stripe_subscription_id) {
+    if (isPaidPlan(profile.plan) && profile.stripe_subscription_id) {
       return NextResponse.json(
         { error: "already_subscribed", message: "You already have an active subscription. Change your plan in Settings → Billing.", redirect: "/settings/flows?billing=1" },
         { status: 409 }

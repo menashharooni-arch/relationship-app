@@ -11,7 +11,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import { PlanGate } from "@/components/PlanGate";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import type { ComponentType } from "react";
 import type { CardData, CardCustomization, CardLink, CardTestimonial } from "@/components/card-templates/types";
 
@@ -95,7 +95,7 @@ type Profile = {
 };
 
 export default function ProfileForm({ profile, linkedinEnabled = false }: { profile: Profile; linkedinEnabled?: boolean }) {
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isPro = isPaidPlan(profile.plan);
   const [photoUrl, setPhotoUrl] = useState<string | null>(profile.photo_url);
   const [logoUrl, setLogoUrl] = useState<string | null>(profile.logo_url);
   const [template, setTemplate] = useState(profile.template ?? "classic-pro");
