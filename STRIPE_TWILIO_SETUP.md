@@ -330,6 +330,121 @@ is approved but the number isn't attached to it — check the Messaging Service'
 sender pool. Don't trust the green "Sent" check for this; that only means Twilio
 accepted the message, which was true the whole time it was failing.
 
+#### 5a. Brand (Low-Volume Standard)
+
+Prerequisite: the Customer Profile "Swift Card Inc – Primary"
+(`BU3742ea040d5eaaf41d56250c0c3f607b`) must be `twilio-approved` — it is, as of
+2026-07-23. Values below are transcribed from the IRS CP 575A; they must match
+character for character or TCR rejects the brand.
+
+| Field | Value |
+| --- | --- |
+| Legal business name | `SWIFT CARD INC` |
+| EIN | `42-3901804` |
+| Business type | Private Corporation |
+| Industry | Technology |
+| Website | `https://swiftcard.me/` |
+| Registered address | must match IRS records — no mailbox/virtual office |
+| Brand contact email | one you can open immediately (2FA code) |
+
+Pick **Low-Volume Standard**: same vetting as Standard, lower monthly fee, and
+its ceiling (~6,000 segments/day) is far above current volume.
+
+> ⚠️ **Brand registration is billed per attempt — do not blind-retry.** The
+> 2026-07-23 attempt was rejected for "EIN/legal-name mismatch" even though the
+> values above match the CP 575A exactly. The EIN was issued **2026-07-17** and
+> is not yet in the third-party verification databases TCR queries. Do not
+> resubmit before ~2026-08-07.
+
+#### 5b. Campaign — copy these fields verbatim
+
+Taken from the actual code paths, so the samples match real traffic. Use case:
+**Mixed / Customer Care**.
+
+**Campaign description**
+
+```
+SwiftCard is a digital business card platform operated by Swift Card Inc. When a
+visitor to a SwiftCard user's public card page fills in the "Share your info"
+form with their name, phone, and email, that user can send them a follow-up
+text: their card link, a reply to a question, or a thank-you after meeting.
+Messages are conversational and one-to-one, initiated by the individual
+SwiftCard user to a person who just handed them their number in person or on
+their card page. All messages send from one number, +1 (917) 905-7335, owned and
+operated by Swift Card Inc. Swift Card Inc is the sole sender of record and
+handles STOP/HELP centrally for every message on the platform; SwiftCard users
+do not bring or control their own numbers.
+```
+
+**Sample message 1** (free plan — carries platform attribution)
+
+```
+Hi Sarah - great meeting you at the AIA mixer tonight. Here's my card if you
+want to reach me.
+
+- Menash Harooni, Swift Card Inc
+https://swiftcard.me/card/menash
+via SwiftCard https://swiftcard.me/join?src=follow_up
+```
+
+**Sample message 2** (paid plan — `buildSmsBody({ paid: true })` suppresses the
+attribution line, since Pro is sold as "100% your brand")
+
+```
+Hi Daniel - thanks for stopping by the booth. Sending over my details as
+promised, and the pricing sheet is on my card page.
+
+- Rachel Lim, Northbridge Design
+https://swiftcard.me/card/rachel-lim
+```
+
+**Opt-in description** — the field that gets rejected. This describes the live
+flow at `/sms-consent`; keep the two in sync or a reviewer will catch the drift.
+
+```
+Opt-in happens on the "Share your info" form on a SwiftCard user's public card
+page (e.g. https://swiftcard.me/card/menash). The visitor deliberately opens
+that form and types in their own name, phone number, and email in order to be
+contacted back. Immediately next to the submit button, before submitting, they
+see this disclosure: "By sharing your info you agree to receive follow-up texts
+& emails via SwiftCard. Msg frequency varies. Msg & data rates may apply. Reply
+STOP to opt out, HELP for help." followed by links to the SMS Terms and Privacy
+Policy. Submitting the form is the affirmative opt-in. Consent is not bundled
+into any unrelated action and is never a condition of purchase or of creating an
+account. Every outbound message honors STOP platform-wide and HELP.
+```
+
+**Opt-in evidence URLs**: `https://swiftcard.me/sms-consent` and
+`https://swiftcard.me/sms-terms`
+
+**Attributes**: opt-in Yes · opt-out Yes · HELP Yes · embedded link Yes ·
+embedded phone No · age-gated No · direct lending No · affiliate marketing No
+
+#### 5c. Expect the ISV/reseller question
+
+Because SwiftCard sends on behalf of its users, a reviewer may ask whether this
+is a reseller/ISV setup requiring per-customer brands. The description above
+states the arrangement openly rather than hiding it, which is the safer posture:
+one number, owned by Swift Card Inc, with STOP/HELP handled centrally by the
+platform (`src/app/api/twilio/inbound/route.ts`), and users who never bring or
+control a number of their own. That is a standard single-brand platform, not an
+ISV.
+
+#### 5d. Attach and verify
+
+Attach the approved campaign to the existing Messaging Service **"SwiftCard"**
+(`MG173ded99039996a73538bc1b5b661b6b`). The number is already its only sender —
+no code changes, `sendSms()` already routes through that Service.
+
+Then send one real text from Share → Share by Text and watch the thread:
+
+- **Delivered** → working.
+- **Not delivered** → campaign approved but the number isn't in the Service's
+  sender pool; check it.
+
+Do not judge by the green "Sent" check. That only ever meant Twilio accepted the
+message — it showed green the whole time messages were being carrier-filtered.
+
 ### 6. Local development
 
 Twilio needs a public URL to reach your inbound webhook — use a tunnel (e.g.

@@ -8,10 +8,10 @@ import NativeHidden from "@/components/NativeHidden";
 export const metadata: Metadata = {
   title: "SMS Consent Overview — SwiftCard",
   description:
-    "How people opt in to receive text messages on SwiftCard: where the consent checkbox appears, the exact disclosure shown, and how opt-out works.",
+    "How people opt in to receive text messages on SwiftCard: where the consent disclosure appears, the exact wording shown, and how opt-out works.",
 };
 
-const LAST_UPDATED = "July 27, 2026";
+const LAST_UPDATED = "July 28, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -44,24 +44,33 @@ export default function SmsConsentPage() {
         <P>
           Every SwiftCard user has a public card page (for example, swiftcard.me/card/their-name). When a
           visitor wants to share their contact information with that person, they use the{" "}
-          <strong>&quot;Share your info&quot;</strong> form on the card. The SMS opt-in is a separate,{" "}
-          <strong>unchecked-by-default</strong>{" "}checkbox directly on that form — the same block appears on
-          every variation of the share form across the site (the card&apos;s share form, the post-save
+          <strong>&quot;Share your info&quot;</strong> form on the card. The SMS consent disclosure sits
+          directly on that form, immediately next to the submit button — the same block appears on every
+          variation of the share form across the site (the card&apos;s share form, the post-save
           share-back sheet, the &quot;reach out&quot; message modal, and the social-link share prompt).
         </P>
 
         <H2>The consent flow, step by step</H2>
         <ul className="mb-3">
           <LI>A visitor opens a SwiftCard user&apos;s public card page.</LI>
-          <LI>They choose to share their contact info and enter their name and phone number.</LI>
           <LI>
-            Next to the submit button is the SMS consent checkbox — <strong>unchecked by default</strong>. It
-            must be actively checked to opt in; nothing pre-selects it.
+            They choose to share their contact info and enter their name, phone number, and email. Nothing
+            is collected unless the visitor deliberately opens this form and fills it in.
           </LI>
           <LI>
-            Checking the box is <strong>optional</strong>: the visitor can share their info without opting in
-            to texts, and consent is never a condition of sharing, purchase, or account creation. If the box
-            is left unchecked, automated text follow-ups are switched off for that number.
+            Immediately next to the submit button, before they submit, they see the full disclosure quoted
+            below: that sharing means receiving follow-up texts and emails via SwiftCard, that message
+            frequency varies, that msg &amp; data rates may apply, and that STOP opts out and HELP gets help.
+          </LI>
+          <LI>
+            <strong>Submitting the form is the affirmative opt-in.</strong> The visitor is giving their phone
+            number for the express purpose of being followed up with, and the disclosure telling them so is
+            in plain sight above the button they press. Consent is never bundled into an unrelated action,
+            and is never a condition of purchase or account creation.
+          </LI>
+          <LI>
+            The card owner can switch text follow-ups off for any contact at any time from their Contacts
+            list, independently of the visitor&apos;s own STOP.
           </LI>
           <LI>Every message thereafter honors STOP (opt out platform-wide) and HELP (assistance).</LI>
         </ul>
@@ -76,7 +85,7 @@ export default function SmsConsentPage() {
           <figure className="rounded-2xl border border-slate-200 bg-white/70 p-4">
             <Image
               src="/sms-consent/share-form.png"
-              alt="A SwiftCard public card page on a phone, showing the Share-your-info form with the unchecked SMS consent checkbox below the submit button"
+              alt="A SwiftCard public card page on a phone, showing the Share-your-info form with the SMS consent disclosure next to the submit button"
               width={430}
               height={932}
               className="rounded-xl border border-slate-200 w-full h-auto"
@@ -88,13 +97,13 @@ export default function SmsConsentPage() {
           <figure className="rounded-2xl border border-slate-200 bg-white/70 p-4">
             <Image
               src="/sms-consent/consent-closeup.png"
-              alt="Close-up of the share form: name, phone, and email fields, the Share My Info button, and the unchecked SMS consent checkbox with its full disclosure text and links to the SMS Terms and Privacy Policy"
+              alt="Close-up of the share form: name, phone, and email fields, the Share My Info button, and the SMS consent disclosure with its full text and links to the SMS Terms and Privacy Policy"
               width={280}
               height={345}
               className="rounded-xl border border-slate-200 w-full h-auto"
             />
             <figcaption className="text-slate-500 text-xs mt-2 text-center">
-              The consent checkbox, unchecked by default
+              The consent disclosure, shown before submitting
             </figcaption>
           </figure>
         </div>
@@ -102,9 +111,9 @@ export default function SmsConsentPage() {
         <H2>The exact disclosure shown</H2>
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <p className="text-slate-700 text-[14px] leading-relaxed italic">
-            &quot;Check this box to have [the card owner&apos;s name] reach out to you by text via
-            SwiftCard. Msg frequency varies, msg &amp; data rates may apply, reply STOP/HELP. Not
-            required to share. See our SMS Terms and Privacy Policy.&quot;
+            &quot;By sharing your info you agree to receive follow-up texts &amp; emails via SwiftCard.
+            Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
+            SMS Terms · Privacy&quot;
           </p>
         </div>
         <P>
