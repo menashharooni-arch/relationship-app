@@ -40,7 +40,7 @@ import AiConsentGate from "@/components/AiConsentGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan, isPaidPlan } from "@/lib/plan";
 import { readUsage } from "@/lib/usage";
 import { cardHeadshot, backfillCardPhotos } from "@/lib/card-media";
 
@@ -116,7 +116,7 @@ export default async function DashboardPage({
   const activeUsername = (activeCard?.username ?? "") as string;
   const analyticsUsername = activeUsername;
 
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isPro = isPaidPlan(profile.plan);
   const isEnterprise = profile.plan === "enterprise";
   const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "");
 

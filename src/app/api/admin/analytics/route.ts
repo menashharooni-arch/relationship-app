@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
+import { isPaidPlan } from "@/lib/plan";
 
 // Rough monthly price per paid plan (matches the pricing page).
 const PRO_PRICE = 4.99;
@@ -60,7 +61,7 @@ export async function GET() {
     const slot = (acqMap[src] ??= { signups: 0, d30: 0, paid: 0 });
     slot.signups++;
     if (new Date(a.created_at as string).getTime() >= now - 30 * DAY) slot.d30++;
-    if (a.plan === "pro" || a.plan === "enterprise") slot.paid++;
+    if (isPaidPlan(a.plan)) slot.paid++;
   });
   const acquisition = Object.entries(acqMap)
     .map(([source, v]) => ({ source, ...v, paidRate: v.signups ? Math.round((v.paid / v.signups) * 1000) / 10 : 0 }))

@@ -26,6 +26,7 @@ import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import { resolveOfficeContext, roleHasCapability, canViewOfficeAdmin } from "@/lib/office-roles";
 import { Suspense } from "react";
 import Link from "next/link";
+import { isPaidPlan } from "@/lib/plan";
 
 // Rail icons — small, uniform, and deliberately plain so the labels do the work.
 const I = {
@@ -61,7 +62,7 @@ export default async function FlowSettingsPage({
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isPro = isPaidPlan(profile.plan);
 
   // Skip the one-time card migration entirely once it's done (the common case).
   // Unconditionally calling it re-read the whole profile row inside

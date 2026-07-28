@@ -9,6 +9,7 @@ import { cardHeadshot } from "@/lib/card-media";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 import type { CardData } from "@/components/card-templates/types";
+import { isPaidPlan } from "@/lib/plan";
 
 export default async function CardEditPage({
   params,
@@ -32,7 +33,7 @@ export default async function CardEditPage({
 
   if (!card) notFound();
 
-  const isPro = profile?.plan === "pro" || profile?.plan === "enterprise";
+  const isPro = isPaidPlan(profile?.plan);
   // Per-card headshot (legacy cards fall back to the account photo).
   const cardPhoto = cardHeadshot(card.customization, profile?.photo_url);
 

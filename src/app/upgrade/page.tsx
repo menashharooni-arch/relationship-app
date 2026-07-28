@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import UpgradeClient from "./UpgradeClient";
+import { isPaidPlan } from "@/lib/plan";
 
 export const metadata = { title: "Upgrade — SwiftCard" };
 
@@ -30,7 +31,7 @@ export default async function UpgradePage({
   // Already paying → nothing to sell. Billing settings is where they change or
   // cancel a plan they already have.
   const plan = (profile?.plan as string) ?? "free";
-  if (plan === "pro" || plan === "enterprise") redirect("/settings/flows?billing=1#billing");
+  if (isPaidPlan(plan)) redirect("/settings/flows?billing=1#billing");
 
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-12">

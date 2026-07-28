@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/admin";
 import { marketingEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
+import { isPaidPlan } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -30,7 +31,7 @@ export async function GET() {
   const counts = {
     all: live.length,
     free: live.filter((p) => p.plan === "free" || !p.plan).length,
-    pro: live.filter((p) => p.plan === "pro" || p.plan === "enterprise").length,
+    pro: live.filter((p) => isPaidPlan(p.plan)).length,
     office: live.filter((p) => p.plan === "enterprise").length,
   };
 

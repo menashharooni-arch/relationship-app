@@ -12,7 +12,7 @@ import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
 import { cardHeadshot } from "@/lib/card-media";
-import { sanitizeCustomizationForPlan } from "@/lib/plan";
+import { sanitizeCustomizationForPlan, isPaidPlan } from "@/lib/plan";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -52,7 +52,7 @@ export default async function SharePage({
   const activeCard = allCards.find((c) => c.username === selectedCard) ?? allCards[0];
   const activeSource = activeCard;
   const activeUsername = activeCard.username as string;
-  const isPro = profile.plan === "pro" || profile.plan === "enterprise";
+  const isPro = isPaidPlan(profile.plan);
   // Keep the "Admin" nav item present across the app shell (same gate as the page).
   const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
 
