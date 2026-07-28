@@ -177,9 +177,10 @@ export default function PrivacyPage() {
         <P>
           Necessary service providers (such as Twilio, our text-messaging provider) process mobile numbers
           solely to deliver those messages on our instructions — never for their own marketing. Consent to
-          receive texts is collected through a separate, unchecked-by-default checkbox on the share form,
-          is always optional, and is never a condition of sharing your information, creating an account, or
-          making a purchase. Reply STOP to any text to opt out across all of SwiftCard, or HELP for help.
+          receive texts is collected on the share form: a disclosure next to the submit button states that
+          sharing means receiving follow-up texts and emails, and submitting the form is the opt-in. It is
+          never a condition of creating an account or making a purchase. Reply STOP to any text to opt out
+          across all of SwiftCard, or HELP for help.
         </P>
 
         <H2>International transfers</H2>
