@@ -903,6 +903,7 @@ export default function ContactsClient({
                 firstName={(selected.name || "them").split(" ")[0]}
                 hasPhone={!!selected.phone}
                 hasEmail={!!selected.email}
+                cardOwner={selected.card_owner}
               />
               <button
                 onClick={saveContactToPhone}
