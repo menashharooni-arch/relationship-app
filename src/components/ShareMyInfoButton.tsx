@@ -27,6 +27,13 @@
 import { useEffect, useRef, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
 
+// Pinned to the SwiftCard domain, NOT window.location.origin — same reason
+// LoginForm pins it. On a Vercel preview host, origin would hand the recipient
+// a *.vercel.app link that 404s once the preview is torn down, and it would
+// disagree with the link the share-card route sends for the other three
+// options. The card link must be canonical wherever it is shared from.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
 type Props = {
   leadId: string;
   firstName: string;
@@ -91,7 +98,7 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
   async function sharePhone() {
     setOpen(false);
     if (!cardOwner) return;
-    const url = `${window.location.origin}/card/${cardOwner}?shared=1`;
+    const url = `${APP_URL}/card/${cardOwner}?shared=1`;
 
     // Native shell: WKWebView often lacks navigator.share.
     if (detectNativeApp()) {
