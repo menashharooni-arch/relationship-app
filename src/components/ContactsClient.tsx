@@ -128,6 +128,23 @@ function SourceBadge({ source }: { source: string | null }) {
 //   • no sequence at all         → "no flow"   (grey)  — nothing set up yet
 //   • some steps still unsent    → "mid-flow"  (yellow)— running / scheduled
 //   • every step has a sent_at   → "flow done" (green) — the whole flow has run
+// How an outbound message's delivery state reads in the thread. Our own send
+// path writes "sent"/"failed"/"not_configured"; Twilio's status callback later
+// overwrites it with the CARRIER's verdict (queued → sending → sent →
+// delivered, or undelivered/failed). "sent" alone means accepted-not-yet-
+// delivered, so it must not be shown as a definitive success.
+function outDeliveryLabel(status: string | null | undefined): { text: string; tone: string } {
+  switch ((status ?? "").toLowerCase()) {
+    case "delivered":      return { text: "Delivered", tone: "text-emerald-500" };
+    case "undelivered":    return { text: "Not delivered", tone: "text-red-400" };
+    case "failed":         return { text: "Failed", tone: "text-red-400" };
+    case "not_configured": return { text: "Not sent", tone: "text-amber-400" };
+    case "queued":
+    case "sending":        return { text: "Sending", tone: "text-gray-600" };
+    default:               return { text: "Sent", tone: "text-gray-600" };
+  }
+}
+
 function FlowBadge({ sequence }: { sequence: Lead["follow_up_sequence"] }) {
   const seq = sequence ?? [];
   if (seq.length === 0) {
@@ -1401,7 +1418,16 @@ export default function ContactsClient({
                               <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
                                 {isSms ? "Text" : "Email"}
                               </span>
-                              <span suppressHydrationWarning>{it.status === "not_configured" ? "Not sent" : it.status === "failed" ? "Failed" : "Sent"} · {formatShort(it.at)}</span>
+                              {/* Twilio's own delivery status wins over our
+                                  optimistic "sent". Accepting a text is not
+                                  delivering it: a carrier can drop it later
+                                  (e.g. unregistered A2P 10DLC), and the status
+                                  callback rewrites this row. Never tell someone
+                                  a message arrived when the carrier said it
+                                  didn't. */}
+                              <span suppressHydrationWarning className={outDeliveryLabel(it.status).tone}>
+                                {outDeliveryLabel(it.status).text} · {formatShort(it.at)}
+                              </span>
                             </span>
                           </div>
                         );
