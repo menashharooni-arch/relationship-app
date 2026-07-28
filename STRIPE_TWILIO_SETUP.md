@@ -225,14 +225,20 @@ them and a wrong value means rejection and a re-vetting fee.
 
 | Field | Value |
 |---|---|
-| Legal business name | `SWIFT CARD INC` — per the CP 575A |
-| Business Tax ID (EIN) | `42-3901804` — per the CP 575A |
+> **This repo is public.** The brand identity values — EIN, registered address,
+> representative's phone — are in `CREDENTIALS-RUNBOOK.md` (gitignored) under
+> "A2P brand identity", not here. Copy them from there into the console.
+
+| Field | Value |
+|---|---|
+| Legal business name | `SWIFT CARD INC` (public: it's on `/company`) |
+| Business Tax ID (EIN) | see runbook |
 | Business type | Private Corporation |
 | Business industry | Technology / Professional Services |
-| Registered address | ⬜ must match IRS records, not a mailbox |
+| Registered address | see runbook — must match IRS records, not a mailbox |
 | Business website | `https://swiftcard.me` |
-| Authorized representative | ⬜ name, job title, business email, phone |
-| Brand contact email | ⬜ receives a 2FA code — must be reachable |
+| Authorized representative | Menash Harooni, Founder & Authorized Representative; phone in runbook |
+| Brand contact email | `hello@swiftcard.me` — receives a 2FA code |
 
 Answer **Yes** when asked whether the business has a registration number (Tax
 ID). There is an EIN, so this is not a Sole Proprietor brand — that path caps
