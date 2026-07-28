@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, isAdminEmail } from "@/lib/admin";
+import { getAccountEmailMap } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
 
 // Rough monthly price per paid plan (matches the pricing page).
@@ -24,12 +25,24 @@ export async function GET() {
   // ── Accounts ───────────────────────────────────────────────────────────────
   const { data: profRows } = await admin
     .from("profiles")
-    .select("id, email, name, username, plan, created_at, customization, signup_source")
+    .select("id, email, name, username, plan, created_at, customization, signup_source, stripe_subscription_id")
     .order("created_at", { ascending: false })
     .limit(1000);
-  const accounts = (profRows ?? []).filter(
-    (p) => !((p.customization as { _deleted?: boolean } | null)?._deleted) && p.email !== "demo@swiftcard.me"
-  );
+
+  // Resolve the AUTH signup email — profiles.email drifts to the card's public
+  // contact email, so filtering internal accounts on it silently misses them
+  // (see lib/account-email, and the same fix already applied in api/admin/users).
+  const authEmails = await getAccountEmailMap();
+  const emailOf = (p: { id: unknown; email?: unknown }) =>
+    (authEmails.get(p.id as string) ?? (p.email as string) ?? "").toLowerCase();
+
+  const accounts = (profRows ?? []).filter((p) => {
+    if ((p.customization as { _deleted?: boolean } | null)?._deleted) return false;
+    const e = emailOf(p);
+    // Internal accounts are not customers: the demo card and any ADMIN_EMAILS
+    // operator account would otherwise show up as signups and as paid revenue.
+    return e !== "demo@swiftcard.me" && !isAdminEmail(e);
+  });
 
   const plans = { free: 0, pro: 0, enterprise: 0 };
   const signupSeries: Record<string, number> = {};
@@ -48,9 +61,27 @@ export async function GET() {
   });
 
   const totalAccounts = accounts.length;
-  const paid = plans.pro + plans.enterprise;
+
+  // Revenue counts only accounts with a REAL Stripe subscription. Deriving it
+  // from the plan label alone reported comped/manually-granted accounts as
+  // paying — after the 2026-07-28 reset that made a $0 business show non-zero
+  // MRR and 100% conversion, which is exactly the number you'd act on.
+  const subscribed = accounts.filter((a) => !!a.stripe_subscription_id);
+  const paid = subscribed.length;
   const conversion = totalAccounts ? Math.round((paid / totalAccounts) * 1000) / 10 : 0;
-  const estMrr = Math.round((plans.pro * PRO_PRICE + plans.enterprise * OFFICE_PRICE) * 100) / 100;
+  const estMrr =
+    Math.round(
+      subscribed.reduce(
+        (sum, a) => sum + (a.plan === "enterprise" ? OFFICE_PRICE : PRO_PRICE),
+        0
+      ) * 100
+    ) / 100;
+  // Accounts on a paid plan with no subscription behind them — comped, legacy,
+  // or a checkout that never completed. Surfaced so the gap is visible rather
+  // than silently inflating or deflating the numbers above.
+  const compedPaidPlans = accounts.filter(
+    (a) => isPaidPlan(a.plan as string) && !a.stripe_subscription_id
+  ).length;
 
   // ── Acquisition: where signups come from + which sources convert to paid ──
   // This is the marketing-spend view: signups, last-30-day signups, and the
@@ -61,7 +92,8 @@ export async function GET() {
     const slot = (acqMap[src] ??= { signups: 0, d30: 0, paid: 0 });
     slot.signups++;
     if (new Date(a.created_at as string).getTime() >= now - 30 * DAY) slot.d30++;
-    if (isPaidPlan(a.plan)) slot.paid++;
+    // Same rule as estMrr above: a source only "converted" if money followed.
+    if (a.stripe_subscription_id) slot.paid++;
   });
   const acquisition = Object.entries(acqMap)
     .map(([source, v]) => ({ source, ...v, paidRate: v.signups ? Math.round((v.paid / v.signups) * 1000) / 10 : 0 }))
@@ -116,7 +148,7 @@ export async function GET() {
       series: Object.entries(signupSeries).map(([date, count]) => ({ date, count })),
       recent: accounts.slice(0, 10).map((a) => ({ name: a.name, email: a.email, username: a.username, plan: a.plan, created_at: a.created_at })),
     },
-    plans: { free: plans.free, pro: plans.pro, office: plans.enterprise, paid, conversion, estMrr },
+    plans: { free: plans.free, pro: plans.pro, office: plans.enterprise, paid, conversion, estMrr, compedPaidPlans },
     acquisition,
     cards: { total: cardTotal ?? 0, perAccount: totalAccounts ? Math.round(((cardTotal ?? 0) / totalAccounts) * 10) / 10 : 0 },
     leads: {
