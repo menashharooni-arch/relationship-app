@@ -9,7 +9,7 @@ import Link from "next/link";
 
 type Analytics = {
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string | null; email: string | null; username: string | null; plan: string | null; created_at: string }[] };
-  plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number };
+  plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number; compedPaidPlans?: number };
   acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
   cards: { total: number; perAccount: number };
   leads: { total: number; today: number; d7: number };
@@ -57,7 +57,11 @@ export default function OverviewClient() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Total users" value={data.accounts.total} sub={`+${data.accounts.today} today · +${data.accounts.d7} this week`} />
         <Stat label="Paying users" value={plans.paid} sub={`${plans.conversion}% of signups convert`} />
-        <Stat label="Est. MRR" value={`$${plans.estMrr.toLocaleString()}`} sub="list prices, before discounts" />
+        <Stat
+          label="Est. MRR"
+          value={`$${plans.estMrr.toLocaleString()}`}
+          sub={plans.compedPaidPlans ? `list prices · ${plans.compedPaidPlans} comped, excluded` : "list prices, before discounts"}
+        />
         <Stat label="Cards created" value={data.cards.total} sub={`${data.cards.perAccount} per account`} />
       </div>
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 
 type Analytics = {
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string; email: string; username: string; plan: string; created_at: string }[] };
-  plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number };
+  plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number; compedPaidPlans?: number };
   acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
   cards: { total: number; perAccount: number };
   leads: { total: number; today: number; d7: number; series: { date: string; count: number }[]; bySource: [string, number][]; perAccount: number };
@@ -94,7 +94,16 @@ export default function AnalyticsClient() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Kpi label="Total accounts" value={a.accounts.total} sub={`+${a.accounts.d30} in 30d · +${a.accounts.today} today`} />
               <Kpi label="Paid customers" value={a.plans.paid} sub={`${a.plans.conversion}% conversion`} accent="#60a5fa" />
-              <Kpi label="Est. MRR" value={`$${a.plans.estMrr.toLocaleString()}`} sub="Pro + Office / month" accent="#4ade80" />
+              <Kpi
+                label="Est. MRR"
+                value={`$${a.plans.estMrr.toLocaleString()}`}
+                sub={
+                  a.plans.compedPaidPlans
+                    ? `Stripe subscriptions only · ${a.plans.compedPaidPlans} comped`
+                    : "Stripe subscriptions only"
+                }
+                accent="#4ade80"
+              />
               <Kpi label="Contacts captured" value={a.leads.total} sub={`+${a.leads.d7} this week`} />
             </div>
 
