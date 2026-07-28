@@ -140,8 +140,24 @@ This repo is **public** — the SIDs below are recorded in `CREDENTIALS-RUNBOOK.
 | Messaging Service | "SwiftCard" (`MG…`, see runbook); the number is its only sender |
 | Inbound webhook | `https://swiftcard.me/api/twilio/inbound` (POST), set on **both** the Messaging Service and the number itself |
 | `useInboundWebhookOnNumber` | `false` — the Service webhook wins; the number's own webhook is the fallback if it ever leaves the Service |
-| Vercel env (Production) | `TWILIO_ACCOUNT_SID`, `TWILIO_MESSAGING_SERVICE_SID`, `TWILIO_PHONE_NUMBER` set. `TWILIO_AUTH_TOKEN` **not yet set** |
-| A2P 10DLC | **Not registered** — no brand, no campaign. See step 5; US delivery is blocked until this is done |
+| Vercel env (Production) | `TWILIO_ACCOUNT_SID`, `TWILIO_MESSAGING_SERVICE_SID`, `TWILIO_PHONE_NUMBER` set. `TWILIO_AUTH_TOKEN` set as of the first live send test |
+| Status callback | `https://swiftcard.me/api/twilio/status` (POST), passed per-message on create — records the CARRIER's verdict on each text |
+| A2P 10DLC | **Not registered** — no brand, no campaign. See step 5. **This is the current delivery blocker.** |
+
+> ### ⚠️ "It said Sent but the text never arrived"
+>
+> This is the expected symptom of the unregistered A2P 10DLC campaign above, and
+> it is **not** an app bug. Creating a message via the Twilio API is only an
+> ACCEPTANCE: the call returns `201` with status `queued`, so `sendSms()`
+> correctly reports `sent` and the message is logged. Delivery is decided later
+> by the US carrier, which **silently drops** traffic from an unregistered 10DLC
+> number (error **30034**).
+>
+> The app now hears about this: every send passes a `statusCallback`, and
+> `/api/twilio/status` writes the real outcome back onto the logged message, so
+> the conversation thread shows "Not delivered" instead of "Sent" and an ops
+> alert fires. That makes the failure visible — it does **not** make it deliver.
+> Only completing step 5 does.
 
 `sendSms()` requires Account SID **and** Auth Token **and** a sender, so with the
 Auth Token missing it returns `not_configured` and the app behaves exactly as it

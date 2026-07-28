@@ -98,14 +98,19 @@ export async function POST(req: NextRequest) {
         `${cardUrl}\n` +
         `${paid ? "" : "via SwiftCard · "}Reply STOP to opt out`,
       );
-      results.sms = await sendSms(lead.phone as string, body);
-      if (results.sms === "sent") {
+      const smsResult = await sendSms(lead.phone as string, body);
+      results.sms = smsResult.status;
+      if (smsResult.status === "sent") {
         await logMessage({
           leadId: lead.id as string,
           cardOwner: lead.card_owner as string,
           direction: "out",
           channel: "sms",
           body: "Save my contact information in the link below. (shared card link)",
+          status: "sent",
+          // Twilio only ACCEPTED it here; the delivery callback updates this row
+          // if the carrier later drops it (e.g. unregistered A2P 10DLC).
+          providerSid: smsResult.sid,
         });
       }
     }

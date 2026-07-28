@@ -123,6 +123,8 @@ export async function logMessage(opts: {
   channel: "sms" | "email";
   body: string;
   status?: string | null;
+  /** Twilio message SID, so the status callback can update this row later. */
+  providerSid?: string | null;
 }): Promise<void> {
   try {
     await getAdminSupabase().from("lead_messages").insert({
@@ -132,6 +134,7 @@ export async function logMessage(opts: {
       channel: opts.channel,
       body: opts.body,
       status: opts.status ?? null,
+      ...(opts.providerSid ? { provider_sid: opts.providerSid } : {}),
     });
   } catch { /* table may not exist yet */ }
 }
@@ -166,25 +169,44 @@ export function buildSmsBody(opts: { senderName: string; company?: string | null
 }
 
 // ── SMS via ONE shared SwiftCard sender (Twilio Messaging Service) ──────────
-export async function sendSms(to: string, body: string): Promise<SendResult> {
+// Returns the send status AND Twilio's message SID. The SID matters: Twilio
+// ACCEPTS a message synchronously ("sent" here) and then delivery succeeds or
+// fails ASYNCHRONOUSLY at the carrier — an unregistered A2P 10DLC number, for
+// example, is silently dropped (error 30034) AFTER the API said yes. Callers
+// store the SID on the logged message (logMessage providerSid) so the
+// /api/twilio/status callback can mark it delivered/undelivered later.
+export async function sendSms(to: string, body: string): Promise<{ status: SendResult; sid: string | null }> {
   const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER } = process.env;
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || (!TWILIO_MESSAGING_SERVICE_SID && !TWILIO_PHONE_NUMBER)) {
-    return "not_configured";
+    return { status: "not_configured", sid: null };
   }
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  // Delivery-status callback: only on a public https origin (Twilio can't reach
+  // localhost, and preview deploys must not receive prod callbacks).
+  const statusCallback =
+    APP_URL.startsWith("https://") && !APP_URL.includes("localhost")
+      ? `${APP_URL}/api/twilio/status`
+      : undefined;
   try {
-    await client.messages.create({
+    const msg = await client.messages.create({
       to,
       body,
+      ...(statusCallback ? { statusCallback } : {}),
       // Prefer the Messaging Service (one shared sender for ALL users, scales
       // long code → short code by config). Falls back to a single number.
       ...(TWILIO_MESSAGING_SERVICE_SID
         ? { messagingServiceSid: TWILIO_MESSAGING_SERVICE_SID }
         : { from: TWILIO_PHONE_NUMBER! }),
     });
-    return "sent";
-  } catch {
-    return "failed";
+    return { status: "sent", sid: msg.sid ?? null };
+  } catch (e) {
+    // A hard API rejection (bad sender, invalid number, suspended account) was
+    // being swallowed to a bare "failed" with zero trace — surface it to ops.
+    try {
+      const { reportError } = await import("@/lib/report-error");
+      await reportError("sms.send", e);
+    } catch { /* reporting is best-effort */ }
+    return { status: "failed", sid: null };
   }
 }
 
@@ -260,8 +282,10 @@ export async function deliverToLead(opts: {
   if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
     const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
-    const status = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
-    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status });
+    const { status, sid } = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
+    // providerSid lets the delivery callback correct this row from "sent" to
+    // "undelivered" if the carrier drops it after Twilio accepted it.
+    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status, providerSid: sid });
     return { channel: "sms", status };
   }
 
