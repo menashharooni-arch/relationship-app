@@ -1,26 +1,47 @@
 "use client";
 
 // "Share my contact information" on a contact's detail view. Small but
-// noticeable: sits beside Call / Save to phone. Tapping it opens a three-way
-// picker — Share by text / Share by email / Share by both — and sends a
-// one-time message ("Save my contact information in the link below" + the
-// owner's card link) through the same Twilio number / email sender the
-// automations use. Options the contact has no channel for are disabled.
+// noticeable: sits beside Call / Save to phone. Tapping it opens a four-way
+// picker.
+//
+// The first three — text / email / both — send a one-time message ("Save my
+// contact information in the link below" + the owner's card link) through the
+// same Twilio number / email sender the automations use. Options the contact
+// has no channel for are disabled.
+//
+// The fourth, "Share from my phone", is different in kind: it sends nothing
+// server-side. It opens the device's own share sheet with the card link, so the
+// message goes from the OWNER'S number/apps instead of the SwiftCard sender.
+// Same path as the dashboard ShareButton (Capacitor in the native shell,
+// navigator.share on the web, copy-link as the desktop fallback).
+//
+// NOTE: the share sheet cannot be pre-addressed to this contact. navigator.share
+// takes only {title,text,url,files} — there is no recipient field, and the
+// suggested-contacts row is populated by the OS from the user's own message
+// history, not by the page. Pre-filling a specific number needs an `sms:` deep
+// link, which trades away every non-SMS app in the sheet. Deliberately NOT
+// logged to lead_messages either: we can't observe whether the owner actually
+// completed the share, and recording an unverified "sent" is the exact failure
+// the Twilio delivery-status work removed.
 
 import { useEffect, useRef, useState } from "react";
+import { detectNativeApp } from "@/lib/platform";
 
 type Props = {
   leadId: string;
   firstName: string;
   hasPhone: boolean;
   hasEmail: boolean;
+  /** Card slug the contact belongs to — the link the phone share hands off. */
+  cardOwner: string | null;
 };
 
 type Channel = "sms" | "email" | "both";
+type Action = Channel | "phone";
 
-export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmail }: Props) {
+export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmail, cardOwner }: Props) {
   const [open, setOpen] = useState(false);
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "copied" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -64,10 +85,45 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
     }
   }
 
-  const OPTIONS: { channel: Channel; label: string; enabled: boolean; hint: string }[] = [
-    { channel: "email", label: "Share by email", enabled: hasEmail, hint: hasEmail ? `Emails your card to ${firstName}` : "No email on this contact" },
-    { channel: "sms", label: "Share by text", enabled: hasPhone, hint: hasPhone ? `Texts your card to ${firstName}` : "No phone on this contact" },
-    { channel: "both", label: "Share by both", enabled: hasPhone && hasEmail, hint: hasPhone && hasEmail ? "One text + one email" : "Needs both a phone and an email" },
+  // Hand the card link to the device's own share sheet. Nothing is sent by us
+  // and nothing is logged — the owner picks the app and the recipient, and we
+  // never learn whether they went through with it.
+  async function sharePhone() {
+    setOpen(false);
+    if (!cardOwner) return;
+    const url = `${window.location.origin}/card/${cardOwner}?shared=1`;
+
+    // Native shell: WKWebView often lacks navigator.share.
+    if (detectNativeApp()) {
+      try {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ url });
+        return;
+      } catch { /* fall through to the web paths */ }
+    }
+    if (typeof navigator !== "undefined" && navigator.share) {
+      // Bare URL only — iMessage and most messengers render the rich card
+      // preview only when the message is just the link.
+      try { await navigator.share({ url }); } catch { /* cancelled */ }
+      return;
+    }
+    // Desktop: no share sheet to open, so put the link on the clipboard.
+    try {
+      await navigator.clipboard.writeText(url);
+      setState("copied");
+      setTimeout(() => setState("idle"), 2500);
+    } catch {
+      window.prompt("Copy your card link:", url);
+    }
+  }
+
+  const OPTIONS: { action: Action; label: string; enabled: boolean; hint: string }[] = [
+    { action: "email", label: "Share by email", enabled: hasEmail, hint: hasEmail ? `Emails your card to ${firstName}` : "No email on this contact" },
+    { action: "sms", label: "Share by text", enabled: hasPhone, hint: hasPhone ? `Texts your card to ${firstName}` : "No phone on this contact" },
+    { action: "both", label: "Share by both", enabled: hasPhone && hasEmail, hint: hasPhone && hasEmail ? "One text + one email" : "Needs both a phone and an email" },
+    // Enabled regardless of what channels the CONTACT has — this shares from
+    // the owner's own phone, so it only needs a card link to hand over.
+    { action: "phone", label: "Share from my phone", enabled: !!cardOwner, hint: cardOwner ? "Opens your phone's share sheet" : "No card linked to this contact" },
   ];
 
   return (
@@ -80,7 +136,7 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
         aria-haspopup="menu"
         title={`Share your contact information with ${firstName}`}
         className={`flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 px-4 rounded-xl transition-colors ${
-          state === "sent"
+          state === "sent" || state === "copied"
             ? "bg-emerald-600/20 border border-emerald-600/50 text-emerald-300"
             : state === "error"
               ? "bg-red-950/60 border border-red-800 text-red-300"
@@ -91,6 +147,8 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
           "Sending…"
         ) : state === "sent" ? (
           <>Sent ✓</>
+        ) : state === "copied" ? (
+          <>Link copied!</>
         ) : state === "error" ? (
           <span className="max-w-[120px] truncate" title={errMsg}>{errMsg}</span>
         ) : (
@@ -113,12 +171,16 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
           </p>
           {OPTIONS.map((o) => (
             <button
-              key={o.channel}
+              key={o.action}
               role="menuitem"
               type="button"
               disabled={!o.enabled}
-              onClick={() => send(o.channel)}
-              className="w-full text-left px-3.5 py-2.5 hover:bg-gray-800 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+              onClick={() => (o.action === "phone" ? sharePhone() : send(o.action))}
+              // The phone option is separated: the three above send from
+              // SwiftCard, this one hands off to the owner's own apps.
+              className={`w-full text-left px-3.5 py-2.5 hover:bg-gray-800 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors ${
+                o.action === "phone" ? "border-t border-gray-800" : ""
+              }`}
             >
               <span className={`block text-[13px] font-semibold ${o.enabled ? "text-gray-100" : "text-gray-600"}`}>{o.label}</span>
               <span className={`block text-[11px] ${o.enabled ? "text-gray-500" : "text-gray-700"}`}>{o.hint}</span>
