@@ -179,8 +179,14 @@ export default function PrivacyPage() {
           solely to deliver those messages on our instructions — never for their own marketing. Consent to
           receive texts is collected on the share form: a disclosure next to the submit button states that
           sharing means receiving follow-up texts and emails, and submitting the form is the opt-in. It is
-          never a condition of creating an account or making a purchase. Reply STOP to any text to opt out
-          across all of SwiftCard, or HELP for help.
+          never a condition of creating an account or making a purchase.
+        </P>
+        <P>
+          <strong>Message frequency varies</strong> — messages are sent by the individual SwiftCard user you
+          shared your information with, so volume depends on that person and is typically only a few messages
+          following your meeting. <strong>Message and data rates may apply.</strong> Reply <strong>STOP</strong>{" "}
+          to any message to opt out across all of SwiftCard, or <strong>HELP</strong> for help. Messages are
+          sent from <strong>(917) 905-7335</strong>.
         </P>
 
         <H2>International transfers</H2>
