@@ -88,6 +88,10 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
   // is in flight so we never clobber the user's in-progress choice.
   useEffect(() => {
     if (uploadStatus === "uploading" || rawSrc) return;
+    // Deliberate sync from an EXTERNAL source (the parent's picker). `preview`
+    // is also driven locally by upload/crop, so it can't be derived during
+    // render — hence the two guards above rather than a plain derived value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external-source sync, guarded above
     setPreview(currentUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync ONLY on external currentUrl changes; the guards are read as current-render snapshots.
   }, [currentUrl]);

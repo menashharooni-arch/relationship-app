@@ -93,7 +93,7 @@ export async function getOfficeUncontactedLeadCount(officeId: string): Promise<n
 
 // ── Plain-English lead status ────────────────────────────────────────────────
 // The app's real status values are new_contact | touch | dissolved (see
-// LeadCard.tsx). The old office Leads page colour-coded "hot/warm/closed" —
+// ContactsClient.tsx). The old office Leads page colour-coded "hot/warm/closed" —
 // values that can never occur, so every row fell through to grey. Map the real
 // vocabulary to owner-readable labels, with anything unknown treated as New.
 

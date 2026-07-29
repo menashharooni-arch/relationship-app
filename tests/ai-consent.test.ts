@@ -62,9 +62,10 @@ describe("persistence uses the _-prefixed customization flag convention", () => 
 });
 
 describe("the AI draft tag is wired at the AI-generated message render sites", () => {
-  it("LeadCard shows <AiDraftTag/> beside each AI-drafted message", () => {
-    expect(read("src/components/LeadCard.tsx")).toContain("<AiDraftTag />");
-  });
+  // The LeadCard assertion that used to sit here was removed with the component
+  // itself: LeadCard had no importers left (ContactsClient replaced it), so it
+  // was asserting about markup nobody could render. ContactsClient below is the
+  // live render site and carries the same tag.
   it("ContactsClient shows <AiDraftTag/> in the generated sequence preview", () => {
     expect(read("src/components/ContactsClient.tsx")).toContain("<AiDraftTag />");
   });

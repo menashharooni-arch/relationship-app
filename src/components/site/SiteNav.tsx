@@ -124,7 +124,12 @@ export default function SiteNav() {
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
-    if (!open) setExploreOpen(false); // collapsed again next time the sheet opens
+    // This effect's job IS an external system (locking body scroll behind the
+    // mobile sheet), the sanctioned use. Resetting the submenu rides along on
+    // the same close so the sheet reopens collapsed rather than remembering a
+    // section the user expanded minutes ago.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- rides along with the body-scroll lock
+    if (!open) setExploreOpen(false);
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 

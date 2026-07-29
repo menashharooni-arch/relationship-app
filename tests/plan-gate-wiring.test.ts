@@ -39,14 +39,12 @@ const SITES: Site[] = [
     web: ["Upgrade · Pro"],
     native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan."],
   },
-  {
-    file: "src/components/LeadCard.tsx",
-    web: ["Could not generate messages. Make sure an AI key (OpenAI or Gemini) is set."],
-    native: [
-      "Pro feature — You've used your 3 free AI drafts this month. Unlimited AI follow-ups are only available on the Pro plan.",
-      "Pro feature — Automated follow-up sequences are only available on the Pro plan.",
-    ],
-  },
+  // LeadCard's entry was removed with the component (no importers left —
+  // ContactsClient replaced it). Its AI-drafts cap copy was a hardcoded
+  // duplicate that even said "3" where the server interpolates
+  // PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH, so it would have gone stale the
+  // moment that limit changed. The authoritative copy lives in
+  // api/ai/suggest-messages and is covered by server-error-codes.test.ts.
   {
     file: "src/components/ContactsClient.tsx",
     web: ["Upgrade to Pro →"],
@@ -153,18 +151,29 @@ describe("Area 3 — every wired file routes through <PlanGate>", () => {
   }
 });
 
-describe("Area 3 — AI-drafts cap bug fix in LeadCard", () => {
-  const src = read("src/components/LeadCard.tsx");
+// Moved here from LeadCard when that component was deleted. The bug being
+// pinned is real and still reachable: hitting the free AI-drafts cap must not
+// look like "the AI is broken". The server answers the cap with 402 +
+// {error:"upgrade", message}, and the UI has to branch on that instead of
+// blindly reading data.sequence — otherwise the user sees the generic
+// "couldn't generate" text and thinks the feature is failing, not capped.
+describe("Area 3 — AI-drafts cap is surfaced as an upgrade, not a failure", () => {
+  const src = read("src/components/ContactsClient.tsx");
 
-  it("fetchAI branches on the server's upgrade error instead of blindly reading messages", () => {
-    expect(src).toMatch(/data\.error === "upgrade"/);
-    expect(src).toMatch(/setAiUpgradeMsg/);
+  it("branches on the server's cap response instead of blindly reading the sequence", () => {
+    // Checks the STATUS too, not just the error string: a 402 whose body failed
+    // to parse would otherwise fall through and be reported as a hard failure.
+    expect(src).toMatch(/res\.status === 402 \|\| data\.error === "upgrade"/);
   });
 
-  it("the empty state surfaces the real cap message (not the generic AI-key text) when capped", () => {
-    // When aiUpgradeMsg is set, the gated message renders; otherwise the old
-    // generic empty state is preserved unchanged.
-    expect(src).toMatch(/aiUpgradeMsg !== null \? \(/);
-    expect(src).toContain("Could not generate messages. Make sure an AI key (OpenAI or Gemini) is set.");
+  it("shows the server's own cap message rather than hardcoding the number", () => {
+    // data.message carries the interpolated limit from PLAN_LIMITS, so changing
+    // the free cap can never leave a stale "3 free AI drafts" in the UI — the
+    // exact trap the deleted LeadCard copy had fallen into.
+    expect(src).toMatch(/setAiUpgrade\(data\.message/);
+  });
+
+  it("still distinguishes a genuine generation failure from the cap", () => {
+    expect(src).toContain("Couldn't write the messages just now");
   });
 });

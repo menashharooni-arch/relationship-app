@@ -45,6 +45,11 @@ export default function DashboardLink({
   const [href, setHref] = useState<string>(card ? `/dashboard?card=${encodeURIComponent(card)}` : "/dashboard");
 
   useEffect(() => {
+    // resolveHref reads window.location and localStorage, neither of which
+    // exists on the server. useState above seeds the SSR-safe value so the
+    // markup matches, and this effect upgrades it to the remembered card once
+    // storage is reachable. Computing it during render breaks hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe by design
     setHref(resolveHref(card));
   }, [card]);
 

@@ -93,11 +93,15 @@ export default function RootLayout({
               "try{document.documentElement.classList.add('sc-js');if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
           }}
         />
-        {/* Brand structured data for Google Search (JSON-LD). Server-rendered
-            static markup — safe as a raw <script> in a Server Component. */}
+        {/* Brand structured data for Google Search (JSON-LD). ORG_JSONLD is a
+            static literal today, so this is safe as-is — but `<` is escaped
+            anyway, matching /company. Inside a <script> block the sequence
+            "</script>" in ANY string value closes the tag early and everything
+            after it parses as markup, so the escape is what keeps this safe on
+            the day someone interpolates a card name or company here. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD).replace(/</g, "\\u003c") }}
         />
         <ServiceWorkerRegistrar />
         {/* Reports uncaught browser errors / promise rejections to the team. */}
