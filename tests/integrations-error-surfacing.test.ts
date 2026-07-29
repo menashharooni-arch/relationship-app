@@ -39,6 +39,8 @@ describe("CRM sync failures are visible, not silent", () => {
   for (const [provider, file, fn] of [
     ["Google Contacts", "src/lib/sync-google.ts", "syncLeadToGoogle"],
     ["HubSpot", "src/lib/sync-hubspot.ts", "syncLeadToHubSpot"],
+    ["Pipedrive", "src/lib/sync-pipedrive.ts", "syncLeadToPipedrive"],
+    ["HighLevel", "src/lib/sync-highlevel.ts", "syncLeadToHighLevel"],
   ] as const) {
     const body = functionBody(stripComments(read(file)), fn);
 
@@ -89,7 +91,7 @@ describe("Office: a sub-user's leads reach the agency's CRM", () => {
     // A provider that calls getCrmConnection with the capturing user directly
     // would work for solo accounts and silently do nothing for a 12-agent
     // agency — the failure would only show up for the customers paying most.
-    for (const f of ["src/lib/sync-google.ts", "src/lib/sync-hubspot.ts", "src/lib/sync-pipedrive.ts"]) {
+    for (const f of ["src/lib/sync-google.ts", "src/lib/sync-hubspot.ts", "src/lib/sync-pipedrive.ts", "src/lib/sync-highlevel.ts"]) {
       expect(read(f), `${f} must resolve the office owner`).toContain("resolveCrmOwnerId(");
     }
   });

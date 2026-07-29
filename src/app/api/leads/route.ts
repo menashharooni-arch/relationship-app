@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { syncLeadToPipedrive } from "@/lib/sync-pipedrive";
+import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
@@ -242,6 +243,7 @@ export async function POST(req: NextRequest) {
       syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e));
       syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e));
       syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e));
+      syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[leads] HighLevel sync error:", e));
     }
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
