@@ -11,11 +11,25 @@ type LeadData = {
   company?: string | null;
 };
 
-async function getValidToken(userId: string): Promise<string | null> {
+// Record/clear the banner Settings shows next to "Connected". Writing it is
+// what turns a silently-dead integration into a visible one; clearing it on the
+// next success stops a one-off blip from nagging forever.
+async function setSyncError(userId: string, message: string | null): Promise<void> {
+  await getAdminSupabase()
+    .from("integrations")
+    .update({ sync_error: message })
+    .eq("user_id", userId)
+    .eq("provider", "google");
+}
+
+async function getValidToken(userId: string): Promise<{ token: string; syncError: string | null } | null> {
   const admin = getAdminSupabase();
   const { data } = await admin
     .from("integrations")
-    .select("access_token, refresh_token, expires_at")
+    // sync_error comes along so a success can clear a stale banner WITHOUT an
+    // extra read — and without writing on every single lead when it's already
+    // null, which would be a pointless round trip per capture.
+    .select("access_token, refresh_token, expires_at, sync_error")
     .eq("user_id", userId)
     .eq("provider", "google")
     .single();
@@ -24,6 +38,7 @@ async function getValidToken(userId: string): Promise<string | null> {
 
   const now = Date.now();
   const accessToken = decryptToken(data.access_token);
+  const storedError = (data.sync_error as string | null) ?? null;
 
   // Refresh if expiring within 5 minutes
   if (data.expires_at && now > data.expires_at - 5 * 60 * 1000) {
@@ -63,15 +78,18 @@ async function getValidToken(userId: string): Promise<string | null> {
       sync_error: null,
     }).eq("user_id", userId).eq("provider", "google");
 
-    return tokens.access_token;
+    // The update above already cleared sync_error, so the caller has nothing
+    // stale left to clear.
+    return { token: tokens.access_token, syncError: null };
   }
 
-  return accessToken;
+  return { token: accessToken, syncError: storedError };
 }
 
 export async function syncLeadToGoogle(lead: LeadData, userId: string): Promise<void> {
-  const token = await getValidToken(userId);
-  if (!token) return;
+  const auth = await getValidToken(userId);
+  if (!auth) return;
+  const { token } = auth;
 
   const [givenName, ...rest] = (lead.name || "").split(" ");
   const familyName = rest.join(" ") || undefined;
@@ -89,6 +107,22 @@ export async function syncLeadToGoogle(lead: LeadData, userId: string): Promise<
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    console.warn("[sync-google] createContact failed:", res.status, await res.text().catch(() => ""));
+    // A VALID token can still be refused — most often because the People API
+    // isn't enabled on the Google Cloud project, or the user never granted the
+    // contacts scope. Both return 403 on every single lead, forever, while
+    // Settings kept showing a healthy "Connected". Surfacing it is the whole
+    // point: the refresh path above already reported its failures, this one
+    // didn't, so the integration could be completely dead and look fine.
+    const detail = await res.text().catch(() => "");
+    console.warn("[sync-google] createContact failed:", res.status, detail);
+    await setSyncError(
+      userId,
+      res.status === 401 || res.status === 403
+        ? `Google refused the last contact (${res.status}) — reconnect Google Contacts and allow contacts access.`
+        : `Couldn't save the last contact to Google (${res.status}). New leads will keep trying.`,
+    );
+    return;
   }
+  // Recovered — drop the banner, but only if one was actually showing.
+  if (auth.syncError) await setSyncError(userId, null);
 }
