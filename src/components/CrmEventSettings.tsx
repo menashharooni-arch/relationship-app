@@ -74,7 +74,10 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-gray-100 text-sm font-medium">Send activity to your CRM</p>
+        {/* Was "Send activity to your CRM", which read as though it controlled
+            the CRM cards it sat next to. It doesn't — it only decides what the
+            Zapier webhook receives. New leads always go; these are the extras. */}
+        <p className="text-gray-100 text-sm font-medium">Also send to Zapier</p>
         {locked && (
           <PlanGate
             feature="integration-crm"
@@ -86,7 +89,7 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
         )}
       </div>
       <p className="text-gray-500 text-xs leading-relaxed mb-4">
-        Forwards events to your <strong className="text-gray-400">Zapier webhook</strong> above, which routes them into any CRM (HubSpot, Salesforce, Pipedrive, Sheets…). Each event includes a <code className="text-gray-400">type</code> field so your Zap can route it.
+        New leads are always sent to the <strong className="text-gray-400">Zapier webhook</strong> above. These add card activity on top of them. Each event carries a <code className="text-gray-400">type</code> field so your Zap can tell them apart.
       </p>
 
       {needsZapier && (
