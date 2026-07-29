@@ -343,12 +343,18 @@ it must describe what the form *actually* does. SwiftCard uses
 > Also note the component is *named* `SmsConsentCheckbox` but renders no
 > checkbox — it is a disclosure paragraph. The name is historical.
 
-> #### ⚠️ Retake the screenshots before submitting
+> #### Screenshots removed 2026-07-29 — link to the live page instead
 >
-> `/sms-consent` embeds `share-form.png` and `consent-closeup.png`, which still
-> show the **old 8px checkbox** flow. They are static images and cannot be
-> regenerated automatically. A reviewer comparing them against the live card
-> page will see a mismatch. Retake both from a real card page before filing.
+> `/sms-consent` used to embed `share-form.png` and `consent-closeup.png`, both
+> showing the old 8px checkbox on the since-deleted "Alex Morgan" demo card —
+> a flow that no longer exists. Rather than retake them, the page now links
+> straight to the live opt-in at
+> `https://swiftcard.me/card/swift-card-swift-card-inc`.
+>
+> This is what Twilio's own campaign checklist asks for: hosted screenshots are
+> the fallback *only* when the opt-in page isn't public. Ours is (HTTP 200, no
+> login), so a live URL is stronger evidence and cannot drift out of sync with
+> the product again. Do not reintroduce screenshots here.
 
 **Opt-in evidence URLs:** `https://swiftcard.me/sms-consent` and
 `https://swiftcard.me/sms-terms` (both name the sending number).

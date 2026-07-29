@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import SiteNav from "@/components/site/SiteNav";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import NativeHidden from "@/components/NativeHidden";
@@ -75,37 +74,27 @@ export default function SmsConsentPage() {
           <LI>Every message thereafter honors STOP (opt out platform-wide) and HELP (assistance).</LI>
         </ul>
 
-        <H2>What the visitor sees</H2>
+        <H2>See the live opt-in for yourself</H2>
         <P>
-          Current production screenshots of the real consent flow, shown on a demo card (&quot;Alex
-          Morgan&quot; is a fictional demonstration profile — no customer information appears):
+          The consent flow is on a public page — no login, no demo environment. Rather than
+          screenshots, which can go stale or be doctored, here is the real thing:
         </P>
 
-        <div className="grid sm:grid-cols-2 gap-4 my-6">
-          <figure className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-            <Image
-              src="/sms-consent/share-form.png"
-              alt="A SwiftCard public card page on a phone, showing the Share-your-info form with the SMS consent disclosure next to the submit button"
-              width={430}
-              height={932}
-              className="rounded-xl border border-slate-200 w-full h-auto"
-            />
-            <figcaption className="text-slate-500 text-xs mt-2 text-center">
-              The card page with the share form in context
-            </figcaption>
-          </figure>
-          <figure className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-            <Image
-              src="/sms-consent/consent-closeup.png"
-              alt="Close-up of the share form: name, phone, and email fields, the Share My Info button, and the SMS consent disclosure with its full text and links to the SMS Terms and Privacy Policy"
-              width={280}
-              height={345}
-              className="rounded-xl border border-slate-200 w-full h-auto"
-            />
-            <figcaption className="text-slate-500 text-xs mt-2 text-center">
-              The consent disclosure, shown before submitting
-            </figcaption>
-          </figure>
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
+          <a
+            href="https://swiftcard.me/card/swift-card-swift-card-inc"
+            target="_blank"
+            rel="noopener"
+            className="text-brand underline font-semibold text-[15px] break-all"
+          >
+            swiftcard.me/card/swift-card-swift-card-inc
+          </a>
+          <p className="text-slate-600 text-[15px] leading-relaxed mt-3">
+            Scroll to <strong>&quot;Share your info&quot;</strong>. The disclosure quoted below sits
+            directly above the <strong>Share My Info</strong> button, visible before anything is
+            submitted. This is SwiftCard&apos;s own card on its own platform — every other card on
+            the site shows the identical block.
+          </p>
         </div>
 
         <H2>The exact disclosure shown</H2>
