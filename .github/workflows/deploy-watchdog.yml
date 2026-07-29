@@ -1,0 +1,155 @@
+name: Deploy watchdog (auto-rollback)
+
+# ── The only automation here allowed to act on its own ───────────────────────
+#
+# Watches each production deploy. If the new build introduces a real error spike
+# it points production traffic back at the last known-good build, then opens an
+# issue so a human finds out immediately.
+#
+# It can roll back. It cannot write code, push, or deploy:
+#
+#   • `permissions: contents: read` — no write access to the repository at all.
+#     It cannot revert a commit or touch a branch. The bad code stays on main.
+#   • No `deployments: write` — it cannot create or promote a deployment. The
+#     only production change it can make is a rollback to a build that was
+#     already live, via the Vercel API.
+#   • `cancel-in-progress: true` — if a newer deploy lands mid-soak, this run is
+#     cancelled. A stale verdict must never roll back over fresher code.
+#   • Requires BOTH an event threshold and a distinct-user threshold, and refuses
+#     to act at all if it cannot verify its own Sentry query (see the canary in
+#     scripts/deploy-watchdog.mjs).
+#   • Unconfigured (no VERCEL_TOKEN / Sentry secrets) is a silent no-op, so
+#     merging this changes nothing until you deliberately add the secrets.
+#
+# Set the ROLLBACK_DRY_RUN repository variable to "1" to run it in observe-only
+# mode first — strongly recommended for the first week. See MONITORING.md.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to evaluate (defaults to the current HEAD)"
+        required: false
+      dry_run:
+        description: "Report only, never roll back"
+        required: false
+        default: "1"
+
+# A superseded watchdog must die rather than act on stale numbers.
+concurrency:
+  group: deploy-watchdog
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    # deployment_status fires for previews and for every state transition too.
+    # Narrow it here; the production check itself is done case-safely in a step.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Confirm this is a PRODUCTION deploy
+        id: gate
+        env:
+          ENVIRONMENT: ${{ github.event.deployment_status.environment }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Manual run — proceeding."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Vercel labels this "Production"; lowercase so casing can't decide
+          # whether production gets watched.
+          LOWER="$(printf '%s' "$ENVIRONMENT" | tr '[:upper:]' '[:lower:]')"
+          if [ "$LOWER" = "production" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Environment '$ENVIRONMENT' is not production — nothing to watch."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.proceed == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          node-version: 20
+
+      - name: Watch the deploy and roll back if it is breaking the site
+        id: watchdog
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha || github.event.inputs.sha || github.sha }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          ROLLBACK_SOAK_MINUTES: ${{ vars.ROLLBACK_SOAK_MINUTES || '5' }}
+          ROLLBACK_MIN_EVENTS: ${{ vars.ROLLBACK_MIN_EVENTS || '25' }}
+          ROLLBACK_MIN_USERS: ${{ vars.ROLLBACK_MIN_USERS || '5' }}
+          ROLLBACK_DRY_RUN: ${{ github.event.inputs.dry_run || vars.ROLLBACK_DRY_RUN || '' }}
+        run: |
+          set -euo pipefail
+          RESULT="$(node scripts/deploy-watchdog.mjs)"
+          echo "result=$RESULT" >> "$GITHUB_OUTPUT"
+          echo "$RESULT"
+
+      - name: Tell a human what happened
+        # Only when it acted or gave up — a healthy deploy stays silent, or the
+        # notifications become noise nobody reads.
+        if: >-
+          steps.gate.outputs.proceed == 'true' &&
+          (contains(steps.watchdog.outputs.result, '"action":"rolled-back"') ||
+           contains(steps.watchdog.outputs.result, '"action":"escalate"') ||
+           contains(steps.watchdog.outputs.result, '"action":"would-rollback"'))
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESULT: ${{ steps.watchdog.outputs.result }}
+          SHA: ${{ github.event.deployment.sha || github.event.inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          ACTION="$(node -e "process.stdout.write(JSON.parse(process.env.RESULT).action || 'unknown')")"
+          SUMMARY="$(node -e "
+            const r = JSON.parse(process.env.RESULT);
+            const lines = [];
+            lines.push('**Commit:** \`' + (r.sha || '').slice(0,7) + '\`');
+            if (r.events !== undefined) lines.push('**New errors:** ' + r.events + ' across ' + r.users + ' user(s)');
+            const verb = r.action === 'rolled-back' ? 'Rolled back to' : 'Would roll back to';
+            if (r.target) lines.push('**' + verb + ':** \`' + r.target.id + '\` (' + (r.target.sha || 'unknown sha').slice(0,7) + ')');
+            if (r.reason) lines.push('**Reason:** ' + r.reason);
+            for (const w of (r.worst || [])) lines.push('- ' + w.title + ' — ' + w.events + ' events, ' + w.users + ' users' + (w.permalink ? ' ([Sentry](' + w.permalink + '))' : ''));
+            process.stdout.write(lines.join('\n'));
+          ")"
+
+          case "$ACTION" in
+            rolled-back)
+              TITLE="🔴 Production auto-rolled-back after $SHA"
+              NEXT="Production is now serving the previous build. The commit is still on \`main\` — nothing was reverted in git. Fix forward, then deploy normally."
+              ;;
+            would-rollback)
+              TITLE="🟠 Watchdog WOULD have rolled back $SHA (dry run)"
+              NEXT="Dry-run mode is on, so production was left alone. If this looks like a correct call, unset the \`ROLLBACK_DRY_RUN\` variable to arm it."
+              ;;
+            *)
+              TITLE="🟡 Watchdog could not act on $SHA"
+              NEXT="The watchdog detected a problem but deliberately did nothing. Check production by hand."
+              ;;
+          esac
+
+          printf '%s\n\n%s\n\n%s\n' "$SUMMARY" "$NEXT" "🤖 Opened by the deploy watchdog." > body.md
+          gh issue create --title "$TITLE" --body-file body.md \
+            --label "production,watchdog" \
+            || gh issue create --title "$TITLE" --body-file body.md

@@ -110,6 +110,27 @@ export default function RootLayout({
         <NativeAppBridge />
         <AnalyticsProvider />
         <SiteAnalytics />
+        {/* ── Vercel Web Analytics + Speed Insights (monitoring only) ────────
+            Loaded as plain scripts rather than via @vercel/analytics and
+            @vercel/speed-insights. Those packages are thin wrappers that inject
+            exactly these two URLs, and both declare an OPTIONAL peer on
+            @sveltejs/kit which npm speculatively resolves — dragging in a Vite 8
+            requirement that collides with Vitest's Vite 7 and leaves a lockfile
+            `npm ci` rejects. Two script tags get the identical result with no
+            dependency and no lockfile risk, which is the same reasoning
+            lib/report-error.ts already documents for staying SDK-free.
+
+            Vercel serves both paths from its own edge for this project once the
+            features are enabled in the dashboard — nothing to host. Production
+            only: on localhost and preview they'd 404, and preview traffic is us.
+
+            afterInteractive so measurement never competes with first paint. */}
+        {process.env.NEXT_PUBLIC_VERCEL_ENV === "production" && (
+          <>
+            <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
+            <Script src="/_vercel/speed-insights/script.js" strategy="afterInteractive" />
+          </>
+        )}
         {children}
         {/* pausePathPrefix: this instance lives in the ROOT layout, so it is
             alive inside /office/admin too — where AdminGuidedTour is the tour

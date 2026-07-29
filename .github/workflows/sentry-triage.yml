@@ -1,0 +1,266 @@
+name: Sentry triage (drafts only)
+
+# ── Daily triage: draft a fix, never ship one ────────────────────────────────
+#
+# Pulls unresolved Sentry issues from the last 24h and opens ONE DRAFT PR per
+# issue with a proposed fix and a plain-English explanation. A human reviews,
+# edits and merges. Nothing here can deploy.
+#
+# THE SAFETY MODEL — structural, not just instructions in a prompt:
+#
+#   • Draft PRs only. `gh pr create --draft`, and there is no `gh pr merge`
+#     anywhere in this file.
+#   • No push to main. Every commit lands on a `sentry-*` branch, and a guard
+#     step aborts if HEAD is ever main. Pair this with branch protection on main
+#     (see MONITORING.md) — that is the backstop that does not depend on this
+#     file staying correct.
+#   • One issue per PR, enforced by the matrix: each issue gets its own job with
+#     its own branch, so bundling is not expressible.
+#   • Deterministic branch names, so a re-run finds the branch already exists and
+#     skips rather than opening a duplicate.
+#   • No `deployments` permission. It cannot trigger or promote a deploy.
+#   • Capped fan-out (TRIAGE_MAX_ISSUES, default 5) so a bad deploy producing 40
+#     distinct errors cannot open 40 PRs overnight.
+#   • If Claude cannot confidently diagnose an issue it writes NO patch, and the
+#     job opens a plain GitHub issue describing the problem instead of guessing.
+
+on:
+  schedule:
+    # 06:15 UTC daily — after the overnight traffic, before the working day.
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: "Max issues to triage in this run"
+        required: false
+        default: "5"
+
+# Never let two triage runs race on the same branch names.
+concurrency:
+  group: sentry-triage
+  cancel-in-progress: false
+
+# Deliberately minimal. contents:write is needed to push a BRANCH (not main);
+# there is no deployments/packages/actions write here.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      issues: ${{ steps.fetch.outputs.issues }}
+      count: ${{ steps.fetch.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch Sentry issues from the last 24h
+        id: fetch
+        env:
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # Manual input wins, then the repo variable, then the built-in default.
+          TRIAGE_MAX_ISSUES: ${{ github.event.inputs.max_issues || vars.TRIAGE_MAX_ISSUES || '5' }}
+          TRIAGE_MIN_EVENTS: ${{ vars.TRIAGE_MIN_EVENTS || '2' }}
+        run: |
+          set -euo pipefail
+          ISSUES="$(node scripts/sentry-triage.mjs)"
+          COUNT="$(node -e "process.stdout.write(String(JSON.parse(process.argv[1]).length))" "$ISSUES")"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
+          echo "Selected $COUNT issue(s) for triage."
+
+  draft:
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # One job per issue → one branch and one PR per issue, structurally.
+      matrix:
+        issue: ${{ fromJson(needs.discover.outputs.issues) }}
+      # Serial: parallel jobs would race on git and on review attention.
+      max-parallel: 1
+      # One un-diagnosable issue must not cancel the rest of the queue.
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Skip if this issue already has a branch
+        id: dedupe
+        env:
+          BRANCH: ${{ matrix.issue.branch }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "Branch $BRANCH exists — this issue was already triaged. Skipping."
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create the working branch
+        if: steps.dedupe.outputs.already == 'false'
+        env:
+          BRANCH: ${{ matrix.issue.branch }}
+        run: |
+          set -euo pipefail
+          git checkout -b "$BRANCH"
+          # Belt and braces: never operate on the default branch, whatever the
+          # checkout did. Branch protection is the real backstop; this catches a
+          # mistake in THIS file before it can reach main.
+          CURRENT="$(git rev-parse --abbrev-ref HEAD)"
+          if [ "$CURRENT" = "main" ] || [ "$CURRENT" = "master" ]; then
+            echo "::error::Refusing to run on $CURRENT — triage must never commit to the default branch."
+            exit 1
+          fi
+          echo "Working on $CURRENT"
+
+      - name: Diagnose and draft a fix
+        if: steps.dedupe.outputs.already == 'false'
+        uses: anthropics/claude-code-action@main
+        continue-on-error: true
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Read/edit/search/test only. No network calls, no git, no gh — the
+          # workflow owns every side effect, so a prompt injection in an error
+          # message cannot open, merge or deploy anything.
+          claude_args: '--allowedTools "Read,Grep,Glob,Edit,Write,Bash(npx tsc --noEmit),Bash(npx vitest run),Bash(npx eslint *)"'
+          prompt: |
+            A production error was reported by Sentry. Diagnose it against this
+            codebase and, ONLY if you are confident, write the minimal fix.
+
+            Issue:
+              Title:     ${{ matrix.issue.title }}
+              Culprit:   ${{ matrix.issue.culprit }}
+              Level:     ${{ matrix.issue.level }}
+              Severity:  ${{ matrix.issue.severity }}
+              Events:    ${{ matrix.issue.events }} (users affected: ${{ matrix.issue.users }})
+              First seen: ${{ matrix.issue.firstSeen }}
+              Last seen:  ${{ matrix.issue.lastSeen }}
+              Sentry:    ${{ matrix.issue.permalink }}
+
+            RULES — these are not suggestions:
+
+            1. Fix ONLY this bug. No refactoring, no renaming, no tidying, no
+               "while I'm here" improvements, no dependency changes. A reviewer
+               must be able to read the whole diff in under a minute.
+            2. If you cannot confidently identify the root cause from the code,
+               write NO code at all. Instead write your analysis to
+               triage-report.md and stop. Guessing at a fix for a production
+               error is worse than saying you don't know — a wrong patch that
+               looks plausible is the most expensive outcome here.
+            3. Read AGENTS.md first. This is Next.js 16 and its APIs differ from
+               older versions; check node_modules/next/dist/docs/ before using a
+               framework API.
+            4. Do not weaken or delete a test to make something pass. If an
+               existing test contradicts your fix, that is a signal your fix is
+               wrong — write it up in triage-report.md instead.
+            5. Never touch: .github/workflows/, next.config.ts, package.json,
+               or anything under supabase/. Those are deploy- and
+               infrastructure-shaped and need a human.
+            6. Verify before finishing: npx tsc --noEmit and npx vitest run must
+               both pass. If they don't, revert your change and write up what you
+               found in triage-report.md.
+
+            Then write triage-report.md at the repo root containing:
+              - **What broke** — in plain English, no jargon, 2-3 sentences.
+              - **Why it matters** — who is affected and what they experience.
+              - **Severity** — and why, given the user/event counts above.
+              - **The fix** — what you changed and why that is the root cause and
+                not just the symptom.
+              - **Confidence** — high/medium/low, and what you could not verify.
+                Say plainly if you could not run something.
+
+      - name: Open a DRAFT PR, or an issue if undiagnosed
+        if: steps.dedupe.outputs.already == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ matrix.issue.branch }}
+          TITLE: ${{ matrix.issue.title }}
+          SEVERITY: ${{ matrix.issue.severity }}
+          PERMALINK: ${{ matrix.issue.permalink }}
+          SHORT_ID: ${{ matrix.issue.shortId }}
+          EVENTS: ${{ matrix.issue.events }}
+          USERS: ${{ matrix.issue.users }}
+        run: |
+          set -euo pipefail
+
+          # Re-assert the branch guard: this is the step that can actually push.
+          CURRENT="$(git rev-parse --abbrev-ref HEAD)"
+          if [ "$CURRENT" = "main" ] || [ "$CURRENT" = "master" ]; then
+            echo "::error::Refusing to push from $CURRENT."
+            exit 1
+          fi
+
+          REPORT="triage-report.md"
+          BODY_FILE="$(mktemp)"
+          {
+            echo "## \`$SHORT_ID\` — $TITLE"
+            echo
+            echo "**Severity:** \`$SEVERITY\` · **Events (24h):** $EVENTS · **Users affected:** $USERS"
+            echo
+            echo "[View in Sentry]($PERMALINK)"
+            echo
+            if [ -f "$REPORT" ]; then cat "$REPORT"; else
+              echo "_No analysis file was produced — treat this as undiagnosed._"
+            fi
+            echo
+            echo "---"
+            echo "🤖 Opened as a **draft** by the daily Sentry triage workflow."
+            echo "It cannot merge, push to \`main\`, or deploy. Review the diff before marking ready."
+          } > "$BODY_FILE"
+
+          # The report is context for the PR body, not a file to commit.
+          rm -f "$REPORT"
+
+          git config user.name "swiftcard-triage[bot]"
+          git config user.email "triage@swiftcard.me"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            # No code change → undiagnosed. Open an ISSUE, never an empty PR.
+            echo "No patch produced — opening an issue instead."
+            gh issue create \
+              --title "Sentry: $TITLE" \
+              --body-file "$BODY_FILE" \
+              --label "sentry-triage,needs-diagnosis" \
+              || echo "::warning::Could not create issue (are the labels present?)"
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "Sentry $SHORT_ID: proposed fix for $TITLE" \
+                     -m "Drafted automatically from a production error. NOT reviewed. See the PR body." \
+                     -m "Co-Authored-By: swiftcard-triage[bot] <triage@swiftcard.me>"
+          git push origin "$CURRENT"
+
+          gh pr create \
+            --draft \
+            --base main \
+            --head "$CURRENT" \
+            --title "Sentry $SHORT_ID: $TITLE" \
+            --body-file "$BODY_FILE" \
+            --label "sentry-triage" \
+            || gh pr create --draft --base main --head "$CURRENT" \
+                 --title "Sentry $SHORT_ID: $TITLE" --body-file "$BODY_FILE"
+
+          echo "Draft PR opened from $CURRENT. Nothing was merged or deployed."
