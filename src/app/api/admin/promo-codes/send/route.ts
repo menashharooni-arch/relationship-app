@@ -87,13 +87,14 @@ export async function POST(req: NextRequest) {
     const firstName = profile.name?.split(" ")[0] || "there";
     const token = prefs?.unsubscribe_token ?? "";
 
+    const unsub = unsubUrl(token);
     const template = promoEmail({
       firstName,
       code: promo.code,
       discountText,
       headline,
       body: message,
-      unsubscribeUrl: unsubUrl(token),
+      unsubscribeUrl: unsub,
     });
 
     try {
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
         ...template,
         from,
         to: recipient,
-        headers: marketingHeaders(unsubUrl(token)),
+        ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
       });
       if (sendErr) { errors.push(`${recipient}: ${sendErr.message}`); continue; }
 

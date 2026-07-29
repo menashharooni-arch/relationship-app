@@ -15,8 +15,8 @@ const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
 // footer link alone is NOT enough and is a leading reason legitimate mail lands
 // in spam. Attach to EVERY marketing or lifecycle send that carries an
 // unsubscribe URL (both List-Unsubscribe and the -Post header must be present for
-// one-click to be honored). Our /unsubscribe and /api/unsubscribe/contact routes
-// both handle the POST these headers point mail clients at.
+// one-click to be honored). The URL MUST be a route handler that exports POST —
+// see unsubUrl() below for why a page route can never satisfy this in Next 16.
 export function marketingHeaders(unsubscribeUrl: string): Record<string, string> {
   return {
     "List-Unsubscribe": `<${unsubscribeUrl}>`,
@@ -91,7 +91,7 @@ function row(label: string, value: string) {
 export function welcomeEmail(opts: {
   firstName: string;
   cardUrl: string;
-  unsubscribeUrl: string;
+  unsubscribeUrl?: string;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safeCardUrl = safeUrlAttr(opts.cardUrl);
@@ -174,7 +174,7 @@ export function promoEmail(opts: {
   discountText: string;
   headline: string;
   body: string;
-  unsubscribeUrl: string;
+  unsubscribeUrl?: string;
 }) {
   const safeCode = escapeHtml(opts.code);
   const body = `
@@ -279,7 +279,7 @@ export function marketingEmail(opts: {
   body: string;
   ctaLabel: string;
   ctaUrl: string;
-  unsubscribeUrl: string;
+  unsubscribeUrl?: string;
 }) {
   const emailBody = `
     ${h1(escapeHtml(opts.headline))}
@@ -290,6 +290,19 @@ export function marketingEmail(opts: {
 }
 
 // ─── Unsubscribe URL helper ───────────────────────────────────────────────────
-export function unsubUrl(token: string) {
-  return `${APP_URL}/unsubscribe?token=${token}`;
+// MUST point at a ROUTE HANDLER, never a page. This previously returned
+// `/unsubscribe`, which is a page (src/app/unsubscribe/page.tsx) with no
+// route.ts — and in Next 16 a urlencoded POST to a page is classified as a
+// possible Server Action, so it skips the 405 branch and is answered 200 by the
+// static prerender WITHOUT running any code. Mailbox providers that send RFC
+// 8058 one-click POSTs therefore recorded every opt-out as honored while the
+// mail kept coming, and the recipient's next move is the spam button. A page
+// route can never satisfy one-click; /api/unsubscribe exports GET and POST.
+//
+// Returns undefined for a blank token so we never advertise a one-click URL that
+// cannot identify a subscriber.
+export function unsubUrl(token: string): string | undefined {
+  const t = (token || "").trim();
+  if (!t) return undefined;
+  return `${APP_URL}/api/unsubscribe?token=${encodeURIComponent(t)}`;
 }

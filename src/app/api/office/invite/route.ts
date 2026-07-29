@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 import { getMarketingFrom } from "@/lib/resend-domain";
+import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
+import { buildInviteEmail } from "@/lib/office-invite-email";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
-import { escapeHtml } from "@/lib/escape";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import { writeAudit } from "@/lib/audit";
 import { INVITE_TTL_MS, isInviteExpired } from "@/lib/office-invite";
@@ -51,6 +51,21 @@ export async function POST(req: Request) {
 
   const { email, name } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "Email required" }, { status: 400 });
+
+  // Suppression gate — the same one every other send to a third party passes
+  // through (scanner/send, leads/share-card). Mailing an address that already
+  // said stop is the highest-yield way to earn a spam complaint, and it breaks
+  // the one-click unsubscribe this email now advertises. Checked BEFORE any row
+  // is written so a suppressed address never consumes a seat.
+  if (await isOptedOut("email", email)) {
+    return NextResponse.json(
+      {
+        error: "opted_out",
+        message: "This person has unsubscribed from SwiftCard emails, so we can't email them. You can still add them and share the invite link directly.",
+      },
+      { status: 409 },
+    );
+  }
   // Optional display name: personalises the invite email AND is stored on the
   // office_members row (invite_name) so the admin's Team dashboard can show WHO
   // a pending invite went to, not just the email.
@@ -157,10 +172,6 @@ export async function POST(req: Request) {
 
   const inviteUrl = `${APP_URL}/join/${token}`;
   const ownerFirst = (ownerProfile?.name ?? "Your team").split(" ")[0];
-  // Owner-controlled values escaped before landing in a trusted-brand inbox.
-  const safeOwnerFirst = escapeHtml(ownerFirst);
-  const safeOfficeName = escapeHtml(office.name);
-  const safeInviteeFirst = inviteeFirst ? escapeHtml(inviteeFirst) : null;
 
   // Company logo when branding is set — the email should look like it comes
   // from THEIR company, not from us. If the Branding page has no logo yet, fall
@@ -183,45 +194,44 @@ export async function POST(req: Request) {
     }
   } catch { /* logo is a nicety, never block the invite */ }
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  let emailSent = true;
-  const inviteHtml = `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
-        ${brandLogoUrl
-          ? `<img src="${escapeHtml(brandLogoUrl)}" width="56" height="56" alt="${safeOfficeName}" style="border-radius:10px;display:block;margin:0 0 20px;" />`
-          : `<div style="margin:0 0 20px;">
-               <span style="font-size:20px;font-weight:800;color:#111827;">${safeOfficeName}</span>
-             </div>`}
-        <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 10px;">${safeInviteeFirst ? `${safeInviteeFirst}, you're` : "You're"} invited</h2>
-        <p style="color:#444;font-size:15px;line-height:1.5;margin:0 0 24px;">
-          ${safeOwnerFirst} invited you to create your <strong>${safeOfficeName}</strong> digital business card.
-          It takes 2 minutes.
-        </p>
-        <a href="${inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:100px;font-size:15px;">Create my card →</a>
-        <p style="color:#999;font-size:12px;margin-top:28px;">This invite expires in 14 days. If you didn't expect this, you can ignore this email.</p>
-        <p style="color:#ccc;font-size:11px;margin:0;">Powered by SwiftCard</p>
-      </div>
-    `;
-  // Plain-text version: the invite greeting + the link, so the mail is
-  // multipart/alternative (HTML-only is a spam signal) and works in text-only
-  // clients. Uses the unescaped values — text/plain is not HTML.
-  const inviteText = [
-    `${inviteeFirst ? `${inviteeFirst}, you're` : "You're"} invited`,
-    "",
-    `${ownerFirst} invited you to create your ${office.name} digital business card. It takes 2 minutes.`,
-    "",
-    `Create my card: ${inviteUrl}`,
-    "",
-    "This invite expires in 14 days. If you didn't expect this, you can ignore this email.",
-    "Powered by SwiftCard",
-  ].join("\n");
-  await resend.emails.send({
-    from: await getMarketingFrom(), // verified domain when set up, safe fallback otherwise
+  // contactUnsubUrl throws when no signing secret is configured (deliberate
+  // fail-closed on SIGNING — never sign with a public constant). Degrade to "no
+  // unsubscribe link in the body" rather than blocking the invite; sendRawEmail
+  // makes the same call for the header and degrades the same way.
+  let inviteUnsubUrl: string | null = null;
+  try {
+    inviteUnsubUrl = contactUnsubUrl(email.trim());
+  } catch {
+    inviteUnsubUrl = null;
+  }
+
+  const invite = buildInviteEmail({
+    ownerFirst,
+    officeName: office.name as string,
+    inviteeFirst,
+    inviteUrl,
+    brandLogoUrl,
+    unsubscribeUrl: inviteUnsubUrl,
+  });
+
+  // Through the shared layer rather than a second resend.emails.send() call.
+  // This was the ONLY send site in the app that bypassed sendRawEmail, which is
+  // exactly why it was the only one missing the personalised From, a Reply-To,
+  // the RFC 8058 one-click headers, and a text part guaranteed to match the HTML.
+  // A divergent second send site is the defect; centralising is the fix.
+  const sendResult = await sendRawEmail({
     to: email.trim(),
-    subject: `${ownerFirst} invited you to create your ${office.name} digital business card`,
-    html: inviteHtml,
-    text: inviteText,
-  }).catch(() => { emailSent = false; });
+    subject: invite.subject,
+    html: invite.html,
+    fromName: invite.fromName,
+    // verified domain when set up, Resend sandbox fallback otherwise
+    fromAddress: await getMarketingFrom(),
+    // The inviting admin's verified auth email — from supabase.auth.getUser(),
+    // never a free-text profile field. Gives a stranger a real mailbox to reply
+    // to, which is the strongest positive signal a receiver can observe.
+    replyTo: user.email ?? null,
+  });
+  const emailSent = sendResult === "sent";
 
   // `resent` lets the caller tell the truth: there is only ever ONE invite row
   // per (office, email), so re-inviting someone who's already pending re-sends

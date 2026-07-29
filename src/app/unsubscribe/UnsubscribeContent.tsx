@@ -7,6 +7,10 @@ export default function UnsubscribeContent() {
   const params = useSearchParams();
   const success = params.get("success") === "1";
   const error = params.get("error");
+  // "contact" = the platform-wide email opt-out used by lead follow-ups and
+  // office invites. Those recipients are NOT account holders, so the marketing-
+  // only copy was wrong for them and both CTAs below dead-end at a login wall.
+  const isContact = params.get("scope") === "contact";
 
   if (success) {
     return (
@@ -24,22 +28,28 @@ export default function UnsubscribeContent() {
           You&apos;ve been unsubscribed
         </h1>
         <p className="text-sm mb-6" style={{ color: "#64748b" }}>
-          You won&apos;t receive any more marketing emails from SwiftCard.
-          Transactional emails (receipts, security notices) are unaffected.
+          {isContact
+            ? "We've stopped sending SwiftCard email to this address — invitations and follow-ups included."
+            : "You won't receive any more marketing emails from SwiftCard. Transactional emails (receipts, security notices) are unaffected."}
         </p>
-        <Link
-          href="/dashboard"
-          className="inline-block text-sm font-semibold rounded-full px-6 py-3 transition-colors"
-          style={{ background: "#1D4ED8", color: "#fff" }}
-        >
-          Go to dashboard
-        </Link>
-        <p className="mt-4 text-xs" style={{ color: "#94a3b8" }}>
-          Changed your mind?{" "}
-          <Link href="/settings/flows" className="underline">
-            Update email preferences
-          </Link>
-        </p>
+        {/* Account-holder CTAs only — a lead or invitee has no account to sign into. */}
+        {!isContact && (
+          <>
+            <Link
+              href="/dashboard"
+              className="inline-block text-sm font-semibold rounded-full px-6 py-3 transition-colors"
+              style={{ background: "#1D4ED8", color: "#fff" }}
+            >
+              Go to dashboard
+            </Link>
+            <p className="mt-4 text-xs" style={{ color: "#94a3b8" }}>
+              Changed your mind?{" "}
+              <Link href="/settings/flows" className="underline">
+                Update email preferences
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     );
   }

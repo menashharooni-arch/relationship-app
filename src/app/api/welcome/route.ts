@@ -49,11 +49,14 @@ export async function POST() {
     const firstName = profile.name?.split(" ")[0] || "there";
     const cardUrl = `${APP_URL}/card/${profile.username}`;
     const token = prefsRow?.unsubscribe_token ?? "";
+    // undefined when there is no token — the template then renders the
+    // relationship line instead of a dead link, and no one-click header is sent.
+    const unsub = unsubUrl(token);
 
     const template = welcomeEmail({
       firstName,
       cardUrl,
-      unsubscribeUrl: unsubUrl(token),
+      unsubscribeUrl: unsub,
     });
 
     // CLAIM the welcome before sending. The alreadySent check above is a
@@ -77,8 +80,9 @@ export async function POST() {
       ...template,
       to: accountEmail,
       // One-click unsubscribe headers (Gmail/Yahoo requirement) — a footer link
-      // alone is not enough. Points mail clients at our /unsubscribe POST handler.
-      headers: marketingHeaders(unsubUrl(token)),
+      // alone is not enough. Points mail clients at /api/unsubscribe, which
+      // exports POST; never advertise the header without a resolvable token.
+      ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
     });
 
     if (sendError) {
