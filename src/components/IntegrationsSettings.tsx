@@ -162,7 +162,8 @@ function TokenCard({
   title,
   description,
   logo,
-  endpoint,
+  saveEndpoint,
+  disconnectEndpoint,
   tokenLabel,
   placeholder,
   help,
@@ -176,8 +177,17 @@ function TokenCard({
   title: string;
   description: string;
   logo: React.ReactNode;
-  /** POST here to save, DELETE to disconnect. */
-  endpoint: string;
+  /**
+   * POST here to save. Kept SEPARATE from disconnectEndpoint because HubSpot
+   * splits them: POST lives at /hubspot/token and DELETE at /hubspot, and those
+   * routes export only their own verb. Collapsing them into one prop sent
+   * DELETE to a route with no DELETE handler — a 405 that the disconnect
+   * catch swallowed, so the card flipped to "disconnected" while the row stayed
+   * in the database and leads kept syncing. Providers that serve both verbs
+   * from one path simply pass the same value twice.
+   */
+  saveEndpoint: string;
+  disconnectEndpoint: string;
   tokenLabel: string;
   placeholder: string;
   help: React.ReactNode;
@@ -210,7 +220,7 @@ function TokenCard({
     setStatus("saving");
     setError(null);
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch(saveEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, ...(extra ? { extra: extraValue } : {}) }),
@@ -235,7 +245,7 @@ function TokenCard({
   async function disconnect() {
     setStatus("disconnecting");
     try {
-      await fetch(endpoint, { method: "DELETE" });
+      await fetch(disconnectEndpoint, { method: "DELETE" });
       setConnected(false);
       setShowForm(true);
     } catch { /* ignore */ } finally {
@@ -384,7 +394,8 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         title="HubSpot CRM"
         description="New leads are automatically created as HubSpot contacts"
         logo={HUBSPOT_LOGO}
-        endpoint="/api/integrations/hubspot/token"
+        saveEndpoint="/api/integrations/hubspot/token"
+        disconnectEndpoint="/api/integrations/hubspot"
         tokenLabel="HubSpot Private App access token"
         placeholder="pat-na1-..."
         help={
@@ -404,7 +415,8 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         title="Pipedrive"
         description="New leads become Pipedrive people, with a note on where you met"
         logo={PIPEDRIVE_LOGO}
-        endpoint="/api/integrations/pipedrive/token"
+        saveEndpoint="/api/integrations/pipedrive/token"
+        disconnectEndpoint="/api/integrations/pipedrive/token"
         tokenLabel="Pipedrive personal API token"
         placeholder="Paste your API token"
         help={
@@ -425,7 +437,8 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         title="GoHighLevel"
         description="New leads are upserted into your sub-account and tagged, so your workflows fire"
         logo={HIGHLEVEL_LOGO}
-        endpoint="/api/integrations/highlevel/token"
+        saveEndpoint="/api/integrations/highlevel/token"
+        disconnectEndpoint="/api/integrations/highlevel/token"
         tokenLabel="Private Integration token"
         placeholder="pit-..."
         extra={{ label: "Location ID (sub-account)", placeholder: "e.g. ve9EPM428h8vShlRW1KT" }}
