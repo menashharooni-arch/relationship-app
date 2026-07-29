@@ -155,6 +155,43 @@ describe("Office: a sub-user's leads reach the agency's CRM", () => {
   });
 });
 
+describe("Office: a sub-user is told where their leads already go", () => {
+  // The routing was already correct — a sub-user inherits the office owner's
+  // CRM. What was missing was SAYING so. Settings read as "nothing is set up",
+  // so a sub-user could connect their own and quietly divert leads away from
+  // the agency's CRM, which for an agency is usually company property.
+  const page = stripComments(read("src/app/settings/flows/page.tsx"));
+  const card = stripComments(read("src/components/IntegrationsSettings.tsx"));
+
+  it("only looks up the owner's CRMs for an actual SUB-USER", () => {
+    // Guarded so an office OWNER and a solo Pro account never pay for the extra
+    // query, and never see a notice about inheriting from themselves.
+    expect(page).toMatch(/officeCtx && !officeCtx\.isOwner && officeCtx\.ownerId/);
+  });
+
+  it("reads the OWNER's integrations, not the caller's", () => {
+    // The bug this prevents is subtle: querying the caller here would show a
+    // sub-user their own connections and claim the team set them up.
+    const at = page.indexOf("teamCrmNames = ");
+    expect(at).toBeGreaterThan(-1);
+    const block = page.slice(Math.max(0, at - 400), at);
+    expect(block).toMatch(/\.eq\("user_id", officeCtx\.ownerId\)/);
+  });
+
+  it("shows nothing at all when there is no team CRM", () => {
+    // Empty array for everyone who isn't an office sub-user, so no stray box.
+    expect(card).toMatch(/teamCrmNames\.length > 0 &&/);
+    expect(card).toMatch(/teamCrmNames = \[\]/);
+  });
+
+  it("explains that the override is per-CRM, not all-or-nothing", () => {
+    // resolveCrmOwnerId resolves per provider, so connecting a DIFFERENT tool
+    // adds a destination rather than replacing the team's. Saying otherwise
+    // would be a lie that costs someone their agency's leads.
+    expect(card).toContain("connecting the same CRM sends to yours instead of the team");
+  });
+});
+
 describe("integrations are re-checked against the plan at send time", () => {
   // A stored token or webhook URL survives a downgrade. dispatchCrmEvent
   // already re-checked isPaidPlan before firing view/notification events; the
