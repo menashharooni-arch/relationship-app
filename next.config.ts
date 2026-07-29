@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Security headers applied to every response. Deliberately conservative so
 // nothing legitimate breaks:
@@ -45,4 +46,35 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// ── Sentry build integration (monitoring only) ───────────────────────────────
+//
+// Wraps the config above WITHOUT altering it: every header and redirect is
+// unchanged. All this adds is build-time source-map handling so a minified
+// production stack trace maps back to real source.
+//
+// The build must never fail because monitoring isn't configured. Source-map
+// upload needs SENTRY_AUTH_TOKEN, which only exists on Vercel — so it's gated on
+// the token being present. Without it (local builds, forks, CI) the wrapper is a
+// pass-through and `next build` behaves exactly as before.
+const uploadSourceMaps = !!process.env.SENTRY_AUTH_TOKEN && !!process.env.SENTRY_ORG && !!process.env.SENTRY_PROJECT;
+
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Don't turn the build log into noise; errors still surface.
+  silent: true,
+  telemetry: false,
+
+  // Skip the upload step entirely when unconfigured, rather than letting the
+  // plugin try and warn on every single build.
+  sourcemaps: { disable: !uploadSourceMaps },
+
+  // Source maps are uploaded to Sentry, then deleted from the deployed output so
+  // they are never publicly served — readable traces for us, not for everyone.
+  widenClientFileUpload: true,
+
+  // Tree-shake the SDK's own debug logger out of the client bundle.
+  disableLogger: true,
+});
