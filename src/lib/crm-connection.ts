@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "./supabase-admin";
 import { encryptToken, decryptToken } from "./token-crypto";
+import { resolveOfficeContext } from "./office-roles";
 
 // ── Shared plumbing for every CRM connection ─────────────────────────────────
 //
@@ -26,6 +27,50 @@ export type RefreshConfig = {
   clientSecret: string | undefined;
 };
 
+/**
+ * A captured lead, with the context that makes it worth more than a name.
+ *
+ * The first four fields are all Google and HubSpot ever sent. Everything below
+ * them is what SwiftCard uniquely knows — where the meeting happened, how the
+ * card was tapped, which card (so which rep) captured it — and is the whole
+ * reason a native integration beats a generic Zapier hop. Providers that can't
+ * express a field simply ignore it.
+ */
+export type CrmLead = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  whereMet?: string | null;
+  location?: string | null;
+  /** Human-readable capture channel, e.g. "QR code" — already run through getSourceLabel. */
+  source?: string | null;
+  notes?: string | null;
+  message?: string | null;
+  /** Card slug that captured it. In an Office this identifies the rep. */
+  capturedByCard?: string | null;
+};
+
+/**
+ * Render the capture context as a short human note.
+ *
+ * Deliberately prose, not JSON: this lands on a timeline a salesperson reads
+ * for ten seconds before dialling, so it has to be skimmable. Returns null when
+ * there's nothing worth saying, so we never attach an empty note.
+ */
+export function describeCapture(lead: CrmLead): string | null {
+  const lines: string[] = [];
+  const met = [lead.whereMet, lead.location].filter(Boolean).join(" · ");
+  if (met) lines.push(`Met: ${met}`);
+  if (lead.source) lines.push(`Captured via: ${lead.source}`);
+  if (lead.capturedByCard) lines.push(`Card: ${lead.capturedByCard}`);
+  if (lead.company) lines.push(`Company: ${lead.company}`);
+  if (lead.message) lines.push(`They wrote: ${lead.message}`);
+  if (lead.notes) lines.push(`Notes: ${lead.notes}`);
+  if (!lines.length) return null;
+  return `${lines.join("\n")}\n\n— captured with SwiftCard`;
+}
+
 export type CrmConnection = {
   token: string;
   /** Banner currently stored, so a success can clear it without a second read. */
@@ -33,6 +78,53 @@ export type CrmConnection = {
   /** Non-secret routing detail: Pipedrive api_domain, HighLevel locationId. */
   metadata: Record<string, unknown>;
 };
+
+/**
+ * Whose CRM connection a captured lead should be written to.
+ *
+ * Same question `resolveBillingSubjectId` answers for subscriptions, and the
+ * answer has the same shape — because an Office is one business, not N loose
+ * accounts. A 12-agent agency has ONE HighLevel account and wants every agent's
+ * leads landing in it, attributed to the agent who captured them. Requiring all
+ * 12 to connect their own CRM would be absurd, and 12 disconnected CRMs is not
+ * a product anyone asked for.
+ *
+ * Order matters, and it is deliberately "own connection first":
+ *
+ *   1. The capturing user's OWN connection, if they have one. This is what
+ *      keeps the change additive — anyone connected today keeps exactly the
+ *      destination they have now, including a sub-user who connected their
+ *      personal Google Contacts before their office existed.
+ *   2. Otherwise, for an office SUB-USER, the office owner's connection. This
+ *      is the agency case, and it costs the sub-user no setup at all.
+ *   3. Otherwise themselves — no office, or an owner, so nothing to inherit.
+ *
+ * A BROKEN own-connection deliberately does NOT fall through to the office. The
+ * row exists, so this returns the sub-user, getCrmConnection reports the
+ * failure against their account, and their contacts stop rather than silently
+ * rerouting into the agency's CRM. Quietly sending someone's contacts somewhere
+ * they didn't choose is worse than pausing.
+ */
+export async function resolveCrmOwnerId(
+  provider: CrmProviderKey,
+  capturedByUserId: string,
+): Promise<string> {
+  const admin = getAdminSupabase();
+
+  // Presence check only — an existing-but-broken row still counts as "theirs".
+  const { data: own } = await admin
+    .from("integrations")
+    .select("id")
+    .eq("user_id", capturedByUserId)
+    .eq("provider", provider)
+    .maybeSingle();
+  if (own) return capturedByUserId;
+
+  const ctx = await resolveOfficeContext(capturedByUserId);
+  if (ctx && !ctx.isOwner && ctx.ownerId) return ctx.ownerId;
+
+  return capturedByUserId;
+}
 
 /**
  * Write (or clear) the banner Settings shows next to "Connected".

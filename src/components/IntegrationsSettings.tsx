@@ -7,13 +7,15 @@ import { PlanGate, PlanBadge } from "@/components/PlanGate";
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
 
-type Integration = "google" | "hubspot";
+type Integration = "google" | "hubspot" | "pipedrive";
 
 type Props = {
   googleConnected: boolean;
   hubspotConnected: boolean;
+  pipedriveConnected: boolean;
   googleSyncError?: string | null;
   hubspotSyncError?: string | null;
+  pipedriveSyncError?: string | null;
   isPro: boolean;
 };
 
@@ -132,15 +134,44 @@ const HUBSPOT_LOGO = (
   </svg>
 );
 
+const PIPEDRIVE_LOGO = (
+  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#017737" aria-hidden="true">
+    <path d="M13.1 3.2c-1.79 0-3.02.79-3.71 1.68-.04-.5-.36-1.44-1.93-1.44H5.09v3.02h1.1c.24 0 .32.08.32.32v14.02h3.36v-6.06c0-.29-.02-.53-.03-.63.63.75 1.79 1.52 3.45 1.52 3.13 0 5.35-2.45 5.35-6.26 0-3.86-2.09-6.17-5.54-6.17zm-.72 9.6c-1.9 0-2.79-1.78-2.79-3.4 0-2.55 1.4-3.44 2.72-3.44 1.63 0 2.75 1.36 2.75 3.42 0 2.15-1.27 3.42-2.68 3.42z"/>
+  </svg>
+);
+
 // HubSpot connects with a pasted Private App access token (see the /token
 // route for why) instead of the OAuth redirect the other cards use, so it
 // gets its own small form in place of a plain Connect link.
-function HubSpotCard({
+// Paste-a-token integrations (HubSpot, Pipedrive — HighLevel next) are the same
+// card with different words. Generalised rather than copied: this file would
+// otherwise hold three then four identical 145-line components, which is the
+// same trap the sync files fell into, where one fix landed in one copy and not
+// the other. Every HubSpot value below is passed in verbatim from the call
+// site, so its rendering is byte-for-byte what it was.
+function TokenCard({
+  provider,
+  title,
+  description,
+  logo,
+  endpoint,
+  tokenLabel,
+  placeholder,
+  help,
   connected: initialConnected,
   syncError,
   isPro,
   flashStatus,
 }: {
+  provider: string;
+  title: string;
+  description: string;
+  logo: React.ReactNode;
+  /** POST here to save, DELETE to disconnect. */
+  endpoint: string;
+  tokenLabel: string;
+  placeholder: string;
+  help: React.ReactNode;
   connected: boolean;
   syncError?: string | null;
   isPro: boolean;
@@ -159,7 +190,7 @@ function HubSpotCard({
     setStatus("saving");
     setError(null);
     try {
-      const res = await fetch("/api/integrations/hubspot/token", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
@@ -183,7 +214,7 @@ function HubSpotCard({
   async function disconnect() {
     setStatus("disconnecting");
     try {
-      await fetch("/api/integrations/hubspot", { method: "DELETE" });
+      await fetch(endpoint, { method: "DELETE" });
       setConnected(false);
       setShowForm(true);
     } catch { /* ignore */ } finally {
@@ -196,23 +227,23 @@ function HubSpotCard({
       style={{ borderColor: needsReconnect ? "#fcd34d" : connected ? "#86efac" : "#D4C8B8" }}>
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#F0EBE1] border border-[#D4C8B8] flex items-center justify-center shrink-0">
-          {HUBSPOT_LOGO}
+          {logo}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-slate-900 font-semibold text-sm">HubSpot CRM</p>
+            <p className="text-slate-900 font-semibold text-sm">{title}</p>
             {needsReconnect ? (
               <span className="text-xs bg-amber-100 text-amber-700 font-medium px-2 py-0.5 rounded-full">Reconnect needed</span>
             ) : connected ? (
               <span className="text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">Connected</span>
             ) : null}
           </div>
-          <p className="text-slate-400 text-xs mt-0.5">New leads are automatically created as HubSpot contacts</p>
+          <p className="text-slate-400 text-xs mt-0.5">{description}</p>
         </div>
 
         {!isPro ? (
           <PlanGate
-            feature="integration-hubspot"
+            feature={`integration-${provider}`}
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
           >
@@ -244,13 +275,13 @@ function HubSpotCard({
 
       {isPro && showForm && (
         <div className="mt-3 space-y-2">
-          <label className="text-xs text-slate-500 block">HubSpot Private App access token</label>
+          <label className="text-xs text-slate-500 block">{tokenLabel}</label>
           <div className="flex gap-2">
             <input
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="pat-na1-..."
+              placeholder={placeholder}
               className="flex-1 min-w-0 bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
             />
             <button
@@ -261,10 +292,7 @@ function HubSpotCard({
               {status === "saving" ? "Checking…" : "Save"}
             </button>
           </div>
-          <p className="text-slate-400 text-[11px] leading-relaxed">
-            In HubSpot: Settings → Integrations → Private Apps → Create a private app → grant the{" "}
-            <code className="text-slate-600">crm.objects.contacts.write</code> scope → copy the access token here.
-          </p>
+          <p className="text-slate-400 text-[11px] leading-relaxed">{help}</p>
           {connected && (
             <button onClick={() => { setShowForm(false); setError(null); }} className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors">
               Cancel
@@ -281,7 +309,7 @@ function HubSpotCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, googleSyncError, hubspotSyncError, isPro }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, isPro }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -318,11 +346,45 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         flashStatus={flashIntegration === "google" ? flashStatus : null}
       />
 
-      <HubSpotCard
+      <TokenCard
+        provider="hubspot"
+        title="HubSpot CRM"
+        description="New leads are automatically created as HubSpot contacts"
+        logo={HUBSPOT_LOGO}
+        endpoint="/api/integrations/hubspot/token"
+        tokenLabel="HubSpot Private App access token"
+        placeholder="pat-na1-..."
+        help={
+          <>
+            In HubSpot: Settings → Integrations → Private Apps → Create a private app → grant the{" "}
+            <code className="text-slate-600">crm.objects.contacts.write</code> scope → copy the access token here.
+          </>
+        }
         connected={hubspotConnected}
         syncError={hubspotSyncError}
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
+      />
+
+      <TokenCard
+        provider="pipedrive"
+        title="Pipedrive"
+        description="New leads become Pipedrive people, with a note on where you met"
+        logo={PIPEDRIVE_LOGO}
+        endpoint="/api/integrations/pipedrive/token"
+        tokenLabel="Pipedrive personal API token"
+        placeholder="Paste your API token"
+        help={
+          <>
+            In Pipedrive: click your name (top right) → Company settings → Personal preferences →{" "}
+            <code className="text-slate-600">API</code> → copy your personal API token here. If it&apos;s
+            not there, your Pipedrive admin may have API access switched off for your permission set.
+          </>
+        }
+        connected={pipedriveConnected}
+        syncError={pipedriveSyncError}
+        isPro={isPro}
+        flashStatus={flashIntegration === "pipedrive" ? flashStatus : null}
       />
     </div>
   );
