@@ -136,6 +136,14 @@ export function claimAdminTourAutoStart(): boolean {
   try {
     if (localStorage.getItem(ADMIN_TOUR_DONE)) return false;
     if (localStorage.getItem(ADMIN_TOUR_SEEN)) return false;
+    // The MAIN tour is still mid-flight — creating an office sends the owner to
+    // /dashboard?tour=1, so this is the normal path, not an edge case. Two tours
+    // running at once would fight over the screen. Return false WITHOUT marking
+    // it seen, so the one-shot isn't burned and the admin tour still gets its
+    // turn on the next visit, once the dashboard tour is done or dismissed.
+    try {
+      if (sessionStorage.getItem(ADMIN_TOUR_RUNNING) === null && sessionStorage.getItem(TOUR_RUNNING)) return false;
+    } catch { /* private mode — fall through and offer the tour */ }
     localStorage.setItem(ADMIN_TOUR_SEEN, "1");
     return true;
   } catch {

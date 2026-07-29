@@ -111,7 +111,12 @@ export default function RootLayout({
         <AnalyticsProvider />
         <SiteAnalytics />
         {children}
-        <GuidedTour />
+        {/* pausePathPrefix: this instance lives in the ROOT layout, so it is
+            alive inside /office/admin too — where AdminGuidedTour is the tour
+            that belongs. Without pausing, an unfinished dashboard tour pushed
+            the visitor straight back to /dashboard the moment they opened Admin,
+            which made the console unreachable for a brand-new Office owner. */}
+        <GuidedTour pausePathPrefix="/office/admin" />
       </body>
     </html>
   );

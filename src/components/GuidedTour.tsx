@@ -57,6 +57,21 @@ type Props = {
   startEvent?: string;
   /** Called instead of the default endTour()+redirect-to-dashboard behavior. */
   onFinish?: (completed: boolean) => void;
+  /**
+   * Go dormant while the route starts with this prefix — a section that another
+   * tour instance owns.
+   *
+   * Without it the MAIN tour made the Office admin console unreachable. This
+   * instance is mounted in the ROOT layout, so it is alive on /office/admin too,
+   * and the step-resolve effect below treats "the current step isn't on this
+   * page" as "navigate to where it lives". A new Office owner with an unfinished
+   * dashboard tour therefore got pushed straight back to /dashboard every time
+   * they opened Admin, and the admin tour never got a chance to run.
+   *
+   * Dormant, not ended: the step and index are untouched, so returning to the
+   * dashboard resumes exactly where they were.
+   */
+  pausePathPrefix?: string;
 };
 
 export default function GuidedTour({
@@ -66,9 +81,15 @@ export default function GuidedTour({
   cardKey = TOUR_CARD,
   startEvent = TOUR_START_EVENT,
   onFinish,
+  pausePathPrefix,
 }: Props = {}) {
   const router = useRouter();
   const pathname = usePathname();
+
+  // Dormant on a section another tour owns. Checked BEFORE the step-resolve
+  // effect can decide to navigate, which is the whole point — otherwise this
+  // instance drags the visitor out of that section and back to its own step.
+  const paused = !!pausePathPrefix && !!pathname && pathname.startsWith(pausePathPrefix);
 
   const [running, setRunning] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -161,7 +182,7 @@ export default function GuidedTour({
   // when the step genuinely changes — never from an unrelated re-render, which
   // would otherwise reset the find-polling and could strand a skip.
   useEffect(() => {
-    if (!running) return;
+    if (!running || paused) return;
     const cur = steps[idx];
     if (!cur) return;
 
@@ -229,7 +250,7 @@ export default function GuidedTour({
 
     return () => { cancelled = true; cleanupClick?.(); stopLoop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, running, pathname]);
+  }, [idx, running, pathname, paused]);
 
   // ── Keep the spotlight glued to the element ───────────────────────────────
   // rAF gives buttery tracking while the tab is visible. We ALSO position once
@@ -392,6 +413,13 @@ export default function GuidedTour({
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- stopLoop is redefined each render but only its cleanup-on-unmount behavior matters here
   useEffect(() => () => stopLoop(), []);
+
+  // Dormant on a section another tour owns — render NOTHING. This matters as
+  // much as skipping the navigation above: the dim-while-navigating branch below
+  // triggers whenever the step's path differs from the current one, which on
+  // that section is always true, so an unfinished tour would drape a dark scrim
+  // over a page it has no business touching.
+  if (paused) return null;
 
   if (!step) return null;
 
