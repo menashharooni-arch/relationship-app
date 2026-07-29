@@ -215,8 +215,14 @@ export async function POST(req: NextRequest) {
     // must NEVER report failure back to the visitor (they'd see "something went
     // wrong" and re-submit a duplicate, even though we captured them fine).
     try {
-    // Sync to Google Contacts + HubSpot (non-blocking)
-    if (ownerProfile?.id) {
+    // Sync to Google Contacts + HubSpot (non-blocking).
+    // Plan is re-checked HERE, at send time, not just when the integration was
+    // connected. A token survives a downgrade, so without this a lapsed account
+    // keeps syncing to a Pro-only destination indefinitely. dispatchCrmEvent
+    // already gated its events this way — these paths did not, so the same
+    // account could still receive lead syncs while its view/notification events
+    // had stopped. Same rule everywhere now.
+    if (ownerProfile?.id && isPaidPlan(ownerProfile.plan)) {
       const leadData = { name, email: email || null, phone: phone || null, company: company || null };
       syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e));
       syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e));
@@ -224,7 +230,7 @@ export async function POST(req: NextRequest) {
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
     // a URL stored before validation existed can't exfiltrate lead PII (SSRF).
-    if (ownerProfile?.zapier_webhook_url && isZapierWebhookUrl(ownerProfile.zapier_webhook_url)) {
+    if (ownerProfile?.zapier_webhook_url && isPaidPlan(ownerProfile.plan) && isZapierWebhookUrl(ownerProfile.zapier_webhook_url)) {
       fetch(ownerProfile.zapier_webhook_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
