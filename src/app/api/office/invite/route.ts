@@ -131,16 +131,22 @@ export async function POST(req: Request) {
     let member: { invite_token: string } | null = null;
     let error: { message: string } | null = null;
     const nameField = inviteName ? { invite_name: inviteName } : {};
+    // role is written EXPLICITLY. The column's historical default was 'member',
+    // which is not one of OfficeRole (owner|admin|manager|billing_admin|
+    // employee) — resolveOfficeContext coerced it to "employee", so it behaved
+    // correctly, but only because of that one fallback line. Storing the real
+    // value means the database and the capability map agree, instead of every
+    // existing member's permissions hinging on an unrecognised string.
     ({ data: member, error } = await admin
       .from("office_members")
-      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), expires_at: expiresIso, ...nameField })
+      .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), role: "employee", expires_at: expiresIso, ...nameField })
       .select("invite_token")
       .single());
     if (error) {
       // Retry without expires_at (pre-migration) before giving up.
       ({ data: member, error } = await admin
         .from("office_members")
-        .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), ...nameField })
+        .insert({ office_id: office.id, invite_email: email.trim().toLowerCase(), role: "employee", ...nameField })
         .select("invite_token")
         .single());
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
