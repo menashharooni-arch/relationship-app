@@ -83,6 +83,41 @@ describe("CRM sync failures are visible, not silent", () => {
   });
 });
 
+describe("every Settings card points at a route that can serve it", () => {
+  // Caught a real regression. HubSpot serves POST from /hubspot/token and
+  // DELETE from /hubspot — two different routes, each exporting only its own
+  // verb. Generalising the card collapsed them into one prop, so Disconnect
+  // sent DELETE to a route with no DELETE handler. The 405 was swallowed by the
+  // disconnect catch, so the card flipped to "disconnected" while the row
+  // stayed in the database and leads kept syncing. Invisible, and exactly the
+  // kind of thing a mismatched URL causes.
+  const src = read("src/components/IntegrationsSettings.tsx");
+
+  function routeFileFor(apiPath: string): string {
+    return `src/app${apiPath}/route.ts`;
+  }
+
+  const saves = [...src.matchAll(/saveEndpoint="([^"]+)"/g)].map((m) => m[1]);
+  const disconnects = [...src.matchAll(/disconnectEndpoint="([^"]+)"/g)].map((m) => m[1]);
+
+  it("finds a card for each provider", () => {
+    expect(saves.length).toBeGreaterThanOrEqual(3);
+    expect(disconnects.length).toBe(saves.length);
+  });
+
+  for (const p of saves) {
+    it(`POST ${p} has a POST handler`, () => {
+      expect(read(routeFileFor(p))).toMatch(/export async function POST/);
+    });
+  }
+
+  for (const p of disconnects) {
+    it(`DELETE ${p} has a DELETE handler`, () => {
+      expect(read(routeFileFor(p))).toMatch(/export async function DELETE/);
+    });
+  }
+});
+
 describe("Office: a sub-user's leads reach the agency's CRM", () => {
   const helper = stripComments(read("src/lib/crm-connection.ts"));
   const body = functionBody(helper, "resolveCrmOwnerId");
@@ -127,12 +162,26 @@ describe("integrations are re-checked against the plan at send time", () => {
   // HubSpot while its other events had already stopped.
   const src = stripComments(read("src/app/api/leads/route.ts"));
 
-  it("Google + HubSpot sync only for a paid owner", () => {
+  it("every CRM sync happens only for a paid owner", () => {
+    // Walks back to the ENCLOSING `if` rather than looking a fixed number of
+    // characters behind. The character-window version broke the moment a
+    // comment was added between the gate and the call — a false failure that
+    // says nothing about the gate, which is the worst kind of test.
     const at = src.indexOf("syncLeadToGoogle(");
     expect(at).toBeGreaterThan(-1);
-    // Walk back to the enclosing condition rather than assuming a line offset.
-    const before = src.slice(Math.max(0, at - 400), at);
-    expect(before).toMatch(/isPaidPlan\(ownerProfile\.plan\)/);
+    const openIf = src.lastIndexOf("if (", at);
+    expect(openIf).toBeGreaterThan(-1);
+    expect(src.slice(openIf, at)).toMatch(/isPaidPlan\(ownerProfile\.plan\)/);
+  });
+
+  it("the CRM syncs survive the response — they aren't floating promises", () => {
+    // Unawaited fetches can be killed when a serverless function freezes after
+    // responding, so the sync would never run and (before sync_error) would
+    // have looked like silence. after() keeps the invocation alive without
+    // making the visitor wait. allSettled so one dead provider can't cancel
+    // the rest.
+    expect(src).toMatch(/after\(\s*Promise\.allSettled\(/);
+    expect(src).toContain('from "next/server"');
   });
 
   it("the Zapier lead webhook only fires for a paid owner", () => {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
@@ -240,20 +240,40 @@ export async function POST(req: NextRequest) {
         source: source ? getSourceLabel(source) : null,
         capturedByCard: card_owner,
       };
-      syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e));
-      syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e));
-      syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e));
-      syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[leads] HighLevel sync error:", e));
+      // after(): these were bare floating promises. Nothing awaited them, so on
+      // a serverless host the function could return its response and be frozen
+      // with the CRM calls still in flight — the sync would simply never happen,
+      // and (before the sync_error work) would have looked like silence rather
+      // than a failure. after() keeps the invocation alive until they finish
+      // WITHOUT making the visitor wait: the form still returns immediately.
+      //
+      // The exposure grew with Pipedrive and HighLevel, which each make two
+      // sequential calls (create, then attach the note) rather than one.
+      //
+      // allSettled, not all: one provider being down must not cancel the others.
+      after(
+        Promise.allSettled([
+          syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e)),
+          syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e)),
+          syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e)),
+          syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[leads] HighLevel sync error:", e)),
+        ]),
+      );
     }
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
     // a URL stored before validation existed can't exfiltrate lead PII (SSRF).
     if (ownerProfile?.zapier_webhook_url && isPaidPlan(ownerProfile.plan) && isZapierWebhookUrl(ownerProfile.zapier_webhook_url)) {
-      fetch(ownerProfile.zapier_webhook_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
-      }).catch(() => {});
+      // after() for the same reason as the CRM syncs above: an unawaited fetch
+      // can be cut off when the function freezes after responding, so the Zap
+      // would silently never fire.
+      after(
+        fetch(ownerProfile.zapier_webhook_url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
+        }).catch(() => {}),
+      );
     }
 
     // Insert in-app notification for the card owner (non-blocking; falls back
