@@ -51,6 +51,11 @@ export const isNativeApp: boolean = detectNativeApp();
 export function useIsNativeApp(): boolean {
   const [native, setNative] = useState(false);
   useEffect(() => {
+    // The value can only be read from `window`, so computing it during render
+    // would make the server and first client render disagree and blow up
+    // hydration. Deferring it to a mount effect is the documented React pattern
+    // (see the JSDoc above); the one extra render is the entire point.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe by design
     setNative(detectNativeApp());
   }, []);
   return native;

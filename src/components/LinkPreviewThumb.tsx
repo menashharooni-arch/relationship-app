@@ -24,6 +24,10 @@ export default function LinkPreviewThumb({ url }: { url: string }) {
     const href = fullHref(url);
     if (!href) return;
     let cancelled = false;
+    // Clear the PREVIOUS url's preview before fetching the new one. Without
+    // this the old thumbnail stays on screen next to the new link until the
+    // fetch lands, which reads as the wrong preview rather than a loading one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset stale preview before refetch
     setPv(null);
     setImgFailed(false);
     fetch(`/api/link-preview?url=${encodeURIComponent(href)}`)

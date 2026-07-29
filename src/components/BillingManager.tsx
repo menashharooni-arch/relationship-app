@@ -109,6 +109,11 @@ export default function BillingManager() {
     }
   }, []);
 
+  // Fetch-on-mount. load() awaits /api/stripe/subscription before it setStates,
+  // so nothing is set synchronously here; the rule fires on the call, not on
+  // real cascading renders. Billing state comes from Stripe at runtime, so it
+  // cannot be derived during render or passed in as a prop.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch-on-mount
   useEffect(() => { load(); }, [load]);
 
   // Deep-link from receipt / payment emails (?billing=1) → scroll Billing into view.

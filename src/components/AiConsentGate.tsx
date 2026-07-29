@@ -31,6 +31,10 @@ export default function AiConsentGate({ accepted }: { accepted: boolean }) {
   // Best-effort: if the flag couldn't be stored (offline), we still don't nag
   // within the same session once acknowledged.
   useEffect(() => {
+    // Deliberate prop sync. `done` starts from the `accepted` prop but is also
+    // set locally by accept(), so it can't be derived during render. When the
+    // server re-reports acceptance the gate must close — this re-syncs it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prop sync into locally-owned state
     setDone(accepted);
   }, [accepted]);
 
