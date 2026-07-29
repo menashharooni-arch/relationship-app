@@ -3,6 +3,7 @@ import twilio from "twilio";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { htmlToText } from "@/lib/email-text";
+import { reportError } from "@/lib/report-error";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -33,8 +34,13 @@ export function contactUnsubUrl(email: string): string {
 export function verifyContactUnsubToken(token: string): string | null {
   const [encoded, sig] = (token || "").split(".");
   if (!encoded || !sig) return null;
-  const expected = unsubSig(encoded);
   try {
+    // Inside the try on purpose: unsubSecret() throws on a misconfigured
+    // deployment, and this function backs the List-Unsubscribe-Post endpoint. A
+    // 500 there reads to mailbox providers as a broken opt-out — worse than
+    // advertising no header at all. The loud failure stays on the SIGNING side
+    // (contactUnsubUrl), where it blocks a send instead of breaking a promise.
+    const expected = unsubSig(encoded);
     if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
     const email = Buffer.from(encoded, "base64url").toString("utf8");
     return email.includes("@") ? email : null;
@@ -44,11 +50,23 @@ export function verifyContactUnsubToken(token: string): string | null {
 }
 
 // RFC 8058 one-click unsubscribe headers for any email sent to a LEAD.
+// Degrades to NO headers when the signing secret is absent, rather than throwing
+// and taking every send down with it: contactUnsubUrl() throws by design on a
+// misconfigured deployment, and this helper sits inside sendRawEmail's try, so a
+// throw here turned "no unsubscribe secret" into "no email at all". The
+// fail-closed guarantee that matters — never sign with a public constant — is
+// unchanged. Reported loudly so a missing secret surfaces as an alert instead of
+// as mail quietly going out without an opt-out header.
 function unsubHeaders(to: string): Record<string, string> {
-  return {
-    "List-Unsubscribe": `<${contactUnsubUrl(to)}>`,
-    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-  };
+  try {
+    return {
+      "List-Unsubscribe": `<${contactUnsubUrl(to)}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    };
+  } catch (e) {
+    void reportError("unsub-headers-unsigned", e, { note: "sent without List-Unsubscribe" });
+    return {};
+  }
 }
 
 export type SendResult = "sent" | "not_configured" | "failed";
@@ -56,8 +74,11 @@ export type SendResult = "sent" | "not_configured" | "failed";
 // Build the From header: the per-sender display name on the ONE verified address
 // (RESEND_FROM_EMAIL), so recipients see the person who messaged them — not a
 // generic "SwiftCard" — while every user still sends from the same verified domain.
-function senderFrom(displayName: string | null | undefined): string {
-  const configured = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
+// `baseFrom` lets a caller pass an already-resolved address (getMarketingFrom(),
+// which falls back to Resend's sandbox sender before the domain verifies) without
+// losing the display-name personalisation or this sanitizer.
+export function senderFrom(displayName: string | null | undefined, baseFrom?: string | null): string {
+  const configured = baseFrom || process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
   const addr = configured.match(/<([^>]+)>/)?.[1] ?? configured.trim();
   const name = (displayName || "SwiftCard").replace(/[<>"\r\n]/g, "").trim() || "SwiftCard";
   return `${name} <${addr}>`;
@@ -217,12 +238,22 @@ function esc(v: string | null | undefined) {
 // Send pre-built HTML (used by automations that have their own templates).
 // fromName personalizes the From display name (the card owner's name on the one
 // verified address) so automated emails arrive AS the person, not "SwiftCard".
-export async function sendRawEmail(opts: { to: string; subject: string; html: string; replyTo?: string | null; fromName?: string | null }): Promise<SendResult> {
+export async function sendRawEmail(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  replyTo?: string | null;
+  fromName?: string | null;
+  /** Pre-resolved From address (e.g. getMarketingFrom()); the display name is still applied. */
+  fromAddress?: string | null;
+}): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
   try {
-    await resend.emails.send({
-      from: opts.fromName ? senderFrom(opts.fromName) : (process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>"),
+    const { error } = await resend.emails.send({
+      from: opts.fromName
+        ? senderFrom(opts.fromName, opts.fromAddress)
+        : (opts.fromAddress || process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>"),
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: opts.subject,
@@ -233,7 +264,12 @@ export async function sendRawEmail(opts: { to: string; subject: string; html: st
       // Every email to a lead carries one-click unsubscribe (RFC 8058).
       headers: unsubHeaders(opts.to),
     });
-    return "sent";
+    // The SDK RESOLVES with {data, error} for API-level failures — it does not
+    // throw — so ignoring the return value reported "sent" for every rejection
+    // (bad key, unverified domain, suppressed address). The reminders route
+    // stamps sent_at on `status === "sent"`, so a discarded error here silently
+    // burned sequence steps that never went out.
+    return error ? "failed" : "sent";
   } catch {
     return "failed";
   }

@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
   const email = verifyContactUnsubToken(token);
   if (!email) return NextResponse.redirect(new URL("/unsubscribe?error=invalid", req.url));
   await addOptOut("email", email);
-  return NextResponse.redirect(new URL("/unsubscribe?success=1", req.url));
+  // scope=contact so the confirmation page describes what actually happened —
+  // a platform-wide email opt-out — and hides the dashboard CTAs, which a lead
+  // or invitee has no account to reach.
+  return NextResponse.redirect(new URL("/unsubscribe?success=1&scope=contact", req.url));
 }
 
 // POST — RFC 8058 one-click (mail clients call this from the List-Unsubscribe header).

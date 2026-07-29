@@ -72,6 +72,16 @@ export async function POST(req: NextRequest) {
 
   // Test mode: one email, to the admin, clearly labeled. Nothing else sent.
   if (test) {
+    // The admin's OWN unsubscribe token, so a test send exercises the real
+    // one-click link end to end. Previously this passed unsubUrl(""), which
+    // rendered a tokenless URL that could never identify anyone — so the test
+    // send was the one email guaranteed not to prove the link works.
+    const { data: adminPrefs } = await admin
+      .from("email_preferences")
+      .select("unsubscribe_token")
+      .eq("user_id", adminUser.id)
+      .maybeSingle();
+    const unsub = unsubUrl((adminPrefs?.unsubscribe_token as string | null) ?? "");
     const template = marketingEmail({
       firstName: "there",
       subject: `[TEST] ${subject}`,
@@ -79,10 +89,16 @@ export async function POST(req: NextRequest) {
       body: message,
       ctaLabel,
       ctaUrl,
-      unsubscribeUrl: unsubUrl(""),
+      unsubscribeUrl: unsub,
     });
     try {
-      const { error } = await resend.emails.send({ ...template, from, subject: `[TEST] ${subject}`, to: adminUser.email! });
+      const { error } = await resend.emails.send({
+        ...template,
+        from,
+        subject: `[TEST] ${subject}`,
+        to: adminUser.email!,
+        ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
+      });
       if (error) return NextResponse.json({ error: `Test send failed: ${error.message}` }, { status: 500 });
       return NextResponse.json({ test: true, sent: 1, to: adminUser.email });
     } catch (e) {
@@ -191,6 +207,7 @@ export async function POST(req: NextRequest) {
     const firstName = profile.name?.split(" ")[0] || "there";
     const token = prefs?.unsubscribe_token ?? "";
 
+    const unsub = unsubUrl(token);
     const template = marketingEmail({
       firstName,
       subject,
@@ -198,7 +215,7 @@ export async function POST(req: NextRequest) {
       body: message,
       ctaLabel,
       ctaUrl,
-      unsubscribeUrl: unsubUrl(token),
+      unsubscribeUrl: unsub,
     });
 
     try {
@@ -206,7 +223,7 @@ export async function POST(req: NextRequest) {
         ...template,
         from,
         to: recipient,
-        headers: marketingHeaders(unsubUrl(token)),
+        ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
       });
       if (sendErr) {
         failed++;
