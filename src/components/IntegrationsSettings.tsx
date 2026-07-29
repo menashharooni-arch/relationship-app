@@ -7,15 +7,17 @@ import { PlanGate, PlanBadge } from "@/components/PlanGate";
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
 
-type Integration = "google" | "hubspot" | "pipedrive";
+type Integration = "google" | "hubspot" | "pipedrive" | "highlevel";
 
 type Props = {
   googleConnected: boolean;
   hubspotConnected: boolean;
   pipedriveConnected: boolean;
+  highlevelConnected: boolean;
   googleSyncError?: string | null;
   hubspotSyncError?: string | null;
   pipedriveSyncError?: string | null;
+  highlevelSyncError?: string | null;
   isPro: boolean;
 };
 
@@ -140,6 +142,12 @@ const PIPEDRIVE_LOGO = (
   </svg>
 );
 
+const HIGHLEVEL_LOGO = (
+  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#2a9d8f" aria-hidden="true">
+    <path d="M12 2 3 7v10l9 5 9-5V7l-9-5zm0 2.3 6.9 3.8-6.9 3.8-6.9-3.8L12 4.3zM5 9.4l6 3.3v6.6l-6-3.3V9.4zm8 9.9v-6.6l6-3.3v6.6l-6 3.3z"/>
+  </svg>
+);
+
 // HubSpot connects with a pasted Private App access token (see the /token
 // route for why) instead of the OAuth redirect the other cards use, so it
 // gets its own small form in place of a plain Connect link.
@@ -158,6 +166,7 @@ function TokenCard({
   tokenLabel,
   placeholder,
   help,
+  extra,
   connected: initialConnected,
   syncError,
   isPro,
@@ -172,6 +181,12 @@ function TokenCard({
   tokenLabel: string;
   placeholder: string;
   help: React.ReactNode;
+  /**
+   * Second value some providers need alongside the token. HighLevel is the
+   * case: a Private Integration token isn't scoped to a sub-account, so the
+   * Location ID has to be supplied too. Omitted for everyone else.
+   */
+  extra?: { label: string; placeholder: string };
   connected: boolean;
   syncError?: string | null;
   isPro: boolean;
@@ -180,20 +195,25 @@ function TokenCard({
   const [connected, setConnected] = useState(initialConnected);
   const [showForm, setShowForm] = useState(!initialConnected);
   const [token, setToken] = useState("");
+  const [extraValue, setExtraValue] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "disconnecting">("idle");
   const [error, setError] = useState<string | null>(null);
 
   const needsReconnect = connected && !!syncError;
 
+  // Both values are required when a provider needs a second one — saving with
+  // only the token would store a connection that fails on every lead.
+  const canSave = !!token.trim() && (!extra || !!extraValue.trim());
+
   async function save() {
-    if (!token.trim()) return;
+    if (!canSave) return;
     setStatus("saving");
     setError(null);
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, ...(extra ? { extra: extraValue } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -204,6 +224,7 @@ function TokenCard({
       setConnected(true);
       setShowForm(false);
       setToken("");
+      setExtraValue("");
       setStatus("idle");
     } catch {
       setError("Couldn't reach SwiftCard. Try again.");
@@ -286,12 +307,24 @@ function TokenCard({
             />
             <button
               onClick={save}
-              disabled={!token.trim() || status === "saving"}
+              disabled={!canSave || status === "saving"}
               className="shrink-0 bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-full text-sm transition-colors"
             >
               {status === "saving" ? "Checking…" : "Save"}
             </button>
           </div>
+          {extra && (
+            <>
+              <label className="text-xs text-slate-500 block pt-1">{extra.label}</label>
+              <input
+                type="text"
+                value={extraValue}
+                onChange={(e) => setExtraValue(e.target.value)}
+                placeholder={extra.placeholder}
+                className="w-full bg-[#FAF7F2] border border-[#D4C8B8] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
+              />
+            </>
+          )}
           <p className="text-slate-400 text-[11px] leading-relaxed">{help}</p>
           {connected && (
             <button onClick={() => { setShowForm(false); setError(null); }} className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors">
@@ -309,7 +342,7 @@ function TokenCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, isPro }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, isPro }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -385,6 +418,29 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         syncError={pipedriveSyncError}
         isPro={isPro}
         flashStatus={flashIntegration === "pipedrive" ? flashStatus : null}
+      />
+
+      <TokenCard
+        provider="highlevel"
+        title="GoHighLevel"
+        description="New leads are upserted into your sub-account and tagged, so your workflows fire"
+        logo={HIGHLEVEL_LOGO}
+        endpoint="/api/integrations/highlevel/token"
+        tokenLabel="Private Integration token"
+        placeholder="pit-..."
+        extra={{ label: "Location ID (sub-account)", placeholder: "e.g. ve9EPM428h8vShlRW1KT" }}
+        help={
+          <>
+            In HighLevel: Settings → Private Integrations → Create new Integration → tick{" "}
+            <code className="text-slate-600">contacts.write</code> → copy the token. Your Location ID is
+            the long code in the browser address bar while you&apos;re inside that sub-account, right
+            after <code className="text-slate-600">/location/</code>.
+          </>
+        }
+        connected={highlevelConnected}
+        syncError={highlevelSyncError}
+        isPro={isPro}
+        flashStatus={flashIntegration === "highlevel" ? flashStatus : null}
       />
     </div>
   );
