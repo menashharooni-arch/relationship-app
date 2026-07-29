@@ -110,6 +110,30 @@ export default async function FlowSettingsPage({
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
   const googleConnected = !!googleIntegration;
   const hubspotConnected = !!hubspotIntegration;
+  // ── What an Office sub-user needs to be told ────────────────────────────────
+  // Their leads already flow to the OFFICE OWNER's CRM when they have no
+  // connection of their own (see resolveCrmOwnerId). Without saying so, this
+  // page reads as though nothing is set up: a sub-user connects something
+  // themselves, and silently diverts their leads away from the agency's CRM —
+  // which for an agency is usually company property. One extra query, and only
+  // for sub-users.
+  const CRM_LABEL: Record<string, string> = {
+    highlevel: "GoHighLevel",
+    pipedrive: "Pipedrive",
+    hubspot: "HubSpot",
+    google: "Google Contacts",
+  };
+  let teamCrmNames: string[] = [];
+  if (officeCtx && !officeCtx.isOwner && officeCtx.ownerId) {
+    const { data: ownerIntegrations } = await admin
+      .from("integrations")
+      .select("provider")
+      .eq("user_id", officeCtx.ownerId);
+    teamCrmNames = (ownerIntegrations ?? [])
+      .map((i) => CRM_LABEL[i.provider as string])
+      .filter(Boolean);
+  }
+
   const pipedriveIntegration = integrations?.find((i) => i.provider === "pipedrive");
   const pipedriveConnected = !!pipedriveIntegration;
   const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
@@ -212,6 +236,7 @@ export default async function FlowSettingsPage({
               hubspotSyncError={hubspotSyncError}
               pipedriveSyncError={pipedriveSyncError}
               highlevelSyncError={highlevelSyncError}
+              teamCrmNames={teamCrmNames}
               isPro={isPro}
             />
           </Suspense>

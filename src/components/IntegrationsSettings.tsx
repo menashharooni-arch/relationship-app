@@ -18,6 +18,12 @@ type Props = {
   hubspotSyncError?: string | null;
   pipedriveSyncError?: string | null;
   highlevelSyncError?: string | null;
+  /**
+   * CRMs the OFFICE OWNER has connected, for a sub-user. Empty for everyone
+   * else. Drives the notice explaining that their leads already have a
+   * destination — see where it renders.
+   */
+  teamCrmNames?: string[];
   isPro: boolean;
 };
 
@@ -352,7 +358,7 @@ function TokenCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, isPro }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, teamCrmNames = [], isPro }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -374,6 +380,26 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
   // address book rather than a CRM, so it's the odd one out in this group.
   return (
     <div className="space-y-3">
+      {/* An Office sub-user's leads already have a destination: with no
+          connection of their own they inherit the office owner's. Saying so is
+          the whole point — otherwise this section reads as "nothing is set up",
+          and connecting something here quietly diverts their leads away from
+          the agency's CRM, which is usually company property. The last sentence
+          is the important one: the override is per-CRM, so connecting a
+          DIFFERENT tool adds a destination rather than replacing the team's. */}
+      {teamCrmNames.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+          <p className="text-blue-900 text-sm font-semibold">
+            Your team already sends leads to {teamCrmNames.join(" and ")}
+          </p>
+          <p className="text-blue-800/80 text-xs mt-1 leading-relaxed">
+            Your admin set this up — your contacts go there automatically and there&apos;s nothing
+            for you to do. Connect one below only if you want your own copy somewhere else;
+            connecting the same CRM sends to yours instead of the team&apos;s.
+          </p>
+        </div>
+      )}
+
       <TokenCard
         provider="highlevel"
         title="GoHighLevel"
