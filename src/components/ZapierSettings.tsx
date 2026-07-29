@@ -9,9 +9,13 @@ const INTEGRATIONS_NATIVE_COPY =
 export default function ZapierSettings({
   initialUrl,
   isPro,
+  crmConnected = false,
 }: {
   initialUrl: string | null;
   isPro: boolean;
+  /** True when a CRM is already connected directly above. Drives the
+   *  duplicate-contacts warning — see the note where it renders. */
+  crmConnected?: boolean;
 }) {
   const [url, setUrl] = useState(initialUrl ?? "");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -60,7 +64,7 @@ export default function ZapierSettings({
         </div>
         <div>
           <p className="text-slate-900 font-semibold text-sm">Zapier Webhook</p>
-          <p className="text-slate-400 text-xs">Send new leads to 6,000+ apps automatically</p>
+          <p className="text-slate-400 text-xs">For anything not listed above — send leads to 6,000+ apps</p>
         </div>
         {!isPro && (
           <PlanGate
@@ -75,6 +79,19 @@ export default function ZapierSettings({
 
       {isPro ? (
         <>
+          {/* The trap this prevents: connect HubSpot directly AND point a Zap at
+              HubSpot, and every contact arrives twice. Both paths fire on the
+              same lead, and nothing else on this page says so. Only shown once
+              they've actually done both, so it's a real warning rather than
+              noise on an empty form. */}
+          {crmConnected && url.trim() && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5">
+              <p className="text-amber-800 text-xs leading-relaxed">
+                You already have a CRM connected above. If your Zap also creates contacts in that
+                same CRM, you&apos;ll get each one twice — use the Zap for other tools instead.
+              </p>
+            </div>
+          )}
           <div>
             <label className="text-xs text-slate-500 block mb-1.5">Webhook URL</label>
             <input

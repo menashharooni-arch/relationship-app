@@ -192,13 +192,16 @@ export default async function FlowSettingsPage({
             initialMarketing={emailPrefs?.marketing_emails ?? true}
             initialReceipts={emailPrefs?.receipt_emails ?? true}
           />
-          <CrmEventSettings
-            initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
-            initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
-            zapierConnected={!!profile.zapier_webhook_url}
-            isPro={isPro}
-          />
-          <ZapierSettings initialUrl={profile.zapier_webhook_url ?? null} isPro={isPro} />
+          {/* Order matters here, and it used to be backwards.
+              Direct CRM connections come FIRST: they're the common case, and one
+              click is the whole setup. Zapier follows as the escape hatch for
+              everything else, with its event toggles directly beneath it —
+              those toggles are Zapier settings, not a separate feature, and
+              their copy refers to the webhook "above", which was pointing at
+              nothing because they rendered before it. */}
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider pt-1">
+            Send contacts to your CRM
+          </p>
           <Suspense>
             <IntegrationsSettings
               googleConnected={googleConnected}
@@ -212,6 +215,24 @@ export default async function FlowSettingsPage({
               isPro={isPro}
             />
           </Suspense>
+
+          <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider pt-3">
+            Send anything, anywhere
+          </p>
+          <ZapierSettings
+            initialUrl={profile.zapier_webhook_url ?? null}
+            isPro={isPro}
+            crmConnected={googleConnected || hubspotConnected || pipedriveConnected || highlevelConnected}
+          />
+          {/* Directly beneath Zapier, because these toggles only control what
+              the WEBHOOK receives — they are not a separate destination. Their
+              copy refers to the webhook "above", which is now true. */}
+          <CrmEventSettings
+            initialNotifications={!!(profile.customization as { crm?: { notifications?: boolean } } | null)?.crm?.notifications}
+            initialViews={!!(profile.customization as { crm?: { views?: boolean } } | null)?.crm?.views}
+            zapierConnected={!!profile.zapier_webhook_url}
+            isPro={isPro}
+          />
         </div>
       ),
     },
