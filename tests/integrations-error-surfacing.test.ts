@@ -43,22 +43,42 @@ describe("CRM sync failures are visible, not silent", () => {
     const body = functionBody(stripComments(read(file)), fn);
 
     it(`${provider}: a rejected contact writes sync_error`, () => {
-      expect(body).toContain("setSyncError(");
+      // Must match the FAILURE call specifically. A bare "setSyncError(" check
+      // is worthless here — the success path also calls it, to clear the
+      // banner, so deleting the failure report still left a match. Mutation
+      // testing caught that; the passing assertion was proving nothing.
+      expect(body).toMatch(/setSyncError\(\s*"[a-z]+",\s*userId,\s*connectionErrorMessage\(/);
     });
 
     it(`${provider}: a later success clears the banner, and only when one is showing`, () => {
       // The guard matters: clearing unconditionally would write to the database
       // on every captured lead just to set null to null.
-      expect(body).toMatch(/if \(auth\.syncError\) await setSyncError\(userId, null\)/);
-    });
-
-    it(`${provider}: auth failures tell the user to reconnect`, () => {
-      // 401/403 is the realistic case (scope never granted, API not enabled) and
-      // needs different advice from a transient 5xx — retrying won't fix it.
-      expect(body).toMatch(/401 \|\| res\.status === 403/);
-      expect(body.toLowerCase()).toContain("reconnect");
+      expect(body).toMatch(/if \(conn\.syncError\) await setSyncError\(/);
     });
   }
+
+  it("auth failures tell the user to reconnect, transient ones don't", () => {
+    // This assertion used to sit in each sync file. The 401/403 distinction now
+    // lives in the shared helper both providers call, so it is checked once,
+    // where it actually is — not weakened, relocated.
+    //
+    // The distinction matters: a 403 means a scope was never granted or an API
+    // isn't enabled, and no amount of retrying fixes it, so the copy has to say
+    // "reconnect". A 5xx is transient and shouldn't send anyone to settings.
+    const helper = stripComments(read("src/lib/crm-connection.ts"));
+    const body = functionBody(helper, "connectionErrorMessage");
+    expect(body).toMatch(/status === 401 \|\| status === 403/);
+    expect(body.toLowerCase()).toContain("reconnect");
+    expect(body.toLowerCase()).toContain("keep trying");
+  });
+
+  it("the shared helper is what both providers use, so a fix lands once", () => {
+    // The duplication this replaced is why the "surface API failures" fix had
+    // to be written twice by hand. Two more providers would have made it four.
+    for (const f of ["src/lib/sync-google.ts", "src/lib/sync-hubspot.ts"]) {
+      expect(read(f)).toContain('from "./crm-connection"');
+    }
+  });
 });
 
 describe("integrations are re-checked against the plan at send time", () => {
