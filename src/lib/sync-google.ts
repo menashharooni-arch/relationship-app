@@ -1,17 +1,16 @@
-import { getCrmConnection, setSyncError, connectionErrorMessage } from "./crm-connection";
+import { getCrmConnection, setSyncError, connectionErrorMessage, resolveCrmOwnerId, type CrmLead } from "./crm-connection";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_PEOPLE_URL = "https://people.googleapis.com/v1/people:createContact";
 const LABEL = "Google Contacts";
 
-type LeadData = {
-  name: string;
-  email: string;
-  phone?: string | null;
-  company?: string | null;
-};
-
-export async function syncLeadToGoogle(lead: LeadData, userId: string): Promise<void> {
+// Google Contacts has no field for capture context, so the extra CrmLead
+// fields are simply unused here. Taking the shared type anyway keeps one lead
+// shape across every provider instead of four subtly different ones.
+export async function syncLeadToGoogle(lead: CrmLead, capturedBy: string): Promise<void> {
+  // An office sub-user with no connection of their own inherits the office
+  // owner's; everyone else resolves to themselves. See resolveCrmOwnerId.
+  const userId = await resolveCrmOwnerId("google", capturedBy);
   const conn = await getCrmConnection("google", LABEL, userId, {
     tokenUrl: GOOGLE_TOKEN_URL,
     clientId: process.env.GOOGLE_CLIENT_ID,

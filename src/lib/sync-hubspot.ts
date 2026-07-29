@@ -1,17 +1,18 @@
-import { getCrmConnection, setSyncError, connectionErrorMessage } from "./crm-connection";
+import { getCrmConnection, setSyncError, connectionErrorMessage, resolveCrmOwnerId, type CrmLead } from "./crm-connection";
 
 const HUBSPOT_TOKEN_URL = "https://api.hubapi.com/oauth/v1/token";
 const HUBSPOT_CONTACTS_URL = "https://api.hubapi.com/crm/v3/objects/contacts";
 const LABEL = "HubSpot";
 
-type LeadData = {
-  name: string;
-  email: string;
-  phone?: string | null;
-  company?: string | null;
-};
-
-export async function syncLeadToHubSpot(lead: LeadData, userId: string): Promise<void> {
+// Only the standard properties are sent. HubSpot REJECTS a write to a property
+// that doesn't exist on the portal, so pushing capture context into custom
+// fields would 400 for every customer who hadn't created them by hand first —
+// it needs a Note (a separate engagement object), which is its own piece of
+// work. The extra CrmLead fields are therefore unused here, deliberately.
+export async function syncLeadToHubSpot(lead: CrmLead, capturedBy: string): Promise<void> {
+  // An office sub-user with no connection of their own inherits the office
+  // owner's; everyone else resolves to themselves. See resolveCrmOwnerId.
+  const userId = await resolveCrmOwnerId("hubspot", capturedBy);
   // Private App tokens (how this integration is normally connected) never
   // expire, so expires_at is null for them and the refresh below is skipped.
   // The config is still passed because the same row can hold an OAuth token.

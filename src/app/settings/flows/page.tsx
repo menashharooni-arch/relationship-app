@@ -110,8 +110,11 @@ export default async function FlowSettingsPage({
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
   const googleConnected = !!googleIntegration;
   const hubspotConnected = !!hubspotIntegration;
+  const pipedriveIntegration = integrations?.find((i) => i.provider === "pipedrive");
+  const pipedriveConnected = !!pipedriveIntegration;
   const googleSyncError = (googleIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const hubspotSyncError = (hubspotIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
+  const pipedriveSyncError = (pipedriveIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   // LinkedIn no longer appears in Settings — its OAuth now powers the "Suggest
   // my headshot" button in the card editors instead.
 
@@ -197,8 +200,10 @@ export default async function FlowSettingsPage({
             <IntegrationsSettings
               googleConnected={googleConnected}
               hubspotConnected={hubspotConnected}
+              pipedriveConnected={pipedriveConnected}
               googleSyncError={googleSyncError}
               hubspotSyncError={hubspotSyncError}
+              pipedriveSyncError={pipedriveSyncError}
               isPro={isPro}
             />
           </Suspense>

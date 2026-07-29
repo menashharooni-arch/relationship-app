@@ -81,6 +81,43 @@ describe("CRM sync failures are visible, not silent", () => {
   });
 });
 
+describe("Office: a sub-user's leads reach the agency's CRM", () => {
+  const helper = stripComments(read("src/lib/crm-connection.ts"));
+  const body = functionBody(helper, "resolveCrmOwnerId");
+
+  it("every provider routes through the resolver, so no CRM misses the office case", () => {
+    // A provider that calls getCrmConnection with the capturing user directly
+    // would work for solo accounts and silently do nothing for a 12-agent
+    // agency — the failure would only show up for the customers paying most.
+    for (const f of ["src/lib/sync-google.ts", "src/lib/sync-hubspot.ts", "src/lib/sync-pipedrive.ts"]) {
+      expect(read(f), `${f} must resolve the office owner`).toContain("resolveCrmOwnerId(");
+    }
+  });
+
+  it("a personal connection wins over the office one", () => {
+    // Order is what keeps this additive. Anyone connected today — including a
+    // sub-user who connected before their office existed — keeps their own
+    // destination. Reversing it would silently reroute live customers' contacts.
+    const ownCheck = body.indexOf("capturedByUserId");
+    const officeCheck = body.indexOf("resolveOfficeContext");
+    expect(ownCheck).toBeGreaterThan(-1);
+    expect(officeCheck).toBeGreaterThan(-1);
+    expect(ownCheck).toBeLessThan(officeCheck);
+  });
+
+  it("only a SUB-USER inherits, never the owner or a solo account", () => {
+    expect(body).toMatch(/!ctx\.isOwner/);
+  });
+
+  it("presence is checked, not health — a broken connection must not reroute", () => {
+    // getCrmConnection returns null both for "no connection" and "connection
+    // broken". Falling back on the broken case would silently redirect a
+    // sub-user's contacts into the agency CRM instead of reporting the fault.
+    // Selecting just the id keeps this a presence test.
+    expect(body).toMatch(/\.select\("id"\)/);
+  });
+});
+
 describe("integrations are re-checked against the plan at send time", () => {
   // A stored token or webhook URL survives a downgrade. dispatchCrmEvent
   // already re-checked isPaidPlan before firing view/notification events; the

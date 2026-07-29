@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
+import { syncLeadToPipedrive } from "@/lib/sync-pipedrive";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
@@ -223,9 +224,24 @@ export async function POST(req: NextRequest) {
     // account could still receive lead syncs while its view/notification events
     // had stopped. Same rule everywhere now.
     if (ownerProfile?.id && isPaidPlan(ownerProfile.plan)) {
-      const leadData = { name, email: email || null, phone: phone || null, company: company || null };
+      // The context below is what a CRM record can't get anywhere else: where
+      // the meeting happened, how the card was tapped, and WHICH card captured
+      // it — which in an Office identifies the rep. Providers that have nowhere
+      // to put a field ignore it (Google has no notes; HubSpot rejects writes to
+      // properties a portal hasn't defined), so this is additive for them.
+      const leadData = {
+        name,
+        email: email || null,
+        phone: phone || null,
+        company: company || null,
+        location,
+        message: message || null,
+        source: source ? getSourceLabel(source) : null,
+        capturedByCard: card_owner,
+      };
       syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e));
       syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e));
+      syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e));
     }
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
