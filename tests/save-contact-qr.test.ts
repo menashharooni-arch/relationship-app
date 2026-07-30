@@ -98,6 +98,15 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     }
   });
 
+  it("Done is the only visible way out — no X (owner preference)", () => {
+    const popup = src.slice(src.indexOf("{showQr && ("), src.indexOf("<style>"));
+    expect(popup, "the X came back to the QR popup").not.toMatch(/aria-label="Close"/);
+    // But it must still be closable, or the popup is a trap: Done + backdrop.
+    // Whitespace-tolerant: the repo checks out CRLF, so a \n literal never matches.
+    expect(popup, "the QR popup lost its Done button").toMatch(/>\s*Done\s*</);
+    expect(popup, "the backdrop no longer closes the popup").toContain("e.target === e.currentTarget && closeQr()");
+  });
+
   it("the QR popup itself holds no share-back form", () => {
     // While the popup is open the visitor is looking at their PHONE. A form
     // behind the code asks at the one moment nobody is reading the screen.
