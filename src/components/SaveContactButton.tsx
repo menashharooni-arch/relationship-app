@@ -310,12 +310,16 @@ export default function SaveContactButton({
         <button
           type="button"
           onClick={() => setShowQr(true)}
-          // Trimmed down (tighter padding, smaller label/icon, nowrap) so the
-          // blue Save Contact button — the primary action — keeps most of the row.
-          className="hidden md:flex shrink-0 items-center justify-center gap-1 font-semibold py-3 px-2.5 rounded-full text-[12.5px] whitespace-nowrap border transition-colors hover:bg-blue-50"
+          // IDENTICAL typography to Save Contact — text-sm, font-semibold,
+          // py-3, gap-2, w-4 icon — so the pair reads as one control, not two
+          // different-sized ones. It stays the narrower of the two purely
+          // through tighter horizontal padding (px-3 vs px-4) plus Save Contact
+          // taking flex-1; shrinking the LABEL to do that made them visibly
+          // mismatched, which is what this restores.
+          className="hidden md:flex shrink-0 items-center justify-center gap-2 font-semibold py-3 px-3 rounded-full text-sm whitespace-nowrap border transition-colors hover:bg-blue-50"
           style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
           </svg>

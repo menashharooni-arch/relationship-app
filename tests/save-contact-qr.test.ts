@@ -193,15 +193,44 @@ describe("a QR save notifies the owner exactly like a button save", () => {
 function buttonWithHandler(handler: string): string {
   const at = src.indexOf(handler);
   expect(at, `no button with handler ${handler}`).toBeGreaterThan(-1);
-  const start = src.lastIndexOf("<button", at);
-  const end = src.indexOf(">", src.indexOf("className", at));
-  return src.slice(start, end);
+  // ONLY the className line. Slicing the whole opening tag also swallowed the
+  // JSX comments above the attribute — and one of those comments spells out
+  // "text-sm, font-semibold, py-3, gap-2", so a font-weight mutation passed
+  // while the real class said font-medium. Assert the class list itself.
+  const cls = src.indexOf("className=", at);
+  expect(cls, `no className after ${handler}`).toBeGreaterThan(-1);
+  const eol = src.indexOf("\n", cls);
+  return src.slice(cls, eol === -1 ? undefined : eol);
 }
 
 describe("desktop-only, and Save Contact stays the primary action", () => {
   it("the QR button is hidden on phones", () => {
     // On a phone you're already holding the device — there's nothing to scan.
     expect(buttonWithHandler("setShowQr(true)")).toMatch(/hidden md:flex/);
+  });
+
+  it("both buttons use the SAME font size, weight, height and icon size", () => {
+    // They sit side by side, so any difference reads as a mistake. The QR
+    // button was briefly text-[12.5px] with a w-3.5 icon to make it thinner —
+    // it stays narrower through PADDING alone (px-3 vs px-4) plus Save Contact
+    // taking flex-1, never by shrinking the label.
+    const save = buttonWithHandler("onClick={downloadVCard}");
+    const qr = buttonWithHandler("setShowQr(true)");
+    for (const cls of ["text-sm", "font-semibold", "py-3", "gap-2", "rounded-full"]) {
+      expect(save, `save button lost ${cls}`).toContain(cls);
+      expect(qr, `QR button no longer matches on ${cls}`).toContain(cls);
+    }
+    // No bespoke font size on either — that's how they drifted apart.
+    expect(qr, "the QR label has its own font size again").not.toMatch(/text-\[\d/);
+    expect(save, "the save label has a bespoke font size").not.toMatch(/text-\[\d/);
+    // Icons match too: a smaller glyph beside the same text still looks off.
+    const iconSize = (block: string) => {
+      const at = src.indexOf(block);
+      const svg = src.slice(at, src.indexOf("</svg>", at));
+      return (svg.match(/className="(w-[\d.]+) (h-[\d.]+)"/) ?? [])[0];
+    };
+    expect(iconSize("setShowQr(true)"), "the QR icon is a different size to the save icon")
+      .toBe(iconSize("onClick={downloadVCard}"));
   });
 
   it("the two buttons stay aligned before AND after the contact is saved", () => {
