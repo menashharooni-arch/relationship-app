@@ -7,6 +7,7 @@ import { triggerSignupNudge } from "@/lib/nudge";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
+import { MiniQR } from "@/components/card-templates/MiniQR";
 
 interface Person {
   name: string;
@@ -86,6 +87,9 @@ export default function SaveContactButton({
   const [saved, setSaved] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
+  // Desktop-only QR popup: on a computer you can't tap the card into your
+  // phone, so the QR is the bridge — scan it and the card opens there.
+  const [showQr, setShowQr] = useState(false);
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
@@ -104,6 +108,13 @@ export default function SaveContactButton({
   // friendly "create your free card" invite — the moment is already theirs.
   function closeSheet() {
     setShowSheet(false);
+    triggerSignupNudge("vcard");
+  }
+
+  // Closing the QR popup follows the same rule: they engaged with the card, so
+  // the "create your free card" invite follows the popup out.
+  function closeQr() {
+    setShowQr(false);
     triggerSignupNudge("vcard");
   }
 
@@ -234,33 +245,51 @@ export default function SaveContactButton({
     markSharedWith(cardOwner, form);
     setAlreadyShared(true);
     setStatus("done");
-    // After they share back, close the sheet and invite them to make their own card.
-    setTimeout(() => { setShowSheet(false); triggerSignupNudge("vcard"); }, 1500);
+    // After they share back, close whichever surface hosted the form (the
+    // bottom sheet or the desktop QR popup) and invite them to make their own card.
+    setTimeout(() => { setShowSheet(false); setShowQr(false); triggerSignupNudge("vcard"); }, 1500);
   }
 
   return (
     <>
-      <button
-        onClick={downloadVCard}
-        className={`w-full text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2 ${saved ? "" : "active:bg-blue-800"}`}
-        style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
-      >
-        {saved ? (
-          <>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            Saved to Contacts!
-          </>
-        ) : (
-          <>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-            </svg>
-            Save Contact
-          </>
-        )}
-      </button>
+      {/* On a phone the blue button owns the full row, exactly as before. On a
+          computer (md+) it slims down, stays on the left, and "Scan QR code"
+          joins it on the right — scanning is the desktop bridge to the phone. */}
+      <div className="flex items-stretch gap-2">
+        <button
+          onClick={downloadVCard}
+          className={`flex-1 min-w-0 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2 ${saved ? "" : "active:bg-blue-800"}`}
+          style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
+        >
+          {saved ? (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Saved to Contacts!
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              Save Contact
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowQr(true)}
+          className="hidden md:flex shrink-0 items-center justify-center gap-1.5 font-semibold py-3 px-4 rounded-full text-sm border transition-colors hover:bg-blue-50"
+          style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+          </svg>
+          Scan QR code
+        </button>
+      </div>
       {/* Once saved: the phone-confirm pointer, plus a persistent "create your
           free card" CTA right under the button — so after they dismiss the
           popups the invite is still one tap away on the page itself. */}
@@ -363,6 +392,109 @@ export default function SaveContactButton({
                     No thanks
                   </button>
                 </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Desktop QR popup — the card's QR to scan with a phone, with the same
+          "share your info back" invite the bottom sheet carries. Only reachable
+          from the md+ Scan QR code button, so phones never see it. */}
+      {showQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={(e) => e.target === e.currentTarget && closeQr()}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+            style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
+          >
+            {status === "done" ? (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-slate-900 font-bold text-base">Info shared!</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-slate-900 font-bold text-base leading-snug">Scan with your phone</p>
+                    <p className="text-slate-500 text-sm mt-1">
+                      Point your camera at the code — {ownerFirstName ?? "their"} card opens right on your phone.
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeQr}
+                    className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="flex justify-center mb-4">
+                  <MiniQR
+                    size={196}
+                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${username ?? cardOwner ?? ""}`}
+                  />
+                </div>
+
+                {/* The same share-back invite the save flow shows — one form,
+                    one submit path, whichever surface it appears on. */}
+                {!alreadyShared && (
+                  <>
+                    <div className="border-t my-4" style={{ borderColor: "#E4DDD4" }} />
+                    <p className="text-slate-900 font-bold text-base leading-snug">
+                      Let {ownerFirstName ?? "them"} have yours too
+                    </p>
+                    <p className="text-slate-500 text-sm mt-1 mb-3">Share your information!</p>
+                    <form onSubmit={shareBack} className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Your name *"
+                        value={form.name}
+                        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Your phone *"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Your email (optional)"
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
+                      />
+                      <SmsConsentCheckbox recipientName={ownerFirstName} />
+                      <button
+                        type="submit"
+                        disabled={status === "loading"}
+                        className="w-full font-bold py-3 rounded-full text-white text-sm transition-all disabled:opacity-50"
+                        style={{ background: "#1D4ED8" }}
+                      >
+                        {status === "loading" ? "Sending…" : `Share my info with ${ownerFirstName ?? "them"} →`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeQr}
+                        className="w-full text-slate-400 text-sm py-1.5 hover:text-slate-600 transition-colors"
+                      >
+                        No thanks
+                      </button>
+                    </form>
+                  </>
+                )}
               </>
             )}
           </div>
