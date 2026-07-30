@@ -102,6 +102,12 @@ describe("no public surface keeps its own copy of the list", () => {
       "src/lib/plan-content.ts",
       "src/app/api/ai/help/route.ts",
       "src/app/api/ai/sales/route.ts",
+      // The legal pages enumerate the integrations too, and were missed on the
+      // first pass precisely because nobody thinks of Terms as marketing copy.
+      // They are the surfaces where being out of date actually matters most.
+      "src/app/terms/page.tsx",
+      "src/app/privacy/page.tsx",
+      "src/lib/tour-steps.ts",
     ];
     for (const path of surfaces) {
       const src = read(path);
