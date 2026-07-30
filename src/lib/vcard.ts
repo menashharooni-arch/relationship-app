@@ -33,6 +33,16 @@ export interface VCardPerson {
   phones?: VCardPhone[] | null;
   fax?: string | null;
   website?: string | null;
+  /**
+   * The saver's own SwiftCard link (https://swiftcard.me/card/<slug>).
+   *
+   * Saved into the contact so the card doesn't end at "Create New Contact":
+   * everything that lives on the card but not in a vCard — the design, Swift
+   * Links, testimonials, the full bio — stays one tap away from the contact
+   * card forever. Especially matters for the QR flow, where the phone may never
+   * have opened the card in a browser at all.
+   */
+  cardUrl?: string | null;
   address?: VCardAddress | null;
   linkedin?: string | null;
   instagram?: string | null;
@@ -135,6 +145,10 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
   if (person.fax && person.fax.trim()) lines.push(`TEL;TYPE=FAX:${esc(person.fax)}`);
 
   if (person.website) lines.push(`URL:${esc(normalizeVCardUrl(person.website))}`);
+
+  // Labelled so the phone shows it as its own row ("SwiftCard") rather than a
+  // second anonymous URL indistinguishable from their website.
+  if (person.cardUrl) lines.push(`URL;type=SwiftCard:${esc(normalizeVCardUrl(person.cardUrl))}`);
 
   const addr = person.address;
   if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
