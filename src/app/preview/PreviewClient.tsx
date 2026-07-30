@@ -173,7 +173,18 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-8">{children}</div>
+      {/* Click anywhere OUTSIDE the phone to close, so there are three ways
+          out — the X, the backdrop and Escape — on phone and computer alike.
+          The e.target === e.currentTarget check is what makes "outside" mean
+          outside: without it a tap on the phone itself, or on any control
+          inside it, would bubble up here and close the thing the visitor is
+          trying to use. Clicks inside the iframe never reach this at all. */}
+      <div
+        className="flex-1 overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-8"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        {children}
+      </div>
       {/* Peak-interest CTA — they're literally holding the product right now */}
       <div className="shrink-0 border-t border-gray-800 bg-gray-950/95 backdrop-blur px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-3">
