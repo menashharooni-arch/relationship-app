@@ -7,7 +7,7 @@ import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
 // Forward-declare it here so this wrapper can pass guest mode before/after that
@@ -30,7 +30,7 @@ const Wizard = NewCardWizard as ComponentType<{
 export default async function NewCardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ add?: string; claim?: string; plan?: string; interval?: string; seats?: string }>;
+  searchParams: Promise<{ add?: string; claim?: string; plan?: string; interval?: string; seats?: string; promo?: string; postcheckout?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -52,6 +52,12 @@ export default async function NewCardPage({
   if (user && sp.plan === "pro" && sp.claim !== "1") {
     if (cardCount > 0) {
       const qs = new URLSearchParams({ plan: "pro", interval: sp.interval === "annual" ? "annual" : "monthly" });
+      // Carry the promo through this fast-path too. The wizard already forwards
+      // it (/pricing → builder → /checkout), but a logged-in buyer with an
+      // existing card skips the builder entirely via THIS redirect — and the
+      // rebuilt query string was dropping their code, so the exact user most
+      // likely to convert reached checkout at full price.
+      if (sp.promo) qs.set("promo", sp.promo);
       redirect(`/checkout?${qs.toString()}`);
     }
   }
@@ -78,6 +84,21 @@ export default async function NewCardPage({
       .eq("id", user.id)
       .single();
     isPro = isPaidPlan(profile?.plan);
+  }
+
+  // A Free account already AT the card cap must not enter the add-a-card builder
+  // at all: the dashboard hides "+ Add card" at the limit, but a stale tab or
+  // bookmark still reaches this URL, and without this check they could build an
+  // entire card only to have Save reject it and discard their work at /upgrade.
+  // Send them there BEFORE they type anything instead.
+  //   • plan CTAs (?plan=pro|office) are exempt — they're on their way to pay.
+  //   • postcheckout is exempt — a just-paid buyer can land here before the
+  //     Stripe webhook flips their plan, and must never be bounced away.
+  if (
+    user && sp.add === "1" && !authedPlan && !sp.postcheckout &&
+    !isPro && cardCount >= PLAN_LIMITS.FREE_CARD_LIMIT
+  ) {
+    redirect("/upgrade");
   }
 
   // First-card design preview: an already-authed Free account building its
