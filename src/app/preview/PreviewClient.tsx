@@ -5,10 +5,10 @@ import SiteNav from "@/components/site/SiteNav";
 import PortalNavPreview, { type PortalTabId } from "@/components/site/PortalNavPreview";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
 import ShareButton from "@/components/ShareButton";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import type { CardData } from "@/components/card-templates/types";
+import TrafficChart, { type TrafficBucket } from "@/components/TrafficChart";
 
 type Range = "today" | "week" | "month" | "locations";
 type DemoLocation = { location: string; card: number; link: number };
@@ -23,14 +23,26 @@ type DemoCard = {
   data: CardData;
   total: string;
   traffic: Record<"today" | "week" | "month", { card: string; links: string }>;
+  /** % change vs the previous same-size window — the real Traffic box shows this. */
+  deltas: Record<"today" | "week" | "month", { card: number; links: number }>;
+  bestDay: { label: string; views: number };
   locations: DemoLocation[];
   leads: Lead[];
+};
+
+/** Same phrasing the real dashboard uses under each stat tile. */
+const DELTA_PERIOD: Record<"today" | "week" | "month", string> = {
+  today: "vs yesterday",
+  week: "vs last week",
+  month: "vs last month",
 };
 
 const CARDS: DemoCard[] = [
   {
     key: "sales", label: "Sales Card", handle: "demo-sales", template: "modern-bold", accent: "#2563eb", total: "87",
     traffic: { today: { card: "142", links: "63" }, week: { card: "1,248", links: "593" }, month: { card: "4,517", links: "2,104" } },
+    deltas: { today: { card: 18, links: 9 }, week: { card: 12, links: 7 }, month: { card: 23, links: 15 } },
+    bestDay: { label: "Jul 24", views: 316 },
     locations: [
       { location: "New York, US", card: 1834, link: 902 },
       { location: "Chicago, US", card: 1121, link: 486 },
@@ -52,6 +64,8 @@ const CARDS: DemoCard[] = [
   {
     key: "realestate", label: "Real Estate Card", handle: "demo-realty", template: "local-business", accent: "#d97706", total: "143",
     traffic: { today: { card: "231", links: "98" }, week: { card: "2,034", links: "874" }, month: { card: "7,860", links: "3,221" } },
+    deltas: { today: { card: 11, links: 21 }, week: { card: 16, links: 10 }, month: { card: 19, links: 26 } },
+    bestDay: { label: "Jul 26", views: 489 },
     locations: [
       { location: "San Francisco, US", card: 3105, link: 1240 },
       { location: "Oakland, US", card: 1877, link: 705 },
@@ -221,6 +235,40 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
   const card = CARDS.find((c) => c.key === activeKey)!;
   const firstName = card.data.name.split(" ")[0];
   const traffic = card.traffic[range === "locations" ? "week" : range];
+
+  // Demo buckets for the traffic chart, mirroring the real dashboard's series.
+  // Generated on the CLIENT after mount: bucket timestamps come from the clock,
+  // and a server-rendered timestamp would never hydrate cleanly. Deterministic
+  // per card+range (seeded hash) so switching back and forth doesn't reshuffle
+  // the bars — the demo should feel like data, not a slot machine.
+  const [buckets, setBuckets] = useState<{ list: TrafficBucket[]; max: number } | null>(null);
+  useEffect(() => {
+    const effRange = range === "locations" ? "week" : range;
+    const t = card.traffic[effRange];
+    const total = Number(t.card.replace(/,/g, "")) + Number(t.links.replace(/,/g, ""));
+    const n = effRange === "today" ? 24 : effRange === "week" ? 7 : 30;
+    const stepMs = effRange === "today" ? 3_600_000 : 86_400_000;
+
+    // Tiny seeded PRNG (FNV-1a mix) — stable weights per card+range.
+    let h = 2166136261;
+    for (const ch of `${card.key}:${effRange}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+    const rnd = () => {
+      h = Math.imul(h ^ (h >>> 15), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    };
+
+    const weights = Array.from({ length: n }, () => 0.35 + rnd());
+    const sum = weights.reduce((a, b) => a + b, 0);
+    // eslint-disable-next-line react-hooks/purity -- runs in an effect, not render: bucket timestamps must come from the real clock so the chart's axis reads like live data
+    const nowBucket = Math.floor(Date.now() / stepMs) * stepMs;
+    const list: TrafficBucket[] = weights.map((w, i) => ({
+      ts: nowBucket - (n - 1 - i) * stepMs,
+      count: Math.max(0, Math.round((total * w) / sum)),
+    }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only clock-derived data
+    setBuckets({ list, max: Math.max(...list.map((b) => b.count), 1) });
+  }, [card, range]);
   const cardUrl = `https://swiftcard.me/card/${card.handle}`;
   const toggleRead = (id: string) => setRead((p) => ({ ...p, [id]: !p[id] }));
 
@@ -228,6 +276,13 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
     try { navigator.clipboard?.writeText(`${card.data.name}\nhttps://swiftcard.me/card/${card.handle}`); } catch { /* ignore */ }
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
+  }
+
+  const [linksCopied, setLinksCopied] = useState(false);
+  function copyLinksUrl() {
+    try { navigator.clipboard?.writeText(`https://swiftcard.me/links/${card.handle}`); } catch { /* ignore */ }
+    setLinksCopied(true);
+    setTimeout(() => setLinksCopied(false), 2200);
   }
 
   // Your Card + Share + other ways to share — shown under My Cards on mobile and in the
@@ -275,18 +330,19 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         <div className="rounded-2xl border border-blue-800/40 bg-blue-950/30 p-4 sm:p-5 mb-5">
           <p className="text-blue-100 text-sm font-bold mb-3">New here? Start with these three:</p>
           <div className="grid sm:grid-cols-3 gap-2.5">
-            {[
-              { n: "1", t: "See your SwiftCard", d: "Tap Preview SwiftCard to open the real card people get." },
-              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page for Instagram, TikTok, or other social bios." },
-              { n: "3", t: "Preview Swift Signature", d: "Your card in every email you send." },
-            ].map((s) => (
-              <div key={s.n} className="rounded-xl bg-gray-900/50 border border-gray-800 px-3 py-2.5">
+            {([
+              { n: "1", t: "See your SwiftCard", d: "The real card people get when you share.", act: () => openDemo("card") },
+              { n: "2", t: "Open Swift Links", d: "Your link-in-bio page — it lives under the Links tab.", act: () => openDemo("links") },
+              { n: "3", t: "Preview Swift Signature", d: "Your card in every email — also under Links.", act: () => openDemo("signature") },
+            ] as const).map((s) => (
+              <button key={s.n} type="button" onClick={s.act}
+                className="text-left rounded-xl bg-gray-900/50 border border-gray-800 hover:border-blue-700/60 px-3 py-2.5 transition-colors">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">{s.n}</span>
                   <span className="text-white text-[12px] font-semibold">{s.t}</span>
                 </div>
                 <p className="text-gray-400 text-[11px] leading-snug">{s.d}</p>
-              </div>
+              </button>
             ))}
           </div>
           <p className="text-blue-300/70 text-[11px] mt-3">Tip: switch cards up top — every number updates.</p>
@@ -326,9 +382,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           {cardSharePanel}
         </div>
 
-        {/* Top row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.85fr_0.72fr_0.7fr] gap-4 mb-5">
-          {/* Traffic — interactive range */}
+        {/* Traffic — full width, exactly like the real dashboard (Swift Links +
+            Swift Signature moved to the Links tab, mirroring their move to
+            /share in the real portal). */}
+        <div className="mb-5">
           <Box>
             <div className="flex items-center justify-between mb-4">
               <p className="text-white font-semibold text-sm">Traffic</p>
@@ -356,67 +413,119 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 ))}
               </div>
             ) : (
-            <div className="space-y-3">
-              {[
-                { label: "SwiftCard Views", sub: "from your business card link", value: traffic.card },
-                { label: "SwiftLink Views", sub: "from your Swift Links page", value: traffic.links },
-              ].map((m) => (
-                <div key={m.label} className="flex items-center justify-between bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5">
-                  <div className="min-w-0">
-                    <p className="text-gray-100 text-sm font-semibold">{m.label}</p>
-                    <p className="text-gray-600 text-[11px]">{m.sub}</p>
+            <div>
+              {/* Stat tiles side by side with change vs the previous window —
+                  the exact layout the real dashboard's Traffic box uses. */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* range is already narrowed here — the locations branch was
+                    handled above, so no defensive fallback is needed. */}
+                {[
+                  { label: "SwiftCard views", value: traffic.card, delta: card.deltas[range].card, accent: "#818cf8" },
+                  { label: "Swift Link views", value: traffic.links, delta: card.deltas[range].links, accent: "#22d3ee" },
+                ].map((m) => (
+                  <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
+                    <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
+                    <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value}</p>
+                    <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
+                      {m.delta < 0 ? "▼" : "▲"} {Math.abs(m.delta)}% {DELTA_PERIOD[range]}
+                    </p>
                   </div>
-                  <p className="text-2xl font-bold text-white tabular-nums shrink-0">{m.value}</p>
-                </div>
-              ))}
+                ))}
+              </div>
+              {/* Same time-series bar graph the real dashboard renders. Buckets
+                  are generated on mount (they carry real timestamps, which
+                  would differ between server render and hydration). */}
+              {buckets && (
+                <TrafficChart
+                  buckets={buckets.list}
+                  range={range}
+                  max={buckets.max}
+                  tz={undefined}
+                />
+              )}
             </div>
             )}
-          </Box>
-
-          {/* Swift Links — with description */}
-          <Box>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
-              <p className="text-white text-sm font-semibold">Swift Links</p>
+            {/* Basic stats footer — contacts captured + best day, like the real box */}
+            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
+              <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{card.total}</span></span>
+              <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{card.bestDay.label}</span> · {card.bestDay.views}</span>
             </div>
-            <p className="text-gray-500 text-[11px] leading-relaxed mb-3">Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your Instagram, TikTok, or other social bios.</p>
-            <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
-              <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
-            </div>
-            <button type="button" onClick={() => openDemo("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">Open Swift Links →</button>
-          </Box>
-
-          {/* Swift Signature — with description */}
-          <Box>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
-              <p className="text-white text-sm font-semibold">Swift Signature</p>
-            </div>
-            <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">Drop your live card into your email signature — image + clickable links, always up to date. Every email shares your card.</p>
-            <button type="button" onClick={() => openDemo("signature")} className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors">Preview &amp; copy</button>
           </Box>
         </div>
 
         </>)}
 
-        {/* Links tab — the Swift Links page, the way the real /share route
-            leads with it rather than burying it beside the traffic boxes. */}
+        {/* Links tab — replica of the real /share page: a narrow centred
+            column with a Links header, the Swift Links section, then the
+            Swift Signature section. This is where both live in the real
+            portal now, so this is where the demo shows them. */}
         {portalTab === "links" && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
-            <Box>
-              <p className="text-white text-base font-semibold">Swift Links</p>
-              <p className="text-gray-500 text-xs leading-relaxed mt-1.5 mb-4">
-                Your link-in-bio page — bio, socials, and link buttons in one place. Drop it in your
-                Instagram, TikTok, or other social bios.
+          <div className="max-w-md mx-auto">
+            <div className="mb-6">
+              <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+              <h2 className="text-2xl font-bold text-white">Links</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                For <span className="text-gray-300 font-medium">{card.label}</span>
+                <span className="text-gray-600"> · /{card.handle}</span>
               </p>
-              <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-3">
-                <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
+            </div>
+
+            <div className="space-y-6">
+              {/* Swift Links — same section the real /share page renders */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Links</p>
+                <Box>
+                  <p className="text-gray-500 text-xs mb-3 leading-relaxed">
+                    A separate link from your card — your bio, socials, and links in one place. Drop it in your Instagram, TikTok, or any social bio.
+                  </p>
+                  <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                    </svg>
+                    <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
+                    <button type="button" onClick={copyLinksUrl}
+                      className="text-[11px] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2.5 py-1 transition-colors shrink-0">
+                      {linksCopied ? "Copied ✓" : "Copy"}
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => openDemo("links")}
+                    className="mt-2 block w-full text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+                    Open Swift Links →
+                  </button>
+                </Box>
               </div>
-              <button type="button" onClick={() => openDemo("links")} className="block w-full text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">
-                Open Swift Links →
-              </button>
-            </Box>
-            <div className="hidden lg:flex lg:flex-col gap-4">{cardSharePanel}</div>
+
+              {/* Swift Signature — same section the real /share page renders */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Signature</p>
+                <Box>
+                  <p className="text-gray-500 text-xs mb-3 leading-relaxed">
+                    Your live card in every email you send — image + clickable links, always up to date.
+                  </p>
+                  {/* The signature as it lands in an email — the same preview the modal shows */}
+                  <div className="rounded-xl bg-white p-4">
+                    <div className="border-t border-gray-200 pt-3">
+                      <p className="text-gray-900 text-sm font-semibold">{card.data.name}</p>
+                      <p className="text-gray-500 text-xs">{card.data.title} · {card.data.company}</p>
+                      <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 max-w-[260px]">
+                        <CardOnlyPreview key={`sig-${card.handle}`} src={`/card/${card.handle}?embed=card`} />
+                      </div>
+                      <p className="text-blue-600 text-[11px] mt-1.5 underline">swiftcard.me/card/{card.handle}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button type="button" onClick={() => openDemo("signature")}
+                      className="text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+                      See it in an email
+                    </button>
+                    <button type="button" onClick={copySig}
+                      className="text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">
+                      {copied ? "Copied ✓" : "Copy signature"}
+                    </button>
+                  </div>
+                </Box>
+              </div>
+            </div>
           </div>
         )}
 
