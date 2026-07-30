@@ -21,16 +21,37 @@ function qrCallBlock(): string {
   return src.slice(at, src.indexOf("/>", at) + 2);
 }
 
-describe("the scan-QR popup saves a contact, it doesn't reopen the card", () => {
-  it("encodes the vCard endpoint", () => {
+describe("scanning saves the contact AND leaves them on the card", () => {
+  it("lands on the card page with ?save=1, not the raw .vcf", () => {
+    // Pointing straight at /api/.../vcard delivers the contact and then strands
+    // the visitor on a blank page — the card they scanned is gone. The card
+    // page has to be what loads, so it's underneath the contact sheet.
     const block = qrCallBlock();
-    expect(block, "QR no longer points at the vCard endpoint").toMatch(/\/api\/card\/.+\/vcard/);
+    expect(block, "QR no longer lands on the card page").toMatch(/\/card\/.+save=1/);
+    expect(block, "QR points straight at the raw vCard again — that strands the visitor").not.toMatch(/\/api\/card\//);
   });
 
-  it("does NOT encode the public card page", () => {
-    const block = qrCallBlock();
-    // `/card/${...}` without the /api prefix and /vcard suffix = the web card.
-    expect(block).not.toMatch(/\$\{[^}]*\}\/card\/\$\{[^}]*\}`/);
+  it("?save=1 actually hands the phone the contact", () => {
+    // The landing page is only half the job: without this the visitor gets the
+    // card and no contact at all.
+    const page = readFileSync(join(root, "src/app/card/[username]/page.tsx"), "utf8");
+    expect(page).toMatch(/save === "1"/);
+    expect(page).toContain("<ScanSaveContact");
+    const comp = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+    expect(comp, "the contact is no longer fetched").toMatch(/\/api\/card\/.+\/vcard/);
+  });
+
+  it("delivers via an iframe so the card page survives", () => {
+    // Navigating the top frame to a text/vcard URL leaves Android Chrome on a
+    // blank tab — the exact failure this whole change exists to prevent.
+    const comp = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+    expect(comp).toMatch(/createElement\("iframe"\)/);
+    expect(comp, "top-frame navigation would blank the page on Android").not.toMatch(/window\.location\s*=|location\.href\s*=/);
+  });
+
+  it("fires once — two contact sheets is worse than none", () => {
+    const comp = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+    expect(comp).toMatch(/fired\.current/);
   });
 
   it("the vCard route still serves a contact file, which is what makes scanning work", () => {
@@ -42,7 +63,7 @@ describe("the scan-QR popup saves a contact, it doesn't reopen the card", () => 
   it("stays scannable: the encoded URL is sparse enough at the rendered size", () => {
     // A dense QR photographed across a desk fails to scan. At the popup's 196px,
     // keep modules comfortably above the ~4px phone cameras need.
-    const url = `https://swiftcard.me/api/card/${"a".repeat(40)}/vcard`;
+    const url = `https://swiftcard.me/card/${"a".repeat(40)}?save=1`;
     const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
     const pxPerModule = 196 / qr.modules.size;
     expect(pxPerModule, `${qr.modules.size}x${qr.modules.size} is too dense`).toBeGreaterThan(4);

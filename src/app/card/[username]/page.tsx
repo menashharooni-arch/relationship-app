@@ -7,6 +7,7 @@ import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
+import ScanSaveContact from "@/components/ScanSaveContact";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import CardActionLinks from "@/components/CardActionLinks";
@@ -112,11 +113,15 @@ export default async function CardPage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ source?: string; embed?: string; shared?: string }>;
+  searchParams: Promise<{ source?: string; embed?: string; shared?: string; save?: string }>;
 }) {
   const { username } = await params;
-  const { source: rawSource, embed, shared } = await searchParams;
+  const { source: rawSource, embed, shared, save } = await searchParams;
   const source = rawSource ?? "direct_link";
+  // ?save=1 — arrived by scanning the desktop QR. The card renders normally and
+  // ScanSaveContact hands the phone the contact on top of it, so dismissing the
+  // "Add to Contacts" sheet leaves them on the card instead of a blank page.
+  const autoSave = save === "1";
   const isEmbed = embed === "1"; // rendered inside the /preview demo — skip tracking + nudge
   // ?shared=1 — this link was sent by the owner from one of their saved
   // contacts ("Share my contact information"), so the recipient's info is
@@ -311,6 +316,10 @@ export default async function CardPage({
   return (
     <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
+      {/* Scanned the desktop QR: deliver the contact over this page. */}
+      {autoSave && !isEmbed && (
+        <ScanSaveContact username={profile.username} suppressTracking={isOwnerView} />
+      )}
       {!isEmbed && !isOwnerView && <SignupNudgeHost />}
 
       {/* Business card — socials live in Swift Links, not on the card */}

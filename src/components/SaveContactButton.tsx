@@ -432,7 +432,8 @@ export default function SaveContactButton({
                     <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
                     <p className="text-slate-500 text-sm mt-1">
                       Point your phone camera at the code — the contact opens already filled in.
-                      Just tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it.
+                      Tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it,
+                      and the card stays open behind it.
                     </p>
                   </div>
                   <button
@@ -444,18 +445,17 @@ export default function SaveContactButton({
                   </button>
                 </div>
 
-                {/* The QR points at the vCARD endpoint, not the card page — so
-                    scanning it does the same thing as tapping Save Contact on a
-                    phone: the .vcf opens and iOS/Android show their native "Add
-                    to Contacts" screen with every field already filled in, one
-                    tap from saved. Encoding the vCard text directly in the QR
-                    would work too, but a full contact makes the code dense and
-                    unreliable to scan across a desk; a short URL stays crisp.
-                    Same endpoint the native app hands to the system browser. */}
+                {/* The QR lands on the CARD PAGE with ?save=1 — not the raw .vcf.
+                    The card loads, then ScanSaveContact hands the phone the
+                    contact on top of it, so iOS/Android show their native "Add
+                    to Contacts" screen with every field filled AND dismissing it
+                    leaves the visitor on the full SwiftCard, free to keep
+                    scrolling. Pointing straight at the .vcf gave them the
+                    contact and then a blank page. */}
                 <div className="flex justify-center mb-4">
                   <MiniQR
                     size={196}
-                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/api/card/${encodeURIComponent(username ?? cardOwner ?? "")}/vcard`}
+                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1`}
                   />
                 </div>
 
