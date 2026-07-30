@@ -523,10 +523,13 @@ export default async function DashboardPage({
           </Link>
         </div>
         <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
-        {/* previewUrl powers the NATIVE path: in the iOS shell WKWebView can't
-            save a generated PNG data URL, so DownloadCardButton shares this link
-            via the native share sheet instead of dead-tapping. Omitting it also
-            hid the adjacent "Preview" link entirely. */}
+        {/* previewUrl powers the NATIVE path ONLY: in the iOS shell WKWebView
+            can't save a generated PNG data URL, so DownloadCardButton shares
+            this link via the native share sheet instead of dead-tapping.
+            It renders no visible control — opening the card is the job of the
+            "View live card" button in the header above, and this prop briefly
+            resurrected a duplicate "Preview" link that had been deliberately
+            removed. */}
         <CardPreviewDownload
           data={cardData}
           template={activeTemplate}
