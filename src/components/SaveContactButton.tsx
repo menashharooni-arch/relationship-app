@@ -170,6 +170,9 @@ export default function SaveContactButton({
         phones: person.phones,
         fax: person.fax,
         website: person.website,
+        // Same SwiftCard link the QR/server vCard embeds — a contact saved from
+        // the phone button and one saved by scanning must be identical.
+        cardUrl: username || cardOwner ? `${window.location.origin}/card/${username ?? cardOwner}` : undefined,
         address: person.address,
         linkedin: person.linkedin,
         instagram: person.instagram,

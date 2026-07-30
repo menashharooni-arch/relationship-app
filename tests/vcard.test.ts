@@ -122,3 +122,66 @@ describe("buildVCard — embedded PHOTO", () => {
     expect(out).toContain("EMAIL;TYPE=WORK:a@b.com");
   });
 });
+
+// ── The scanned contact must carry the WHOLE card ────────────────────────────
+//
+// The desktop QR encodes /api/card/<user>/vcard, so whatever that vCard omits
+// is simply missing from the contact the scanner saves — silently, with no
+// error anywhere. These pin the full payload and the link back to the card.
+
+describe("a saved contact carries everything the card holds", () => {
+  const full = {
+    name: "Alex Morgan",
+    title: "Realtor",
+    company: "Coastline Realty",
+    email: "alex@coastlinerealty.com",
+    phone: "(415) 555-0188",
+    fax: "(415) 555-0199",
+    website: "coastlinehomes.com",
+    cardUrl: "https://swiftcard.me/card/demo-realty",
+    address: { street: "1200 Ocean Ave", unit: "4B", city: "San Francisco", state: "CA", zip: "94122" },
+    linkedin: "alexmorgan",
+    instagram: "@coastlinerealty",
+    twitter: "@alexmorgan",
+    tiktok: "@coastlinerealty",
+  };
+
+  it("includes every field a card can hold, plus the photo", () => {
+    const out = buildVCard(full, { base64: "/9j/4AAQSkZJRg==", mime: "image/jpeg" });
+    for (const probe of [
+      "FN:Alex Morgan",
+      "TITLE:Realtor",
+      "ORG:Coastline Realty",
+      "EMAIL;TYPE=WORK:alex@coastlinerealty.com",
+      "(415) 555-0188",
+      "TEL;TYPE=FAX:",
+      "URL:https://coastlinehomes.com",
+      "ADR;TYPE=WORK:",
+      "1200 Ocean Ave",
+      "San Francisco",
+      "94122",
+      "URL;type=LinkedIn:",
+      "X-SOCIALPROFILE;type=instagram:",
+      "PHOTO;ENCODING=b",
+    ]) {
+      expect(out, `missing from the saved contact: ${probe}`).toContain(probe);
+    }
+  });
+
+  it("carries the SwiftCard link so the card outlives the save", () => {
+    // Without this the contact is a dead end: the design, Swift Links and
+    // everything else on the card become unreachable once the sheet closes.
+    const out = buildVCard(full);
+    expect(out).toContain("URL;type=SwiftCard:https://swiftcard.me/card/demo-realty");
+  });
+
+  it("keeps the card link distinguishable from the personal website", () => {
+    const out = buildVCard(full);
+    expect(out).toContain("URL:https://coastlinehomes.com");
+    expect(out.match(/^URL/gm)?.length).toBe(3); // website + SwiftCard + LinkedIn
+  });
+
+  it("omits the card link cleanly when there isn't one", () => {
+    expect(buildVCard({ name: "A B" })).not.toContain("SwiftCard");
+  });
+});
