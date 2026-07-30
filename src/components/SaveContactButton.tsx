@@ -8,6 +8,7 @@ import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 import { MiniQR } from "@/components/card-templates/MiniQR";
+import { SCAN_SAVED_EVENT } from "@/lib/scan-saved-event";
 
 interface Person {
   name: string;
@@ -104,6 +105,21 @@ export default function SaveContactButton({
     if (v) setForm({ name: v.name, phone: v.phone, email: v.email });
   }, [cardOwner]);
 
+  // A QR scan on a phone finishes at the OS "Add to Contacts" sheet, outside
+  // this component entirely — ScanSaveContact (on the card page) announces when
+  // that's done so the share-back ask lands there too, matching the button flow.
+  // Listening rather than lifting state keeps the sheet's markup in one place.
+  useEffect(() => {
+    if (!cardOwner) return;
+    function onScanSaved() {
+      if (hasSharedWith(cardOwner!)) { triggerSignupNudge("vcard"); return; }
+      setSaved(true);
+      setShowSheet(true);
+    }
+    window.addEventListener(SCAN_SAVED_EVENT, onScanSaved);
+    return () => window.removeEventListener(SCAN_SAVED_EVENT, onScanSaved);
+  }, [cardOwner]);
+
   // Every dismissal path (X, backdrop, "No thanks") still earns the visitor a
   // friendly "create your free card" invite — the moment is already theirs.
   function closeSheet() {
@@ -111,11 +127,18 @@ export default function SaveContactButton({
     triggerSignupNudge("vcard");
   }
 
-  // Closing the QR popup follows the same rule: they engaged with the card, so
-  // the "create your free card" invite follows the popup out.
+  // Closing the QR popup hands off to the SAME share-back sheet the Save
+  // Contact button raises — the ask doesn't belong inside the QR popup (they're
+  // looking at their phone, not the screen), it belongs after it, exactly where
+  // it lands in the save flow. If they've already shared, skip straight to the
+  // signup nudge like every other dismissal path.
   function closeQr() {
     setShowQr(false);
-    triggerSignupNudge("vcard");
+    if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
+      setTimeout(() => setShowSheet(true), 250);
+    } else {
+      triggerSignupNudge("vcard");
+    }
   }
 
   async function downloadVCard() {
@@ -259,9 +282,13 @@ export default function SaveContactButton({
           computer (md+) it slims down, stays on the left, and "Scan QR code"
           joins it on the right — scanning is the desktop bridge to the phone. */}
       <div className="flex items-stretch gap-2">
+        {/* whitespace-nowrap on both: the saved label ("Saved to Contacts!") is
+            longer than "Save Contact", and without this it wraps to two lines in
+            the narrowed flex-1 — the row's two buttons then have different
+            heights and visibly stop lining up the moment the contact saves. */}
         <button
           onClick={downloadVCard}
-          className={`flex-1 min-w-0 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm flex items-center justify-center gap-2 ${saved ? "" : "active:bg-blue-800"}`}
+          className={`flex-1 min-w-0 text-white font-semibold py-3 px-4 rounded-full transition-colors text-sm flex items-center justify-center gap-2 whitespace-nowrap ${saved ? "" : "active:bg-blue-800"}`}
           style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
         >
           {saved ? (
@@ -403,9 +430,12 @@ export default function SaveContactButton({
         </div>
       )}
 
-      {/* Desktop QR popup — the card's QR to scan with a phone, with the same
-          "share your info back" invite the bottom sheet carries. Only reachable
-          from the md+ Scan QR code button, so phones never see it. */}
+      {/* Desktop QR popup — JUST the code. The "Let <name> have yours too" ask
+          deliberately does NOT live in here: while this is open the visitor is
+          looking at their phone, not the screen, so a form behind the code is
+          asking at the one moment nobody is reading. It fires on close instead
+          (see closeQr), landing in exactly the same place it does in the Save
+          Contact flow. Only reachable from the md+ button, so phones never see it. */}
       {showQr && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -416,101 +446,45 @@ export default function SaveContactButton({
             className="w-full max-w-sm rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
             style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
           >
-            {status === "done" ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <p className="text-slate-900 font-bold text-base">Info shared!</p>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
+                <p className="text-slate-500 text-sm mt-1">
+                  Point your phone camera at the code — the contact opens already filled in.
+                  Tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it,
+                  and the card stays open behind it.
+                </p>
               </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
-                    <p className="text-slate-500 text-sm mt-1">
-                      Point your phone camera at the code — the contact opens already filled in.
-                      Tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it,
-                      and the card stays open behind it.
-                    </p>
-                  </div>
-                  <button
-                    onClick={closeQr}
-                    className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-                </div>
+              <button
+                onClick={closeQr}
+                className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
 
-                {/* The QR lands on the CARD PAGE with ?save=1 — not the raw .vcf.
-                    The card loads, then ScanSaveContact hands the phone the
-                    contact on top of it, so iOS/Android show their native "Add
-                    to Contacts" screen with every field filled AND dismissing it
-                    leaves the visitor on the full SwiftCard, free to keep
-                    scrolling. Pointing straight at the .vcf gave them the
-                    contact and then a blank page. */}
-                <div className="flex justify-center mb-4">
-                  <MiniQR
-                    size={196}
-                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1&source=qr_code`}
-                  />
-                </div>
+            {/* The QR lands on the CARD PAGE with ?save=1 — not the raw .vcf.
+                The card loads, then ScanSaveContact hands the phone the
+                contact on top of it, so iOS/Android show their native "Add
+                to Contacts" screen with every field filled AND dismissing it
+                leaves the visitor on the full SwiftCard, free to keep
+                scrolling. Pointing straight at the .vcf gave them the
+                contact and then a blank page. */}
+            <div className="flex justify-center">
+              <MiniQR
+                size={196}
+                url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1&source=qr_code`}
+              />
+            </div>
 
-                {/* The same share-back invite the save flow shows — one form,
-                    one submit path, whichever surface it appears on. */}
-                {!alreadyShared && (
-                  <>
-                    <div className="border-t my-4" style={{ borderColor: "#E4DDD4" }} />
-                    <p className="text-slate-900 font-bold text-base leading-snug">
-                      Let {ownerFirstName ?? "them"} have yours too
-                    </p>
-                    <p className="text-slate-500 text-sm mt-1 mb-3">Share your information!</p>
-                    <form onSubmit={shareBack} className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Your name *"
-                        value={form.name}
-                        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Your phone *"
-                        value={form.phone}
-                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Your email (optional)"
-                        value={form.email}
-                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                        className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                      />
-                      <SmsConsentCheckbox recipientName={ownerFirstName} />
-                      <button
-                        type="submit"
-                        disabled={status === "loading"}
-                        className="w-full font-bold py-3 rounded-full text-white text-sm transition-all disabled:opacity-50"
-                        style={{ background: "#1D4ED8" }}
-                      >
-                        {status === "loading" ? "Sending…" : `Share my info with ${ownerFirstName ?? "them"} →`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closeQr}
-                        className="w-full text-slate-400 text-sm py-1.5 hover:text-slate-600 transition-colors"
-                      >
-                        No thanks
-                      </button>
-                    </form>
-                  </>
-                )}
-              </>
-            )}
+            <button
+              type="button"
+              onClick={closeQr}
+              className="mt-5 w-full text-slate-500 hover:text-slate-700 text-sm py-2 transition-colors"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
