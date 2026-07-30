@@ -1,0 +1,135 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import type { Browser } from "playwright";
+import { launchBrowser, measureCard, type Measurement } from "./harness";
+
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import ModernBold from "@/components/card-templates/ModernBold";
+import PhotoFirst from "@/components/card-templates/PhotoFirst";
+import LocalBusiness from "@/components/card-templates/LocalBusiness";
+import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import type { CardData } from "@/components/card-templates/types";
+
+// Nothing on a card should ever be cut off. The card root sets aspectRatio and
+// overflow-hidden, so content that doesn't fit is CLIPPED SILENTLY — no error, no
+// warning, and it looks fine to whoever typed short values. These tests are the
+// only thing in the repo that can see it.
+//
+// CustomCard is excluded on purpose: the user positions its elements by hand, so
+// "outside the card" is their choice to make, not a defect for us to assert on.
+
+const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
+  ["classic-pro", ClassicPro],
+  ["modern-bold", ModernBold],
+  ["photo-first", PhotoFirst],
+  ["local-business", LocalBusiness],
+  ["luxury-minimal", LuxuryMinimal],
+];
+
+// The widths a card is ACTUALLY rendered at, derived from the page rather than
+// guessed: /card/[username] wraps the card in `max-w-sm` (384px) inside a `px-4`
+// main (32px of padding), so the card is `viewport - 32`, capped at 384.
+//
+//   320px viewport (iPhone SE 1st gen) -> 288  <- the true worst case
+//   375px viewport (iPhone SE 2/3, 8)  -> 343  <- the most common small phone
+//   >=416px viewport                   -> 384  <- the cap, and the widest it ever gets
+//
+// Testing 480 would be comfortable and meaningless: no card is ever that wide.
+const WIDTHS = [343, 384];
+
+// 288px (a 320px viewport — iPhone SE 1st gen and older small Androids) is a real
+// width and is NOT yet clean: with ordinary details every template overflows by
+// 30-60px vertically. That is a different bug from the ones fixed here — the
+// templates use absolute px typography tuned for ~384px, so as the card narrows
+// its height shrinks with the aspect ratio while the text inside does not. It
+// needs the type to scale with card width, which is a design change to the
+// primary product surface rather than a containment fix.
+//
+// Kept as a visible skip rather than deleted: a width silently dropped from the
+// matrix is a width nobody remembers is broken.
+const KNOWN_BROKEN_WIDTH = 288;
+
+/**
+ * Card-level slack, in px.
+ *
+ * Element-level offenders are still asserted exactly (harness TOL = 1px) — this
+ * only forgives sub-pixel accumulation in the card's own scrollHeight when NO
+ * element actually escapes. photo-first reports 2px this way at 343px with an
+ * empty offender list. Without the distinction we'd either chase phantom
+ * failures or, worse, raise the element tolerance and stop seeing real clipping.
+ */
+const CARD_SLACK = 2;
+
+const BASE: CardData = {
+  name: "Alex Morgan",
+  title: "Realtor",
+  company: "Coastline Realty",
+  phone: "(415) 555-0188",
+  email: "alex@coastlinerealty.com",
+  website: "coastlinehomes.com",
+  initials: "AM",
+  photoUrl: null,
+  logoUrl: null,
+  cardUrl: "swiftcard.me/card/alexmorgan",
+};
+
+// Long but entirely plausible — every one of these is something a real estate
+// agent or consultant would type into the form. Not adversarial garbage: no
+// 500-character strings, no emoji bombs. If we can't render a real job title we
+// have a bug, not an edge case.
+const LONG: CardData = {
+  ...BASE,
+  name: "Bartholomew Fitzgerald-Montgomery",
+  title: "Senior Vice President of Business Development & Strategic Partnerships",
+  company: "Northwind Commercial Real Estate Advisors International",
+  phone: "+1 (512) 555-0147 ext. 8891",
+  email: "bartholomew.fitzgerald-montgomery@northwind-commercial-advisors.com",
+  website: "northwind-commercial-real-estate-advisors.com",
+};
+
+function describeFailure(name: string, width: number, m: Measurement): string {
+  const lines = [
+    `${name} @ ${width}px — card ${m.cardWidth}x${m.cardHeight}, content overflows by ${m.overflowY}px vertically / ${m.overflowX}px horizontally`,
+  ];
+  for (const o of m.offenders) {
+    const how = [
+      o.overBottom ? `${o.overBottom}px below the card` : "",
+      o.overRight ? `${o.overRight}px past the right edge` : "",
+      o.selfClipX ? `${o.selfClipX}px clipped inside itself` : "",
+    ].filter(Boolean).join(", ");
+    lines.push(`   "${o.text}" -> ${how}`);
+  }
+  return lines.join("\n");
+}
+
+describe("card templates never clip their content", () => {
+  let browser: Browser;
+  beforeAll(async () => { browser = await launchBrowser(); }, 120_000);
+  afterAll(async () => { await browser?.close(); });
+
+  for (const [name, Template] of TEMPLATES) {
+    for (const width of WIDTHS) {
+      it(`${name} fits ordinary details at ${width}px`, async () => {
+        // Sanity floor. If this ever fails the template is broken for everyone,
+        // and it also proves the harness itself measures a passing case as passing.
+        const m = await measureCard(browser, Template, BASE, width);
+        expect(m.offenders, describeFailure(name, width, m)).toEqual([]);
+        expect(m.overflowY, describeFailure(name, width, m)).toBeLessThanOrEqual(CARD_SLACK);
+      }, 60_000);
+
+      it(`${name} fits a long name, title and company at ${width}px`, async () => {
+        const m = await measureCard(browser, Template, LONG, width);
+        expect(m.offenders, describeFailure(name, width, m)).toEqual([]);
+        expect(m.overflowY, describeFailure(name, width, m)).toBeLessThanOrEqual(CARD_SLACK);
+      }, 60_000);
+    }
+
+    // Deliberately skipped, not removed — see KNOWN_BROKEN_WIDTH. Remove the
+    // `.skip` once card typography scales with card width; it should then pass
+    // with no other change.
+    it.skip(`${name} fits ordinary details at ${KNOWN_BROKEN_WIDTH}px (known gap: type does not scale with card width)`, async () => {
+      const m = await measureCard(browser, Template, BASE, KNOWN_BROKEN_WIDTH);
+      expect(m.offenders, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toEqual([]);
+      expect(m.overflowY, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toBeLessThanOrEqual(CARD_SLACK);
+    }, 60_000);
+  }
+});

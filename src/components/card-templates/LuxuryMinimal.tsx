@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -93,7 +93,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: fitName(23 * heroGrow(f), data.name, 17),
+              fontSize: fitName(23 * heroGrow(f), data.name, 17), overflowWrap: "anywhere", minWidth: 0,
               fontWeight: 400,
               letterSpacing: "0.01em",
               color: nameColor,
@@ -105,7 +105,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <div className="flex items-center gap-1.5 mt-2">
             <div className="h-px flex-1" style={{ maxWidth: 20, background: GOLD }} />
             <p
-              style={{ fontSize: 8.5, letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
+              style={{ fontSize: fitTitle(8.5, data.title), letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
             >
               {data.title}
             </p>

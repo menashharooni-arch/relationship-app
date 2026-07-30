@@ -52,6 +52,23 @@ export function webHref(site: string): string {
 // so templates stay server-renderable (no hooks — see card page requirement).
 
 // Weighted count of contact rows on the card.
+/**
+ * Job titles up to this length cost nothing in layout budget.
+ *
+ * Deliberately generous — "Chief Marketing Officer" is 23, "Senior Vice
+ * President" is 21 — so no card that renders correctly today shifts by a pixel.
+ * Only titles beyond it, the ones that were being clipped, buy extra room.
+ */
+const TITLE_COMFY = 28;
+
+export function titleLoad(data: CardData): number {
+  const len = (data.title ?? "").trim().length;
+  if (len <= TITLE_COMFY) return 0;
+  // Caps at 0.8 of a row: a very long title should make the card breathe, not
+  // shrink everything else into illegibility.
+  return Math.min(0.8, ((len - TITLE_COMFY) / TITLE_COMFY) * 0.8);
+}
+
 export function contactRowCount(data: CardData): number {
   const addrLines = data.address ? data.address.split("\n").filter(Boolean).length : 0;
   return (
@@ -59,7 +76,12 @@ export function contactRowCount(data: CardData): number {
     (data.email ? 1 : 0) +
     (data.website ? 0.9 : 0) +
     (cardFax(data) ? 0.9 : 0) +
-    addrLines * 0.7
+    addrLines * 0.7 +
+    // A long title is real content and has to be paid for. It was invisible to
+    // this count, so a 70-character title neither shrank the layout nor made the
+    // card taller — it just wrapped and got clipped by the card's fixed aspect
+    // ratio. That was the whole mechanism behind titles being cut off.
+    titleLoad(data)
   );
 }
 
@@ -100,16 +122,32 @@ export function logoStyle(f: number, base: number, extra?: React.CSSProperties):
   };
 }
 
-// Shrink one long value (a long email, name, or company) so it never truncates
-// or wraps. Exact-fit curve: beyond the comfy length, font size scales inversely
-// with length, so rendered width stays constant — a 40-char email occupies the
-// same line width a 24-char one does, just smaller. (The old 0.6-power curve
-// under-shrank long values, which is why long emails used to wrap to a second
-// line.) Floor at 45% keeps pathological inputs legible.
+// Shrink one long value (a long email, name, or company) to fit its line.
+// Exact-fit curve: beyond the comfy length, font size scales inversely with
+// length, so rendered width stays constant — a 40-char email occupies the same
+// line width a 24-char one does, just smaller.
+//
+// THE FLOOR IS A HARD LIMIT, NOT A FORMALITY. Below FIT_FLOOR the curve stops and
+// rendered width starts growing linearly again, so the constant-width property
+// only holds up to comfy / FIT_FLOOR characters — about 58 for a comfy of 22.
+// Past that this function CANNOT make the text fit, and the caller must be able
+// to wrap. This is why the email and website rows below no longer set nowrap:
+// they used to, on the strength of a guarantee this function does not actually
+// make, so a 67-char address rendered 37% wider than its box and simply hung off
+// the side of the card. Measured by tests/render/card-overflow.test.ts.
+const FIT_FLOOR = 0.38;
 export function fitPx(base: number, text: string | null | undefined, comfy: number): number {
   const len = (text ?? "").trim().length;
   if (len <= comfy) return base;
-  return Math.max(base * 0.45, (base * comfy) / len);
+  return Math.max(base * FIT_FLOOR, (base * comfy) / len);
+}
+
+/**
+ * Longest length this curve can still hold on one line at the given comfy.
+ * Exported so tests can assert the boundary rather than rediscovering it.
+ */
+export function fitOneLineLimit(comfy: number): number {
+  return Math.floor(comfy / FIT_FLOOR);
 }
 
 // Auto-fit specifically for the NAME (hero text). fitPx alone keys off the WHOLE
@@ -131,6 +169,19 @@ export function fitName(base: number, name: string | null | undefined, comfyTota
     ? base
     : Math.max(base * 0.5, (base * NAME_WORD_COMFY) / longestWord);
   return Math.min(byTotal, byWord);
+}
+
+/**
+ * Auto-fit for the JOB TITLE.
+ *
+ * Titles were the one text field with no fitting at all. Most templates set them
+ * uppercase with wide letter-spacing, which renders far wider per character than
+ * the raw length suggests, so they overflowed sooner than anything else while
+ * looking harmless in the source. Shares TITLE_COMFY with the density
+ * calculation so the two can't drift apart.
+ */
+export function fitTitle(base: number, title: string | null | undefined): number {
+  return fitPx(base, title, TITLE_COMFY);
 }
 
 // QR stays on the card at every density — it grows on sparse cards (more
@@ -174,29 +225,45 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
   const rowGrow = Math.min(f, 1.1);
   const emailSize = fitPx(13 * rowGrow, data.email, 22);
   const webSize = fitPx(11.5 * rowGrow, data.website, 24);
+
+  // Every row is a flex child, so it needs min-w-0 to be allowed to shrink below
+  // its content width. Without it a flex item's automatic minimum size is its
+  // content, and a long value pushes the row wider than the card instead of
+  // being contained — the mechanism behind the phone and email overhangs.
+  const row = "flex items-center gap-2 min-w-0";
+
+  // Long values wrap rather than overhang. `anywhere` (not `break-word`) is what
+  // lets an unbroken 67-character email split at all — it has no spaces, so
+  // normal wrapping has nowhere to break and the text just leaves the card.
+  const wrapLong: React.CSSProperties = { overflowWrap: "anywhere", minWidth: 0 };
+
   return (
     <div className="flex flex-col" style={{ gap }}>
       {cardPhones(data).map((p, i) => (
-        <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className="flex items-center gap-2" style={{ color: palette.strong, textDecoration: "none" }}>
+        <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className={row} style={{ color: palette.strong, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
-          <span style={{ fontSize: 14.5 * f, fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
+          {/* A phone stays on one line — breaking a number mid-digit is worse
+              than shrinking it — so it must be FITTED. It previously had a fixed
+              size with nowrap, which meant an extension ("...ext. 8891") could
+              neither shrink nor wrap and ran ~50px past the card edge. */}
+          <span style={{ fontSize: fitPx(14.5 * f, formatPhone(p.number), 16), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
             {formatPhone(p.number)}
             {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
           </span>
         </a>
       ))}
-      {/* Email + website stay on ONE line always: fitPx guarantees the width
-          and nowrap forbids the mid-address line break that used to appear. */}
+      {/* Email + website: fitted so they normally sit on one line, and allowed to
+          wrap when they're past what fitting can absorb (see fitPx's floor). */}
       {data.email && (
-        <a href={`mailto:${data.email}`} className="flex items-center gap-2 min-w-0" style={{ color: palette.mid, textDecoration: "none" }}>
+        <a href={`mailto:${data.email}`} className={row} style={{ color: palette.mid, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
-          <span style={{ fontSize: emailSize, fontWeight: 600, whiteSpace: "nowrap" }}>{data.email}</span>
+          <span style={{ fontSize: emailSize, fontWeight: 600, ...wrapLong }}>{data.email}</span>
         </a>
       )}
       {data.website && (
-        <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0" style={{ color: palette.soft, textDecoration: "none" }}>
+        <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className={row} style={{ color: palette.soft, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
-          <span style={{ fontSize: webSize, fontWeight: 500, whiteSpace: "nowrap" }}>{data.website}</span>
+          <span style={{ fontSize: webSize, fontWeight: 500, ...wrapLong }}>{data.website}</span>
         </a>
       )}
       {cardFax(data) && (
