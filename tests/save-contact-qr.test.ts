@@ -49,9 +49,14 @@ describe("scanning saves the contact AND leaves them on the card", () => {
     expect(comp, "top-frame navigation would blank the page on Android").not.toMatch(/window\.location\s*=|location\.href\s*=/);
   });
 
-  it("fires once — two contact sheets is worse than none", () => {
+  it("delivers once — two contact sheets is worse than none", () => {
+    // Was asserting /fired\.current/, a name that now survives ONLY inside the
+    // comment describing the old bug — so it passed while guarding nothing.
+    // Anchor on the live guard around the iframe instead.
     const comp = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
-    expect(comp).toMatch(/fired\.current/);
+    const deliver = comp.slice(comp.indexOf("if (!delivered.current)"), comp.indexOf("── Raise the share-back"));
+    expect(deliver, "the contact delivery is no longer once-guarded").toMatch(/delivered\.current = true/);
+    expect(deliver).toMatch(/createElement\("iframe"\)/);
   });
 
   it("the QR carries source=qr_code so the whole visit is attributed to the scan", () => {
@@ -216,5 +221,51 @@ describe("desktop-only, and Save Contact stays the primary action", () => {
     // the function's own definition higher up the file and slices nothing.
     expect(buttonWithHandler("onClick={downloadVCard}"), "Save Contact should absorb the remaining width").toMatch(/flex-1/);
     expect(buttonWithHandler("setShowQr(true)"), "the QR button should not grow into Save Contact's space").toMatch(/shrink-0/);
+  });
+});
+
+// ── The tail of every journey ────────────────────────────────────────────────
+//
+// Owner rule: once the "share your information" sheet is done with — submitted,
+// "No thanks", the X, or the backdrop — the "create your free card" invite
+// follows, on phone and computer alike. It's the last beat of every path
+// through this component and the easiest thing to lose while rewiring the
+// earlier steps, because nothing visibly breaks when it goes missing.
+
+describe("the free-card invite closes out every path", () => {
+  it("dismissing the sheet invites them", () => {
+    const closeSheet = src.slice(src.indexOf("function closeSheet()"), src.indexOf("function closeQr()"));
+    expect(closeSheet).toContain('triggerSignupNudge("vcard")');
+  });
+
+  it("all three dismissals route through that one function", () => {
+    const sheet = src.slice(src.indexOf("{showSheet && ("), src.indexOf("{showQr && ("));
+    // Backdrop, X and "No thanks". If any one wires straight to setShowSheet
+    // instead, that exit silently stops inviting.
+    expect(sheet, "backdrop no longer closes via closeSheet").toContain("e.target === e.currentTarget && closeSheet()");
+    expect((sheet.match(/onClick=\{closeSheet\}/g) ?? []).length, "the X and No thanks should both call closeSheet").toBeGreaterThanOrEqual(2);
+    expect(sheet, "a dismissal bypasses closeSheet").not.toMatch(/onClick=\{\(\) => setShowSheet\(false\)\}/);
+  });
+
+  it("submitting the form invites them too", () => {
+    const done = src.slice(src.indexOf('setStatus("done")'));
+    expect(done.slice(0, 400)).toContain('triggerSignupNudge("vcard")');
+  });
+
+  it("the new QR path doesn't spend the invite BEFORE the sheet", () => {
+    // The invite fires once per session. If closing the QR popup nudged AND
+    // opened the sheet, the sheet's own exit would find the invite already
+    // spent — the visitor would never see it at the moment it's meant to land.
+    const closeQr = src.slice(src.indexOf("function closeQr()"), src.indexOf("async function downloadVCard"));
+    expect(closeQr, "not-yet-shared must open the sheet").toContain("setShowSheet(true)");
+    expect(closeQr, "already-shared must invite directly").toContain('triggerSignupNudge("vcard")');
+    expect(closeQr, "the two cases must be exclusive, not both").toMatch(/\} else \{/);
+  });
+
+  it("and neither does the phone scan", () => {
+    const onScan = src.slice(src.indexOf("function onScanSaved()"), src.indexOf("window.addEventListener(SCAN_SAVED_EVENT"));
+    expect(onScan).toContain("hasSharedWith");
+    expect(onScan, "already-shared must invite directly").toContain('triggerSignupNudge("vcard")');
+    expect(onScan, "otherwise the sheet comes first").toContain("setShowSheet(true)");
   });
 });
