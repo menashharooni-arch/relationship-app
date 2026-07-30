@@ -5,6 +5,7 @@ import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards } from "
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
 import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
+import { insertNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
@@ -244,5 +245,31 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, officeName: (member.offices as { name: string } | null)?.name });
+  // If the joiner still pays for their OWN subscription, say so NOW — at the one
+  // moment they're paying attention. Their seat covers Pro from here on, so the
+  // personal sub is pure cost unless they deliberately keep it as a fallback.
+  // Without this, the sub kept charging while the billing UI hid it (fixed
+  // alongside this: Settings → Billing now shows their personal sub + cancel).
+  // Bell notification so the message survives the redirect; response flag so
+  // the join screen can show it inline too. Best-effort — never blocks accept.
+  const { data: joinerBilling } = await admin
+    .from("profiles")
+    .select("stripe_subscription_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const hasPersonalSubscription = !!joinerBilling?.stripe_subscription_id;
+  if (hasPersonalSubscription && didActivate) {
+    await insertNotification({
+      user_id: user.id,
+      type: "personal_sub_reminder",
+      title: "You still have a personal Pro subscription",
+      body: "Your team seat now includes everything in Pro. You can cancel your own subscription in Settings → Billing — or keep it for if you ever leave the team.",
+    }).catch(() => {});
+  }
+
+  return NextResponse.json({
+    ok: true,
+    officeName: (member.offices as { name: string } | null)?.name,
+    hasPersonalSubscription,
+  });
 }

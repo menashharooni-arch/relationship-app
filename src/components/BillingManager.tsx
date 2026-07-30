@@ -31,6 +31,9 @@ type Sub = {
   paymentFailed: boolean;
   hasStripeSubscription: boolean;
   hasCustomer: boolean;
+  /** Office sub-user viewing their OWN leftover subscription — render the
+      trimmed personal view, never the plan manager (see the GET route). */
+  personalSubOnly?: boolean;
 };
 
 const CANCEL_REASONS = [
@@ -152,6 +155,30 @@ export default function BillingManager() {
   const renewalLine = sub.renewalCents != null
     ? `${formatUsd(sub.renewalCents)}/${sub.interval === "annual" ? "yr" : "mo"}`
     : null;
+
+  // ── Office sub-user with their OWN leftover subscription ──────────────────
+  // Their seat already covers everything, so this personal sub only costs them
+  // money. Before this view existed the billing section was hidden entirely for
+  // sub-users, which meant the subscription kept charging with no way to even
+  // SEE it in the app — the definition of a billing trap. Show exactly two
+  // things: what they're paying, and the way out. No plan switcher, no seats —
+  // team billing is the org's, not theirs.
+  if (sub.personalSubOnly) {
+    return (
+      <PersonalSubCard
+        sub={sub}
+        busy={busy}
+        err={err}
+        notice={notice}
+        renewalLine={renewalLine}
+        onKeep={keepSubscription}
+        onCancelled={load}
+        setErr={setErr}
+        setNotice={setNotice}
+        setBusy={setBusy}
+      />
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
@@ -653,6 +680,114 @@ function CancelModal({ sub, onClose, onDone }: {
 }
 
 // ── Shared modal shell ────────────────────────────────────────────────────────
+// Trimmed billing card for an Office sub-user who still pays for a personal
+// subscription from before they joined the team. Their seat covers Pro, so the
+// only decisions that are theirs: cancel it, or keep it (some deliberately keep
+// it as a soft landing for if they ever leave — memberFallbackPlan returns them
+// to Pro on teardown precisely because this sub survived). Cancelling here is
+// two-step but skips the reason prompt and retention offer: those exist to keep
+// someone from LOSING access, and this person loses nothing.
+function PersonalSubCard({ sub, busy, err, notice, renewalLine, onKeep, onCancelled, setErr, setNotice, setBusy }: {
+  sub: Sub;
+  busy: string | null;
+  err: string | null;
+  notice: string | null;
+  renewalLine: string | null;
+  onKeep: () => Promise<void>;
+  onCancelled: () => Promise<void>;
+  setErr: (v: string | null) => void;
+  setNotice: (v: string | null) => void;
+  setBusy: (v: string | null) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  async function cancelPersonal() {
+    setBusy("cancel-personal"); setErr(null); setNotice(null);
+    try {
+      const res = await fetch("/api/stripe/subscription/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "Covered by team Office seat" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error || "Something went wrong."); return; }
+      setConfirming(false);
+      setNotice(
+        data.periodEnd
+          ? `Done — your personal subscription ends on ${fmtDate(data.periodEnd)} and you won't be charged again after that. Your team seat keeps every Pro feature working.`
+          : "Done — your personal subscription won't renew. Your team seat keeps every Pro feature working.",
+      );
+      await onCancelled();
+    } catch {
+      setErr("Couldn't reach the server. Try again.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm text-gray-400">Your personal subscription</p>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-300">{planLabel(sub.plan)}</span>
+      </div>
+
+      <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+        Your team&apos;s Office seat already includes everything in Pro, so this personal subscription
+        {renewalLine ? ` (${renewalLine})` : ""} isn&apos;t adding anything while you&apos;re on the team.
+        You can cancel it and lose nothing — or keep it as your own plan for if you ever leave the team.
+      </p>
+
+      {sub.cancelAtPeriodEnd ? (
+        <div className="mb-1 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
+          <p className="text-amber-300 text-xs font-semibold">Ends on {fmtDate(sub.currentPeriodEnd)} — you won&apos;t be charged again.</p>
+          <p className="text-amber-200/80 text-[11px] mt-0.5 mb-3">Your team seat keeps every Pro feature working after that.</p>
+          <button
+            onClick={onKeep}
+            disabled={busy === "keep"}
+            className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors"
+          >
+            {busy === "keep" ? "Reactivating…" : "Keep my personal subscription"}
+          </button>
+        </div>
+      ) : confirming ? (
+        <div className="rounded-xl border border-gray-700 bg-gray-800/60 px-3.5 py-3">
+          <p className="text-gray-300 text-xs mb-3">
+            Cancel your personal {planLabel(sub.plan)} subscription? You&apos;ll keep it until the end of the period
+            you&apos;ve paid for, then it simply stops billing. Nothing about your team access changes.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={cancelPersonal}
+              disabled={busy === "cancel-personal"}
+              className="flex-1 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors"
+            >
+              {busy === "cancel-personal" ? "Cancelling…" : "Yes, cancel it"}
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              disabled={busy === "cancel-personal"}
+              className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 font-semibold text-sm py-2.5 rounded-full transition-colors"
+            >
+              Never mind
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setConfirming(true); setErr(null); setNotice(null); }}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm py-2.5 rounded-full transition-colors"
+        >
+          Cancel my personal subscription
+        </button>
+      )}
+
+      {notice && <p className="mt-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs px-3 py-2">{notice}</p>}
+      {err && <p className="mt-3 rounded-lg bg-red-500/10 border border-red-500/25 text-red-300 text-xs px-3 py-2">{err}</p>}
+    </div>
+  );
+}
+
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

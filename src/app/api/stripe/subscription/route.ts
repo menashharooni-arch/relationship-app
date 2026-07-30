@@ -6,7 +6,7 @@ import { planFromPriceId } from "@/lib/subscription";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, getOfficeSubUserContext, roleHasCapability } from "@/lib/office-roles";
 
 // GET /api/stripe/subscription — the read model the billing UI renders from.
 // Reads the profile, and (when there's a live Stripe subscription) the
@@ -18,12 +18,24 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Office sub-users have no personal subscription to manage — billing is
-  // the organization's. A delegated billing_admin passes through.
+  // the organization's. A delegated billing_admin passes through, and so does a
+  // sub-user who still holds their OWN Stripe subscription from before they
+  // joined: the cancel/keep/portal routes already allow them (billing audit
+  // #6A), but this read model didn't — so the UI could never show them the
+  // subscription they were still paying for, let alone the cancel button.
   const subBlocked = await officeSubUserBlockMessage(user.id, {
     unless: "manage_billing",
+    allowIfOwnSubscription: true,
     message: "Billing for your account is managed by your organization.",
   });
   if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });
+
+  // When that own-subscription exception is what let the caller in, the UI must
+  // render a trimmed personal-sub view (their sub + cancel), not the full plan
+  // manager — they're on a team seat; switching plans or buying seats is not
+  // theirs to do here.
+  const subUserCtx = await getOfficeSubUserContext(user.id);
+  const personalSubOnly = !!subUserCtx && !roleHasCapability(subUserCtx.role, "manage_billing");
 
   const admin = getAdminSupabase();
   const { data: profile } = await admin
@@ -54,6 +66,7 @@ export async function GET() {
     paymentFailed: typeof cust._paymentFailedAt === "string",
     hasStripeSubscription: !!profile?.stripe_subscription_id,
     hasCustomer: !!profile?.stripe_customer_id,
+    personalSubOnly,
   };
 
   if (!profile?.stripe_subscription_id) {

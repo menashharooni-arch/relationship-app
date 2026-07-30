@@ -56,7 +56,7 @@ export default async function FlowSettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("flow_settings, plan, zapier_webhook_url, name, username, customization")
+    .select("flow_settings, plan, zapier_webhook_url, name, username, customization, stripe_subscription_id")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
@@ -104,7 +104,15 @@ export default async function FlowSettingsPage({
   // delegated billing_admin (a real role in this office model) keeps the section
   // they exist to use.
   const isOfficeSubUser = !!officeCtx && !officeCtx.isOwner;
-  const canSeeBilling = !isOfficeSubUser || roleHasCapability(officeCtx.role, "manage_billing");
+  // A sub-user who still has their OWN Stripe subscription (from before joining
+  // the team) must see billing too — hiding it left them paying every month for
+  // a sub they couldn't see or cancel anywhere in the app. The API returns the
+  // trimmed personal-sub view for them (personalSubOnly), never the org's plan
+  // manager, so showing the section cannot expose team billing.
+  const canSeeBilling =
+    !isOfficeSubUser ||
+    roleHasCapability(officeCtx.role, "manage_billing") ||
+    !!profile.stripe_subscription_id;
 
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
