@@ -135,8 +135,26 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     // Both signals must exist: iOS draws the sheet WITHOUT hiding the page, so
     // a visibility-only trigger would mean the ask simply never appears there.
     expect(scan, "lost the visibility signal").toContain("visibilitychange");
+    expect(scan, "lost the focus signal").toMatch(/addEventListener\("focus"/);
     expect(scan, "lost the timer fallback — iOS would never fire the ask").toMatch(/setTimeout\(announce/);
-    expect(scan, "the ask could fire twice").toContain("announced");
+  });
+
+  it("the once-guards survive an effect re-run", () => {
+    // The first version early-returned on a ref ABOVE the listener setup, so a
+    // second effect pass (StrictMode, a remount) hit cleanup-then-early-return:
+    // timers torn down, never rebuilt, and the ask silently never fired. The
+    // guards must be per-concern refs INSIDE the body, not one gate over it.
+    const scan = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+    for (const guard of ["delivered", "announced", "tracked"]) {
+      expect(scan, `${guard} is no longer ref-guarded`).toMatch(new RegExp(`${guard}\\.current`));
+    }
+    // Exactly 4-space indent = the effect's own top level. A guard nested
+    // inside announce() (6 spaces) is correct and must not trip this; the
+    // comment describing the old bug must not either.
+    const body = scan.slice(scan.indexOf("useEffect(("));
+    expect(body, "a blanket early return is back above the listener setup").not.toMatch(/^ {4}if \(\w+\.current\) return;/m);
+    // And delivery must be a scoped guard rather than a gate over everything.
+    expect(body).toMatch(/if \(!delivered\.current\) \{/);
   });
 
   it("the scan's source is a KNOWN label, not a raw slug in the owner's bell", () => {
