@@ -25,28 +25,21 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
   ["luxury-minimal", LuxuryMinimal],
 ];
 
-// The widths a card is ACTUALLY rendered at, derived from the page rather than
+// The widths a card is ACTUALLY rendered at, derived from the pages rather than
 // guessed: /card/[username] wraps the card in `max-w-sm` (384px) inside a `px-4`
 // main (32px of padding), so the card is `viewport - 32`, capped at 384.
 //
-//   320px viewport (iPhone SE 1st gen) -> 288  <- the true worst case
+//   320px viewport (iPhone SE 1st gen) -> 288  <- the worst case on a phone
 //   375px viewport (iPhone SE 2/3, 8)  -> 343  <- the most common small phone
-//   >=416px viewport                   -> 384  <- the cap, and the widest it ever gets
+//   >=416px viewport                   -> 384  <- the cap for that page
 //
 // Testing 480 would be comfortable and meaningless: no card is ever that wide.
-const WIDTHS = [343, 384];
-
-// 288px (a 320px viewport — iPhone SE 1st gen and older small Androids) is a real
-// width and is NOT yet clean: with ordinary details every template overflows by
-// 30-60px vertically. That is a different bug from the ones fixed here — the
-// templates use absolute px typography tuned for ~384px, so as the card narrows
-// its height shrinks with the aspect ratio while the text inside does not. It
-// needs the type to scale with card width, which is a design change to the
-// primary product surface rather than a containment fix.
 //
-// Kept as a visible skip rather than deleted: a width silently dropped from the
-// matrix is a width nobody remembers is broken.
-const KNOWN_BROKEN_WIDTH = 288;
+// 190px is not a phone at all — it is the template PICKER in ProfileForm, a
+// two-column grid of live cards that a phone squeezes to about that. Nothing
+// wraps it in CardScaler, so it is the narrowest real render in the app and the
+// one that proves cards fit their own box rather than a width we chose for them.
+const WIDTHS = [190, 288, 343, 384];
 
 /**
  * Card-level slack, in px.
@@ -122,14 +115,5 @@ describe("card templates never clip their content", () => {
         expect(m.overflowY, describeFailure(name, width, m)).toBeLessThanOrEqual(CARD_SLACK);
       }, 60_000);
     }
-
-    // Deliberately skipped, not removed — see KNOWN_BROKEN_WIDTH. Remove the
-    // `.skip` once card typography scales with card width; it should then pass
-    // with no other change.
-    it.skip(`${name} fits ordinary details at ${KNOWN_BROKEN_WIDTH}px (known gap: type does not scale with card width)`, async () => {
-      const m = await measureCard(browser, Template, BASE, KNOWN_BROKEN_WIDTH);
-      expect(m.offenders, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toEqual([]);
-      expect(m.overflowY, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toBeLessThanOrEqual(CARD_SLACK);
-    }, 60_000);
   }
 });

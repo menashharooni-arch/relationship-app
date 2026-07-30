@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, u } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -44,7 +44,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       {/* ── Gold left strip ────────────────────────────── */}
       <div
         style={{
-          width: 5,
+          width: u(5),
           background: `linear-gradient(to bottom, ${GOLD2}, ${GOLD}, #8c6c34)`,
           flexShrink: 0,
         }}
@@ -53,12 +53,15 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       {/* ── Decorative faded initials ──────────────────── */}
       <div
         className="absolute inset-0 flex items-center pointer-events-none select-none"
-        style={{ paddingLeft: 22 }}
+        style={{ paddingLeft: u(22) }}
       >
         <span
           className="font-black"
           style={{
-            fontSize: "clamp(55px, 15vw, 100px)",
+            // Was clamp(55px, 15vw, 100px) — a watermark on the CARD sized off
+            // the VIEWPORT, so it swelled and shrank independently of the thing
+            // it decorates. 100 design px is the design's own upper bound.
+            fontSize: u(100),
             color: "rgba(176,141,87,0.07)",
             letterSpacing: "-0.04em",
             lineHeight: 1,
@@ -72,7 +75,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       {/* ── Left panel: company + name identity ────────── */}
       <div
         className="relative flex flex-col justify-between"
-        style={{ width: "44%", padding: "18px 16px 17px 16px" }}
+        style={{ width: "44%", padding: `${u(18)} ${u(16)} ${u(17)} ${u(16)}` }}
       >
         {/* Company + optional logo */}
         <div className="flex items-center gap-2 min-w-0">
@@ -82,7 +85,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           ) : null}
           <p
             className="min-w-0 leading-tight"
-            style={{ fontSize: fitPx(10.5, data.company, 18), letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
+            style={{ fontSize: u(fitPx(10.5, data.company, 18)), letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>
@@ -93,7 +96,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           <h2
             className="text-gray-900 leading-tight"
             style={{
-              fontSize: fitName(23 * heroGrow(f), data.name, 17), overflowWrap: "anywhere", minWidth: 0,
+              fontSize: u(fitName(23 * heroGrow(f), data.name, 17)), overflowWrap: "anywhere", minWidth: 0,
               fontWeight: 400,
               letterSpacing: "0.01em",
               color: nameColor,
@@ -103,9 +106,9 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
             {data.name}
           </h2>
           <div className="flex items-center gap-1.5 mt-2">
-            <div className="h-px flex-1" style={{ maxWidth: 20, background: GOLD }} />
+            <div className="h-px flex-1" style={{ maxWidth: u(20), background: GOLD }} />
             <p
-              style={{ fontSize: fitTitle(8.5, data.title), letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
+              style={{ fontSize: u(fitTitle(8.5, data.title)), letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
             >
               {data.title}
             </p>
@@ -119,16 +122,16 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       {/* ── Thin center divider ────────────────────────── */}
       <div
         className="self-stretch"
-        style={{ width: 1, margin: "16px 0", background: `linear-gradient(to bottom, transparent, ${GOLD}40, transparent)` }}
+        style={{ width: u(1), margin: `${u(16)} 0`, background: `linear-gradient(to bottom, transparent, ${GOLD}40, transparent)` }}
       />
 
       {/* ── Right panel: contact details ───────────────── */}
       <div
         className="flex-1 flex flex-col justify-between"
-        style={{ padding: "18px 18px 17px 16px" }}
+        style={{ padding: `${u(18)} ${u(18)} ${u(17)} ${u(16)}` }}
       >
         {/* Tagline */}
-        <p style={{ fontSize: 7.5, letterSpacing: "0.28em", color: MUTED, textTransform: "uppercase" }}>
+        <p style={{ fontSize: u(7.5), letterSpacing: "0.28em", color: MUTED, textTransform: "uppercase" }}>
           — Private Contact —
         </p>
 

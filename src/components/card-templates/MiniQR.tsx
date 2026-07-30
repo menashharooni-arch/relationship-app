@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import type { ReactElement } from "react";
+import { u } from "./unit";
 
 // Split out of types.tsx: that module is value-imported (withoutSocials,
 // SAMPLE_DATA) by ~30 files including several client homepage components, so
@@ -37,7 +38,7 @@ export function MiniQR({ size = 52, bg = "#ffffff", fg = "#111827", url }: { siz
   ));
 
   return (
-    <div data-qr="1" style={{ width: size, height: size, background: bg, padding: p, borderRadius: size * 0.1, flexShrink: 0 }}>
+    <div data-qr="1" style={{ width: u(size), height: u(size), background: bg, padding: u(p), borderRadius: u(size * 0.1), flexShrink: 0 }}>
       {count > 0 && (
         <svg viewBox={`0 0 ${count} ${count}`} shapeRendering="crispEdges" style={{ width: "100%", height: "100%", display: "block" }}>
           {rects}

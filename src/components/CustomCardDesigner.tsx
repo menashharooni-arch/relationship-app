@@ -136,7 +136,13 @@ export default function CustomCardDesigner({
       <div
         ref={canvasRef}
         onPointerDown={() => setSelectedId(null)}
-        className="relative w-full select-none"
+        // sc-card is what makes this canvas WYSIWYG rather than merely similar:
+        // element sizes are DESIGN pixels resolved against the card's own width
+        // (see globals.css), so a 22px name is 22px of a 460px card whether this
+        // canvas is 700px wide on a desktop or 340px on a phone. Without the
+        // class the canvas would keep raw px and every design would land at a
+        // different relative size on the published card.
+        className="sc-card relative w-full select-none"
         style={{
           aspectRatio: "1.75 / 1",
           background: layout.background,

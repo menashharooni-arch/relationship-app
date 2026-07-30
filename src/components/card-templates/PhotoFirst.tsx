@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, u, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -79,7 +79,12 @@ export default function PhotoFirst({ data }: { data: CardData }) {
                 width: "52%", aspectRatio: "1/1",
                 background: "rgba(255,255,255,0.15)",
                 border: "2px solid rgba(255,255,255,0.3)",
-                fontSize: "clamp(18px, 4.5vw, 30px)",
+                // Was clamp(18px, 4.5vw, 30px) — sized off the VIEWPORT, so the
+                // same card showed 18px initials on a phone and 30px on a desk.
+                // The circle is a fixed share of the card, so its initials are
+                // too: 30 design px is the design's own upper bound, held now at
+                // every width instead of only on wide screens.
+                fontSize: u(30),
               }}
             >
               {data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -97,12 +102,12 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div className="relative px-3.5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitName(18 * heroGrow(f), data.name, 16), overflowWrap: "anywhere", minWidth: 0, textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
+            style={{ fontSize: u(fitName(18 * heroGrow(f), data.name, 16)), overflowWrap: "anywhere", minWidth: 0, textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
           >
             {data.name}
           </h2>
           <p
-            style={{ fontSize: fitTitle(8, data.title), color: "rgba(221,214,254,0.9)", letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 2 }}
+            style={{ fontSize: u(fitTitle(8, data.title)), color: "rgba(221,214,254,0.9)", letterSpacing: "0.14em", textTransform: "uppercase", marginTop: u(2) }}
           >
             {data.title}
           </p>
@@ -112,7 +117,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
       {/* ── Right: info panel — background follows bgColor ──────────── */}
       <div
         className="flex-1 flex flex-col justify-between"
-        style={{ padding: "15px 17px 13px", background: infoBg, borderLeft: `1px solid ${infoPalette.border}` }}
+        style={{ padding: `${u(15)} ${u(17)} ${u(13)}`, background: infoBg, borderLeft: `1px solid ${infoPalette.border}` }}
       >
         {/* Company header */}
         <div>
@@ -121,15 +126,15 @@ export default function PhotoFirst({ data }: { data: CardData }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 36, { maxWidth: data.company ? "48%" : "88%" })} />
             )}
-            <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
+            <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, fontSize: u(fitPx(13.5, data.company, 20)), overflowWrap: "anywhere" }}>
               {data.company}
             </p>
           </div>
-          <div className="w-10 h-[2px] rounded-full" style={{ background: `linear-gradient(90deg, ${ACCENT}, #a78bfa)` }} />
+          <div className="w-10 rounded-full" style={{ height: u(2), background: `linear-gradient(90deg, ${ACCENT}, #a78bfa)` }} />
         </div>
 
         {/* Contact rows — shared block, auto-fits to the amount of info */}
-        <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
+        <div className="flex flex-col" style={{ gap: u(Math.round(5 * f)) }}>
           <ContactRows data={data} f={f} palette={{ accent: ACCENT, ...rowPal }} />
           {socials.length > 0 && (
             <div className="flex items-center gap-2.5 mt-0.5">

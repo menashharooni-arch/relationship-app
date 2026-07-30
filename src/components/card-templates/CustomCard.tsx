@@ -4,6 +4,7 @@
 import type { CardData, CustomElement, CustomLayout, CustomSocial } from "./types";
 import { MiniQR } from "./MiniQR";
 import { fitName } from "./shared";
+import { u } from "./unit";
 import PlatformIcon from "@/components/PlatformIcon";
 
 // Map a per-platform social element to its value in the card data + icon label.
@@ -94,20 +95,20 @@ export function CustomElementContent({
   if (el.type === "logo") {
     if (data.logoUrl) {
       // eslint-disable-next-line @next/next/no-img-element
-      return <img src={data.logoUrl} alt="logo" style={{ width: el.size ?? 46, height: el.size ?? 46, objectFit: "contain", borderRadius: 8, display: "block" }} />;
+      return <img src={data.logoUrl} alt="logo" style={{ width: u(el.size ?? 46), height: u(el.size ?? 46), objectFit: "contain", borderRadius: u(8), display: "block" }} />;
     }
     return placeholder ? (
-      <div style={{ width: el.size ?? 46, height: el.size ?? 46, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "rgba(255,255,255,0.6)" }}>Logo</div>
+      <div style={{ width: u(el.size ?? 46), height: u(el.size ?? 46), borderRadius: u(8), border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: u(8), color: "rgba(255,255,255,0.6)" }}>Logo</div>
     ) : null;
   }
 
   if (el.type === "headshot") {
     if (data.photoUrl) {
       // eslint-disable-next-line @next/next/no-img-element
-      return <img src={data.photoUrl} alt="" style={{ width: el.size ?? 64, height: el.size ?? 64, objectFit: "cover", borderRadius: "9999px", display: "block" }} />;
+      return <img src={data.photoUrl} alt="" style={{ width: u(el.size ?? 64), height: u(el.size ?? 64), objectFit: "cover", borderRadius: "9999px", display: "block" }} />;
     }
     return placeholder ? (
-      <div style={{ width: el.size ?? 64, height: el.size ?? 64, borderRadius: "9999px", border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "rgba(255,255,255,0.6)" }}>Photo</div>
+      <div style={{ width: u(el.size ?? 64), height: u(el.size ?? 64), borderRadius: "9999px", border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: u(8), color: "rgba(255,255,255,0.6)" }}>Photo</div>
     ) : null;
   }
 
@@ -116,7 +117,7 @@ export function CustomElementContent({
     const shown = handles.length ? handles : placeholder ? ["@handle"] : [];
     if (!shown.length) return null;
     return (
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: el.fontSize ?? 9, color: el.color ?? layout.textColor, opacity: 0.9 }}>
+      <div style={{ display: "flex", gap: u(8), flexWrap: "wrap", fontSize: u(el.fontSize ?? 9), color: el.color ?? layout.textColor, opacity: 0.9 }}>
         {shown.map((h, i) => (
           <span key={i} style={{ whiteSpace: "nowrap" }}>{shortHandle(h)}</span>
         ))}
@@ -132,8 +133,8 @@ export function CustomElementContent({
     if (!shown) return null;
     const fs = el.fontSize ?? 10;
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: Math.max(3, fs * 0.4), fontSize: fs, color: el.color ?? layout.textColor, whiteSpace: "nowrap", opacity: raw ? 1 : 0.6 }}>
-        <span style={{ width: fs * 1.15, height: fs * 1.15, display: "inline-flex", flexShrink: 0 }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: u(Math.max(3, fs * 0.4)), fontSize: u(fs), color: el.color ?? layout.textColor, whiteSpace: "nowrap", opacity: raw ? 1 : 0.6 }}>
+        <span style={{ width: u(fs * 1.15), height: u(fs * 1.15), display: "inline-flex", flexShrink: 0 }}>
           <PlatformIcon label={meta.icon} className="w-full h-full" />
         </span>
         <span style={{ fontWeight: el.bold ? 700 : 400 }}>{shown}</span>
@@ -148,7 +149,7 @@ export function CustomElementContent({
 
   // A simple accent line.
   if (el.type === "divider") {
-    return <div style={{ width: el.width ?? 80, height: 2, borderRadius: 2, background: el.color ?? layout.textColor, opacity: 0.85 }} />;
+    return <div style={{ width: u(el.width ?? 80), height: u(2), borderRadius: u(2), background: el.color ?? layout.textColor, opacity: 0.85 }} />;
   }
 
   // field or static text
@@ -164,7 +165,7 @@ export function CustomElementContent({
   return (
     <span
       style={{
-        fontSize: fs,
+        fontSize: u(fs),
         color: el.color ?? layout.textColor,
         fontWeight: el.bold ? 700 : 400,
         fontStyle: el.italic ? "italic" : "normal",

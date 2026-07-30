@@ -1,6 +1,11 @@
 // Shared design tokens, icons, and utilities for all card templates
 
 import type { CardData } from "./types";
+import { u } from "./unit";
+
+// Every length inside a card is a DESIGN pixel — see unit.ts. Re-exported so
+// templates keep importing their layout helpers from one place.
+export { u, CARD_DESIGN_WIDTH } from "./unit";
 
 // Preset-template style overrides (accent/background/text/typography). The pure
 // logic lives in src/lib/template-style.ts so it's node-testable; re-exported
@@ -112,7 +117,7 @@ export function heroGrow(f: number): number {
 export function logoStyle(f: number, base: number, extra?: React.CSSProperties): React.CSSProperties {
   const h = Math.round(base * Math.min(Math.max(f, 0.85), 1.3));
   return {
-    height: h,
+    height: u(h),
     width: "auto",
     // Default assumes a text sibling: banner logos get at most half the row.
     maxWidth: "48%",
@@ -218,7 +223,7 @@ export type RowPalette = {
 
 export function ContactRows({ data, palette, f }: { data: CardData; palette: RowPalette; f: number }) {
   const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
-  const gap = Math.round(5 * f);
+  const gap = u(Math.round(5 * f));
   // Email/website grow a bit less than the rest (capped at 1.1) and shrink on a
   // tighter budget — sized for the narrowest contact panel (ModernBold) so a
   // grown email can never poke past the card edge.
@@ -246,9 +251,9 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
               than shrinking it — so it must be FITTED. It previously had a fixed
               size with nowrap, which meant an extension ("...ext. 8891") could
               neither shrink nor wrap and ran ~50px past the card edge. */}
-          <span style={{ fontSize: fitPx(14.5 * f, formatPhone(p.number), 16), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: u(fitPx(14.5 * f, formatPhone(p.number), 16)), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
             {formatPhone(p.number)}
-            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: u(5), fontSize: u(9 * f), textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
           </span>
         </a>
       ))}
@@ -257,28 +262,28 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
       {data.email && (
         <a href={`mailto:${data.email}`} className={row} style={{ color: palette.mid, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
-          <span style={{ fontSize: emailSize, fontWeight: 600, ...wrapLong }}>{data.email}</span>
+          <span style={{ fontSize: u(emailSize), fontWeight: 600, ...wrapLong }}>{data.email}</span>
         </a>
       )}
       {data.website && (
         <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className={row} style={{ color: palette.soft, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
-          <span style={{ fontSize: webSize, fontWeight: 500, ...wrapLong }}>{data.website}</span>
+          <span style={{ fontSize: u(webSize), fontWeight: 500, ...wrapLong }}>{data.website}</span>
         </a>
       )}
       {cardFax(data) && (
         <div className="flex items-center gap-2" style={{ color: palette.soft }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
-          <span style={{ fontSize: 11 * f, fontWeight: 500 }}>
+          <span style={{ fontSize: u(11 * f), fontWeight: 500 }}>
             {formatPhone(cardFax(data))}
-            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+            <span style={{ opacity: 0.6, marginLeft: u(5), fontSize: u(8.5 * f), textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
           </span>
         </div>
       )}
       {data.address && (
         <div className="flex items-start gap-2" style={{ color: palette.muted }}>
-          <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
-          <span style={{ fontSize: 10.5 * f, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
+          <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: u(1) }}><IcoPin /></span>
+          <span style={{ fontSize: u(10.5 * f), lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
         </div>
       )}
     </div>
