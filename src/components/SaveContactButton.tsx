@@ -455,7 +455,7 @@ export default function SaveContactButton({
                 <div className="flex justify-center mb-4">
                   <MiniQR
                     size={196}
-                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1`}
+                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1&source=qr_code`}
                   />
                 </div>
 

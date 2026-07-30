@@ -54,6 +54,59 @@ describe("scanning saves the contact AND leaves them on the card", () => {
     expect(comp).toMatch(/fired\.current/);
   });
 
+  it("the QR carries source=qr_code so the whole visit is attributed to the scan", () => {
+    expect(qrCallBlock()).toMatch(/source=qr_code/);
+  });
+});
+
+// ── Notification parity ──────────────────────────────────────────────────────
+//
+// Owner requirement: scanning the QR and tapping Save Contact both end at the
+// phone's "Add to Contacts" sheet, so the owner's portal must react identically
+// — same bell entry, same activity row, same CRM dispatch. /api/card-events
+// owns all three, keyed off event_type "downloaded_vcard"; any divergence in
+// what the two callers POST forks the flow silently, with the QR path simply
+// producing no notification at all.
+
+describe("a QR save notifies the owner exactly like a button save", () => {
+  const scan = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+  const button = readFileSync(join(root, "src/components/SaveContactButton.tsx"), "utf8");
+  const events = readFileSync(join(root, "src/app/api/card-events/route.ts"), "utf8");
+
+  it("both send downloaded_vcard to /api/card-events", () => {
+    // The button routes through its trackEvent() helper and the scan posts
+    // inline, so assert the two things that actually matter rather than one
+    // shared spelling: each names the event, and each hits the endpoint that
+    // turns it into a notification.
+    for (const [name, srcFile] of [["button", button], ["scan", scan]] as const) {
+      expect(srcFile, `${name} no longer sends downloaded_vcard`).toContain('"downloaded_vcard"');
+      expect(srcFile, `${name} no longer posts to /api/card-events`).toContain("/api/card-events");
+    }
+  });
+
+  it("that event type is what fires the bell, the activity row and the CRM", () => {
+    expect(events).toMatch(/event_type === "downloaded_vcard"/);
+    const block = events.slice(events.indexOf('event_type === "downloaded_vcard"'));
+    expect(block).toContain("insertNotification");
+    expect(block).toContain('type: "contact_saved"');
+    expect(block).toContain("dispatchCrmEvent");
+  });
+
+  it("both also post the contact_save analytics event", () => {
+    for (const [name, srcFile] of [["button", button], ["scan", scan]] as const) {
+      expect(srcFile, `${name} missing the analytics event`).toMatch(/event_type: "contact_save"/);
+    }
+  });
+
+  it("the scan's source is a KNOWN label, not a raw slug in the owner's bell", () => {
+    // The notification body interpolates getSourceLabel(source). An unmapped
+    // value falls through to source.replace(/_/g," ") and prints lowercase junk
+    // like "qr scan" — the exact regression documented on swift_links.
+    const labels = readFileSync(join(root, "src/lib/source-labels.ts"), "utf8");
+    expect(labels).toMatch(/qr_code:/);
+    expect(scan, "scan must not hardcode a source outside the label map").not.toMatch(/source: "qr_/);
+  });
+
   it("the vCard route still serves a contact file, which is what makes scanning work", () => {
     const route = readFileSync(join(root, "src/app/api/card/[username]/vcard/route.ts"), "utf8");
     expect(route).toContain("text/vcard");

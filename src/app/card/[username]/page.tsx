@@ -318,7 +318,7 @@ export default async function CardPage({
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
       {/* Scanned the desktop QR: deliver the contact over this page. */}
       {autoSave && !isEmbed && (
-        <ScanSaveContact username={profile.username} suppressTracking={isOwnerView} />
+        <ScanSaveContact username={profile.username} source={source} suppressTracking={isOwnerView} />
       )}
       {!isEmbed && !isOwnerView && <SignupNudgeHost />}
 
