@@ -98,6 +98,38 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     }
   });
 
+  it("the QR popup itself holds no share-back form", () => {
+    // While the popup is open the visitor is looking at their PHONE. A form
+    // behind the code asks at the one moment nobody is reading the screen.
+    const popup = src.slice(src.indexOf("{showQr && ("), src.indexOf("<style>"));
+    expect(popup, "the share-back ask is back inside the QR popup").not.toContain("have yours too");
+    expect(popup, "the QR popup grew a form again").not.toMatch(/<form/);
+    expect(popup, "the QR popup should contain the code and little else").toContain("<MiniQR");
+  });
+
+  it("closing the QR popup raises the same share-back sheet the button raises", () => {
+    const close = src.slice(src.indexOf("function closeQr()"), src.indexOf("async function downloadVCard"));
+    expect(close, "closing the QR no longer opens the share sheet").toContain("setShowSheet(true)");
+    // Someone who already shared shouldn't be asked twice — they get the
+    // signup nudge instead, same as every other dismissal path.
+    expect(close).toContain("hasSharedWith");
+    expect(close).toContain("triggerSignupNudge");
+  });
+
+  it("a phone scan raises it too, once the OS contact sheet is done", () => {
+    const scan = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
+    // Assert the DISPATCH, not the event name — merely importing the constant
+    // satisfies a name check while the announcement is gone (this test passed
+    // vacuously against exactly that mutation before being tightened).
+    expect(scan, "the phone flow never announces the save").toMatch(/dispatchEvent\(\s*new CustomEvent\(SCAN_SAVED_EVENT/);
+    expect(src, "SaveContactButton doesn't listen for the phone flow").toMatch(/addEventListener\(SCAN_SAVED_EVENT/);
+    // Both signals must exist: iOS draws the sheet WITHOUT hiding the page, so
+    // a visibility-only trigger would mean the ask simply never appears there.
+    expect(scan, "lost the visibility signal").toContain("visibilitychange");
+    expect(scan, "lost the timer fallback — iOS would never fire the ask").toMatch(/setTimeout\(announce/);
+    expect(scan, "the ask could fire twice").toContain("announced");
+  });
+
   it("the scan's source is a KNOWN label, not a raw slug in the owner's bell", () => {
     // The notification body interpolates getSourceLabel(source). An unmapped
     // value falls through to source.replace(/_/g," ") and prints lowercase junk
@@ -138,6 +170,18 @@ describe("desktop-only, and Save Contact stays the primary action", () => {
   it("the QR button is hidden on phones", () => {
     // On a phone you're already holding the device — there's nothing to scan.
     expect(buttonWithHandler("setShowQr(true)")).toMatch(/hidden md:flex/);
+  });
+
+  it("the two buttons stay aligned before AND after the contact is saved", () => {
+    // The saved label ("Saved to Contacts!") is longer than "Save Contact". In
+    // the narrowed flex-1 it wraps to two lines without nowrap, so the row's
+    // buttons end up different heights and visibly stop lining up at the exact
+    // moment the visitor succeeds.
+    expect(buttonWithHandler("onClick={downloadVCard}"), "the save button will wrap when it flips to Saved").toMatch(/whitespace-nowrap/);
+    expect(buttonWithHandler("setShowQr(true)"), "the QR label will wrap on narrow cards").toMatch(/whitespace-nowrap/);
+    // Equal heights regardless of content.
+    const row = src.slice(src.indexOf('<div className="flex items-stretch'), src.indexOf("onClick={downloadVCard}"));
+    expect(row, "the button row is no longer stretch-aligned").toContain("items-stretch");
   });
 
   it("Save Contact flexes to fill the row while the QR button stays shrink-0", () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { getVisitorId, markSavedContact } from "@/lib/visitor";
+import { SCAN_SAVED_EVENT } from "@/lib/scan-saved-event";
 
 // ── The QR-scan landing behaviour ────────────────────────────────────────────
 //
@@ -57,6 +58,30 @@ export default function ScanSaveContact({
       setTimeout(() => iframe.remove(), 20_000);
     }, 700);
 
+    // ── Raise the share-back ask once they're back from the OS sheet ─────────
+    //
+    // The "Add to Contacts" screen belongs to the operating system, so there is
+    // no event for "they finished". Two signals, whichever lands first (and
+    // only once): the tab going hidden and returning — how it behaves when the
+    // sheet is a separate surface — and a plain timer, because on iOS the sheet
+    // is drawn over Safari WITHOUT ever marking the page hidden, so a
+    // visibility-only approach would leave the ask never appearing at all.
+    let announced = false;
+    const announce = () => {
+      if (announced) return;
+      announced = true;
+      window.dispatchEvent(new CustomEvent(SCAN_SAVED_EVENT));
+    };
+    let wasHidden = false;
+    const onVisibility = () => {
+      if (document.hidden) { wasHidden = true; return; }
+      if (wasHidden) announce();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    // Long enough to be past the sheet in the common case, short enough that
+    // the ask still feels connected to the save they just made.
+    const askTimer = setTimeout(announce, 6000);
+
     if (!suppressTracking) {
       markSavedContact(username);
       // BYTE-FOR-BYTE the pair SaveContactButton fires. Both routes end at the
@@ -81,7 +106,11 @@ export default function ScanSaveContact({
       }).catch(() => {});
     }
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(askTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [username, source, suppressTracking]);
 
   return null;
