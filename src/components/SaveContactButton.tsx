@@ -280,10 +280,12 @@ export default function SaveContactButton({
         <button
           type="button"
           onClick={() => setShowQr(true)}
-          className="hidden md:flex shrink-0 items-center justify-center gap-1.5 font-semibold py-3 px-4 rounded-full text-sm border transition-colors hover:bg-blue-50"
+          // Trimmed down (tighter padding, smaller label/icon, nowrap) so the
+          // blue Save Contact button — the primary action — keeps most of the row.
+          className="hidden md:flex shrink-0 items-center justify-center gap-1 font-semibold py-3 px-2.5 rounded-full text-[12.5px] whitespace-nowrap border transition-colors hover:bg-blue-50"
           style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
           </svg>
@@ -424,9 +426,10 @@ export default function SaveContactButton({
               <>
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-slate-900 font-bold text-base leading-snug">Scan with your phone</p>
+                    <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
                     <p className="text-slate-500 text-sm mt-1">
-                      Point your camera at the code — {ownerFirstName ?? "their"} card opens right on your phone.
+                      Point your phone camera at the code — the contact opens already filled in.
+                      Just tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it.
                     </p>
                   </div>
                   <button
@@ -438,10 +441,18 @@ export default function SaveContactButton({
                   </button>
                 </div>
 
+                {/* The QR points at the vCARD endpoint, not the card page — so
+                    scanning it does the same thing as tapping Save Contact on a
+                    phone: the .vcf opens and iOS/Android show their native "Add
+                    to Contacts" screen with every field already filled in, one
+                    tap from saved. Encoding the vCard text directly in the QR
+                    would work too, but a full contact makes the code dense and
+                    unreliable to scan across a desk; a short URL stays crisp.
+                    Same endpoint the native app hands to the system browser. */}
                 <div className="flex justify-center mb-4">
                   <MiniQR
                     size={196}
-                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${username ?? cardOwner ?? ""}`}
+                    url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/api/card/${encodeURIComponent(username ?? cardOwner ?? "")}/vcard`}
                   />
                 </div>
 
