@@ -12,6 +12,7 @@ import TemplateGallery from "@/components/site/TemplateGallery";
 import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
+import { INTEGRATIONS, integrationNames } from "@/components/site/integration-brands";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import NativeHidden from "@/components/NativeHidden";
 import NativeFeatureNote from "@/components/NativeFeatureNote";
@@ -99,7 +100,7 @@ const PRODUCTS: Record<string, Product> = {
     features: [
       { t: "Two-way exchange", d: "They save you, you capture them — the whole handshake in one tap." },
       { t: "Context that sticks", d: "Every lead is tagged with the card, time, and location they came from." },
-      { t: "Straight to your CRM", d: "Contacts flow into your dashboard and sync to Zapier, Google, or HubSpot." },
+      { t: "Straight to your CRM", d: "Contacts flow into your dashboard and sync to GoHighLevel, Pipedrive, HubSpot or Google Contacts." },
       { t: "Automated follow-up", d: "Fire off a warm email or text sequence so a lead never goes cold." },
     ],
     metaDesc: "Capture leads the moment someone opens your card — two-way contact exchange with context and automated follow-up.",
@@ -186,48 +187,24 @@ const PRODUCTS: Record<string, Product> = {
           <svg viewBox="0 0 24 24" className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
           <span className="text-white/40 text-[11px] font-medium tracking-wide">synced automatically</span>
         </div>
-        {/* …into your tools */}
+        {/* …into your tools. Same canonical list as the homepage band. */}
         <div className="grid grid-cols-2 gap-3 w-full">
-          {[
-            {
-              name: "Zapier",
-              d: "6,000+ apps",
-              logo: <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#FF4F00" strokeWidth={3.2} strokeLinecap="round"><path d="M12 2.5v19M3.8 7.25l16.4 9.5M3.8 16.75l16.4-9.5" /></svg>,
-            },
-            {
-              name: "Google",
-              d: "Contacts sync",
-              logo: <svg viewBox="0 0 48 48" className="w-full h-full"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" /><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7A21.99 21.99 0 0024 46z" /><path fill="#FBBC05" d="M11.69 28.18A13.2 13.2 0 0111 24c0-1.45.25-2.86.69-4.18v-5.7H4.34A21.99 21.99 0 002 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z" /><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2A21.99 21.99 0 004.34 14.12l7.35 5.7C13.42 14.62 18.27 10.75 24 10.75z" /></svg>,
-            },
-            {
-              name: "HubSpot",
-              d: "New CRM record",
-              logo: <svg viewBox="0 0 24 24" className="w-full h-full" fill="#FF7A59"><path d="M18.5 7.3V4.9a1.85 1.85 0 10-1.1 0v2.4a5.6 5.6 0 00-2.66 1.17L8.2 4.02a2.1 2.1 0 10-1 1.72l6.42 4.42a5.6 5.6 0 00.02 6.06l-1.95 1.95a1.8 1.8 0 101.06 1.06l1.93-1.93A5.62 5.62 0 1018.5 7.3zm-2.16 8.42a2.9 2.9 0 112.9-2.9 2.9 2.9 0 01-2.9 2.9z" /></svg>,
-            },
-            {
-              name: "CSV",
-              d: "Export anytime",
-              logo: <svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="#5D6BFF" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M13 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V9z" /><path d="M13 3v6h6" /><path d="M8.5 13.5h7M8.5 16.5h7" /></svg>,
-            },
-          ].map((it) => (
+          {INTEGRATIONS.map((it) => (
             <div key={it.name} className="rounded-xl bg-white px-3 py-2.5 flex items-center gap-2.5 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.6)]">
               <span className="w-7 h-7 flex items-center justify-center shrink-0">{it.logo}</span>
               <span className="min-w-0">
-                <span className="block text-slate-800 text-[12.5px] font-bold leading-tight">{it.name}</span>
-                <span className="block text-slate-400 text-[10.5px] leading-tight truncate">{it.d}</span>
+                <span className="block text-slate-800 text-[12.5px] font-bold leading-tight truncate">{it.name}</span>
+                <span className="block text-slate-400 text-[10.5px] leading-tight truncate">{it.short}</span>
               </span>
             </div>
           ))}
         </div>
       </div>
     ),
-    features: [
-      { t: "Zapier", d: "Connect SwiftCard to 6,000+ apps with a no-code Zap — fire a Slack ping, add a Notion row, or kick off an email sequence the moment a lead comes in." },
-      { t: "Google Contacts", d: "New leads sync into your Google account automatically, so their name, email, and phone are on every device you own — no manual entry." },
-      { t: "HubSpot", d: "Every contact lands in HubSpot as a new record, tagged with which card they scanned and the context of where you met — ready for your pipeline." },
-      { t: "CSV export", d: "Download all your contacts as a clean spreadsheet any time. Your data is yours to keep, move, or import anywhere you like." },
-    ],
-    metaDesc: "Connect SwiftCard to Zapier, Google Contacts, and HubSpot — or export to CSV. Every lead you capture flows into the tools you already use, in real time.",
+    // Derived from the canonical list so a new integration appears here the
+    // moment it's added, instead of being forgotten for a release.
+    features: INTEGRATIONS.map((i) => ({ t: i.name, d: i.blurb })),
+    metaDesc: `Connect SwiftCard to ${integrationNames()}. Every lead you capture flows into the tools you already use, in real time.`,
   },
 };
 
@@ -398,7 +375,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {[
                   { n: "1", t: "They share their info", d: "A tap on Save Contact or a quick form on your card — no app to download, no typing your details out for them." },
                   { n: "2", t: "SwiftCard captures the context", d: "Name, email, phone, plus which card they scanned, when, and where you met — all attached to the lead automatically." },
-                  { n: "3", t: "It lands in your stack", d: "Synced to Google & HubSpot, piped to 6,000+ apps through Zapier, or exported as CSV — in real time, no manual step." },
+                  { n: "3", t: "It lands in your stack", d: "Synced to GoHighLevel, Pipedrive, HubSpot or Google Contacts, piped to 6,000+ apps through Zapier, or exported as CSV — in real time, no manual step." },
                 ].map((s, i) => (
                   <div key={s.n} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[15px] font-bold mb-4" style={{ background: "var(--rd-aurora)" }}>{s.n}</div>

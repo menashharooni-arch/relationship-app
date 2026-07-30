@@ -21,7 +21,7 @@ const OFFICE_YR = (PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS / 100).toFixed(2);
 
 const PRICING_FACTS = `PRICING (USD, the only prices that exist — never invent discounts or other numbers):
 - Free: $0 — 1 card, ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads/month, ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI drafts/month, all templates, ${PLAN_LIMITS.FREE_MAX_LINKS} additional Swift Links buttons, view analytics, a "Powered by SwiftCard" badge on the card. The AI business-card scanner is NOT on Free.
-- Pro: $${PRO_MO}/month, or $${PRO_YR}/year (~10% off). Unlimited cards, leads and drafts; AI business-card scanner; custom card designer; Social design (style your Swift Links page — background, text color, font); automated email + text follow-up sequences; premium Swift Links; full analytics; CSV export; integrations (Zapier, Google Contacts, HubSpot); no SwiftCard branding on pages or automated sends.
+- Pro: $${PRO_MO}/month, or $${PRO_YR}/year (~10% off). Unlimited cards, leads and drafts; AI business-card scanner; custom card designer; Social design (style your Swift Links page — background, text color, font); automated email + text follow-up sequences; premium Swift Links; full analytics; CSV export; integrations (GoHighLevel, Pipedrive, HubSpot, Google Contacts, Zapier); no SwiftCard branding on pages or automated sends.
 - Office (teams): $${OFFICE_MO}/month per seat, or $${OFFICE_YR}/year per seat — everything in Pro for each seat, minimum ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats, with an admin console: company branding on every team card (with an optional design lock), passwordless team invites, per-person analytics.
 - Free is free forever — it does NOT include Pro features. Subscribing to Pro starts with a ${TRIAL_DAYS}-day free trial (card required at checkout; billing starts automatically when the trial ends unless you cancel). Payments are handled by Stripe; cancel anytime.`;
 
@@ -86,7 +86,7 @@ const KB: KbEntry[] = [
   {
     triggers: ["follow up", "follow-up", "automation", "sequences", "crm", "leads", "lead capture"],
     answer:
-      "When someone shares their info through your card, they land in your contacts automatically. Set a follow-up cadence once and SwiftCard sends the emails (and texts, on Pro) for you — each signed with your live card. Pro also syncs new leads to Zapier, Google Contacts, or HubSpot.",
+      "When someone shares their info through your card, they land in your contacts automatically. Set a follow-up cadence once and SwiftCard sends the emails (and texts, on Pro) for you — each signed with your live card. Pro also syncs new leads to GoHighLevel, Pipedrive, HubSpot, Google Contacts, Zapier.",
   },
   {
     triggers: ["swift links", "link in bio", "linktree", "bio link", "instagram bio"],
