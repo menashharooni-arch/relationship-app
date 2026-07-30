@@ -149,12 +149,19 @@ function FullScreen({ title, href, onClose, children }: { title: string; href?: 
     setMounted(true);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prevOverflow; };
-  }, []);
+    // Escape closes too — belt and braces for anyone who misses the X.
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prevOverflow; window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
+    // z-[100]: must sit ABOVE every piece of site chrome. The marketing SiteNav
+    // is fixed at z-[70] (its mobile menu z-[90]) and is exactly as tall as this
+    // modal's header — at the old z-50 the nav covered the whole header strip,
+    // so the X was invisible on phones and clicks on it landed on the nav.
+    <div className="fixed inset-0 z-[100] bg-gray-950 flex flex-col">
       <div className="shrink-0 h-16 px-6 sm:px-10 flex items-center justify-between">
         <p className="text-white font-semibold text-sm truncate">{title}</p>
         <div className="flex items-center gap-6 shrink-0">
