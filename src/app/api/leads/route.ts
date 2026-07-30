@@ -217,7 +217,8 @@ export async function POST(req: NextRequest) {
     // must NEVER report failure back to the visitor (they'd see "something went
     // wrong" and re-submit a duplicate, even though we captured them fine).
     try {
-    // Sync to Google Contacts + HubSpot (non-blocking).
+    // Sync to every connected CRM — Google Contacts, HubSpot, Pipedrive and
+    // GoHighLevel (non-blocking).
     // Plan is re-checked HERE, at send time, not just when the integration was
     // connected. A token survives a downgrade, so without this a lapsed account
     // keeps syncing to a Pro-only destination indefinitely. dispatchCrmEvent

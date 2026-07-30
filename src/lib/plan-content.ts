@@ -45,7 +45,7 @@ export const PLAN_FEATURES = {
     "Automated follow-up sequences — email + text",
     "Full analytics: who viewed, when & where",
     "Premium Swift Links: video previews & featured tiles",
-    "CSV export + Zapier, Google & HubSpot sync",
+    "CRM sync: GoHighLevel, Pipedrive, HubSpot, Google + Zapier & CSV",
   ],
   office: [
     "Everything in Pro, for every person",

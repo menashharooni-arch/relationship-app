@@ -316,7 +316,7 @@ const STEP_DEFS: TourStepDef[] = [
     section: "notifications",
     anchor: "settings-integrations",
     title: "Integrations",
-    body: "Connect Zapier or Google Contacts so new leads sync to your tools automatically.",
+    body: "Connect GoHighLevel, Pipedrive, HubSpot, Google Contacts or Zapier so new leads sync to your tools automatically.",
     placement: "bottom",
   },
   {

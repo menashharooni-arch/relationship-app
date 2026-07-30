@@ -27,7 +27,7 @@ const SOLUTIONS: Item[] = [
   { label: "Teams & Offices", href: "/products/teams", desc: "One brand across everyone" },
   { label: "Ways to share", href: "/products/wallet", desc: "Wallet, QR, and the share sheet" },
   { label: "Apple Watch", href: "/products/watch", desc: "Share from your wrist" },
-  { label: "Integrations", href: "/products/integrations", desc: "Zapier, Google, HubSpot & CSV" },
+  { label: "Integrations", href: "/products/integrations", desc: "GoHighLevel, Pipedrive, HubSpot & more" },
 ];
 const RESOURCES: Item[] = [
   { label: "Preview", href: "/preview", desc: "Interact with a real SwiftCard" },
