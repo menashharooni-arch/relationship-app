@@ -5,6 +5,7 @@ import { useState } from "react";
 export default function JoinButton({ token }: { token: string }) {
   const [status, setStatus] = useState<"idle" | "joining" | "done" | "declining" | "declined" | "error">("idle");
   const [error, setError] = useState("");
+  const [hasPersonalSub, setHasPersonalSub] = useState(false);
 
   async function handleDecline() {
     setStatus("declining");
@@ -42,13 +43,20 @@ export default function JoinButton({ token }: { token: string }) {
         return;
       }
       setStatus("done");
+      const personalSub = json.hasPersonalSubscription === true;
+      setHasPersonalSub(personalSub);
       // Straight into the REAL card builder — the same 4-step wizard everyone
       // uses (Card info → Card design → Socials → Social design). The wizard's
       // ?add=1 path resolves their office context server-side: branding fields
       // (company/logo/website/phone/fax/address) render as "Managed by your
       // organization" and Card design locks when the admin locked it. (Owner
       // decision, Jul 2026 — replaced the old simplified /welcome/team form.)
-      setTimeout(() => { window.location.href = "/cards/new?add=1"; }, 900);
+      //
+      // When the joiner still pays for a personal subscription, hold the screen
+      // long enough to actually read the money note below — 900ms reads as a
+      // flash. The same message also lands in their notification bell (see
+      // /api/join), so missing it here isn't losing it.
+      setTimeout(() => { window.location.href = "/cards/new?add=1"; }, personalSub ? 6000 : 900);
     } catch {
       setError("Network error — please try again.");
       setStatus("error");
@@ -57,8 +65,17 @@ export default function JoinButton({ token }: { token: string }) {
 
   if (status === "done") {
     return (
-      <div className="w-full bg-green-900/30 border border-green-700/50 text-green-300 font-semibold py-3 rounded-full text-sm text-center">
-        You&apos;re in! Let&apos;s build your card…
+      <div>
+        <div className="w-full bg-green-900/30 border border-green-700/50 text-green-300 font-semibold py-3 rounded-full text-sm text-center">
+          You&apos;re in! Let&apos;s build your card…
+        </div>
+        {hasPersonalSub && (
+          <p className="mt-3 rounded-xl border border-blue-500/25 bg-blue-500/10 text-blue-200 text-xs px-3.5 py-3 leading-relaxed">
+            Heads up: your team seat includes everything in Pro, and you also have your own Pro
+            subscription. You can cancel yours in <span className="font-semibold">Settings → Billing</span> —
+            or keep it for if you ever leave the team. We&apos;ve put this in your notifications too.
+          </p>
+        )}
       </div>
     );
   }
