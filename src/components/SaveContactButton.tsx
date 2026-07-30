@@ -446,22 +446,16 @@ export default function SaveContactButton({
             className="w-full max-w-sm rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
             style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
           >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
-                <p className="text-slate-500 text-sm mt-1">
-                  Point your phone camera at the code — the contact opens already filled in.
-                  Tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it,
-                  and the card stays open behind it.
-                </p>
-              </div>
-              <button
-                onClick={closeQr}
-                className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
-                aria-label="Close"
-              >
-                ×
-              </button>
+            {/* No X — Done at the bottom is the single, obvious way out (owner
+                preference). The backdrop still closes it, and Done carries the
+                same closeQr handler, so nothing about the exit flow changes. */}
+            <div className="mb-4">
+              <p className="text-slate-900 font-bold text-base leading-snug">Scan to save {ownerFirstName ?? "this"} contact</p>
+              <p className="text-slate-500 text-sm mt-1">
+                Point your phone camera at the code — the contact opens already filled in.
+                Tap <span className="text-slate-700 font-medium">Create New Contact</span> to save it,
+                and the card stays open behind it.
+              </p>
             </div>
 
             {/* The QR lands on the CARD PAGE with ?save=1 — not the raw .vcf.
