@@ -38,38 +38,45 @@ export default function ScanSaveContact({
   /** Owner previewing their own card — deliver the contact, record nothing. */
   suppressTracking?: boolean;
 }) {
-  const fired = useRef(false);
+  // Refs, not effect-local flags: the guards must survive an effect re-run.
+  // An earlier version put a single `if (fired.current) return` ABOVE the
+  // listener setup — so on any second run (StrictMode in dev, or a remount) the
+  // cleanup had already torn the timers down and the early return never rebuilt
+  // them. The contact was delivered and the ask then never fired at all.
+  const delivered = useRef(false);
+  const announced = useRef(false);
+  const tracked = useRef(false);
 
   useEffect(() => {
-    // StrictMode double-invokes effects in dev; a second fire would hand the
-    // phone two contact sheets.
-    if (fired.current) return;
-    fired.current = true;
-
+    // ── Hand the phone the contact ───────────────────────────────────────────
     // Small delay so the card paints FIRST. Without it the contact sheet can
     // open over a half-rendered page, and dismissing it reveals a blank card —
     // exactly the problem this component exists to fix.
-    const timer = setTimeout(() => {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = `/api/card/${encodeURIComponent(username)}/vcard`;
-      document.body.appendChild(iframe);
-      // Leave it attached briefly so the transfer completes, then clean up.
-      setTimeout(() => iframe.remove(), 20_000);
-    }, 700);
+    let deliverTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!delivered.current) {
+      deliverTimer = setTimeout(() => {
+        delivered.current = true;
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = `/api/card/${encodeURIComponent(username)}/vcard`;
+        document.body.appendChild(iframe);
+        // Leave it attached briefly so the transfer completes, then clean up.
+        setTimeout(() => iframe.remove(), 20_000);
+      }, 700);
+    }
 
     // ── Raise the share-back ask once they're back from the OS sheet ─────────
     //
     // The "Add to Contacts" screen belongs to the operating system, so there is
-    // no event for "they finished". Two signals, whichever lands first (and
-    // only once): the tab going hidden and returning — how it behaves when the
-    // sheet is a separate surface — and a plain timer, because on iOS the sheet
-    // is drawn over Safari WITHOUT ever marking the page hidden, so a
-    // visibility-only approach would leave the ask never appearing at all.
-    let announced = false;
+    // no event for "they finished". THREE signals, whichever lands first:
+    //   • the tab going hidden and returning — when the sheet is its own surface
+    //   • the window regaining focus — how iOS behaves on dismissal
+    //   • a timer, because iOS can draw the sheet over Safari WITHOUT ever
+    //     marking the page hidden or blurring it, and a signal-only approach
+    //     would leave the ask never appearing on iPhone at all
     const announce = () => {
-      if (announced) return;
-      announced = true;
+      if (announced.current) return;
+      announced.current = true;
       window.dispatchEvent(new CustomEvent(SCAN_SAVED_EVENT));
     };
     let wasHidden = false;
@@ -77,12 +84,21 @@ export default function ScanSaveContact({
       if (document.hidden) { wasHidden = true; return; }
       if (wasHidden) announce();
     };
+    // Focus only counts AFTER the contact has actually been handed over —
+    // otherwise a focus event during page load would fire the ask instantly,
+    // before the visitor has even seen the contact sheet.
+    const onFocus = () => { if (delivered.current) announce(); };
     document.addEventListener("visibilitychange", onVisibility);
-    // Long enough to be past the sheet in the common case, short enough that
-    // the ask still feels connected to the save they just made.
-    const askTimer = setTimeout(announce, 6000);
+    window.addEventListener("focus", onFocus);
+    // Past the sheet in the common case, still close enough to the save that the
+    // ask reads as part of the same moment.
+    const askTimer = setTimeout(announce, 4500);
 
-    if (!suppressTracking) {
+    // Ref-guarded for the same reason as delivery: the effect body now runs on
+    // every pass, and recording twice would double the owner's "Contact saved"
+    // notification and their saved-contact count off a single scan.
+    if (!suppressTracking && !tracked.current) {
+      tracked.current = true;
       markSavedContact(username);
       // BYTE-FOR-BYTE the pair SaveContactButton fires. Both routes end at the
       // same moment — the phone's "Add to Contacts" sheet — so the owner must
@@ -107,9 +123,10 @@ export default function ScanSaveContact({
     }
 
     return () => {
-      clearTimeout(timer);
+      if (deliverTimer) clearTimeout(deliverTimer);
       clearTimeout(askTimer);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
     };
   }, [username, source, suppressTracking]);
 
