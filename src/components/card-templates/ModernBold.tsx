@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, u, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -48,7 +48,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+          backgroundSize: `${u(24)} ${u(24)}`,
         }}
       />
 
@@ -56,8 +56,8 @@ export default function ModernBold({ data }: { data: CardData }) {
       <div
         className="absolute pointer-events-none"
         style={{
-          width: 120, height: 120,
-          top: -30, right: -20,
+          width: u(120), height: u(120),
+          top: u(-30), right: u(-20),
           background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
         }}
       />
@@ -65,7 +65,7 @@ export default function ModernBold({ data }: { data: CardData }) {
       {/* ── Left content area ──────────────────────────── */}
       <div
         className="relative flex flex-col justify-between"
-        style={{ width: "44%", padding: "18px 16px 16px" }}
+        style={{ width: "44%", padding: `${u(18)} ${u(16)} ${u(16)}` }}
       >
         {/* Company */}
         <div className="flex items-center gap-2 min-w-0">
@@ -75,7 +75,7 @@ export default function ModernBold({ data }: { data: CardData }) {
           )}
           <p
             className="min-w-0 leading-tight"
-            style={{ fontSize: fitPx(12, data.company, 18), letterSpacing: "0.16em", color: companyColor, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
+            style={{ fontSize: u(fitPx(12, data.company, 18)), letterSpacing: "0.16em", color: companyColor, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>
@@ -83,15 +83,15 @@ export default function ModernBold({ data }: { data: CardData }) {
 
         {/* Name — the hero */}
         <div>
-          <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
+          <div className="w-5 mb-2" style={{ height: u(2), background: BLUE }} />
           <h2
             className="font-black text-white leading-tight"
-            style={{ fontSize: fitName(28 * heroGrow(f), data.name, 15), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
+            style={{ fontSize: u(fitName(28 * heroGrow(f), data.name, 15)), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
           >
             {data.name}
           </h2>
           <p
-            style={{ fontSize: fitTitle(9.5, data.title), color: BLUE, letterSpacing: "0.18em", fontWeight: 700, marginTop: 6, textTransform: "uppercase" }}
+            style={{ fontSize: u(fitTitle(9.5, data.title)), color: BLUE, letterSpacing: "0.18em", fontWeight: 700, marginTop: u(6), textTransform: "uppercase" }}
           >
             {data.title}
           </p>
@@ -108,21 +108,21 @@ export default function ModernBold({ data }: { data: CardData }) {
       </div>
 
       {/* Vertical divider with glow */}
-      <div className="relative flex items-stretch" style={{ width: 1 }}>
+      <div className="relative flex items-stretch" style={{ width: u(1) }}>
         <div
           className="w-full"
           style={{ background: `linear-gradient(to bottom, transparent, ${BLUE}, transparent)`, opacity: 0.4 }}
         />
         <div
           className="absolute inset-0"
-          style={{ background: `radial-gradient(ellipse at center, ${BLUE}40 0%, transparent 80%)`, width: 12, left: -6 }}
+          style={{ background: `radial-gradient(ellipse at center, ${BLUE}40 0%, transparent 80%)`, width: u(12), left: u(-6) }}
         />
       </div>
 
       {/* ── Right contact panel ────────────────────────── */}
       <div
         className="flex-1 flex flex-col justify-between"
-        style={{ padding: "16px 18px 14px", color: "#94a3b8" }}
+        style={{ padding: `${u(16)} ${u(18)} ${u(14)}`, color: "#94a3b8" }}
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-1">

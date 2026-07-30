@@ -572,6 +572,57 @@ body {
   .rd-glisten-sweep { animation: none !important; opacity: 0 !important; }
 }
 
+/* ── A card's design scales with the card's own width ───────────────────────
+   A business card is a fixed-proportion OBJECT, not a responsive layout: the
+   root sets `aspect-ratio`, so when the card gets narrower its HEIGHT shrinks
+   with it. Absolute px type inside would not shrink, so the content outgrew the
+   box and `overflow-hidden` clipped it silently — no error, and it looked fine
+   to whoever typed short values.
+
+   The fix is one unit. `--sc-u` is ONE DESIGN PIXEL, defined as a fraction of
+   the card's own width, so every length expressed in it scales with the card
+   and the design stays geometrically similar at any size. 460px is the design
+   width because it is the width CardScaler already renders cards at, so at
+   every existing call site --sc-u computes to exactly 1px and nothing moves.
+
+   `container-type: inline-size` on the card is what makes 100cqw resolve to the
+   card's own width for its DESCENDANTS (cq units always look to an ancestor
+   container, so a card can size its contents from itself but not itself).
+
+   Redefining Tailwind's --spacing and --radius-* scales here means the utility
+   classes the templates use (gap-2, px-5, w-3, rounded-2xl …) follow the same
+   unit without every one of them being rewritten. Scoped to .sc-card, so it
+   only ever affects card internals.
+
+   Templates express their own lengths through u() in card-templates/shared.tsx,
+   which carries a 1px fallback — a card fragment rendered outside .sc-card (the
+   custom-card designer canvas, MiniQR on the marketing site) still gets exact
+   design pixels. */
+.sc-card {
+  container-type: inline-size;
+  --sc-u: calc(100cqw / 460);
+
+  --spacing: calc(var(--sc-u) * 4);
+  --radius-sm: calc(var(--sc-u) * 4);
+  --radius-md: calc(var(--sc-u) * 6);
+  --radius-lg: calc(var(--sc-u) * 8);
+  --radius-xl: calc(var(--sc-u) * 12);
+  --radius-2xl: calc(var(--sc-u) * 16);
+  --radius-3xl: calc(var(--sc-u) * 24);
+
+  /* The card's OWN radius is the one length here that cannot use --sc-u. A cq
+     unit resolves against an ancestor container, never the element declaring
+     it, so on .sc-card itself 100cqw means "the nearest container OUTSIDE the
+     card" — the viewport when there is none. That made the card's corner radius
+     depend on browser width: 16px at 460, 17.4px at a 500px viewport, anything
+     at all on a desktop. Every template roots on `rounded-2xl`, so pin it back
+     to the literal value the templates were drawn with. Unlayered, so it beats
+     the utility in @layer utilities. Corner radius does not affect layout, so
+     this is the one place the design does not scale — a card in the 190px
+     template picker gets proportionally rounder corners and nothing else. */
+  border-radius: 16px;
+}
+
 /* ── Public card templates are theme-EXEMPT ─────────────────────────────────
    Card designs are fixed (they render the public card), so the app's light
    mode must never recolor their text — otherwise previews, downloads, and the

@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, u, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -38,7 +38,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
         style={{
           width: "40%",
           background: panelBg,
-          padding: "18px 16px 16px",
+          padding: `${u(18)} ${u(16)} ${u(16)}`,
         }}
       >
         {/* Subtle dot texture */}
@@ -46,7 +46,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
-            backgroundSize: "14px 14px",
+            backgroundSize: `${u(14)} ${u(14)}`,
           }}
         />
 
@@ -64,10 +64,10 @@ export default function ClassicPro({ data }: { data: CardData }) {
             <div
               className="rounded-lg flex items-center justify-center shrink-0 font-black"
               style={{
-                width: Math.round(40 * heroGrow(f)), height: Math.round(40 * heroGrow(f)),
+                width: u(Math.round(40 * heroGrow(f))), height: u(Math.round(40 * heroGrow(f))),
                 background: BLUE,
                 color: "#bfdbfe",
-                fontSize: Math.round(18 * heroGrow(f)),
+                fontSize: u(Math.round(18 * heroGrow(f))),
               }}
             >
               {(data.company || data.name || "K")[0].toUpperCase()}
@@ -75,7 +75,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           )}
           <span
             className="text-white/80 font-bold leading-tight min-w-0"
-            style={{ fontSize: fitPx(13.5, data.company, 18), letterSpacing: "0.03em", overflowWrap: "anywhere" }}
+            style={{ fontSize: u(fitPx(13.5, data.company, 18)), letterSpacing: "0.03em", overflowWrap: "anywhere" }}
           >
             {data.company}
           </span>
@@ -83,16 +83,16 @@ export default function ClassicPro({ data }: { data: CardData }) {
 
         {/* Name + title — hero */}
         <div className="relative">
-          <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
+          <div className="w-8 mb-2.5 rounded-full" style={{ height: u(2), background: BLUE }} />
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitName(24 * heroGrow(f), data.name, 16), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.12, color: style.textColor }}
+            style={{ fontSize: u(fitName(24 * heroGrow(f), data.name, 16)), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.12, color: style.textColor }}
           >
             {data.name}
           </h2>
           <p
             className="text-blue-300 font-semibold mt-1.5"
-            style={{ fontSize: fitTitle(9.5, data.title), letterSpacing: "0.16em", textTransform: "uppercase" }}
+            style={{ fontSize: u(fitTitle(9.5, data.title)), letterSpacing: "0.16em", textTransform: "uppercase" }}
           >
             {data.title}
           </p>
@@ -111,7 +111,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       {/* ── Right info panel ─────────────────────────────── */}
       <div
         className="flex-1 flex flex-col justify-between"
-        style={{ padding: "16px 18px 14px", borderLeft: "1px solid #e8eef8" }}
+        style={{ padding: `${u(16)} ${u(18)} ${u(14)}`, borderLeft: "1px solid #e8eef8" }}
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-0.5">
@@ -120,11 +120,11 @@ export default function ClassicPro({ data }: { data: CardData }) {
 
         {/* Social handles (compact, if space) */}
         {socials.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-[4px]">
+          <div className="flex flex-wrap gap-x-4" style={{ rowGap: u(4) }}>
             {socials.slice(0, 2).map((s, i) => (
               <div key={i} className="flex items-center gap-1.5" style={{ color: "#64748b" }}>
                 {s.icon}
-                <span style={{ fontSize: 9.5 }}>{s.handle}</span>
+                <span style={{ fontSize: u(9.5) }}>{s.handle}</span>
               </div>
             ))}
           </div>
@@ -141,7 +141,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       {/* Bottom gradient accent */}
       <div
         className="absolute bottom-0 left-0 right-0"
-        style={{ height: 4, background: `linear-gradient(90deg, ${BLUE}, #7c3aed)` }}
+        style={{ height: u(4), background: `linear-gradient(90deg, ${BLUE}, #7c3aed)` }}
       />
     </div>
   );

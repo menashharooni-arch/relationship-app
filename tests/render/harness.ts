@@ -101,7 +101,15 @@ export async function measureCard(
   const css = await appCss();
   const markup = renderToStaticMarkup(createElement(Template, { data }));
 
-  const page = await browser.newPage({ viewportSize: { width: Math.max(cardWidth + 80, 800), height: 900 } });
+  // `viewport`, not `viewportSize` — the latter is the name on BrowserContext
+  // options, is silently ignored here, and left every page at Chromium's default
+  // 1280. That was invisible while it was: the card's width comes from #holder,
+  // not the viewport. It stopped being invisible when three templates turned out
+  // to size monograms in `vw`, so the harness was measuring them at their
+  // desktop clamp maximum and could not have seen the phone rendering. Those are
+  // in design units now — nothing inside a card reads the viewport any more —
+  // but a viewport option that doesn't set the viewport is a trap either way.
+  const page = await browser.newPage({ viewport: { width: Math.max(cardWidth + 80, 800), height: 900 } });
   try {
     await page.setContent(
       `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>

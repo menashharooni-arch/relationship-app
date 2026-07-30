@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, u } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -56,15 +56,19 @@ export default function LocalBusiness({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-xl"
-              style={logoStyle(f, 58, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(58 * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
+              style={logoStyle(f, 58, { background: "rgba(255,255,255,0.15)", padding: u(5), maxWidth: u(Math.round(58 * 2.6 * Math.min(Math.max(f, 0.85), 1.3))) })}
             />
           ) : (
             <div
               className="rounded-xl flex items-center justify-center font-black text-amber-800"
               style={{
-                width: 58, height: 58,
+                width: u(58), height: u(58),
                 background: "rgba(255,255,255,0.92)",
-                fontSize: "clamp(18px, 4vw, 24px)",
+                // Was clamp(18px, 4vw, 24px) — sized off the VIEWPORT rather than
+                // the badge it sits in, so the same card showed 18px initials on
+                // a phone and 24px on a desktop. 24 design px is the design's own
+                // upper bound, now held at every width.
+                fontSize: u(24),
               }}
             >
               {initials}
@@ -76,12 +80,12 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="absolute bottom-0 left-0 px-5 pb-3">
           <h2
             className="font-extrabold text-white leading-tight"
-            style={{ fontSize: fitName(20 * heroGrow(f), data.name, 18), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
+            style={{ fontSize: u(fitName(20 * heroGrow(f), data.name, 18)), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
           >
             {data.name}
           </h2>
           {data.title && (
-            <p style={{ fontSize: fitTitle(8.5, data.title), color: "rgba(254,243,199,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
+            <p style={{ fontSize: u(fitTitle(8.5, data.title)), color: "rgba(254,243,199,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginTop: u(2) }}>
               {data.title}
             </p>
           )}
@@ -91,16 +95,16 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       {/* ── Cream body ─────────────────────────────────── */}
       <div
         className="flex-1 flex"
-        style={{ padding: "10px 18px 12px" }}
+        style={{ padding: `${u(10)} ${u(18)} ${u(12)}` }}
       >
         {/* Left: company + contact info */}
         <div className="flex-1 flex flex-col justify-between">
           {/* Company name */}
           <div className="min-w-0">
-            <p className="font-black leading-tight" style={{ fontSize: fitPx(13, data.company, 22), color: WARM, letterSpacing: "0.02em", overflowWrap: "anywhere" }}>
+            <p className="font-black leading-tight" style={{ fontSize: u(fitPx(13, data.company, 22)), color: WARM, letterSpacing: "0.02em", overflowWrap: "anywhere" }}>
               {data.company}
             </p>
-            <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
+            <div className="w-12 mt-1 rounded-full" style={{ height: u(2), background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
           </div>
 
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
@@ -116,7 +120,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       {/* Bottom gold accent bar */}
       <div
         className="absolute bottom-0 left-0 right-0"
-        style={{ height: 3, background: `linear-gradient(90deg, ${AMBER}, #f59e0b, ${AMBER2})` }}
+        style={{ height: u(3), background: `linear-gradient(90deg, ${AMBER}, #f59e0b, ${AMBER2})` }}
       />
     </div>
   );
