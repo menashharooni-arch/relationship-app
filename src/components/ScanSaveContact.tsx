@@ -22,9 +22,18 @@ import { getVisitorId, markSavedContact } from "@/lib/visitor";
 // pass uses.
 export default function ScanSaveContact({
   username,
+  source,
   suppressTracking = false,
 }: {
   username: string;
+  /**
+   * Capture channel, taken from the page's ?source= exactly like every other
+   * surface — the QR encodes source=qr_code, so this arrives as "qr_code" and
+   * runs through the same SOURCE_LABELS map ("QR code scan"). Hardcoding a new
+   * value here would miss that map and print a raw lowercase slug into the
+   * owner's notification, which is precisely what happened to swift_links once.
+   */
+  source: string;
   /** Owner previewing their own card — deliver the contact, record nothing. */
   suppressTracking?: boolean;
 }) {
@@ -50,9 +59,11 @@ export default function ScanSaveContact({
 
     if (!suppressTracking) {
       markSavedContact(username);
-      // Same event the Save Contact button records, so a QR save shows up in
-      // the owner's activity as "saved your contact" like every other save
-      // rather than silently not existing.
+      // BYTE-FOR-BYTE the pair SaveContactButton fires. Both routes end at the
+      // same moment — the phone's "Add to Contacts" sheet — so the owner must
+      // get the identical "Contact saved" bell entry, activity row and CRM
+      // dispatch either way. /api/card-events owns all three off
+      // downloaded_vcard; sending anything different here would fork the flow.
       fetch("/api/card-events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +71,7 @@ export default function ScanSaveContact({
           card_owner_username: username,
           visitor_id: getVisitorId(),
           event_type: "downloaded_vcard",
-          source: "qr_scan",
+          source,
         }),
       }).catch(() => {});
       fetch("/api/analytics/event", {
@@ -71,7 +82,7 @@ export default function ScanSaveContact({
     }
 
     return () => clearTimeout(timer);
-  }, [username, suppressTracking]);
+  }, [username, source, suppressTracking]);
 
   return null;
 }
