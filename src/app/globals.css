@@ -451,24 +451,35 @@ body {
   animation: rd-ll-shine 3.8s ease-in-out infinite; }
 @keyframes rd-ll-shine { 0% { transform: translateX(-160%) skewX(-18deg); } 55%,100% { transform: translateX(320%) skewX(-18deg); } }
 
-/* Green hero badge — free-to-start callout (smaller, gently blinking) */
+/* Green hero badge — free-to-start callout.
+   The BADGE ITSELF NEVER ANIMATES. It used to blink the whole pill (text and
+   all) on a 1.5s cycle, which reads as a broken element and makes the copy hard
+   to actually read — the dot was strobing on the same beat, so the two
+   compounded into a jitter. Liveness now comes from one slow beacon on the dot,
+   and the text simply sits still and legible. */
 .rd-green-badge {
-  display: inline-flex; align-items: center; gap: .34rem;
-  padding: .24rem .58rem; border-radius: 999px;
-  font-size: .64rem; font-weight: 600; letter-spacing: .005em; color: #047857;
-  background: rgba(5,150,105,.10); border: 1px solid rgba(5,150,105,.28);
-  animation: rd-badge-blink 1.5s ease-in-out infinite;
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .34rem .72rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 600; letter-spacing: .01em; color: #047857;
+  background: rgba(5,150,105,.08); border: 1px solid rgba(5,150,105,.2);
 }
-.rd-green-dot { width: .34rem; height: .34rem; border-radius: 999px; background: #059669;
-  box-shadow: 0 0 8px rgba(5,150,105,.5); animation: rd-dot-pulse 1.5s ease-in-out infinite; }
-
-@keyframes rd-badge-blink { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-@keyframes rd-dot-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(5,150,105,.5); }
-  50% { transform: scale(1.35); box-shadow: 0 0 12px rgba(5,150,105,.9); }
+.rd-green-dot {
+  position: relative; flex-shrink: 0;
+  width: .4rem; height: .4rem; border-radius: 999px; background: #059669;
+}
+/* The core dot holds its size and position — only a soft ring expands out of it,
+   so the badge never appears to twitch. Slow and eased, a heartbeat not a strobe. */
+.rd-green-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 999px;
+  background: rgba(5,150,105,.4);
+  animation: rd-dot-beacon 2.8s var(--ease-out) infinite;
+}
+@keyframes rd-dot-beacon {
+  0%        { transform: scale(1); opacity: .5; }
+  70%, 100% { transform: scale(2.8); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rd-green-badge, .rd-green-dot { animation: none !important; opacity: 1 !important; }
+  .rd-green-dot::after { animation: none !important; opacity: 0 !important; }
 }
 
 .rd-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
