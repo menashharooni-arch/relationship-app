@@ -78,19 +78,16 @@ export default function CardPreviewDownload({ data, template, username, previewU
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      {/* NO "Preview" link here. It was removed on purpose (2026-07-10) and
+          replaced by the "View live card" button in the dashboard header —
+          two controls opening the same URL side by side was the thing being
+          fixed. `previewUrl` survives ONLY because DownloadCardButton needs it
+          as the native share target: inside the iOS shell WKWebView can't save
+          a generated PNG, so it shares this link instead of dead-tapping.
+          Passing the prop must never resurrect the link — that regression is
+          exactly what happened once and is now pinned by a test. */}
+      <div className="mt-3">
         <DownloadCardButton cardRef={cardRef} filename={`swiftcard-${username}.png`} compact shareUrl={previewUrl} />
-        {previewUrl && (
-          <a
-            href={previewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M6.75 1a.75.75 0 01.75.75V3h1V1.75a.75.75 0 011.5 0V3H11a2 2 0 012 2v7.5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h1.25V1.75A.75.75 0 016.75 1zM5 4.5a.5.5 0 00-.5.5v7.5a.5.5 0 00.5.5h6a.5.5 0 00.5-.5V5a.5.5 0 00-.5-.5H5z" /></svg>
-            Preview
-          </a>
-        )}
       </div>
     </div>
   );
