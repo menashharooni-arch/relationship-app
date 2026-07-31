@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { assertSafeUrl, isZapierWebhookUrl } from "@/lib/safe-fetch";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // These cover every branch that does NOT require a network/DNS round-trip, so
 // the suite stays hermetic: scheme, hostname blocklist, and literal-IP checks.
@@ -50,5 +52,23 @@ describe("isZapierWebhookUrl", () => {
     expect(isZapierWebhookUrl("not a url")).toBe(false);
     expect(isZapierWebhookUrl(null)).toBe(false);
     expect(isZapierWebhookUrl(12345)).toBe(false);
+  });
+});
+
+// ── SSRF regression guards ───────────────────────────────────────────────────
+// Routes that fetch a URL held in a user-controlled DB column must go through
+// safeFetch. The public vCard endpoint fetched card.photo_url with a bare
+// fetch(), which let any card owner point an unauthenticated public endpoint at
+// cloud metadata or an internal address. Flagged by security review 2026-07-31.
+describe("SSRF: user-controlled URLs go through safeFetch", () => {
+  const routes = ["src/app/api/card/[username]/vcard/route.ts"];
+
+  it.each(routes)("%s uses safeFetch, never bare fetch", (rel) => {
+    const src = readFileSync(join(process.cwd(), rel), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    expect(src).toMatch(/safeFetch\(/);
+    // `await fetch(` with no safe- prefix is the pattern that was vulnerable.
+    expect(src).not.toMatch(/[^e]\bfetch\(/);
   });
 });
