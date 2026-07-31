@@ -43,7 +43,11 @@ describe("email send-site policy", () => {
       const src = stripComments(readFileSync(file, "utf8"));
       if (!src.includes("resend.emails.send")) continue;
 
-      const rel = file.slice(root.length + 1);
+      // Normalize separators: on Windows this slice yields backslashes, which
+      // never match the forward-slash keys in ALLOWED — so both excused files
+      // were reported as violations and the guard failed for everyone on
+      // Windows while passing in CI.
+      const rel = file.slice(root.length + 1).split(/[\\/]/).join("/");
       if (ALLOWED[rel]) continue;
 
       // Either it passes a headers key, or it goes through the shared layer.
