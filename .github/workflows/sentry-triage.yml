@@ -136,7 +136,12 @@ jobs:
 
       - name: Diagnose and draft a fix
         if: steps.dedupe.outputs.already == 'false'
-        uses: anthropics/claude-code-action@main
+        # Pinned to a commit SHA, not @main: this step is handed ANTHROPIC_API_KEY
+        # and a GITHUB_TOKEN, so a floating ref means any future push upstream
+        # runs with those secrets before anyone here reviews it. SHA below is
+        # what the v1 tag resolved to on 2026-07-31 (identical to main at the
+        # time). Bump deliberately after reviewing upstream changes.
+        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b  # v1
         continue-on-error: true
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
