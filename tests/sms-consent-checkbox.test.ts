@@ -92,3 +92,28 @@ describe("SMS consent checkbox (A2P 10DLC approval requirements)", () => {
     expect(page).not.toMatch(/Submitting the form is the affirmative opt-in/);
   });
 });
+
+// An unticked box records sms-paused. That must block EVERY outbound SMS path,
+// not just the automated cron — otherwise the opt-in tells the visitor one
+// thing and the product does another, which is a TCPA problem independent of
+// A2P review. Found while verifying claims before writing to Twilio.
+describe("an explicit SMS decline blocks every send path", () => {
+  const MANUAL_SMS_ROUTES = [
+    "src/app/api/sms/send/route.ts",
+    "src/app/api/leads/[id]/message/route.ts",
+  ];
+
+  it.each(MANUAL_SMS_ROUTES)("%s refuses to text an sms-paused contact", (rel) => {
+    const src = read(rel);
+    expect(src).toMatch(/sms-paused/);
+    expect(src).toMatch(/sms_declined/);
+    // It must actually read the tags to be able to check them.
+    expect(src).toMatch(/select\("[^"]*tags/);
+  });
+
+  it("the automated path still requires affirmative sms-ok", () => {
+    const cron = read("src/app/api/reminders/route.ts");
+    expect(cron).toMatch(/sms-ok/);
+    expect(cron).toMatch(/sms-paused/);
+  });
+});
