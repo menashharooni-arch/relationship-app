@@ -45,10 +45,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const admin = getAdminSupabase();
   const [{ data: lead }, usernames] = await Promise.all([
-    admin.from("leads").select("name, email, phone, card_owner").eq("id", id).single(),
+    admin.from("leads").select("name, email, phone, card_owner, tags").eq("id", id).single(),
     getOwnerUsernames(user.id),
   ]);
   if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // An explicit DECLINE blocks SMS here too — see the same guard in
+  // /api/sms/send. Only the SMS channel is blocked: this route is email-first,
+  // and declining texts is not a decline of email, which carries its own
+  // unsubscribe. A text step must never silently fall back to email either, so
+  // reject rather than re-routing.
+  const declinedSms = (lead.tags as string[] | null)?.includes("sms-paused") ?? false;
+  if (declinedSms && (preferChannel === "sms" || !lead.email)) {
+    return NextResponse.json(
+      { error: "sms_declined", message: "This contact didn't opt in to texts. You can still email them." },
+      { status: 409 },
+    );
+  }
 
   // Sender identity = the card that captured this lead (fall back to profile).
   const { data: card } = await admin

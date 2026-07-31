@@ -26,12 +26,27 @@ export async function POST(req: NextRequest) {
 
   const admin = getAdminSupabase();
   const [{ data: lead }, usernames] = await Promise.all([
-    admin.from("leads").select("name, phone, card_owner").eq("id", leadId).single(),
+    admin.from("leads").select("name, phone, card_owner, tags").eq("id", leadId).single(),
     getOwnerUsernames(user.id),
   ]);
 
   if (!lead?.phone) return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
   if (!usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // An explicit DECLINE blocks every SMS path, not just the automated one.
+  // The share form's SMS checkbox is optional; leaving it unticked records
+  // sms-paused. The reminders cron already refuses to text those contacts, but
+  // this manual path only consulted the platform STOP list — so an owner could
+  // still text someone who had specifically declined. That contradicts what the
+  // opt-in tells the visitor, and it is a TCPA problem regardless of Twilio.
+  // (Contacts with NEITHER tag are unchanged: the owner asserts permission for
+  // those via the Text-automation toggle, which is what sets sms-ok.)
+  if ((lead.tags as string[] | null)?.includes("sms-paused")) {
+    return NextResponse.json(
+      { error: "sms_declined", message: "This contact didn't opt in to texts. You can still email them." },
+      { status: 409 },
+    );
+  }
 
   // Sender identity = the card that captured this contact (legacy: profile slug).
   const { data: card } = await admin
