@@ -93,6 +93,9 @@ export default function SaveContactButton({
   const [showQr, setShowQr] = useState(false);
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
+  // A2P review requires the box be unchecked by default and optional.
+  const [smsConsent, setSmsConsent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -257,7 +260,7 @@ export default function SaveContactButton({
           email: form.email || null,
           card_owner: cardOwner,
           source: "save_contact_conversion",
-          sms_consent: true, // sharing = consent (disclosure above the button)
+          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),
       });
       if (!res.ok) throw new Error("lead capture failed");
@@ -411,7 +414,7 @@ export default function SaveContactButton({
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
                   />
                   {/* Consent disclosure — submitting is the opt-in (text + email). */}
-                  <SmsConsentCheckbox recipientName={ownerFirstName} />
+                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
                   <button
                     type="submit"
                     disabled={status === "loading"}
