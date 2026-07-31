@@ -116,12 +116,18 @@ export default function DownloadCardButton({ cardRef, filename = "swiftcard.png"
   );
   const label = loading ? "Saving…" : status === "error" ? "Couldn't save — retry" : compact ? "Download" : "Download card as image";
 
+  // w-full, NOT flex-1. This button used to sit in a `flex` row beside a
+  // "Preview" link, so flex-1 sized it. The Preview link was removed and the row
+  // became a plain block, which left flex-1 inert — and a button is shrink-to-fit
+  // by default even at display:flex, so it collapsed to the width of the word
+  // "Download" and sat there looking broken next to the full-width Wallet button
+  // below it. w-full doesn't care what the parent is.
   if (compact) {
     return (
       <button
         onClick={handleDownload}
         disabled={loading}
-        className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold border rounded-full py-2 transition-colors disabled:opacity-50 ${
+        className={`w-full flex items-center justify-center gap-1.5 text-xs font-semibold border rounded-full py-2 transition-colors disabled:opacity-50 ${
           status === "error"
             ? "text-amber-300 bg-amber-950/40 border-amber-800/50"
             : "text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border-gray-700"
