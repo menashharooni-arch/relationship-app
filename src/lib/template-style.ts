@@ -63,8 +63,16 @@ export function isDarkBg(bg?: string): boolean {
 
 // Typography choices offered in the editor. One shared list for the control and
 // any tests.
+//
+// "Sans", NOT "Sans (default)". Both consumers (TemplateStyleControls' FontPills
+// and SwiftLinkDesign) prepend their own "Default" entry meaning "no override —
+// inherit the page", and the page inherits Arial, while this option resolves to
+// Geist. So the two really are different typefaces, and calling this one "the
+// default" sat next to an actual Default pill claiming the same thing. The
+// separate list in CustomCardDesigner keeps its "(default)" suffix: that canvas
+// has no Default pill and genuinely does start on this stack (CustomCard.tsx).
 export const CARD_FONT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Sans (default)", value: "var(--font-geist-sans), system-ui, sans-serif" },
+  { label: "Sans", value: "var(--font-geist-sans), system-ui, sans-serif" },
   { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
   { label: "Mono", value: "'Courier New', ui-monospace, monospace" },
   { label: "Rounded", value: "'Trebuchet MS', system-ui, sans-serif" },
