@@ -513,35 +513,26 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 </Box>
               </div>
 
-              {/* Swift Signature — same section the real /share page renders */}
+              {/* Swift Signature — a replica of EmailSignatureBox's COLLAPSED
+                  state, which is all the real Links page shows here: a title, a
+                  line of copy, and one blue button that opens the signature in a
+                  mock email. This used to show an inline card preview and a
+                  two-button row that exist nowhere in the real portal, so the
+                  page a visitor was told to trust as "your dashboard" didn't
+                  match the one they'd get. Padding is p-4, not the p-5 Box —
+                  EmailSignatureBox is the one card on this page that uses p-4. */}
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Signature</p>
-                <Box>
-                  <p className="text-gray-500 text-xs mb-3 leading-relaxed">
-                    Your live card in every email you send — image + clickable links, always up to date.
+                <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
+                  <p className="text-white font-semibold text-sm">Swift Signature</p>
+                  <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
+                    Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
                   </p>
-                  {/* The signature as it lands in an email — the same preview the modal shows */}
-                  <div className="rounded-xl bg-white p-4">
-                    <div className="border-t border-gray-200 pt-3">
-                      <p className="text-gray-900 text-sm font-semibold">{card.data.name}</p>
-                      <p className="text-gray-500 text-xs">{card.data.title} · {card.data.company}</p>
-                      <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 max-w-[260px]">
-                        <CardOnlyPreview key={`sig-${card.handle}`} src={`/card/${card.handle}?embed=card`} />
-                      </div>
-                      <p className="text-blue-600 text-[11px] mt-1.5 underline">swiftcard.me/card/{card.handle}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <button type="button" onClick={() => openDemo("signature")}
-                      className="text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
-                      See it in an email
-                    </button>
-                    <button type="button" onClick={copySig}
-                      className="text-center text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2 transition-colors">
-                      {copied ? "Copied ✓" : "Copy signature"}
-                    </button>
-                  </div>
-                </Box>
+                  <button type="button" onClick={() => openDemo("signature")}
+                    className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-2 rounded-full transition-colors">
+                    Preview &amp; copy
+                  </button>
+                </div>
               </div>
             </div>
           </div>
