@@ -73,7 +73,9 @@ function WalletPhone() {
       </div>
       {/* The real SwiftCard on top */}
       <div className="px-4 pt-4">
-        <div className="rounded-[16px] overflow-hidden shadow-[0_12px_28px_-10px_rgba(15,23,42,0.45)] relative z-30" style={{ background: "#FAF7F2" }}>
+        {/* pointerEvents: none — see DashboardDemo: the card's contact rows are
+            real tel:/mailto:/https: links, and this demo person isn't real. */}
+        <div className="rounded-[16px] overflow-hidden shadow-[0_12px_28px_-10px_rgba(15,23,42,0.45)] relative z-30" style={{ background: "#FAF7F2", pointerEvents: "none" }}>
           <CardScaler><ClassicPro data={CARD_DATA} /></CardScaler>
         </div>
       </div>

@@ -312,7 +312,12 @@ function CardSharePanel() {
         {/* The REAL card template component, same identity used across every
             marketing demo — not a hand-drawn mock, so this box looks exactly
             like the real dashboard's "Your Card" panel. */}
-        <div className="rounded-xl overflow-hidden border border-gray-800">
+        {/* pointerEvents: none — the template renders phone/email/website as real
+            tel:/mailto:/https: links, and this is a marketing mock of a person who
+            doesn't exist. Live, they sent visitors to a made-up mailbox and off
+            our site to coastlinehomes.com, a domain we don't own. Same treatment
+            TemplateGallery, LeadCapturePhone and SignatureDemo already apply. */}
+        <div className="rounded-xl overflow-hidden border border-gray-800" style={{ pointerEvents: "none" }}>
           <CardScaler><ClassicPro data={DEMO_CARD} /></CardScaler>
         </div>
         <span className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-gray-400 border border-gray-800 rounded-full py-2">

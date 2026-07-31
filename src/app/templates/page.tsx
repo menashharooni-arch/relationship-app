@@ -130,6 +130,14 @@ export default function TemplatesPage() {
                     outline: isSelected ? "3px solid #3b82f6" : "2px solid transparent",
                     outlineOffset: 3,
                     boxShadow: isSelected ? "0 0 0 5px rgba(59,130,246,0.15)" : undefined,
+                    // The card's phone/email/website are real tel:/mailto:/https:
+                    // links. Sitting inside the selector button they swallowed the
+                    // click: tapping a card on its contact rows opened a mail client
+                    // instead of choosing that template, and the targets here are the
+                    // biggest on the site (~218px). Letting pointer events pass
+                    // through makes the whole card select, which is what it looks
+                    // like it should do. Same as TemplateGallery's grid tiles.
+                    pointerEvents: "none",
                   }}
                 >
                   <CardScaler>
