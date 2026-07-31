@@ -17,6 +17,9 @@ export default function LeadCaptureForm({
   const [status, setStatus] = useState<Status>("idle");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
+  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
+  // A2P review requires the box be unchecked by default and optional.
+  const [smsConsent, setSmsConsent] = useState(false);
 
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.
@@ -46,7 +49,7 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
-          sms_consent: true, // sharing = consent (disclosure above the button)
+          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),
       });
     } catch {
@@ -144,11 +147,12 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* One disclosure covers BOTH channels (text + email) — SUBMITTING is the
-          consent, which is why this form posts sms_consent:true. Despite the
-          component name there is no checkbox; it renders a disclosure line.
-          Kept ≥8px and legible ("clear and conspicuous"). */}
-      <SmsConsentCheckbox recipientName={cardOwner} />
+      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
+          this form must stay submittable with it unchecked (posts
+          sms_consent:false → captured, never auto-texted). Required by Twilio
+          A2P review; see the header of SmsConsentCheckbox.tsx. Email consent is
+          still by submission, and every email carries an unsubscribe link. */}
+      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
       <p className="text-slate-600 text-[8px] text-center leading-snug">
         Every email includes an unsubscribe link.
       </p>
