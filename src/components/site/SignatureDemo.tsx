@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import CardScaler from "@/components/CardScaler";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
-import { withoutSocials } from "@/components/card-templates/types";
+import { withoutSocials, SAMPLE_DATA, SAMPLE_DATA_WITH_PHOTO, DEMO_HEADSHOT } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
@@ -23,39 +23,27 @@ import { buildConnectLinks } from "@/lib/social-url";
 // Same demo identity as SAMPLE_DATA (card-templates/types.tsx) and every other
 // marketing demo (SwiftLinksPhone, TeamsDashboard, DashboardDemo) — one person,
 // one company, everywhere on the site.
-const IDENTITY = {
-  name: "Alex Morgan",
-  title: "Realtor®",
-  company: "Coastline Realty",
-  phone: "(415) 555-0188",
-  email: "alex@coastlinerealty.com",
-  website: "coastlinehomes.com",
-  linkedin: "linkedin.com/in/alexmorgan",
-  instagram: "@coastlinerealty",
-  tiktok: "@coastlinerealty",
-  twitter: "@alexmorgan",
-};
-const FIRST = "Alex";
+//
+// DERIVED, not retyped. This block used to restate every field by hand and
+// dropped `address` on the way, so the card in the signature rendered without
+// the street line that the SwiftCard example in the template gallery shows —
+// two cards for the same person that didn't match. Reading from SAMPLE_DATA is
+// what makes that impossible: a field added there now reaches both.
+const IDENTITY = SAMPLE_DATA;
+const FIRST = SAMPLE_DATA.name.split(" ")[0];
 const CARD_URL = "https://swiftcard.me/card/alexmorgan";
 
-const CARD_DATA: CardData = withoutSocials({
-  name: IDENTITY.name,
-  title: IDENTITY.title,
-  company: IDENTITY.company,
-  phone: IDENTITY.phone,
-  email: IDENTITY.email,
-  website: IDENTITY.website,
-  initials: "AM",
-  photoUrl: "/marketing/demo-girl.jpg",
-  logoUrl: null,
-  cardUrl: "swiftcard.me/card/alexmorgan",
-});
+// Byte-for-byte the gallery's Photo First card (see TemplateGallery's
+// PHOTO_FIRST_DATA): the shared sample, socials stripped, demo headshot on.
+const CARD_DATA: CardData = withoutSocials(SAMPLE_DATA_WITH_PHOTO);
 
 const PERSON = {
   name: IDENTITY.name, title: IDENTITY.title, company: IDENTITY.company,
-  email: IDENTITY.email, phone: IDENTITY.phone, website: IDENTITY.website,
+  // CardData types these as optional; Person requires `website`. The sample
+  // always sets it — the fallback just keeps the demo honest if it ever stops.
+  email: IDENTITY.email, phone: IDENTITY.phone, website: IDENTITY.website ?? "",
   linkedin: IDENTITY.linkedin, instagram: IDENTITY.instagram, twitter: IDENTITY.twitter, tiktok: IDENTITY.tiktok,
-  photoUrl: "/marketing/demo-girl.jpg",
+  photoUrl: DEMO_HEADSHOT,
 };
 
 const CONNECT_LINKS = buildConnectLinks({

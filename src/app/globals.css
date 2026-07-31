@@ -466,19 +466,30 @@ body {
 .rd-green-dot {
   position: relative; flex-shrink: 0;
   width: .4rem; height: .4rem; border-radius: 999px; background: #059669;
+  /* A halo that breathes in step with the ring. This is what carries the extra
+     visibility: the dot's SIZE still never changes, only the glow around it, so
+     the badge text beside it never shifts a pixel. */
+  animation: rd-dot-glow 2s var(--ease-out) infinite;
 }
 /* The core dot holds its size and position — only a soft ring expands out of it,
-   so the badge never appears to twitch. Slow and eased, a heartbeat not a strobe. */
+   so the badge never appears to twitch. Eased, a heartbeat not a strobe: the
+   pulse is brighter, reaches further and repeats a little sooner than it did,
+   which is enough to catch the eye without the badge becoming a distraction. */
 .rd-green-dot::after {
   content: ""; position: absolute; inset: 0; border-radius: 999px;
-  background: rgba(5,150,105,.4);
-  animation: rd-dot-beacon 2.8s var(--ease-out) infinite;
+  background: rgba(5,150,105,.5);
+  animation: rd-dot-beacon 2s var(--ease-out) infinite;
 }
 @keyframes rd-dot-beacon {
-  0%        { transform: scale(1); opacity: .5; }
-  70%, 100% { transform: scale(2.8); opacity: 0; }
+  0%        { transform: scale(1); opacity: .7; }
+  72%, 100% { transform: scale(3.2); opacity: 0; }
+}
+@keyframes rd-dot-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(5,150,105,0); }
+  30%      { box-shadow: 0 0 7px 1px rgba(5,150,105,.5); }
 }
 @media (prefers-reduced-motion: reduce) {
+  .rd-green-dot { animation: none !important; box-shadow: none !important; }
   .rd-green-dot::after { animation: none !important; opacity: 0 !important; }
 }
 
