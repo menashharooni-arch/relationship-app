@@ -71,4 +71,36 @@ describe("CARD_FONT_OPTIONS", () => {
       expect(f.value.length).toBeGreaterThan(0);
     }
   });
+
+  it("no option calls itself the default", () => {
+    // Every consumer of this list PREPENDS its own "Default" pill meaning "no
+    // override — inherit the page" (TemplateStyleControls' FontPills and
+    // SwiftLinkDesign both do). The Sans entry used to be labelled
+    // "Sans (default)", so the picker showed "Default" and "Sans (default)"
+    // side by side, each claiming to be the default — and they aren't even the
+    // same typeface: Default inherits Arial, this one resolves to Geist.
+    for (const f of CARD_FONT_OPTIONS) {
+      expect(f.label.toLowerCase(), `"${f.label}" competes with the Default pill`)
+        .not.toContain("default");
+    }
+  });
+
+  it("every option is a distinct label and a distinct typeface", () => {
+    expect(new Set(CARD_FONT_OPTIONS.map((f) => f.label)).size).toBe(CARD_FONT_OPTIONS.length);
+    expect(new Set(CARD_FONT_OPTIONS.map((f) => f.value)).size).toBe(CARD_FONT_OPTIONS.length);
+  });
+});
+
+describe("both font pickers prepend their own Default", () => {
+  // If a consumer stopped adding it, "Default" would vanish and there'd be no
+  // way back to the template's own typeface — the reason the list itself must
+  // not claim a default.
+  it.each([
+    "src/components/card-templates/TemplateStyleControls.tsx",
+    "src/components/SwiftLinkDesign.tsx",
+  ])("%s offers a Default pill alongside CARD_FONT_OPTIONS", async (file) => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(file, "utf8");
+    expect(src).toMatch(/\{\s*label:\s*"Default",\s*value:\s*undefined[^}]*\}\s*,\s*\.\.\.CARD_FONT_OPTIONS/);
+  });
 });

@@ -125,11 +125,19 @@ export default function RootLayout({
             only: on localhost and preview they'd 404, and preview traffic is us.
 
             afterInteractive so measurement never competes with first paint. */}
-        {process.env.NEXT_PUBLIC_VERCEL_ENV === "production" && (
-          <>
+        {/* SPEED INSIGHTS ONLY — the Web Analytics tag is deliberately absent.
+            Vercel serves /_vercel/<feature>/script.js only once that feature is
+            enabled in the dashboard. Speed Insights is on and returns 200. Web
+            Analytics is NOT, so its tag 404'd on every production page load for
+            every visitor, and logged a MIME-type console error on top ("Refused
+            to execute script … 'text/html'"). Shipping a guaranteed 404 to
+            everyone to hold a slot for a feature nobody turned on is a bad trade.
+
+            To turn Web Analytics on: enable it in Vercel → Analytics, then add
             <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
-            <Script src="/_vercel/speed-insights/script.js" strategy="afterInteractive" />
-          </>
+            back here. Nothing else is required — see MONITORING.md. */}
+        {process.env.NEXT_PUBLIC_VERCEL_ENV === "production" && (
+          <Script src="/_vercel/speed-insights/script.js" strategy="afterInteractive" />
         )}
         {children}
         {/* pausePathPrefix: this instance lives in the ROOT layout, so it is

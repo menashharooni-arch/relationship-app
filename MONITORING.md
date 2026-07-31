@@ -109,15 +109,25 @@ promise end to end against a real event rather than trusting the unit tests.
 
 ### Speed Insights and Analytics
 
-Already wired into the app (production only). To turn them on:
+**Speed Insights is live.** It's enabled in the dashboard and the app loads
+`/_vercel/speed-insights/script.js` from Vercel's own edge in production — no npm
+package, no third-party request.
 
-Vercel → your project → the **Analytics** tab → Enable. Then the **Speed
-Insights** tab → Enable.
+**Web Analytics is off, and its script tag has been removed.** The earlier claim
+here — that an unenabled script "404s harmlessly" — was wrong in practice. A
+disabled feature's script does not exist, so every production page load fetched
+a 404 that Vercel answers with an HTML error page, and the browser then logged
+`Refused to execute script … MIME type ('text/html') is not executable` on top.
+One guaranteed failed request plus a console error, on every page, for every
+visitor, for a feature nobody had turned on.
 
-That's it — no env vars. The app loads both scripts from Vercel's own edge
-(`/_vercel/insights/script.js` and `/_vercel/speed-insights/script.js`), so
-there's no npm package and no third-party request. If you never enable them in
-the dashboard, the scripts 404 harmlessly and nothing breaks.
+To turn it on, do both:
+
+1. Vercel → your project → the **Analytics** tab → Enable.
+2. Add the tag back in `src/app/layout.tsx`, next to the Speed Insights one:
+   `<Script src="/_vercel/insights/script.js" strategy="afterInteractive" />`
+
+Order matters — add the tag before enabling and you're back to 404s.
 
 ### Uptime pings
 
