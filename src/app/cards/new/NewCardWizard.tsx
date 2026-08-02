@@ -986,8 +986,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 <button type="button" onClick={addPhone} className="text-xs font-semibold text-blue-400 hover:text-blue-300">+ Add number</button>
               </div>
               <div className="space-y-2">
+                {/* flex-wrap: the type picker, the number and the On-card toggle
+                    are three fixed-ish items in one row. At 320px that squeezed
+                    the number field to 98px and hid 30px of what you'd typed —
+                    you could not read your own phone number back. Wrapping lets
+                    the toggle drop to a second line there; at 375px and up the
+                    row still fits on one line exactly as before. */}
                 {phones.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  <div key={i} className="flex flex-wrap items-center gap-2">
                     {/* Office members don't choose a type: the company number is
                         set once by their admin on the Branding page and injected
                         server-side, so every number they add here is a personal

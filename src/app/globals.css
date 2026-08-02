@@ -509,6 +509,22 @@ body {
 .rd-btn-ghost-l { color: var(--rd-ink-900); background: rgba(12,16,26,.03); border: 1px solid var(--rd-line-light); }
 .rd-btn-ghost-l:hover { background: rgba(12,16,26,.06); transform: translateY(-2px); }
 .rd-btn-lg { padding: 1rem 1.7rem; font-size: 1rem; }
+/* .rd-btn is `white-space: nowrap` + `overflow: hidden`, which is right on every
+   real phone and desktop — but on a 320px screen (the ORIGINAL iPhone SE / iPhone
+   5) a long label physically cannot fit one line, so it was clipped mid-word:
+   "See how your Swift Signature would look" rendered as "ee how your Swift
+   Signature would lo". Let the label wrap at that width only. Scoped to <=360px,
+   so 375px and up are byte-identical to before. */
+@media (max-width: 360px) {
+  .rd-btn { white-space: normal; }
+  /* /login scrolled sideways 10px at 320px because Google's One Tap iframe is
+     appended to <body> at a fixed width wider than the screen — third-party
+     markup we can't resize and can't wrap. `clip`, deliberately NOT `hidden`:
+     hidden would force the other axis to `auto`, turning body into a scroll
+     container and breaking every `position: sticky` header in the app. `clip`
+     just clips. Still scoped to <=360px, so nothing at 375px+ is affected. */
+  body { overflow-x: clip; }
+}
 .rd-btn::before { content:""; position:absolute; top:0; bottom:0; left:-60%; width:45%; z-index:-1;
   background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
   transform: skewX(-18deg); transition: left .6s var(--ease-out); }
