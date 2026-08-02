@@ -43,6 +43,11 @@ jobs:
 
       - name: Probe production
         id: probe
+        env:
+          # Live customer cards, public URLs. Demo data can stay green while a
+          # real account's card is broken — this is what closes that gap.
+          # Add slugs here as accounts you care about go live.
+          HEALTH_REAL_CARDS: "aaron-lavi-malve-capital,aaron-lavi-nadlan-homes-llc"
         run: |
           set -o pipefail
           node scripts/health-check.mjs > health.json || true
