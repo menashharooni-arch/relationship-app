@@ -1021,7 +1021,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       placeholder="+1 (555) 000-0000"
                       value={p.number}
                       onChange={(e) => updatePhone(i, { number: e.target.value })}
-                      className={`${inputCls} flex-1 min-w-0`}
+                      // min-w-[9rem], not min-w-0: with min-w-0 the field just
+                      // shrank to 98px at 320px and hid 30px of the number, and
+                      // flex-wrap never fired because nothing ever exceeded the
+                      // line. Giving it a floor forces the On-card toggle onto a
+                      // second row there instead. 9rem = 144px is below the
+                      // 153px the field already gets at 375px, so every real
+                      // phone keeps the single-row layout untouched.
+                      className={`${inputCls} flex-1 min-w-[9rem]`}
                     />
                     <button
                       type="button"

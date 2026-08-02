@@ -405,7 +405,11 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             /share in the real portal). */}
         <div className="mb-5">
           <Box>
-            <div className="flex items-center justify-between mb-4">
+            {/* flex-wrap + gap: "Traffic" plus the four range pills need 287px
+                of a 280px box at 320px, which was the last 5px of sideways
+                scroll on this page. The pills drop under the label there; at
+                360px+ they still sit on the same line as before. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <p className="text-white font-semibold text-sm">Traffic</p>
               <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
                 {RANGES.map((r) => (
