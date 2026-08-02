@@ -1,0 +1,109 @@
+name: Production health check
+
+# ── The watchdog that needs no credentials ───────────────────────────────────
+#
+# The Sentry stack (error reporting, daily triage, auto-rollback) is merged but
+# dormant: every piece needs an account and API tokens only the owner can create.
+# Until those exist, production had error CAPTURE but no alerting — if the site
+# broke overnight, nothing would say so.
+#
+# This closes that gap with zero setup. It uses only GITHUB_TOKEN, which Actions
+# injects automatically, so there is nothing to configure and nothing to leak.
+#
+# WHAT IT CAN DO: open, edit and close ONE issue. That's it.
+#   • `permissions: contents: read` — it cannot touch code, branches or deploys.
+#   • It never comments on a run-by-run basis while an incident is open; it EDITS
+#     the existing issue instead. So a two-day outage sends you one email, not 192.
+#   • Recovery closes the issue, so the issue list is an accurate "is prod ok?".
+#   • Three retries per check, so a single blip is not an incident.
+on:
+  schedule:
+    # Every 15 minutes. GitHub's scheduler is best-effort and can lag under load;
+    # this is a safety net, not a paging system with an SLA.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Probe production
+        id: probe
+        run: |
+          set -o pipefail
+          node scripts/health-check.mjs > health.json || true
+          cat health.json
+          {
+            echo "healthy=$(node -e "console.log(require('./health.json').healthy)")"
+            echo "failed=$(node -e "console.log(require('./health.json').failedCount)")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open, update or close the incident
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const health = JSON.parse(fs.readFileSync('health.json', 'utf8'));
+            // Stable title = the dedupe key. One incident issue, ever.
+            const TITLE = '🔴 Production health check failing';
+            const { owner, repo } = context.repo;
+
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: 'uptime', per_page: 20,
+            });
+            const existing = open.data.find((i) => i.title === TITLE);
+
+            const table = health.results
+              .map((r) => `| ${r.ok ? '✅' : '❌'} | ${r.name} | ${r.detail} | ${r.ms}ms |`)
+              .join('\n');
+            const body = [
+              `**${health.failedCount} of ${health.checked} checks failing** against ${health.base}`,
+              '',
+              '| | check | detail | time |',
+              '|---|---|---|---|',
+              table,
+              '',
+              `Last checked: ${new Date().toISOString()}`,
+              '',
+              '<sub>Opened automatically by `.github/workflows/uptime.yml`. It edits this issue rather than commenting, so an ongoing incident does not spam you. It closes automatically when every check passes again.</sub>',
+            ].join('\n');
+
+            if (!health.healthy) {
+              if (existing) {
+                // EDIT, don't comment — no notification storm during a long outage.
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+                core.notice(`Incident #${existing.number} still open — updated in place.`);
+              } else {
+                const created = await github.rest.issues.create({
+                  owner, repo, title: TITLE, body, labels: ['uptime'],
+                });
+                core.notice(`Opened incident #${created.data.number}.`);
+              }
+              core.setFailed(`${health.failedCount} health check(s) failing`);
+              return;
+            }
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number,
+                body: `✅ Recovered — all ${health.checked} checks passing as of ${new Date().toISOString()}.`,
+              });
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' });
+              core.notice(`Recovered — closed incident #${existing.number}.`);
+            } else {
+              core.notice(`All ${health.checked} checks passing.`);
+            }
