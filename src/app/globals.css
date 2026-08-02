@@ -518,12 +518,16 @@ body {
 @media (max-width: 360px) {
   .rd-btn { white-space: normal; }
   /* /login scrolled sideways 10px at 320px because Google's One Tap iframe is
-     appended to <body> at a fixed width wider than the screen — third-party
-     markup we can't resize and can't wrap. `clip`, deliberately NOT `hidden`:
-     hidden would force the other axis to `auto`, turning body into a scroll
-     container and breaking every `position: sticky` header in the app. `clip`
-     just clips. Still scoped to <=360px, so nothing at 375px+ is affected. */
-  body { overflow-x: clip; }
+     340px wide — third-party markup we can't resize and can't wrap.
+     `clip`, deliberately NOT `hidden`: hidden would force the other axis to
+     `auto`, turning the root into a scroll container and breaking every
+     `position: sticky` header in the app. `clip` just clips.
+     BOTH html and body, and that matters: putting it on body alone left the
+     scroll in place, because `overflow: clip` (unlike hidden/auto) does NOT
+     propagate from body to the viewport — body clipped its own box while
+     documentElement.scrollWidth stayed 330px and the page still scrolled.
+     Still scoped to <=360px, so nothing at 375px+ is affected. */
+  html, body { overflow-x: clip; }
 }
 .rd-btn::before { content:""; position:absolute; top:0; bottom:0; left:-60%; width:45%; z-index:-1;
   background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
