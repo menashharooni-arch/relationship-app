@@ -153,7 +153,10 @@ export default function LeadCaptureForm({
           A2P review; see the header of SmsConsentCheckbox.tsx. Email consent is
           still by submission, and every email carries an unsubscribe link. */}
       <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
-      <p className="text-slate-600 text-[8px] text-center leading-snug">
+      {/* 11px, not 8px. This sits on the live card page — the surface every QR
+          scan lands on — and 8px is below what anyone can read on a phone. It's
+          a consent disclosure, so it has to be legible, not merely present. */}
+      <p className="text-slate-600 text-[11px] text-center leading-snug">
         Every email includes an unsubscribe link.
       </p>
     </form>

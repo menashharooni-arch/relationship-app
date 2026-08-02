@@ -52,8 +52,13 @@ export default function PortalNavPreview({
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planClass}`}>{plan}</span>
         </div>
 
-        {/* Centre: the page tabs — the one part that really is interactive. */}
-        <div className="flex items-center gap-0.5">
+        {/* Centre: the page tabs — the one part that really is interactive.
+            min-w-0 + overflow-x-auto: at 320px the brand block, these three tabs
+            and the right-hand controls together need 341px, and because nothing
+            here could shrink the whole /preview page scrolled sideways by 21px.
+            Now the tab strip absorbs it by scrolling inside itself. At 360px and
+            up everything still fits, so no scrollbar ever appears there. */}
+        <div className="flex items-center gap-0.5 min-w-0 overflow-x-auto">
           {PORTAL_TABS.map((t) => {
             const active = t.id === tab;
             return (
