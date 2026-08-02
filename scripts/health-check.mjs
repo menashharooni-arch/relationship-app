@@ -13,11 +13,23 @@
 // Deliberately checks BEHAVIOUR, not just status codes. A 200 that renders an
 // empty card page is still an outage to the person holding the phone.
 //
+// It reads only. It never writes a card, never creates an account, never sends
+// mail. The one POST is to /api/client-error, which is the reporting endpoint
+// itself and is rate-limited and discarded — probing it is how we know the one
+// piece of monitoring that IS live hasn't broken.
+//
+// PRIVACY / NOISE: page fetches here run no JavaScript, so CardEventTracker never
+// fires and no real user's view counts or analytics are touched by this probe.
+//
 // Exit code is always 0: the workflow reads the JSON on stdout and decides. A
 // non-zero exit here would fail the job before it could open the issue.
 
 const BASE = process.env.HEALTH_BASE_URL || "https://swiftcard.me";
 const DEMO = "demo-sales";
+// Live customer cards to watch, comma-separated, set by the workflow. These are
+// public URLs. Covers the thing demo data cannot: a REAL account's card, vCard
+// and Swift Links still rendering after a deploy.
+const REAL_CARDS = (process.env.HEALTH_REAL_CARDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 /** Transient blips are not outages. Every check gets three tries before it counts. */
 async function attempt(fn, tries = 3) {
@@ -76,6 +88,18 @@ const CHECKS = [
     },
   },
   {
+    name: "card link-preview / signature image renders",
+    run: async () => {
+      // Powers link previews in iMessage/WhatsApp and the Swift Signature artwork.
+      // It is generated, not static, so it fails independently of the card page.
+      const res = await get(`/card/${DEMO}/opengraph-image`);
+      const type = res.headers.get("content-type") || "";
+      const buf = await res.arrayBuffer();
+      const ok = res.status === 200 && type.startsWith("image/") && buf.byteLength > 5000;
+      return { ok, detail: `status ${res.status}, ${type}, ${buf.byteLength} bytes` };
+    },
+  },
+  {
     name: "Swift Links page renders",
     run: async () => {
       const res = await get(`/links/${DEMO}`);
@@ -100,6 +124,34 @@ const CHECKS = [
     },
   },
   {
+    name: "create-a-card wizard reachable",
+    run: async () => {
+      // The whole funnel. A 500 here means nobody can sign up.
+      const res = await get("/cards/new");
+      const body = await res.text();
+      const ok = res.status === 200 && /Full name|New card/i.test(body);
+      return { ok, detail: `status ${res.status}, form=${/Full name|New card/i.test(body)}` };
+    },
+  },
+  {
+    name: "portal routes healthy and not leaking to anonymous visitors",
+    run: async () => {
+      // Two failure modes at once. A 5xx means the portal is DOWN for signed-in
+      // users — which an anonymous probe can otherwise never see. And whatever a
+      // logged-out request gets back must never contain someone's account data.
+      const routes = ["/dashboard", "/contacts", "/share", "/settings", "/office/admin"];
+      const bad = [];
+      for (const r of routes) {
+        const res = await get(r);
+        if (res.status >= 500) { bad.push(`${r}:${res.status}`); continue; }
+        const body = await res.text();
+        // Signed-in-only markers. Their presence in a logged-out response is a leak.
+        if (/Copy signature|Total leads|Mark read|swiftcard\.me\/links\//i.test(body)) bad.push(`${r}:LEAK`);
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(", ") : `${routes.length} routes ok, no leaks` };
+    },
+  },
+  {
     name: "error reporting endpoint accepting reports",
     run: async () => {
       // If this is broken we lose the one piece of monitoring that IS live.
@@ -113,6 +165,32 @@ const CHECKS = [
     },
   },
 ];
+
+// Real customer accounts — demo data can pass while a live card is broken.
+for (const slug of REAL_CARDS) {
+  CHECKS.push({
+    name: `live account /${slug}: card, vCard and Swift Links`,
+    run: async () => {
+      const parts = [];
+      const card = await get(`/card/${slug}`);
+      const cardBody = await card.text();
+      // Structural, not name-matching: no customer's name is hardcoded here.
+      const cardOk = card.status === 200 && /Save Contact/i.test(cardBody) && cardBody.length > 5000;
+      parts.push(`card ${card.status}${cardOk ? "" : " BAD"}`);
+
+      const v = await get(`/api/card/${slug}/vcard`);
+      const vBody = await v.text();
+      const vOk = v.status === 200 && vBody.startsWith("BEGIN:VCARD") && /FN:.+/.test(vBody);
+      parts.push(`vcard ${v.status}${vOk ? "" : " BAD"}`);
+
+      const l = await get(`/links/${slug}`);
+      const lOk = l.status === 200;
+      parts.push(`links ${l.status}${lOk ? "" : " BAD"}`);
+
+      return { ok: cardOk && vOk && lOk, detail: parts.join(", ") };
+    },
+  });
+}
 
 const started = Date.now();
 const results = [];
