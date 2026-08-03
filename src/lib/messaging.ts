@@ -421,7 +421,7 @@ export async function sendBrandedEmail(opts: {
 
   const html = personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to), opts.senderPaid);
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       // Recipient sees the person's name; replies go to the user's own inbox.
       from: senderFrom(opts.senderName),
       to: opts.to,
@@ -432,7 +432,12 @@ export async function sendBrandedEmail(opts: {
       text: htmlToText(html),
       headers: unsubHeaders(opts.to),
     });
-    return "sent";
+    // Same trap sendRawEmail documents above: the SDK RESOLVES with {data,
+    // error} rather than throwing, so discarding the result reported "sent" for
+    // every rejection. This is the branded path, so the silent failures were the
+    // ones that matter most — automation steps got stamped as delivered and were
+    // never retried, while the lead received nothing.
+    return error ? "failed" : "sent";
   } catch {
     return "failed";
   }
