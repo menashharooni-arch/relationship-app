@@ -11,6 +11,7 @@ import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { reportError } from "@/lib/report-error";
+import { cardIsOffline } from "@/lib/card-active";
 
 
 // Automations send AS the card the contact came through: each card has its own
@@ -20,9 +21,15 @@ import { reportError } from "@/lib/report-error";
 async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, username: string) {
   const { data: card } = await supabase
     .from("cards")
-    .select("user_id, name, title, company, email, phone")
+    .select("user_id, name, title, company, email, phone, is_offline")
     .eq("username", username)
     .maybeSingle();
+  // A card an office admin took OFFLINE must stop sending too. Everything else
+  // the card serves goes dark (card page, Swift Links, QR, wallet pass, lead
+  // capture — see lib/card-active.ts), but automations never consulted it, so a
+  // departed employee's card kept emailing and texting their contacts as them.
+  // Nothing is deleted: bringing the card back online resumes the sequence.
+  if (card && cardIsOffline(card)) return null;
   const profileSelect = "id, name, email, phone, company, title, flow_settings, plan, customization";
   const { data: profile } = card?.user_id
     ? await supabase.from("profiles").select(profileSelect).eq("id", card.user_id).maybeSingle()

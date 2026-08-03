@@ -238,6 +238,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // Best-effort — never blocks the save.
         admin.storage.from("card-shares").remove([`${username}.png`]).then(() => {}, () => {});
 
+        // SWIFT SIGNATURE freshness: same problem, and it was never handled —
+        // only the share preview above was invalidated. card-signatures/<u>.png
+        // is what automated emails sign off with (resolveSignatureImageUrl), so
+        // after any card edit every automated email kept embedding the OLD card:
+        // the previous title, company or phone number, sent to real contacts.
+        // The signature_stale notification below only ASKS the user to re-copy;
+        // nothing stopped the stale image being used until they did.
+        //
+        // Safe to delete: resolveSignatureImageUrl HEAD-checks this object and
+        // returns null when it's gone, and emailSignatureHtml then falls back to
+        // the text signature block — so mail keeps sending, with correct details
+        // instead of an outdated card image. Best-effort, never blocks the save.
+        admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {});
+
         // One pending (unread) reminder per card is enough — skip if one exists.
         const { data: pending } = await admin
           .from("notifications")

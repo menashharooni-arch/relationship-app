@@ -122,7 +122,13 @@ export async function PATCH(req: NextRequest) {
   }
   // Owner + members still verifiably in this office (intersection). A stale
   // office_members row alone never grants a rebrand — see office-brand-targets.
-  const userIds = resolveBrandTargetIds(user.id, memberIds, verifiedInOffice);
+  // ctx.ownerId, NOT user.id: the helper's first parameter is the office OWNER,
+  // who is deliberately excluded (their personal cards aren't org-branded). The
+  // caller is not always the owner — a delegated `admin` role holds
+  // manage_branding — so passing the caller excluded the WRONG person: a
+  // delegated admin's own cards were skipped by every brand save, keeping fields
+  // the company had just changed or cleared.
+  const userIds = resolveBrandTargetIds(ctx.ownerId, memberIds, verifiedInOffice);
 
   const cardUpdate: Record<string, unknown> = {};
   if (brand.brand_logo_url) cardUpdate.logo_url = brand.brand_logo_url;

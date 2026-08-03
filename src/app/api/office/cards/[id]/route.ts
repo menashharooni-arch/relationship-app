@@ -85,6 +85,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { error } = await admin.from("cards").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // An office admin editing an employee's card leaves the same two cached
+  // artifacts stale that the employee's own save invalidates: the share-preview
+  // PNG (what iMessage/WhatsApp show for the card link) and the Swift Signature
+  // image automated emails sign off with. This route updated the row and went
+  // straight to the audit write, so an admin-side edit — a new company name, a
+  // corrected title — left both surfaces showing the OLD card indefinitely.
+  // Mirrors api/cards/[id]; best-effort, never blocks the save.
+  const contentChanged = Object.keys(updates).some((k) => k !== "is_offline");
+  if (contentChanged) {
+    try {
+      const { data: edited } = await admin.from("cards").select("username, user_id").eq("id", id).maybeSingle();
+      const uname = edited?.username as string | undefined;
+      const cardOwnerId = edited?.user_id as string | null | undefined;
+      if (uname) {
+        admin.storage.from("card-shares").remove([`${uname}.png`]).then(() => {}, () => {});
+        admin.storage.from("card-signatures").remove([`${uname}.png`]).then(() => {}, () => {});
+        // The reminder goes to the EMPLOYEE whose signature it is, not the admin
+        // who made the edit. One unread reminder per card is enough.
+        if (cardOwnerId) {
+          const { data: pending } = await admin
+            .from("notifications")
+            .select("id")
+            .eq("user_id", cardOwnerId)
+            .eq("type", "signature_stale")
+            .eq("card_owner", uname)
+            .eq("read", false)
+            .limit(1);
+          if (!pending?.length) {
+            const { insertNotification } = await import("@/lib/notify");
+            await insertNotification({
+              user_id: cardOwnerId,
+              card_owner: uname,
+              type: "signature_stale",
+              title: "Update your email signature",
+              body: "Your team admin updated your card — re-copy your Swift Signature so the version in your email matches.",
+            });
+          }
+        }
+      }
+    } catch { /* freshness is a nicety; the card save must still succeed */ }
+  }
+
   if (offlineChanged) {
     await writeAudit({
       action: body.is_offline ? "card.taken_offline" : "card.brought_online",
