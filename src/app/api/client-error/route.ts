@@ -19,6 +19,26 @@ export async function POST(req: NextRequest) {
     const message = String(body.message ?? "").slice(0, 500).trim();
     if (!message) return NextResponse.json({ ok: true });
 
+    // Honour `level`. This endpoint exists for ERRORS, but it used to funnel
+    // every POST straight into reportError regardless — so anything reporting at
+    // info level landed in the production error log as a genuine error.
+    //
+    // That was not hypothetical: the uptime probe posts {level:"info"} hourly to
+    // prove this endpoint is still alive, and for a day it WAS the production
+    // error log — 13 events across 7 "users", every one of them self-inflicted.
+    // Worse than the noise is what it would have done next: the Sentry rollback
+    // watchdog fires on an event count AND a distinct-user count, so a steady
+    // drip of fake errors from our own monitoring is exactly the shape of a bad
+    // deploy. The monitoring could have rolled back a perfectly good release.
+    //
+    // Anything that is not an error is acknowledged and dropped. Absent level
+    // still reports, so every existing caller (window.onerror, unhandled
+    // rejections, error boundaries) is unchanged.
+    const level = String(body.level ?? "error").toLowerCase();
+    if (level !== "error" && level !== "fatal") {
+      return NextResponse.json({ ok: true, logged: false });
+    }
+
     const context = `client.${String(body.context ?? "unknown").replace(/[^a-z0-9._-]/gi, "").slice(0, 40) || "unknown"}`;
     await reportError(context, new Error(message), {
       url: String(body.url ?? "").slice(0, 300),
