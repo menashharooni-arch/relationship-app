@@ -299,7 +299,19 @@ export default async function DashboardPage({
     viewsRange === "locations"
       ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
       : Promise.resolve({ data: null }),
-    supabase
+    // Service-role, like /contacts — NOT the session client. leads' RLS policy
+    // keys on profiles.username, but a lead's card_owner is a CARD slug, and
+    // those are different strings (profile "aaron-c69a77" vs card
+    // "aaron-lavi-malve-capital"). So the session client matched zero rows and
+    // this page rendered "Contacts 0" / "0 total leads", hid Export, and showed
+    // the first-lead nudge — while /contacts, which already used service-role,
+    // listed the same contacts correctly.
+    //
+    // Scoping is unchanged and still owner-bound: activeUsername comes from
+    // allCards.find(...) above, i.e. it is ALWAYS one of this user's own card
+    // slugs (or "" when nothing is selected), so this cannot read another
+    // account's leads.
+    getAdminSupabase()
       .from("leads")
       // Trimmed to columns this page actually renders (QuickContactList,
       // NotificationsPanel, and the isLocked/tags check) — message, location,
