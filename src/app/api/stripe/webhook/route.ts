@@ -420,13 +420,20 @@ export async function POST(req: NextRequest) {
           // members so paid seat count and actual access stay in sync. Without
           // this, shrinking seats only lowers the bill while every existing
           // member keeps enterprise access forever.
+          // Ordered by joined_at, NOT created_at: office_members has no
+          // created_at column, so that query errored, activeMembers came back
+          // null, and the trim below silently iterated nothing — seats (and the
+          // bill) shrank while every member kept enterprise access. joined_at is
+          // the right column anyway: it's set in the same update that flips a
+          // row to "active" (api/join), and cleared whenever it reverts to
+          // pending, so it's non-null for exactly the rows selected here.
           const { data: activeMembers } = await admin
             .from("office_members")
-            .select("id, user_id, created_at")
+            .select("id, user_id, joined_at")
             .eq("office_id", office.id)
             .eq("status", "active")
             .not("user_id", "is", null)
-            .order("created_at", { ascending: true });
+            .order("joined_at", { ascending: true });
           // The owner occupies seat 1, so a quantity of N leaves N−1 seats for
           // members. Keep the oldest N−1 active members and trim the rest.
           const memberSeats = Math.max(0, quantity - 1);
