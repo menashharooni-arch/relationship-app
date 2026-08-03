@@ -42,10 +42,15 @@ In Xcode → target **App** → *Signing & Capabilities*:
    missing one (it will merge with the existing entitlements file).
 4. **+ Capability → Sign in with Apple** (the only one still added by hand).
 
-## 3. Replace the AASA placeholder (Universal Links)
+## 3. Set the AASA Team ID (Universal Links)
 
-`src/app/.well-known/apple-app-site-association/route.ts` line 21:
-replace `TEAMID_PLACEHOLDER` with the real Team ID → deploy the website.
+No code edit. `src/app/.well-known/apple-app-site-association/route.ts` reads
+`APPLE_TEAM_ID` — the same variable Wallet and Apple-revocation already use.
+Set it in Vercel → Production, then REDEPLOY (env changes only take effect on a
+new deployment). Until it is set the route serves
+`TEAMID_PLACEHOLDER.me.swiftcard.app` and Universal Links stay dormant; a
+malformed value falls back to that same placeholder rather than serving an
+appID Apple silently rejects.
 Verify: `curl https://swiftcard.me/.well-known/apple-app-site-association`
 shows `"<TEAMID>.me.swiftcard.app"`.
 

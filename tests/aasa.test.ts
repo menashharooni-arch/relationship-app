@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { GET } from "@/app/.well-known/apple-app-site-association/route";
 
 // Item 8 — Apple App Site Association file. Purely additive: a brand-new route
@@ -22,8 +22,46 @@ describe("Item 8 — /.well-known/apple-app-site-association", () => {
     expect(detail.paths).toEqual(["/card/*", "/links/*", "/join/*", "/auth/callback"]);
   });
 
-  it("uses a clearly-marked Team ID placeholder (real value is an owner action)", async () => {
-    const body = await (await GET()).json();
-    expect(body.applinks.details[0].appID).toMatch(/^TEAMID_PLACEHOLDER\./);
+  // The Team ID now comes from APPLE_TEAM_ID (the same variable Wallet and
+  // Apple-revocation already use), so going live is an env change rather than a
+  // code edit. These three cases pin the whole contract: dormant until set,
+  // live once set, and never half-configured.
+  describe("Team ID resolution", () => {
+    const prev = process.env.APPLE_TEAM_ID;
+    const setTeamId = (v: string | undefined) => {
+      if (v === undefined) delete process.env.APPLE_TEAM_ID;
+      else process.env.APPLE_TEAM_ID = v;
+    };
+    afterEach(() => setTeamId(prev));
+
+    it("falls back to the marked placeholder while APPLE_TEAM_ID is unset", async () => {
+      setTeamId(undefined);
+      const body = await (await GET()).json();
+      expect(body.applinks.details[0].appID).toBe("TEAMID_PLACEHOLDER.me.swiftcard.app");
+    });
+
+    it("uses APPLE_TEAM_ID once it is set, with no code change", async () => {
+      setTeamId("ABCDE12345");
+      const body = await (await GET()).json();
+      expect(body.applinks.details[0].appID).toBe("ABCDE12345.me.swiftcard.app");
+    });
+
+    // A malformed value would produce an AASA Apple silently rejects — harder to
+    // diagnose than simply having no Universal Links yet. Falling back keeps the
+    // served file honestly readable as "not configured".
+    it.each(["nope", "  ", "ABCDE12345.me.swiftcard.app", "ABCDE1234", "ABCDE123456"])(
+      "ignores a malformed APPLE_TEAM_ID (%j) rather than serving a broken appID",
+      async (bad) => {
+        setTeamId(bad);
+        const body = await (await GET()).json();
+        expect(body.applinks.details[0].appID).toBe("TEAMID_PLACEHOLDER.me.swiftcard.app");
+      },
+    );
+
+    it("trims surrounding whitespace off an otherwise valid value", async () => {
+      setTeamId("  ABCDE12345  ");
+      const body = await (await GET()).json();
+      expect(body.applinks.details[0].appID).toBe("ABCDE12345.me.swiftcard.app");
+    });
   });
 });

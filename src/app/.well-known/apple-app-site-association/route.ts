@@ -8,17 +8,41 @@
 // native entitlement (applinks:swiftcard.me) and the real Apple Team ID are
 // owner/Xcode actions tracked separately.
 //
-// ⚠️ TEAMID_PLACEHOLDER MUST be replaced with the real Apple Developer Team ID
-// (a 10-char string like "ABCDE12345") once the site owner has it, giving an
-// appID of "<TEAMID>.me.swiftcard.app". Universal Links will NOT work until the
-// real Team ID is in place here AND the app ships with the matching entitlement.
+// The Team ID is read from APPLE_TEAM_ID — the SAME variable Wallet already
+// passes as teamIdentifier (lib/wallet.ts) and Sign-in-with-Apple revocation
+// uses (lib/apple-revoke.ts). One Team ID, one variable, already listed in
+// .env.example. Nothing in this file needs editing to go live.
+//
+// ⚠️ Until APPLE_TEAM_ID is set, this serves the original
+// "TEAMID_PLACEHOLDER.me.swiftcard.app" — byte-identical to before — so
+// Universal Links stay dormant rather than half-working. To activate: set
+// APPLE_TEAM_ID (Production) in Vercel, then REDEPLOY; env changes only take
+// effect on a new deployment. Apple ALSO requires the matching Associated
+// Domains entitlement (applinks:swiftcard.me) on the Xcode target — without
+// that half the links stay dead no matter what is served here. Runbook §2–3.
 
-const AASA = {
+/** Apple Team IDs are exactly 10 alphanumeric characters, e.g. "ABCDE12345". */
+const TEAM_ID_RE = /^[A-Z0-9]{10}$/i;
+
+function appleTeamId(): string {
+  const raw = (process.env.APPLE_TEAM_ID ?? "").trim();
+  // A malformed value — a stray quote, a whole appID pasted in, trailing
+  // whitespace — would produce an AASA that Apple silently rejects, which is
+  // far harder to diagnose than simply not having Universal Links yet. Anything
+  // that isn't a well-formed Team ID falls back to the visible placeholder, so
+  // the served file still reads as "not configured" at a glance.
+  return TEAM_ID_RE.test(raw) ? raw : "TEAMID_PLACEHOLDER";
+}
+
+// Built per request rather than frozen at module load, so the env var is read
+// at serve time instead of being pinned for the life of the server process.
+function buildAasa() {
+  return {
   applinks: {
     apps: [],
     details: [
       {
-        appID: "TEAMID_PLACEHOLDER.me.swiftcard.app",
+        appID: `${appleTeamId()}.me.swiftcard.app`,
         // Public card pages, Swift Links pages, and Office invite links open
         // in the app when installed. /auth/callback is kept as a safety net
         // for any web-initiated OAuth round-trip that lands on a device with
@@ -29,10 +53,11 @@ const AASA = {
       },
     ],
   },
-};
+  };
+}
 
 export async function GET() {
-  return new Response(JSON.stringify(AASA), {
+  return new Response(JSON.stringify(buildAasa()), {
     status: 200,
     headers: {
       "Content-Type": "application/json",
