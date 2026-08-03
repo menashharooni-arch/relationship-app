@@ -35,9 +35,11 @@ Repo state as of this checklist: all code-side audit fixes committed
       `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY`,
       `APPLE_PUSH_KEY_ID`, `APPLE_PUSH_PRIVATE_KEY`
       (`APPLE_PUSH_SANDBOX=1` only for dev builds — REMOVE for TestFlight+).
-- [ ] Replace `TEAMID_PLACEHOLDER` in
-      `src/app/.well-known/apple-app-site-association/route.ts` with the
-      real 10-char Team ID.
+- [ ] AASA needs NO code edit — the route reads the same `APPLE_TEAM_ID` set
+      above, and serves `TEAMID_PLACEHOLDER` until that variable is present.
+      Setting the env var and redeploying is what activates Universal Links.
+      (A malformed value falls back to the placeholder rather than serving an
+      appID Apple silently rejects.)
 - [ ] **Push this repo's audit commits to origin** (this deploys production —
       the audit run had no deploy approval, so the commits are local).
       Verify `curl https://swiftcard.me/.well-known/apple-app-site-association`
