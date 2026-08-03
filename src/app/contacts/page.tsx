@@ -78,7 +78,24 @@ export default async function ContactsPage({
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
   const dashHref = dashCard ? `/dashboard?card=${dashCard}` : "/dashboard";
-  const contactCount = (leads ?? []).filter((l) => l.card_owner === dashCard).length;
+
+  // The header count and the Export button must describe the LIST BELOW. That
+  // list shows EVERY card's contacts until one is picked — ContactsClient gets
+  // initialCardFilter={null} without ?card=. Both were pinned to cardList[0]
+  // instead, so an account with more than one card saw the full list sitting
+  // under a total for card #1 only, and Export quietly downloaded just that
+  // card's contacts while appearing to export what was on screen.
+  //
+  // dashCard is deliberately left as-is: the "Dashboard" link genuinely needs a
+  // card to open, and defaulting it to the first one is correct.
+  const contactCount = selectedCardParam
+    ? (leads ?? []).filter((l) => l.card_owner === selectedCardParam).length
+    : (leads ?? []).length;
+  // With no card selected, omit the param entirely — the export route already
+  // falls back to every username this user owns when none is given.
+  const exportHref = selectedCardParam
+    ? `/api/leads/export?username=${selectedCardParam}`
+    : "/api/leads/export";
 
   return (
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
@@ -140,7 +157,7 @@ export default async function ContactsPage({
           {(leads?.length ?? 0) > 0 && (
             isPaidPlan(profile.plan) ? (
               <DownloadLink
-                href={`/api/leads/export?username=${dashCard}`}
+                href={exportHref}
                 title="Export your contacts as CSV"
                 className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors shrink-0"
               >
