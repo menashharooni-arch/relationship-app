@@ -25,37 +25,52 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
   ["luxury-minimal", LuxuryMinimal],
 ];
 
-// The widths a card is ACTUALLY rendered at, derived from the page rather than
-// guessed: /card/[username] wraps the card in `max-w-sm` (384px) inside a `px-4`
-// main (32px of padding), so the card is `viewport - 32`, capped at 384.
+// The widths a card is actually LAID OUT at.
 //
-//   320px viewport (iPhone SE 1st gen) -> 288  <- the true worst case
-//   375px viewport (iPhone SE 2/3, 8)  -> 343  <- the most common small phone
-//   >=416px viewport                   -> 384  <- the cap, and the widest it ever gets
+// This was previously wrong, and the correction matters more than the numbers.
+// The old comment reasoned from the page's visible box — `max-w-sm` inside a
+// `px-4` main — and concluded the card is `viewport - 32`, capped at 384. That is
+// the width of the CONTAINER. Every renderer wraps the template in CardScaler
+// (src/components/CardScaler.tsx), which lays the card out at a fixed 460px and
+// then applies `transform: scale(min(1, w / 460))`. The transform is visual only:
+// layout width is ALWAYS 460, whatever the phone. CardPreviewDownload,
+// EmailSignatureBox and ShareCardCapture each hard-code the same 460.
 //
-// Testing 480 would be comfortable and meaningless: no card is ever that wide.
-const WIDTHS = [343, 384];
+// So 343 and 384 were measuring a layout that never happens. They passed, which
+// is why the error survived — a stricter-than-reality width is quietly harmless.
+//
+// 390 is the one genuine exception: HeroPhone renders PhotoFirst at 390 with its
+// own scale(0.69), so that layout width is real and worth holding.
+const WIDTHS = [460, 390];
 
-// 288px (a 320px viewport — iPhone SE 1st gen and older small Androids) is a real
-// width and is NOT yet clean: with ordinary details every template overflows by
-// 30-60px vertically. That is a different bug from the ones fixed here — the
-// templates use absolute px typography tuned for ~384px, so as the card narrows
-// its height shrinks with the aspect ratio while the text inside does not. It
-// needs the type to scale with card width, which is a design change to the
-// primary product surface rather than a containment fix.
+// A 288px case used to live here, skipped, described as a known gap where "type
+// does not scale with card width". Deleted rather than fixed: it followed from
+// the same mistake. No renderer lays a card out at 288 — CardScaler caps layout
+// at 460 and only scales the pixels — so it was asserting against a layout the
+// product never produces, and "fixing" it would have meant redesigning card
+// typography to satisfy a test rather than a user.
 //
-// Kept as a visible skip rather than deleted: a width silently dropped from the
-// matrix is a width nobody remembers is broken.
-const KNOWN_BROKEN_WIDTH = 288;
+// Do not restore it as missing coverage. If a narrow-screen card ever does look
+// wrong, the thing to check is the CONTAINER around CardScaler, not the card.
+// Measured at 460 with the LONG fixture, all five templates are clean; the 20px
+// modern-bold reports horizontally is its decorative corner glow bleeding on
+// purpose and being clipped, which is why only overflowY and offenders are
+// asserted below.
 
 /**
  * Card-level slack, in px.
  *
  * Element-level offenders are still asserted exactly (harness TOL = 1px) — this
  * only forgives sub-pixel accumulation in the card's own scrollHeight when NO
- * element actually escapes. photo-first reports 2px this way at 343px with an
- * empty offender list. Without the distinction we'd either chase phantom
+ * element actually escapes. Without the distinction we'd either chase phantom
  * failures or, worse, raise the element tolerance and stop seeing real clipping.
+ *
+ * It earned its keep at 343px, where the fractional scale produced ~2px of drift
+ * in photo-first. At the real layout widths (460, 390) nothing needs it: the
+ * suite passes with this set to 0. Left at 2 rather than tightened, because
+ * narrowing a tolerance is a behaviour change and this commit is only meant to
+ * correct which widths get measured. Tightening it to 0 would make a genuine 2px
+ * regression at 460 fail instead of passing quietly — worth doing deliberately.
  */
 const CARD_SLACK = 2;
 
@@ -122,14 +137,5 @@ describe("card templates never clip their content", () => {
         expect(m.overflowY, describeFailure(name, width, m)).toBeLessThanOrEqual(CARD_SLACK);
       }, 60_000);
     }
-
-    // Deliberately skipped, not removed — see KNOWN_BROKEN_WIDTH. Remove the
-    // `.skip` once card typography scales with card width; it should then pass
-    // with no other change.
-    it.skip(`${name} fits ordinary details at ${KNOWN_BROKEN_WIDTH}px (known gap: type does not scale with card width)`, async () => {
-      const m = await measureCard(browser, Template, BASE, KNOWN_BROKEN_WIDTH);
-      expect(m.offenders, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toEqual([]);
-      expect(m.overflowY, describeFailure(name, KNOWN_BROKEN_WIDTH, m)).toBeLessThanOrEqual(CARD_SLACK);
-    }, 60_000);
   }
 });
