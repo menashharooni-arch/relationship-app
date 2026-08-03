@@ -649,7 +649,14 @@ export default async function DashboardPage({
 
       <MobileNavGate showAdmin={canSeeOfficeAdmin} />
       <HelpWidget floating />
-      <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-24 md:pb-12">
+      {/* pb-36 on mobile (was pb-24): the floating help bubble is fixed at
+          bottom-20 and is 52px tall, so it covers the band 80px–132px up from
+          the bottom of the viewport. pb-24 ended the content at 96px — inside
+          that band — so the bubble sat on top of the last card's buttons and
+          swallowed taps meant for them. Desktop is unchanged (md:pb-12): there
+          the bubble is at bottom-5, clear of the content. Adds trailing scroll
+          space on phones only; no element changes size or position. */}
+      <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-36 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
 
           {/* Reverse-trial / free-Pro countdown */}

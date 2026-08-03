@@ -800,7 +800,12 @@ export default function ContactsClient({
             sortBy === "alpha" ? (
               letters.map((letter) => (
                 <div key={letter}>
-                  <div className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0">
+                  {/* z-10: the letter headers are sticky inside the scrolling
+                      list, but had no stacking context, so contact rows scrolled
+                      OVER them instead of under — the header appeared to sit
+                      behind the list. Scoped to this scroll container; it does
+                      not interact with the page nav (z-30) above it. */}
+                  <div className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0 z-10">
                     {letter}
                   </div>
                   {grouped[letter].map((lead) => renderLeadItem(lead))}
@@ -837,18 +842,31 @@ export default function ContactsClient({
               <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
                 {selected.name[0]?.toUpperCase() ?? "?"}
               </div>
-              <div>
+              {/* min-w-0: this is the only flexible child in the row — the 64px
+                  avatar and the right-hand actions are both shrink-0. Without it
+                  a flex item cannot shrink below its min-content width, so a long
+                  contact name (or an email used as one) pushed the whole header
+                  past the right edge of a phone screen instead of wrapping. */}
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-gray-100">{selected.name}</h2>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {/* py-1.5 (was py-0.5) on BOTH pills: the status control is a
+                      real <select> a user has to hit with a thumb, and at 10px
+                      text with 2px padding it rendered ~19px tall — well under a
+                      comfortable touch target. The neighbouring source pill is
+                      bumped by the same amount on purpose: raising only the
+                      select would leave two pills of different heights sitting
+                      side by side. Text size, colours and radius are unchanged;
+                      the pills get ~8px taller. */}
                   {selected.source && selected.source !== "direct_link" && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300">
+                    <span className="text-[10px] font-semibold px-2.5 py-1.5 rounded-full bg-blue-950 text-blue-300">
                       {getSourceLabel(selected.source)}
                     </span>
                   )}
                   <select
                     value={selected.status ?? "new_contact"}
                     onChange={(e) => changeStatus(e.target.value)}
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none ${STATUS_STYLES[selected.status ?? "new_contact"] ?? STATUS_STYLES.new_contact}`}
+                    className={`text-[10px] font-semibold px-2.5 py-1.5 rounded-full border-0 cursor-pointer focus:outline-none ${STATUS_STYLES[selected.status ?? "new_contact"] ?? STATUS_STYLES.new_contact}`}
                     style={{ background: "transparent" }}
                   >
                     {[

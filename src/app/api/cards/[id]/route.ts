@@ -118,12 +118,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       delete incoming.fax;
       delete incoming.address;
     }
-    const merged = {
-      ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
-      ...incoming,
-    };
     const effectiveTemplate = (updates.template as string | undefined) ?? (existingCard?.template as string | undefined);
-    updates.customization = isPaidPlan(planRow?.plan) ? merged : sanitizeCustomizationForPlan(merged, false, effectiveTemplate);
+    // Free plans: sanitize what is BEING WRITTEN, not the merged result.
+    //
+    // This previously sanitized the whole merged blob, so a downgraded account
+    // lost data it never touched: saving any unrelated field — a phone number, a
+    // job title — re-wrote the entire customization, slicing Swift Links past the
+    // Free cap off the stored row and deleting the Swift Links styling keys.
+    // Permanently. Re-subscribing did not bring them back, because they were no
+    // longer in the row to restore.
+    //
+    // Enforcement is unchanged, on both halves. A Free account still cannot WRITE
+    // Pro values, because `incoming` is sanitized before it is merged. And the
+    // public surfaces never render dormant Pro values, because every render path
+    // independently sanitizes for the owner's CURRENT plan — the public card page
+    // (card/[username]), the dashboard preview, the Swift Signature (share), and
+    // the Swift Links page all call this same function. Those render-time calls
+    // were added precisely because save-time sanitizing "only covers new writes";
+    // they are what makes it safe to stop destroying the stored copy here.
+    const safeIncoming = isPaidPlan(planRow?.plan)
+      ? incoming
+      : sanitizeCustomizationForPlan(incoming, false, effectiveTemplate);
+    updates.customization = {
+      ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
+      ...safeIncoming,
+    };
   }
 
   // Office uniform branding: force company-controlled fields so members can't
