@@ -6,8 +6,24 @@ import QRDownloadButton from "@/components/QRDownloadButton";
 import CopyButton from "@/components/CopyButton";
 import NFCWriter from "@/components/NFCWriter";
 
+// The COPY-LINK field keeps the plain URL, but the QR image, the printable QR
+// download and the NFC tag encode where the visit came FROM. They previously all
+// shared the bare card URL, so every scan of a printed QR and every NFC tap was
+// recorded as "direct_link" and shown in Traffic as "Card link" — making the QR
+// and NFC numbers permanently read zero no matter how many people used them.
+//
+// Values are the canonical ones in lib/source-labels.ts ("QR code scan" /
+// "NFC tap"), and match what the visitor-facing QR modal on the card page
+// already encodes. Appends safely if the URL ever gains a query string.
+// Nothing visible changes: QRCard deliberately does not render the URL text.
+function withSource(u: string, source: string): string {
+  return `${u}${u.includes("?") ? "&" : "?"}source=${source}`;
+}
+
 export default function MoreShareOptions({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
+  const qrUrl = withSource(url, "qr_code");
+  const nfcUrl = withSource(url, "nfc_card");
 
   return (
     <>
@@ -43,9 +59,9 @@ export default function MoreShareOptions({ url }: { url: string }) {
 
             {/* QR code */}
             <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
-            <QRCard url={url} />
+            <QRCard url={qrUrl} />
             <div className="mt-3">
-              <QRDownloadButton url={url} compact />
+              <QRDownloadButton url={qrUrl} compact />
             </div>
 
             {/* NFC card / tag — program a physical tag so a tap opens this
@@ -55,7 +71,7 @@ export default function MoreShareOptions({ url }: { url: string }) {
               <p className="text-gray-500 text-[11px] uppercase tracking-wide">NFC card</p>
               <span className="text-gray-600 text-[11px] normal-case tracking-normal">· tap any phone to open your card</span>
             </div>
-            <NFCWriter url={url} />
+            <NFCWriter url={nfcUrl} />
           </div>
         </div>
       )}
