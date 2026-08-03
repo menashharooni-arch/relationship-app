@@ -6,16 +6,22 @@ import QRDownloadButton from "@/components/QRDownloadButton";
 import CopyButton from "@/components/CopyButton";
 import NFCWriter from "@/components/NFCWriter";
 
-// The COPY-LINK field keeps the plain URL, but the QR image, the printable QR
-// download and the NFC tag encode where the visit came FROM. They previously all
-// shared the bare card URL, so every scan of a printed QR and every NFC tap was
-// recorded as "direct_link" and shown in Traffic as "Card link" — making the QR
-// and NFC numbers permanently read zero no matter how many people used them.
+// The QR image and the printable QR download encode where the visit came FROM.
+// They previously used the bare card URL, so every scan of a QR you showed,
+// downloaded or printed was recorded as "direct_link" and displayed in Traffic
+// as "Card link" — meaning the QR number could only ever read zero no matter how
+// many people scanned it. "qr_code" is the canonical value in lib/source-labels
+// ("QR code scan") and is exactly what the visitor-facing QR modal on the card
+// page already encodes. Appends safely if the URL ever gains a query string.
 //
-// Values are the canonical ones in lib/source-labels.ts ("QR code scan" /
-// "NFC tap"), and match what the visitor-facing QR modal on the card page
-// already encodes. Appends safely if the URL ever gains a query string.
-// Nothing visible changes: QRCard deliberately does not render the URL text.
+// Nothing visible changes: QRCard deliberately does not render the URL text, and
+// the CARD LINK field above keeps the plain URL for copying.
+//
+// NFC is left on the plain URL on purpose. It has the identical attribution gap
+// (taps also record as "direct_link"), but NFCWriter DISPLAYS its url in the
+// "or write it yourself" line, so tagging it would put a visible
+// "?source=nfc_card" in front of users — a UI change, not a silent fix. Worth
+// doing as its own deliberate decision.
 function withSource(u: string, source: string): string {
   return `${u}${u.includes("?") ? "&" : "?"}source=${source}`;
 }
@@ -23,7 +29,6 @@ function withSource(u: string, source: string): string {
 export default function MoreShareOptions({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
   const qrUrl = withSource(url, "qr_code");
-  const nfcUrl = withSource(url, "nfc_card");
 
   return (
     <>
@@ -71,7 +76,7 @@ export default function MoreShareOptions({ url }: { url: string }) {
               <p className="text-gray-500 text-[11px] uppercase tracking-wide">NFC card</p>
               <span className="text-gray-600 text-[11px] normal-case tracking-normal">· tap any phone to open your card</span>
             </div>
-            <NFCWriter url={nfcUrl} />
+            <NFCWriter url={url} />
           </div>
         </div>
       )}
