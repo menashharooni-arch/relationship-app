@@ -1,6 +1,44 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isCollapsedWhileVisible } from "@/lib/collapse-detect";
+
+// A collapsed slot makes this component render its content at opacity 0 — a
+// perfect, invisible render with no error anywhere. The homepage SwiftLink
+// preview shipped that way for ~12 days because nothing in the stack can see
+// it: the SSR HTML is correct, the state is correct, and only real client
+// layout exposes it. So the component reports itself.
+//
+// Once per page load, not per instance: one broken layout usually collapses
+// several scalers at once, and ten identical reports would be noise (the
+// uptime probe taught us what self-inflicted error spam costs).
+let collapseReported = false;
+/** Generous: covers mount, fonts, images and any open/close transition. */
+const COLLAPSE_CHECK_MS = 2500;
+
+function reportCollapse(natural: number) {
+  if (collapseReported) return;
+  collapseReported = true;
+  const detail = `CardScaler slot has zero width — its content is rendering invisibly (natural=${natural}px) at ${location.pathname}`;
+  // Dev: the fastest possible feedback for whoever is building the surface.
+  if (process.env.NODE_ENV !== "production") console.warn("[CardScaler]", detail);
+  // Production: route it into the same error pipeline every other client fault
+  // uses, so an invisible-UI bug lands where deploy checks already look instead
+  // of waiting to be noticed by eye.
+  try {
+    void fetch("/api/client-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        level: "error",
+        context: "cardscaler.collapsed",
+        message: detail,
+        url: location.href,
+      }),
+    }).catch(() => {});
+  } catch { /* reporting must never break the page */ }
+}
 
 // Renders content at a fixed design width where everything fits, then scales it
 // down to the container width. Cards use it (fixed 460px so the QR / bottom rows
@@ -29,7 +67,14 @@ export default function CardScaler({ children, natural = DEFAULT_NATURAL }: { ch
     const ro = new ResizeObserver(recompute);
     if (outerRef.current) ro.observe(outerRef.current);
     if (innerRef.current) ro.observe(innerRef.current);
-    return () => ro.disconnect();
+    // Self-report an invisible render (see reportCollapse above). Checked once,
+    // late, and only when the slot is genuinely on-screen — a preview hidden by
+    // display:none (mobile plan tabs, a closed modal) measures 0 correctly and
+    // must not be reported.
+    const collapseTimer = setTimeout(() => {
+      if (isCollapsedWhileVisible(outerRef.current)) reportCollapse(NATURAL);
+    }, COLLAPSE_CHECK_MS);
+    return () => { ro.disconnect(); clearTimeout(collapseTimer); };
   }, [NATURAL]);
 
   return (
