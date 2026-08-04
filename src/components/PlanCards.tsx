@@ -90,7 +90,10 @@ export default function PlanCards({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
         {/* Free */}
         <div className={`${isMobile && mobileTier !== "free" ? "hidden" : ""} rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]`}>
-          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free</p>
+          {/* "Forever" inherits the heading's size/weight/font from this <p>;
+              the span overrides ONLY the color (slate-400 — the same light gray
+              this card already uses for "/ month"). Mirrors /pricing. */}
+          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-400">Forever</span></p>
           <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
           <ul className="space-y-2.5 mb-7 flex-1">
