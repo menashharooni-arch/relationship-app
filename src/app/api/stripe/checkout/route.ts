@@ -7,6 +7,7 @@ import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
 import { isFreeDays } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -163,27 +164,20 @@ export async function POST(req: NextRequest) {
 
     // Opt-in Pro trial (TRIAL_DAYS) for FIRST-TIME subscribers only. The card is
     // collected at checkout and Stripe bills automatically when the trial ends
-    // unless they cancel. A customer who has ever had a subscription (active,
-    // canceled, or trialing) gets no second trial.
+    // unless they cancel. Eligibility lives in lib/trial-eligibility — the SAME
+    // helper the /upgrade page uses to decide whether to advertise the trial —
+    // so the promise on the button and the session created here cannot drift:
+    // a customer who has ever had a subscription (active, canceled, or
+    // trialing) gets no second trial.
     //
-    // `trial: false` opts OUT. The trial is a public-pricing-page acquisition
-    // offer; an in-product upgrade (someone already using SwiftCard on Free)
-    // starts and pays. Only ever narrows eligibility — a client asking for a
-    // trial it isn't entitled to is still refused by the hadSub check below, so
-    // this flag can't be abused to mint one.
+    // `trial: false` opts OUT (the ineligible-user path on /upgrade sends it so
+    // its "billing starts today" copy matches the session). Only ever narrows —
+    // a client asking for a trial it isn't entitled to is still refused by the
+    // eligibility check, so this flag can't be abused to mint one.
     const trialAllowed = body.trial !== false;
     let trialDays: number | undefined;
-    if (isPro && trialAllowed) {
-      let hadSub = false;
-      if (profile.stripe_customer_id) {
-        try {
-          const prior = await stripe.subscriptions.list({ customer: profile.stripe_customer_id as string, status: "all", limit: 1 });
-          hadSub = prior.data.length > 0;
-        } catch {
-          hadSub = true; // can't verify → err on the side of not granting a trial
-        }
-      }
-      if (!hadSub) trialDays = TRIAL_DAYS;
+    if (isPro && trialAllowed && (await isProTrialEligible(profile.stripe_customer_id as string | null, stripe))) {
+      trialDays = TRIAL_DAYS;
     }
 
     // ── Free-time promo → a trial, not a coupon ──────────────────────────────
