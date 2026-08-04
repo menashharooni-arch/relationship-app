@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -11,9 +11,14 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 
-// Two plans, no Free column, no trial. Every route out of here carries
-// `trial=0`, so /checkout drops the trial copy and the checkout API creates a
-// subscription that bills today.
+// Two plans, no Free column. The 14-day Pro trial is offered here exactly as
+// on /pricing and in the wizard — but only when the server says this user is
+// actually a FIRST-TIME subscriber (trialEligible, resolved by the page
+// against Stripe's own subscription history). An ex-subscriber keeps the
+// honest start-and-pay button and their route carries `trial=0`, so /checkout
+// drops the trial copy and the session bills today — the promise on the
+// button, the copy on /checkout and the session Stripe creates always agree.
+// Office never has a trial (the checkout API grants trials for Pro only).
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 
@@ -27,7 +32,7 @@ function Check({ light }: { light?: boolean }) {
   );
 }
 
-export default function UpgradeClient() {
+export default function UpgradeClient({ trialEligible }: { trialEligible: boolean }) {
   const router = useRouter();
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
@@ -49,8 +54,11 @@ export default function UpgradeClient() {
   const officeTotal = seatSubtotalCents(officePerSeat, seats);
   const per = annual ? "yr" : "mo";
 
-  // trial=0 is what makes this "start and pay" rather than the public offer.
-  const proHref = `/checkout?plan=pro&interval=${interval}&trial=0`;
+  // Eligible first-timer → the standard trial checkout (same as /pricing).
+  // Ex-subscriber → trial=0 keeps /checkout's copy and the session honest.
+  const proHref = trialEligible
+    ? `/checkout?plan=pro&interval=${interval}`
+    : `/checkout?plan=pro&interval=${interval}&trial=0`;
   const officeHref = `/checkout?plan=office&interval=${interval}&seats=${seats}&trial=0`;
 
   if (native) return null;
@@ -106,9 +114,13 @@ export default function UpgradeClient() {
               href={proHref}
               className="w-full text-center bg-white hover:bg-white/90 text-[#2450d8] font-bold py-3 rounded-full transition-colors text-sm shadow-lg"
             >
-              Upgrade to Pro — {formatUsd(proCents)}/{per} →
+              {trialEligible ? "Start 14-day free trial →" : <>Upgrade to Pro — {formatUsd(proCents)}/{per} →</>}
             </Link>
-            <p className="text-white/70 text-[11px] text-center mt-2">Billing starts today · Cancel anytime</p>
+            <p className="text-white/70 text-[11px] text-center mt-2">
+              {trialEligible
+                ? `${TRIAL_DAYS} days free, then ${formatUsd(proCents)}/${per} · auto-renews · Cancel anytime`
+                : "Billing starts today · Cancel anytime"}
+            </p>
           </div>
         </div>
 

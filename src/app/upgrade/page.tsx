@@ -3,15 +3,20 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import UpgradeClient from "./UpgradeClient";
 import { isPaidPlan } from "@/lib/plan";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
 
 export const metadata = { title: "Upgrade — SwiftCard" };
 
 // The IN-PRODUCT upgrade screen, for someone already using SwiftCard on Free.
 //
-// Deliberately not /pricing. Someone inside the product has already chosen
-// SwiftCard — showing them the Free column they're already on is a no-op, and
-// the 14-day trial is an acquisition offer for strangers on the marketing site,
-// not for a user who's been on Free for a month. Here it's start and pay.
+// Deliberately not /pricing: someone inside the product has already chosen
+// SwiftCard, so the Free column they're already on isn't shown. The 14-day Pro
+// trial IS offered here (owner decision, Aug 2026 — it previously was a
+// marketing-site-only acquisition offer): every Pro entry point carries the
+// same trial for FIRST-TIME subscribers. Eligibility is resolved server-side
+// against Stripe's own subscription history — the same check the checkout API
+// enforces — so a user who has ever subscribed before sees the honest
+// start-and-pay button instead of a trial promise checkout would not honor.
 export default async function UpgradePage({
   searchParams,
 }: {
@@ -24,7 +29,7 @@ export default async function UpgradePage({
 
   const { data: profile } = await getAdminSupabase()
     .from("profiles")
-    .select("plan")
+    .select("plan, stripe_customer_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -32,6 +37,8 @@ export default async function UpgradePage({
   // cancel a plan they already have.
   const plan = (profile?.plan as string) ?? "free";
   if (isPaidPlan(plan)) redirect("/settings/flows?billing=1#billing");
+
+  const trialEligible = await isProTrialEligible(profile?.stripe_customer_id as string | null);
 
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-12">
@@ -48,7 +55,7 @@ export default async function UpgradePage({
           </div>
         </div>
       )}
-      <UpgradeClient />
+      <UpgradeClient trialEligible={trialEligible} />
     </main>
   );
 }
