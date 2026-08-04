@@ -80,7 +80,16 @@ export default function SwiftLinkLivePreview({
   const cleanLinks = paid ? allCleanLinks : allCleanLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   return (
-    <InertPreview className="rounded-[30px] overflow-hidden shadow-2xl">
+    // w-full is load-bearing, not cosmetic. CardScaler's outer div is w-full
+    // with contain:size, so it contributes ZERO intrinsic width — this frame
+    // must take its width from the PARENT, never from its content. In a block
+    // container (card editor, wizard) a div fills the parent anyway, but the
+    // homepage mini-builder modal centers its preview in a flex column, where a
+    // width-less div shrink-wraps its (zero-width) content: frame 0×0, scale 0,
+    // opacity 0 — the whole live preview rendered invisibly while the caption
+    // under it still showed. The signature builder never hit this because its
+    // preview wrapper carries an explicit w-[280px]; this is the same pattern.
+    <InertPreview className="w-full rounded-[30px] overflow-hidden shadow-2xl">
       {/* Phone width (390) so fixed px sizing renders at true proportions, then
           scaled to whatever slot holds the preview. */}
       <CardScaler natural={390}>
