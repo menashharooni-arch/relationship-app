@@ -8,6 +8,11 @@ const { chromium } = await import(
 const BASE = "https://swiftcard.me";
 const PAGES = ["/", "/pricing", "/templates", "/compare", "/testimonials", "/preview", "/cards/new", "/login", "/checkout?plan=pro", "/upgrade", "/privacy", "/contact"];
 
+// Exit non-zero when anything is invisible, so CI can gate a deploy on it.
+// Without this the script printed findings and still exited 0 — a check that
+// cannot fail is not a check.
+let failures = 0;
+
 const browser = await chromium.launch();
 
 async function sweep(page) {
@@ -65,11 +70,19 @@ for (const path of PAGES) {
           }
         }
       }
+      if (bad.length) failures += bad.length;
       console.log(`${label.padEnd(7)} ${path.padEnd(18)} ${bad.length ? "FINDINGS: " + bad.join(" | ") : "clean"}${errors.length ? "  JSERR: " + errors.join(";") : ""}`);
     } catch (e) {
+      failures++;
       console.log(`${label.padEnd(7)} ${path.padEnd(18)} LOAD-FAILED ${String(e.message).slice(0, 60)}`);
     }
     await ctx.close();
   }
 }
 await browser.close();
+
+if (failures) {
+  console.log(`\n${failures} invisible-content finding(s). Something is rendering but not showing.`);
+  process.exit(1);
+}
+console.log("\nAll pages paint correctly (scalers sized, previews visible, builders reflect input).");
