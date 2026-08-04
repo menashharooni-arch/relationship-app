@@ -20,6 +20,24 @@ It prints JSON with `healthy`, `failedCount` and a `results` array. It is
 read-only against production — it never writes a card, creates an account, sends
 mail, or runs page JavaScript, so no real user's analytics are touched.
 
+KNOWN BLIND SPOT (found the hard way, Aug 2026): because it never runs page
+JavaScript, it cannot see client-side rendering failures. The homepage
+SwiftLink builder's live preview shipped rendering into a 0×0 frame for ~12
+days — the SSR HTML contained every string this check looks for, so every run
+was green while the feature was invisible. When Playwright is available, the
+deeper paint-level sweep is:
+
+```bash
+node scripts/site-invisible-sweep.mjs
+```
+
+It loads every marketing page (desktop + phone widths) in a real rendering
+browser, opens all three homepage mini-builders, types into them, and flags
+collapsed scalers, invisible preview frames, unresolved Suspense stubs, broken
+images, and previews that don't reflect typed input. Read-only; browses like a
+visitor. The same failure class is also locked pre-deploy by
+tests/render/swiftlink-preview-frame.test.ts (npm run test:render).
+
 ## Step 2 — If `healthy` is true
 
 Reply with **one line only**:
