@@ -139,7 +139,22 @@ export default function SwiftLinksPhone() {
         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Scroll on phone to view
       </div>
-      <div className="rd-phone w-[340px]">
+      {/* The cap must be a DEFINITE length, and this is the third thing tried —
+          the other two were measured and rejected, so the reasoning is recorded:
+          this phone is a grid item, and its fixed width sets the grid TRACK to
+          340px, which on the single-column mobile layout dragged the sibling
+          TEXT column to 340px too and cut the section's heading and paragraph
+          off mid-word at 320px.
+            • max-w-full (percentage) — no effect: a percentage max-width can't
+              reduce an item's contribution to track sizing. Track stayed 340.
+            • w-full max-w-[340px] — collapsed the phone to 135px, because with
+              no intrinsic width left the track shrank to the text's needs and
+              w-full then resolved against that.
+          calc(100vw-40px) is definite, so it DOES constrain the track, and it
+          mirrors the section's own px-5 (20px each side). Above ~380px viewport
+          it exceeds 340 and binds nothing, so every normal phone and desktop
+          renders exactly as before. */}
+      <div className="rd-phone w-[340px] max-w-[calc(100vw-40px)]">
         <div className="rd-phone-screen h-[610px]" style={{ background: PAGE }}>
           <div className="rd-notch" />
           {/* Sticky mini header — fades in once the hero scrolls away */}

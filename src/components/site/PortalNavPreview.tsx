@@ -42,7 +42,10 @@ export default function PortalNavPreview({
     // tall, so a bar at top-0 renders UNDERNEATH it and its tabs can't be
     // clicked at all. Sit below it and stick there.
     <nav className="sc-app sticky top-16 z-20 mt-16 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
-      <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
+      {/* gap-2 below 360px: see the tab-strip note further down — the row's own
+          gap is part of the 17px the tabs are short by at 320. Restored to
+          gap-4 from 360px up, where everything already fitted. */}
+      <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-2 min-[360px]:gap-4">
         {/* Left: brand + plan badge */}
         <div className="flex items-center gap-3 shrink-0">
           <span className="flex items-center gap-2">
@@ -56,8 +59,15 @@ export default function PortalNavPreview({
             min-w-0 + overflow-x-auto: at 320px the brand block, these three tabs
             and the right-hand controls together need 341px, and because nothing
             here could shrink the whole /preview page scrolled sideways by 21px.
-            Now the tab strip absorbs it by scrolling inside itself. At 360px and
-            up everything still fits, so no scrollbar ever appears there. */}
+            The tab strip absorbs it by scrolling inside itself, so nothing is
+            unreachable — but the third tab still sat half-cut at the edge, which
+            reads as broken rather than scrollable.
+            Measured deficit at 320px: 17px (strip box 191, content 208). px-1.5
+            reclaims 12px across the three tabs and the row gap above gives 8px
+            — 20px, so all three fit whole and the strip stops scrolling.
+            Both revert at 360px, NOT at Tailwind's sm (640px): the deficit only
+            exists below 360, and a bare `sm:` would have needlessly retuned
+            every 390px phone too. */}
         <div className="flex items-center gap-0.5 min-w-0 overflow-x-auto">
           {PORTAL_TABS.map((t) => {
             const active = t.id === tab;
@@ -67,7 +77,7 @@ export default function PortalNavPreview({
                 type="button"
                 onClick={() => onTabChange(t.id)}
                 aria-current={active ? "page" : undefined}
-                className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                className={`text-sm px-1.5 min-[360px]:px-3 py-1.5 rounded-lg transition-colors ${
                   active ? "text-white font-medium bg-gray-800" : "text-gray-400 hover:text-white hover:bg-gray-800/60"
                 }`}
               >
