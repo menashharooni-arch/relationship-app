@@ -58,7 +58,7 @@ export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string): Pr
   const userId = await resolveCrmOwnerId("pipedrive", capturedBy);
   // No refresh config: personal API tokens don't expire, so expires_at is null
   // and the refresh branch never runs.
-  const conn = await getCrmConnection("pipedrive", LABEL, userId);
+  const conn = await getCrmConnection("pipedrive", LABEL, userId, lead.capturedByCardId);
   if (!conn) return;
 
   const host = hostFor(conn.metadata);

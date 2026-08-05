@@ -19,6 +19,7 @@ import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { ensureUserCards } from "@/lib/ensure-cards";
+import { parseCardScope } from "@/lib/crm-scope";
 import MobileNavGate from "@/components/MobileNavGate";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
 import SignOutButton from "@/components/SignOutButton";
@@ -56,7 +57,7 @@ export default async function FlowSettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("flow_settings, plan, zapier_webhook_url, name, username, customization, stripe_subscription_id")
+    .select("flow_settings, plan, zapier_webhook_url, zapier_card_ids, name, username, customization, stripe_subscription_id")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
@@ -82,7 +83,9 @@ export default async function FlowSettingsPage({
     isOfficeAdmin,
     referral,
   ] = await Promise.all([
-    admin.from("integrations").select("provider, sync_error").eq("user_id", user.id),
+    // card_ids: which cards feed each connection (null = all). Drives the
+    // per-card scope picker on each integration card.
+    admin.from("integrations").select("provider, sync_error, card_ids").eq("user_id", user.id),
     admin
       .from("cards")
       .select("id, username, name, title, label")
@@ -150,6 +153,16 @@ export default async function FlowSettingsPage({
   const highlevelIntegration = integrations?.find((i) => i.provider === "highlevel");
   const highlevelConnected = !!highlevelIntegration;
   const highlevelSyncError = (highlevelIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
+
+  // Cards for the per-card scope picker. Same rows already fetched above, just
+  // narrowed to what the picker shows — the picker itself is hidden entirely
+  // for a single-card account, where there is nothing to choose.
+  const scopeCards = (cards ?? []).map((c) => ({
+    id: c.id as string,
+    username: c.username as string,
+    name: (c.name as string | null) ?? null,
+    label: (c.label as string | null) ?? null,
+  }));
   // LinkedIn no longer appears in Settings — its OAuth now powers the "Suggest
   // my headshot" button in the card editors instead.
 
@@ -246,6 +259,13 @@ export default async function FlowSettingsPage({
               highlevelSyncError={highlevelSyncError}
               teamCrmNames={teamCrmNames}
               isPro={isPro}
+              cards={scopeCards}
+              scopes={{
+                google: parseCardScope(googleIntegration?.card_ids),
+                hubspot: parseCardScope(hubspotIntegration?.card_ids),
+                pipedrive: parseCardScope(pipedriveIntegration?.card_ids),
+                highlevel: parseCardScope(highlevelIntegration?.card_ids),
+              }}
             />
           </Suspense>
 
@@ -256,6 +276,8 @@ export default async function FlowSettingsPage({
             initialUrl={profile.zapier_webhook_url ?? null}
             isPro={isPro}
             crmConnected={googleConnected || hubspotConnected || pipedriveConnected || highlevelConnected}
+            cards={scopeCards}
+            zapierScope={parseCardScope(profile.zapier_card_ids)}
           />
           {/* Directly beneath Zapier, because these toggles only control what
               the WEBHOOK receives — they are not a separate destination. Their

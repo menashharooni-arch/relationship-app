@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
 import { PlanGate, PlanBadge } from "@/components/PlanGate";
 
 const INTEGRATIONS_NATIVE_COPY =
@@ -25,6 +26,15 @@ type Props = {
    */
   teamCrmNames?: string[];
   isPro: boolean;
+  /**
+   * The account's cards, for the per-card scope picker. Integrations are
+   * per-ACCOUNT, so without scoping every card feeds the same CRM — connect an
+   * employer's GoHighLevel and a personal card's contacts land in it too.
+   * Empty/one card means there is nothing to choose and no picker renders.
+   */
+  cards?: ScopeCard[];
+  /** Current scope per provider. null (or missing) = all cards. */
+  scopes?: Partial<Record<Integration, Scope>>;
 };
 
 function IntegrationCard({
@@ -38,6 +48,7 @@ function IntegrationCard({
   isPro,
   flashStatus,
   proGated = true,
+  scopeSlot,
 }: {
   name: string;
   description: string;
@@ -51,6 +62,10 @@ function IntegrationCard({
   /** When false the card ignores plan gating (available to all signed-in users).
       LinkedIn photo import is a card-building aid, not a Pro CRM sync. */
   proGated?: boolean;
+  /** Per-card scope control, rendered only while connected. A slot rather than
+      data props so this component stays presentational and both card variants
+      share one picker. */
+  scopeSlot?: React.ReactNode;
 }) {
   // Treat a non-Pro-gated card as always "unlocked" regardless of plan.
   const unlocked = isPro || !proGated;
@@ -126,6 +141,9 @@ function IntegrationCard({
       {needsReconnect && (
         <p className="text-xs text-amber-700 mt-2">{syncError}</p>
       )}
+      {/* Only once there's a live connection: choosing which cards feed a
+          destination that doesn't exist yet would be configuring nothing. */}
+      {unlocked && connected && scopeSlot}
       {flashStatus === "connected" && (
         <p className="text-xs text-green-600 font-medium mt-2">Successfully connected!</p>
       )}
@@ -178,6 +196,7 @@ function TokenCard({
   syncError,
   isPro,
   flashStatus,
+  scopeSlot,
 }: {
   provider: string;
   title: string;
@@ -207,6 +226,8 @@ function TokenCard({
   syncError?: string | null;
   isPro: boolean;
   flashStatus?: string | null;
+  /** Per-card scope control — see IntegrationCard's copy of this prop. */
+  scopeSlot?: React.ReactNode;
 }) {
   const [connected, setConnected] = useState(initialConnected);
   const [showForm, setShowForm] = useState(!initialConnected);
@@ -351,6 +372,10 @@ function TokenCard({
         </div>
       )}
 
+      {/* Same rule as IntegrationCard: only once a connection exists, and not
+          while the token form is open — the form is already the focus there. */}
+      {isPro && connected && !showForm && scopeSlot}
+
       {flashStatus === "connected" && (
         <p className="text-xs text-green-600 font-medium mt-2">Successfully connected!</p>
       )}
@@ -358,7 +383,7 @@ function TokenCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, teamCrmNames = [], isPro }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, teamCrmNames = [], isPro, cards = [], scopes = {} }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -373,6 +398,19 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
       setTimeout(() => { setFlashIntegration(null); setFlashStatus(null); }, 5000);
     }
   }, [searchParams]);
+
+  // One card means there is exactly one answer, so the control would be a
+  // question with no alternatives — every single-card account (most of them)
+  // sees the integrations list exactly as it was.
+  const scopeFor = (provider: Integration, name: string) =>
+    cards.length > 1 ? (
+      <CardScopePicker
+        target={provider}
+        targetName={name}
+        cards={cards}
+        initialScope={scopes[provider] ?? null}
+      />
+    ) : undefined;
 
   // Order is by how often they're actually used, not alphabetical or
   // chronological: GoHighLevel and Pipedrive lead because they're the common
@@ -422,6 +460,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         syncError={highlevelSyncError}
         isPro={isPro}
         flashStatus={flashIntegration === "highlevel" ? flashStatus : null}
+        scopeSlot={scopeFor("highlevel", "GoHighLevel")}
       />
 
       <TokenCard
@@ -444,6 +483,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         syncError={pipedriveSyncError}
         isPro={isPro}
         flashStatus={flashIntegration === "pipedrive" ? flashStatus : null}
+        scopeSlot={scopeFor("pipedrive", "Pipedrive")}
       />
 
       <TokenCard
@@ -465,6 +505,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         syncError={hubspotSyncError}
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
+        scopeSlot={scopeFor("hubspot", "HubSpot")}
       />
 
       <IntegrationCard
@@ -484,6 +525,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         disconnectUrl="/api/integrations/google"
         isPro={isPro}
         flashStatus={flashIntegration === "google" ? flashStatus : null}
+        scopeSlot={scopeFor("google", "Google Contacts")}
       />
     </div>
   );
