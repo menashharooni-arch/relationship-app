@@ -455,7 +455,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     company,
     phone: primaryPhone,
     email,
-    website: "",
+    // The live preview must show the website as it is typed. This was hardcoded
+    // to "" while the save below sends website.trim(), so the field silently
+    // never appeared while building the card and only showed up after the card
+    // was created — it read as "the website didn't save".
+    website,
     linkedin: socials.linkedin,
     instagram: socials.instagram,
     twitter: socials.twitter,

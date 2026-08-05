@@ -271,7 +271,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     company,
     phone: primaryPhone,
     email,
-    website: "",
+    // Same omission as the create wizard: hardcoded "" while the save sends
+    // website.trim(), so editing the website changed nothing in the preview.
+    website,
     linkedin: socials.linkedin,
     instagram: socials.instagram,
     twitter: socials.twitter,
