@@ -1,67 +1,41 @@
-// Share-form SMS consent CHECKBOX.
+﻿// Share-form consent DISCLOSURE (no checkbox). Sharing your number + email IS
+// the consent to be followed up with, so there's no separate opt-in box —
+// SUBMITTING the form is the affirmative act, and this one line is the
+// clear-and-conspicuous disclosure right next to the Send button. Because
+// submission IS the consent, this line is the ONLY thing standing between us
+// and an unconsented text, so it carries every element A2P/CTIA requires:
+// both channels named, message frequency, msg&data rates, STOP to opt out,
+// HELP for help, and links to the SMS Terms + Privacy Policy. Deliberately NO
+// sender name — the visitor is already on that person's card, and interpolating
+// a name here rendered the raw slug ("some-card-slug") with a missing space.
 //
-// HISTORY — do not "simplify" this back. This was a disclosure-only line for a
-// while ("submitting the form is the consent"), which is defensible under TCPA
-// but was rejected for A2P 10DLC: Twilio Onboarding & Compliance (ticket
-// #28654422, 2026-07-30) named two required elements this must carry, and a
-// campaign cannot be approved without both:
+// SIZE IS LOAD-BEARING: 11px, set 2026-07-28 for A2P campaign review. It was
+// 8px, which is not "clear and conspicuous" under TCPA and reads to a campaign
+// reviewer as burying the disclosure. 11px is the floor — never go below it.
 //
-//   1. TYPES OF MESSAGES — the opt-in must say WHAT the person will receive,
-//      not just which channel. "texts & emails via SwiftCard" names a channel;
-//      it is not a message type, and that is what error 30924 was flagging.
-//   2. A REAL CHECKBOX — present, NOT pre-selected, and OPTIONAL, so a visitor
-//      can submit the share form without opting in to SMS.
-//
-// "Optional" is functional, not cosmetic: the parent form must submit happily
-// with this unchecked and post sms_consent:false. The leads route already
-// distinguishes true / false / absent (sms-ok vs sms-paused vs neither), so an
-// unchecked share is captured normally and simply never auto-texted.
-//
-// NEVER pre-check this, never default the parent state to true, and never make
-// submission conditional on it — each of those re-breaks campaign approval and
-// is a TCPA problem in its own right.
-//
-// SIZE IS LOAD-BEARING: 11px floor, set 2026-07-28 for A2P review. It was 8px,
-// which is not "clear and conspicuous" and reads to a reviewer as burying the
-// disclosure. Never go below 11px.
-//
-// Every element here is required: message types, frequency, msg & data rates,
-// STOP, HELP, and links to SMS Terms + Privacy. Dropping "data" from "Msg &
-// data rates may apply" breaks the recognized CTIA phrasing. This copy is
-// quoted verbatim in /sms-consent, /sms-terms, /privacy and step 5b of
+// The copy is already trimmed to the shortest form that keeps all six required
+// elements. Do not shorten further: dropping "data" from "Msg & data rates may
+// apply" breaks the recognized CTIA phrasing, and dropping the sender, the
+// frequency, STOP, HELP, or either link fails campaign review outright.
+// Quoted verbatim in /sms-consent, /sms-terms, /privacy, and step 5b of
 // STRIPE_TWILIO_SETUP.md — change one, change all five.
 //
-// `recipientName` is accepted and ignored: interpolating it here once rendered
-// the raw card slug ("some-card-slug") with a missing space.
+// `recipientName`/`checked`/`onChange` are accepted-and-ignored for back-compat
+// with the four capture forms (they pass sms_consent:true on submit).
 type Props = {
   checked?: boolean;
   onChange?: (checked: boolean) => void;
   recipientName?: string | null;
 };
-
-export default function SmsConsentCheckbox({ checked = false, onChange }: Props = {}) {
+export default function SmsConsentCheckbox(_props: Props = {}) {
+  void _props;
   return (
-    <div className="text-left">
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange?.(e.target.checked)}
-          className="mt-[2px] h-4 w-4 shrink-0 accent-brand cursor-pointer"
-        />
-        <span className="text-slate-500 text-[11px] leading-snug">
-          <strong className="text-slate-600">Text me follow-ups (optional).</strong> I agree to receive
-          follow-up text messages from this SwiftCard user about our conversation — their contact details,
-          replies, and any follow-up messages they set up. Msg frequency varies. Msg &amp; data rates may
-          apply. Reply STOP to opt out, HELP for help.
-        </span>
-      </label>
-      <p className="text-slate-400 text-[11px] leading-snug mt-1.5">
-        Optional — you can share your info without this and still hear back by email.{" "}
-        <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>
-        {" · "}
-        <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>
-      </p>
-    </div>
+    <p className="text-slate-500 text-[11px] leading-snug text-left">
+      By sharing, you agree to texts &amp; emails via SwiftCard. Msg frequency varies. Msg &amp; data
+      rates may apply. Reply STOP to opt out, HELP for help.{" "}
+      <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>
+      {" · "}
+      <a href="/privacy" target="_blank" rel="noopener" className="underline">Privacy</a>
+    </p>
   );
 }
