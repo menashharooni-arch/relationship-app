@@ -13,6 +13,13 @@ const AMBER2_DEFAULT = "#d97706";
 const CREAM  = "#fffbf0";
 const WARM   = "#92400e";
 
+// Logo height in design px (the 460-wide unit every card template is built in).
+// The width cap below is DERIVED from it (×2.6, the widest banner shape that
+// still sits inside the badge area) rather than written out separately — those
+// were two independent numbers, so raising one without the other would either
+// squeeze a wide logo or let it run into the text column beside it.
+const LOGO_H = 64;
+
 export default function LocalBusiness({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const AMBER  = style.accentColor ?? AMBER_DEFAULT;
@@ -20,6 +27,13 @@ export default function LocalBusiness({ data }: { data: CardData }) {
   const stripeBg = style.bgColor ?? `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`;
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
+  // Horizontal space the top-right badge occupies, so the name below can reserve
+  // it. Mirrors the badge's own maxWidth exactly (logo) or its fixed box
+  // (initials), plus the pr-5 it sits in and a small gap.
+  const badgeW = data.logoUrl
+    ? Math.round(LOGO_H * 2.6 * Math.min(Math.max(f, 0.85), 1.3))
+    : 58;
+  const badgeReserve = badgeW + 20 + 10;
 
   return (
     <div
@@ -56,7 +70,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-xl"
-              style={logoStyle(f, 58, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(58 * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
+              style={logoStyle(f, LOGO_H, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(LOGO_H * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
             />
           ) : (
             <div
@@ -72,8 +86,15 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           )}
         </div>
 
-        {/* Bottom-left name area within stripe */}
-        <div className="absolute bottom-0 left-0 px-5 pb-3">
+        {/* Bottom-left name area within stripe.
+            `right` is load-bearing, not cosmetic. The badge above is positioned
+            absolute top-0 right-0 h-FULL, so it owns the right edge for the
+            whole stripe — including the bottom, where this sits. Without a right
+            bound this block was free to run underneath it, and a long name did:
+            measured 13px of overlap at the ORIGINAL badge size, growing with it.
+            Reserving the badge's own width (+ its pr-5, + a gap) means the name
+            stops before the badge instead of sliding under it, at any width. */}
+        <div className="absolute bottom-0 left-0 px-5 pb-3" style={{ right: badgeReserve }}>
           <h2
             className="font-extrabold text-white leading-tight"
             style={{ fontSize: fitName(20 * heroGrow(f), data.name, 18), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
