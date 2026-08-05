@@ -36,6 +36,17 @@ describe("buildVCard — structure", () => {
     expect(out).toContain("N:Morgan;Alex;;;");
   });
 
+  it("terminates END:VCARD with a CRLF, per RFC 6350", () => {
+    // The assertion above uses trimEnd(), so it passed either way and the
+    // missing terminator shipped unnoticed. Mainstream parsers tolerate it;
+    // strict ones, and anything concatenating vCards into one stream, need it
+    // to know where the card ends.
+    const out = buildVCard({ name: "Alex Morgan" });
+    expect(out.endsWith("END:VCARD\r\n")).toBe(true);
+    // And exactly one — a blank line after it is not an extra record.
+    expect(out.endsWith("END:VCARD\r\n\r\n")).toBe(false);
+  });
+
   it("uses CRLF line endings", () => {
     const out = buildVCard({ name: "Alex Morgan", email: "a@b.com" });
     expect(out).toContain("\r\n");
