@@ -152,13 +152,22 @@ export default function LeadCaptureForm({
           Aug 2026), which is why this form posts sms_consent:true and there is
           no separate box — the disclosure below carries the required elements.
           Every email still carries an unsubscribe link. */}
-      <SmsConsentCheckbox recipientName={cardOwner} />
-      {/* 11px, not 8px. This sits on the live card page — the surface every QR
-          scan lands on — and 8px is below what anyone can read on a phone. It's
-          a consent disclosure, so it has to be legible, not merely present. */}
-      <p className="text-slate-600 text-[11px] text-center leading-snug">
-        Every email includes an unsubscribe link.
-      </p>
+      {/* One fine-print block, not two. The wrapper is what the form's
+          space-y-3 now applies to, so the 12px gap that used to sit BETWEEN the
+          consent line and the unsubscribe line is gone and the two read as a
+          single paragraph — same 11px, same slate-500, same left alignment.
+          The unsubscribe line was slate-600 (7.58:1), noticeably heavier than
+          the consent disclosure it supplements; slate-500 (4.76:1) is still
+          above the 4.5:1 WCAG AA floor for text this size.
+          11px stays: it's the A2P floor set 2026-07-28 (see SmsConsentCheckbox)
+          and this sits on the live card page, the surface every QR scan lands
+          on. A consent disclosure has to be legible, not merely present. */}
+      <div>
+        <SmsConsentCheckbox recipientName={cardOwner} />
+        <p className="text-slate-500 text-[11px] text-left leading-tight">
+          Every email includes an unsubscribe link.
+        </p>
+      </div>
     </form>
   );
 }

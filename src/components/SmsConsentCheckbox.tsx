@@ -9,9 +9,17 @@
 // sender name — the visitor is already on that person's card, and interpolating
 // a name here rendered the raw slug ("some-card-slug") with a missing space.
 //
-// SIZE IS LOAD-BEARING: 11px, set 2026-07-28 for A2P campaign review. It was
-// 8px, which is not "clear and conspicuous" under TCPA and reads to a campaign
-// reviewer as burying the disclosure. 11px is the floor — never go below it.
+// SIZE AND CONTRAST ARE LOAD-BEARING. Both are already at the floor; the owner
+// asked for "as small and light as legally possible" (Aug 2026) and this IS it.
+//   • 11px, set 2026-07-28 for A2P campaign review. It was 8px, which is not
+//     "clear and conspicuous" under TCPA and reads to a campaign reviewer as
+//     burying the disclosure. 11px is the floor — never go below it.
+//   • text-slate-500 measures 4.76:1 on the white share form — WCAG AA for text
+//     this size is 4.5:1, so there is ~0.26 of headroom and no perceptible
+//     lightening left. text-slate-400 is 2.56:1 and fails outright, which is
+//     the same "buried disclosure" problem in a different dimension.
+// leading-tight (not snug) is the one free win: it takes height out of the
+// block without touching either floor.
 //
 // The copy is already trimmed to the shortest form that keeps all six required
 // elements. Do not shorten further: dropping "data" from "Msg & data rates may
@@ -30,7 +38,7 @@ type Props = {
 export default function SmsConsentCheckbox(_props: Props = {}) {
   void _props;
   return (
-    <p className="text-slate-500 text-[11px] leading-snug text-left">
+    <p className="text-slate-500 text-[11px] leading-tight text-left">
       By sharing, you agree to texts &amp; emails via SwiftCard. Msg frequency varies. Msg &amp; data
       rates may apply. Reply STOP to opt out, HELP for help.{" "}
       <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>

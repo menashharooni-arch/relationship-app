@@ -62,6 +62,22 @@ describe("SMS consent disclosure (consent by submission)", () => {
     expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11);
   });
 
+  it("keeps the contrast floor — lighter than slate-500 fails WCAG AA here", () => {
+    // The other half of "clear and conspicuous": a disclosure can be buried by
+    // washing it out just as surely as by shrinking it. Measured on the live
+    // white share form — slate-500 is 4.76:1 against the 4.5:1 AA floor for
+    // text this size, so it is already AT the floor; slate-400 is 2.56:1 and
+    // fails outright. Asked for "as light as legally possible" (Aug 2026):
+    // this is it, and the answer to "can it go lighter" is no.
+    // Comments must be stripped first: the component's own header explains WHY
+    // slate-400 is disallowed, and matching that prose instead of the className
+    // fails the test against a file that is actually correct.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const shades = [...code.matchAll(/text-slate-(\d+)/g)].map((m) => Number(m[1]));
+    expect(shades.length).toBeGreaterThan(0);
+    expect(Math.min(...shades)).toBeGreaterThanOrEqual(500);
+  });
+
   it.each(FORMS)("%s posts consent-by-submission and holds no checkbox state", (form) => {
     const f = read(form);
     expect(f).toMatch(/sms_consent:\s*true/);
