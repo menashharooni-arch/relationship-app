@@ -17,9 +17,10 @@ export default function LeadCaptureForm({
   const [status, setStatus] = useState<Status>("idle");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
-  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
-  // A2P review requires the box be unchecked by default and optional.
-  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
+  // SMS consent is by SUBMISSION (owner decision, Aug 2026): no checkbox, no
+  // consent state — the disclosure sits below the share button and the post
+  // below sends sms_consent:true. Restoring a real opt-in box means reverting
+  // 8fa7f0c; the A2P trade-off is recorded in SmsConsentCheckbox.tsx.
 
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.

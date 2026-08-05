@@ -476,6 +476,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     ].filter(Boolean).join("\n"),
     customization: {
       snapchat: socials.snapchat,
+      // Facebook and YouTube live ONLY in customization — CustomCard reads them
+      // from here and nowhere else. Without them the Custom template's preview
+      // dropped both icons while the saved card showed them.
+      facebook: socials.facebook,
+      youtube: socials.youtube,
       customLayout,
       // Preview mirrors the live card: the office number the server injects on
       // every connected card shows here too, ahead of personal numbers.
@@ -803,6 +808,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         title={title}
         bio={bio}
         photoUrl={headshotUrl}
+        // Same value saved as the card's logo_url below, so the hero's
+        // headshot → logo → initials fallback previews exactly as it renders.
+        logoUrl={logoUrl}
         socials={{
           instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
           twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,

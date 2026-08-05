@@ -79,9 +79,10 @@ export default function SocialLinkIntercept({
   const [pendingLabel, setPendingLabel] = useState<string>("");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
-  // A2P review requires the box be unchecked by default and optional.
-  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
+  // SMS consent is by SUBMISSION (owner decision, Aug 2026): no checkbox, no
+  // consent state — the disclosure sits above the send button and the post
+  // below sends sms_consent:true. Restoring a real opt-in box means reverting
+  // 8fa7f0c; the A2P trade-off is recorded in SmsConsentCheckbox.tsx.
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -261,8 +262,8 @@ export default function SocialLinkIntercept({
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
                   />
-                  {/* SMS consent — separate affirmative opt-in (unchecked by
-                      default, optional); same block as every capture surface. */}
+                  {/* Consent disclosure — submitting is the opt-in (text + email);
+                      same block as every capture surface. */}
                   <SmsConsentCheckbox />
                   <button
                     type="submit"

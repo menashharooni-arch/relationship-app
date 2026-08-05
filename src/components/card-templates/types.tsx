@@ -61,7 +61,16 @@ export type CardCustomization = {
   bgColor?: string;      // primary branding surface (navy panel, dark bg, stripe…)
   textColor?: string;    // hero/name text color
   fontFamily?: string;   // card typography (a full CSS font stack)
+  // Socials that live ONLY here, with no top-level CardData field: the save
+  // writes them into customization and CustomCard reads them back out of it.
+  // They were missing from this type, so CustomCard had to reach them through
+  // a cast — which in turn hid them from the card builders, whose previewData
+  // is typed as CardData. Result: the Custom template's live preview dropped
+  // both icons while the saved card showed them. Declared here so the compiler
+  // keeps preview and card in agreement.
   snapchat?: string;
+  facebook?: string;
+  youtube?: string;
   about?: string;
   address?: CardAddress;
   links?: CardLink[];

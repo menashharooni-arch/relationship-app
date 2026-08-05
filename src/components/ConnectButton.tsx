@@ -14,9 +14,10 @@ export default function ConnectButton({
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
-  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
-  // A2P review requires the box be unchecked by default and optional.
-  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
+  // SMS consent is by SUBMISSION (owner decision, Aug 2026): no checkbox, no
+  // consent state — the disclosure sits above the send button and the post
+  // below sends sms_consent:true. Restoring a real opt-in box means reverting
+  // 8fa7f0c; the A2P trade-off is recorded in SmsConsentCheckbox.tsx.
   // True when we already know who the visitor is (they shared with this owner
   // before) — we collapse the contact fields so they're never asked twice.
   const [knownInfo, setKnownInfo] = useState(false);
@@ -144,8 +145,8 @@ export default function ConnectButton({
                   )}
                   <textarea rows={3} placeholder={`Message for ${ownerFirstName}…`} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} className={`${inputCls} resize-none`} />
                   {error && <p className="text-red-500 text-xs">{error}</p>}
-                  {/* SMS consent — separate affirmative opt-in (unchecked by
-                      default, optional); same block as every capture surface. */}
+                  {/* Consent disclosure — submitting is the opt-in (text + email);
+                      same block as every capture surface. */}
                   <SmsConsentCheckbox />
                   <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: "#1D4ED8" }}>
                     {status === "loading" ? "Sending…" : "Send message"}
