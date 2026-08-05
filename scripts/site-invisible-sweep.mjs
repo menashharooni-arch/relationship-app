@@ -1,11 +1,15 @@
 // READ-ONLY site-wide sweep for the "rendered but invisible" bug class:
 // collapsed CardScalers, invisible preview frames, unresolved Suspense stubs,
 // broken images, and interactive demos that don't paint. Real painting browser.
-import { pathToFileURL } from "node:url";
-const { chromium } = await import(
-  pathToFileURL("C:/Users/Malve/relationship-app/node_modules/playwright/index.mjs").href
-);
-const BASE = "https://swiftcard.me";
+// Plain package import: this script lives in the repo and runs on the Linux CI
+// runner as well as a dev box. It was first written as a scratch file and
+// imported playwright by ABSOLUTE WINDOWS PATH, which threw instantly on
+// ubuntu-latest — so every CI run failed before loading a single page, and the
+// paint check reported "invisible content" when the site was perfectly fine. A
+// check that cries wolf is worse than no check.
+import { chromium } from "playwright";
+
+const BASE = process.env.SWEEP_BASE || "https://swiftcard.me";
 const PAGES = ["/", "/pricing", "/templates", "/compare", "/testimonials", "/preview", "/cards/new", "/login", "/checkout?plan=pro", "/upgrade", "/privacy", "/contact"];
 
 // Exit non-zero when anything is invisible, so CI can gate a deploy on it.
@@ -45,28 +49,49 @@ for (const path of PAGES) {
     page.on("pageerror", (e) => errors.push(String(e.message).slice(0, 80)));
     try {
       await page.goto(BASE + path, { waitUntil: "load", timeout: 45000 });
-      await page.waitForTimeout(1200);
+      // Settle: hydration + the ResizeObserver pass that sizes every CardScaler.
+      // Bounded, because a scaler that never sizes is exactly what we are here
+      // to catch — waiting for it to succeed would hide the bug.
+      await page.waitForTimeout(1500);
       const bad = await sweep(page);
       // homepage: also open all three mini-builders and type, then sweep again
       if (path === "/") {
         for (const btnText of ["See how your card would look", "See how your Swift Signature would look", "See how your SwiftLink would look"]) {
           const btn = page.locator(`button:has-text("${btnText}")`).first();
           if (await btn.count()) {
+            const inModal = [];
             await btn.scrollIntoViewIfNeeded();
             await btn.click();
-            await page.waitForTimeout(400);
             const nameInput = page.locator('input[placeholder="Alex Morgan"]').first();
-            if (await nameInput.count()) await nameInput.fill("Sweep Test");
-            await page.waitForTimeout(400);
-            const inModal = await sweep(page);
-            const nameShown = await page.evaluate(() =>
-              [...document.querySelectorAll("*")].some((el) => el.children.length === 0 && /Sweep Test/.test(el.textContent || "") && el.getBoundingClientRect().width > 0)
-            );
-            if (!nameShown) inModal.push("builder-preview-not-updating");
+            // WAIT FOR CONDITIONS, never fixed sleeps. The previous version gave
+            // the modal 400ms to open and the preview 400ms to react; on a
+            // slower CI runner that is a coin flip, and a flaky check gets
+            // ignored — the same way the invisible preview survived 12 days.
+            try {
+              await nameInput.waitFor({ state: "visible", timeout: 15000 });
+              await nameInput.fill("Sweep Test");
+              // Poll until the typed name is actually PAINTED somewhere with
+              // real size. This is the assertion that catches an invisible
+              // preview; the timeout is the failure, not the wait.
+              await page.waitForFunction(
+                () => [...document.querySelectorAll("*")].some(
+                  (el) => el.children.length === 0 && /Sweep Test/.test(el.textContent || "") && el.getBoundingClientRect().width > 0
+                ),
+                undefined,
+                { timeout: 15000 },
+              );
+            } catch {
+              inModal.push("builder-preview-not-updating");
+            }
+            // Sweep AFTER the preview has reacted, so a collapsed frame is
+            // measured in its settled state rather than mid-open.
+            inModal.push(...(await sweep(page)));
             if (inModal.length) bad.push(`[${btnText.slice(16, 30)}] ` + inModal.join(","));
             const close = page.locator('button[aria-label="Close"]').first();
-            if (await close.count()) await close.click();
-            await page.waitForTimeout(200);
+            if (await close.count()) {
+              await close.click();
+              await nameInput.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {});
+            }
           }
         }
       }
