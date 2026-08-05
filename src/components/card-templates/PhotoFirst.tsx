@@ -118,8 +118,17 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div>
           <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
+              // 52%, not the 48% the other templates use. A logo is sized by
+              // HEIGHT with width:auto, so for a wide banner the maxWidth cap is
+              // what actually binds — raising the height alone does nothing for
+              // it. That cap can only come out of the company name's column, so
+              // it was raised only where that is provably free: measured here,
+              // the company box is 108px against a 70px longest word, a 38px
+              // margin. classic-pro and luxury-minimal were left at 48% because
+              // the same change cut their margin to 1px and below zero — a
+              // company name breaking mid-word is worse than a smaller logo.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 36, { maxWidth: data.company ? "48%" : "88%" })} />
+              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 42, { maxWidth: data.company ? "52%" : "88%" })} />
             )}
             <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
               {data.company}

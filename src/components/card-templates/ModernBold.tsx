@@ -71,7 +71,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 32, { maxWidth: data.company ? "48%" : "88%" })} />
+            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 38, { maxWidth: data.company ? "48%" : "88%" })} />
           )}
           <p
             className="min-w-0 leading-tight"

@@ -58,7 +58,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-lg"
-              style={logoStyle(f, 40, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? "48%" : "88%" })}
+              style={logoStyle(f, 46, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? "48%" : "88%" })}
             />
           ) : (
             <div
