@@ -146,6 +146,10 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
             title={sketch.title}
             bio={sketch.bio}
             photoUrl={sketch.headshot}
+            // The sketch is shared with the card mini-builder, where a guest can
+            // upload a logo — without this, setting one there and coming back
+            // here showed initials for a page that would render the logo.
+            logoUrl={sketch.logo}
             socials={{
               instagram: sketch.socials.instagram, tiktok: sketch.socials.tiktok,
               linkedin: sketch.socials.linkedin, twitter: sketch.socials.twitter,

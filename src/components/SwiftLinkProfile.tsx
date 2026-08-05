@@ -147,13 +147,20 @@ export default function SwiftLinkProfile({
             // into it. A transparent PNG sits on the gradient; a square logo
             // reads as a centred emblem rather than a stretched background.
             <div
-              // pb-[36%] (not a uniform pad): the hero's bottom 128px is the
-              // fade into the sheet. Centred uniformly, a tall or square logo
-              // sank into that gradient and its lower half washed out — reading
-              // as cut off. The extra bottom padding centres the logo in the
-              // CLEAR area above the fade instead. Measured: all three logo
-              // shapes now sit fully clear of it.
-              className="absolute inset-0 flex items-center justify-center p-[18%] pb-[36%]"
+              // pb is a FIXED length, not a percentage, and that is the whole
+              // point: the thing it clears — the fade below — is itself a fixed
+              // h-32 (128px) at every width, so 128 + an 8px gap clears it
+              // exactly, while any percentage only clears it at one width. It
+              // was pb-[36%], which cleared the fade at 390px but let the bottom
+              // ~13px of a square or tall logo sit inside it at 320px. Centred
+              // uniformly (no extra bottom pad at all) a logo sank much further
+              // in and its lower half washed out, reading as cut off.
+              // Padding-top stays a percentage — it clears the rounded top
+              // corners, which DO scale with width.
+              // Measured at 320/390/430 (the hero is capped at max-w-[430px]):
+              // wide 5:1, square 1:1 and tall 1:2 logos all sit fully clear of
+              // the fade, uncropped, and the logo is bigger at 430 than 36% gave.
+              className="absolute inset-0 flex items-center justify-center p-[18%] pb-[136px]"
               style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

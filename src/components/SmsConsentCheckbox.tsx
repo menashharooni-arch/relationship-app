@@ -1,4 +1,4 @@
-﻿// Share-form consent DISCLOSURE (no checkbox). Sharing your number + email IS
+// Share-form consent DISCLOSURE (no checkbox). Sharing your number + email IS
 // the consent to be followed up with, so there's no separate opt-in box —
 // SUBMITTING the form is the affirmative act, and this one line is the
 // clear-and-conspicuous disclosure right next to the Send button. Because

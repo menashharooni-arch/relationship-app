@@ -290,6 +290,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     ].filter(Boolean).join("\n"),
     customization: {
       snapchat: socials.snapchat,
+      // Facebook and YouTube live ONLY in customization — CustomCard reads them
+      // from here and nowhere else. Without them the Custom template's preview
+      // dropped both icons while the saved card showed them.
+      facebook: socials.facebook,
+      youtube: socials.youtube,
       customLayout,
       // Preview mirrors the live card: the office number the server injects on
       // every connected card is shown here too, ahead of personal numbers.
@@ -899,6 +904,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               title={title}
               bio={bio}
               photoUrl={photoState}
+              // cardLogoUrl is what the save writes to logo_url, so the hero's
+              // headshot → logo → initials fallback previews exactly as it renders.
+              logoUrl={cardLogoUrl}
               socials={{
                 instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
                 twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
