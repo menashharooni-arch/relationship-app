@@ -11,6 +11,7 @@ import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
+import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
 
@@ -86,7 +87,10 @@ export async function POST(req: NextRequest) {
     // for multi-card accounts that is NOT the profile slug, so look the card up
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
-    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, customization";
+    // zapier_card_ids: which cards may fire the webhook (null = all). Safe to
+    // name explicitly — the column ships with the crm_card_scope migration,
+    // which is applied before this code runs.
+    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, zapier_card_ids, customization";
     // select("*") so the is_offline kill-switch is actually present on the row —
     // an explicit column list would silently omit it (and would error outright on
     // a pre-migration schema), leaving lead capture open on an offline card.
@@ -240,6 +244,11 @@ export async function POST(req: NextRequest) {
         message: message || null,
         source: source ? getSourceLabel(source) : null,
         capturedByCard: card_owner,
+        // The key per-card CRM scoping is checked against, inside
+        // getCrmConnection. Undefined for a legacy profile-card with no cards
+        // row, which is treated as out-of-scope whenever a scope is set —
+        // "can't prove it belongs" must not send someone's contacts onward.
+        capturedByCardId: (cardRow?.id as string | undefined) ?? null,
       };
       // after(): these were bare floating promises. Nothing awaited them, so on
       // a serverless host the function could return its response and be frozen
@@ -264,7 +273,16 @@ export async function POST(req: NextRequest) {
 
     // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
     // a URL stored before validation existed can't exfiltrate lead PII (SSRF).
-    if (ownerProfile?.zapier_webhook_url && isPaidPlan(ownerProfile.plan) && isZapierWebhookUrl(ownerProfile.zapier_webhook_url)) {
+    // Per-card scope is checked here rather than in getCrmConnection because
+    // Zapier isn't an integrations row — the webhook lives on the profile. Same
+    // rule though: null = all cards, and a card we can't identify is out of
+    // scope once one is set.
+    if (
+      ownerProfile?.zapier_webhook_url &&
+      isPaidPlan(ownerProfile.plan) &&
+      isZapierWebhookUrl(ownerProfile.zapier_webhook_url) &&
+      isCardInScope(parseCardScope(ownerProfile.zapier_card_ids), (cardRow?.id as string | undefined) ?? null)
+    ) {
       // after() for the same reason as the CRM syncs above: an unawaited fetch
       // can be cut off when the function freezes after responding, so the Zap
       // would silently never fire.

@@ -64,7 +64,7 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
   // so expires_at is null and the refresh branch never runs. HighLevel does
   // recommend rotating them periodically, and a rotation looks exactly like a
   // revoked token here: the next lead 401s and the banner tells them to reconnect.
-  const conn = await getCrmConnection("highlevel", LABEL, userId);
+  const conn = await getCrmConnection("highlevel", LABEL, userId, lead.capturedByCardId);
   if (!conn) return;
 
   const locationId = typeof conn.metadata.location_id === "string" ? conn.metadata.location_id : "";

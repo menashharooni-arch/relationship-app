@@ -1,6 +1,7 @@
 import { getAdminSupabase } from "./supabase-admin";
 import { encryptToken, decryptToken } from "./token-crypto";
 import { resolveOfficeContext } from "./office-roles";
+import { isCardInScope, parseCardScope } from "./crm-scope";
 
 // ── Shared plumbing for every CRM connection ─────────────────────────────────
 //
@@ -49,6 +50,14 @@ export type CrmLead = {
   message?: string | null;
   /** Card slug that captured it. In an Office this identifies the rep. */
   capturedByCard?: string | null;
+  /**
+   * cards.id of the capturing card — the key per-card CRM scoping is checked
+   * against. Separate from capturedByCard because that one is the SLUG, which
+   * the owner can rename at will; an id can't drift out from under a scope.
+   * Undefined only for a legacy profile-card with no cards row, which
+   * isCardInScope treats as out-of-scope whenever a scope is set.
+   */
+  capturedByCardId?: string | null;
 };
 
 /**
@@ -146,13 +155,26 @@ export async function setSyncError(
 
 /**
  * Load a usable token for `provider`, refreshing it first if it's about to
- * expire. Returns null when there is no connection, or when the connection is
- * broken in a way the user has to fix — in which case the banner is already set.
+ * expire. Returns null when there is no connection, when the card is out of
+ * this connection's scope, or when the connection is broken in a way the user
+ * has to fix — in which case the banner is already set.
+ *
+ * PER-CARD SCOPING IS ENFORCED HERE, and here only, on purpose. Every provider
+ * has to come through this function to get a token, so one check covers all of
+ * them and a fifth provider cannot be added with the gate missing. Putting it
+ * in the lead route instead would have been wrong as well as fragile: each sync
+ * resolves its OWN destination account via resolveCrmOwnerId (an Office
+ * sub-user inherits the owner's CRM), so the route doesn't yet know whose
+ * integration row — and therefore whose scope — is about to be used.
+ *
+ * `cardId` is required rather than optional so the compiler, not a reviewer,
+ * is what stops a future call site from forgetting it.
  */
 export async function getCrmConnection(
   provider: CrmProviderKey,
   label: string,
   userId: string,
+  cardId: string | null | undefined,
   refresh?: RefreshConfig,
 ): Promise<CrmConnection | null> {
   const admin = getAdminSupabase();
@@ -161,12 +183,24 @@ export async function getCrmConnection(
     // sync_error rides along so a later success can clear a stale banner without
     // an extra read — and without writing on every captured lead when it's
     // already null, which would be a pointless round trip per capture.
-    .select("access_token, refresh_token, expires_at, sync_error, metadata")
+    // card_ids rides along for the same reason: the scope check costs no extra
+    // query, it is just one more column on a row we were already reading.
+    .select("access_token, refresh_token, expires_at, sync_error, metadata, card_ids")
     .eq("user_id", userId)
     .eq("provider", provider)
     .maybeSingle();
 
   if (!data) return null;
+
+  // Scope check BEFORE anything else: no token refresh, no network call, and
+  // above all no setSyncError. A card the owner deliberately left out is not a
+  // broken connection, so it must not raise a banner telling them to fix
+  // something that is working as configured.
+  //
+  // `card_ids` is absent (undefined) on a pre-migration database, which
+  // parseCardScope reads as null — all cards — so this is a no-op until someone
+  // actually sets a scope.
+  if (!isCardInScope(parseCardScope((data as { card_ids?: unknown }).card_ids), cardId)) return null;
 
   const now = Date.now();
   const accessToken = decryptToken(data.access_token);

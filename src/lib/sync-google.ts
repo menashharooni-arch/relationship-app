@@ -11,7 +11,7 @@ export async function syncLeadToGoogle(lead: CrmLead, capturedBy: string): Promi
   // An office sub-user with no connection of their own inherits the office
   // owner's; everyone else resolves to themselves. See resolveCrmOwnerId.
   const userId = await resolveCrmOwnerId("google", capturedBy);
-  const conn = await getCrmConnection("google", LABEL, userId, {
+  const conn = await getCrmConnection("google", LABEL, userId, lead.capturedByCardId, {
     tokenUrl: GOOGLE_TOKEN_URL,
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,

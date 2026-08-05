@@ -16,7 +16,7 @@ export async function syncLeadToHubSpot(lead: CrmLead, capturedBy: string): Prom
   // Private App tokens (how this integration is normally connected) never
   // expire, so expires_at is null for them and the refresh below is skipped.
   // The config is still passed because the same row can hold an OAuth token.
-  const conn = await getCrmConnection("hubspot", LABEL, userId, {
+  const conn = await getCrmConnection("hubspot", LABEL, userId, lead.capturedByCardId, {
     tokenUrl: HUBSPOT_TOKEN_URL,
     clientId: process.env.HUBSPOT_CLIENT_ID,
     clientSecret: process.env.HUBSPOT_CLIENT_SECRET,

@@ -222,9 +222,16 @@ describe("integrations are re-checked against the plan at send time", () => {
   });
 
   it("the Zapier lead webhook only fires for a paid owner", () => {
-    const at = src.indexOf("zapier_webhook_url && ");
+    // Anchored on the CALL and walked back to its enclosing `if`, the same way
+    // the Google assertion above does it. This used to match the literal
+    // "zapier_webhook_url && " on one line, so adding a third clause to the
+    // condition (the per-card scope check) broke it while the plan gate it
+    // actually tests was untouched — a failure that said nothing about the gate.
+    const at = src.indexOf("fetch(ownerProfile.zapier_webhook_url");
     expect(at).toBeGreaterThan(-1);
-    expect(src.slice(at, at + 200)).toContain("isPaidPlan(ownerProfile.plan)");
+    const openIf = src.lastIndexOf("if (", at);
+    expect(openIf).toBeGreaterThan(-1);
+    expect(src.slice(openIf, at)).toMatch(/isPaidPlan\(ownerProfile\.plan\)/);
   });
 
   it("the Zapier URL is still allowlisted before any PII leaves", () => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PlanGate, PlanBadge } from "@/components/PlanGate";
+import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
@@ -10,12 +11,18 @@ export default function ZapierSettings({
   initialUrl,
   isPro,
   crmConnected = false,
+  cards = [],
+  zapierScope = null,
 }: {
   initialUrl: string | null;
   isPro: boolean;
   /** True when a CRM is already connected directly above. Drives the
    *  duplicate-contacts warning — see the note where it renders. */
   crmConnected?: boolean;
+  /** The account's cards, for the per-card scope picker. */
+  cards?: ScopeCard[];
+  /** Which cards currently fire this webhook. null = all cards. */
+  zapierScope?: Scope;
 }) {
   const [url, setUrl] = useState(initialUrl ?? "");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -149,6 +156,15 @@ export default function ZapierSettings({
           </div>
 
           {saveStatus === "error" && <p className="text-red-500 text-xs text-center">Failed to save. Try again.</p>}
+
+          {/* Only with a webhook actually saved, and only when there's more than
+              one card to choose between. `initialUrl` rather than the live
+              `url` state deliberately: the scope belongs to the SAVED webhook,
+              and showing this against half-typed text would let someone scope a
+              destination that doesn't exist yet. */}
+          {initialUrl && cards.length > 1 && (
+            <CardScopePicker target="zapier" targetName="Zapier" cards={cards} initialScope={zapierScope} />
+          )}
         </>
       ) : (
         <PlanGate
