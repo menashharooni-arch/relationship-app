@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -15,6 +15,15 @@ export default function ClassicPro({ data }: { data: CardData }) {
   const BLUE = style.accentColor ?? BLUE_DEFAULT;
   const panelBg = style.bgColor ?? `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`;
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
+  // Row is 152 design px: panel 40% of 460 = 184, less 16px padding either side.
+  // The logo keeps 48% of it for an ordinary name and gives ground only as the
+  // longest word grows, down to a 46px floor. Measured against the DOM at 71px
+  // for the default split.
+  const { logoMaxPct, companyPx } = splitLogoRow({
+    row: 152, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
+    company: data.company, targetPx: 11, trackingEm: 0.03, uppercase: false,
+  });
+  const companyFit = fitCompany(13.5, data.company, 18, companyPx, 0.03, false);
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
     data.instagram && { icon: <IcoInsta />,    handle: data.instagram, color: "#c084fc" },
@@ -58,7 +67,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-lg"
-              style={logoStyle(f, 46, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? "48%" : "88%" })}
+              style={logoStyle(f, 46, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? logoMaxPct : "88%" })}
             />
           ) : (
             <div
@@ -75,7 +84,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           )}
           <span
             className="text-white/80 font-bold leading-tight min-w-0"
-            style={{ fontSize: fitPx(13.5, data.company, 18), letterSpacing: "0.03em", overflowWrap: "anywhere" }}
+            style={{ ...companyFit, overflowWrap: "anywhere" }}
           >
             {data.company}
           </span>
