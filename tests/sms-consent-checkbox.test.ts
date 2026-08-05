@@ -33,13 +33,22 @@ const FORMS = [
 describe("SMS consent disclosure (consent by submission)", () => {
   const src = read("src/components/SmsConsentCheckbox.tsx");
 
+  // EVERY assertion here runs against comment-stripped source, and that is
+  // load-bearing rather than tidiness. The component's header NAMES the CTIA
+  // elements it must carry ("...STOP to opt out, HELP for help...") while
+  // explaining them, so matching raw source let those assertions pass on the
+  // PROSE. Proved by mutation: deleting "Reply STOP to opt out, " from the
+  // rendered copy left this suite fully green. The guard was documenting the
+  // requirement instead of enforcing it.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const flat = code.replace(/\s+/g, " ");
+
   it("is a disclosure line, not a checkbox", () => {
-    expect(src).not.toMatch(/type="checkbox"/);
-    expect(src).not.toMatch(/defaultChecked/);
+    expect(code).not.toMatch(/type="checkbox"/);
+    expect(code).not.toMatch(/defaultChecked/);
   });
 
   it("names BOTH channels, since submitting consents to both", () => {
-    const flat = src.replace(/\s+/g, " ");
     expect(flat).toMatch(/you agree to texts &amp; emails/i);
   });
 
@@ -47,35 +56,41 @@ describe("SMS consent disclosure (consent by submission)", () => {
     // With no checkbox this line is the ONLY thing standing between the product
     // and an unconsented text, so it has to carry all of them. Dropping "data"
     // from "Msg & data rates may apply" breaks the recognized CTIA phrasing.
-    const flat = src.replace(/\s+/g, " ");
     expect(flat).toMatch(/Msg frequency varies/);
     expect(flat).toMatch(/Msg &amp; data rates may apply/);
     expect(flat).toMatch(/STOP to opt out/);
     expect(flat).toMatch(/HELP for help/);
-    expect(src).toMatch(/href="\/sms-terms"/);
-    expect(src).toMatch(/href="\/privacy"/);
+    expect(code).toMatch(/href="\/sms-terms"/);
+    expect(code).toMatch(/href="\/privacy"/);
   });
 
-  it("keeps the 11px floor — 8px is not clear and conspicuous", () => {
-    const sizes = [...src.matchAll(/text-\[(\d+)px\]/g)].map((m) => Number(m[1]));
+  // Both floors sit below the previously-advised ones, by explicit owner
+  // decision (Aug 2026, asked twice — the second time after being shown the A2P
+  // history and the contrast numbers). These pin the values so the next move is
+  // deliberate too, and so the trade-off stays visible instead of becoming
+  // folklore. They use the same comment-stripped source as everything above:
+  // the header discusses 11px and slate-500 in prose, and matching THAT rather
+  // than the className fails the test against a correct file — which is exactly
+  // how the first version of the contrast check broke.
+
+  it("stays at 10px — smaller returns to the 8px already judged too small", () => {
+    // Was 11px (set 2026-07-28 for A2P review, itself up from 8px). No
+    // statutory minimum exists; the standard is "clear and conspicuous". 10px
+    // is one step back toward the size that drew Twilio error 30924 on campaign
+    // CM1319bbf18064a7f2100b8b47716fef0b — 9px or below invites that again.
+    const sizes = [...code.matchAll(/text-\[(\d+)px\]/g)].map((m) => Number(m[1]));
     expect(sizes.length).toBeGreaterThan(0);
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(10);
   });
 
-  it("keeps the contrast floor — lighter than slate-500 fails WCAG AA here", () => {
-    // The other half of "clear and conspicuous": a disclosure can be buried by
-    // washing it out just as surely as by shrinking it. Measured on the live
-    // white share form — slate-500 is 4.76:1 against the 4.5:1 AA floor for
-    // text this size, so it is already AT the floor; slate-400 is 2.56:1 and
-    // fails outright. Asked for "as light as legally possible" (Aug 2026):
-    // this is it, and the answer to "can it go lighter" is no.
-    // Comments must be stripped first: the component's own header explains WHY
-    // slate-400 is disallowed, and matching that prose instead of the className
-    // fails the test against a file that is actually correct.
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  it("stays at slate-400 — already below WCAG AA, so nothing lighter", () => {
+    // slate-500 was 4.76:1 on the white share form, just above the 4.5:1 AA
+    // floor for text this size. slate-400 is 2.56:1 — BELOW AA, accepted by the
+    // owner. slate-300 (1.7:1) is where it stops being readable at all, so this
+    // guard is what keeps a "just a bit lighter" from going there.
     const shades = [...code.matchAll(/text-slate-(\d+)/g)].map((m) => Number(m[1]));
     expect(shades.length).toBeGreaterThan(0);
-    expect(Math.min(...shades)).toBeGreaterThanOrEqual(500);
+    expect(Math.min(...shades)).toBeGreaterThanOrEqual(400);
   });
 
   it.each(FORMS)("%s posts consent-by-submission and holds no checkbox state", (form) => {

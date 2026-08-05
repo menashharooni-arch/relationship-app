@@ -152,22 +152,17 @@ export default function LeadCaptureForm({
           Aug 2026), which is why this form posts sms_consent:true and there is
           no separate box — the disclosure below carries the required elements.
           Every email still carries an unsubscribe link. */}
-      {/* One fine-print block, not two. The wrapper is what the form's
-          space-y-3 now applies to, so the 12px gap that used to sit BETWEEN the
-          consent line and the unsubscribe line is gone and the two read as a
-          single paragraph — same 11px, same slate-500, same left alignment.
-          The unsubscribe line was slate-600 (7.58:1), noticeably heavier than
-          the consent disclosure it supplements; slate-500 (4.76:1) is still
-          above the 4.5:1 WCAG AA floor for text this size.
-          11px stays: it's the A2P floor set 2026-07-28 (see SmsConsentCheckbox)
-          and this sits on the live card page, the surface every QR scan lands
-          on. A consent disclosure has to be legible, not merely present. */}
-      <div>
-        <SmsConsentCheckbox recipientName={cardOwner} />
-        <p className="text-slate-500 text-[11px] text-left leading-tight">
-          Every email includes an unsubscribe link.
-        </p>
-      </div>
+      {/* "Every email includes an unsubscribe link." was removed here (owner
+          decision, Aug 2026). It is not required at the point of capture —
+          CAN-SPAM requires the unsubscribe MECHANISM in the commercial email
+          itself, which every send already carries — so dropping the sentence
+          from this form changes nothing about what we owe a recipient. The
+          wrapper div went with it: with one child left there is nothing to
+          group, so the disclosure is a direct child of the form again and picks
+          up its space-y-3 exactly as it did before.
+          Size/colour now live entirely in SmsConsentCheckbox — see the warning
+          at the top of that file before changing either. */}
+      <SmsConsentCheckbox recipientName={cardOwner} />
     </form>
   );
 }
