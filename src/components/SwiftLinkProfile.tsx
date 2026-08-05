@@ -41,6 +41,7 @@ export default function SwiftLinkProfile({
   name,
   username,
   photoUrl,
+  logoUrl = null,
   subtitle,
   bio,
   verified,
@@ -54,6 +55,9 @@ export default function SwiftLinkProfile({
   name: string;
   username: string;
   photoUrl: string | null;
+  /** The card's logo, used for the hero ONLY when there is no headshot.
+   *  Optional so any caller that has no logo keeps the initials fallback. */
+  logoUrl?: string | null;
   subtitle: string;
   bio: string;
   verified: boolean;
@@ -123,11 +127,42 @@ export default function SwiftLinkProfile({
           </div>
         )}
 
-        {/* Hero — full-bleed photo the sheet scrolls over */}
+        {/* Hero — full-bleed photo the sheet scrolls over.
+            Fallback order: the card's headshot, then the card's LOGO, then the
+            initials. A business card without a face is usually a company card,
+            and its logo is the right identity to lead with. */}
         <div className="relative w-full aspect-square max-h-[520px] overflow-hidden rounded-t-[30px]">
           {photoUrl ? (
+            // A headshot is a photo of a person: fill the square and crop, which
+            // is what makes the link.me hero look right.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : logoUrl ? (
+            // A LOGO is not a headshot and must not be treated like one.
+            // object-cover would crop a wide wordmark down to its middle
+            // letters, so it is object-CONTAIN, centred, on the same gradient
+            // the initials use — the logo is shown whole, at its own aspect
+            // ratio, never cut. p-[18%] keeps it clear of the rounded top
+            // corners and of the sheet's fade at the bottom, so nothing eats
+            // into it. A transparent PNG sits on the gradient; a square logo
+            // reads as a centred emblem rather than a stretched background.
+            <div
+              // pb-[36%] (not a uniform pad): the hero's bottom 128px is the
+              // fade into the sheet. Centred uniformly, a tall or square logo
+              // sank into that gradient and its lower half washed out — reading
+              // as cut off. The extra bottom padding centres the logo in the
+              // CLEAR area above the fade instead. Measured: all three logo
+              // shapes now sit fully clear of it.
+              className="absolute inset-0 flex items-center justify-center p-[18%] pb-[36%]"
+              style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt={name}
+                className="max-w-full max-h-full w-auto h-auto object-contain"
+              />
+            </div>
           ) : (
             <div
               className="absolute inset-0 flex items-center justify-center"

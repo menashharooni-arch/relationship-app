@@ -143,6 +143,10 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         name={cardOrLegacy.name || username}
         username={username}
         photoUrl={photoUrl}
+        // Per-card logo, read off the SAME row the headshot comes from, so a
+        // card with no headshot leads with its own logo and never another
+        // card's (the bleed that cardHeadshot exists to prevent).
+        logoUrl={(cardOrLegacy.logo_url as string | null) ?? null}
         subtitle={subtitle}
         bio={bio}
         verified={ownerPaid}
