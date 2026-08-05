@@ -7,6 +7,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { withoutSocials, SAMPLE_DATA, SAMPLE_DATA_WITH_PHOTO, DEMO_HEADSHOT } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
+import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
@@ -115,7 +116,14 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
                   <input type="email" placeholder="Your email (optional)" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
                   <textarea placeholder="Quick message (optional)" rows={2} readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm resize-none" />
                   <button type="button" className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm" style={{ background: "#1D4ED8" }}>Share My Info</button>
-                  <p className="text-slate-600 text-[8px] text-center leading-snug">By sharing your info you agree to receive follow-up messages by email or text. Reply STOP to a text anytime to opt out.</p>
+                  {/* The REAL disclosure component, not a copy of its words.
+                      This was a hand-written paragraph carrying the wording and
+                      the 8px size the live form used until July — so the demo
+                      was showing visitors a consent line the product had
+                      already replaced. Rendering the actual component is the
+                      only version that can't drift again; it is a plain
+                      presentational <p> with no state, so it is safe here. */}
+                  <SmsConsentCheckbox />
                 </div>
               </div>
             </div>

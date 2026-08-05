@@ -85,6 +85,17 @@ export function baseSentryOptions() {
       // Browser extensions and cross-origin scripts we don't control.
       "Non-Error promise rejection captured",
       "ResizeObserver loop completed with undelivered notifications",
+      // A visitor whose Supabase session cookie has expired, landing on a
+      // PUBLIC page (/card/[username], /api/site-view, /api/card-events). Those
+      // paths ask "is anyone signed in?" purely to personalise, so a dead
+      // refresh token is the expected answer, not a fault: getUser() returns a
+      // null user and the page renders normally. Only the SDK's internal
+      // rejection was reaching Sentry. Ignored rather than papered over at each
+      // call site, because the behaviour is already correct — it was the
+      // reporting that was wrong, and a try/catch per route would suggest
+      // otherwise to the next reader.
+      "Invalid Refresh Token",
+      "refresh_token_not_found",
     ],
 
     // Keep the SDK quiet in build logs; the build must not become noisy.

@@ -174,5 +174,11 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
   }
 
   lines.push("END:VCARD");
-  return lines.join("\r\n");
+  // Trailing CRLF: RFC 6350 §3.2 ends a vCard with END:VCARD *followed by* a
+  // line break, and every line in the body is already CRLF-delimited. Every
+  // mainstream parser (iOS Contacts, Android, Outlook) accepts the file without
+  // it — which is why this went unnoticed — but strict parsers and anything
+  // concatenating multiple vCards into one stream need the terminator to know
+  // where this card ends.
+  return lines.join("\r\n") + "\r\n";
 }
