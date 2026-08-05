@@ -146,14 +146,31 @@ export default function SwiftLinkProfile({
         {/* Sheet */}
         <div className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center" style={{ background: sheetBg }}>
           {/* Name + verified badge */}
-          <div className="flex items-center justify-center gap-1.5 px-2">
+          {/* items-start so the badge sits with the FIRST line once the name
+              wraps, rather than drifting to the vertical middle of a two-line
+              block. */}
+          <div className="flex items-start justify-center gap-1.5 px-2">
             <h1
-              className="font-extrabold overflow-hidden whitespace-nowrap text-ellipsis"
+              // The name WRAPS; it is never truncated. This used to be
+              // "overflow-hidden whitespace-nowrap text-ellipsis", so a long
+              // name was cut off with an ellipsis — the page is someone's
+              // identity, and a clipped name is the one thing here that must
+              // never happen. break-words additionally splits a single
+              // unbroken token (a very long one-word name) instead of letting
+              // it spill past the sheet.
+              // min-w-0 is required for break-words to do anything here: a flex
+              // item defaults to min-width:auto, so the box GROWS to fit an
+              // unbreakable token instead of constraining the line, and the
+              // word then runs past the sheet. Measured — without it a
+              // 34-character single-word name still overflowed the edge.
+              className="font-extrabold break-words min-w-0"
               style={{ fontSize: 32, letterSpacing: "0.25px", lineHeight: 1.15, color: textColor }}
             >
               {name}
             </h1>
-            {verified && <VerifiedBadge />}
+            {/* shrink-0: the badge must keep its size and let the name take the
+                remaining width, otherwise the flex row squeezes the badge. */}
+            {verified && <span className="shrink-0 mt-1.5"><VerifiedBadge /></span>}
           </div>
           <p className="text-[15px] mt-0.5" style={{ color: textColor, opacity: 0.5 }}>@{username}</p>
 
