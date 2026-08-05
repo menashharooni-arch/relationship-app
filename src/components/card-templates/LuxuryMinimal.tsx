@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -30,6 +30,14 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
       : { strong: TEXT, mid: TEXT, soft: MUTED, muted: MUTED };
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
+  // Row is 170.4 design px: panel 44% of 460 = 202.4, less 16px padding either
+  // side. 0.22em of tracking is the most of any template, so the most here to
+  // reclaim before anything has to get smaller.
+  const { logoMaxPct, companyPx } = splitLogoRow({
+    row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
+    company: data.company, targetPx: 9, trackingEm: 0.22, uppercase: true,
+  });
+  const companyFit = fitCompany(10.5, data.company, 18, companyPx, 0.22, true);
 
   return (
     <div
@@ -78,11 +86,11 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="rounded" style={logoStyle(f, 38, { maxWidth: data.company ? "48%" : "88%" })} />
+            <img src={data.logoUrl} alt="logo" className="rounded" style={logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
           ) : null}
           <p
             className="min-w-0 leading-tight"
-            style={{ fontSize: fitPx(10.5, data.company, 18), letterSpacing: "0.22em", color: GOLD, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
+            style={{ ...companyFit, color: GOLD, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>

@@ -136,6 +136,194 @@ export function logoStyle(f: number, base: number, extra?: React.CSSProperties):
 // make, so a 67-char address rendered 37% wider than its box and simply hung off
 // the side of the card. Measured by tests/render/card-overflow.test.ts.
 const FIT_FLOOR = 0.38;
+
+// ── Company names must not break mid-word ───────────────────────────────────
+//
+// fitPx below sizes text by its TOTAL length, which is the right rule for a
+// line that may wrap: a longer string gets smaller so more of it fits. But it
+// says nothing about the LONGEST WORD, and a word wider than its column is
+// broken in the middle — "COASTLIN / E REALTY". A company name is a proper
+// noun; splitting it is worse than any amount of shrinking.
+//
+// This only bites when a logo sits beside the name and takes half the row.
+// Measured before the fix: 7 mid-word splits across the templates, every one of
+// them with a wide banner logo present, none without.
+//
+// Things that do NOT solve it, each ruled out by measurement rather than taste:
+//   • hyphens:auto — verified inert in this engine. A control div with
+//     hyphens:auto and one without rendered IDENTICALLY (both overflowing on a
+//     single line), so there is no hyphenation dictionary to lean on. Shipping
+//     it would have looked like a fix and changed nothing.
+//   • overflow-wrap:break-word instead of anywhere — both break a word that
+//     cannot fit; they differ only in intrinsic sizing, and every one of these
+//     elements also carries min-w-0, which lets flex shrink it past min-content
+//     regardless.
+//   • letting the logo shrink so the name keeps its width — a long enough word
+//     still overflows once the logo hits zero, which trades a broken word for
+//     clipped text. Strictly worse.
+//
+// So the name is shrunk until its longest word fits, spending the cheapest
+// thing first: tracking, then size. Tracking goes first because these labels
+// carry 0.16–0.22em of it for style, which is ~20% of the rendered width and
+// the least missed when it goes.
+// Per-character advance widths in em, MEASURED from the rendered card font
+// rather than assumed. An average-width-per-character estimate was tried first
+// and is not good enough: it sized "COASTLINE" correctly and still split
+// "BARTHOLOMEW", because M and W are nearly twice the width of I. The spread is
+// 0.24em to 0.94em, so any single average is wrong for half the alphabet.
+//
+// To re-measure: render a span at font-size 100px in the card font, set
+// textContent to one character repeated 10x, and divide its width by 1000.
+const W_UPPER: Record<string, number> = {
+  I: 0.278, "'": 0.238, "-": 0.333, ".": 0.278, ",": 0.278, "1": 0.506,
+  F: 0.611, L: 0.611, T: 0.611, Z: 0.611, J: 0.556,
+  E: 0.667, P: 0.667, S: 0.667, V: 0.667, X: 0.667, Y: 0.667,
+  A: 0.722, B: 0.722, C: 0.722, D: 0.722, H: 0.722, K: 0.722, N: 0.722, R: 0.722, U: 0.722, "&": 0.722,
+  G: 0.778, O: 0.778, Q: 0.778, M: 0.833, W: 0.944,
+};
+const W_MIXED: Record<string, number> = {
+  i: 0.333, j: 0.333, l: 0.333, I: 0.389, f: 0.412, t: 0.444, r: 0.482,
+  s: 0.611, v: 0.611, y: 0.611, z: 0.556, "'": 0.278, "-": 0.333, ".": 0.333, ",": 0.333,
+  a: 0.667, c: 0.667, e: 0.667, h: 0.667, k: 0.667, n: 0.667, o: 0.667, p: 0.667, q: 0.667, u: 0.667, x: 0.667,
+  b: 0.676, d: 0.676, g: 0.676, w: 0.944, m: 1,
+  F: 0.667, J: 0.667, L: 0.667, E: 0.722, S: 0.722, T: 0.722, Z: 0.722, P: 0.722,
+  A: 0.778, B: 0.778, C: 0.778, D: 0.778, R: 0.778, V: 0.778, X: 0.778, Y: 0.778,
+  G: 0.833, H: 0.833, K: 0.833, N: 0.833, O: 0.833, Q: 0.833, U: 0.833,
+  M: 0.944, W: 1, "&": 0.889,
+};
+const DEFAULT_UPPER = 0.722;
+const DEFAULT_MIXED = 0.667;
+
+// Production renders in Geist, the harness in whatever the headless engine
+// resolves — close, but not identical. 8% covers that drift, and erring toward
+// slightly smaller text is the right direction: too small is legible, split is
+// not.
+const SAFETY = 1.08;
+
+// The row widths passed in are design px at the 460 layout CardScaler always
+// uses. One renderer genuinely differs — HeroPhone lays PhotoFirst out at 390 —
+// and 390/460 = 0.848, so a size computed against the wider figure would be too
+// big there and split the word after all. Budgeting the narrower width
+// everywhere costs a fraction of a point on the rare names that shrink at all,
+// and makes the result independent of which renderer is drawing the card.
+const NARROW = 0.85;
+
+/** Width of one word in em, from the measured table. */
+function wordEm(word: string, uppercase: boolean): number {
+  const table = uppercase ? W_UPPER : W_MIXED;
+  const fallback = uppercase ? DEFAULT_UPPER : DEFAULT_MIXED;
+  let sum = 0;
+  for (const raw of word) {
+    const ch = uppercase ? raw.toUpperCase() : raw;
+    sum += table[ch] ?? fallback;
+  }
+  return sum;
+}
+
+/** Longest whitespace-delimited run — the piece that has to survive whole. */
+function longestWord(text: string): string {
+  return text.trim().split(/\s+/).reduce((a, b) => (b.length > a.length ? b : a), "");
+}
+
+/**
+ * Split a logo/company row between the two, giving the NAME what it needs and
+ * the logo the rest.
+ *
+ * Shrinking the name alone is not enough on its own. Held to the logo's fixed
+ * half of the row, "Konstantinopoulos" came out whole but at 5.9px — legible
+ * only in the sense that no letters were missing. Whole-and-unreadable is not
+ * an improvement on split-and-readable; both are the name failing to be a name.
+ *
+ * So the logo yields, and only as far as it must: it keeps its full width for
+ * ordinary names (the common case, and the one that was asked to get bigger),
+ * gives ground as the longest word grows, and stops at `minLogo` so it can
+ * never dwindle to a smudge. Past that the name shrinks again — by then the
+ * word is genuinely enormous and something has to give.
+ *
+ * The logo is the right thing to spend: it is a mark that is still recognisable
+ * a few pixels smaller, whereas a company name is either readable or it isn't.
+ */
+export function splitLogoRow(opts: {
+  /** Content width of the row, in design px. */
+  row: number;
+  /** gap-* between logo and name, in px. */
+  gap: number;
+  hasLogo: boolean;
+  /** Logo's share when the name doesn't need anything extra (0–1). */
+  defaultLogoFrac: number;
+  /** Never shrink the logo narrower than this, in px. */
+  minLogo: number;
+  company: string | null | undefined;
+  /** Size the longest word should ideally reach — the readability target. */
+  targetPx: number;
+  trackingEm: number;
+  uppercase: boolean;
+}): { logoMaxPct: string; companyPx: number } {
+  const { row, gap, hasLogo, defaultLogoFrac, minLogo, company, targetPx, trackingEm, uppercase } = opts;
+  const pct = (px: number) => `${Number(((px / row) * 100).toFixed(2))}%`;
+  if (!hasLogo) return { logoMaxPct: "0%", companyPx: row * NARROW };
+
+  const defaultLogo = row * defaultLogoFrac;
+  const s = (company ?? "").trim();
+  if (!s) return { logoMaxPct: pct(defaultLogo), companyPx: 0 };
+
+  const word = longestWord(s);
+  const needed = (wordEm(word, uppercase) + word.length * trackingEm) * targetPx * SAFETY;
+
+  // What the name gets: never less than the old fixed share, never so much that
+  // the logo drops under its floor.
+  const companyPx = Math.min(Math.max(row - defaultLogo - gap, needed), row - minLogo - gap);
+  // A PERCENTAGE, not the px value. The cap was originally a percentage and had
+  // to stay one: these constants are design px at the 460 layout, and a fixed px
+  // cap applied at any other width stops scaling with the row — which showed up
+  // immediately as luxury-minimal's logo overrunning its panel at 390px.
+  // Expressing the computed split as a fraction keeps it responsive while still
+  // being derived from the name.
+  return { logoMaxPct: pct(row - companyPx - gap), companyPx: companyPx * NARROW };
+}
+
+/**
+ * Size a company name so its longest word fits `availPx` without splitting.
+ *
+ * Returns tracking too, because tightening it is the first and least visible
+ * lever. Falls back to the same FIT_FLOOR fitPx uses: past that the word is
+ * genuinely wider than the space it has, and a break is unavoidable rather than
+ * careless — at which point breaking is the correct behaviour, not a bug.
+ */
+export function fitCompany(
+  base: number,
+  text: string | null | undefined,
+  comfy: number,
+  availPx: number,
+  trackingEm = 0,
+  uppercase = false,
+): { fontSize: number; letterSpacing: string } {
+  const s = (text ?? "").trim();
+  // Start from the existing length-based size so short names are untouched and
+  // this can only ever make text smaller, never larger.
+  let size = fitPx(base, s, comfy);
+  if (!s || availPx <= 0) return { fontSize: size, letterSpacing: `${trackingEm}em` };
+
+  const word = longestWord(s);
+  const glyphs = wordEm(word, uppercase); // em of glyph advance, measured
+  const n = word.length;                  // tracking is applied per character
+  const widthAt = (fs: number, tr: number) => (glyphs + n * tr) * fs * SAFETY;
+
+  let tracking = trackingEm;
+  if (widthAt(size, tracking) > availPx) {
+    // 1. Tracking first — it is decoration, and on these labels it is up to a
+    //    fifth of the rendered width.  Down to 40% of the design value.
+    const needed = (availPx / (size * SAFETY) - glyphs) / n;
+    tracking = Math.max(trackingEm * 0.4, Math.min(trackingEm, needed));
+  }
+  if (widthAt(size, tracking) > availPx) {
+    // 2. Then size, never below the shared floor. Past the floor the word is
+    //    genuinely wider than the space it has and breaking is correct.
+    size = Math.max(base * FIT_FLOOR, availPx / ((glyphs + n * tracking) * SAFETY));
+  }
+  return { fontSize: size, letterSpacing: `${Number(tracking.toFixed(3))}em` };
+}
+
 export function fitPx(base: number, text: string | null | undefined, comfy: number): number {
   const len = (text ?? "").trim().length;
   if (len <= comfy) return base;

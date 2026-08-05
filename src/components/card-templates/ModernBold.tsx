@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -26,6 +26,14 @@ export default function ModernBold({ data }: { data: CardData }) {
       : { strong: "#0f172a", mid: "#1e293b", soft: "#475569", muted: "#64748b" };
   const companyColor = style.infoColor ?? (darkCard ? "#cbd5e1" : "#475569");
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
+  // Row is 170.4 design px: panel 44% of 460 = 202.4, less 16px padding either
+  // side. Uppercase with 0.16em of tracking — about a fifth of the rendered
+  // width, and the first thing given back before either box resizes.
+  const { logoMaxPct, companyPx } = splitLogoRow({
+    row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
+    company: data.company, targetPx: 10, trackingEm: 0.16, uppercase: true,
+  });
+  const companyFit = fitCompany(12, data.company, 18, companyPx, 0.16, true);
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
     data.twitter   && { icon: <IcoX />,        color: "#94a3b8" },
@@ -71,11 +79,11 @@ export default function ModernBold({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 38, { maxWidth: data.company ? "48%" : "88%" })} />
+            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
           )}
           <p
             className="min-w-0 leading-tight"
-            style={{ fontSize: fitPx(12, data.company, 18), letterSpacing: "0.16em", color: companyColor, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
+            style={{ ...companyFit, color: companyColor, fontWeight: 700, textTransform: "uppercase", overflowWrap: "anywhere" }}
           >
             {data.company}
           </p>

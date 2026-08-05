@@ -151,3 +151,136 @@ describe("a logo never escapes the card, covers text, or pushes content off", ()
     }
   }
 });
+
+// ── A company name is never split in the middle of a word ───────────────────
+//
+// This is separate from the geometry above because nothing overflows when it
+// happens: the text fits, it is simply cut in a place that makes it stop being
+// a name. "COASTLIN / E REALTY" measures perfectly and reads as a mistake.
+//
+// It only occurs beside a WIDE logo, which is why it survived so long — the
+// existing fixtures carried no logo at all, so the narrow-column case that
+// causes it was never rendered.
+//
+// The check reconstructs the real rendered lines from per-character Range
+// rects, so it sees what a reader sees rather than what the CSS implies. A
+// break is fine at a space or a hyphen and a failure anywhere else.
+const COMPANY_NAMES = [
+  "Coastline Realty",
+  "Bartholomew & Associates",       // wide caps: M and W are ~2x an I
+  "Konstantinopoulos Properties",   // one very long word
+  "Northwind Commercial Real Estate Advisors International",
+];
+
+async function midWordSplits(
+  browser: Browser, Template: React.ComponentType<{ data: CardData }>, data: CardData, width: number,
+): Promise<string[]> {
+  const css = await appCss();
+  const markup = renderToStaticMarkup(createElement(Template, { data }));
+  const page = await browser.newPage({ viewportSize: { width: width + 100, height: 600 } });
+  try {
+    await page.setContent(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${css}</style>
+       <style>body{margin:0;padding:20px}#h{width:${width}px}</style></head>
+       <body class="sc-app"><div id="h">${markup}</div></body></html>`, { waitUntil: "load" });
+    return await page.evaluate(() => {
+      const card = document.querySelector(".sc-card") as HTMLElement;
+      const out: string[] = [];
+      for (const el of Array.from(card.querySelectorAll<HTMLElement>("*"))) {
+        if (el.children.length > 0) continue;
+        const node = el.firstChild;
+        if (!node || node.nodeType !== 3) continue;
+        const text = node.textContent || "";
+        // Emails and URLs have no spaces and MUST be free to break anywhere —
+        // that is correct behaviour, not a defect, so they are excluded.
+        if (text.trim().length < 2 || /[@]/.test(text) || /\w\.\w{2,}/.test(text)) continue;
+        const range = document.createRange();
+        let prevTop: number | null = null;
+        for (let i = 0; i < text.length; i++) {
+          range.setStart(node, i); range.setEnd(node, i + 1);
+          const r = range.getBoundingClientRect();
+          if (r.height === 0) continue;
+          const top = Math.round(r.top);
+          if (prevTop !== null && top > prevTop + 2) {
+            const prev = text[i - 1] ?? "";
+            const cur = text[i] ?? "";
+            if (!/[\s\-–—/]/.test(prev) && !/\s/.test(cur)) {
+              out.push(`"${text.slice(0, 34)}" splits ...${text.slice(Math.max(0, i - 4), i)}|${text.slice(i, i + 4)}...`);
+            }
+          }
+          prevTop = top;
+        }
+      }
+      return out;
+    });
+  } finally {
+    await page.close();
+  }
+}
+
+describe("a company name is never split mid-word", () => {
+  let browser: Browser;
+  beforeAll(async () => { browser = await launchBrowser(); }, 120_000);
+  afterAll(async () => { await browser?.close(); });
+
+  for (const [tName, Template] of TEMPLATES) {
+    it(`${tName} keeps every company name's words whole`, async () => {
+      const failures: string[] = [];
+      for (const company of COMPANY_NAMES) {
+        for (const [sName, uri] of SHAPES) {
+          for (const width of WIDTHS) {
+            const splits = await midWordSplits(browser, Template, { ...BASE, company, logoUrl: uri }, width);
+            for (const s of splits) failures.push(`${tName} @${width}px [${sName}] ${s}`);
+          }
+        }
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    }, 240_000);
+  }
+});
+
+// Keeping a word whole is trivially achievable by making it tiny, and that is
+// not a fix — it swaps one unreadable name for another. The first attempt here
+// did exactly that: "Konstantinopoulos" came out whole at 5.9px. The logo
+// yielding some width is what buys the size back, and this is what holds it to
+// that: a company name has to stay large enough to read, at the SAME time as
+// staying unsplit. Neither assertion means much without the other.
+describe("a company name stays readable while it stays whole", () => {
+  let browser: Browser;
+  beforeAll(async () => { browser = await launchBrowser(); }, 120_000);
+  afterAll(async () => { await browser?.close(); });
+
+  // Design px at the 460 layout. Below ~6.5 a name is present but not really
+  // legible once the card is scaled down on a phone.
+  const MIN_READABLE = 6.5;
+
+  for (const [tName, Template] of TEMPLATES) {
+    it(`${tName} never shrinks a company name below ${MIN_READABLE}px to make it fit`, async () => {
+      const css = await appCss();
+      const failures: string[] = [];
+      for (const company of ["Coastline Realty", "Bartholomew & Associates", "Konstantinopoulos Properties"]) {
+        const data = { ...BASE, company, logoUrl: SHAPES[0][1] }; // banner: the tight case
+        const markup = renderToStaticMarkup(createElement(Template, { data }));
+        const page = await browser.newPage({ viewportSize: { width: 560, height: 500 } });
+        try {
+          await page.setContent(
+            `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${css}</style>
+             <style>body{margin:0;padding:20px}#h{width:460px}</style></head>
+             <body class="sc-app"><div id="h">${markup}</div></body></html>`, { waitUntil: "load" });
+          const px = await page.evaluate((needle) => {
+            const card = document.querySelector(".sc-card") as HTMLElement;
+            const el = Array.from(card.querySelectorAll<HTMLElement>("*"))
+              .find((e) => e.children.length === 0 && (e.textContent || "").trim() === needle);
+            return el ? parseFloat(getComputedStyle(el).fontSize) : null;
+          }, company);
+          if (px !== null && px < MIN_READABLE) {
+            failures.push(`${tName} renders "${company}" at ${px.toFixed(1)}px — whole, but too small to read`);
+          }
+        } finally {
+          await page.close();
+        }
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    }, 180_000);
+  }
+});

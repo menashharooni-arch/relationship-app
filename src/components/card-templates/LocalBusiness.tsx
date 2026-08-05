@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -34,6 +34,10 @@ export default function LocalBusiness({ data }: { data: CardData }) {
     ? Math.round(LOGO_H * 2.6 * Math.min(Math.max(f, 0.85), 1.3))
     : 58;
   const badgeReserve = badgeW + 20 + 10;
+  // The company sits in the cream BODY, with no logo beside it — the badge is
+  // up in the stripe. So it gets the full body width: 460 minus 18px padding
+  // either side, minus the QR column on its right.
+  const companyFit = fitCompany(13, data.company, 22, 460 - 36 - 96, 0.02, false);
 
   return (
     <div
@@ -118,7 +122,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="flex-1 flex flex-col justify-between">
           {/* Company name */}
           <div className="min-w-0">
-            <p className="font-black leading-tight" style={{ fontSize: fitPx(13, data.company, 22), color: WARM, letterSpacing: "0.02em", overflowWrap: "anywhere" }}>
+            <p className="font-black leading-tight" style={{ ...companyFit, color: WARM, overflowWrap: "anywhere" }}>
               {data.company}
             </p>
             <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />

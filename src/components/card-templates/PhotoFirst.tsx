@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitPx, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -29,6 +29,14 @@ export default function PhotoFirst({ data }: { data: CardData }) {
     : { strong: infoPalette.strong, mid: infoPalette.mid, soft: infoPalette.soft, muted: infoPalette.muted };
   const companyColor = style.infoColor ?? infoPalette.company;
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
+  // Row is 242 design px: info panel is 460 - 40% = 276, less 17px padding
+  // either side. The roomiest of the five, which is why this is the one
+  // template whose logo could take a larger share (52%) to begin with.
+  const { logoMaxPct, companyPx } = splitLogoRow({
+    row: 242, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.52, minLogo: 60,
+    company: data.company, targetPx: 12, trackingEm: 0, uppercase: false,
+  });
+  const companyFit = fitCompany(13.5, data.company, 20, companyPx, 0, false);
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
     data.twitter   && { icon: <IcoX />,        color: "#64748b" },
@@ -118,19 +126,10 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         <div>
           <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
-              // 52%, not the 48% the other templates use. A logo is sized by
-              // HEIGHT with width:auto, so for a wide banner the maxWidth cap is
-              // what actually binds — raising the height alone does nothing for
-              // it. That cap can only come out of the company name's column, so
-              // it was raised only where that is provably free: measured here,
-              // the company box is 108px against a 70px longest word, a 38px
-              // margin. classic-pro and luxury-minimal were left at 48% because
-              // the same change cut their margin to 1px and below zero — a
-              // company name breaking mid-word is worse than a smaller logo.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 42, { maxWidth: data.company ? "52%" : "88%" })} />
+              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 42, { maxWidth: data.company ? logoMaxPct : "88%" })} />
             )}
-            <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, fontSize: fitPx(13.5, data.company, 20), overflowWrap: "anywhere" }}>
+            <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, ...companyFit, overflowWrap: "anywhere" }}>
               {data.company}
             </p>
           </div>

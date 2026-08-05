@@ -100,7 +100,13 @@ describe("every text field on a card goes through a fitter", () => {
       const src = read(`src/components/card-templates/${t}.tsx`);
       expect(src, `${t}: name not fitted`).toMatch(/fitName\(/);
       expect(src, `${t}: title not fitted — this is exactly how titles got cut off`).toMatch(/fitTitle\(/);
-      expect(src, `${t}: company not fitted`).toMatch(/fitPx\([^)]*data\.company/);
+      // fitCompany, not fitPx. Length-based fitting sizes text by how MANY
+      // characters there are and knows nothing about the longest word, so a
+      // company name next to a logo was still being split in the middle
+      // ("COASTLIN / E REALTY"). fitCompany takes the column width and keeps the
+      // longest word whole. Requiring it here rather than accepting either is
+      // deliberate: fitPx alone is what allowed the split.
+      expect(src, `${t}: company not fitted`).toMatch(/fitCompany\([^)]*data\.company/);
     });
 
     it(`${t} lets the name wrap rather than run off the card`, () => {
