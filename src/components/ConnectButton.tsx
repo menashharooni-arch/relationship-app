@@ -16,7 +16,7 @@ export default function ConnectButton({
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
   // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
   // A2P review requires the box be unchecked by default and optional.
-  const [smsConsent, setSmsConsent] = useState(false);
+  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
   // True when we already know who the visitor is (they shared with this owner
   // before) — we collapse the contact fields so they're never asked twice.
   const [knownInfo, setKnownInfo] = useState(false);
@@ -61,7 +61,7 @@ export default function ConnectButton({
           source: "swift_connect",
           // Submitting the share form IS the consent (the disclosure sits right
           // above the Send button) — so every share opts in to text + email.
-          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
+          sms_consent: true, // sharing = consent (disclosure above the button)
         }),
       });
       const data = await res.json();
@@ -146,7 +146,7 @@ export default function ConnectButton({
                   {error && <p className="text-red-500 text-xs">{error}</p>}
                   {/* SMS consent — separate affirmative opt-in (unchecked by
                       default, optional); same block as every capture surface. */}
-                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+                  <SmsConsentCheckbox />
                   <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: "#1D4ED8" }}>
                     {status === "loading" ? "Sending…" : "Send message"}
                   </button>

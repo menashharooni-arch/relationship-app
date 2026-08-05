@@ -19,7 +19,7 @@ export default function LeadCaptureForm({
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
   // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
   // A2P review requires the box be unchecked by default and optional.
-  const [smsConsent, setSmsConsent] = useState(false);
+  // Consent is via submission now (see SmsConsentCheckbox disclosure) — no box.
 
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.
@@ -49,7 +49,7 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
-          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
+          sms_consent: true, // sharing = consent (disclosure above the button)
         }),
       });
     } catch {
@@ -147,12 +147,11 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
-          this form must stay submittable with it unchecked (posts
-          sms_consent:false → captured, never auto-texted). Required by Twilio
-          A2P review; see the header of SmsConsentCheckbox.tsx. Email consent is
-          still by submission, and every email carries an unsubscribe link. */}
-      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+      {/* Submitting the form IS the consent for both channels (owner decision,
+          Aug 2026), which is why this form posts sms_consent:true and there is
+          no separate box — the disclosure below carries the required elements.
+          Every email still carries an unsubscribe link. */}
+      <SmsConsentCheckbox recipientName={cardOwner} />
       {/* 11px, not 8px. This sits on the live card page — the surface every QR
           scan lands on — and 8px is below what anyone can read on a phone. It's
           a consent disclosure, so it has to be legible, not merely present. */}
