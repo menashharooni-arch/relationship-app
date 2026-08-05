@@ -35,6 +35,7 @@ export default function SwiftLinkLivePreview({
   title,
   bio,
   photoUrl,
+  logoUrl,
   socials,
   links,
   style,
@@ -46,6 +47,8 @@ export default function SwiftLinkLivePreview({
   title?: string | null;
   bio?: string | null;
   photoUrl?: string | null;
+  /** Card logo — the hero falls back to it when there is no headshot. */
+  logoUrl?: string | null;
   socials: PreviewSocials;
   links: { label: string; url: string; emoji?: string }[];
   /** The owner's "Social design" (linkBgColor/linkTextColor/linkFontFamily). */
@@ -98,6 +101,7 @@ export default function SwiftLinkLivePreview({
           name={name || "Your Name"}
           username={handle || "yourname"}
           photoUrl={photoUrl || null}
+          logoUrl={logoUrl || null}
           subtitle={subtitle}
           bio={bio || ""}
           verified={paid}
