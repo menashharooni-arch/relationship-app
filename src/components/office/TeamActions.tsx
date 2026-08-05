@@ -202,7 +202,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
             <div>
               <p className="text-green-400 text-sm font-semibold mb-1">{done.message}</p>
               <p className="text-gray-500 text-xs mb-4">
-                They&apos;ll get an email with a link to create their card. It takes them about two minutes.
+                They&apos;ll get an email with a link to create their card. It takes them about two minutes. Tell them to check their spam folder too.
               </p>
               <div className="space-y-2">
                 {done.inviteUrl && <CopyRow value={done.inviteUrl} label="Copy invite link" />}
