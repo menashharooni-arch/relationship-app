@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, subscriptionPeriodEnd } from "@/lib/stripe";
 import { planFromPriceId } from "@/lib/subscription";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
@@ -79,7 +79,7 @@ export async function GET() {
     const item = sub.items.data[0];
     const priceId = item?.price?.id;
     const mapped = planFromPriceId(priceId);
-    const periodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
+    const periodEndUnix = subscriptionPeriodEnd(sub);
 
     if (mapped) { base.plan = mapped.plan; base.interval = mapped.interval; }
     base.status = sub.status;

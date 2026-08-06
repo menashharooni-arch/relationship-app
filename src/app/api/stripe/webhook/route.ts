@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
@@ -364,8 +364,7 @@ export async function POST(req: NextRequest) {
 
       // 1) Mirror the scheduled-cancel state so the UI shows "cancels on <date>"
       //    + the Keep Subscription button, even when cancelled via the portal.
-      const periodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
-      const periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+      const periodEndIso = subscriptionPeriodEndIso(sub);
       if (sub.cancel_at_period_end) {
         if (cust._cancelAtPeriodEnd !== true || cust._cancelAt !== periodEndIso) {
           cust._cancelAtPeriodEnd = true;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { planFromPriceId } from "@/lib/subscription";
 import { getOfficeSeatUsage, computeSeatUsage } from "@/lib/office-seats";
@@ -82,7 +82,7 @@ export async function GET() {
       });
       // Only the proration lines — the preview also contains the next renewal.
       const prorated = (preview.lines?.data ?? [])
-        .filter((l) => (l as unknown as { proration?: boolean }).proration === true)
+        .filter((l) => l.parent?.subscription_item_details?.proration)
         .reduce((s, l) => s + (l.amount ?? 0), 0);
       base.nextSeatProrationCents = Math.max(0, prorated);
     } catch {
@@ -150,8 +150,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This subscription isn't an Office plan." }, { status: 400 });
     }
     const current = item.quantity ?? PLAN_LIMITS.OFFICE_MIN_SEATS;
-    const periodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
-    const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+    const periodEnd = subscriptionPeriodEndIso(sub);
 
     if (requested > current) {
       // INCREASE → effective immediately, prorated (spec §4/§6). Also cancels any
