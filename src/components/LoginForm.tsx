@@ -13,6 +13,13 @@ import { safeNextPath } from "@/lib/safe-next";
 // therefore routes through swiftcard.me.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
+// Sign in with Apple is off until the Supabase provider is actually enabled on
+// the project (an owner action in the Supabase dashboard). Read at module
+// scope, not per render, and compared to the literal so a stray value can't
+// accidentally switch it on. Set NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1 in Vercel
+// and redeploy once the provider is live.
+const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1";
+
 export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
@@ -331,8 +338,21 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       )}
 
       {/* Native app only: Sign in with Apple (Apple requires it alongside other
-          social logins in-app). Renders nothing on web. */}
-      {native && (
+          social logins in-app). Renders nothing on web.
+
+          Also gated on APPLE_SIGNIN_ENABLED. This used to render on platform
+          alone, while the Supabase Apple provider was not enabled on the
+          project — so every tap failed with an error toast, next to a Google
+          button that worked. A permanently dead sign-in control is an App
+          Review 2.1 rejection on its own, and Apple's own 4.8 rule is about
+          OFFERING Sign in with Apple, which a button that cannot sign anyone
+          in does not do.
+
+          Same shape as the Wallet/APNs gates: inert until configured. Enable
+          the provider in Supabase, then set NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1
+          in Vercel and REDEPLOY — env changes only take effect on a new build.
+          Until then, hidden beats broken. */}
+      {native && APPLE_SIGNIN_ENABLED && (
         <button
           type="button"
           onClick={handleApple}

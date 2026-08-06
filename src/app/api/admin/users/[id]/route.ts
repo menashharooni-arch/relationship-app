@@ -183,14 +183,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     // Downgrading to free must ALSO stop the billing — otherwise the user shows
     // as free in the app while Stripe keeps charging them.
-    let subCleared = false;
     if (body.plan === "free") {
       const { data: cur } = await admin.from("profiles").select("stripe_subscription_id").eq("id", id).maybeSingle();
       if (cur?.stripe_subscription_id) {
         try {
           const { getStripe } = await import("@/lib/stripe");
           await getStripe().subscriptions.cancel(cur.stripe_subscription_id as string);
-          subCleared = true;
         } catch (e) {
           console.error("[admin user plan] Stripe cancel failed:", e instanceof Error ? e.message : e);
           return NextResponse.json(
@@ -201,9 +199,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
     // Explicit plan set clears any free-month expiry (it's a real plan now).
+    // stripe_subscription_id is left set on purpose — see the identical write
+    // in api/admin/set-plan: it is the ONLY handle
+    // customer.subscription.deleted has for finding this profile, and nulling
+    // it here made the whole Office teardown cascade silently no-op. The
+    // webhook clears it as the last step of that cascade.
     const { error } = await admin
       .from("profiles")
-      .update({ plan: body.plan, plan_expires_at: null, ...(subCleared ? { stripe_subscription_id: null } : {}) })
+      .update({ plan: body.plan, plan_expires_at: null })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, plan: body.plan });

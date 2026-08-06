@@ -33,12 +33,10 @@ export async function PATCH(req: NextRequest) {
 
   // Downgrading to free must ALSO stop the billing — otherwise the user shows
   // as free in the app while Stripe keeps charging them every month.
-  let subCleared = false;
   if (plan === "free" && prof?.stripe_subscription_id) {
     try {
       const { getStripe } = await import("@/lib/stripe");
       await getStripe().subscriptions.cancel(prof.stripe_subscription_id as string);
-      subCleared = true;
     } catch (e) {
       console.error("[admin set-plan] Stripe cancel failed:", e instanceof Error ? e.message : e);
       return NextResponse.json(
@@ -48,9 +46,23 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // stripe_subscription_id is deliberately LEFT SET after the cancel above.
+  //
+  // Cancelling fires customer.subscription.deleted, and that handler finds the
+  // profile by `.eq("stripe_subscription_id", sub.id)` — it is the only handle
+  // it has. This route used to null the column in this very statement, in the
+  // same synchronous request, so the webhook arrived moments later and matched
+  // nothing. Everything downstream of that lookup silently never ran: seat
+  // holders kept plan='enterprise' with nobody paying, the offices row
+  // survived, the brand stayed applied, and the ex-owner kept every office
+  // capability.
+  //
+  // The webhook clears the column itself as the FINAL step of that cascade,
+  // and its own comment explains why it waits — the same retry-idempotency
+  // reasoning this route was quietly breaking from the outside.
   const { error } = await admin
     .from("profiles")
-    .update({ plan, plan_expires_at: null, customization: cust, ...(subCleared ? { stripe_subscription_id: null } : {}) })
+    .update({ plan, plan_expires_at: null, customization: cust })
     .eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
