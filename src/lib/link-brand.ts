@@ -75,41 +75,14 @@ export function monogramTint(url: string): string {
   return TINTS[h % TINTS.length];
 }
 
-/** Perceived brightness (YIQ) of a #rrggbb colour, 0-255. */
-function yiq(hex: string): number | null {
-  const m = (hex || "").match(/^#?([0-9a-f]{6})$/i);
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return (r * 299 + g * 587 + b * 114) / 1000;
-}
-
-/** The page's own blue — the fallback whenever an accent can't be used as a fill. */
-export const DEFAULT_ACCENT = "#1D4ED8";
-
-/**
- * The owner's accent, guaranteed usable as a filled plate behind text.
- *
- * This is mandatory, not defensive noise. modern-bold's accent presets include
- * "#ffffff" and "#fbbf24" (template-style-presets.ts), and plan.ts SNAPS a Free
- * card's saved accent onto that list via nearestPreset — so a near-white accent
- * is a real value on real cards, and filling the section's primary button with
- * it would render an invisible control. Anything brighter than 225 falls back to
- * the page blue; everything else is kept and paired with dark ink by the caller.
- */
-export function safeAccent(accent?: string | null): string {
-  const hex = (accent || "").trim();
-  const y = yiq(hex);
-  if (y === null) return DEFAULT_ACCENT;
-  if (y > 225) return DEFAULT_ACCENT;
-  return hex.startsWith("#") ? hex : `#${hex}`;
-}
-
-/** Ink that stays legible on a given fill. Mirrors template-style's YIQ < 150. */
-export function inkOn(fill: string): string {
-  const y = yiq(fill);
-  return y !== null && y < 150 ? "#FFFFFF" : "#0F172A";
-}
+// NOTE: this file once exported safeAccent()/inkOn() — a luminance guard for
+// filling a link button with the owner's accent colour. The accent-filled
+// "feature" link was dropped (owner call: every action link is now the same
+// quiet row), so nothing reads an accent on this surface any more and the
+// helpers went with it rather than linger as untouched exports. If a saturated
+// control ever returns here, the guard is mandatory, not optional:
+// modern-bold's presets include "#ffffff" and plan.ts SNAPS a Free card's
+// accent onto that list, so white-on-white is a real, reachable state.
 
 /**
  * The fill behind a platform's glyph. Instagram is the only platform whose brand

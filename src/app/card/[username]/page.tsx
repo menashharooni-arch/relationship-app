@@ -423,24 +423,22 @@ export default async function CardPage({
           {bio && (connectLinks.length > 0 || actionLinks.length > 0) && (
             <div className="h-px bg-[#EFE9E1] my-4" />
           )}
-          {/* Social links with intercept modal — unchanged mechanic, new layout.
-              `promote` gives the website the filled-plate treatment when there
-              are no action links to be the section's focal point. */}
+          {/* Social links with intercept modal — unchanged mechanic, new layout. */}
           {connectLinks.length > 0 && (
             <SocialLinkIntercept
               links={connectLinks}
               cardOwner={profile.username}
               ownerFirstName={firstName}
               variant="rail"
-              accent={customization.accentColor}
-              promote={actionLinks.length === 0}
             />
           )}
           {connectLinks.length > 0 && actionLinks.length > 0 && (
             <div className="h-px bg-[#EFE9E1] my-4" />
           )}
-          {/* Custom action links: one feature plate + a hairline-ruled table */}
-          <CardActionLinks links={actionLinks} accent={customization.accentColor} />
+          {/* Custom action links: one hairline-ruled table, every row equal.
+              Nothing here reads the card's accent — the section is deliberately
+              free of saturated blocks. */}
+          <CardActionLinks links={actionLinks} />
         </div>
       )}
 

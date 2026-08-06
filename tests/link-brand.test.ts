@@ -3,9 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   hostLabel, faviconFor, monogramFor, monogramTint,
-  safeAccent, inkOn, fullHref, brandBackground, DEFAULT_ACCENT,
+  fullHref, brandBackground,
 } from "@/lib/link-brand";
-import { META, ACCENT_PRESETS } from "@/lib/template-style-presets";
 
 const root = process.cwd();
 const code = (p: string) =>
@@ -25,55 +24,43 @@ describe("hostLabel", () => {
   });
 });
 
-describe("safeAccent — the guard that keeps the primary button visible", () => {
-  it("keeps a normal accent", () => {
-    expect(safeAccent("#1D4ED8")).toBe("#1D4ED8");
-    expect(safeAccent("#a78bfa")).toBe("#a78bfa");
+describe("every action link is the same quiet row", () => {
+  const c = () => code("src/components/CardActionLinks.tsx");
+
+  it("no link is singled out — no feature/rest split", () => {
+    // The first link used to be an accent-filled plate. Dropped on owner call:
+    // a saturated button reads as advertising on a professional's card.
+    expect(c(), "the feature/rest split is back").not.toMatch(/const \[feature, \.\.\.rest\]/);
+    expect(c()).toMatch(/links\.map\(/);
   });
 
-  it("rejects near-white, which is a REAL saved value", () => {
-    // modern-bold's presets include "#ffffff" and plan.ts snaps a Free card's
-    // accent onto that list, so without this the plate is white-on-white.
-    expect(safeAccent("#ffffff")).toBe(DEFAULT_ACCENT);
-    expect(safeAccent("#fefefe")).toBe(DEFAULT_ACCENT);
-  });
-
-  it("falls back on missing or malformed input", () => {
-    expect(safeAccent(undefined)).toBe(DEFAULT_ACCENT);
-    expect(safeAccent(null)).toBe(DEFAULT_ACCENT);
-    expect(safeAccent("")).toBe(DEFAULT_ACCENT);
-    expect(safeAccent("rebeccapurple")).toBe(DEFAULT_ACCENT);
-    expect(safeAccent("#abc")).toBe(DEFAULT_ACCENT);
-  });
-
-  it("EVERY accent preset in the app produces a legible plate", () => {
-    // The real contract: for each preset a card can actually hold, the fill
-    // safeAccent returns must carry inkOn()'s chosen ink at a readable contrast.
-    const presets = new Set<string>(ACCENT_PRESETS);
-    for (const meta of Object.values(META)) {
-      for (const p of meta.accent?.presets ?? []) presets.add(p);
+  it("nothing on this surface reads the card's accent colour", () => {
+    // Not just here — the section as a whole is free of saturated blocks now.
+    for (const f of ["src/components/CardActionLinks.tsx", "src/components/SocialLinkIntercept.tsx"]) {
+      expect(code(f), `${f} still fills something with the accent`).not.toMatch(/safeAccent|inkOn|color-mix/);
     }
-    // Includes "#ffffff" — the value that makes this test matter.
-    expect(presets.has("#ffffff"), "the near-white preset is gone; re-check the guard").toBe(true);
-    expect(presets.size).toBeGreaterThan(8);
-    for (const p of presets) {
-      const fill = safeAccent(p);
-      const ink = inkOn(fill);
-      expect(["#FFFFFF", "#0F172A"]).toContain(ink);
-      // Never a white plate with white ink.
-      expect(fill.toLowerCase(), `${p} stayed near-white`).not.toBe("#ffffff");
-    }
+    expect(code("src/app/card/[username]/page.tsx"), "the page still passes an accent down")
+      .not.toMatch(/accent=\{customization\.accentColor\}/);
   });
 
-  it("amber keeps DARK ink, not white", () => {
-    // #fbbf24 is a real preset; its YIQ is ~191, comfortably light.
-    expect(safeAccent("#fbbf24")).toBe("#fbbf24");
-    expect(inkOn("#fbbf24")).toBe("#0F172A");
+  it("all rows live in ONE container with internal hairlines", () => {
+    // The grouping is the part that survived — N floating slabs read as a pile.
+    expect(c()).toMatch(/rounded-\[14px\] overflow-hidden bg-white/);
+    expect(c()).toMatch(/border-b border-\[#F1EBE3\] last:border-b-0/);
   });
 
-  it("a deep accent gets white ink", () => {
-    expect(inkOn("#1D4ED8")).toBe("#FFFFFF");
-    expect(inkOn("#010101")).toBe("#FFFFFF");
+  it("has a real hover state, plus keyboard focus", () => {
+    expect(c()).toMatch(/hover:bg-\[#FBF9F6\]/);
+    expect(c()).toMatch(/active:bg-\[#F4EFE7\]/);
+    expect(c(), "keyboard users get no visible affordance").toMatch(/focus-visible:/);
+  });
+
+  it("hover changes COLOUR, never position", () => {
+    // A row inside a shared container must not move independently or the
+    // hairlines visibly break. The chevron may lean; the row may not.
+    const rowClass = c().match(/className="group flex items-center gap-3 min-h-\[52px\][^"]*"/)?.[0] ?? "";
+    expect(rowClass).toBeTruthy();
+    expect(rowClass, "the row itself translates or scales on hover").not.toMatch(/hover:(translate|scale)/);
   });
 });
 
@@ -173,8 +160,14 @@ describe("the rail is opt-in, so nothing else changed", () => {
   });
 
   it("the signup nudge still fires on every action link", () => {
+    // One render site now (a single map over all links), so one call covers
+    // every row — but it must be INSIDE the map, not on a wrapper.
     const c = code("src/components/CardActionLinks.tsx");
-    expect((c.match(/triggerSignupNudge\("link_button"\)/g) ?? []).length).toBe(2); // feature + stack rows
+    const map = c.slice(c.indexOf("links.map("));
+    expect(map, "the nudge is no longer attached to each row").toMatch(
+      /onClick=\{\(\) => triggerSignupNudge\("link_button"\)\}/,
+    );
+    expect((c.match(/triggerSignupNudge\(/g) ?? []).length).toBe(1);
   });
 });
 
