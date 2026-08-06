@@ -121,9 +121,18 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
     const json = await res.json().catch(() => ({}));
     if (res.ok) {
       track("employee_invited", { variant: json.resent ? "resent" : "new" });
-      const base = json.resent
-        ? `${email.trim()} already had an invite — we've sent it again ✓`
-        : `Invite sent to ${email.trim()} ✓`;
+      // The route tells us whether delivery actually succeeded, and nothing
+      // read it — so a failed send still rendered "Invite sent ✓" and the
+      // admin burned a paid seat for 14 days believing it had gone out. The
+      // seat IS reserved either way; only the email may have failed, so say
+      // exactly that and lean on the copy-link fallback below (which this
+      // branch already renders from inviteToken).
+      const base =
+        json.emailSent === false
+          ? `Seat reserved for ${email.trim()}, but we couldn't deliver the email — send them the link below.`
+          : json.resent
+            ? `${email.trim()} already had an invite — we've sent it again ✓`
+            : `Invite sent to ${email.trim()} ✓`;
       setDone({
         message: prefix ? `${prefix} ${base}` : base,
         inviteUrl: json.inviteToken ? `${window.location.origin}/join/${json.inviteToken}` : null,
@@ -370,9 +379,23 @@ export function InviteRowActions({ memberId, name, email, inviteUrl }: {
         // Resend to the same email; name is already stored so the row keeps it.
         body: JSON.stringify({ email }),
       });
-      if (res.ok) { setNote("Reminder sent ✓"); router.refresh(); }
-      else {
-        const j = await res.json().catch(() => ({}));
+      const j = await res.json().catch(() => ({}));
+      if (res.ok) {
+        // Same unread `emailSent` as the add path. This one is worse: the add
+        // path at least renders a copyable link on success, so a silent
+        // delivery failure there is recoverable by accident. Here the admin
+        // saw "Reminder sent ✓" and had nothing else to try.
+        if (j.emailSent === false) {
+          setNote(
+            j.inviteToken
+              ? `We couldn't deliver the email. Send them this link instead: ${window.location.origin}/join/${j.inviteToken}`
+              : "We couldn't deliver the reminder email. Try again shortly.",
+          );
+        } else {
+          setNote("Reminder sent ✓");
+        }
+        router.refresh();
+      } else {
         setNote(j.message ?? j.error ?? "Couldn't send the reminder — try again.");
       }
     } catch {

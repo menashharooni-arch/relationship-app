@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
 import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
+import { publicCardSlug } from "@/lib/owner-usernames";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -39,7 +40,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "pro_required" }, { status: 403 });
   }
 
-  const cardUrl = `${APP_URL}/card/${profile.username}`;
+  // The card slug, not the account handle. Modern accounts have a separate
+  // card slug and /card/<account handle> 404s — so this emailed link, the one
+  // thing the scanner send exists to deliver, dead-ended for every account
+  // provisioned after that split.
+  const cardUrl = `${APP_URL}/card/${(await publicCardSlug(user.id)) ?? profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "Someone";
   const safeFirstName = escapeHtml(firstName);
 
