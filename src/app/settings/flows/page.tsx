@@ -193,17 +193,34 @@ export default async function FlowSettingsPage({
         </div>
       ),
     },
-    ...(isOfficeSubUser ? [] : [{
+    // Office SUB-USERS get this section too — a change from when it was hidden
+    // from them entirely.
+    //
+    // It was excluded on the reasoning that an employee's cards "are managed
+    // from /office/admin", but that is the ADMIN's console and a plain employee
+    // cannot open it (canViewOfficeAdmin needs isOwner or view_org_analytics).
+    // Their real edit path was the dashboard's Edit link, and removing that
+    // left them with no way to change their own name, title or photo anywhere
+    // in the product. The card editor already expects them — it locks the
+    // company-managed branding fields for a sub-user — and the guided tour has
+    // always carried an office-member variant of this step, which could never
+    // have fired.
+    //
+    // Scoped, not opened up: canDelete={false} keeps deletion owner-only, which
+    // is the posture they already had (no delete control existed for them).
+    {
       id: "cards",
       label: "Cards and sharing",
       // "Edit" leads now: this is the ONLY place a card can be edited from —
       // the dashboard's Edit links were removed, so this description is the
       // signpost for anyone looking for them.
-      desc: "Edit, open, or remove a card, and share your links.",
+      desc: isOfficeSubUser
+        ? "Edit your card and share your links."
+        : "Edit, open, or remove a card, and share your links.",
       icon: I.cards,
       content: (
         <div data-tour="settings-cards" className="space-y-3">
-          <ManageCards cards={cards ?? []} />
+          <ManageCards cards={cards ?? []} canDelete={!isOfficeSubUser} />
           <Link
             href="/share"
             className="flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
@@ -213,7 +230,7 @@ export default async function FlowSettingsPage({
           </Link>
         </div>
       ),
-    } as SettingsSection]),
+    } as SettingsSection,
     ...(canSeeBilling ? [{
       id: "billing",
       label: "Plan and billing",
