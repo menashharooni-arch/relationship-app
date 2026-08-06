@@ -981,13 +981,23 @@ export default async function DashboardPage({
               {/* Contacts section */}
               <div data-tour="quick-contacts">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-3">
+                {/* flex-wrap, not a squashed single row. On a 375px phone with
+                    leads (so Export renders too) five items shared one line and
+                    every one of them broke mid-phrase: "Quick / Contacts",
+                    "Total / leads", and "Add / contact" wrapping INSIDE the blue
+                    button, which is what made it look twice its size. Wrapping
+                    the ROW instead gives two clean lines; nothing inside a
+                    control wraps. Desktop has the room, so it never wraps and is
+                    unchanged. */}
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3">
                   <div className="flex items-baseline gap-2.5">
-                    <h2 className="text-white font-semibold text-sm">Quick Contacts</h2>
-                    <span className="text-white font-bold text-lg tabular-nums">{visibleLeads.length}</span>
-                    <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
+                    <h2 className="text-white font-semibold text-sm whitespace-nowrap">Quick Contacts</h2>
+                    {/* text-lg next to a 14px title and an 11px label read as
+                        oversized on a phone; it keeps the emphasis on desktop. */}
+                    <span className="text-white font-bold text-base sm:text-lg tabular-nums">{visibleLeads.length}</span>
+                    <span className="text-gray-500 text-[11px] font-medium whitespace-nowrap">Total leads</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {!isPro && (
                       <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
                     )}
@@ -1001,13 +1011,13 @@ export default async function DashboardPage({
                           nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan."
                           nativeContent={
                             <span title="Exporting contacts is only available on the Pro plan."
-                              className="text-xs text-gray-500 border border-gray-800 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5">
+                              className="text-xs text-gray-500 border border-gray-800 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 whitespace-nowrap">
                               Export <PlanBadge tier="pro" />
                             </span>
                           }
                         >
                           <Link href="/upgrade" title="CSV export is a Pro feature"
-                            className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg">
+                            className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg whitespace-nowrap">
                             Export · Pro
                           </Link>
                         </PlanGate>

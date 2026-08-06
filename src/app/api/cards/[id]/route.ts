@@ -5,28 +5,15 @@ import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/pla
 import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { cardContentChanged } from "@/lib/card-changed";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
 
-// Scalar fields that are printed ON the card (and therefore baked into the Swift
-// Signature snapshot). "label" is deliberately excluded — it's the dashboard
-// nickname, never shown on the card. `template` + `customization` (design/photo/
-// bio/layout) are compared separately below.
-const ON_CARD_SCALARS = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "logo_url"] as const;
-
-// Stable, key-order-independent JSON so a no-op customization save (Postgres jsonb
-// re-orders keys) isn't mistaken for a real design change.
-function canonicalize(v: unknown): unknown {
-  if (Array.isArray(v)) return v.map(canonicalize);
-  if (v && typeof v === "object") {
-    return Object.keys(v as Record<string, unknown>).sort().reduce<Record<string, unknown>>((o, k) => {
-      o[k] = canonicalize((v as Record<string, unknown>)[k]);
-      return o;
-    }, {});
-  }
-  return v;
-}
+// What counts as a real card edit — which fields are printed ON the card, and
+// therefore baked into the Swift Signature snapshot — lives in lib/card-changed,
+// shared with the office-admin save route so the two can't disagree. ("label" is
+// the dashboard nickname and is deliberately not one of them.)
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -278,18 +265,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     if (beforeCard) {
       const b = beforeCard as Record<string, unknown>;
-      let cardChanged = false;
-      for (const k of ON_CARD_SCALARS) {
-        if (k in updates && String((updates as Record<string, unknown>)[k] ?? "") !== String(b[k] ?? "")) {
-          cardChanged = true;
-          break;
-        }
-      }
-      if (!cardChanged && "customization" in updates) {
-        cardChanged =
-          JSON.stringify(canonicalize(updates.customization ?? {})) !==
-          JSON.stringify(canonicalize(b.customization ?? {}));
-      }
+      const cardChanged = cardContentChanged(b, updates);
       if (cardChanged) {
         const username = b.username as string;
 
