@@ -243,6 +243,59 @@ export function receiptEmail(opts: {
   return built(FROM, `Your SwiftCard receipt — ${opts.amount}`, layout(body));
 }
 
+// A checkout that starts with a free trial or a promo's free days charges $0.00
+// now. That used to go out on the receipt template, which meant a subject line
+// reading "Your SwiftCard receipt — $0.00" over body copy asserting a payment
+// was "processed successfully" — and, at the one moment the disclosure matters
+// most, no mention of when the real billing starts.
+//
+// So: confirm what actually happened, and lead with the date of the first
+// charge. `firstChargeDate` is required rather than optional on purpose — an
+// email about when billing begins that omits the date has no reason to exist.
+export function trialStartedEmail(opts: {
+  firstName: string;
+  planName: string;
+  amount: string;
+  interval: string;
+  firstChargeDate: string;
+  manageUrl: string;
+}) {
+  const safeName = escapeHtml(opts.firstName);
+  const safePlanName = escapeHtml(opts.planName);
+  const tableRows = [
+    row("Plan", safePlanName),
+    row("Due today", "$0.00"),
+    row("First charge", escapeHtml(opts.firstChargeDate)),
+    row("Then", `${escapeHtml(opts.amount)} ${escapeHtml(opts.interval.toLowerCase())}`),
+  ].join("");
+
+  const body = `
+    <div style="margin-bottom:24px;">
+      <div style="width:48px;height:48px;background:#EEF2FF;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <span style="font-size:22px;">🎉</span>
+      </div>
+      ${h1(`You're on SwiftCard ${safePlanName}`)}
+      ${p(`You're all set, ${safeName}. You haven't been charged — your free period has started.`)}
+    </div>
+    <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
+      <div style="background:#0f172a;padding:16px 24px;">
+        <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:0.15em;color:#64748b;text-transform:uppercase;">Summary</p>
+        <p style="margin:4px 0 0;font-size:18px;font-weight:800;color:#fff;">SwiftCard ${safePlanName}</p>
+      </div>
+      <div style="padding:0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
+      </div>
+    </div>
+    ${card(`
+      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Cancel any time before ${escapeHtml(opts.firstChargeDate)}</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Cancel before then and you won't be charged at all.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Manage billing →</a>
+    `)}
+    ${p(`Questions? Just reply to this email.`)}
+  `;
+  return built(FROM, `Your SwiftCard ${opts.planName} starts now — first charge ${opts.firstChargeDate}`, layout(body));
+}
+
 // Sent when a renewal charge fails (card expired, declined, insufficient funds).
 // Stripe's own Smart Retries will try again automatically; this just prompts
 // the customer to fix their payment method before access is eventually lost.
