@@ -5,6 +5,7 @@ import { promoEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { requireAdmin } from "@/lib/admin";
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
+import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
 
 // POST /api/admin/promo-codes/send — email a promo code to targeted users.
 // Same session-based admin gate as the rest of the console.
@@ -42,8 +43,13 @@ export async function POST(req: NextRequest) {
       ? `${promo.discount_percent}% off your first month of SwiftCard Pro`
       : `$${((promo.discount_amount ?? 0) / 100).toFixed(2)} off your upgrade`;
 
-  // Fetch target users
-  let q = admin.from("profiles").select("id, name, email");
+  // Fetch target users. Excludes soft-deleted profiles — same gap the
+  // broadcast segment query had: people who deleted their account, and were
+  // told their data was on its way out, would still get a promo blast.
+  let q = admin
+    .from("profiles")
+    .select("id, name, email")
+    .or("customization->>_deleted.is.null,customization->>_deleted.neq.true");
   if (segment === "free") q = q.eq("plan", "free");
   else if (segment === "pro") q = q.in("plan", ["pro", "enterprise"]);
   const { data: profiles } = await q;
@@ -71,6 +77,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // The second suppression list — see emailOptOutSet. A contact-level
+  // unsubscribe promised we'd stop emailing that address; it was only ever
+  // honoured by the lead/follow-up senders, never here.
+  const contactOptOuts = await emailOptOutSet(
+    (profiles ?? []).map((p) => authEmails.get(p.id) ?? (p.email as string | null)),
+  );
+
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -83,6 +96,7 @@ export async function POST(req: NextRequest) {
     const prefs = prefsById.get(profile.id as string);
 
     if (prefs?.marketing_emails === false) { skipped++; continue; }
+    if (isEmailOptedOut(contactOptOuts, recipient)) { skipped++; continue; }
 
     const firstName = profile.name?.split(" ")[0] || "there";
     const token = prefs?.unsubscribe_token ?? "";

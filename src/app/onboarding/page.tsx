@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { ensureUniqueUsername } from "@/lib/username";
 import { ensureEmailPreferences } from "@/lib/email-prefs";
+import { sendWelcomeEmail } from "@/lib/welcome-email";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
@@ -97,6 +98,14 @@ export default async function OnboardingPage({
     // no working opt-out and no List-Unsubscribe headers. Best-effort: a failure
     // here must not block signup, and the send side now skips anyone missing it.
     await ensureEmailPreferences(user.id, admin);
+
+    // The welcome email. This lived behind POST /api/welcome, which nothing
+    // ever called — so no signup in the product's history received one, and
+    // the template, the idempotency claim and its unique index were dead code
+    // that looked alive. Called here, where the account actually comes into
+    // existence. Idempotent and non-throwing: it can never fail a signup, and
+    // a double-submitted onboarding sends exactly one.
+    await sendWelcomeEmail(user.id, user.email);
 
     // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
     // new signups start on Free. startProTrial() is kept in referral-server for

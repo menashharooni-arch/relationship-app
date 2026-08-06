@@ -118,6 +118,63 @@ export async function isOptedOut(channel: "sms" | "email", contact: string | nul
   }
 }
 
+/**
+ * Bulk form of isOptedOut for a whole recipient list. Returns the set of
+ * NORMALIZED addresses that have opted out — callers must normalize before
+ * testing membership, or use `isEmailOptedOut` below.
+ *
+ * Exists because contact-level opt-outs were invisible to the account-holder
+ * senders. `message_opt_outs` was consulted only by the lead / invite /
+ * follow-up paths, so someone who unsubscribed from a follow-up — and was
+ * told SwiftCard would stop emailing that address — kept receiving broadcasts
+ * and upgrade pitches whenever the same address was also their account email.
+ * Neither unsubscribe endpoint writes the other table, so the two suppression
+ * lists never converged on their own.
+ *
+ * Chunked rather than one query per recipient: the senders deliberately avoid
+ * N serial round trips in a single invocation, because that is a timeout risk
+ * that can strand a send half-finished.
+ *
+ * FAIL CLOSED, like isOptedOut: on any error other than "table missing", every
+ * address is reported as opted out. If we cannot confirm someone has NOT opted
+ * out, we do not mail them.
+ */
+export async function emailOptOutSet(emails: (string | null | undefined)[]): Promise<Set<string>> {
+  const wanted = Array.from(
+    new Set(emails.filter(Boolean).map((e) => normContact("email", e as string))),
+  );
+  if (!wanted.length) return new Set();
+
+  const out = new Set<string>();
+  const admin = getAdminSupabase();
+  for (let i = 0; i < wanted.length; i += 500) {
+    const chunk = wanted.slice(i, i + 500);
+    try {
+      const { data, error } = await admin
+        .from("message_opt_outs")
+        .select("contact")
+        .eq("channel", "email")
+        .in("contact", chunk);
+      if (error) {
+        if ((error as { code?: string }).code === "42P01") return new Set();
+        for (const c of chunk) out.add(c);
+        continue;
+      }
+      for (const r of data ?? []) out.add(r.contact as string);
+    } catch (e) {
+      if ((e as { code?: string })?.code === "42P01") return new Set();
+      for (const c of chunk) out.add(c);
+    }
+  }
+  return out;
+}
+
+/** Membership test for a set from emailOptOutSet, applying the same normalization. */
+export function isEmailOptedOut(set: Set<string>, email: string | null | undefined): boolean {
+  if (!email) return false;
+  return set.has(normContact("email", email));
+}
+
 export async function addOptOut(channel: "sms" | "email", contact: string): Promise<void> {
   try {
     await getAdminSupabase()

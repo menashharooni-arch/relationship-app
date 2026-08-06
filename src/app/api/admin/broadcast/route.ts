@@ -6,13 +6,22 @@ import { marketingEmail, unsubUrl, marketingHeaders } from "@/lib/email-template
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
+import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 type Segment = "all" | "free" | "pro" | "office";
 
 function segmentQuery(admin: ReturnType<typeof getAdminSupabase>, segment: Segment) {
-  let q = admin.from("profiles").select("id, name, email");
+  // customization->>_deleted: the recipient COUNT in GET already excludes
+  // soft-deleted profiles, and this query did not — so the composer showed one
+  // number and the send loop mailed a larger set, including people who had
+  // deleted their account and were promised their data was on its way out.
+  // Latent while no profile is soft-deleted; certain to fire on the first one.
+  let q = admin
+    .from("profiles")
+    .select("id, name, email")
+    .or("customization->>_deleted.is.null,customization->>_deleted.neq.true");
   if (segment === "free") q = q.eq("plan", "free");
   else if (segment === "pro") q = q.in("plan", ["pro", "enterprise"]);
   else if (segment === "office") q = q.eq("plan", "enterprise");
@@ -182,6 +191,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Contact-level opt-outs for this whole recipient list, in one chunked read
+  // (same reason the prefs above are batched — N serial round trips in one
+  // invocation is a timeout risk). Fail-closed inside the helper.
+  const contactOptOuts = await emailOptOutSet(
+    (profiles ?? []).map((p) => authEmails.get(p.id) ?? (p.email as string | null)),
+  );
+
   let sent = 0;
   let skipped = 0;
   let failed = 0;
@@ -201,6 +217,19 @@ export async function POST(req: NextRequest) {
     if (prefs?.marketing_emails === false) {
       skipped++;
       if (campaignId) await logRecipient({ user_id: profile.id, email: recipient, status: "skipped", error: "Unsubscribed from marketing" });
+      continue;
+    }
+
+    // The OTHER suppression list. message_opt_outs is written by the
+    // contact-level unsubscribe (/api/unsubscribe/contact) and was consulted
+    // only by the lead / invite / follow-up senders — so someone who
+    // unsubscribed from a follow-up, and was told we'd stop emailing that
+    // address, kept getting broadcasts whenever it was also their account
+    // email. Neither unsubscribe endpoint writes the other table, so the lists
+    // never converged. Both are checked now, everywhere.
+    if (isEmailOptedOut(contactOptOuts, recipient)) {
+      skipped++;
+      if (campaignId) await logRecipient({ user_id: profile.id, email: recipient, status: "skipped", error: "Address opted out of all SwiftCard email" });
       continue;
     }
 
