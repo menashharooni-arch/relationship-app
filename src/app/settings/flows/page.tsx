@@ -196,7 +196,10 @@ export default async function FlowSettingsPage({
     ...(isOfficeSubUser ? [] : [{
       id: "cards",
       label: "Cards and sharing",
-      desc: "Rename, open, or remove a card, and share your links.",
+      // "Edit" leads now: this is the ONLY place a card can be edited from —
+      // the dashboard's Edit links were removed, so this description is the
+      // signpost for anyone looking for them.
+      desc: "Edit, open, or remove a card, and share your links.",
       icon: I.cards,
       content: (
         <div data-tour="settings-cards" className="space-y-3">
