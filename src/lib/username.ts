@@ -18,7 +18,15 @@ export { normalizeSlug };
 
 type Admin = ReturnType<typeof getAdminSupabase>;
 
-async function slugTaken(admin: Admin, slug: string): Promise<boolean> {
+/**
+ * Is this slug already in use by EITHER a card or a profile?
+ *
+ * Card slugs and profile handles share one public namespace (/card/<slug>
+ * resolves against both), so checking only one table is not a check. Exported
+ * because the admin create-card route was doing exactly that — see the comment
+ * at its call site.
+ */
+export async function slugTaken(admin: Admin, slug: string): Promise<boolean> {
   const [{ data: card }, { data: profile }] = await Promise.all([
     admin.from("cards").select("id").eq("username", slug).limit(1).maybeSingle(),
     admin.from("profiles").select("id").eq("username", slug).limit(1).maybeSingle(),

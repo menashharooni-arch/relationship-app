@@ -51,7 +51,16 @@ export async function ensureUserCards(userId: string, prefetchedProfile?: Record
   if (!existing) {
     const row: Record<string, unknown> = { user_id: userId, label: name };
     for (const f of CARD_FIELDS) row[f] = p[f] ?? null;
-    await admin.from("cards").insert(row);
+    const { error: insertErr } = await admin.from("cards").insert(row);
+    if (insertErr) {
+      // Do NOT stamp _migrated. The insert result was previously ignored, so a
+      // failure here (most plausibly a unique-violation on username, since card
+      // slugs and profile handles share one namespace) left the account with no
+      // card AND marked as migrated — meaning this function would never try
+      // again. Leaving the flag unset makes the next call retry.
+      console.error("[ensure-cards] card insert failed, not marking migrated:", insertErr.message);
+      return;
+    }
   }
 
   // Mark migrated so this runs at most once per account.
