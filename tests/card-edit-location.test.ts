@@ -131,8 +131,20 @@ describe("nothing still points users at a dashboard Edit button", () => {
 describe("the mobile Add card button is wired correctly", () => {
   it("renders on mobile only, and the desktop link on desktop only", () => {
     const c = code(DASHBOARD);
-    expect(c).toMatch(/className="sm:hidden flex items-center justify-center/);
+    // Mobile is a compact pill in the header's right slot; desktop keeps its
+    // inline text link. shrink-0 is load-bearing — see the render test.
+    expect(c).toMatch(/className="sm:hidden shrink-0 inline-flex items-center/);
     expect(c).toMatch(/className="hidden sm:flex items-center gap-3"/);
+  });
+
+  it("no full-width mobile add button survives below the header", () => {
+    // It used to be a w-full dashed block under the title row. Whether the new
+    // one really sits top-RIGHT is geometry, not text — that is asserted in
+    // tests/render/my-cards-add-button.test.ts, which measures it.
+    const c = code(DASHBOARD);
+    expect(c, "the old full-width mobile add button is back").not.toMatch(
+      /sm:hidden[^"]*\bw-full\b[^"]*border-dashed/,
+    );
   });
 
   it("both controls share one eligibility flag, so they can't disagree", () => {

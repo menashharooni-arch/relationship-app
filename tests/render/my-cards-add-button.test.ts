@@ -6,8 +6,8 @@ import { appCss, launchBrowser } from "./harness";
 
 // The dashboard is behind login and needs a database, so it can't be crawled.
 // This lays out the My Cards box with the app's REAL compiled Tailwind and
-// measures the new mobile "Add card" button — the claim being tested is a
-// visual one ("clean and even"), which no source scan can check.
+// measures the mobile "Add card" control — the claim being tested is a visual
+// one ("smaller, top right"), which no source scan can check.
 //
 // The class strings are READ OUT OF THE PAGE SOURCE rather than copied here, so
 // this measures what actually ships. If someone edits the button's classes, this
@@ -34,16 +34,20 @@ afterAll(async () => { await browser?.close(); });
 
 /**
  * Render the My Cards box at a given viewport width and measure.
- * Box + row classes come from source too, so the button is measured against the
- * real container and the real rows it has to line up with.
+ * Box, header-row, caption and row classes all come from source, so the button
+ * is measured inside the real container against the real siblings it must
+ * share a line with.
  */
-async function measure(width: number) {
+async function measure(width: number, longTitle = false) {
   const css = await appCss();
   const boxCls = classNameContaining("bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5");
-  const addBtnCls = classNameContaining("sm:hidden flex items-center justify-center");
+  const headerCls = classNameContaining("flex items-center justify-between gap-3 mb-3");
+  const addBtnCls = classNameContaining("sm:hidden shrink-0 inline-flex items-center");
   const desktopWrapCls = classNameContaining("hidden sm:flex items-center gap-3");
+  const captionCls = classNameContaining("hidden sm:block text-gray-600 text-xs mt-0.5");
   const rowCls =
     "flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] bg-gray-800/60 border-gray-700/60";
+  const title = longTitle ? "My Cards With An Absurdly Long Heading That Should Truncate" : "My Cards";
 
   const page = await browser.newPage({ viewportSize: { width, height: 900 } });
   // setViewportSize EXPLICITLY. The constructor option alone did not take here
@@ -57,19 +61,19 @@ async function measure(width: number) {
        <style>body{margin:0;padding:0;background:#030712}</style></head>
        <body class="sc-app">
          <div id="box" class="${boxCls}">
-           <div class="flex items-center justify-between mb-3">
-             <div>
-               <p class="text-white font-semibold text-sm">My Cards</p>
-               <p class="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
+           <div id="header" class="${headerCls}">
+             <div id="titleWrap" class="min-w-0">
+               <p id="title" class="text-white font-semibold text-sm">${title}</p>
+               <p id="caption" class="${captionCls}">Check a card to view everything about it. Only one card can be selected at a time.</p>
              </div>
              <div id="desktopWrap" class="${desktopWrapCls}">
                <a id="desktopLink" href="#" class="text-xs text-blue-400 font-medium">+ Add card</a>
              </div>
+             <a id="addBtn" href="#" class="${addBtnCls}">
+               <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path d="M10 4v12M4 10h12"/></svg>
+               Add card
+             </a>
            </div>
-           <a id="addBtn" href="#" class="${addBtnCls}">
-             <svg viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path d="M10 4v12M4 10h12"/></svg>
-             Add card
-           </a>
            <div id="rows" class="flex flex-wrap gap-2">
              <div id="row" class="${rowCls}"><span class="text-white text-sm">Work card</span></div>
            </div>
@@ -84,9 +88,10 @@ async function measure(width: number) {
         const b = el.getBoundingClientRect();
         const cs = getComputedStyle(el);
         return {
-          x: b.x, width: b.width, height: b.height,
+          x: b.x, right: b.right, top: b.top, bottom: b.bottom,
+          width: b.width, height: b.height,
+          centerY: b.y + b.height / 2,
           display: cs.display,
-          justifyContent: cs.justifyContent,
           borderRadius: cs.borderTopLeftRadius,
         };
       };
@@ -101,11 +106,13 @@ async function measure(width: number) {
           padLeft: parseFloat(bs.paddingLeft),
           padRight: parseFloat(bs.paddingRight),
           // getBoundingClientRect returns the BORDER-box width, and this panel
-          // has a 1px border. Leaving these out of the inner-width maths made
-          // a correctly full-width button look 2px short.
+          // has a 1px border.
           borderLeft: parseFloat(bs.borderLeftWidth),
           borderRight: parseFloat(bs.borderRightWidth),
         },
+        header: r("header"),
+        title: r("title"),
+        caption: r("caption"),
         addBtn: r("addBtn"),
         desktopWrap: r("desktopWrap"),
         row: r("row"),
@@ -116,54 +123,82 @@ async function measure(width: number) {
   }
 }
 
-describe("mobile: the Add card button is a real, even, full-width control", () => {
+describe("mobile: the Add card button is a small control in the top-right", () => {
   it("actually renders at a phone width", async () => {
-    // Guard on the guard: the first version of this suite silently ran every
+    // Guard on the guard: an earlier version of this suite silently ran every
     // "mobile" case at 1280px, which inverted every sm: assertion.
     const m = await measure(MOBILE);
     expect(m.innerWidth).toBe(MOBILE);
   });
 
-  it("spans the box's full inner width — same as the card rows under it", async () => {
+  it("sits on the SAME line as the My Cards title", async () => {
     const m = await measure(MOBILE);
     expect(m.addBtn, "the mobile Add card button is missing").not.toBeNull();
-    const inner =
-      m.box.width - m.box.padLeft - m.box.padRight - m.box.borderLeft - m.box.borderRight;
-    // Full-width, to the pixel: this is the "even" the redesign is for.
-    expect(Math.abs(m.addBtn!.width - inner)).toBeLessThan(1);
-    // And exactly as wide as a card row, so the box reads as one stack.
-    expect(Math.abs(m.addBtn!.width - m.row!.width)).toBeLessThan(1);
+    // Same row = vertically centred against the title, not stacked below it.
+    expect(Math.abs(m.addBtn!.centerY - m.title!.centerY)).toBeLessThan(2);
+    expect(m.addBtn!.top).toBeLessThan(m.row!.top);
   });
 
-  it("is left-aligned with the rows, not floating off-centre", async () => {
+  it("is flush with the box's right padding edge", async () => {
     const m = await measure(MOBILE);
-    expect(Math.abs(m.addBtn!.x - m.row!.x)).toBeLessThan(1);
+    const boxRight = m.box.right - m.box.padRight - m.box.borderRight;
+    expect(Math.abs(m.addBtn!.right - boxRight)).toBeLessThan(1);
   });
 
-  it("centres its own label", async () => {
+  it("is genuinely SMALL — a fraction of the box, not full width", async () => {
     const m = await measure(MOBILE);
-    expect(m.addBtn!.justifyContent).toBe("center");
+    const inner = m.box.width - m.box.padLeft - m.box.padRight - m.box.borderLeft - m.box.borderRight;
+    // It used to be exactly `inner` wide. A third of the box is the ceiling.
+    expect(m.addBtn!.width).toBeLessThan(inner / 3);
+    expect(m.addBtn!.width, "shrunk to nothing / label lost").toBeGreaterThan(60);
+    expect(m.addBtn!.height).toBeLessThan(m.row!.height);
   });
 
-  it("matches the card rows' corner radius", async () => {
+  it("stays a tappable height despite being small", async () => {
     const m = await measure(MOBILE);
-    expect(m.addBtn!.borderRadius).toBe(m.row!.borderRadius);
-  });
-
-  it("is a tappable height, not a hairline text link", async () => {
-    const m = await measure(MOBILE);
-    expect(m.addBtn!.height).toBeGreaterThanOrEqual(34);
+    expect(m.addBtn!.height).toBeGreaterThanOrEqual(26);
   });
 
   it("never overflows the box", async () => {
     const m = await measure(MOBILE);
     const boxRight = m.box.x + m.box.width - m.box.padRight;
-    expect(m.addBtn!.x + m.addBtn!.width).toBeLessThanOrEqual(boxRight + 1);
+    expect(m.addBtn!.right).toBeLessThanOrEqual(boxRight + 1);
+  });
+
+  it("a very long card-box title cannot squash or displace it", async () => {
+    // shrink-0 + min-w-0 on the title wrapper: the TITLE gives way, not the
+    // button. Without shrink-0 a flex item is free to compress to its content.
+    const normal = await measure(MOBILE);
+    const long = await measure(MOBILE, true);
+    expect(Math.abs(long.addBtn!.width - normal.addBtn!.width)).toBeLessThan(1);
+    expect(long.addBtn!.height).toBe(normal.addBtn!.height);
+    const boxRight = long.box.right - long.box.padRight - long.box.borderRight;
+    expect(long.addBtn!.right).toBeLessThanOrEqual(boxRight + 1);
+  });
+
+  it("does not overlap the title", async () => {
+    const m = await measure(MOBILE, true);
+    expect(m.title!.right).toBeLessThanOrEqual(m.addBtn!.x + 1);
   });
 
   it("the desktop inline link is hidden at this width", async () => {
     const m = await measure(MOBILE);
     expect(m.desktopWrap!.display).toBe("none");
+  });
+});
+
+describe("mobile: the explanatory captions are gone", () => {
+  it("the My Cards caption does not render", async () => {
+    const m = await measure(MOBILE);
+    expect(m.caption!.display).toBe("none");
+  });
+
+  it("which is what lets the header be a single line", async () => {
+    // The point of removing it: title and button share one row. If the caption
+    // came back the header would grow and the button would no longer be
+    // "top right" of a compact header.
+    const m = await measure(MOBILE);
+    expect(m.header!.height).toBeLessThan(40);
   });
 });
 
@@ -177,6 +212,14 @@ describe("desktop is untouched", () => {
   it("hides the mobile button entirely — no duplicate control", async () => {
     const m = await measure(DESKTOP);
     expect(m.addBtn!.display).toBe("none");
+  });
+
+  it("still shows BOTH captions", async () => {
+    // These were hidden on mobile only. Losing them on desktop would be a
+    // silent copy regression this suite is the last line of defence against.
+    const m = await measure(DESKTOP);
+    expect(m.caption!.display).toBe("block");
+    expect(m.caption!.height).toBeGreaterThan(0);
   });
 
   it("the box keeps its size and padding", async () => {
