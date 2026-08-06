@@ -13,19 +13,23 @@ const code = (p: string) =>
 // that no longer exists is worse than no signpost.
 
 const DASHBOARD = "src/app/dashboard/page.tsx";
+const CARD_LIST = "src/components/dashboard/MyCardsList.tsx";
 const MANAGE_CARDS = "src/components/ManageCards.tsx";
 
 describe("the dashboard cannot edit a card", () => {
   it("has no link into the card editor", () => {
-    const c = code(DASHBOARD);
-    expect(c, "an Edit link is back on the dashboard").not.toMatch(/\/cards\/\$\{[^}]*\}\/edit/);
+    // Both halves: the page, and the client component the card rows moved into.
+    for (const f of [DASHBOARD, CARD_LIST]) {
+      expect(code(f), `an Edit link is back in ${f}`).not.toMatch(/\/cards\/\$\{[^}]*\}\/edit/);
+    }
   });
 
   it("still lets you SELECT and ADD cards", () => {
-    // Removing edit must not have taken the rest of the box with it.
-    const c = code(DASHBOARD);
-    expect(c).toMatch(/role="radiogroup"/);
-    expect(c).toMatch(/\/cards\/new\?add=1/);
+    // Removing edit must not have taken the rest of the box with it. Selection
+    // now lives in MyCardsList; adding stays on the page.
+    expect(code(CARD_LIST)).toMatch(/role="radiogroup"/);
+    expect(code(CARD_LIST)).toMatch(/href=\{`\?card=\$\{card\.username\}/);
+    expect(code(DASHBOARD)).toMatch(/\/cards\/new\?add=1/);
   });
 
   it("keeps the tour anchors the guided tour targets", () => {
@@ -83,9 +87,10 @@ describe("the mobile Add card button is wired correctly", () => {
   it("both go to the same add-card destination", () => {
     // Scoped to the My Cards box. A third /cards/new?add=1 lives in the
     // card-less empty state ("Create your card") and is not part of this.
+    // The box now ends at <MyCardsList, which is where the rows went.
     const c = code(DASHBOARD);
     const boxStart = c.indexOf('data-tour="my-cards"');
-    const boxEnd = c.indexOf('role="radiogroup"');
+    const boxEnd = c.indexOf("<MyCardsList");
     expect(boxStart).toBeGreaterThan(0);
     expect(boxEnd).toBeGreaterThan(boxStart);
     const box = c.slice(boxStart, boxEnd);

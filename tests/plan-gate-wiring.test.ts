@@ -51,20 +51,29 @@ const SITES: Site[] = [
     native: ["Pro feature — Automated follow-up sequences are only available on the Pro plan."],
   },
   {
+    // The "second card" upsell still lives on the page — it is passed into
+    // MyCardsList as a slot, so its copy and its plan condition stay here.
     file: "src/app/dashboard/page.tsx",
     web: [
       "Ready for a second card? Go unlimited with Pro.",
       "Upgrade to Pro →",
-      "LINK OFF — PRO ONLY",
-      "This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.",
     ],
     native: [
       "Pro feature — Multiple cards are only available on the Pro plan.",
       "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan.",
       "Pro feature — Detailed analytics are only available on the Pro plan.",
       "Pro feature — Exporting contacts is only available on the Pro plan.",
-      "These links are only active on the Pro plan.",
     ],
+  },
+  {
+    // The LINK OFF badge moved here with the card rows when My Cards gained a
+    // mobile switcher. The copy is unchanged — only the file it lives in.
+    file: "src/components/dashboard/MyCardsList.tsx",
+    web: [
+      "LINK OFF — PRO ONLY",
+      "This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.",
+    ],
+    native: ["These links are only active on the Pro plan."],
   },
   {
     file: "src/app/contacts/page.tsx",
