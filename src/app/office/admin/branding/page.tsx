@@ -14,7 +14,14 @@ export default async function OfficeBrandingPage() {
     <div>
       <PageHead
         title="Branding"
-        desc="Set this once — every card on your team automatically uses it, including yours."
+        // "including yours" was false. Three independent code paths deliberately
+        // exempt the OWNER from brand propagation (office-brand.ts's
+        // propagateBrandToOfficeCards excludes ownerId by an explicit owner
+        // decision), and the brand lives on the offices row, not on the owner's
+        // card. So an owner set a logo, company and colours, was told their own
+        // card was included, and found it unchanged with no explanation
+        // anywhere in the product.
+        desc="Set this once — every card on your team automatically uses it. Your own cards stay yours to design."
       />
 
       {/* This page IS the brand source — logo, company, website, template and

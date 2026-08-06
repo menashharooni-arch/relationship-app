@@ -28,7 +28,14 @@ export const PLAN_FEATURES = {
     "3 AI follow-up drafts a month",
     "All 5 templates · QR, link & NFC",
     "Swift Signature — your card in every email",
-    "Contacts CRM + day-1 follow-up email",
+    // Was "Contacts CRM + day-1 follow-up email". Nothing sends that: the only
+    // automated sender is hard-gated on isPaidPlan (reminders route), and no
+    // default sequence is seeded when a lead is captured — so a Free user was
+    // promised an automated follow-up they would never receive, on /pricing,
+    // the in-product plan chooser, the admin plan matrix and the support
+    // chatbot. This file's own rule is that unenforced claims don't belong in
+    // it.
+    "Contacts CRM to track every connection",
     "One-tap “Share my info” back to any contact",
     "Basic analytics: views, saves & best day",
     "Shows a “Powered by SwiftCard” badge",

@@ -38,10 +38,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Promo code not found or inactive" }, { status: 404 });
   }
 
+  // free_time FIRST. The admin console only creates free_time codes, and a
+  // free-time code explicitly nulls out the discount amount — so the percent
+  // branch could never be true and every real code fell through to the dollar
+  // fallback, rendering "$0.00 off your upgrade". That string is the only
+  // place a recipient sees the offer's terms, and they act on it at checkout.
+  // No codes have been mailed yet, so this is fixed before first use.
+  const freeDays = Number(promo.free_days ?? 0);
   const discountText =
-    promo.discount_type === "percent"
-      ? `${promo.discount_percent}% off your first month of SwiftCard Pro`
-      : `$${((promo.discount_amount ?? 0) / 100).toFixed(2)} off your upgrade`;
+    promo.discount_type === "free_time" && freeDays > 0
+      ? `${freeDays} ${freeDays === 1 ? "day" : "days"} of SwiftCard Pro, free`
+      : promo.discount_type === "percent" && promo.discount_percent
+        ? `${promo.discount_percent}% off your first month of SwiftCard Pro`
+        : `$${((promo.discount_amount ?? 0) / 100).toFixed(2)} off your upgrade`;
 
   // Fetch target users. Excludes soft-deleted profiles — same gap the
   // broadcast segment query had: people who deleted their account, and were
