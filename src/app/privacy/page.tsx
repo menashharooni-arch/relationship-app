@@ -45,7 +45,10 @@ export default function PrivacyPage() {
           mobile app (together, the &quot;Service&quot;). This policy explains what information we collect, how we use
           it, and the choices and rights you have. We keep it in plain English on purpose. For personal information of
           account holders, SwiftCard is the data controller; for the contacts you collect through your card, you are
-          the controller and we process that data on your instructions.
+          the controller and we process that data on your instructions. Mobile numbers and SMS consent are the one
+          exception: because Swift Card Inc is the sender of every automated text we send, we are the controller of
+          that number and that consent record, and we never hand either to the account holder or to anyone else for
+          their own messaging.
         </P>
 
         {/* At-a-glance summary — the four promises people actually care about */}

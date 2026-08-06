@@ -65,8 +65,8 @@ export default function SmsConsentCheckbox({ checked = false, onChange }: Props 
         />
         <span className="text-slate-500 text-[11px] leading-snug">
           <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
-          I agree to receive follow-up text messages from this SwiftCard user about our
-          conversation — their contact details, replies, and any follow-up messages they set up.
+          I agree to receive follow-up text messages from SwiftCard about my conversation with this
+          SwiftCard user — their contact details, replies, and any follow-up messages they set up.
           Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
         </span>
       </label>
