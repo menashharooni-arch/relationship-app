@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { getReferralProgress } from "@/lib/referral-server";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { publicCardSlug } from "@/lib/owner-usernames";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import MobileNavGate from "@/components/MobileNavGate";
@@ -31,6 +32,11 @@ export default async function GrowPage() {
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
+  // The public /card/<slug> for this account. NOT profile.username — modern
+  // accounts carry a blank profile handle and a separate card slug, so the
+  // account handle 404s.
+  const cardSlug = await publicCardSlug(user.id);
+
   // The referral/growth programme isn't aimed at office sub-users (their
   // account is company-managed) — same rule as the hidden Settings section,
   // enforced here so the page can't be opened by URL.
@@ -49,8 +55,8 @@ export default async function GrowPage() {
     {
       label: "Share your live card",
       sub: "Show people SwiftCard in action",
-      href: profile.username ? `${APP_URL}/card/${profile.username}` : "/dashboard",
-      external: !!profile.username,
+      href: cardSlug ? `${APP_URL}/card/${cardSlug}` : "/dashboard",
+      external: !!cardSlug,
       icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />,
     },
     {

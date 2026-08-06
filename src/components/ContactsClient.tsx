@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { getSourceLabel } from "@/lib/source-labels";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton from "@/components/ShareMyInfoButton";
@@ -184,6 +185,45 @@ export default function ContactsClient({
   // Priority: ?card= from the dashboard link → primary card (overridden by saved selection below).
   const [cardFilter, setCardFilter] = useState<string>(initialCardFilter || primaryUsername || "all");
 
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // The header's contact COUNT and its Export button are rendered by the
+  // server page from `?card=`, while this list filters from client state. With
+  // no `?card=` the server computed "all cards" and this component defaulted
+  // to the primary card — so a user with two or more cards saw an all-cards
+  // total sitting above a single-card list, and Export quietly downloaded a
+  // different set from the one on screen.
+  //
+  // Rather than duplicate the filter in two places, the URL is the single
+  // source of truth: every change to the filter is mirrored into `?card=`, so
+  // the server re-renders the count and the export href for the same card the
+  // list is showing. replace(), not push(), so switching cards doesn't stack
+  // history entries; scroll:false so it doesn't jump to the top.
+  const syncCardParam = useCallback(
+    (next: string) => {
+      const params = new URLSearchParams(window.location.search);
+      if (next === "all") params.delete("card");
+      else params.set("card", next);
+      // `lead` is a deep link to an already-open contact; dropping it here
+      // would reopen that panel on every filter change.
+      params.delete("lead");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname],
+  );
+
+  // One setter for both, so no future caller can change the filter without the
+  // URL following it.
+  const selectCard = useCallback(
+    (next: string) => {
+      setCardFilter(next);
+      syncCardParam(next);
+    },
+    [syncCardParam],
+  );
+
   useEffect(() => {
     if (initialCardFilter) return; // the URL param already set the card
     try {
@@ -191,10 +231,15 @@ export default function ContactsClient({
       if (saved && userCards.some((c) => c.username === saved)) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
         setCardFilter(saved);
+        syncCardParam(saved);
+        return;
       }
     } catch {
       /* ignore */
     }
+    // No saved card either: the state default above is primaryUsername, so the
+    // URL has to say so too or the server keeps counting every card.
+    if (primaryUsername && userCards.length > 1) syncCardParam(primaryUsername);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selected, setSelected] = useState<Lead | null>(
@@ -761,7 +806,10 @@ export default function ContactsClient({
                 setLeads((prev) => [l, ...prev]);
                 // Make sure it's visible under the active filter.
                 if (cardFilter !== "all" && l.card_owner && l.card_owner !== cardFilter) {
-                  setCardFilter(l.card_owner);
+                  // selectCard, not setCardFilter — the header count and Export
+                  // read the card from the URL, so a filter change that skips
+                  // the sync puts them back out of step with this list.
+                  selectCard(l.card_owner);
                 }
               }}
             />

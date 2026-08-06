@@ -12,7 +12,7 @@ import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
 import { cardHeadshot } from "@/lib/card-media";
-import { sanitizeCustomizationForPlan, isPaidPlan } from "@/lib/plan";
+import { sanitizeCustomizationForPlan, isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -49,10 +49,24 @@ export default async function SharePage({
   // the dashboard to create one first.
   if (allCards.length === 0) redirect("/dashboard");
 
-  const activeCard = allCards.find((c) => c.username === selectedCard) ?? allCards[0];
+  const isPro = isPaidPlan(profile.plan);
+
+  // Only cards that actually SERVE publicly can be shared. On Free, the
+  // grandfathering rule is that the oldest FREE_CARD_LIMIT cards stay live and
+  // the rest are refused by /card and /links — the dashboard already greys
+  // those out and the card page 404s them. This selector had no such check, so
+  // a downgraded account could pick its old Pro-era card here and hand out a
+  // link, a QR or a wallet pass that dead-ends for whoever receives it. Worse
+  // than a broken page in the product: this is the surface whose entire job is
+  // producing URLs for other people.
+  //
+  // `cards` is ordered created_at ascending, so slicing takes exactly the ones
+  // that are live.
+  const shareableCards = isPro ? allCards : allCards.slice(0, PLAN_LIMITS.FREE_CARD_LIMIT);
+  const activeCard =
+    shareableCards.find((c) => c.username === selectedCard) ?? shareableCards[0] ?? allCards[0];
   const activeSource = activeCard;
   const activeUsername = activeCard.username as string;
-  const isPro = isPaidPlan(profile.plan);
   // Keep the "Admin" nav item present across the app shell (same gate as the page).
   const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
 
