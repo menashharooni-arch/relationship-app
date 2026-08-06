@@ -1,5 +1,7 @@
 import { escapeHtml, safeUrlAttr } from "./escape";
 import { htmlToText } from "./email-text";
+// The downgrade card quotes real limits rather than remembered ones.
+import { PLAN_LIMITS } from "./plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // Default sender = the app's VERIFIED, authenticated domain (SPF + DKIM + DMARC
@@ -116,14 +118,29 @@ export function welcomeEmail(opts: {
 
 // What a user keeps on Free vs. loses when their Pro access ends — reused by
 // both trial emails so the message is consistent.
+// Every line here was wrong, in the one email meant to drive a re-upgrade:
+//
+//   "Contacts cap back to 25"          — the real limit is FREE_LEADS_PER_MONTH
+//                                        NEW leads per month, so they hit the
+//                                        wall at 5, not 25.
+//   "new captures pause"               — captures continue; the extras are
+//                                        saved and tagged locked.
+//   "Extra cards become view-only"     — their PUBLIC PAGES 404 (card-active's
+//                                        plan-limit check), which kills printed
+//                                        QR codes and programmed NFC tags. Not
+//                                        the same thing at all, and much worse.
+//   "Day 15 / 30 follow-ups"           — no preset produces those days.
+//
+// Numbers render from PLAN_LIMITS like every other surface, so this can't
+// drift from the enforcement again.
 function proLossCard() {
   return card(`
     <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:14px;">What changes on Free</p>
     <p style="margin:0 0 8px;font-size:13px;color:#475569;">✓ <strong>You keep everything you made</strong> — your card, all your contacts, and your links stay put. Nothing is deleted.</p>
-    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Contacts cap back to 25 (existing ones stay; new captures pause)</p>
-    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Extra cards become view-only (your main card stays live)</p>
-    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Automated Day 15 / 30 follow-ups & AI sequences pause</p>
-    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations & automated sequences lock</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• New contacts cap at ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} a month — anything past that is still captured, just locked until you upgrade</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Only your first card stays live; any others stop loading for visitors, including their QR codes and NFC tags</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Follow-up sequences pause where they are and resume if you upgrade</p>
+    <p style="margin:0;font-size:13px;color:#94a3b8;">• Custom designer, integrations and CRM sync lock</p>
   `);
 }
 

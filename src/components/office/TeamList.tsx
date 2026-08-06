@@ -167,7 +167,11 @@ function Drawer({ person, appUrl, caps, onClose }: {
           )}
           {person.isOwner && (
             <p className="text-[11px] text-gray-600 pt-4 border-t border-gray-800">
-              This is you. Your card sets the look for everyone else&apos;s.
+              {/* Was "Your card sets the look for everyone else's." True only
+                  of the ONE-TIME seed at provisioning: after that the brand
+                  lives on the offices row and is edited on the Branding page,
+                  and editing this card changes nothing for the team. */}
+              This is you. Your team&apos;s look is set on the Branding page, not here.
             </p>
           )}
         </aside>

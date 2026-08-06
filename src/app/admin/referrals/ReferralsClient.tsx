@@ -81,7 +81,14 @@ export default function ReferralsClient() {
             <p className="text-white font-semibold text-sm mb-1">
               Suspicious <span className="text-gray-500 font-normal">({stats.flagged ?? 0} flagged · {stats.selfReferral ?? 0} self-referrals)</span>
             </p>
-            <p className="text-gray-600 text-[11px]">Referral signups the fraud checks caught (same device/IP as the referrer, self-referrals). These never grant free months — listed here so you can spot abuse patterns.</p>
+            {/* This used to say "These never grant free months." That was true
+                of the REFERRER's reward and false of the referee's month,
+                which was granted regardless — so the one panel where abuse
+                surfaces made a security claim that masked the bug. The grant
+                is fixed (referral-server: a month now needs a referrer, a
+                clean status AND the referral source), so the claim is finally
+                accurate — stated precisely rather than broadly. */}
+            <p className="text-gray-600 text-[11px]">Referral signups the fraud checks caught (same device/IP as the referrer, self-referrals). Neither side is rewarded: no free month for the signup, no credit for the referrer. Listed here so you can spot abuse patterns.</p>
             {(stats.flaggedList ?? []).length === 0 ? (
               <p className="text-gray-500 text-xs mt-2">Nothing suspicious so far.</p>
             ) : (

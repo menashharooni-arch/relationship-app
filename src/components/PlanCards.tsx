@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
-import { PLAN_LIMITS, PLAN_PRICES } from "@/lib/plan";
+import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
@@ -123,10 +123,10 @@ export default function PlanCards({
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
             </ul>
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-              {busy === "pro" ? "Loading…" : "Start 14-day free trial →"}
+              {busy === "pro" ? "Loading…" : "Start free trial →"}
             </button>
             <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
-14 days free, then auto-renews. Cancel anytime.
+{TRIAL_DAYS} days free for new customers, then auto-renews. Cancel anytime.
             </p>
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />
