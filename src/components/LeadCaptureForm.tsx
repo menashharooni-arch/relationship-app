@@ -17,10 +17,9 @@ export default function LeadCaptureForm({
   const [status, setStatus] = useState<Status>("idle");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
-  // SMS consent is by SUBMISSION (owner decision, Aug 2026): no checkbox, no
-  // consent state — the disclosure sits below the share button and the post
-  // below sends sms_consent:true. Restoring a real opt-in box means reverting
-  // 8fa7f0c; the A2P trade-off is recorded in SmsConsentCheckbox.tsx.
+  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
+  // A2P review requires the box be unchecked by default and optional.
+  const [smsConsent, setSmsConsent] = useState(false);
 
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.
@@ -50,7 +49,7 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
-          sms_consent: true, // sharing = consent (disclosure above the button)
+          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),
       });
     } catch {
@@ -148,21 +147,16 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* Submitting the form IS the consent for both channels (owner decision,
-          Aug 2026), which is why this form posts sms_consent:true and there is
-          no separate box — the disclosure below carries the required elements.
-          Every email still carries an unsubscribe link. */}
-      {/* "Every email includes an unsubscribe link." was removed here (owner
-          decision, Aug 2026). It is not required at the point of capture —
-          CAN-SPAM requires the unsubscribe MECHANISM in the commercial email
-          itself, which every send already carries — so dropping the sentence
-          from this form changes nothing about what we owe a recipient. The
-          wrapper div went with it: with one child left there is nothing to
-          group, so the disclosure is a direct child of the form again and picks
-          up its space-y-3 exactly as it did before.
-          Size/colour now live entirely in SmsConsentCheckbox — see the warning
-          at the top of that file before changing either. */}
-      <SmsConsentCheckbox recipientName={cardOwner} />
+      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
+          this form must stay submittable with it unchecked (posts
+          sms_consent:false → captured, never auto-texted). Required by Twilio
+          A2P review; see the header of SmsConsentCheckbox.tsx. Email consent is
+          still by submission, and every email carries an unsubscribe link.
+          The "Every email includes an unsubscribe link." sentence stays removed
+          (owner decision, Aug 2026, 1728fe8) — that call was independent of the
+          checkbox and CAN-SPAM wants the mechanism in the email itself, which
+          every send already carries. */}
+      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
     </form>
   );
 }

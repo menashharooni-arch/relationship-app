@@ -1,4 +1,4 @@
-﻿# Stripe & Twilio Setup — Manual Dashboard Steps
+# Stripe & Twilio Setup — Manual Dashboard Steps
 
 Everything in the codebase reads Stripe/Twilio credentials from environment
 variables only (see `.env.example` and `ENV_KEYS_NEEDED.md`) — there is nothing
@@ -314,34 +314,52 @@ attribution is universal):
 > https://swiftcard.me/card/rachel-lim
 
 **Opt-in description** — this is the field that gets registrations rejected, so
-it must describe what the form *actually* does. SwiftCard uses
-**consent-by-submission with an adjacent disclosure**, not a separate checkbox
-(see the warning below before you submit):
+it must describe what the form *actually* does. SwiftCard uses an **explicit,
+unticked, optional SMS consent checkbox** (see the warning below before you
+submit). Paste this verbatim:
 > Web form, following an in-person interaction. A visitor taps or scans a
 > SwiftCard user's physical card, which opens that user's card page. The visitor
 > then chooses to submit their own name, phone number and email through the
 > "Share My Info" form. Directly adjacent to the submit button, visible before
-> submission, the form states: "By sharing, you agree to texts & emails via
-> SwiftCard. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt
-> out, HELP for help," followed by links
-> to the SMS Terms and the Privacy Policy. Submitting the form is the
+> submission, is an SMS consent checkbox that is NOT pre-selected and is
+> OPTIONAL — the visitor can submit the form without ticking it, and if they do
+> not tick it we never send them a text message. The checkbox reads: "Text me
+> follow-ups (optional). I agree to receive follow-up text messages from this
+> SwiftCard user about our conversation — their contact details, replies, and
+> any follow-up messages they set up. Msg frequency varies. Msg & data rates may
+> apply. Reply STOP to opt out, HELP for help." Immediately beneath it: "Optional
+> — you can share your info without this and still hear back by email," followed
+> by links to the SMS Terms and the Privacy Policy. Ticking the box is the
 > affirmative opt-in. Consent is then recorded server-side as an `sms-ok` flag
 > that the browser cannot set on its own; automated messages are sent only to
 > contacts carrying that flag, and capture paths that never displayed the
-> disclosure (business-card scanner, manual entry) are never auto-texted.
+> checkbox (business-card scanner, manual entry) are never auto-texted.
 
+> #### Real checkbox restored 2026-07-31 — required by Twilio, ticket #28654422
+>
+> Campaign `CM1319bbf18064a7f2100b8b47716fef0b` was rejected with **error 30924**
+> (opt-in flow lacks compliant consent language). Twilio Onboarding & Compliance
+> then named the two missing elements explicitly:
+>
+> 1. **Types of messages** — the opt-in must say WHAT the person receives, not
+>    just the channel. "texts & emails via SwiftCard" names a channel, not a
+>    message type. This is what 30924 was actually flagging.
+> 2. **A real checkbox** — present, **not pre-selected**, and **optional**, so a
+>    visitor can submit the share form without opting in to SMS.
+>
+> `SmsConsentCheckbox.tsx` is therefore a genuine checkbox again (it had been
+> reduced to a disclosure paragraph under a consent-by-submission design). The
+> four capture forms hold `smsConsent` state defaulting to `false` and post the
+> real value. Never pre-check it, never default the state to `true`, and never
+> block submission on it — each re-breaks approval and is a TCPA problem too.
+>
 > #### Disclosure size — resolved 2026-07-28
 >
 > The disclosure used to render at **8px**, which is not "clear and conspicuous"
-> under TCPA/CTIA and reads to a campaign reviewer as burying it. The owner
-> approved the change and it is now **11px** (`SmsConsentCheckbox.tsx`), with
-> the two missing CTIA elements — message frequency and HELP — added, since
-> submission is the only consent signal. 11px is the floor — never go below it.
-> The copy is also trimmed to the shortest form that keeps all six required
-> elements; shortening it further fails review.
->
-> Also note the component is *named* `SmsConsentCheckbox` but renders no
-> checkbox — it is a disclosure paragraph. The name is historical.
+> under TCPA/CTIA and reads to a campaign reviewer as burying it. It is now
+> **11px** (`SmsConsentCheckbox.tsx`). 11px is the floor — never go below it.
+> Every required element must stay: message types, frequency, msg & data rates,
+> STOP, HELP, and links to SMS Terms + Privacy.
 
 > #### Screenshots removed 2026-07-29 — link to the live page instead
 >

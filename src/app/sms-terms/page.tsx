@@ -84,14 +84,15 @@ export default function SmsTermsPage() {
 
         <H2>How consent is collected</H2>
         <P>
-          When you share your contact information on a SwiftCard user&apos;s card, the share form shows a
-          disclosure immediately next to the submit button telling you that sharing means receiving
-          follow-up texts and emails via SwiftCard, that message frequency varies, that msg &amp; data rates
+          When you share your contact information on a SwiftCard user&apos;s card, the share form shows an
+          SMS consent checkbox immediately next to the submit button, telling you the types of messages you
+          would receive — follow-up texts from that user about your conversation, their contact details,
+          replies, and any follow-up they set up — that message frequency varies, that msg &amp; data rates
           may apply, and that you can reply STOP to opt out or HELP for help.{" "}
-          <strong>Submitting the form is your opt-in</strong> — you are giving your number for the express
-          purpose of being followed up with, and the disclosure saying so is in plain sight before you
-          submit. Consent is never bundled into an unrelated action and is never a condition of purchase or
-          of creating an account. You can stop the messages at any time by replying STOP. See the{" "}
+          <strong>Ticking that box is your opt-in to text messages.</strong> It is never pre-ticked, and it
+          is optional: you can share your contact information and submit the form without ticking it, in
+          which case we never text you. Consent is never bundled into an unrelated action and is never a
+          condition of submitting the form, of purchase, or of creating an account. You can stop the messages at any time by replying STOP. See the{" "}
           <Link href="/sms-consent" className="text-brand underline">SMS Consent Overview</Link> for exactly
           what this looks like.
         </P>
