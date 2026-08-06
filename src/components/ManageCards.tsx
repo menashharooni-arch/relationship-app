@@ -12,18 +12,60 @@ type Card = {
   name: string | null;
   title: string | null;
   label?: string | null;
+  is_offline?: boolean | null;
 };
 
 export default function ManageCards({ cards }: { cards: Card[] }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // An offline card is invisible everywhere the owner would look for it — the
+  // public page 404s, and so do its QR, NFC tag and wallet pass — while the
+  // dashboard still lists it as though it were fine. Being removed from a team
+  // turns cards off, so this is the state an ex-employee lands in, and until
+  // now nothing in the product told them or offered them a way out.
+  async function handleRestore(card: Card) {
+    setRestoringId(card.id);
+    setError(null);
+    let res: Response;
+    try {
+      res = await fetch(`/api/cards/${card.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_offline: false }),
+      });
+    } catch {
+      setError("Couldn't reach the server — check your connection and try again.");
+      setRestoringId(null);
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Couldn't bring the card back online. Try again.");
+      setRestoringId(null);
+      return;
+    }
+    setRestoringId(null);
+    router.refresh();
+  }
 
   async function handleDelete(card: Card) {
     const label = card.label || card.name || card.username;
+    // This dialog used to promise "Contacts already captured by this card are
+    // kept." It was the opposite of what DELETE /api/cards/[id] does: that
+    // route deliberately purges the card's leads (and their message and
+    // reminder history) because everything is keyed by USERNAME, and leaving
+    // the rows behind would hand them to whoever registers the freed slug next.
+    // The purge is right; the sentence was the bug, and it was the sentence
+    // people were deciding on. Say what actually happens, and point at the
+    // export while it can still be taken.
     if (
       !confirm(
-        `Delete the card "${label}" (/${card.username})? This can't be undone. Contacts already captured by this card are kept.`
+        `Delete the card "${label}" (/${card.username})?\n\n` +
+          `This also permanently deletes every contact this card captured, along with their message and reminder history. It can't be undone.\n\n` +
+          `If you want to keep them, cancel and export them from Contacts first.`
       )
     )
       return;
@@ -68,13 +110,31 @@ export default function ManageCards({ cards }: { cards: Card[] }) {
             {(card.label || card.name || card.username)[0]?.toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+            <p className="text-white text-sm font-medium truncate">
+              {card.label || card.name || card.username}
+              {card.is_offline === true && (
+                <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
+                  Offline
+                </span>
+              )}
+            </p>
             <p className="text-gray-500 text-xs truncate">
-              /{card.username}
-              {card.name ? ` · ${card.name}` : ""}
+              {card.is_offline === true
+                ? "Hidden from visitors — your QR and NFC tag won't open it"
+                : `/${card.username}${card.name ? ` · ${card.name}` : ""}`}
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            {card.is_offline === true && (
+              <button
+                type="button"
+                onClick={() => handleRestore(card)}
+                disabled={restoringId === card.id}
+                className="text-xs font-semibold text-amber-300 hover:text-amber-200 disabled:opacity-50 transition-colors"
+              >
+                {restoringId === card.id ? "Turning on…" : "Bring online"}
+              </button>
+            )}
             <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">
               Edit
             </Link>

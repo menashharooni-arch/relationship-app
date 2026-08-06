@@ -39,6 +39,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   for (const key of ALLOWED) {
     if (key in body) updates[key] = body[key];
   }
+
+  // Bring-back-online is the ONE offline transition an owner may make, and only
+  // on a card that is not currently an office card.
+  //
+  // is_offline is an office-admin/staff switch (see office-primary-card.sql:
+  // "reversible"), and it stays that way — this deliberately accepts only
+  // `false`, so nobody can take a card dark through here, and it is refused
+  // outright on an office card so an active employee can never undo their
+  // admin. What it does fix: removal from a team took the member's cards
+  // offline and then destroyed every relationship that could turn them back on
+  // (office_id nulled, membership deleted), so the card was dark permanently.
+  // Removal now unflags the cards, which makes them eligible here.
+  const wantsOnline = body.is_offline === false;
   // Server-side normalize (backstop for older/other clients): stored social
   // values must always build a working profile URL. See lib/social-url.ts.
   for (const key of SOCIAL_COLUMNS) {
@@ -46,6 +59,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const admin = getAdminSupabase();
+
+  // Handled up front, ahead of the plan gating below, and on purpose: removal
+  // from a team also drops the member to Free, and on Free every card past the
+  // first is view-only — so routing this through the normal edit path would
+  // have 403'd exactly the person who needs it. Restoring a card's visibility
+  // is not editing its content, so it is not gated on the plan.
+  if (wantsOnline) {
+    const { data: target } = await admin
+      .from("cards")
+      .select("is_office_card")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (target.is_office_card === true) {
+      return NextResponse.json(
+        { error: "Your company manages this card. Ask your Office admin to bring it back online." },
+        { status: 403 }
+      );
+    }
+    await admin.from("cards").update({ is_offline: false }).eq("id", id).eq("user_id", user.id);
+    if (!Object.keys(updates).length) return NextResponse.json({ ok: true, online: true });
+  }
 
   // Snapshot the card's on-card fields BEFORE the write, so after saving we can
   // tell whether anything the Swift Signature SHOWS actually changed and, if so,
