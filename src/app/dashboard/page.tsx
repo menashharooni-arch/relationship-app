@@ -544,10 +544,15 @@ export default async function DashboardPage({
         {/* Editing lives in Settings → Cards and sharing, and only there. This
             header used to carry an Edit link; the dashboard is now for viewing
             and sharing a card, not changing it. */}
-        <div className="flex items-center justify-between mb-1">
+        {/* mb-3 on mobile takes over the spacing the caption's own mb-3 gave
+            it, so hiding the caption tightens the box without collaring the
+            preview against the heading. */}
+        <div className="flex items-center justify-between mb-3 sm:mb-1">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Your Card</p>
         </div>
-        <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
+        {/* Desktop-only: on a phone the preview directly below says this by
+            being the card, and the screen is too short to spend a line on it. */}
+        <p className="hidden sm:block text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
         {/* previewUrl powers the NATIVE path ONLY: in the iOS shell WKWebView
             can't save a generated PNG data URL, so DownloadCardButton shares
             this link via the native share sheet instead of dead-tapping.
@@ -703,10 +708,14 @@ export default async function DashboardPage({
 
           {/* My Cards — full width, top of dashboard */}
           <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="min-w-0">
                 <p className="text-white font-semibold text-sm">My Cards</p>
-                <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
+                {/* Desktop-only: the rows below are checkboxes and behave like
+                    checkboxes, and on a phone this ran to two lines directly
+                    under the title — the tallest thing in the box explaining
+                    the most obvious thing in it. */}
+                <p className="hidden sm:block text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
               {/* Desktop keeps the inline text link exactly where it was. */}
               <div className="hidden sm:flex items-center gap-3">
@@ -716,23 +725,23 @@ export default async function DashboardPage({
                   </Link>
                 )}
               </div>
+              {/* Mobile: a compact pill in the SAME top-right slot as desktop's
+                  link. shrink-0 so a long title can never squeeze it — the
+                  title truncates instead (min-w-0 above makes that possible).
+                  It was a full-width dashed button below this row; at that size
+                  it competed with the card rows for attention. */}
+              {canAddCard && (
+                <Link
+                  href="/cards/new?add=1"
+                  className="sm:hidden shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-700 text-blue-400 text-[11px] font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3" aria-hidden="true">
+                    <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
+                  </svg>
+                  Add card
+                </Link>
+              )}
             </div>
-
-            {/* Mobile: a real, full-width button centred at the top of the box
-                instead of a tiny text link crammed against the right edge of a
-                two-line heading. Same width and radius as the card rows below
-                it, so the box reads as one even stack. */}
-            {canAddCard && (
-              <Link
-                href="/cards/new?add=1"
-                className="sm:hidden flex items-center justify-center gap-1.5 w-full mb-3 py-2.5 rounded-xl border border-dashed border-gray-700 text-blue-400 text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
-                  <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
-                </svg>
-                Add card
-              </Link>
-            )}
             {/* The rows moved into a client component so mobile can collapse to
                 just the selected card with a chevron to reveal the rest.
                 Desktop is unchanged. The Free-plan upsell below is handed over
