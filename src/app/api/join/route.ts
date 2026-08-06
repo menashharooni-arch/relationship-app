@@ -109,6 +109,32 @@ export async function POST(req: Request) {
     );
   }
 
+  // An office OWNER cannot join someone else's team. There was no such check,
+  // and accepting flags ALL of the accepter's cards is_office_card (below), so
+  // an owner who clicked an invite handed their own company's cards to the
+  // other org: branded with the other company's logo, editable and
+  // take-offline-able by that company's admins. They'd occupy a paid seat
+  // there while remaining full owner of their own office — two orgs, one
+  // person, mutually clobbering brand state.
+  //
+  // Checked before anything is touched, like the profile check above, so there
+  // is nothing to roll back. Membership in another office is fine and is
+  // handled below (switching teams); OWNING one is not.
+  const { data: ownedOffice } = await admin
+    .from("offices")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (ownedOffice && ownedOffice.id !== officeId) {
+    return NextResponse.json(
+      {
+        error:
+          "You already own a SwiftCard Office team, so you can't also join another one. Transfer or close your team first, or accept this invite from a different account.",
+      },
+      { status: 409 }
+    );
+  }
+
   // NOTE: any membership this user still holds in a DIFFERENT office is removed
   // AFTER the seat recount below succeeds — never before. Deleting it up front
   // (the old order) meant a seat-race rollback returned 409 having already wiped

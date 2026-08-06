@@ -164,17 +164,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Permanently. Re-subscribing did not bring them back, because they were no
     // longer in the row to restore.
     //
-    // Enforcement is unchanged, on both halves. A Free account still cannot WRITE
-    // Pro values, because `incoming` is sanitized before it is merged. And the
-    // public surfaces never render dormant Pro values, because every render path
-    // independently sanitizes for the owner's CURRENT plan — the public card page
-    // (card/[username]), the dashboard preview, the Swift Signature (share), and
-    // the Swift Links page all call this same function. Those render-time calls
-    // were added precisely because save-time sanitizing "only covers new writes";
-    // they are what makes it safe to stop destroying the stored copy here.
+    // That merge fixed the keys the form DOESN'T send. It could not fix the
+    // ones it does: CardEditForm sends `links` on every save, and sends each
+    // colour key explicitly (its own comment: "undefined → key cleared").
+    // Those are therefore in `incoming` every time, so sanitizing `incoming`
+    // still sliced the links to the Free cap and still snapped the colours,
+    // and the merge then wrote that loss over the stored row. The identical
+    // permanent-deletion bug, just narrowed to the fields the editor touches —
+    // which is all of them.
+    //
+    // So the write preserves now, and DISPLAY is what enforces the plan. That
+    // is not a weakening: it is where enforcement already lived. Every render
+    // path independently sanitizes for the owner's CURRENT plan — the public
+    // card page (card/[username]:201), the dashboard preview (:511), the Swift
+    // Signature (share:102) all call this function without the option, and the
+    // Swift Links page slices to FREE_MAX_LINKS and gates page theming on
+    // `ownerPaid` inline. A Free account can store a fifth link or an old
+    // accent colour; nobody will ever see it until they subscribe again.
     const safeIncoming = isPaidPlan(planRow?.plan)
       ? incoming
-      : sanitizeCustomizationForPlan(incoming, false, effectiveTemplate);
+      : sanitizeCustomizationForPlan(incoming, false, effectiveTemplate, { preserveDowngraded: true });
     updates.customization = {
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...safeIncoming,

@@ -167,9 +167,30 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
   customization: T | null | undefined,
   paid: boolean,
   template?: string,
+  opts?: {
+    /**
+     * Skip the destructive parts when WRITING a downgraded account's card.
+     *
+     * This function is used for two different jobs: deciding what a Free
+     * account may SHOW, and deciding what gets PERSISTED. Those are not the
+     * same. Applied on write, the link slice and the colour snap don't hide
+     * anything — they delete it. A downgraded Pro user with five Swift Links
+     * who edited any unrelated field (a phone number, a title) came back with
+     * three of them gone from the database, and their card colours
+     * permanently snapped to the nearest Free preset. Re-subscribing did not
+     * bring any of it back, because there was nothing left to restore.
+     *
+     * Safe because every render path enforces the cap itself: the card page
+     * and dashboard and share page all run this function without this option,
+     * and the Swift Links page slices to FREE_MAX_LINKS and gates page
+     * theming on `ownerPaid` inline. So the over-limit links and Pro colours
+     * are stored and hidden, which is what the plan actually means.
+     */
+    preserveDowngraded?: boolean;
+  },
 ): T {
   let cust = { ...(customization ?? {}) } as Record<string, unknown>;
-  if (paid) return cust as T;
+  if (paid || opts?.preserveDowngraded) return cust as T;
   // Free is capped at FREE_MAX_LINKS Swift Links (action-link buttons); extras
   // are trimmed. Pro/Office get unlimited links plus full design control.
   if (Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_MAX_LINKS) {

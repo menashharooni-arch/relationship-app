@@ -41,10 +41,15 @@ export async function PATCH(req: Request) {
       // the public card and the Swift Signature then both faithfully render.
       const effectiveTemplate =
         (updates.template as string) || (planRow?.template as string) || "classic-pro";
+      // preserveDowngraded: same reasoning as the card PATCH route — slicing
+      // links and snapping colours on WRITE deletes a downgraded account's
+      // data rather than hiding it, and every render path already sanitizes
+      // for the owner's current plan.
       updates.customization = sanitizeCustomizationForPlan(
         updates.customization as Record<string, unknown>,
         false,
-        effectiveTemplate
+        effectiveTemplate,
+        { preserveDowngraded: true }
       );
     }
   }
