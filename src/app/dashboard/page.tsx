@@ -26,6 +26,7 @@ import AppStorePopup from "@/components/AppStorePopup";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
 import TourAutoStart from "@/components/TourAutoStart";
+import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
 import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
@@ -732,59 +733,26 @@ export default async function DashboardPage({
                 Add card
               </Link>
             )}
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select a card">
-              {allCards.map((card, cardIdx) => {
-                const isActive = activeUsername === card.username;
-                // Mirrors the public kill-switch (lib/card-active): on Free,
-                // only the oldest FREE_CARD_LIMIT card(s) serve publicly.
-                const planInactive = !isPro && cardIdx >= PLAN_LIMITS.FREE_CARD_LIMIT;
-                return (
-                  <div key={card.id} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] ${isActive ? "bg-blue-600/10 border-blue-600/40" : "bg-gray-800/60 border-gray-700/60"}`}>
-                    <Link
-                      scroll={false}
-                      href={`?card=${card.username}&view=${view}&sort=${sortBy}`}
-                      role="radio"
-                      aria-checked={isActive}
-                      className="flex items-center gap-3 flex-1 min-w-0"
-                    >
-                      <span className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${isActive ? "bg-blue-600 border-blue-600" : "border-gray-600"}`}>
-                        {isActive && (
-                          <svg viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" /></svg>
-                        )}
-                      </span>
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"}`}>
-                        {(card.label || card.name || card.username)[0]?.toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-white text-sm font-medium truncate">
-                          {card.label || card.name || card.username}
-                          {planInactive && (
-                            <PlanGate
-                              feature="link-off-badge"
-                              nativeCopy="These links are only active on the Pro plan."
-                              nativeContent={
-                                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan.">
-                                  LINK OFF — PRO ONLY
-                                </span>
-                              }
-                            >
-                              <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
-                                LINK OFF — PRO ONLY
-                              </span>
-                            </PlanGate>
-                          )}
-                        </p>
-                        <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
-                      </div>
-                    </Link>
-                    {/* The per-row Edit link (and its divider) moved to
-                        Settings → Cards and sharing. Selecting a card here is
-                        now the row's only job, so the whole row is one target
-                        instead of a link with a second control glued to it. */}
-                  </div>
-                );
-              })}
-              {!isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT && (
+            {/* The rows moved into a client component so mobile can collapse to
+                just the selected card with a chevron to reveal the rest.
+                Desktop is unchanged. The Free-plan upsell below is handed over
+                as a SLOT rather than rebuilt there, so its condition and markup
+                stay here, in one place, and it is rendered outside anything the
+                dropdown can hide. */}
+            <MyCardsList
+              cards={allCards.map((c) => ({
+                id: c.id as string,
+                username: c.username as string,
+                label: (c.label as string | null) ?? null,
+                name: (c.name as string | null) ?? null,
+              }))}
+              activeUsername={activeUsername}
+              isPro={isPro}
+              freeCardLimit={PLAN_LIMITS.FREE_CARD_LIMIT}
+              view={view}
+              sortBy={sortBy}
+              upsell={
+                !isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT ? (
                 <PlanGate
                   feature="second-card"
                   nativeCopy="Pro feature — Multiple cards are only available on the Pro plan."
@@ -797,8 +765,9 @@ export default async function DashboardPage({
                     <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
                   </Link>
                 </PlanGate>
-              )}
-            </div>
+                ) : null
+              }
+            />
           </div>
 
           {/* Mobile only: Your Card + Share + other ways to share, right under My Cards */}
