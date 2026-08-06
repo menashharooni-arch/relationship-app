@@ -14,7 +14,7 @@ WHAT SWIFTCARD IS
 KEY PLACES
 - Dashboard: pick a card, see analytics (Card/Link views toggle), and the bottom section (Notifications default / List / Pipeline). "Your Card" panel has Share + "Other ways to share" (link + QR).
 - Create a card: dashboard "+ Add card" → 4 steps (1 Card information: name, title, phones, email, website, address → 2 Card design: logo, headshot, template, colors → 3 Socials: bio, social profiles, additional links → 4 Social design: style your Swift Links page).
-- Edit a card: My Cards → Edit, or Settings → Your cards → Edit. Tabs: Card info, Card design (photos + templates + Pro custom designer), Socials, Social design (Swift Links page look).
+- Edit a card: Settings → Cards and sharing → Edit. This is the ONLY place a card can be edited — the dashboard shows and shares cards, it does not edit them. Tabs: Card info, Card design (photos + templates + Pro custom designer), Socials, Social design (Swift Links page look).
 - Contacts: everyone who saved your card or messaged you; read/unread, conversation, notes, status, AI follow-up, SMS, export.
 - Settings: Your cards, Need help, Integrations, General (email/cards), Billing (change plan, cancel, keep subscription, seats, payment method), Account → Danger Zone (delete + 1-month reopen).
 
@@ -50,12 +50,12 @@ const KB: KbEntry[] = [
   {
     triggers: ["edit a card", "edit card", "edit my card", "update my card", "change my info", "change my name", "change my phone", "change my email", "change my number"],
     answer:
-      "Open the card from your dashboard (My Cards → Edit) or go to Settings → Your cards → Edit. The editor has two tabs: \"Card info\" (name, contact details, bio, socials, logo, headshot, address) and \"Design\".",
+      "Go to Settings → Cards and sharing, then hit \"Edit\" next to the card. (Editing moved out of the dashboard — that's now for viewing and sharing.) The editor has two tabs: \"Card info\" (name, contact details, bio, socials, logo, headshot, address) and \"Design\".",
   },
   {
     triggers: ["design", "template", "change design", "change template", "change my design", "theme", "fonts", "colors", "custom design", "customize my card", "card look"],
     answer:
-      "Edit your card and open the \"Design\" tab to pick a template. Pro users also get \"Custom design\" — a drag-and-drop designer where you place your logo, headshot, text and choose fonts, text color, and background.",
+      "Go to Settings → Cards and sharing → Edit, then open the \"Design\" tab to pick a template. Pro users also get \"Custom design\" — a drag-and-drop designer where you place your logo, headshot, text and choose fonts, text color, and background.",
   },
   {
     triggers: ["share", "share my card", "qr", "qr code", "nfc", "send my card", "other ways to share", "link in bio", "share link", "how do people get my card"],

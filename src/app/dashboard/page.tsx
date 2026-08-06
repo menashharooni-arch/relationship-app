@@ -120,6 +120,11 @@ export default async function DashboardPage({
   const isEnterprise = profile.plan === "enterprise";
   const isAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "");
 
+  // Whether "Add card" is offered at all. Named once because the My Cards box
+  // renders the control twice — an inline text link on desktop, a full-width
+  // button on mobile — and the two must never disagree about who can add.
+  const canAddCard = isPro || allCards.length < PLAN_LIMITS.FREE_CARD_LIMIT;
+
   // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.
   const proExpiresAt = profile.plan_expires_at as string | null;
@@ -535,11 +540,11 @@ export default async function DashboardPage({
     <>
       {/* Your card */}
       <div data-tour="your-card" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
+        {/* Editing lives in Settings → Cards and sharing, and only there. This
+            header used to carry an Edit link; the dashboard is now for viewing
+            and sharing a card, not changing it. */}
         <div className="flex items-center justify-between mb-1">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Your Card</p>
-          <Link href={`/cards/${activeCard.id}/edit`} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
-            Edit
-          </Link>
         </div>
         <p className="text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
         {/* previewUrl powers the NATIVE path ONLY: in the iOS shell WKWebView
@@ -702,14 +707,31 @@ export default async function DashboardPage({
                 <p className="text-white font-semibold text-sm">My Cards</p>
                 <p className="text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
-              <div className="flex items-center gap-3">
-                {(isPro || allCards.length < PLAN_LIMITS.FREE_CARD_LIMIT) && (
+              {/* Desktop keeps the inline text link exactly where it was. */}
+              <div className="hidden sm:flex items-center gap-3">
+                {canAddCard && (
                   <Link href="/cards/new?add=1" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
                     + Add card
                   </Link>
                 )}
               </div>
             </div>
+
+            {/* Mobile: a real, full-width button centred at the top of the box
+                instead of a tiny text link crammed against the right edge of a
+                two-line heading. Same width and radius as the card rows below
+                it, so the box reads as one even stack. */}
+            {canAddCard && (
+              <Link
+                href="/cards/new?add=1"
+                className="sm:hidden flex items-center justify-center gap-1.5 w-full mb-3 py-2.5 rounded-xl border border-dashed border-gray-700 text-blue-400 text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
+                  <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
+                </svg>
+                Add card
+              </Link>
+            )}
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select a card">
               {allCards.map((card, cardIdx) => {
                 const isActive = activeUsername === card.username;
@@ -755,9 +777,10 @@ export default async function DashboardPage({
                         <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
                       </div>
                     </Link>
-                    <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-700/60">
-                      <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">Edit</Link>
-                    </div>
+                    {/* The per-row Edit link (and its divider) moved to
+                        Settings → Cards and sharing. Selecting a card here is
+                        now the row's only job, so the whole row is one target
+                        instead of a link with a second control glued to it. */}
                   </div>
                 );
               })}

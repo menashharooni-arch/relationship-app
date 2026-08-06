@@ -181,13 +181,17 @@ const STEP_DEFS: TourStepDef[] = [
     path: DASH,
     anchor: "your-card",
     title: "Your SwiftCard — try it",
-    body: "Exactly what people see when you share. Use Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
+    // "Use Edit above" pointed at a link that no longer exists: editing moved
+    // out of the dashboard entirely and lives in Settings → Cards and sharing.
+    // A tour that names a missing control is worse than no tour, so this now
+    // says where the editor actually is.
+    body: "Exactly what people see when you share. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
     placement: "right",
     interactive: true,
     bodyFor: (ctx) =>
       ctx.isOfficeMember
-        ? "Exactly what people see when you share. Your company sets the card's branding — use Edit to update your own name, title, photo, and links."
-        : "Exactly what people see when you share. Use Edit above to pick a template (Photo First is the most popular), colors, photo, and links.",
+        ? "Exactly what people see when you share. Your company sets the card's branding — update your own name, title, photo and links in Settings → Cards and sharing."
+        : "Exactly what people see when you share. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
   },
   {
     id: "share",
