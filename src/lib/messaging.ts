@@ -240,7 +240,14 @@ export function buildSmsBody(opts: { senderName: string; company?: string | null
   let body = opts.text.trim();
   body += `\n\n— ${opts.senderName}${opts.company ? `, ${opts.company}` : ""}`;
   if (opts.cardUrl) body += `\n${opts.cardUrl}`;
-  if (!opts.paid) body += `\nvia SwiftCard ${APP_URL}/join?src=follow_up`;
+  // A2P 10DLC: Swift Card Inc is the registered sender of every text this
+  // program sends, so EVERY message identifies SwiftCard — paid plans included.
+  // Only the signup CTA is plan-gated. Dropping the identification for paid
+  // senders made the message read as sent by the user rather than by us, which
+  // is the third-party-sender pattern that drew error 30882 on campaign
+  // CM6604b30972d05c50275bccb943ff133e. /sms-terms and /terms both now state
+  // that we are the sender; this line is what makes that true on the wire.
+  body += opts.paid ? `\nvia SwiftCard` : `\nvia SwiftCard ${APP_URL}/join?src=follow_up`;
   body = toGsm7(body);
   if (body.length > 480) body = body.slice(0, 477) + "...";
   return body;

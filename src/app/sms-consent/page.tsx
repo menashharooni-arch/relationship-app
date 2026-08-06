@@ -106,9 +106,9 @@ export default function SmsConsentPage() {
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <p className="text-slate-700 text-[14px] leading-relaxed italic">
             &quot;☐ <strong>Text me follow-ups (optional).</strong> I agree to receive follow-up text
-            messages from this SwiftCard user about our conversation — their contact details, replies, and
-            any follow-up messages they set up. Msg frequency varies. Msg &amp; data rates may apply.
-            Reply STOP to opt out, HELP for help.&quot;
+            messages from SwiftCard about my conversation with this SwiftCard user — their contact
+            details, replies, and any follow-up messages they set up. Msg frequency varies. Msg &amp;
+            data rates may apply. Reply STOP to opt out, HELP for help.&quot;
           </p>
           <p className="text-slate-600 text-[13px] leading-relaxed mt-3">
             Directly beneath it, outside the checkbox label: &quot;Optional — you can share your info

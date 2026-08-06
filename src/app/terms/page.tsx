@@ -105,11 +105,16 @@ export default function TermsPage() {
         </P>
         <ul className="mb-3">
           <LI>You&apos;ll only collect and use it for legitimate business follow-up, in line with applicable privacy and anti-spam laws (including, where they apply to you, GDPR, CCPA/CPRA, CAN-SPAM, and TCPA).</LI>
-          <LI>You have a lawful basis to contact the people you message, and you&apos;ll honor opt-outs. Automated follow-up emails and texts you set up are sent on your behalf, and you&apos;re the sender responsible for them. Text messaging is also governed by our <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.</LI>
+          <LI>You have a lawful basis to contact the people you message, and you&apos;ll honor opt-outs. Automated follow-up emails you set up are sent on your behalf, and you&apos;re the sender responsible for them.</LI>
+          <LI><strong>Text messages are different.</strong> Swift Card Inc is the sender of every automated text message sent through SwiftCard. We send them from our own registered number, using our own message templates, only to people who ticked the SMS consent box on a share form, and only about the exchange that person started. You may write the wording of a follow-up you schedule, but we send it, every message identifies SwiftCard, and you never receive the recipient&apos;s mobile number to message yourself. Text messaging is governed by our <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.</LI>
           <LI>You won&apos;t upload contact data you obtained unlawfully, or use SwiftCard to send unsolicited bulk messages.</LI>
         </ul>
         <P>
-          For the contacts you collect, you are the data controller and SwiftCard acts as your processor. See our{" "}
+          For the contact records you collect, you are the data controller and SwiftCard acts as your processor.
+          Mobile numbers and SMS consent are the exception: because Swift Card Inc is the sender of every automated
+          text, we are the controller of the mobile number and the consent record for that purpose, and we do not
+          share either with you, with other users, or with any third party or affiliate for marketing or promotional
+          purposes. See our{" "}
           <Link href="/privacy" className="text-brand underline">Privacy Policy</Link> for how we handle personal information.
         </P>
 

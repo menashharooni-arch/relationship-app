@@ -43,7 +43,7 @@ export default function SmsTermsPage() {
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500 mb-3">The short version</p>
           <ul>
-            <LI>SwiftCard sends texts <strong>on behalf of its users</strong> to people who shared contact info with them — replies, a card link when someone shares their card with you, and follow-up messages a user sets up.</LI>
+            <LI><strong>Swift Card Inc is the sender</strong> of every text in this program. We send them from our own registered number, using our own templates, to people who ticked the SMS consent box when sharing their contact information with a SwiftCard user — a card link and follow-ups about that exchange. Our users do not send texts through SwiftCard and do not write the content of an automated one.</LI>
             <LI>SwiftCard does <strong>not</strong> send marketing text blasts of its own, and never texts its own account holders.</LI>
             <LI>Every SwiftCard text comes from one number: <strong>(917) 905-7335</strong>.</LI>
             <LI>Message frequency varies. Message and data rates may apply.</LI>
@@ -54,11 +54,15 @@ export default function SmsTermsPage() {
 
         <H2>The SwiftCard messaging program</H2>
         <P>
-          SwiftCard is a digital business card platform. When you share your contact information with a
-          SwiftCard user — for example, through the share form on their card page — that person can follow
-          up with you. Where a follow-up is sent by text, it goes out through SwiftCard&apos;s shared
-          messaging number — <strong>(917) 905-7335</strong> — with the sender identified by name in the
-          message itself.
+          SwiftCard is a digital business card platform operated by Swift Card Inc. When you share your
+          contact information with a SwiftCard user — for example, through the share form on their card
+          page — you may also tick the optional box asking us to text you follow-ups about that exchange.
+          If you do, Swift Card Inc sends those texts. They go out from our own registered number —{" "}
+          <strong>(917) 905-7335</strong> — using message templates we write and control, and they name the
+          SwiftCard user you met so you know which conversation the message is about. That user is the
+          subject of the message, not its sender: they may write the wording of a follow-up they schedule,
+          but Swift Card Inc sends it, every message identifies SwiftCard, and they never receive your
+          mobile number to message you themselves.
         </P>
 
         <H2>The types of messages we send</H2>
