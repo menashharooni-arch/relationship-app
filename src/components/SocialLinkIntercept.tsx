@@ -258,7 +258,11 @@ export default function SocialLinkIntercept({
               ? "flex items-center gap-3 w-full min-h-[56px] rounded-[14px] px-3.5 py-3 transition-[transform,filter] duration-150 active:scale-[0.985] active:brightness-[0.97]"
               : socials.length === 0
                 ? "flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors active:bg-[#FBF9F6]"
-                : "inline-flex items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors active:bg-[#FBF9F6]"
+                // self-start, not just inline-flex: this sits in a flex COLUMN,
+                // whose default align-items:stretch would blow the capsule out
+                // to full width and leave it looking like an empty bar. It is
+                // meant to hug its domain.
+                : "inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors active:bg-[#FBF9F6]"
           }
           style={
             promote
