@@ -555,12 +555,16 @@ export default async function DashboardPage({
         {/* mb-3 on mobile takes over the spacing the caption's own mb-3 gave
             it, so hiding the caption tightens the box without collaring the
             preview against the heading. */}
-        <div className="flex items-center justify-between mb-3 sm:mb-1">
+        <div className="flex items-center justify-between mb-3 lg:mb-1">
           <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Your Card</p>
         </div>
         {/* Desktop-only: on a phone the preview directly below says this by
-            being the card, and the screen is too short to spend a line on it. */}
-        <p className="hidden sm:block text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
+            being the card, and the screen is too short to spend a line on it.
+            lg:, matching this PANEL's own breakpoint — it is the width at which
+            the whole thing moves from under My Cards to the sticky right column,
+            and the control under the card flips there too. At sm: a 768px tablet
+            got the desktop caption sitting above the mobile QR button. */}
+        <p className="hidden lg:block text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
         {/* previewUrl powers the NATIVE path ONLY: in the iOS shell WKWebView
             can't save a generated PNG data URL, so DownloadCardButton shares
             this link via the native share sheet instead of dead-tapping.
