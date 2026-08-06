@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { ensureUniqueUsername } from "@/lib/username";
+import { ensureEmailPreferences } from "@/lib/email-prefs";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 
@@ -90,6 +91,12 @@ export default async function OnboardingPage({
       console.error("[onboarding] profile insert failed:", insertErr.message);
       throw new Error("We couldn't finish setting up your account. Please refresh and try again, or contact support if this continues.");
     }
+
+    // Mint the unsubscribe token alongside the profile. Without this row the
+    // account has no token, so every marketing email we later send it carries
+    // no working opt-out and no List-Unsubscribe headers. Best-effort: a failure
+    // here must not block signup, and the send side now skips anyone missing it.
+    await ensureEmailPreferences(user.id, admin);
 
     // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
     // new signups start on Free. startProTrial() is kept in referral-server for

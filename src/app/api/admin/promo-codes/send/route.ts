@@ -88,6 +88,14 @@ export async function POST(req: NextRequest) {
     const token = prefs?.unsubscribe_token ?? "";
 
     const unsub = unsubUrl(token);
+
+    // Same backstop as the broadcast sender: a promo blast is marketing mail,
+    // so no working opt-out means no send. Without an email_preferences row
+    // unsubUrl returns undefined, the footer link degrades to plain text and
+    // the List-Unsubscribe headers are dropped — and until provisioning was
+    // fixed, no account had a row at all.
+    if (!unsub) { skipped++; continue; }
+
     const template = promoEmail({
       firstName,
       code: promo.code,

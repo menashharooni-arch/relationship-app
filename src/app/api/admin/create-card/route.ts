@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
+import { ensureEmailPreferences } from "@/lib/email-prefs";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -72,6 +73,10 @@ export async function POST(req: NextRequest) {
     await admin.auth.admin.deleteUser(newUserId);
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
+
+  // Same as the signup path: mint the unsubscribe token with the account, or
+  // this user can never be sent marketing mail with a working opt-out.
+  await ensureEmailPreferences(newUserId, admin);
 
   // Send password reset so they can set their own password and log in
   await admin.auth.admin.generateLink({

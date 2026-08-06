@@ -128,6 +128,12 @@ export async function GET(req: NextRequest) {
       // Honor the opt-out — the downgrade still happened, they just don't get
       // mail about it (the plan change is visible in-app).
       if (!marketingOk) continue;
+      // Same rule as the broadcast and promo senders: this mail carries an
+      // unsubscribe footer and List-Unsubscribe headers, so it is marketing —
+      // and marketing without a working opt-out doesn't go out. `unsub` is
+      // undefined when the account has no email_preferences row, which used to
+      // be every account. The downgrade itself is unaffected and visible in-app.
+      if (!unsub) continue;
       const tpl = trialEndedEmail({
         firstName: u.name?.split(" ")[0] || "there",
         isTrial: u.wasTrial,
@@ -177,8 +183,10 @@ export async function GET(req: NextRequest) {
       const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
       if (to) {
         const { unsubscribeUrl: unsub, marketingOk } = await getEmailPrefs(supabase, u.id as string);
-        // This one is an upgrade pitch — never send it to someone who opted out.
-        if (marketingOk) {
+        // This one is an upgrade pitch — never send it to someone who opted
+        // out, and never without a working opt-out to offer (`unsub` is
+        // undefined when the account has no email_preferences row).
+        if (marketingOk && unsub) {
           const tpl = trialEndingSoonEmail({
             firstName: (u.name as string)?.split(" ")[0] || "there",
             daysLeft,
