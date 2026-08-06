@@ -102,11 +102,20 @@ function stepLabel(day: number, time: string): string {
 
 // Actual calendar date/time a step will send: contact-created + N days, at the
 // step's time-of-day. Used in the post-submit "when they send" summary.
-function sendWhen(createdAt: string, day: number, time: string): string {
+// The DAY a step goes out — no clock time.
+//
+// This used to render the step's `time` field in the viewer's local timezone
+// ("Sends Aug 8, 10:06 AM"). The sender never reads that field: the cron runs
+// once a day and the due check compares against end-of-UTC-day, so the message
+// actually goes out on the daily run, up to ~11 hours from the time on screen.
+// A precise wrong time is worse than an honest date — the owner plans around
+// it, and it's the sort of thing they notice when a contact replies.
+//
+// If per-step timing is wanted, the sender has to honour it first (that needs
+// more than one cron run a day); the display can follow.
+function sendWhen(createdAt: string, day: number): string {
   const d = new Date(new Date(createdAt).getTime() + day * 86400000);
-  const [h, m] = (time || "13:00").split(":").map(Number);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const PRESET_FROM_COUNT = (n: number): string => (n >= 4 ? "Aggressive" : n === 2 ? "Light" : "Medium");
@@ -1380,7 +1389,7 @@ export default function ContactsClient({
                               <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <span suppressHydrationWarning className="text-[10px] font-semibold text-gray-500">
-                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day, it.time ?? "13:00")}`}
+                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day)}`}
                                   </span>
                                   {it.sent_at
                                     ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span>
