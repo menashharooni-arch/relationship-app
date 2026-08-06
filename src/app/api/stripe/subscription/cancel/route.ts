@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { officeSubUserBlockMessage, resolveBillingSubjectId } from "@/lib/office-roles";
 
@@ -48,8 +48,7 @@ export async function POST(req: NextRequest) {
       cancel_at_period_end: true,
       cancellation_details: reason ? { comment: `${reason}${comment ? ` — ${comment}` : ""}`.slice(0, 500) } : undefined,
     })) as Stripe.Subscription;
-    const endUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
-    periodEnd = endUnix ? new Date(endUnix * 1000).toISOString() : null;
+    periodEnd = subscriptionPeriodEndIso(sub);
   } catch {
     return NextResponse.json({ error: "Couldn't schedule the cancellation. Please try again." }, { status: 502 });
   }
