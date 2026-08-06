@@ -8,6 +8,8 @@ import { hasWalletConfig } from "@/lib/wallet-config";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
+import { cookies } from "next/headers";
+import { SRC_COOKIE, COOKIE_MAX_AGE, isSignupSource } from "@/lib/referral";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
 // Forward-declare it here so this wrapper can pass guest mode before/after that
@@ -30,11 +32,42 @@ const Wizard = NewCardWizard as ComponentType<{
 export default async function NewCardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ add?: string; claim?: string; plan?: string; interval?: string; seats?: string; promo?: string; postcheckout?: string }>;
+  searchParams: Promise<{ add?: string; claim?: string; plan?: string; interval?: string; seats?: string; promo?: string; postcheckout?: string; src?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  // ?src= — the signup nudge's CTA has always appended this
+  // (SignupNudgeHost: `/cards/new?src=${source}`), and this page never read it.
+  // Only /join and /r/[code] wrote the source cookie, so EVERY signup that
+  // started from the in-app popup or the save-contact CTA was attributed
+  // "direct" — meaning the admin acquisition chart reported the product's main
+  // growth loop as zero.
+  //
+  // Written here, before anything can redirect away. Validated against
+  // SIGNUP_SOURCES, so an arbitrary ?src= can't invent an attribution — and
+  // "referral" is refused outright: that source carries a free month and must
+  // only ever come from /r/[code] with a resolved referrer behind it.
+  if (sp.src && isSignupSource(sp.src) && sp.src !== "referral") {
+    try {
+      const jar = await cookies();
+      // Don't clobber an existing attribution — first touch wins, same as the
+      // referral cookie.
+      if (!jar.get(SRC_COOKIE)) {
+        jar.set(SRC_COOKIE, sp.src, {
+          maxAge: COOKIE_MAX_AGE,
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: true,
+        });
+      }
+    } catch {
+      // Cookies are read-only in some render contexts; attribution is
+      // best-effort and must never break card creation.
+    }
+  }
 
   // Plan-specific entry (?plan=pro|office). PRO is a single-person upgrade of the
   // one card you already have, so a logged-in Pro buyer who already has a card
