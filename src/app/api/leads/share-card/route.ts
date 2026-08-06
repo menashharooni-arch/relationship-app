@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isPaidPlan } from "@/lib/plan";
+import { isRateLimited } from "@/lib/rate-limit";
 import {
   sendSms,
   sendRawEmail,
@@ -34,6 +35,15 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Real Twilio / Resend spend per call on the shared sender, previously
+  // uncapped — same gap as the lead-message route.
+  if (await isRateLimited(`share-card:${user.id}`, 60, 60 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "You're sharing very quickly — give it a minute and try again." },
+      { status: 429 },
+    );
+  }
 
   const { leadId, channel: rawChannel } = (await req.json().catch(() => ({}))) as {
     leadId?: string;

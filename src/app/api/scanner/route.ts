@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { aiVision, hasAiProvider } from "@/lib/ai";
 import { isPaidPlan } from "@/lib/plan";
+import { isRateLimited } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
@@ -26,9 +27,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Each scan is a paid vision call. Pro gates WHO can scan, not how much —
+  // a single paying account could script this and run up AI spend without
+  // limit. The sibling SMS route is capped for exactly this reason.
+  if (await isRateLimited(`scanner:${user.id}`, 60, 60 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "You're scanning very quickly — give it a minute and try again." },
+      { status: 429 },
+    );
+  }
+
   const body = await request.json();
   const { imageBase64, mediaType = "image/jpeg" } = body as { imageBase64?: string; mediaType?: string };
   if (!imageBase64) return NextResponse.json({ error: "no_image" }, { status: 400 });
+  // Bound the image. base64 is ~4/3 of the raw bytes, so this is roughly a 7MB
+  // photo — well past any real business card, and the difference between a
+  // capped request and an arbitrarily large one billed by the token.
+  if (imageBase64.length > 10_000_000) {
+    return NextResponse.json({ error: "image_too_large" }, { status: 413 });
+  }
   if (!hasAiProvider()) return NextResponse.json({ error: "no_ai" }, { status: 503 });
 
   const text = (await aiVision({

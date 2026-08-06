@@ -73,6 +73,38 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse;
 }
 
+// Every AUTHENTICATED prefix has to be here, not just the obvious seven.
+// Supabase rotates the refresh token when a Server Component refreshes the
+// session, and only this proxy can persist the rotated cookies back to the
+// browser. On a route it doesn't cover, the rotation happens and the new
+// cookies are dropped — so once the old token falls outside Supabase's reuse
+// grace window the user is silently signed out mid-session. Intermittent by
+// nature, and near-impossible to reproduce on demand, which is why /admin,
+// /grow, /welcome, /upgrade, /checkout/success and /join/[token] went
+// unnoticed.
+//
+// This list does NOT gate anything. The login wall is `protectedPaths` above,
+// which is unchanged — so /join/[token] (opened by signed-OUT invitees),
+// /welcome, /upgrade and /checkout/success stay reachable exactly as before.
+// The only effect of being here is that a rotated session cookie survives.
+//
+// /account-deleted is deliberately EXCLUDED: the proxy redirects there, and
+// including it would mean the redirect target re-enters the same check.
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/profile/:path*", "/cards/:path*", "/settings/:path*", "/office/:path*", "/contacts/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/onboarding/:path*",
+    "/profile/:path*",
+    "/cards/:path*",
+    "/settings/:path*",
+    "/office/:path*",
+    "/contacts/:path*",
+    "/admin/:path*",
+    "/grow/:path*",
+    "/welcome/:path*",
+    "/upgrade/:path*",
+    "/checkout/:path*",
+    "/join/:path*",
+    "/share/:path*",
+  ],
 };

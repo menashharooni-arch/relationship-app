@@ -5,6 +5,7 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { ownsLead } from "@/lib/lead-access";
 import { deliverToLead } from "@/lib/messaging";
 import { isPaidPlan } from "@/lib/plan";
+import { isRateLimited } from "@/lib/rate-limit";
 
 // GET — the conversation thread (outbound messages you've sent this contact).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,9 +39,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Every send here is a real Twilio or Resend charge on the SHARED sender —
+  // the same reason the sibling SMS route is capped. This one inherited
+  // nothing, so any authenticated account, Free included, could script it and
+  // run up spend with no ceiling and no meter.
+  if (await isRateLimited(`lead-message:${user.id}`, 60, 60 * 60 * 1000)) {
+    return NextResponse.json(
+      { error: "You're sending messages very quickly — give it a minute and try again." },
+      { status: 429 },
+    );
+  }
+
   const { text, channel: reqChannel, subject } = await req.json();
   const body = typeof text === "string" ? text.trim() : "";
   if (!body) return NextResponse.json({ error: "Message is empty." }, { status: 400 });
+  // Cap the payload: an SMS is billed per segment, so an unbounded body is an
+  // unbounded charge. Generous enough for a long email, far short of abuse.
+  if (body.length > 5000) {
+    return NextResponse.json({ error: "That message is too long." }, { status: 413 });
+  }
   const preferChannel = reqChannel === "sms" || reqChannel === "email" ? reqChannel : undefined;
 
   const admin = getAdminSupabase();
