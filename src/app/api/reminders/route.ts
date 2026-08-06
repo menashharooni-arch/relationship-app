@@ -122,11 +122,27 @@ export async function GET(req: NextRequest) {
     for (const u of downgradedUsers) {
       // Owner-directed mail goes to the ACCOUNT (auth) email, never profiles.email
       // (which can be the card's public contact address).
+      // ALWAYS, before any email gating: losing Pro is an account-status
+      // change, not marketing. The old comment justified skipping the email by
+      // saying "the plan change is visible in-app" — it wasn't. No
+      // notification was written anywhere, and the `_trialEnded` flag the job
+      // sets is read by nothing. So a user who had opted out of marketing lost
+      // Pro overnight in total silence: extra cards dark, sequences paused,
+      // capture capped, and the first they knew of it was something breaking.
+      // This is what makes that comment true.
+      await insertNotification({
+        user_id: u.id,
+        type: "plan_downgraded",
+        title: u.wasTrial ? "Your free trial has ended" : "Your free month has ended",
+        body: "Your account is back on the Free plan. Extra cards are offline and follow-up sequences are paused until you upgrade — nothing has been deleted.",
+      });
+
       const to = await getAccountEmail(u.id, u.email);
       if (!to) continue;
       const { unsubscribeUrl: unsub, marketingOk } = await getEmailPrefs(supabase, u.id);
-      // Honor the opt-out — the downgrade still happened, they just don't get
-      // mail about it (the plan change is visible in-app).
+      // Honor the opt-out for the EMAIL only — the in-app notice above is
+      // unconditional, so opting out of marketing no longer means finding out
+      // by accident.
       if (!marketingOk) continue;
       // Same rule as the broadcast and promo senders: this mail carries an
       // unsubscribe footer and List-Unsubscribe headers, so it is marketing —
@@ -148,7 +164,12 @@ export async function GET(req: NextRequest) {
       } catch { /* logging is best-effort */ }
     }
   } catch (e) {
+    // Was console.error only, unlike the other three jobs in this cron. If
+    // this throws, expired trials and free months keep full Pro indefinitely
+    // and nobody is paged — a silent revenue leak, in the job whose entire
+    // purpose is stopping it.
     console.error("[reminders] expireFreeMonths failed:", e);
+    await reportError("reminders.expire-free-months", e);
   }
 
   // Heads-up ~3 days before an app-level Pro grant (trial / free month) ends.
@@ -204,7 +225,11 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch (e) {
+    // Same gap as expireFreeMonths above — this job reported to console only,
+    // so a failure meant nobody was warned their plan was about to end and
+    // nobody knew.
     console.error("[reminders] trial-ending warn failed:", e);
+    await reportError("reminders.trial-ending-warn", e);
   }
 
   // (Removed) The "you haven't shared your card yet" nudge email — users should

@@ -1,106 +1,21 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 import { createClient } from "@/lib/supabase-server";
-import { getAdminSupabase } from "@/lib/supabase-admin";
-import { welcomeEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
+import { sendWelcomeEmail } from "@/lib/welcome-email";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
+// POST /api/welcome — send this account's welcome email (once).
+//
+// The implementation moved to lib/welcome-email so onboarding can call it
+// directly rather than self-fetching an HTTP route from a server component.
+// Nothing called this route for its whole existence, which is why no signup
+// ever received a welcome email; onboarding is now the real caller. This
+// endpoint is kept as a thin, authenticated wrapper — it costs nothing, and a
+// manual "resend my welcome" is a plausible support action.
 export async function POST() {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const admin = getAdminSupabase();
-
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("name, email, username")
-      .eq("id", user.id)
-      .single();
-
-    // Owner mail goes to the ACCOUNT (auth) email, not profiles.email (which can
-    // be the card's public contact address).
-    const accountEmail = user.email;
-    if (!profile || !accountEmail) return NextResponse.json({ error: "No profile" }, { status: 404 });
-
-    // Idempotency: a retry, back-navigation, or double-click on the onboarding
-    // form must not send a second welcome email.
-    const { data: alreadySent } = await admin
-      .from("email_logs")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("type", "welcome")
-      .maybeSingle();
-    if (alreadySent) return NextResponse.json({ success: true, skipped: "already_sent" });
-
-    // Ensure email_preferences row exists for this user
-    await admin
-      .from("email_preferences")
-      .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
-
-    const { data: prefsRow } = await admin
-      .from("email_preferences")
-      .select("unsubscribe_token")
-      .eq("user_id", user.id)
-      .single();
-
-    const firstName = profile.name?.split(" ")[0] || "there";
-    const cardUrl = `${APP_URL}/card/${profile.username}`;
-    const token = prefsRow?.unsubscribe_token ?? "";
-    // undefined when there is no token — the template then renders the
-    // relationship line instead of a dead link, and no one-click header is sent.
-    const unsub = unsubUrl(token);
-
-    const template = welcomeEmail({
-      firstName,
-      cardUrl,
-      unsubscribeUrl: unsub,
-    });
-
-    // CLAIM the welcome before sending. The alreadySent check above is a
-    // check-then-act that two concurrent requests (a double-submitted signup)
-    // can both pass — and because the log row was only written AFTER the send,
-    // both would deliver a welcome email. email_logs_welcome_once_idx makes this
-    // insert the atomic gate instead: the loser fails here and sends nothing.
-    const { error: claimError } = await admin.from("email_logs").insert({
-      user_id: user.id,
-      email: accountEmail,
-      type: "welcome",
-      subject: template.subject,
-    });
-    if (claimError) {
-      // Unique violation = someone else already claimed it and is sending.
-      return NextResponse.json({ success: true, skipped: "already_sent" });
-    }
-
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    const { data: sent, error: sendError } = await resend.emails.send({
-      ...template,
-      to: accountEmail,
-      // One-click unsubscribe headers (Gmail/Yahoo requirement) — a footer link
-      // alone is not enough. Points mail clients at /api/unsubscribe, which
-      // exports POST; never advertise the header without a resolvable token.
-      ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
-    });
-
-    if (sendError) {
-      // Release the claim so the welcome can still be delivered on a retry —
-      // otherwise a transient provider error would silently cost this user their
-      // welcome email forever.
-      await admin.from("email_logs").delete().eq("user_id", user.id).eq("type", "welcome");
-      return NextResponse.json({ error: "Failed" }, { status: 500 });
-    }
-
-    // Stamp the provider id onto the row we already claimed.
-    if (sent?.id) {
-      await admin.from("email_logs").update({ resend_id: sent.id }).eq("user_id", user.id).eq("type", "welcome");
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("Welcome email error:", err);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
-  }
+  const result = await sendWelcomeEmail(user.id, user.email);
+  if (result === "failed") return NextResponse.json({ error: "Failed" }, { status: 500 });
+  return NextResponse.json({ success: true, result });
 }
