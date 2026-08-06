@@ -5,7 +5,7 @@ import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { hasSharedWith, markSharedWith, getVisitorInfo } from "@/lib/visitor";
 import LinkMark from "@/components/LinkMark";
-import { brandBackground, hostLabel, safeAccent, inkOn } from "@/lib/link-brand";
+import { brandBackground, hostLabel } from "@/lib/link-brand";
 // The SHARED icon — it accepts a className. The file-local PlatformIcon below
 // hardcodes w-4 h-4 and silently ignores className, which would ship 40px discs
 // with 16px glyphs. The local one stays, unchanged, for the "bars" variant.
@@ -77,8 +77,6 @@ export default function SocialLinkIntercept({
   cardOwner,
   ownerFirstName,
   variant = "bars",
-  accent,
-  promote = false,
 }: {
   links: SocialLinkData[];
   cardOwner: string;
@@ -90,14 +88,6 @@ export default function SocialLinkIntercept({
    * and must stay byte-identical. Only the public card page opts into "rail".
    */
   variant?: "bars" | "rail";
-  /** Owner's accent, used only by `promote`. Guarded by safeAccent. */
-  accent?: string | null;
-  /**
-   * True when the card has NO custom action links, so nothing else can be the
-   * section's focal point. The website is then promoted to the filled plate
-   * treatment instead of leaving a lone pale bar — the single ugliest live case.
-   */
-  promote?: boolean;
 }) {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [pendingLabel, setPendingLabel] = useState<string>("");
@@ -234,9 +224,6 @@ export default function SocialLinkIntercept({
   // alreadyShared relies on native navigation.
   const website = links.find((s) => s.label === "Website");
   const socials = links.filter((s) => s.label !== "Website");
-  const fill = safeAccent(accent);
-  const plateInk = inkOn(fill);
-  const onDark = plateInk === "#FFFFFF";
   const chevron = (
     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
       <path d="M7.7 4.3a1 1 0 000 1.4L12 10l-4.3 4.3a1 1 0 101.4 1.4l5-5a1 1 0 000-1.4l-5-5a1 1 0 00-1.4 0z" />
@@ -254,67 +241,33 @@ export default function SocialLinkIntercept({
           rel="noopener noreferrer"
           onClick={(e) => handleClick(website, e)}
           className={
-            promote
-              ? "flex items-center gap-3 w-full min-h-[56px] rounded-[14px] px-3.5 py-3 transition-[transform,filter] duration-150 active:scale-[0.985] active:brightness-[0.97]"
-              : socials.length === 0
-                ? "flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors active:bg-[#FBF9F6]"
-                // self-start, not just inline-flex: this sits in a flex COLUMN,
-                // whose default align-items:stretch would blow the capsule out
-                // to full width and leave it looking like an empty bar. It is
-                // meant to hug its domain.
-                : "inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors active:bg-[#FBF9F6]"
+            // No accent-filled variant here either: with the action links now
+            // uniform (owner call), a saturated website plate would be the only
+            // shouting object in the section. It is the same quiet white row or
+            // capsule in every case.
+            socials.length === 0
+              ? "group flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
+              // self-start, not just inline-flex: this sits in a flex COLUMN,
+              // whose default align-items:stretch would blow the capsule out to
+              // full width and leave it looking like an empty bar. It is meant
+              // to hug its domain.
+              : "group inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
           }
-          style={
-            promote
-              ? {
-                  background: fill,
-                  backgroundImage: `linear-gradient(180deg, color-mix(in srgb, ${fill} 94%, #fff) 0%, color-mix(in srgb, ${fill} 90%, #000) 100%)`,
-                  color: plateInk,
-                  boxShadow: onDark
-                    ? "inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 1px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.12)"
-                    : "inset 0 1px 0 rgba(255,255,255,0.45), inset 0 0 0 1px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.10)",
-                }
-              : { boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }
-          }
+          style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}
         >
           <span
-            className={`shrink-0 grid place-items-center overflow-hidden ${promote ? "w-8 h-8 rounded-[10px]" : "w-7 h-7 rounded-full bg-white"}`}
-            style={
-              promote
-                ? {
-                    background: onDark ? "rgba(255,255,255,0.16)" : "rgba(15,23,42,0.06)",
-                    boxShadow: `inset 0 0 0 1px ${onDark ? "rgba(255,255,255,0.22)" : "rgba(15,23,42,0.08)"}`,
-                  }
-                : { boxShadow: "inset 0 0 0 1px #EDE6DC" }
-            }
+            className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden"
+            style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}
           >
-            <LinkMark url={website.href} size={promote ? 16 : 14} />
+            <LinkMark url={website.href} size={14} />
           </span>
-          <span className="min-w-0 flex-1 flex flex-col">
-            <span
-              className={
-                promote
-                  ? "font-semibold text-[15px] leading-[1.25] tracking-[-0.011em] truncate"
-                  : "truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]"
-              }
-            >
-              {promote ? "Visit website" : hostLabel(website.href)}
-            </span>
-            {promote && (
-              <span className="text-[11px] font-medium leading-[1.4] mt-px truncate lowercase" style={{ opacity: 0.72 }}>
-                {hostLabel(website.href)}
-              </span>
-            )}
+          <span className="truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]">
+            {hostLabel(website.href)}
           </span>
-          {promote ? (
-            <span
-              className="shrink-0 w-[22px] h-[22px] rounded-full grid place-items-center"
-              style={{ background: onDark ? "rgba(255,255,255,0.18)" : "rgba(15,23,42,0.07)" }}
-            >
+          {socials.length === 0 && (
+            <span className="ms-auto text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#8A7E6E] group-hover:translate-x-0.5">
               {chevron}
             </span>
-          ) : (
-            socials.length === 0 && <span className="ms-auto text-[#C9BFB2]">{chevron}</span>
           )}
         </a>
       )}
