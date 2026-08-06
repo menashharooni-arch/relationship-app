@@ -132,6 +132,13 @@ export default async function DashboardPage({
     return (
       <>
         <AppStorePopup trigger={params.welcome === "1"} />
+        {/* TourAutoStart was mounted ONLY in the has-cards branch below. But
+            onboarding sends a brand-new account here with ?welcome=1 and that
+            account has no cards yet — so it always landed on THIS branch, and
+            no direct signup ever got the guided tour. The component's own
+            comment claims that regression was already fixed; it wasn't, because
+            the fix went to the other branch. */}
+        <Suspense><TourAutoStart /></Suspense>
         <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
         <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">

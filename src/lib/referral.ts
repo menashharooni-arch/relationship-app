@@ -30,6 +30,10 @@ export const SIGNUP_SOURCES = [
   "share_info",    // popup after submitting the "share your info" form (no referrer)
   "vcard",         // after downloading a vCard
   "link_button",   // after tapping a Swift Links button
+  // Fired by ShareButton — triggerSignupNudge("share_card") — and missing from
+  // this list, so isSignupSource() rejected it and every signup from that
+  // button was attributed "direct".
+  "share_card",    // after sharing someone's card onward
   "badge",         // "Made with SwiftCard" badge
   "follow_up",     // "Sent with SwiftCard" link in an automation email/text
   "preview",       // a "Create Your Card for Free" button on the Test It Live page
