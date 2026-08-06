@@ -110,6 +110,8 @@ export type ScrubbableEvent = {
   message?: string;
   exception?: { values?: Array<{ value?: string; type?: string; [k: string]: unknown }> };
   breadcrumbs?: Array<Record<string, unknown>>;
+  /** Transaction spans — where outbound-fetch URLs (and any credential in one) live. */
+  spans?: Array<Record<string, unknown>>;
   extra?: Record<string, unknown>;
   tags?: Record<string, unknown>;
   contexts?: Record<string, unknown>;
@@ -164,6 +166,36 @@ export function scrubEvent<T extends ScrubbableEvent>(event: T): T | null {
     if (event.extra) event.extra = scrubDeep(event.extra);
     if (event.tags) event.tags = scrubDeep(event.tags);
     if (event.contexts) event.contexts = scrubDeep(event.contexts);
+
+    // SPANS. Every other container was walked and this one wasn't, which
+    // matters because it is the one that carries outbound-HTTP metadata:
+    // with server tracing on, a fetch span's attributes include the full
+    // request URL. "url" is deliberately NOT in DROP_KEYS (the path is the
+    // useful part of a trace), so a URL-borne credential passed straight
+    // through — which is exactly how a Gemini key in a query string would
+    // have reached a third-party dashboard.
+    //
+    // scrubUrl on the url-ish attributes rather than dropping them: keeping
+    // the path is the whole point of a span, and scrubUrl already strips the
+    // query while preserving it.
+    if (Array.isArray(event.spans)) {
+      event.spans = (event.spans as Array<Record<string, unknown>>).map((span) => {
+        const s = scrubDeep(span);
+        for (const key of ["url", "http.url", "server.address", "description"]) {
+          const v = (s as Record<string, unknown>)[key];
+          if (typeof v === "string") (s as Record<string, unknown>)[key] = scrubUrl(v);
+        }
+        const data = (s as Record<string, unknown>).data;
+        if (data && typeof data === "object") {
+          for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+            if (typeof v === "string" && /url|address/i.test(k)) {
+              (data as Record<string, unknown>)[k] = scrubUrl(v);
+            }
+          }
+        }
+        return s;
+      }) as typeof event.spans;
+    }
 
     return event;
   } catch {

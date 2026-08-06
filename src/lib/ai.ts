@@ -33,9 +33,16 @@ export async function aiComplete(prompt: string, opts?: { maxTokens?: number; js
   if (process.env.GEMINI_API_KEY) {
     try {
       const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Key in a HEADER, not the query string: as a query param it rides in
+          // the request URL, and outbound-HTTP span attributes carry the full
+          // URL into Sentry once server tracing is on — where "url" is not a
+          // scrubbed key and the scrubber never walks event.spans.
+          "x-goog-api-key": process.env.GEMINI_API_KEY as string,
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
@@ -108,9 +115,16 @@ export async function aiVision(opts: { imageBase64: string; mediaType: string; p
   if (process.env.GEMINI_API_KEY) {
     try {
       const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Key in a HEADER, not the query string: as a query param it rides in
+          // the request URL, and outbound-HTTP span attributes carry the full
+          // URL into Sentry once server tracing is on — where "url" is not a
+          // scrubbed key and the scrubber never walks event.spans.
+          "x-goog-api-key": process.env.GEMINI_API_KEY as string,
+        },
         body: JSON.stringify({
           contents: [{ parts: [
             { text: opts.prompt },
