@@ -208,6 +208,31 @@ export async function POST(req: NextRequest) {
     const token = prefs?.unsubscribe_token ?? "";
 
     const unsub = unsubUrl(token);
+
+    // No token, no send. unsubUrl returns undefined for a blank token, and this
+    // loop used to carry on regardless: the footer link degraded to a plain
+    // sentence and the List-Unsubscribe header pair was dropped, so the message
+    // went out with no opt-out of any kind and /api/unsubscribe had nothing to
+    // match the recipient by. Because nothing provisioned an email_preferences
+    // row, that was EVERY recipient.
+    //
+    // Provisioning now mints the row at signup and a backfill covered existing
+    // accounts, so this should not trigger — it is the backstop that makes
+    // "we cannot mail you without an opt-out" true by construction rather than
+    // by assumption. Skipping is the safe direction: a missed marketing email
+    // is nothing, an unsubscribable one is a CAN-SPAM violation.
+    if (!unsub) {
+      skipped++;
+      if (campaignId) {
+        await logRecipient({
+          user_id: profile.id,
+          email: recipient,
+          status: "skipped",
+          error: "No unsubscribe token — cannot send marketing mail without a working opt-out",
+        });
+      }
+      continue;
+    }
     const template = marketingEmail({
       firstName,
       subject,
