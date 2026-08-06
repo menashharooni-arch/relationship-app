@@ -88,7 +88,10 @@ export default async function FlowSettingsPage({
     admin.from("integrations").select("provider, sync_error, card_ids").eq("user_id", user.id),
     admin
       .from("cards")
-      .select("id, username, name, title, label")
+      // is_offline drives the "Offline / Bring online" state in ManageCards —
+      // without it an offline card looks live in the dashboard while its public
+      // page 404s.
+      .select("id, username, name, title, label, is_offline")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
     admin.from("email_preferences").select("marketing_emails, receipt_emails").eq("user_id", user.id).maybeSingle(),

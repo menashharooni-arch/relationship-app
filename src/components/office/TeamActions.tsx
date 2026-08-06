@@ -526,8 +526,9 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       {step === "confirm" && (
         <Modal title={`Remove ${first} from your team?`} onClose={() => !busy && setStep("idle")}>
           <p className="text-gray-300 text-sm mb-4 leading-relaxed">
-            {first}&apos;s card will be turned off and {first} will lose access to the Office account.
-            The leads {first} captured will remain with your company.
+            {first}&apos;s company cards will be turned off and {first} will lose access to the Office
+            account. The leads {first} captured will remain with your company. {first} keeps the cards
+            themselves and can bring them back online from their own dashboard.
           </p>
           {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
           <button onClick={remove} disabled={busy}

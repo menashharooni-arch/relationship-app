@@ -73,11 +73,28 @@ export async function DELETE(req: Request) {
           await supabase.from("leads").update({ tags: [...tags, tag] }).eq("id", l.id);
         }
       }
-      // "Their card will be turned off": the office paid for and branded these
-      // cards, so they stop serving on removal. Reversible — the ex-member can
-      // bring their own card back online from their dashboard.
+      // "Their cards will be turned off": the office paid for and branded these
+      // cards, so they stop serving on removal.
+      //
+      // Scoped to is_office_card. This used to update every card the user owned,
+      // which reached cards that were never part of the office at all.
+      //
+      // Then UNFLAG. Joining sets is_office_card on all of the member's cards
+      // (join/route.ts), and that flag was previously never cleared anywhere —
+      // so a card stayed marked as office property forever after the person
+      // left. Clearing it here is what the join comment already claims happens
+      // ("leaving is what un-flags/strips them"), and it is what hands the card
+      // back to its owner: PATCH /api/cards/[id] lets an owner bring a card of
+      // their own back online, but deliberately refuses while it is still an
+      // office card, so an active employee can never override their admin.
+      //
+      // Without that handoff this removal was terminal: the flag stayed set,
+      // office_id is nulled two statements below, the membership row is deleted,
+      // and the office admin loses all reach — leaving the ex-member's card page,
+      // QR, NFC and wallet pass dark with no in-app way back for anyone but us.
       if (memberCards?.length) {
-        await supabase.from("cards").update({ is_offline: true }).eq("user_id", member.user_id);
+        await supabase.from("cards").update({ is_offline: true }).eq("user_id", member.user_id).eq("is_office_card", true);
+        await supabase.from("cards").update({ is_office_card: false }).eq("user_id", member.user_id);
       }
     } catch { /* best-effort — removal itself must never be blocked */ }
 
