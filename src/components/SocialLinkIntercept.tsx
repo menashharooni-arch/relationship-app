@@ -79,10 +79,9 @@ export default function SocialLinkIntercept({
   const [pendingLabel, setPendingLabel] = useState<string>("");
   const [alreadyShared, setAlreadyShared] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  // SMS consent is by SUBMISSION (owner decision, Aug 2026): no checkbox, no
-  // consent state — the disclosure sits above the send button and the post
-  // below sends sms_consent:true. Restoring a real opt-in box means reverting
-  // 8fa7f0c; the A2P trade-off is recorded in SmsConsentCheckbox.tsx.
+  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
+  // A2P review requires the box be unchecked by default and optional.
+  const [smsConsent, setSmsConsent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
   useEffect(() => {
@@ -140,7 +139,7 @@ export default function SocialLinkIntercept({
           email: form.email || null,
           card_owner: cardOwner,
           source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
-          sms_consent: true, // sharing = consent (disclosure above the button)
+          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),
       });
       if (!res.ok) throw new Error("lead capture failed");
@@ -262,9 +261,9 @@ export default function SocialLinkIntercept({
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
                   />
-                  {/* Consent disclosure — submitting is the opt-in (text + email);
-                      same block as every capture surface. */}
-                  <SmsConsentCheckbox />
+                  {/* SMS consent — separate affirmative opt-in (unchecked by
+                      default, optional); same block as every capture surface. */}
+                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
                   <button
                     type="submit"
                     disabled={status === "loading"}

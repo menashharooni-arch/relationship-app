@@ -2,23 +2,15 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// CONSENT-BY-SUBMISSION (owner decision, Aug 2026). The share forms carry a
-// disclosure line, not a checkbox: submitting IS the consent for text and email.
+// Twilio Onboarding & Compliance (ticket #28654422, 2026-07-30) named the exact
+// requirements that campaign CM1319bbf18064a7f2100b8b47716fef0b failed on with
+// error 30924. All three below are approval-blocking, and all three are easy to
+// undo by accident, so they are pinned here.
 //
-// ⚠️ This deliberately reverses the 2026-07-31 A2P change. Twilio Onboarding &
-// Compliance (ticket #28654422) rejected campaign
-// CM1319bbf18064a7f2100b8b47716fef0b with error 30924 against a
-// disclosure-only form, and asked for message TYPES plus a real unticked
-// checkbox. The owner was shown that history and chose this design anyway, so
-// what is pinned below is the DISCLOSURE contract — every CTIA element it still
-// has to carry, and the fact that all four forms post sms_consent:true.
-//
-// If Twilio rejects the campaign again, this file is where the trade-off is
-// recorded; restoring the checkbox means reverting commit 31c53af.
-//
-// STRUCTURAL by necessity: these are about rendered markup across four sibling
-// forms, and asserting them properly would need a DOM renderer this repo does
-// not have. Labelled so it is not mistaken for a behavior test.
+// STRUCTURAL by necessity: the requirements are about rendered markup and
+// default state across four sibling forms; asserting them properly would need a
+// DOM renderer this repo does not have. Labelled so it is not mistaken for a
+// behavior test.
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -30,7 +22,7 @@ const FORMS = [
   "src/components/ConnectButton.tsx",
 ];
 
-describe("SMS consent disclosure (consent by submission)", () => {
+describe("SMS consent checkbox (A2P 10DLC approval requirements)", () => {
   const src = read("src/components/SmsConsentCheckbox.tsx");
 
   // EVERY assertion here runs against comment-stripped source, and that is
@@ -43,19 +35,26 @@ describe("SMS consent disclosure (consent by submission)", () => {
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   const flat = code.replace(/\s+/g, " ");
 
-  it("is a disclosure line, not a checkbox", () => {
-    expect(code).not.toMatch(/type="checkbox"/);
+  it("renders a real checkbox input", () => {
+    expect(code).toMatch(/type="checkbox"/);
+  });
+
+  it("is driven by the caller and defaults to UNCHECKED, never pre-selected", () => {
+    expect(code).toMatch(/checked=\{checked\}/);
+    expect(code).toMatch(/checked\s*=\s*false/); // the default in the destructure
     expect(code).not.toMatch(/defaultChecked/);
+    expect(code).not.toMatch(/checked\s*=\s*true/);
   });
 
-  it("names BOTH channels, since submitting consents to both", () => {
-    expect(flat).toMatch(/you agree to texts &amp; emails/i);
+  it("states the TYPES of messages, not just the channel", () => {
+    // "texts & emails via SwiftCard" names a channel — that phrasing is what
+    // error 30924 rejected. The copy must describe what the messages ARE.
+    expect(flat).toMatch(/follow-up text messages/i);
+    expect(flat).toMatch(/contact details, replies/i);
+    expect(flat).not.toMatch(/you agree to texts &amp; emails via SwiftCard/);
   });
 
-  it("carries every CTIA-required element", () => {
-    // With no checkbox this line is the ONLY thing standing between the product
-    // and an unconsented text, so it has to carry all of them. Dropping "data"
-    // from "Msg & data rates may apply" breaks the recognized CTIA phrasing.
+  it("carries every other CTIA-required element", () => {
     expect(flat).toMatch(/Msg frequency varies/);
     expect(flat).toMatch(/Msg &amp; data rates may apply/);
     expect(flat).toMatch(/STOP to opt out/);
@@ -64,23 +63,24 @@ describe("SMS consent disclosure (consent by submission)", () => {
     expect(code).toMatch(/href="\/privacy"/);
   });
 
-  // Both floors sit below the previously-advised ones, by explicit owner
-  // decision (Aug 2026, asked twice — the second time after being shown the A2P
-  // history and the contrast numbers). These pin the values so the next move is
-  // deliberate too, and so the trade-off stays visible instead of becoming
-  // folklore. They use the same comment-stripped source as everything above:
-  // the header discusses 11px and slate-500 in prose, and matching THAT rather
-  // than the className fails the test against a correct file — which is exactly
-  // how the first version of the contrast check broke.
+  it("tells the visitor the box is optional", () => {
+    expect(flat).toMatch(/\(optional\)/i);
+    expect(flat).toMatch(/without this/i);
+  });
 
-  it("stays at 10px — smaller returns to the 8px already judged too small", () => {
-    // Was 11px (set 2026-07-28 for A2P review, itself up from 8px). No
-    // statutory minimum exists; the standard is "clear and conspicuous". 10px
-    // is one step back toward the size that drew Twilio error 30924 on campaign
-    // CM1319bbf18064a7f2100b8b47716fef0b — 9px or below invites that again.
+  // These floors are pinned so the next move down is deliberate. They use the
+  // same comment-stripped source as everything above: the header discusses
+  // 11px and slate-500 in prose, and matching THAT rather than the className
+  // passes against a file that has already drifted — which is exactly how the
+  // first version of the contrast check broke.
+  it("keeps the 11px floor — 8px is not clear and conspicuous", () => {
+    // Set 2026-07-28 for A2P review, up from 8px. No statutory minimum exists;
+    // the standard is "clear and conspicuous". 10px/slate-400 (1728fe8) was a
+    // step back toward the size that drew error 30924 on campaign
+    // CM1319bbf18064a7f2100b8b47716fef0b, and is not coming back.
     const sizes = [...code.matchAll(/text-\[(\d+)px\]/g)].map((m) => Number(m[1]));
     expect(sizes.length).toBeGreaterThan(0);
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(10);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11);
   });
 
   it("stays at slate-400 — already below WCAG AA, so nothing lighter", () => {
@@ -93,18 +93,29 @@ describe("SMS consent disclosure (consent by submission)", () => {
     expect(Math.min(...shades)).toBeGreaterThanOrEqual(400);
   });
 
-  it.each(FORMS)("%s posts consent-by-submission and holds no checkbox state", (form) => {
+  it.each(FORMS)("%s defaults consent to false and posts the real value", (form) => {
     const f = read(form);
-    expect(f).toMatch(/sms_consent:\s*true/);
-    // The checkbox wiring must be fully gone, not left dangling.
-    expect(f).not.toMatch(/sms_consent:\s*smsConsent/);
-    expect(f).not.toMatch(/setSmsConsent/);
+    expect(f).toMatch(/useState\(false\)/);
+    expect(f).toMatch(/sms_consent:\s*smsConsent/);
+    // The old consent-by-submission hardcode must not come back.
+    expect(f).not.toMatch(/sms_consent:\s*true/);
+    expect(f).toMatch(/<SmsConsentCheckbox checked=\{smsConsent\} onChange=\{setSmsConsent\} \/>/);
   });
 
-  it.each(FORMS)("%s never gates submission on consent", (form) => {
+  it.each(FORMS)("%s does not block submission on SMS consent", (form) => {
     const f = read(form);
+    // Any guard that returns early or disables submit based on smsConsent would
+    // make the box mandatory, which fails review and is a TCPA problem.
     expect(f).not.toMatch(/if\s*\(\s*!\s*smsConsent\s*\)/);
     expect(f).not.toMatch(/disabled=\{[^}]*!smsConsent/);
+    expect(f).not.toMatch(/required[^)]*smsConsent/);
+  });
+
+  it("the public consent docs describe the checkbox, not consent-by-submission", () => {
+    const page = read("src/app/sms-consent/page.tsx");
+    expect(page).toMatch(/never pre-selected/i);
+    expect(page).toMatch(/optional/i);
+    expect(page).not.toMatch(/Submitting the form is the affirmative opt-in/);
   });
 });
 
