@@ -33,8 +33,33 @@ function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// Provider-token JWT (ES256). Apple accepts tokens up to 1h old; we build a
-// fresh short-lived one per send batch — simple and stateless.
+// Module-scope JWT cache. Apple accepts a provider token for up to an hour but
+// REJECTS tokens minted more often than roughly once per 20 minutes for the
+// same key (TooManyProviderTokenUpdates, 403).
+//
+// The header above claimed a "per send batch" build; there was no batching —
+// buildApnsJwt was called inside the per-MESSAGE send function, so every single
+// notification minted a fresh token. That is fine at one push an hour and
+// starts silently 403ing the moment volume rises.
+//
+// Refreshed at 50 minutes: comfortably inside Apple's 1h expiry, comfortably
+// outside their ~20m mint floor.
+const JWT_TTL_MS = 50 * 60 * 1000;
+let cachedJwt: { token: string; mintedAt: number; key: string } | null = null;
+
+function getApnsJwt(teamId: string, keyId: string, privateKey: string): string {
+  // Keyed on the credentials too, so rotating them can't serve a stale token.
+  const key = `${teamId}:${keyId}`;
+  if (cachedJwt && cachedJwt.key === key && Date.now() - cachedJwt.mintedAt < JWT_TTL_MS) {
+    return cachedJwt.token;
+  }
+  const token = buildApnsJwt(teamId, keyId, privateKey);
+  cachedJwt = { token, mintedAt: Date.now(), key };
+  return token;
+}
+
+// Provider-token JWT (ES256). Minted through getApnsJwt above — never call this
+// directly from a send path, or you reintroduce the per-message minting.
 function buildApnsJwt(teamId: string, keyId: string, privateKey: string): string {
   const header = { alg: "ES256", kid: keyId };
   const payload = { iss: teamId, iat: Math.floor(Date.now() / 1000) };
@@ -83,7 +108,7 @@ export async function sendApnsNotification(
 
   let jwt: string;
   try {
-    jwt = buildApnsJwt(teamId, keyId, privateKey);
+    jwt = getApnsJwt(teamId, keyId, privateKey);
   } catch {
     return "error"; // malformed key — treat as unconfigured rather than throw
   }
@@ -109,12 +134,37 @@ export async function sendApnsNotification(
     req.setTimeout(10_000, () => { done("error"); try { req.close(); client.close(); } catch { /* ignore */ } });
 
     let status = 0;
+    // APNs puts the actual cause in the RESPONSE BODY as { "reason": "..." },
+    // and we never read it — so every 400 was treated as "this device token is
+    // dead" and the caller permanently DELETED the push subscription. A 400 is
+    // mostly config: BadTopic (wrong apns-topic), DeviceTokenNotForTopic (the
+    // classic sandbox/production mismatch — and this app's iOS entitlement is
+    // set to development while the sender defaults to the production host),
+    // BadExpirationDate, and so on. Any one of those would unregister every
+    // iOS device in the database on its first run, with no signal.
+    let raw = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk: string) => { if (raw.length < 2048) raw += chunk; });
+
     req.on("response", (headers) => { status = Number(headers[":status"] ?? 0); });
     req.on("close", () => {
       try { client.close(); } catch { /* ignore */ }
       if (status === 200) return done("sent");
-      // 410 Unregistered (or 400 BadDeviceToken) → prune the subscription.
-      if (status === 410 || status === 400) return done("gone");
+
+      let reason = "";
+      try { reason = String((JSON.parse(raw) as { reason?: string }).reason ?? ""); } catch { /* body may be empty */ }
+
+      // ONLY these two mean the token itself is finished. 410 is always
+      // Unregistered; a 400 has to say so explicitly.
+      if (reason === "Unregistered" || reason === "BadDeviceToken") return done("gone");
+      if (status === 410 && !reason) return done("gone");
+
+      // Everything else is our problem, not the device's — log the reason so
+      // a misconfigured topic or environment is visible instead of silently
+      // eating the install base.
+      if (status >= 400) {
+        console.error(`[apns] send failed: status=${status} reason=${reason || "(none)"}`);
+      }
       done("error");
     });
     req.on("error", () => { done("error"); try { client.close(); } catch { /* ignore */ } });
