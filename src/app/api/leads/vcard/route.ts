@@ -13,14 +13,21 @@ export async function GET(req: NextRequest) {
 
   const admin = getAdminSupabase();
 
-  let lead: { name: string; phone: string | null; email: string | null; company: string | null } | null = null;
+  let lead: {
+    name: string;
+    phone: string | null;
+    email: string | null;
+    company: string | null;
+    where_met?: string | null;
+    notes?: string | null;
+  } | null = null;
 
   if (user) {
     const { data: profile } = await admin.from("profiles").select("username, plan").eq("id", user.id).single();
     const { data: extraCards } = await admin.from("cards").select("username").eq("user_id", user.id);
     const usernames = [profile?.username, ...(extraCards ?? []).map((c: { username: string }) => c.username)].filter(Boolean);
 
-    const { data } = await admin.from("leads").select("name, phone, email, company, tags").eq("id", leadId).in("card_owner", usernames).single();
+    const { data } = await admin.from("leads").select("name, phone, email, company, where_met, notes, tags").eq("id", leadId).in("card_owner", usernames).single();
     // Ownership was checked here; the Free-plan LOCK was not. Leads captured
     // past the monthly cap carry sc-locked — the dashboard filters them out,
     // /contacts filters them out, and CSV export is Pro-gated — but this route
@@ -43,6 +50,13 @@ export async function GET(req: NextRequest) {
     company: lead.company,
     email: lead.email,
     phones: lead.phone ? [{ number: lead.phone, label: "mobile" }] : undefined,
+    // Where you met them and your notes — the web "Save to phone" path built
+    // its own vCard and included this, while this route omitted it, so the
+    // same button produced a different contact on different platforms. Web now
+    // uses this route too, so the note has to live here.
+    note: [lead.where_met ? `Met at: ${lead.where_met}` : "", lead.notes ?? ""]
+      .filter(Boolean)
+      .join(" — "),
   });
 
   const slug = lead.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
