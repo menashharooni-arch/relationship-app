@@ -189,7 +189,27 @@ export async function applyReferralOnSignup(
   // signup (same IP/device as the referrer, or high signup volume from one IP)
   // must NOT still grant it, or someone can farm unlimited free Pro months by
   // signing up disposable emails from their own referral link on one device.
-  const grantsFreeMonth = sourceGrantsFreeMonth(source) || (!!referrer && status === "signed_up");
+  // Read the comment above, then the old expression:
+  //
+  //   sourceGrantsFreeMonth(source) || (!!referrer && status === "signed_up")
+  //
+  // The `||` decided it before `status` was ever consulted. `source` is
+  // "referral" for ANY signup carrying a code (line 137), and a flagged one
+  // keeps that source — only a self-referral resets it to "direct". So the
+  // left side was true and short-circuited, and every fraud check below it
+  // (same IP, same device, 3+ signups from one IP) set a status nothing read.
+  // Disposable emails through your own link on your own device each got their
+  // free month: precisely the farming this code was written to stop.
+  //
+  // The left side had a second hole. `source` arrives from a COOKIE
+  // (onboarding/page.tsx reads SRC_COOKIE), so it is client-controlled — and
+  // on its own it granted a month with no referrer, no code and no fraud
+  // check involved at all.
+  //
+  // A free month requires all three: a referrer who actually exists, a clean
+  // fraud status, and the referral source. There is no legitimate free month
+  // without a referrer — the whole point is crediting one.
+  const grantsFreeMonth = !!referrer && status === "signed_up" && sourceGrantsFreeMonth(source);
   const { error: attrErr } = await admin
     .from("profiles")
     .update({

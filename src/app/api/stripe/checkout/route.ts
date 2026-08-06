@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
 
     let couponId: string | undefined;
     let promoFreeDays: number | undefined;
+    // Carried into the Checkout Session metadata so the webhook can mark this
+    // redemption spent once the customer actually completes checkout.
+    let promoRedemptionId: string | null = null;
     if (promoCode) {
       // promo_codes / promo_code_redemptions are service-role only (RLS on, no
       // client policy), so this must not use the caller's session client.
@@ -109,12 +112,23 @@ export async function POST(req: NextRequest) {
         // enough — which is exactly the hole we're closing.
         const { data: redemption } = await admin
           .from("promo_code_redemptions")
-          .select("id")
+          .select("id, consumed_at")
           .eq("code_id", promo!.id as string)
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (redemption) {
+        // consumed_at is the whole point: this used to gate on the row merely
+        // EXISTING, and nothing ever marked it spent. So one redeemed "N days
+        // free" code could be re-applied on every re-subscribe — take the free
+        // days, cancel before the first bill, check out again, forever.
+        // max_uses caps how many people redeem a code, not how many times one
+        // redemption pays out.
+        //
+        // Note the free days also override the first-time-customer trial check
+        // computed further down (Math.max), so a returning customer who should
+        // get no trial at all still got the code's full free period each time.
+        if (redemption && !redemption.consumed_at) {
+          promoRedemptionId = redemption.id as string;
           if (promo!.discount_type === "free_time" && isFreeDays(Number(promo!.free_days))) {
             promoFreeDays = Number(promo!.free_days);
           } else if (promo!.stripe_coupon_id) {
@@ -246,8 +260,14 @@ export async function POST(req: NextRequest) {
       // pinned explicitly so a future Stripe default change can't loosen it.
       payment_method_collection: "always",
       ...(trialDays ? { subscription_data: { trial_period_days: trialDays } } : {}),
-      // Record the seat count so the webhook provisions the office reliably.
-      ...(isOffice ? { metadata: { seats: String(quantity) } } : {}),
+      // Record the seat count so the webhook provisions the office reliably,
+      // and the redemption so it can be marked spent on completion. Consumed
+      // there rather than here on purpose: a customer who opens Checkout and
+      // walks away has had nothing, and must not lose their code for it.
+      metadata: {
+        ...(isOffice ? { seats: String(quantity) } : {}),
+        ...(promoRedemptionId ? { promo_redemption_id: promoRedemptionId } : {}),
+      },
       success_url: `${APP_URL}${successPath}`,
       cancel_url: `${APP_URL}${cancelPath}`,
       // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):

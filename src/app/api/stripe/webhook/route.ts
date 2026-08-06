@@ -178,6 +178,27 @@ export async function POST(req: NextRequest) {
       }
 
       const admin = getAdminSupabase();
+
+      // Spend the promo redemption. Checkout requires an UNCONSUMED row before
+      // it will apply free days, and nothing used to ever consume one — so a
+      // single redeemed code granted its free period again on every
+      // re-subscribe. Stamped here rather than at session creation because this
+      // is the first point the customer has actually received anything; an
+      // abandoned Checkout must not burn their code.
+      //
+      // Deliberately not keyed on invoice payment: the exploit is to cancel
+      // before the first bill, so a code consumed only on a successful invoice
+      // would never be consumed in exactly the case that matters.
+      const redemptionId = session.metadata?.promo_redemption_id;
+      if (redemptionId) {
+        const { error } = await admin
+          .from("promo_code_redemptions")
+          .update({ consumed_at: new Date().toISOString() })
+          .eq("id", redemptionId)
+          .is("consumed_at", null); // idempotent: a redelivered event won't re-stamp
+        if (error) console.error("[stripe] promo redemption consume failed:", error);
+      }
+
       // Guard against double-billing: if this customer already had a DIFFERENT
       // active subscription (e.g. clicked upgrade twice, or switched plans by
       // starting a new Checkout instead of using the billing portal), cancel
