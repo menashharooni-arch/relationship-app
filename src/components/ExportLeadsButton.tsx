@@ -45,7 +45,7 @@ export default function ExportLeadsButton({ username }: { username: string }) {
       <button
         onClick={exportCsv}
         disabled={busy}
-        className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg disabled:opacity-50"
+        className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg disabled:opacity-50 whitespace-nowrap"
       >
         {busy ? "Exporting…" : "Export"}
       </button>

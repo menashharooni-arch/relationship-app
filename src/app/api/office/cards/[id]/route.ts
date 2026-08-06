@@ -6,6 +6,7 @@ import { officeOwnsCard, isOwnersCard } from "@/lib/office-cards";
 import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { writeAudit } from "@/lib/audit";
+import { cardContentChanged } from "@/lib/card-changed";
 
 // The office admin edits an employee's PERSONAL details and can take the card
 // offline. Company-controlled fields (logo/company/website/office contact) and
@@ -58,11 +59,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (!Object.keys(updates).length) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
 
+  // Snapshot BEFORE the write. Two uses: merging customization (below), and
+  // telling afterwards whether anything the card SHOWS actually changed.
+  //
+  // Every ON_CARD_SCALARS column must be listed. A column missing here reads as
+  // undefined and makes an unchanged value look like an edit — the exact false
+  // positive this snapshot exists to prevent. Written out literally because the
+  // typed Supabase client cannot parse an interpolated select; a test asserts
+  // this string stays in sync with ON_CARD_SCALARS.
+  const { data: beforeCard } = await admin
+    .from("cards")
+    .select("username, user_id, customization, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, logo_url")
+    .eq("id", id)
+    .maybeSingle();
+
   // Merge customization onto the card's own existing blob so keys the admin's
   // form doesn't send (bio, links, testimonials, the employee's headshot) aren't
   // wiped. Server-owned "_"-prefixed keys never come from the client.
   if ("customization" in updates) {
-    const { data: existingCard } = await admin.from("cards").select("customization").eq("id", id).maybeSingle();
+    const existingCard = beforeCard;
     const incoming = { ...(updates.customization as Record<string, unknown>) };
     for (const k of Object.keys(incoming)) if (k.startsWith("_")) delete incoming[k];
     let merged: Record<string, unknown> = {
@@ -92,12 +107,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // straight to the audit write, so an admin-side edit — a new company name, a
   // corrected title — left both surfaces showing the OLD card indefinitely.
   // Mirrors api/cards/[id]; best-effort, never blocks the save.
-  const contentChanged = Object.keys(updates).some((k) => k !== "is_offline");
+  // Compared against the pre-write snapshot, exactly as the employee's own save
+  // does (lib/card-changed). This used to be `some(k => k !== "is_offline")` —
+  // "a field was SUBMITTED", not "a value CHANGED" — so an admin opening an
+  // employee's card and pressing Save without touching anything deleted both
+  // cached PNGs and told that employee their card had changed. `label` is an
+  // internal name and is deliberately not an on-card field, so renaming a card
+  // no longer nags either.
+  const contentChanged = !!beforeCard && cardContentChanged(beforeCard as Record<string, unknown>, updates);
   if (contentChanged) {
     try {
-      const { data: edited } = await admin.from("cards").select("username, user_id").eq("id", id).maybeSingle();
-      const uname = edited?.username as string | undefined;
-      const cardOwnerId = edited?.user_id as string | null | undefined;
+      const uname = beforeCard?.username as string | undefined;
+      const cardOwnerId = beforeCard?.user_id as string | null | undefined;
       if (uname) {
         admin.storage.from("card-shares").remove([`${uname}.png`]).then(() => {}, () => {});
         admin.storage.from("card-signatures").remove([`${uname}.png`]).then(() => {}, () => {});

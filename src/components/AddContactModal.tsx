@@ -100,7 +100,11 @@ export default function AddContactModal({
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors"
+        // whitespace-nowrap: in the dashboard's Quick Contacts header this
+        // shares a 375px row with four other items, and "Add contact" was
+        // breaking to two lines INSIDE the button — which doubled its height and
+        // read as an oversized blue block rather than a small action.
+        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap shrink-0"
         style={{ background: "#1D4ED8", color: "#fff" }}
       >
         <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">

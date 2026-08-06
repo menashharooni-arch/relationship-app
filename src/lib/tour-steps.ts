@@ -175,14 +175,20 @@ const STEP_DEFS: TourStepDef[] = [
     //
     // The FREE branch deliberately says nothing about switching: one card means
     // no arrow is rendered at all.
-    body: "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. Free has one; Pro is unlimited.",
+    // "+ Add card" is named only in the paid branches. It renders when
+    // canAddCard is true (isPro || under the free cap), so a Free account at its
+    // one-card limit sees no such control — and a Free account with zero cards
+    // never reaches this box at all. Office counts as paid (isPaidPlan covers
+    // enterprise), so office members do get it. It now sits top-right of the box
+    // on BOTH viewports, which is why this needs no phone/desktop hedge.
+    body: "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right. Free has one; Pro is unlimited.",
     placement: "bottom",
     bodyFor: (ctx) =>
       ctx.tier === "free"
         ? "Your card. Free includes one — upgrade to Pro for unlimited cards."
         : ctx.tier === "office"
-          ? "Your company cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest."
-          : "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. Pro gives you unlimited cards.",
+          ? "Your company cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right."
+          : "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right. Pro gives you unlimited cards.",
   },
   {
     id: "your-card",
@@ -193,20 +199,31 @@ const STEP_DEFS: TourStepDef[] = [
     // out of the dashboard entirely and lives in Settings → Cards and sharing.
     // A tour that names a missing control is worse than no tour, so this now
     // says where the editor actually is.
-    body: "Exactly what people see when you share. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
+    // The control under the card differs by viewport: a phone gets "Scan to
+    // connect (QR)" (hold the code up and they scan it), a desktop keeps the PNG
+    // download. TourContext carries no viewport, so the QR is mentioned as a
+    // phone aside — true there, simply absent on a laptop — the same shape the
+    // my-cards step uses. The PNG isn't named here: on a phone it lives one tap
+    // deeper in "Other ways to share", which the next step covers.
+    body: "Exactly what people see when you share — on a phone, Scan to connect puts a QR on screen for them to point a camera at. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
     placement: "right",
     interactive: true,
     bodyFor: (ctx) =>
       ctx.isOfficeMember
-        ? "Exactly what people see when you share. Your company sets the card's branding — update your own name, title, photo and links in Settings → Cards and sharing."
-        : "Exactly what people see when you share. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
+        ? "Exactly what people see when you share — on a phone, Scan to connect puts a QR on screen for them to point a camera at. Your company sets the card's branding — update your own name, title, photo and links in Settings → Cards and sharing."
+        : "Exactly what people see when you share — on a phone, Scan to connect puts a QR on screen for them to point a camera at. To change the template (Photo First is the most popular), colors, photo or links, head to Settings → Cards and sharing.",
   },
   {
     id: "share",
     path: DASH,
     anchor: "share",
     title: "Share your card",
-    body: "Send it by link, QR, text, or email. Every share can land a new lead in your contacts.",
+    // "Other ways to share" holds the same four things on every viewport — the
+    // link, a card PNG, a QR PNG and NFC — even though the phone and desktop
+    // arrange them differently (the phone shows the two downloads, the desktop
+    // shows the QR picture above its download). Naming the CONTENTS rather than
+    // the layout keeps this true on both without a hedge.
+    body: "Send it by link, QR, text, or email. Other ways to share also has the link, downloads for your card and QR, and NFC. Every share can land a new lead in your contacts.",
     placement: "right",
   },
 
