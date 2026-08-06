@@ -772,11 +772,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setStep(5);
   }
 
-  // Shared with two render sites: the pinned sidebar (desktop, and mobile on
-  // steps 1-2 where it's reordered to the bottom) AND an inline copy dropped
-  // into step 3's own form flow on mobile (see mobilePreviewInline below) —
-  // step 3 needs it positioned mid-form (right above "Choose your design"),
-  // which plain CSS `order` on a sibling can't express.
+  // One definition, three render sites: the pinned DESKTOP sidebar (steps 1-3),
+  // and an inline MOBILE copy in step 1 (below the fax field) and step 2
+  // (between the template picker and the colour controls). Defined once so the
+  // two viewports can never drift apart.
   const livePreview = (
     <>
       <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
@@ -823,6 +822,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     </>
   );
 
+  /**
+   * The MOBILE Swift Links preview — same component, capped to a mini-phone.
+   *
+   * SwiftLinkLivePreview renders the real profile at a 390px phone width and
+   * CardScaler shrinks it to whatever slot holds it, so a full-width slot on a
+   * phone produced ~0.9 scale: a preview nearly as tall as the screen it was
+   * previewing. 220px lands it around 0.56 — a true mini-phone, pixel-identical
+   * to the published page, that a thumb can scroll past. The width cap is the
+   * only change; nothing is clamped or simplified.
+   */
+  const mobileLinkPagePreview = (
+    <div className="w-full max-w-[220px] mx-auto">{linkPagePreview}</div>
+  );
+
   return (
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
@@ -858,8 +871,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </DashboardLink>
         )}
 
-        {/* Steps 1–4: form on the left, a live card preview pinned alongside
-            (right on desktop, top on mobile). Step 5 (success) is full-width. */}
+        {/* Steps 1–4: form on the left, a live preview pinned to the right on
+            DESKTOP. On mobile there is no sidebar — each step renders its own
+            preview inline. Step 5 (success) is full-width. */}
         <div className={step === 5 ? "" : "grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start"}>
         <div className={step === 5 ? "" : "min-w-0 order-2 lg:order-1"}>
 
@@ -1096,6 +1110,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </div>
             )}
 
+            {/* Mobile: the card preview sits at the BOTTOM of this step, right
+                after the last field. It used to be the sidebar copy dropped to
+                order-3, which put it below the "Next" button — past the point
+                anyone was still scrolling. */}
+            <div className="lg:hidden">{livePreview}</div>
+
             {error && <p className="text-red-400 text-sm">{error}</p>}
 
             <button onClick={goNextFrom1} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm mt-2">
@@ -1233,6 +1253,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               )}
             </div>
 
+            {/* Mobile: the SWIFT LINKS preview, not the card one. Everything on
+                this step — bio, socials, extra links — lives on the Swift Links
+                page and NONE of it shows on the card, so the card preview that
+                used to sit at the bottom here was previewing the wrong thing.
+                After the links, so it reflects everything above it. */}
+            <div className="lg:hidden">{mobileLinkPagePreview}</div>
+
             <div className="flex gap-3 mt-2">
               <button onClick={() => setStep(2)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
                 ← Back
@@ -1287,13 +1314,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
-            {/* Mobile: the live card is pinned at the TOP of the design step and
-                stays put (sticky) as you scroll, so every logo / headshot /
-                template / colour change is visible while you make it. Desktop
-                keeps the preview in the right sidebar. */}
-            <div className="lg:hidden sticky top-2 z-20 pt-1 pb-3 bg-gray-950/95 backdrop-blur">
-              <div className="max-w-[280px] mx-auto">{livePreview}</div>
-            </div>
 
             {/* The company logo is org territory for a sub-user — managed tile
                 when the admin has set one, and NO upload either way (a member
@@ -1403,6 +1423,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 ))}
               </div>
 
+              {/* Mobile: the preview sits BETWEEN the template picker and the
+                  colour/font controls — both change what it shows, so it stays
+                  in view whichever one you are touching. It used to be pinned
+                  sticky at the very top of the step, which ate the screen and
+                  left the controls to be scrolled to blind. */}
+              <div className="lg:hidden mt-4">{livePreview}</div>
+
               {/* Restyle the chosen preset — colors & typography (Pro) */}
               {!customSelected && (
                 <div className="mt-4">
@@ -1451,6 +1478,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </p>
             </div>
 
+            {/* Mobile-only inline copy — on desktop the SAME preview replaces
+                the card's Live Preview in the pinned sidebar (see below), so
+                rendering it here too would show it twice.
+                ABOVE the controls, matching the card editor's Social design
+                tab: the page is the thing being styled, so it reads first.
+                Capped to a mini-phone — at full column width it scaled to ~0.9
+                and filled the screen before you could reach a single colour. */}
+            <div className="lg:hidden">{mobileLinkPagePreview}</div>
+
             <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!designUnlocked} />
             {!isPro && !designUnlocked && (
               <PlanGate
@@ -1462,11 +1498,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 </Link>
               </PlanGate>
             )}
-
-            {/* Mobile-only inline copy — on desktop the SAME preview replaces
-                the card's Live Preview in the pinned sidebar (see below), so
-                rendering it here too would show it twice. */}
-            <div className="lg:hidden">{linkPagePreview}</div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {/* Native-only: shown in place of the /upgrade redirect when a Free
@@ -1513,15 +1544,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         )}
         </div>{/* editor column */}
 
-        {/* Pinned preview — alongside on desktop always. Steps 1-3 show the
-            card's Live Preview; step 4 (Social design) REPLACES it with the
-            Swift Links page preview, since that's what's being styled. On
-            mobile: steps 1/3 reorder it to the BOTTOM of the page via `order`;
-            steps 2 and 4 hide this sidebar copy entirely on mobile because
-            those steps render their own inline copy mid-form (plain CSS order
-            can't move a sibling INSIDE the form column). */}
+        {/* Pinned preview — DESKTOP ONLY. Steps 1-3 show the card's Live
+            Preview; step 4 (Social design) REPLACES it with the Swift Links
+            page preview, since that's what is being styled.
+
+            Mobile renders nothing here: every step drops its own preview inline
+            at the point in the form where it belongs, which CSS `order` cannot
+            express — order can reorder a sibling, but never place one INSIDE
+            the form column. */}
         {step !== 5 && (
-          <div className={`${step === 2 || step === 4 ? "hidden lg:block" : "order-3"} lg:order-2 lg:sticky lg:top-6`}>
+          <div className="hidden lg:block lg:order-2 lg:sticky lg:top-6">
             {step === 4 ? linkPagePreview : livePreview}
           </div>
         )}

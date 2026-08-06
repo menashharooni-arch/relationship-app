@@ -2,8 +2,12 @@
 
 // Editing a card is organized into four tabs — Card info, Card design,
 // Socials, Social design — the same four sections (and order) as the new-card
-// wizard, with a live card preview pinned alongside (right on desktop, top on
-// mobile) so every change is visible immediately.
+// wizard, with a live preview so every change is visible immediately.
+//
+// DESKTOP pins that preview in a sticky right-hand column. MOBILE has no such
+// column: each tab renders its own preview inline, at the point in the form
+// where it belongs, and the two Swift Links tabs preview the LINKS PAGE rather
+// than the card — see the block above the return.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -385,9 +389,90 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const saveLabel =
     status === "saving" ? "Saving…" : status === "saved" ? "Saved!" : status === "error" ? "Error — try again" : "Save changes";
 
+  // ── Previews ───────────────────────────────────────────────────────────────
+  //
+  // Defined ONCE and rendered in two places: the pinned right column on desktop,
+  // and inline inside a step on mobile. Extracting them is the point — a phone
+  // and a laptop showing different previews of the same card would be worse than
+  // the layout problem this solves.
+  //
+  // On mobile the preview used to sit above the whole form on every step, which
+  // pushed the actual fields off-screen and showed a card preview even while
+  // editing the Swift Links page. Now each step places its own, next to the
+  // controls that change it.
+  const cardPreviewInner = (
+    // Look-only: the card's own phone/email/links stay clickable on the
+    // PUBLISHED card, but never here — design is changed with the controls, not
+    // by clicking the picture. See InertPreview.
+    <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
+      {/* Scale from the 460px natural width (same as the published card) so a
+          long name/title/company never clips in-preview. */}
+      <CardScaler>
+        <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+      </CardScaler>
+    </InertPreview>
+  );
+
+  const linkPreviewInner = (
+    <SwiftLinkLivePreview
+      style={linkStyleState}
+      name={name || card.username}
+      handle={card.username}
+      company={company}
+      title={title}
+      bio={bio}
+      photoUrl={photoState}
+      // cardLogoUrl is what the save writes to logo_url, so the hero's
+      // headshot → logo → initials fallback previews exactly as it renders.
+      logoUrl={cardLogoUrl}
+      socials={{
+        instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
+        twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
+        youtube: socials.youtube, website,
+      }}
+      links={links}
+      paid={isPro}
+    />
+  );
+
+  /**
+   * Mobile-only inline card preview.
+   *
+   * Full width: a card is a wide, short shape, so it reads fine at the column
+   * width and shrinking it would just make the text unreadable.
+   */
+  const mobileCardPreview = (caption: string) => (
+    <div className="lg:hidden pt-1">
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+      {cardPreviewInner}
+      <p className="text-gray-600 text-[11px] mt-2 leading-snug">{caption}</p>
+    </div>
+  );
+
+  /**
+   * Mobile-only inline Swift Links preview.
+   *
+   * Capped at 220px and centred. SwiftLinkLivePreview renders the REAL profile
+   * at a 390px phone width and CardScaler shrinks it to whatever slot holds it,
+   * so a full-width slot on a phone produced a ~0.9 scale — a preview nearly as
+   * tall as the screen it was being previewed on. 220px lands it around 0.56:
+   * a true mini-phone, pixel-identical to the published page, that a thumb can
+   * scroll past. The cap is the ONLY thing that changes; nothing is clamped or
+   * simplified, so it still looks exactly like the real page.
+   */
+  const mobileLinkPreview = (caption: string) => (
+    <div className="lg:hidden pt-1">
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+        Your Swift Links page
+      </p>
+      <div className="w-full max-w-[220px] mx-auto">{linkPreviewInner}</div>
+      <p className="text-gray-600 text-[11px] mt-2 leading-snug text-center">{caption}</p>
+    </div>
+  );
+
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start">
-      {/* ── EDITOR (left on desktop, below the preview on mobile) ── */}
+      {/* ── EDITOR (left on desktop; the whole page on mobile) ── */}
       <div className="min-w-0 order-2 lg:order-1">
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-900 border border-gray-800 rounded-xl p-1 mb-2">
@@ -573,6 +658,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             )}
 
+            {/* Mobile: the card preview sits at the BOTTOM of this step, after
+                the last field, so the form starts at the top of the screen. */}
+            {mobileCardPreview("Your changes appear here instantly.")}
           </div>
         )}
 
@@ -671,6 +759,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 ))}
               </div>
             </div>
+
+            {/* Mobile: the preview sits BETWEEN the template picker and the
+                colour/font controls — both sides of it change what it shows, so
+                it is visible whichever one you are touching without scrolling. */}
+            {mobileCardPreview("Pick a template above, then restyle it below.")}
 
             {/* Restyle the chosen preset — colors & typography (Pro) */}
             {!customSelected && (
@@ -831,6 +924,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </div>
               )}
             </div>
+
+            {/* Mobile: the SWIFT LINKS preview, not the card one. This step
+                edits the bio, socials and link buttons — none of which appear on
+                the card — so showing a card preview here was previewing the
+                wrong thing. Placed after the links so it reflects everything
+                above it. */}
+            {mobileLinkPreview("Your bio, socials and links appear here.")}
           </div>
         )}
 
@@ -839,6 +939,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             tabs never fight over the same values. ── */}
         {tab === "linkdesign" && (
           <div className="space-y-4">
+            {/* Mobile: stays at the TOP of this step — it is the thing being
+                styled, so it belongs above the controls — but capped to a
+                mini-phone width. At full column width it scaled to ~0.9 and
+                filled the screen before you could reach a single colour. */}
+            {mobileLinkPreview("It updates live as you pick colors and fonts.")}
             <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!isPro} />
             {!isPro && (
               <PlanGate
@@ -850,9 +955,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </Link>
               </PlanGate>
             )}
-            {/* The page preview itself renders in the pinned preview slot (top
-                on mobile / right on desktop) — it REPLACES the card preview on
-                this tab, since the Swift Links page is what's being styled. */}
+            {/* On DESKTOP the page preview renders in the pinned right column,
+                where it REPLACES the card preview on this tab — the Swift Links
+                page is what's being styled. Mobile's copy is at the top of this
+                tab, above the controls. */}
           </div>
         )}
 
@@ -887,34 +993,25 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         </div>
       </div>
 
-      {/* ── LIVE PREVIEW (right on desktop / top on mobile, pinned).
+      {/* ── LIVE PREVIEW — DESKTOP ONLY, pinned to the right.
+          hidden lg:block: on mobile each step renders its own preview inline,
+          beside the controls that change it (see mobileCardPreview /
+          mobileLinkPreview above). This column used to be order-1 on mobile,
+          which put a preview above the entire form on every step.
           On the Social design tab the Swift Links page preview REPLACES the
-          card preview — that's what's being styled there. ── */}
-      <div className="order-1 lg:order-2 lg:sticky lg:top-6">
+          card preview — that's what's being styled there.
+
+          Desktop behaviour is otherwise UNCHANGED, deliberately: the Socials
+          tab still shows the card preview here with its explanatory caption.
+          Swapping it for the Swift Links preview (as mobile now does) would be
+          the better call, but this pass was scoped to the phone. ── */}
+      <div className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-6">
         {tab === "linkdesign" ? (
           <>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
               Your Swift Links page — this is how it will look
             </p>
-            <SwiftLinkLivePreview
-              style={linkStyleState}
-              name={name || card.username}
-              handle={card.username}
-              company={company}
-              title={title}
-              bio={bio}
-              photoUrl={photoState}
-              // cardLogoUrl is what the save writes to logo_url, so the hero's
-              // headshot → logo → initials fallback previews exactly as it renders.
-              logoUrl={cardLogoUrl}
-              socials={{
-                instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
-                twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
-                youtube: socials.youtube, website,
-              }}
-              links={links}
-              paid={isPro}
-            />
+            {linkPreviewInner}
             <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
           </>
         ) : (
@@ -924,18 +1021,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {/* "View live" removed entirely (owner request) — both the header and
                   this preview link are gone from the card editor. */}
             </div>
-            {/* Look-only: the card's own phone/email/links stay clickable on the
-                PUBLISHED card, but never here — design is changed with the controls
-                on the left, not by clicking the picture. See InertPreview. */}
-            <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
-              {/* Scale from the 460px natural width (same as the published card) so a
-                  long name/title/company never clips in-preview. */}
-              <CardScaler>
-                <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
-              </CardScaler>
-            </InertPreview>
+            {cardPreviewInner}
             {tab === "sharing" ? (
-              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title & contact details.</p>
+              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title &amp; contact details.</p>
             ) : (
               <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
             )}
