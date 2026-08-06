@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { receiptEmail, paymentFailedEmail } from "@/lib/email-templates";
+import { receiptEmail, trialStartedEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
@@ -16,12 +16,24 @@ import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessa
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
+// invoiceUrl is Stripe's CUSTOMER-facing hosted invoice link, passed in by the
+// caller. It used to be built here as
+// `https://dashboard.stripe.com/invoices/${invoiceId}` — the MERCHANT dashboard,
+// which lands the customer on a Stripe login or permission wall with no invoice.
+// Every receipt we have ever sent carried that button. The customer-facing URLs
+// are `hosted_invoice_url` / `invoice_pdf` on the Invoice object.
+//
+// trialFirstChargeDate switches this to the trial-start template: a checkout
+// that starts with a free trial or promo free days charges $0.00, and sending
+// "Payment confirmed / processed successfully — $0.00" for that is both wrong
+// and silent about when billing actually begins.
 async function sendReceiptForUser(opts: {
   userId: string;
   planName: string;
   amountCents: number;
   interval: string;
-  invoiceId?: string | null;
+  invoiceUrl?: string | null;
+  trialFirstChargeDate?: string | null;
 }) {
   const admin = getAdminSupabase();
 
@@ -56,21 +68,29 @@ async function sendReceiptForUser(opts: {
   const amount = `$${(opts.amountCents / 100).toFixed(2)}`;
   const invoiceNum = `SC-${Date.now().toString().slice(-8)}`;
 
-  const template = receiptEmail({
-    firstName,
-    email: accountEmail,
-    planName: opts.planName,
-    amount,
-    interval: opts.interval,
-    paymentDate: new Date().toLocaleDateString("en-US", {
-      year: "numeric", month: "long", day: "numeric",
-    }),
-    invoiceNumber: invoiceNum,
-    invoiceUrl: opts.invoiceId
-      ? `https://dashboard.stripe.com/invoices/${opts.invoiceId}`
-      : undefined,
-    manageUrl: `${APP_URL}/settings/flows?billing=1`,
-  });
+  const manageUrl = `${APP_URL}/settings/flows?billing=1`;
+  const template = opts.trialFirstChargeDate
+    ? trialStartedEmail({
+        firstName,
+        planName: opts.planName,
+        amount,
+        interval: opts.interval,
+        firstChargeDate: opts.trialFirstChargeDate,
+        manageUrl,
+      })
+    : receiptEmail({
+        firstName,
+        email: accountEmail,
+        planName: opts.planName,
+        amount,
+        interval: opts.interval,
+        paymentDate: new Date().toLocaleDateString("en-US", {
+          year: "numeric", month: "long", day: "numeric",
+        }),
+        invoiceNumber: invoiceNum,
+        invoiceUrl: opts.invoiceUrl ?? undefined,
+        manageUrl,
+      });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { data: sent } = await resend.emails.send({ ...template, to: accountEmail });
@@ -166,15 +186,42 @@ export async function POST(req: NextRequest) {
         : 1;
 
       // Card fingerprint for referral fraud dedup (same card on two accounts).
+      // The same retrieve also answers the receipt's two questions: is this a
+      // trial (so the $0.00 "Payment confirmed" receipt is the wrong email),
+      // and if so, what is the recurring amount and the first charge date.
       let paymentFingerprint: string | null = null;
+      let trialFirstChargeDate: string | null = null;
+      let recurringCents: number | null = null;
       try {
         if (session.subscription) {
           const sub = await getStripe().subscriptions.retrieve(session.subscription as string, { expand: ["default_payment_method"] });
           const pm = sub.default_payment_method as Stripe.PaymentMethod | null;
           paymentFingerprint = pm?.card?.fingerprint ?? null;
+          // trial_end is the moment billing starts. Also treat a $0.00 total
+          // as a trial even if trial_end is somehow absent — a "receipt" for
+          // nothing is never the right email.
+          const trialEnd = sub.trial_end ?? null;
+          if (trialEnd || (session.amount_total ?? 0) === 0) {
+            trialFirstChargeDate = trialEnd
+              ? new Date(trialEnd * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+              : "when your free period ends";
+          }
+          recurringCents = sub.items?.data?.[0]?.price?.unit_amount ?? null;
         }
       } catch (e) {
-        console.error("[stripe] payment fingerprint fetch failed:", e);
+        console.error("[stripe] subscription fetch failed:", e);
+      }
+
+      // The customer-facing invoice link. Absent on a $0.00 trial checkout,
+      // which is fine — the trial email doesn't show an invoice button.
+      let invoiceUrl: string | null = null;
+      try {
+        if (session.invoice) {
+          const inv = await getStripe().invoices.retrieve(session.invoice as string);
+          invoiceUrl = inv.hosted_invoice_url ?? inv.invoice_pdf ?? null;
+        }
+      } catch (e) {
+        console.error("[stripe] invoice fetch failed:", e);
       }
 
       const admin = getAdminSupabase();
@@ -251,9 +298,15 @@ export async function POST(req: NextRequest) {
         await sendReceiptForUser({
           userId,
           planName: plan.charAt(0).toUpperCase() + plan.slice(1),
-          amountCents: session.amount_total ?? 0,
+          // On a trial the session total is $0.00, and showing that as the
+          // price tells the customer nothing about what they'll pay. The
+          // trial email needs the RECURRING amount ("then $X monthly").
+          amountCents: trialFirstChargeDate
+            ? (recurringCents ?? session.amount_total ?? 0)
+            : (session.amount_total ?? 0),
           interval: mapped?.interval === "annual" ? "Annual" : "Monthly",
-          invoiceId: session.invoice as string | null,
+          invoiceUrl,
+          trialFirstChargeDate,
         });
       } catch (e) {
         console.error("Receipt email error:", e);
@@ -299,14 +352,25 @@ export async function POST(req: NextRequest) {
       // Skip the very first invoice — checkout.session.completed sends that receipt.
       if (invoice.billing_reason === "subscription_cycle" && profile?.id) {
         try {
-          const renewalPriceId = (invoice as unknown as { lines?: { data?: Array<{ price?: { id?: string } }> } }).lines?.data?.[0]?.price?.id;
+          // Same `as unknown as` schema drift as current_period_end: the
+          // top-level `price` on an invoice line no longer exists, so this
+          // read was always undefined, planFromPriceId always returned null,
+          // and the interval always fell through to "Monthly renewal" —
+          // including on every annual Pro and annual Office renewal. The id
+          // now lives at pricing.price_details.price (verified in the
+          // installed SDK's InvoiceLineItems.d.ts).
+          const line = invoice.lines?.data?.[0];
+          const priceDetail = line?.pricing?.price_details?.price;
+          const renewalPriceId = typeof priceDetail === "string" ? priceDetail : priceDetail?.id;
           const renewalInterval = planFromPriceId(renewalPriceId)?.interval === "annual" ? "Annual renewal" : "Monthly renewal";
           await sendReceiptForUser({
             userId: profile.id,
             planName: (profile.plan as string ?? "Pro").charAt(0).toUpperCase() + (profile.plan as string ?? "pro").slice(1),
             amountCents: invoice.amount_paid,
             interval: renewalInterval,
-            invoiceId: invoice.id,
+            // The renewal handler already HAS the invoice object, so the
+            // customer-facing link is right here — no extra fetch.
+            invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
           });
         } catch (e) {
           console.error("Renewal receipt error:", e);
