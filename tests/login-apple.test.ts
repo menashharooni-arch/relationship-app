@@ -38,8 +38,12 @@ describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
     expect(src).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo, mode\)/);
     expect(src).toMatch(/setErrorMsg/);
   });
-  it("the button is rendered only when native", () => {
-    expect(src).toMatch(/\{native && \(/);
+  it("the button is rendered only when native — and only when Apple actually works", () => {
+    // Was `{native && (`. Still native-gated, now also gated on the provider
+    // being enabled: it rendered while Supabase's Apple provider was off, so
+    // every tap failed with an error toast next to a working Google button.
+    // See tests/admin-downgrade-cascade.test.ts for the availability gate.
+    expect(src).toMatch(/\{native && APPLE_SIGNIN_ENABLED && \(/);
     expect(src).toContain("Continue with Apple");
   });
 });
