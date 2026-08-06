@@ -388,6 +388,14 @@ export async function POST(req: NextRequest) {
   // either path lands on customer.subscription.deleted, which downgrades.
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object as Stripe.Invoice;
+    // Only a failed RENEWAL arms the 7-day cancellation fuse. This used to
+    // stamp _paymentFailedAt for any failed invoice on the customer — a
+    // one-off charge, a proration, a manual invoice — so a customer who is
+    // current and paying could be put on a 7-day countdown to having their
+    // subscription cancelled (and, for an Office owner, their whole team
+    // downgraded). The sweep re-checks the live subscription status now too;
+    // this stops the wrong ones being armed in the first place.
+    const isCycleInvoice = invoice.billing_reason === "subscription_cycle";
     if (invoice.customer) {
       try {
         await sendPaymentFailedEmail({
@@ -407,8 +415,11 @@ export async function POST(req: NextRequest) {
         if (profile?.id) {
           const cust = (profile.customization ?? {}) as Record<string, unknown>;
           // Only set on the FIRST failure for this billing cycle — a later retry
-          // failing again must not push the deadline back out.
-          if (!cust._paymentFailedAt) {
+          // failing again must not push the deadline back out. And only for a
+          // RENEWAL: a failed one-off or proration invoice is not a lapsed
+          // subscription, and arming the fuse for one put a current customer
+          // seven days from cancellation.
+          if (isCycleInvoice && !cust._paymentFailedAt) {
             await admin.from("profiles").update({
               customization: { ...cust, _paymentFailedAt: new Date().toISOString() },
             }).eq("id", profile.id);
