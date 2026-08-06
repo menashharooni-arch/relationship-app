@@ -400,27 +400,45 @@ export default async function CardPage({
               <SectionNumber n={3} />
               <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
             </div>
-            {/* Small, light jump to this card's full Swift Links page */}
+            {/* A warm ghost chip, not a footnote. "Go to Swift Links →" at
+                text-slate-400 sat next to a heading that already says Swift
+                Links — word noise at legal-disclaimer weight. Deliberately NOT
+                blue-50: a cool tint fights the cream page. */}
             <a
               href={`/links/${profile.username}`}
-              className="shrink-0 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors px-1 py-1"
+              className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#EDE7DE] hover:text-slate-700 transition-colors"
+              style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}
             >
-              Go to Swift Links →
+              View all →
             </a>
           </div>
+          {/* ml-9 STAYS: it is this page's convention for copy under a numbered
+              badge (sections 1 and 2 both use it), so breaking it here alone
+              would read as a bug. The full-width rule beneath is what fixes the
+              ragged edge — indented text above a full-width rule reads as
+              intentional, and it separates "who this is" from "where to go". */}
           {bio && (
-            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap mb-4 ml-9">{bio}</p>
+            <p className="text-slate-600 text-[13px] leading-[1.6] whitespace-pre-wrap [text-wrap:pretty] ml-9">{bio}</p>
           )}
-          {/* Social links with intercept modal */}
+          {bio && (connectLinks.length > 0 || actionLinks.length > 0) && (
+            <div className="h-px bg-[#EFE9E1] my-4" />
+          )}
+          {/* Social links with intercept modal — unchanged mechanic, new layout. */}
           {connectLinks.length > 0 && (
             <SocialLinkIntercept
               links={connectLinks}
               cardOwner={profile.username}
               ownerFirstName={firstName}
+              variant="rail"
             />
           )}
-          {/* Custom action links (link-in-bio style) */}
-          <CardActionLinks links={actionLinks} spaced={connectLinks.length > 0} />
+          {connectLinks.length > 0 && actionLinks.length > 0 && (
+            <div className="h-px bg-[#EFE9E1] my-4" />
+          )}
+          {/* Custom action links: one hairline-ruled table, every row equal.
+              Nothing here reads the card's accent — the section is deliberately
+              free of saturated blocks. */}
+          <CardActionLinks links={actionLinks} />
         </div>
       )}
 

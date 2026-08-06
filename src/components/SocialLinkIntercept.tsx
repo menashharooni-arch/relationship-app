@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { hasSharedWith, markSharedWith, getVisitorInfo } from "@/lib/visitor";
+import LinkMark from "@/components/LinkMark";
+import { brandBackground, hostLabel } from "@/lib/link-brand";
+// The SHARED icon — it accepts a className. The file-local PlatformIcon below
+// hardcodes w-4 h-4 and silently ignores className, which would ship 40px discs
+// with 16px glyphs. The local one stays, unchanged, for the "bars" variant.
+import SharedPlatformIcon from "@/components/PlatformIcon";
 
 export type SocialLinkData = {
   label: string;
@@ -70,10 +76,18 @@ export default function SocialLinkIntercept({
   links,
   cardOwner,
   ownerFirstName,
+  variant = "bars",
 }: {
   links: SocialLinkData[];
   cardOwner: string;
   ownerFirstName: string;
+  /**
+   * "bars" (default) is the original stacked full-width list. The default is
+   * load-bearing: three marketing mockups render this component inside a narrow
+   * phone frame (site/LeadCapturePhone, site/SignatureDemo, site/TemplateGallery)
+   * and must stay byte-identical. Only the public card page opts into "rail".
+   */
+  variant?: "bars" | "rail";
 }) {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [pendingLabel, setPendingLabel] = useState<string>("");
@@ -173,32 +187,155 @@ export default function SocialLinkIntercept({
     </svg>
   );
 
-  return (
-    <>
-      <div className="flex flex-col gap-2">
-        {links.map((s) => (
-          <a
-            key={s.label}
-            href={s.href}
-            target={alreadyShared ? "_blank" : undefined}
-            rel="noopener noreferrer"
-            onClick={(e) => handleClick(s, e)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm hover:opacity-90 active:scale-[0.98]"
+  // ── The original stacked bars. Untouched — still the default, still what the
+  //    three marketing mockups render. ──────────────────────────────────────
+  const barsList = (
+    <div className="flex flex-col gap-2">
+      {links.map((s) => (
+        <a
+          key={s.label}
+          href={s.href}
+          target={alreadyShared ? "_blank" : undefined}
+          rel="noopener noreferrer"
+          onClick={(e) => handleClick(s, e)}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm hover:opacity-90 active:scale-[0.98]"
+          style={{
+            background: s.color + "12",
+            color: s.textColor ?? s.color,
+            border: `1px solid ${s.color}22`,
+          }}
+        >
+          <PlatformIcon label={s.label} />
+          <span className="flex flex-col leading-tight min-w-0 flex-1">
+            <span>{s.label}</span>
+            {s.sub && <span className="text-[11px] font-normal opacity-70 truncate">{s.sub}</span>}
+          </span>
+          {arrowIcon}
+        </a>
+      ))}
+    </div>
+  );
+
+  // ── The card page's rail. Website on its own line, socials as brand discs. ──
+  //
+  // Every branch below is still an <a> carrying the SAME href / target /
+  // onClick={handleClick} as the bars above. The intercept, the sheet, and the
+  // alreadyShared switch are shared by all of them — never a <button>, because
+  // alreadyShared relies on native navigation.
+  const website = links.find((s) => s.label === "Website");
+  const socials = links.filter((s) => s.label !== "Website");
+  const chevron = (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
+      <path d="M7.7 4.3a1 1 0 000 1.4L12 10l-4.3 4.3a1 1 0 101.4 1.4l5-5a1 1 0 000-1.4l-5-5a1 1 0 00-1.4 0z" />
+    </svg>
+  );
+  // A lone social with no website must not be a single disc floating mid-card.
+  const soloSocialRow = !website && socials.length === 1;
+
+  const railList = (
+    <div className="flex flex-col gap-2.5">
+      {website && (
+        <a
+          href={website.href}
+          target={alreadyShared ? "_blank" : undefined}
+          rel="noopener noreferrer"
+          onClick={(e) => handleClick(website, e)}
+          className={
+            // No accent-filled variant here either: with the action links now
+            // uniform (owner call), a saturated website plate would be the only
+            // shouting object in the section. It is the same quiet white row or
+            // capsule in every case.
+            socials.length === 0
+              ? "group flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
+              // self-start, not just inline-flex: this sits in a flex COLUMN,
+              // whose default align-items:stretch would blow the capsule out to
+              // full width and leave it looking like an empty bar. It is meant
+              // to hug its domain.
+              : "group inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
+          }
+          style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}
+        >
+          <span
+            className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden"
+            style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}
+          >
+            <LinkMark url={website.href} size={14} />
+          </span>
+          <span className="truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]">
+            {hostLabel(website.href)}
+          </span>
+          {socials.length === 0 && (
+            <span className="ms-auto text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#8A7E6E] group-hover:translate-x-0.5">
+              {chevron}
+            </span>
+          )}
+        </a>
+      )}
+
+      {soloSocialRow ? (
+        <a
+          href={socials[0].href}
+          target={alreadyShared ? "_blank" : undefined}
+          rel="noopener noreferrer"
+          onClick={(e) => handleClick(socials[0], e)}
+          className="flex items-center gap-3 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors active:bg-[#FBF9F6]"
+          style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}
+        >
+          <span
+            className="shrink-0 w-8 h-8 rounded-[10px] grid place-items-center"
             style={{
-              background: s.color + "12",
-              color: s.textColor ?? s.color,
-              border: `1px solid ${s.color}22`,
+              background: brandBackground(socials[0].label, socials[0].color),
+              color: socials[0].textColor ?? "#fff",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(15,23,42,0.06)",
             }}
           >
-            <PlatformIcon label={s.label} />
-            <span className="flex flex-col leading-tight min-w-0 flex-1">
-              <span>{s.label}</span>
-              {s.sub && <span className="text-[11px] font-normal opacity-70 truncate">{s.sub}</span>}
-            </span>
-            {arrowIcon}
-          </a>
-        ))}
-      </div>
+            <SharedPlatformIcon label={socials[0].label} className="w-4 h-4 shrink-0" />
+          </span>
+          <span className="min-w-0 flex-1 flex flex-col">
+            <span className="text-[14px] font-semibold text-slate-900 leading-tight">{socials[0].label}</span>
+            {socials[0].sub && <span className="text-[11px] text-slate-500 truncate">{socials[0].sub}</span>}
+          </span>
+          <span className="text-[#C9BFB2]">{chevron}</span>
+        </a>
+      ) : (
+        socials.length > 0 && (
+          // 40px at gap-1.5 → 7 discs fit one 318px row (7x40 + 6x6 = 316).
+          // Left-aligned, not centred: a centred floating row is the linktree tell.
+          <div className="flex flex-wrap items-center gap-1.5">
+            {socials.map((s) => (
+              <a
+                key={s.label}
+                href={s.href}
+                target={alreadyShared ? "_blank" : undefined}
+                rel="noopener noreferrer"
+                onClick={(e) => handleClick(s, e)}
+                aria-label={s.sub ? `${s.label} — ${s.sub}` : s.label}
+                title={s.sub}
+                // after:-inset-1 grows the hit area to 48px without moving the disc.
+                className="relative w-10 h-10 rounded-full grid place-items-center transition-transform duration-150 active:scale-95 after:content-[''] after:absolute after:-inset-1 after:rounded-full"
+                style={{
+                  background: brandBackground(s.label, s.color),
+                  // The DISC is the brand colour now, so the glyph goes white —
+                  // the old default was `?? s.color`, which was right for a tinted
+                  // bar and invisible on a saturated one. Snapchat keeps its own
+                  // dark textColor, which is what makes it readable on #FFCA28.
+                  color: s.textColor ?? "#fff",
+                  boxShadow:
+                    "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.14)",
+                }}
+              >
+                <SharedPlatformIcon label={s.label} className="w-[18px] h-[18px] shrink-0" />
+              </a>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {variant === "rail" ? railList : barsList}
 
       {pendingHref && (
         <div

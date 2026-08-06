@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
+import { brandBackground } from "@/lib/link-brand";
 
 export type BrandSocial = { label: string; href: string; color?: string; textColor?: string };
 
 // Official-feeling brand backgrounds for the icon tiles (link.me style).
 // Instagram gets its signature gradient; the rest use the platform color.
-function brandBackground(label: string, color?: string): string {
-  if (label === "Instagram") {
-    return "radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)";
-  }
-  return color || "rgba(255,255,255,0.1)";
-}
+// Moved to lib/link-brand so the card page's disc rail renders the identical
+// Instagram gradient. Behaviour here is unchanged.
 
 // Build a native-app deep link from the web profile URL, when the app supports one.
 // Returns null for platforms without a reliable scheme (we just use the web URL).
