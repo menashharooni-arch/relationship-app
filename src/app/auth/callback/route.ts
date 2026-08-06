@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { reportError } from "@/lib/report-error";
+import { safeNextPath } from "@/lib/safe-next";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -44,8 +45,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/login?error=oauth", origin));
     }
 
-    // Only honour a same-origin relative redirect (no open-redirect to other sites).
-    const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+    // Only honour a same-origin relative redirect (no open-redirect to other
+    // sites). Shared guard — the hand-written version here let "/\evil.com"
+    // through, and new URL() below resolves that to https://evil.com/.
+    const safeNext = safeNextPath(next);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
