@@ -5,30 +5,22 @@ import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
 import CopyButton from "@/components/CopyButton";
 import NFCWriter from "@/components/NFCWriter";
+import DownloadCardButton from "@/components/DownloadCardButton";
+import { useCardCapture } from "@/components/CardCaptureContext";
+import { qrScanUrl } from "@/lib/share-source";
 
-// The QR image and the printable QR download encode where the visit came FROM.
-// They previously used the bare card URL, so every scan of a QR you showed,
-// downloaded or printed was recorded as "direct_link" and displayed in Traffic
-// as "Card link" — meaning the QR number could only ever read zero no matter how
-// many people scanned it. "qr_code" is the canonical value in lib/source-labels
-// ("QR code scan") and is exactly what the visitor-facing QR modal on the card
-// page already encodes. Appends safely if the URL ever gains a query string.
-//
-// Nothing visible changes: QRCard deliberately does not render the URL text, and
-// the CARD LINK field above keeps the plain URL for copying.
-//
-// NFC is left on the plain URL on purpose. It has the identical attribution gap
-// (taps also record as "direct_link"), but NFCWriter DISPLAYS its url in the
-// "or write it yourself" line, so tagging it would put a visible
-// "?source=nfc_card" in front of users — a UI change, not a silent fix. Worth
-// doing as its own deliberate decision.
-function withSource(u: string, source: string): string {
-  return `${u}${u.includes("?") ? "&" : "?"}source=${source}`;
-}
+// Traffic attribution for everything QR in here lives in lib/share-source —
+// three surfaces now render a QR of the same card and they must agree, or the
+// QR number in Traffic reads zero again. QRCard deliberately shows no URL text,
+// and the CARD LINK field below keeps the plain URL for copying.
 
 export default function MoreShareOptions({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
-  const qrUrl = withSource(url, "qr_code");
+  const qrUrl = qrScanUrl(url);
+  // null unless a card registered a capturable node next to us. /preview also
+  // renders this modal and draws its card in an <iframe>, so there is nothing
+  // to rasterize there — it keeps the QR image at every width instead.
+  const capture = useCardCapture();
 
   return (
     <>
@@ -62,12 +54,45 @@ export default function MoreShareOptions({ url }: { url: string }) {
               <CopyButton text={url} />
             </div>
 
-            {/* QR code */}
-            <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
-            <QRCard url={qrUrl} />
-            <div className="mt-3">
-              <QRDownloadButton url={qrUrl} compact />
-            </div>
+            {/* MOBILE (with a capturable card): two saves, no QR picture.
+                The QR image moved to its own popup under the card — showing it
+                here as well would be the same picture twice on one phone
+                screen. Order matches the Your Card box: card first, then QR.
+
+                DESKTOP, and anywhere without a capturable card, is untouched:
+                label, QR image, then its download.
+
+                lg:, not sm: — the dashboard's card panel changes position at lg,
+                and these controls belong to that panel. */}
+            {capture ? (
+              <>
+                <div className="lg:hidden space-y-2">
+                  <DownloadCardButton
+                    cardRef={capture.cardRef}
+                    filename={capture.filename}
+                    shareUrl={capture.shareUrl}
+                    compact
+                    label="Download card (PNG)"
+                  />
+                  <QRDownloadButton url={qrUrl} compact />
+                </div>
+                <div className="hidden lg:block">
+                  <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
+                  <QRCard url={qrUrl} />
+                  <div className="mt-3">
+                    <QRDownloadButton url={qrUrl} compact />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
+                <QRCard url={qrUrl} />
+                <div className="mt-3">
+                  <QRDownloadButton url={qrUrl} compact />
+                </div>
+              </>
+            )}
 
             {/* NFC card / tag — program a physical tag so a tap opens this
                 card. Writes directly on Android Chrome; everywhere else the

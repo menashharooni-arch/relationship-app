@@ -12,6 +12,7 @@ import ExportLeadsButton from "@/components/ExportLeadsButton";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
+import { CardCaptureProvider } from "@/components/CardCaptureContext";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import UpgradeButton from "@/components/UpgradeButton";
@@ -537,8 +538,15 @@ export default async function DashboardPage({
 
   // Your Card + Share + other ways to share — rendered under My Cards on mobile,
   // and in the sticky right column on desktop.
+  // CardCaptureProvider lets the Share box offer a PNG of the card that lives
+  // in the Your Card box. It wraps the PANEL, not the page, on purpose: this
+  // whole fragment renders TWICE (lg:hidden under My Cards, hidden lg:flex in
+  // the right column) and both copies are always in the DOM with one
+  // display:none. A single page-level provider would let whichever card
+  // registered last win, and rasterizing a display:none node yields a blank
+  // PNG. Per-copy providers mean a modal always captures the card beside it.
   const cardSharePanel = (
-    <>
+    <CardCaptureProvider>
       {/* Your card */}
       <div data-tour="your-card" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5">
         {/* Editing lives in Settings → Cards and sharing, and only there. This
@@ -579,7 +587,7 @@ export default async function DashboardPage({
         />
         <MoreShareOptions url={cardUrl} />
       </div>
-    </>
+    </CardCaptureProvider>
   );
 
   return (

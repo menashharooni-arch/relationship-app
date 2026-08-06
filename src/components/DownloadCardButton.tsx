@@ -10,6 +10,10 @@ interface Props {
   /** Public card URL — on native, sharing this replaces the PNG download that
       WKWebView can't save. */
   shareUrl?: string;
+  /** Overrides the idle label. Compact defaults to a bare "Download", which is
+      ambiguous where it sits next to "Download QR (PNG)" in the share modal.
+      Never overrides the working/error states — those must stay readable. */
+  label?: string;
 }
 
 // Inline every <img> src as a data URL before capturing — html-to-image
@@ -45,7 +49,7 @@ async function inlineImages(el: HTMLElement): Promise<void> {
   }));
 }
 
-export default function DownloadCardButton({ cardRef, filename = "swiftcard.png", compact = false, shareUrl }: Props) {
+export default function DownloadCardButton({ cardRef, filename = "swiftcard.png", compact = false, shareUrl, label: labelOverride }: Props) {
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const loading = status === "working";
 
@@ -114,7 +118,8 @@ export default function DownloadCardButton({ cardRef, filename = "swiftcard.png"
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   );
-  const label = loading ? "Saving…" : status === "error" ? "Couldn't save — retry" : compact ? "Download" : "Download card as image";
+  const idleLabel = labelOverride ?? (compact ? "Download" : "Download card as image");
+  const label = loading ? "Saving…" : status === "error" ? "Couldn't save — retry" : idleLabel;
 
   // w-full, NOT flex-1. This button used to sit in a `flex` row beside a
   // "Preview" link, so flex-1 sized it. The Preview link was removed and the row
