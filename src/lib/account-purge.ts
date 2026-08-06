@@ -113,6 +113,34 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
     await safeDelete(() => admin.storage.from("card-signatures").remove(objects));
   }
 
+  // card-uploads is the third public bucket and it was never cleaned. It holds
+  // the ORIGINALS — every headshot and company logo the user ever uploaded,
+  // plus the LinkedIn and photo-suggest imports — each written to
+  // `<user-id>/<field>-<timestamp>.<ext>` by /api/upload, /api/drafts/claim,
+  // /api/photo-suggest and /api/integrations/linkedin.
+  //
+  // Deleting the auth user does not touch storage, so without this the person's
+  // FACE stayed downloadable at a public URL forever, after we told them their
+  // data was "gone for good". That is the deletion promise in the Privacy
+  // Policy and the delete dialog, and Apple §5.1.1(v) besides.
+  //
+  // Every writer uses upsert with a timestamped filename, so a long-lived
+  // account accumulates far more than one object per field — well past the 100
+  // that a single list() returns. Drain instead of paging: each pass removes
+  // what it just listed, so the next list from the top returns the next batch.
+  // The pass cap is a safety stop, not the expected exit — if a remove ever
+  // fails silently, this ends rather than spinning forever.
+  await safeDelete(async () => {
+    for (let pass = 0; pass < 100; pass++) {
+      const { data: files } = await admin.storage.from("card-uploads").list(userId, { limit: 100 });
+      if (!files?.length) return;
+      const { error } = await admin.storage
+        .from("card-uploads")
+        .remove(files.map((f) => `${userId}/${f.name}`));
+      if (error) return;
+    }
+  });
+
   // Cards, then the profile row, then the auth identity.
   await safeDelete(() => admin.from("cards").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("profiles").delete().eq("id", userId));
