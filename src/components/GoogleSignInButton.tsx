@@ -41,7 +41,10 @@ type Props = {
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-type Phase = "loading" | "ready" | "authenticating" | "error";
+// "unavailable" = we deliberately are not rendering a Google button here (the
+// native shell, which uses its own system-browser flow). A terminal state, so
+// the component can't sit on "loading" forever.
+type Phase = "loading" | "ready" | "authenticating" | "error" | "unavailable";
 
 export default function GoogleSignInButton({ redirectTo, className, oneTap = false, intent }: Props) {
   const btnRef = useRef<HTMLDivElement>(null);
@@ -67,7 +70,19 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
     // shell, even if this briefly mounts before useIsNativeApp() flips in the
     // parent (detectNativeApp() reads window.Capacitor and is accurate
     // immediately on the client). Native keeps its own Google flow.
-    if (detectNativeApp()) return;
+    // Set a TERMINAL phase before bailing. This used to `return` with the
+    // phase still on its initial "loading", so the component sat on the
+    // "Loading Google…" pill forever. LoginForm swaps this component out on
+    // native so it never showed there — but the office invite page
+    // (JoinSignIn) renders it directly, which meant an invitee opening a team
+    // invite in the shell got a dead control that never resolved, no Apple
+    // option, and only the email-link fallback with no hint that it was the
+    // one that worked. Rendering nothing is honest: native has its own Google
+    // flow, and this component is not it.
+    if (detectNativeApp()) {
+      if (!cancelled) setPhase("unavailable");
+      return;
+    }
 
     // Missing client ID is already reflected in the initial phase above.
     if (!CLIENT_ID) return;
