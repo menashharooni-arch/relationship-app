@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isOfficePlan } from "@/lib/plan";
 
 // ── Office roles & capabilities (spec §6/§7) ─────────────────────────────────
 // Secure, SERVER-SIDE authorization. The office OWNER (offices.owner_id) is
@@ -108,7 +109,31 @@ export async function resolveBillingSubjectId(userId: string): Promise<string> {
 export async function requireOfficeCapability(userId: string, cap: Capability): Promise<OfficeContext | null> {
   const ctx = await resolveOfficeContext(userId);
   if (!ctx) return null;
-  return roleHasCapability(ctx.role, cap) ? ctx : null;
+  if (!roleHasCapability(ctx.role, cap)) return null;
+
+  // The office OWNER must still be on a paid Office plan. Only /brand and
+  // /invite checked this; role resolution never looked at profiles.plan at
+  // all, so every other office route ran on membership alone. An owner whose
+  // Office plan had lapsed — cancelled, admin-downgraded, or an expired free
+  // month — kept editing and taking offline every employee's live card,
+  // changing roles, removing members, exporting org analytics and reading the
+  // whole team's lead PII. For free, indefinitely.
+  //
+  // Checked here so the gate is inherited rather than remembered: a new office
+  // route gets it by calling this, which is what the two routes that had it
+  // were relying on developers to notice.
+  //
+  // The offices row outlives the subscription on purpose (so re-subscribing
+  // restores the team), which is exactly why membership can't be the test.
+  const admin = getAdminSupabase();
+  const { data: ownerProfile } = await admin
+    .from("profiles")
+    .select("plan")
+    .eq("id", ctx.ownerId)
+    .maybeSingle();
+  if (!isOfficePlan(ownerProfile?.plan as string | null)) return null;
+
+  return ctx;
 }
 
 // An office SUB-USER is an ACTIVE member of someone else's office (any member
