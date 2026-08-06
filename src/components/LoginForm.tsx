@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { safeNextPath } from "@/lib/safe-next";
 
 // Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
 // Origin-based redirects break sign-in if the form is ever loaded on a Vercel
@@ -79,7 +80,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
     }
     // Carry a same-origin `next` (e.g. the guest editor) through the OAuth
     // round-trip so the callback can return the user to where they left off.
-    const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+    const safeNext = safeNextPath(redirectTo);
     const callback = safeNext
       ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
       : `${APP_URL}/auth/callback`;
@@ -132,7 +133,9 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         }
         setStatus("error");
       } else {
-        window.location.href = redirectTo ?? "/dashboard";
+        // safeNextPath, NOT the raw redirectTo — `next` is attacker-controlled
+        // (see the helper). This line was the one place the guard was missed.
+        window.location.href = safeNextPath(redirectTo) ?? "/dashboard";
       }
     } else {
       await clearExistingSession();
@@ -142,7 +145,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
       // /auth/callback with no `next` once they click the emailed link, so
       // e.g. an invited employee never returns to /join/<token> to accept
       // (auth audit — the invite was silently dropped).
-      const safeNext = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+      const safeNext = safeNextPath(redirectTo);
       const emailRedirectTo = safeNext
         ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
         : `${APP_URL}/auth/callback`;
