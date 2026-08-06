@@ -58,14 +58,26 @@ export async function ensureReferralCode(userId: string): Promise<string | null>
 // (unless they convert to a paid Stripe subscription before then).
 async function grantAppFreeMonths(userId: string, months: number, extend: boolean): Promise<void> {
   const admin = getAdminSupabase();
+  const { data: p } = await admin
+    .from("profiles")
+    .select("plan, plan_expires_at")
+    .eq("id", userId)
+    .maybeSingle();
+
   let baseMs = Date.now();
   if (extend) {
-    const { data: p } = await admin.from("profiles").select("plan_expires_at").eq("id", userId).maybeSingle();
     const cur = p?.plan_expires_at ? new Date(p.plan_expires_at as string).getTime() : 0;
     if (cur > baseMs) baseMs = cur;
   }
   const expires = new Date(baseMs + freeMonthDays(months) * 86400000).toISOString();
-  await admin.from("profiles").update({ plan: "pro", plan_expires_at: expires }).eq("id", userId);
+
+  // NEVER write a plan DOWN. This wrote `plan: "pro"` unconditionally, so an
+  // enterprise (Office) owner claiming a referral month was demoted to Pro by
+  // the very act of collecting their reward — losing Office access, and their
+  // team with it. A grant is a gift; it can only ever be at least what they
+  // already had.
+  const plan = p?.plan === "enterprise" ? "enterprise" : "pro";
+  await admin.from("profiles").update({ plan, plan_expires_at: expires }).eq("id", userId);
 }
 
 // Reverse trial: every NEW signup starts on full Pro for TRIAL_DAYS days, then
@@ -119,8 +131,21 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
         return;
       }
     } catch (e) {
-      console.error("[referral] Stripe credit failed, falling back to app grant:", e);
+      // REFUSE rather than fall through. For someone who is actively paying,
+      // an app-level grant is worth nothing: plan_expires_at on a real
+      // subscriber changes no access they don't already have, so the month
+      // silently evaporated while the three referral rows were already
+      // consumed. Throwing surfaces it to the caller, which leaves the reward
+      // unclaimed and claimable again — the only outcome that doesn't quietly
+      // take something from them.
+      console.error("[referral] Stripe credit failed for a paying subscriber:", e);
+      throw new Error("referral_credit_failed");
     }
+  }
+  if (payingNow) {
+    // Paying, but no Stripe customer id, or the price came back at zero. Same
+    // reasoning as the catch above: an app grant would be a no-op reward.
+    throw new Error("referral_credit_unavailable");
   }
   await grantAppFreeMonths(userId, months, true);
 }
@@ -361,7 +386,29 @@ export async function claimReferralReward(
     return { ok: false, error: "That claim was already processed — refresh to see your updated plan." };
   }
 
-  await grantReferrerReward(userId, REFERRAL.REFERRER_FREE_MONTHS);
+  // The rows above are already consumed, so a failure here has to put them
+  // back — otherwise the referrer pays for our outage with their reward. This
+  // is the same release the concurrent-claim branch does a few lines up.
+  //
+  // grantReferrerReward now THROWS for a paying subscriber whose Stripe credit
+  // could not be applied, rather than falling through to an app-level grant
+  // that would be worth nothing to them (plan_expires_at changes no access a
+  // real subscriber doesn't already have). Rolling back leaves the month
+  // claimable again, which is the honest outcome.
+  try {
+    await grantReferrerReward(userId, REFERRAL.REFERRER_FREE_MONTHS);
+  } catch (e) {
+    await admin
+      .from("referrals")
+      .update({ reward_granted: false, rewarded_at: null })
+      .in("id", (updated ?? []).map((u) => u.id as string));
+    console.error("[referral] reward failed, claim released:", e instanceof Error ? e.message : e);
+    return {
+      ok: false,
+      error: "We couldn't apply your free month just now — nothing was used up. Please try again in a few minutes.",
+    };
+  }
+
   await admin.from("profiles").update({ referral_reward_earned: true }).eq("id", userId); // legacy "earned ≥1" flag
 
   const after = await computeProgress(userId);

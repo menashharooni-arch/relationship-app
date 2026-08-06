@@ -264,6 +264,33 @@ export async function GET(req: NextRequest) {
       if (Date.now() - new Date(failedAt).getTime() < 7 * 86400000) continue; // still within the grace period
 
       try {
+        // Re-read the subscription before cancelling it. The flag is stamped by
+        // ANY failed invoice on the customer, with no billing_reason filter —
+        // so a one-off or non-cycle invoice failing set a 7-day fuse on a
+        // customer who is otherwise current and paying. Nothing between the
+        // stamp and here ever checked whether the subscription had recovered,
+        // and cancelling cascades: Office member downgrades, membership
+        // deletion, the lot. Annual customers are the most exposed, because
+        // the next successful invoice that would clear the flag can be months
+        // away.
+        //
+        // Stripe is the authority on whether they're paid up, so ask it.
+        const sub = await stripe.subscriptions.retrieve(u.stripe_subscription_id as string);
+        if (sub.status === "active" || sub.status === "trialing") {
+          // Healthy. The flag is stale — clear it and leave them alone.
+          const healthy = { ...cust };
+          delete healthy._paymentFailedAt;
+          await supabase.from("profiles").update({ customization: healthy }).eq("id", u.id);
+          continue;
+        }
+        if (sub.status === "canceled" || sub.status === "incomplete_expired") {
+          // Already gone; the deleted-webhook has handled or will handle it.
+          const done = { ...cust };
+          delete done._paymentFailedAt;
+          await supabase.from("profiles").update({ customization: done }).eq("id", u.id);
+          continue;
+        }
+
         await stripe.subscriptions.cancel(u.stripe_subscription_id as string);
         // Clear the marker so a FUTURE subscription (if they resubscribe later)
         // starts its own grace period instead of inheriting this expired one.
