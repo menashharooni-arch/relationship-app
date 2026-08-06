@@ -47,7 +47,48 @@ describe("Settings → Cards and sharing is the editor's home", () => {
   it("the settings section is described as the place to edit", () => {
     const c = code("src/app/settings/flows/page.tsx");
     expect(c).toMatch(/label: "Cards and sharing"/);
-    expect(c).toMatch(/desc: "Edit, open, or remove a card/);
+    expect(c).toMatch(/Edit, open, or remove a card/);
+  });
+});
+
+describe("EVERY account type can still reach the editor", () => {
+  const SETTINGS = "src/app/settings/flows/page.tsx";
+
+  it("the Cards section is no longer hidden from office sub-users", () => {
+    // This is the regression that removing the dashboard Edit links caused:
+    // the section was excluded for sub-users, their only other path was the
+    // dashboard, and /office/admin needs a capability a plain employee lacks.
+    // They were left with no way to edit their own name, title or photo.
+    const c = code(SETTINGS);
+    expect(
+      c,
+      "the cards section is spread away for sub-users again",
+    ).not.toMatch(/\.\.\.\(isOfficeSubUser \? \[\] : \[\{\s*id: "cards"/);
+    expect(c).toMatch(/id: "cards"/);
+  });
+
+  it("but sub-users still cannot DELETE a company card", () => {
+    // Restoring their edit path must not hand them a capability they never
+    // had — no delete control existed for them before.
+    expect(code(SETTINGS)).toMatch(/canDelete=\{!isOfficeSubUser\}/);
+  });
+
+  it("ManageCards actually honours canDelete", () => {
+    const c = code(MANAGE_CARDS);
+    expect(c).toMatch(/canDelete = true/);
+    expect(c).toMatch(/\{canDelete && \(/);
+    // Edit is NOT gated — that is the whole point of showing them the section.
+    const editAt = c.indexOf("/edit");
+    const gateAt = c.indexOf("{canDelete && (");
+    expect(editAt).toBeGreaterThan(0);
+    expect(editAt, "the Edit link got swept behind the delete gate").toBeLessThan(gateAt);
+  });
+
+  it("no other linked route offers the editor, so this really is the only path", () => {
+    // /profile/card imports CardEditForm but nothing links to it (same dead
+    // route as the audit's /profile finding), so it is not a path.
+    const linked = code("src/app/settings/flows/page.tsx") + code(MANAGE_CARDS);
+    expect(linked).toMatch(/\/cards\/\$\{card\.id\}\/edit/);
   });
 });
 
@@ -56,6 +97,22 @@ describe("nothing still points users at a dashboard Edit button", () => {
     const c = code("src/lib/tour-steps.ts");
     expect(c, "the tour still names an Edit control on the dashboard").not.toMatch(/Use Edit above/);
     expect(c).toMatch(/Settings → Cards and sharing/);
+  });
+
+  it("the tour teaches the mobile card switcher without misleading desktop", () => {
+    // TourContext has no viewport, so the copy has to read true on both. The
+    // FREE variant must NOT mention the arrow — one card renders no arrow.
+    const c = code("src/lib/tour-steps.ts");
+    expect(c).toMatch(/tap the arrow beside the selected card/);
+    const freeBranch = c.match(/"Your card\. Free includes one[^"]*"/)?.[0] ?? "";
+    expect(freeBranch, "the Free copy promises an arrow that never renders").not.toMatch(/arrow/);
+  });
+
+  it("the settings-cards step says it is where editing happens", () => {
+    const c = code("src/lib/tour-steps.ts");
+    expect(c).toMatch(/This is where you edit a card/);
+    // And the office-member branch, which is finally reachable.
+    expect(c).toMatch(/This is where you edit your company card/);
   });
 
   it("the in-app AI help sends them to Settings", () => {

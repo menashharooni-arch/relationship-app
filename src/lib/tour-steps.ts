@@ -167,14 +167,22 @@ const STEP_DEFS: TourStepDef[] = [
     path: DASH,
     anchor: "my-cards",
     title: "My Cards",
-    body: "All your cards. Tap one to switch — the dashboard follows it. Free has one; Pro is unlimited.",
+    // TourContext carries no viewport, so this copy has to be true on a phone
+    // AND on a laptop. On mobile the box now shows only the selected card with
+    // an arrow to reveal the rest; on desktop they're all laid out at once —
+    // "tap the arrow beside it" is accurate on the phone and simply absent on
+    // desktop, which is why it's phrased as an aside rather than an instruction.
+    //
+    // The FREE branch deliberately says nothing about switching: one card means
+    // no arrow is rendered at all.
+    body: "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. Free has one; Pro is unlimited.",
     placement: "bottom",
     bodyFor: (ctx) =>
       ctx.tier === "free"
         ? "Your card. Free includes one — upgrade to Pro for unlimited cards."
         : ctx.tier === "office"
-          ? "Your company cards. Tap one to switch — the dashboard follows it."
-          : "All your cards. Tap one to switch — the dashboard follows it. Pro gives you unlimited cards.",
+          ? "Your company cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest."
+          : "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. Pro gives you unlimited cards.",
   },
   {
     id: "your-card",
@@ -290,9 +298,16 @@ const STEP_DEFS: TourStepDef[] = [
     section: "cards",
     anchor: "settings-cards",
     title: "Your cards",
-    body: "Rename, edit, or add cards.",
+    // This is where the tour lands people now that the dashboard's Edit links
+    // are gone, so the step says so outright rather than just listing verbs.
+    // The office-member variant finally reaches something: this section used to
+    // be hidden from sub-users entirely, which made that branch unreachable.
+    body: "This is where you edit a card — open it, rename it, remove it, or add another.",
     placement: "bottom",
-    bodyFor: (ctx) => (ctx.isOfficeMember ? "Rename or edit your company card." : "Rename, edit, or add cards."),
+    bodyFor: (ctx) =>
+      ctx.isOfficeMember
+        ? "This is where you edit your company card — your name, title, photo and links. Your company's branding stays locked."
+        : "This is where you edit a card — open it, rename it, remove it, or add another.",
   },
   {
     id: "settings-help",

@@ -15,7 +15,20 @@ type Card = {
   is_offline?: boolean | null;
 };
 
-export default function ManageCards({ cards }: { cards: Card[] }) {
+export default function ManageCards({
+  cards,
+  canDelete = true,
+}: {
+  cards: Card[];
+  /**
+   * Office SUB-USERS get this list so they can EDIT their own card — which is
+   * the only place they can, now that the dashboard's Edit links are gone — but
+   * not delete it. The card belongs to the company, and they never had a delete
+   * control before (this whole section was hidden from them), so passing false
+   * keeps that posture exactly rather than handing them a new capability.
+   */
+  canDelete?: boolean;
+}) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
@@ -138,6 +151,7 @@ export default function ManageCards({ cards }: { cards: Card[] }) {
             <Link href={`/cards/${card.id}/edit`} className="text-xs text-gray-500 hover:text-white transition-colors">
               Edit
             </Link>
+            {canDelete && (
             <button
               type="button"
               onClick={() => handleDelete(card)}
@@ -146,6 +160,7 @@ export default function ManageCards({ cards }: { cards: Card[] }) {
             >
               {deletingId === card.id ? "Deleting…" : "Delete"}
             </button>
+            )}
           </div>
         </div>
       ))}
