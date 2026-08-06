@@ -43,6 +43,15 @@ export interface VCardPerson {
    * have opened the card in a browser at all.
    */
   cardUrl?: string | null;
+  /**
+   * Free-text NOTE — for a captured lead, where you met them and your notes.
+   *
+   * The web "Save to phone" button hand-rolled its own vCard and included this;
+   * the server route (which native uses) omitted it. So the same button
+   * produced a different contact depending on the platform. Escaped like every
+   * other field, unlike the hand-rolled version.
+   */
+  note?: string | null;
   address?: VCardAddress | null;
   linkedin?: string | null;
   instagram?: string | null;
@@ -162,6 +171,7 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
     const li = socialUrl("linkedin", person.linkedin);
     if (li) lines.push(`URL;type=LinkedIn:${esc(li)}`);
   }
+  if (person.note && person.note.trim()) lines.push(`NOTE:${esc(person.note.trim())}`);
   if (person.instagram) lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
   if (person.twitter) lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
   if (person.tiktok) lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);

@@ -12,19 +12,25 @@ export const metadata: Metadata = {
     "How SwiftCard compares to Linktree, Popl, and Blinq on price, lead capture, and follow-up automation. See the real differences before you switch.",
 };
 
-type Row = { label: string; swiftcard: string; linktree: string; popl: string; blinq: string };
+// pricing: this row states SwiftCard's OWN price. /compare was the one
+// in-app surface still doing that — pricing, /upgrade and /checkout all
+// suppress on native, and this page wrapped only its footer link while
+// shipping the numbers in the table body. App Review 3.1.1 targets exactly
+// that. Reachability is low (sitemap only, not in nav), which is why it was
+// missed. Competitor prices are fine; it is OUR price Apple objects to.
+type Row = { label: string; swiftcard: string; linktree: string; popl: string; blinq: string; pricing?: true };
 
 // Every figure below is sourced from each competitor's own public pricing page
 // as of publish — verify current pricing directly with them before switching,
 // since plans and prices change. SwiftCard's numbers are the same ones live on /pricing.
 const ROWS: Row[] = [
   { label: "Starting price", swiftcard: "Free", linktree: "Free (12% fee on sales)", popl: "Free", blinq: "Free" },
-  { label: "Cheapest paid plan", swiftcard: "$4.99/mo", linktree: "$8/mo (Starter)", popl: "$7.99/mo (Pro)", blinq: "~$3–10/mo (Premium, by billing term)" },
+  { label: "Cheapest paid plan", pricing: true, swiftcard: "$4.99/mo", linktree: "$8/mo (Starter)", popl: "$7.99/mo (Pro)", blinq: "~$3–10/mo (Premium, by billing term)" },
   { label: "Built-in lead CRM (statuses, notes, pipeline)", swiftcard: "✓", linktree: "✗", popl: "Via 3rd-party integrations", blinq: "Via 3rd-party integrations" },
   { label: "Automated follow-up sequences (email + text)", swiftcard: "✓", linktree: "✗", popl: "✗", blinq: "✗" },
   { label: "NFC tap-to-share", swiftcard: "✓", linktree: "✗", popl: "✓", blinq: "✓" },
   { label: "Custom card designer", swiftcard: "✓ (Pro)", linktree: "N/A — link-in-bio, not a card", popl: "Limited", blinq: "✓" },
-  { label: "Team/office pricing", swiftcard: "$3.99/seat/mo · min 2 seats", linktree: "N/A", popl: "$5/user/mo · min 5 seats", blinq: "$4.99/user/mo · min 5 seats" },
+  { label: "Team/office pricing", pricing: true, swiftcard: "$3.99/seat/mo · min 2 seats", linktree: "N/A", popl: "$5/user/mo · min 5 seats", blinq: "$4.99/user/mo · min 5 seats" },
 ];
 
 function Cell({ value, brand }: { value: string; brand?: boolean }) {
@@ -71,15 +77,19 @@ export default function ComparePage() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((row, i) => (
-                <tr key={row.label} className={i % 2 === 1 ? "bg-[#FAF7F2]" : ""}>
-                  <td className="px-4 py-4 text-sm font-medium text-slate-700">{row.label}</td>
-                  <Cell value={row.swiftcard} brand />
-                  <Cell value={row.linktree} />
-                  <Cell value={row.popl} />
-                  <Cell value={row.blinq} />
-                </tr>
-              ))}
+              {ROWS.map((row, i) => {
+                const tr = (
+                  <tr key={row.label} className={i % 2 === 1 ? "bg-[#FAF7F2]" : ""}>
+                    <td className="px-4 py-4 text-sm font-medium text-slate-700">{row.label}</td>
+                    <Cell value={row.swiftcard} brand />
+                    <Cell value={row.linktree} />
+                    <Cell value={row.popl} />
+                    <Cell value={row.blinq} />
+                  </tr>
+                );
+                // Rows quoting OUR price are dropped inside the native shell.
+                return row.pricing ? <NativeHidden key={row.label}>{tr}</NativeHidden> : tr;
+              })}
             </tbody>
           </table>
         </div>
@@ -95,7 +105,7 @@ export default function ComparePage() {
             you&apos;d need to wire that up yourself through Zapier or a separate tool.
           </p>
           <p className="text-slate-600 text-sm leading-relaxed">
-            SwiftCard bundles the card, the CRM, and the follow-up automation into one $4.99/mo plan — no separate tools to connect.
+            SwiftCard bundles the card, the CRM, and the follow-up automation into one plan — no separate tools to connect.
           </p>
         </div>
 

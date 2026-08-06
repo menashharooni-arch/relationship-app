@@ -367,32 +367,30 @@ export default function ContactsClient({
     // Native shell: a Blob/anchor download no-ops in WKWebView. Route to the
     // server vCard over the system browser sheet, where iOS shows the real
     // "Add to Contacts" preview. Web keeps the client Blob path below.
-    if (await openFileViaSystemBrowser(`/api/leads/vcard?id=${encodeURIComponent(selected.id)}`)) return;
-    const esc = (v: string) => v.replace(/([\\,;])/g, "\\$1").replace(/\n/g, "\\n");
-    const name = (selected.name || "Contact").trim();
-    const parts = name.split(" ");
-    const lines = [
-      "BEGIN:VCARD",
-      "VERSION:3.0",
-      `FN:${esc(name)}`,
-      `N:${esc(parts.slice(1).join(" "))};${esc(parts[0] || "")};;;`,
-    ];
-    if (selected.company) lines.push(`ORG:${esc(selected.company)}`);
-    if (selected.email) lines.push(`EMAIL;TYPE=INTERNET:${selected.email.trim()}`);
-    if (selected.phone) lines.push(`TEL;TYPE=CELL:${selected.phone.trim()}`);
-    const note = [selected.where_met ? `Met at: ${selected.where_met}` : "", selected.notes ?? ""].filter(Boolean).join(" — ");
-    if (note) lines.push(`NOTE:${esc(note)}`);
-    lines.push("END:VCARD");
+    const href = `/api/leads/vcard?id=${encodeURIComponent(selected.id)}`;
+    if (await openFileViaSystemBrowser(href)) return;
 
-    const blob = new Blob([lines.join("\r\n")], { type: "text/vcard;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    // Web uses the SAME server route as native now, instead of hand-rolling a
+    // second vCard here. Three reasons, in order of severity:
+    //
+    //  1. The local escaper was applied to name, company and note but NOT to
+    //     email or phone — which are VISITOR-supplied at public capture. A
+    //     stored phone or email containing a line break injected arbitrary
+    //     properties into the .vcf the owner saved to their address book.
+    //  2. The server route enforces the Free-plan lead lock; this path did not,
+    //     so a downgraded account could still pull a locked contact's details.
+    //  3. The two builders disagreed — this one carried the note, the server's
+    //     didn't — so the same button produced different contacts on different
+    //     platforms. The note now lives in the shared builder.
+    //
+    // A plain anchor to the route: Content-Disposition: attachment makes the
+    // browser download it rather than navigate.
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name.replace(/[^a-z0-9]+/gi, "_")}.vcf`;
+    a.href = href;
+    a.download = "";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   // Per-channel pause (email-paused / sms-paused tags — the cron skips a paused
