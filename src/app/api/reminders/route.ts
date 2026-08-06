@@ -1,5 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+
+// Five sequential jobs run in ONE request here — the purge (≈20 deletes per
+// expired account), seat reductions, downgrades, expiry warnings, then the
+// sequence sends over a buffer of up to 50,000 rows. No maxDuration was set
+// anywhere, so the platform default silently truncated the tail of the send
+// list: no error, no alert, no retry, and the untouched contacts simply never
+// heard from anyone. 300s is Vercel's ceiling on the Pro plan.
+export const maxDuration = 300;
+
+// Automated SMS may only go out inside the recipient's 8am-9pm local window
+// (TCPA, and the CTIA messaging principles). Leads carry no timezone, so this
+// is evaluated against the widest span of US zones we serve rather than a
+// per-recipient one: 08:00 in Hawaii (UTC-10) is 18:00 UTC, and 21:00 on the
+// east coast (UTC-4, EDT) is 01:00 UTC the next day. Inside [18:00, 01:00) UTC
+// it is therefore between 8am and 9pm EVERYWHERE in that span.
+//
+// Deliberately conservative: it refuses sends that might be fine for some
+// recipients rather than allowing sends that are wrong for others. A real fix
+// is to capture a lead timezone and window per contact — see the note in the
+// audit — but this is correct for every recipient today.
+export function withinSmsQuietHours(now: Date = new Date()): boolean {
+  const h = now.getUTCHours();
+  return h >= 18 || h < 1;
+}
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { isPaidPlan } from "@/lib/plan";
@@ -457,6 +481,15 @@ export async function GET(req: NextRequest) {
       if (itemChannel === "sms") {
         const t = seqLead.tags ?? [];
         if (!t.includes("sms-ok") || t.includes("sms-paused")) continue;
+        // Quiet hours. The SMS path gated on CONSENT only, with no hour check
+        // anywhere — so the daily cron's old 13:00 UTC slot put automated texts
+        // on people's phones at 06:00 PDT / 05:00 PST / 03:00 HST, before the
+        // 8am-9pm recipient-local window TCPA and the CTIA guidelines expect.
+        // Leads carry no timezone, so this is enforced against the widest US
+        // span rather than a per-recipient one. The cron moved to 18:00 UTC;
+        // this is the guard that makes a future schedule change unable to
+        // silently undo that. Email is unaffected — quiet hours are an SMS rule.
+        if (!withinSmsQuietHours()) continue;
       } else if (channelPaused(seqLead.tags, "email")) {
         continue;
       }
