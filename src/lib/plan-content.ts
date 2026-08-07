@@ -26,7 +26,7 @@ export const PLAN_FEATURES = {
     "5 new leads a month",
     "2 additional links on your Swift Links page",
     "3 AI follow-up drafts a month",
-    "All 5 templates · QR, link & NFC",
+    "All 6 templates · QR, link & NFC",
     "Swift Signature — your card in every email",
     // Was "Contacts CRM + day-1 follow-up email". Nothing sends that: the only
     // automated sender is hard-gated on isPaidPlan (reminders route), and no

@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest) {
   // single source of truth (the primary-card concept is gone). A field the
   // request omits keeps its current value; an explicitly-empty field clears it.
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : undefined);
-  const OFFICE_TEMPLATES = ["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "custom"];
+  const OFFICE_TEMPLATES = ["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "logo-first", "custom"];
   const templateIn = str(body.template);
   const template =
     templateIn === undefined ? ((office.brand_template as string | null) ?? null)

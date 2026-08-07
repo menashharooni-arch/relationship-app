@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Coastline Realty">
+  <!--
+    Demo mark for the fictional "Coastline Realty" used across the marketing
+    surfaces, so the Logo First template can show what it is actually for. A sun
+    over water: the roofline arc doubles as a horizon.
+
+    White on purpose — every showcase renders Logo First on its default navy.
+    Deliberately generic and fictional, like the rest of the demo identity.
+  -->
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round">
+    <path d="M22 58 A38 38 0 0 1 98 58" />
+    <path d="M26 78 q11 -9 22 0 t22 0 t22 0" />
+    <path d="M26 96 q11 -9 22 0 t22 0 t22 0" />
+  </g>
+  <circle cx="60" cy="40" r="9" fill="#ffffff" />
+</svg>

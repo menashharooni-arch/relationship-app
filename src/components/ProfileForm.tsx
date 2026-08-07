@@ -9,6 +9,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import { PlanGate } from "@/components/PlanGate";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
@@ -55,6 +56,7 @@ const TEMPLATES: { id: string; label: string; Component: ComponentType<{ data: C
   { id: "photo-first",    label: "Photo First",    Component: PhotoFirst,     tags: ["Photo", "QR", "Social"] },
   { id: "local-business", label: "Local Business", Component: LocalBusiness,  tags: ["Logo", "QR", "Map"] },
   { id: "luxury-minimal", label: "Luxury Minimal", Component: LuxuryMinimal,  tags: ["QR", "Minimal", "Gold"] },
+  { id: "logo-first",     label: "Logo First",     Component: LogoFirst,      tags: ["Logo", "QR", "Navy"] },
 ];
 
 const PRESET_COLORS = [

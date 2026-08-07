@@ -13,6 +13,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
@@ -33,6 +34,7 @@ const TEMPLATES = [
   { id: "photo-first", label: "Photo", Component: PhotoFirst },
   { id: "local-business", label: "Local", Component: LocalBusiness },
   { id: "luxury-minimal", label: "Luxury", Component: LuxuryMinimal },
+  { id: "logo-first", label: "Logo", Component: LogoFirst },
 ];
 
 export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
@@ -147,7 +149,9 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         <div className="space-y-4">
           <div>
             <span className="block text-white/55 text-[12px] font-medium mb-2">Template</span>
-            <div className="grid grid-cols-5 gap-1.5">
+            {/* cols-3, not cols-5: with six templates a five-wide row leaves a
+                single orphan pill on a second row. Two rows of three. */}
+            <div className="grid grid-cols-3 gap-1.5">
               {TEMPLATES.map((t) => (
                 <button
                   key={t.id}

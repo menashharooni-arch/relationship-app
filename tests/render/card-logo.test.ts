@@ -9,6 +9,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 
 // Cards WITH A LOGO. card-overflow.test.ts covers everything else, but every one
@@ -71,6 +72,7 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
   ["photo-first", PhotoFirst],
   ["local-business", LocalBusiness],
   ["luxury-minimal", LuxuryMinimal],
+  ["logo-first", LogoFirst],
 ];
 
 // Matches card-overflow.test.ts: 460 is the real layout width for every card

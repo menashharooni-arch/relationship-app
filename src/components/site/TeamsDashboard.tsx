@@ -7,6 +7,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { withoutSocials } from "@/components/card-templates/types";
 
 // A replica of the REAL Office admin at /office/admin — same three tabs (Team,
@@ -29,10 +30,10 @@ const COMPANY = "Coastline Realty";
 const WEBSITE = "coastlinehomes.com";
 const ACCENT = "#2563EB";
 
-const TEMPLATES = { "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst, "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal } as const;
+const TEMPLATES = { "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst, "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "logo-first": LogoFirst } as const;
 type TemplateId = keyof typeof TEMPLATES;
 const TEMPLATE_CHIPS: { id: TemplateId; label: string }[] = [
-  { id: "classic-pro", label: "Classic Pro" }, { id: "modern-bold", label: "Modern Bold" }, { id: "photo-first", label: "Photo First" }, { id: "local-business", label: "Local Business" }, { id: "luxury-minimal", label: "Luxury Minimal" },
+  { id: "classic-pro", label: "Classic Pro" }, { id: "modern-bold", label: "Modern Bold" }, { id: "photo-first", label: "Photo First" }, { id: "local-business", label: "Local Business" }, { id: "luxury-minimal", label: "Luxury Minimal" }, { id: "logo-first", label: "Logo First" },
 ];
 
 type Person = {

@@ -7,6 +7,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 
 // Nothing on a card should ever be cut off. The card root sets aspectRatio and
@@ -23,6 +24,7 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
   ["photo-first", PhotoFirst],
   ["local-business", LocalBusiness],
   ["luxury-minimal", LuxuryMinimal],
+  ["logo-first", LogoFirst],
 ];
 
 // The widths a card is actually LAID OUT at.

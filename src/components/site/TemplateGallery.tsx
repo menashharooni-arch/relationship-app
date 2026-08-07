@@ -8,6 +8,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
@@ -31,6 +32,11 @@ const DEMO_URL = "https://swiftcard.me/card/alexmorgan";
 // Photo First is face-forward, so it gets a real headshot (royalty-free portrait).
 const PHOTO_FIRST_DATA: CardData = { ...CARD, photoUrl: "/marketing/demo-girl.jpg" };
 
+// Logo First leads with the company mark, so it gets the demo wordmark for the
+// same reason Photo First gets a face: without one it falls back to initials and
+// shows nothing of what the template is for.
+const LOGO_FIRST_DATA: CardData = { ...CARD, logoUrl: "/marketing/demo-logo.svg" };
+
 // Same connect links the live card builds (Website, LinkedIn, Instagram, TikTok, X).
 const CONNECT_LINKS = buildConnectLinks({
   website: SAMPLE_DATA.website,
@@ -48,6 +54,7 @@ const TEMPLATES: Tmpl[] = [
   { id: "photo-first", name: "Photo First", Component: PhotoFirst, data: PHOTO_FIRST_DATA },
   { id: "local-business", name: "Local Business", Component: LocalBusiness },
   { id: "luxury-minimal", name: "Luxury Minimal", Component: LuxuryMinimal },
+  { id: "logo-first", name: "Logo First", Component: LogoFirst, data: LOGO_FIRST_DATA },
 ];
 
 function StatusBar() {
@@ -191,7 +198,7 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
       {/* Template grid — every real template, name above each */}
       <div className="order-1 lg:order-2">
         <p className="text-slate-400 text-[13px] font-semibold uppercase tracking-wide mb-5" data-reveal="fade">
-          Five designer templates — hover any to see it live
+          Six designer templates — hover any to see it live
         </p>
         <div className="grid grid-cols-2 gap-x-5 gap-y-7">
           {TEMPLATES.map((t, i) => {

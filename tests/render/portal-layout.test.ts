@@ -8,6 +8,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import ModernBold from "@/components/card-templates/ModernBold";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA_WITH_PHOTO, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 
@@ -89,6 +90,7 @@ const LONG: CardData = withoutSocials({
 const TEMPLATES: [string, ComponentType<{ data: CardData }>][] = [
   ["classic-pro", ClassicPro], ["modern-bold", ModernBold], ["photo-first", PhotoFirst],
   ["local-business", LocalBusiness], ["luxury-minimal", LuxuryMinimal],
+  ["logo-first", LogoFirst],
 ];
 
 describe("the portal's card panel holds its content", () => {
@@ -127,7 +129,7 @@ describe("the marketing demo card never offers live contact links", () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(file, "utf8");
     // The template render and the guard must both be present in the same file.
-    expect(src, `${file} renders a card template`).toMatch(/CardScaler|<(ClassicPro|PhotoFirst|LocalBusiness|LuxuryMinimal|ModernBold|Component|t\.Component)\b/);
+    expect(src, `${file} renders a card template`).toMatch(/CardScaler|<(ClassicPro|PhotoFirst|LocalBusiness|LuxuryMinimal|ModernBold|LogoFirst|Component|t\.Component)\b/);
     expect(src, `${file} lets visitors click the fake persona's contact details`)
       .toMatch(/pointerEvents:\s*"none"|pointer-events-none/);
   });
