@@ -196,8 +196,8 @@ const CONTACT_ICON: Record<string, () => React.ReactElement> = {
 };
 
 /** Colour ramp so an owner never has to pick a shade per line. */
-function ramp(layout: CustomLayout) {
-  const strong = layout.textColor;
+function ramp(layout: CustomLayout, onPanel = false) {
+  const strong = (onPanel && layout.panelTextColor) || layout.textColor;
   return {
     hero: strong,
     normal: strong,
@@ -218,12 +218,12 @@ function withOpacity(hex: string, a: number): string {
  * card edge the way the legacy renderer could.
  */
 export function CustomBlockContent({
-  block, data, layout, density, imageScale = 1, placeholder = false,
+  block, data, layout, density, imageScale = 1, onPanel = false, placeholder = false,
 }: {
   block: CustomBlock; data: CardData; layout: CustomLayout; density: number;
-  imageScale?: number; placeholder?: boolean;
+  imageScale?: number; onPanel?: boolean; placeholder?: boolean;
 }) {
-  const c = ramp(layout);
+  const c = ramp(layout, onPanel);
   const fs = blockFontPx(block.emphasis, density);
   const px = Math.round(blockImagePx(block.emphasis, density) * imageScale);
   const tone = block.color || (block.emphasis === "quiet" ? c.quiet : c.normal);
@@ -330,10 +330,10 @@ export function CustomBlockContent({
 }
 
 function Zone({
-  blocks, data, layout, density, placeholder, gap, imageScale = 1,
+  blocks, data, layout, density, placeholder, gap, imageScale = 1, onPanel = false,
 }: {
   blocks: CustomBlock[]; data: CardData; layout: CustomLayout; density: number;
-  placeholder: boolean; gap: number; imageScale?: number;
+  placeholder: boolean; gap: number; imageScale?: number; onPanel?: boolean;
 }) {
   return (
     <>
@@ -341,7 +341,7 @@ function Zone({
         <div key={bl.id} data-cb={bl.id} style={{ minWidth: 0, marginTop: gap }}>
           <CustomBlockContent
             block={bl} data={data} layout={layout} density={density}
-            imageScale={imageScale} placeholder={placeholder}
+            imageScale={imageScale} onPanel={onPanel} placeholder={placeholder}
           />
         </div>
       ))}
@@ -364,22 +364,31 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   const qr = blocks.find((bl) => bl.zone === "right" && bl.type === "qr");
   const gap = Math.round(5 * density);
 
+  // A panel with its own surface is what makes a two-tone card possible — a
+  // coloured column beside a light field, or a band across the top.
+  const panelBg = layout.panelBackground;
   const sidePanel = side.length ? (
     <div
       className="shrink-0 flex items-center"
-      style={
+      style={{
+        background: panelBg,
         // Stacked reads as a letterhead, so the band aligns LEFT with the text
         // beneath it. Centring it looked like a mistake rather than a choice.
-        stacked
-          ? { width: "100%", padding: "15px 18px 0", gap: 12, justifyContent: "flex-start" }
-          : { width: "34%", padding: "16px 12px 16px 17px", flexDirection: "column", justifyContent: "center" }
-      }
+        ...(stacked
+          ? { width: "100%", padding: panelBg ? "16px 18px" : "15px 18px 0", gap: 12, justifyContent: "flex-start" }
+          : { width: "34%", padding: "16px 12px 16px 17px", flexDirection: "column" as const, justifyContent: "center" }),
+      }}
     >
-      <Zone blocks={side} data={data} layout={layout} density={density} placeholder={placeholder} gap={0} imageScale={sideScale} />
+      <Zone
+        blocks={side} data={data} layout={layout} density={density} placeholder={placeholder}
+        gap={0} imageScale={sideScale} onPanel={!!panelBg}
+      />
     </div>
   ) : null;
 
-  const rule = !stacked && side.length ? (
+  // The hairline only earns its place when there is no panel colour; with one,
+  // the panel's own edge already separates the two halves.
+  const rule = !stacked && side.length && !panelBg ? (
     <div className="self-stretch shrink-0" style={{ width: 1, margin: "20px 0", background: withOpacity(layout.textColor, 0.2) }} />
   ) : null;
 

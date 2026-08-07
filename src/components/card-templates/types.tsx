@@ -59,6 +59,15 @@ export type CustomLayout = {
   textColor: string;
   /** Icons, job title, hairlines. */
   accentColor?: string;
+  /**
+   * The side zone's own surface. Optional, and the reason a custom card can be
+   * TWO-TONE — a coloured panel beside a light field, or a band across the top.
+   * Without it, forking Classic Pro or Local Business could only ever be an
+   * approximation, because their whole identity is the second surface.
+   */
+  panelBackground?: string;
+  /** Text sitting ON the panel, when the panel's tone differs from the card's. */
+  panelTextColor?: string;
   skeleton?: CardSkeleton;
   /** Present on every layout built by the current designer. */
   blocks?: CustomBlock[];
