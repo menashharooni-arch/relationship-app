@@ -49,3 +49,9 @@ secrets/
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# Apple auth keys (.p8). These are private keys and download exactly once —
+# they belong in ~/.swiftcard/keys, never in the repo.
+*.p8
+*.pem
+AuthKey_*
