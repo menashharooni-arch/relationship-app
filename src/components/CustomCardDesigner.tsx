@@ -347,7 +347,12 @@ export default function CustomCardDesigner({
             <p className={head}>Looks</p>
             <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          {/* Capped. The controls column has no width of its own below lg, so
+              on a half-screen desktop window (roughly 936-1023px, where the
+              max-w-4xl page has saturated but the two-column layout has not
+              kicked in) each of these diagrams rendered 212x143px — a wall of
+              eight cards above the one card they are miniatures of. */}
+          <div className="grid grid-cols-4 gap-2 max-w-[420px] lg:max-w-none">
             {looks.map((l) => (
               <button
                 key={l.key}

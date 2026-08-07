@@ -9,6 +9,8 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
+import CustomCard from "@/components/card-templates/CustomCard";
+import { normalizeCustomLayout } from "@/lib/custom-layout";
 import { withoutSocials } from "@/components/card-templates/types";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -41,6 +43,12 @@ const TEMPLATE_COMPONENTS = {
   "local-business": LocalBusiness,
   "luxury-minimal": LuxuryMinimal,
   "logo-first": LogoFirst,
+  // "custom" is a real brand template — /api/office/brand accepts it, and an
+  // office is SEEDED with it automatically when the owner's oldest card uses
+  // the designer. It was missing here, so the preview silently fell back to
+  // Classic Pro: the admin was shown a card their team does not have, on the
+  // one page whose whole job is "every card looks like this".
+  custom: CustomCard,
 } as const;
 
 type TemplateId = keyof typeof TEMPLATE_COMPONENTS;
@@ -57,6 +65,8 @@ type Brand = {
   brand_address?: Addr | null;
   brand_locks?: { template?: boolean } | null;
   brand_design?: Record<string, unknown> | null;
+  /** Seeded from the owner's oldest card when its template is "custom". */
+  brand_custom_layout?: unknown;
 };
 
 const inputCls =
@@ -135,7 +145,14 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     initials: "DL",
     logoUrl,
     cardUrl: "swiftcard.me/card/dana",
-    customization: { ...design },
+    // The brand's own saved layout, so the "custom" preview shows the design
+    // the team actually has rather than a default one. normalizeCustomLayout
+    // is what CustomCard would apply anyway, and it turns whatever shape the
+    // column happens to hold into something renderable.
+    customization: {
+      ...design,
+      customLayout: office.brand_custom_layout ? normalizeCustomLayout(office.brand_custom_layout) : undefined,
+    },
   });
 
   return (
