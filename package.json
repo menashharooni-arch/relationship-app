@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:render": "vitest run --config vitest.render.config.ts"
+    "test:render": "vitest run --config vitest.render.config.ts",
+    "ios:sync": "cap sync ios",
+    "ios:sim": "bash scripts/ios-sim.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",

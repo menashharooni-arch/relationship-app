@@ -48,9 +48,13 @@ const config: CapacitorConfig = {
     contentInset: "automatic",
   },
   plugins: {
-    // Store Preferences in the shared App Group so the home-screen QR widget
-    // (SwiftCardWidget extension) can read the active card. Both the app and
-    // widget targets must carry the matching application-groups entitlement.
+    // ⚠️ `group` here is NOT an iOS App Group — the Preferences plugin only
+    // uses it as a key prefix on UserDefaults.standard, which a widget
+    // extension cannot read. The home-screen QR widget is fed by the
+    // WidgetBridge native plugin (ios/App/App/WidgetBridge.swift) writing the
+    // real shared suite instead; both targets carry the matching
+    // application-groups entitlement for that. This setting is kept only so
+    // any future Preferences use stays namespaced.
     Preferences: {
       group: "group.me.swiftcard.app",
     },

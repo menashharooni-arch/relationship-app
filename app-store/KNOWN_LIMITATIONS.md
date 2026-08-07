@@ -13,7 +13,7 @@ hidden from Apple: metadata and reviewer notes stay consistent with this list._
 | Dedicated watchOS app | Roadmap — does not exist | — | Wallet pass syncs to Watch Wallet (real today); in-app clarifier on /products/watch says exactly this |
 | Web push (VAPID) | Web-only | Browsers | Native uses real APNs push instead |
 | Referral program ("free months of Pro") | Hidden natively (compensation touches plan upgrades) | Website | NativeHidden |
-| Home-screen QR widget | Code complete; requires the Xcode widget-target step before it exists in the binary | — | Wallet-page copy has a native clarifier; build the target before submission or the claim stays qualified |
+| Home-screen QR widget | Shipping. Target builds and embeds; iOS registers the extension. Population by a real signed-in card is still unverified on a device (P0 in the TestFlight plan) | — | Wallet-page copy has a native clarifier |
 
 ## Product behaviors a reviewer might question (prepared answers)
 
