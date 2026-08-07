@@ -50,7 +50,7 @@ export const PLAN_FEATURES = {
     // "your exact colors & fonts" described what the FREE templates already do,
     // and undersold the thing being charged for. The designer's actual claim is
     // that a template is a starting point rather than a fixed choice.
-    "Custom card designer — start from any template, then move, resize or remove anything",
+    "Custom card designer — eight Pro-only looks, or scan your printed card and we'll rebuild it",
     "No SwiftCard branding anywhere — emails, texts & pages are 100% your brand",
     "Automated follow-up sequences — email + text",
     "Full analytics: who viewed, when & where",
