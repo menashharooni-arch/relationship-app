@@ -101,6 +101,39 @@ const QR_F = 0.68;       // MiniQR size: round(px * 0.68)
 const HEADSHOT_CAP = 116; // img height: min(px, 116)
 const DIVIDER_PX = 2;
 
+/**
+ * Socials FLOW: they fill across the row and wrap down.
+ *
+ *   linkedin  tiktok    instagram
+ *   facebook  youtube   snapchat
+ *
+ * Each social used to be its own block on its own full-width row, so six of
+ * them were six rows — most of a card spent on handles, and the density model
+ * then shrank everything else to make room for rows that were mostly empty.
+ *
+ * Exported and used by BOTH the renderer and the sizing model. If they grouped
+ * differently the model would budget for rows the card doesn't draw, which is
+ * the exact class of bug that made the card overflow before.
+ */
+export const SOCIAL_COLS = 3;
+
+/** Runs of adjacent social blocks become one group; everything else stays itself. */
+export function groupSocials(blocks: CustomBlock[]): (CustomBlock | CustomBlock[])[] {
+  const out: (CustomBlock | CustomBlock[])[] = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (b.type !== "social") { out.push(b); continue; }
+    if (Array.isArray(last)) last.push(b);
+    else out.push([b]);
+  }
+  return out;
+}
+
+/** How many share a row: three when there are three or more, else the count. */
+export function socialCols(count: number): number {
+  return Math.min(SOCIAL_COLS, Math.max(1, count));
+}
+
 /** The drawn height of an image block at density 1. */
 function imagePx(block: CustomBlock, scale = 1): number {
   const px = EMPHASIS_IMG[block.emphasis] * scale;
@@ -194,8 +227,16 @@ function budget(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData,
   const main = on.filter((b) => zoneFor(b) === "right" && b.type !== "qr");
 
   // The QR sits in its own bottom row, outside Zone, so it carries no gap.
+  // Socials are grouped with the SAME rule the renderer groups them by, so the
+  // budget counts the rows that will actually be drawn.
   const mainScaled =
-    main.reduce((n, b) => n + blockPx(b, data, width, placeholder), 0) + (qr ? imagePx(qr) : 0);
+    groupSocials(main).reduce((n, g) => {
+      if (!Array.isArray(g)) return n + blockPx(g, data, width, placeholder);
+      const shown = data ? g.filter((b) => blockHasValue(b, data)) : g;
+      if (!shown.length) return n;
+      const rows = Math.ceil(shown.length / socialCols(shown.length));
+      return n + rows * EMPHASIS_PX[shown[0].emphasis] * LINE + GAP_PX;
+    }, 0) + (qr ? imagePx(qr) : 0);
   const mainFixed = stacked ? MAIN_PAD_STACKED : MAIN_PAD_SPLIT;
 
   // The side panel's Zone is rendered with gap 0, so its blocks stack flush.
