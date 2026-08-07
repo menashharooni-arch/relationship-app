@@ -19,6 +19,7 @@ import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import CardScaler from "@/components/CardScaler";
+import { DEFAULT_PRESET, buildPreset } from "@/lib/custom-layout";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -26,7 +27,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
-import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
+import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
@@ -196,7 +197,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
-  const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? DEFAULT_CUSTOM_LAYOUT);
+  const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? buildPreset(DEFAULT_PRESET));
   // Preset-template styling (Pro). Undefined fields fall back to each template's
   // baked-in design, so a card saved before this feature is unchanged.
   const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({
@@ -472,8 +473,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     </div>
   );
 
+  // The custom designer IS a live card you edit by touching it, so the sticky
+  // preview column beside it would be a second, identical, non-interactive copy
+  // of the same card. Stand the designer down the full width instead.
+  const designerIsCanvas = tab === "design" && customSelected && isPro && !designLocked;
+
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start">
+    <div className={`grid gap-6 lg:items-start ${designerIsCanvas ? "" : "lg:grid-cols-[minmax(0,1fr)_340px]"}`}>
       {/* ── EDITOR (left on desktop; the whole page on mobile) ── */}
       <div className="min-w-0 order-2 lg:order-1">
         {/* Tabs */}
@@ -730,14 +736,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             ) : (
             <div className="space-y-4 border-t border-gray-800 pt-4">
-            {/* Custom designer is the editing surface for the custom template */}
-            {customSelected && isPro && (
-              <div>
-                <p className={`${sectionLabel} mb-2`}>Custom layout</p>
-                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
-              </div>
-            )}
-
             <div>
               <p className={`${sectionLabel} mb-2`}>Template</p>
               {/* Custom design — the freeform "edit every element" path */}
@@ -762,10 +760,19 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             </div>
 
-            {/* Mobile: the preview sits BETWEEN the template picker and the
-                colour/font controls — both sides of it change what it shows, so
-                it is visible whichever one you are touching without scrolling. */}
-            {mobileCardPreview("Pick a template above, then restyle it below.")}
+            {/* The designer comes AFTER the picker that selects it, and brings
+                its own live card — so it replaces the inline preview rather than
+                sitting beside a second one. Having both, in the other order,
+                under a caption about restyling, is what made this tab read as
+                three cards scattered down the page. */}
+            {customSelected && isPro ? (
+              <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
+            ) : (
+              /* Mobile: the preview sits BETWEEN the template picker and the
+                 colour/font controls — both sides of it change what it shows, so
+                 it is visible whichever one you are touching without scrolling. */
+              mobileCardPreview("Pick a template above, then restyle it below.")
+            )}
 
             {/* Restyle the chosen preset — colors & typography (Pro) */}
             {!customSelected && (
@@ -1006,6 +1013,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           at all, so previewing the card there showed a picture that could not
           respond to anything being typed. Mobile has done this since the
           per-step previews landed; this brings desktop in line. ── */}
+      {/* Not rendered at all while the designer is the canvas — a class-level
+          hide would leave the grid's 340px track claimed by an empty column. */}
+      {!designerIsCanvas && (
       <div className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-6">
         {tab === "linkdesign" || tab === "sharing" ? (
           <>
@@ -1035,6 +1045,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
