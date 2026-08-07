@@ -213,7 +213,7 @@ export const META: Record<string, TemplateMeta> = {
   },
   "logo-first": {
     name: "Logo First",
-    blurb: "A deep navy card that leads with your logo, held in a ring beside your name and details.",
+    blurb: "Leads with your logo on a panel of its own, beside your name and details.",
     looks: [
       { name: "Dark Navy", bg: "#2c3a52", text: "#ffffff" },
       { name: "Midnight", bg: "#141b26", text: "#ffffff" },
@@ -241,8 +241,8 @@ export const META: Record<string, TemplateMeta> = {
       fallback: "#e6ebf3",
     },
     accent: {
-      label: "Ring & icons",
-      help: "Draws the ring around your logo, your job title, and the contact icons. A shade too close to the background is nudged back to a readable one so the ring never disappears.",
+      label: "Title & icons",
+      help: "Draws your job title and the contact icons. A shade too close to your background is brightened or darkened until it reads — you keep the colour you picked, at a version of it that can be seen.",
       presets: ["#ffffff", "#c9d4e8", "#b08d57", "#d4af7a", "#60a5fa", "#0f766e", "#be123c", "#141b26"],
       fallback: "#ffffff",
     },
