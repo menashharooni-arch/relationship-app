@@ -329,6 +329,7 @@ export default function UsersClient() {
                     <option value="photo-first">Photo First</option>
                     <option value="local-business">Local Business</option>
                     <option value="luxury-minimal">Luxury Minimal</option>
+                    <option value="logo-first">Logo First</option>
                   </select>
                 </div>
                 <div>

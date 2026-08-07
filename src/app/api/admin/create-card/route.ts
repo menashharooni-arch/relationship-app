@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (!["free", "pro", "enterprise"].includes(plan)) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
-  if (!["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "custom"].includes(template)) {
+  if (!["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "logo-first", "custom"].includes(template)) {
     return NextResponse.json({ error: "Invalid template" }, { status: 400 });
   }
 

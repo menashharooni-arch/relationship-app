@@ -168,6 +168,7 @@ describe("the card preview supplies every customization key a template reads", (
     "src/components/card-templates/PhotoFirst.tsx",
     "src/components/card-templates/LocalBusiness.tsx",
     "src/components/card-templates/LuxuryMinimal.tsx",
+    "src/components/card-templates/LogoFirst.tsx",
   ];
 
   /** Keys read off `data.customization`, in either form the templates use. */

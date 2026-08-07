@@ -25,6 +25,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
@@ -58,6 +59,7 @@ const TEMPLATES = [
   { id: "photo-first",    label: "Photo First",    Component: PhotoFirst },
   { id: "local-business", label: "Local Business", Component: LocalBusiness },
   { id: "luxury-minimal", label: "Luxury Minimal", Component: LuxuryMinimal },
+  { id: "logo-first",     label: "Logo First",     Component: LogoFirst },
 ];
 
 const inputCls =

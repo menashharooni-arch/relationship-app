@@ -10,6 +10,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
@@ -30,6 +31,7 @@ const TEMPLATES = [
   { id: "photo-first", label: "Photo", Component: PhotoFirst },
   { id: "local-business", label: "Local", Component: LocalBusiness },
   { id: "luxury-minimal", label: "Luxury", Component: LuxuryMinimal },
+  { id: "logo-first", label: "Logo", Component: LogoFirst },
 ];
 
 
@@ -134,7 +136,9 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
         <div className="space-y-4">
           <div>
             <span className="block text-white/55 text-[12px] font-medium mb-2">Layout</span>
-            <div className="grid grid-cols-5 gap-1.5">
+            {/* cols-3, not cols-5 — six layouts, so two even rows instead of a
+                five-wide row with one orphan. */}
+            <div className="grid grid-cols-3 gap-1.5">
               {TEMPLATES.map((t) => (
                 <button
                   key={t.id}

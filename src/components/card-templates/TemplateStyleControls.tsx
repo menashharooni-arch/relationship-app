@@ -1,6 +1,6 @@
 "use client";
 
-// Pro control for restyling the FIVE preset templates. Scoped to what actually
+// Pro control for restyling the SIX preset templates. Scoped to what actually
 // keeps a card looking professional — BACKGROUND surface, NAME/text color, and
 // FONT — because layout, accents and textures are each template's signature.
 //

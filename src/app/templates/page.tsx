@@ -10,6 +10,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA_WITH_PHOTO, withoutSocials } from "@/components/card-templates/types";
 
 const TEMPLATES = [
@@ -47,6 +48,17 @@ const TEMPLATES = [
     tagline: "Refined and elegant. Every detail considered.",
     bestFor: ["Luxury Real Estate", "Interior Design", "Jewelry", "Spa"],
     Component: LuxuryMinimal,
+  },
+  {
+    id: "logo-first",
+    name: "Logo First",
+    tagline: "Leads with your mark, not your face.",
+    bestFor: ["Agencies", "Firms", "Contractors", "Funds"],
+    Component: LogoFirst,
+    // Its own data, rather than adding a logo to the shared sample: Classic Pro
+    // and Local Business both render a logo too, so putting one on the shared
+    // object would silently redesign the five cards already on this page.
+    data: { ...withoutSocials(SAMPLE_DATA_WITH_PHOTO), logoUrl: "/marketing/demo-logo.svg" },
   },
 ] as const;
 
@@ -141,7 +153,7 @@ export default function TemplatesPage() {
                   }}
                 >
                   <CardScaler>
-                    <Component data={withoutSocials(SAMPLE_DATA_WITH_PHOTO)} />
+                    <Component data={"data" in tmpl ? tmpl.data : withoutSocials(SAMPLE_DATA_WITH_PHOTO)} />
                   </CardScaler>
                 </div>
               </button>

@@ -92,7 +92,7 @@ describe("fitName still guards the single-long-word case", () => {
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
-const STOCK_TEMPLATES = ["ClassicPro", "ModernBold", "PhotoFirst", "LocalBusiness", "LuxuryMinimal"];
+const STOCK_TEMPLATES = ["ClassicPro", "ModernBold", "PhotoFirst", "LocalBusiness", "LuxuryMinimal", "LogoFirst"];
 
 describe("every text field on a card goes through a fitter", () => {
   for (const t of STOCK_TEMPLATES) {

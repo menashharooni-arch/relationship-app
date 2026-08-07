@@ -249,6 +249,69 @@ function LuxuryMinimalOG(p: Meta) {
   );
 }
 
+function LogoFirstOG(p: Meta) {
+  const NAVY = "#2c3a52";
+  // The ring and icons have no ground of their own, so a dark accent on the
+  // navy would simply vanish. Same guard the card component applies, kept
+  // simple here because the background is fixed rather than owner-chosen.
+  const raw = p.accentColor || "";
+  const m = raw.match(/^#([0-9a-f]{6})$/i);
+  const bright = m ? (() => { const n = parseInt(m[1], 16);
+    return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000; })() : null;
+  const ACCENT = bright !== null && bright > 110 ? raw : "#ffffff";
+  const website = (p.website ?? "").replace(/^https?:\/\//, "");
+
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", background: NAVY }}>
+      {/* Left: the mark in its ring.
+          The card's ring shrink-wraps the logo so it takes the mark's own shape
+          (circle / pill / capsule). That relies on CSS shrink-to-fit, which is
+          not worth betting a whole OG render on — a throw here drops the card
+          image entirely. A fixed circle is the shape the ring takes for the
+          common crest-style mark anyway, and this path is the FALLBACK: the
+          primary preview is the stored PNG capture of the real card. */}
+      <div style={{ width: "38%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            width: 260, height: 260, borderRadius: 260,
+            border: `3px solid ${ACCENT}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          {p.logoUrl ? (
+            <img src={p.logoUrl} alt="" width={180} height={130} style={{ objectFit: "contain" }} />
+          ) : (
+            <div style={{ fontSize: 92, fontWeight: 700, color: ACCENT, letterSpacing: 4 }}>
+              {initialsOf(p.company || p.name)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Hairline rule — the card's own divider, at OG scale. */}
+      <div style={{ width: 2, marginTop: 70, marginBottom: 70, background: "rgba(255,255,255,0.20)", display: "flex" }} />
+
+      {/* Right: identity above, contact below */}
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1, padding: "48px 60px" }}>
+        <div style={{ fontSize: 60, fontWeight: 600, color: "#ffffff", lineHeight: 1.08, letterSpacing: 2, textTransform: "uppercase" }}>
+          {p.name}
+        </div>
+        {p.company ? <div style={{ fontSize: 30, color: "#c2ccdc", marginTop: 14 }}>{p.company}</div> : null}
+        {p.title ? (
+          <div style={{ fontSize: 24, color: ACCENT, marginTop: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600 }}>
+            {p.title}
+          </div>
+        ) : null}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 30 }}>
+          {p.phone ? <Contact value={p.phone} dot={ACCENT} color="#ffffff" fs={29} /> : null}
+          {p.email ? <Contact value={p.email} dot={ACCENT} color="#e6ebf3" /> : null}
+          {website ? <Contact value={website} dot={ACCENT} color="#c2ccdc" /> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Generic fallback for "custom" layouts and anything unrecognized.
 function GenericOG(p: Meta) {
   const accent = p.accentColor || "#2563eb";
@@ -346,6 +409,7 @@ export default async function Image({
       case "photo-first":     card = PhotoFirstOG(meta); break;
       case "local-business":  card = LocalBusinessOG(meta); break;
       case "luxury-minimal":  card = LuxuryMinimalOG(meta); break;
+      case "logo-first":      card = LogoFirstOG(meta); break;
       default:                card = meta.template ? GenericOG(meta) : ClassicProOG(meta); break;
     }
     // Full-bleed: the card fills the ENTIRE frame — no backdrop, no blank space.

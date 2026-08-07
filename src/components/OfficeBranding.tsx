@@ -8,6 +8,7 @@ import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
+import LogoFirst from "@/components/card-templates/LogoFirst";
 import { withoutSocials } from "@/components/card-templates/types";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -30,6 +31,7 @@ const TEMPLATES = [
   { id: "photo-first", label: "Photo First" },
   { id: "local-business", label: "Local Business" },
   { id: "luxury-minimal", label: "Luxury Minimal" },
+  { id: "logo-first", label: "Logo First" },
 ] as const;
 
 const TEMPLATE_COMPONENTS = {
@@ -38,6 +40,7 @@ const TEMPLATE_COMPONENTS = {
   "photo-first": PhotoFirst,
   "local-business": LocalBusiness,
   "luxury-minimal": LuxuryMinimal,
+  "logo-first": LogoFirst,
 } as const;
 
 type TemplateId = keyof typeof TEMPLATE_COMPONENTS;

@@ -41,4 +41,5 @@ export const GALLERY = [
   { template: "classic-pro", accent: "#0EA5A0", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
   { template: "luxury-minimal", accent: "#B08D57", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
   { template: "modern-bold", accent: "#F65B9E", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
+  { template: "logo-first", accent: "#FFFFFF", name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty" },
 ] as const;

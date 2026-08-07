@@ -16,11 +16,13 @@ const ModernBold    = dynamic(() => import("@/components/card-templates/ModernBo
 const PhotoFirst    = dynamic(() => import("@/components/card-templates/PhotoFirst"),    { ssr: false });
 const LocalBusiness = dynamic(() => import("@/components/card-templates/LocalBusiness"), { ssr: false });
 const LuxuryMinimal = dynamic(() => import("@/components/card-templates/LuxuryMinimal"), { ssr: false });
+const LogoFirst     = dynamic(() => import("@/components/card-templates/LogoFirst"),     { ssr: false });
 const CustomCard    = dynamic(() => import("@/components/card-templates/CustomCard"),    { ssr: false });
 
 const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro, "modern-bold": ModernBold, "photo-first": PhotoFirst,
-  "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "custom": CustomCard,
+  "local-business": LocalBusiness, "luxury-minimal": LuxuryMinimal, "logo-first": LogoFirst,
+  "custom": CustomCard,
 };
 
 const NATURAL = 460;   // same natural card width the public page renders at
