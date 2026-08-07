@@ -33,11 +33,30 @@ function fail(msg) {
   process.exit(1);
 }
 
+// Token sources, in order. The dropped-file path exists because `supabase
+// login` is an interactive TUI that cannot be driven headlessly, and because
+// the CLI may stash its token in the macOS Keychain rather than on disk — so
+// "just run supabase login" is not something a script can rely on finding.
 function accessToken() {
   if (process.env.SUPABASE_ACCESS_TOKEN) return process.env.SUPABASE_ACCESS_TOKEN.trim();
-  const cliToken = join(homedir(), ".supabase", "access-token");
-  if (existsSync(cliToken)) return readFileSync(cliToken, "utf8").trim();
-  fail("no Supabase token. Set SUPABASE_ACCESS_TOKEN, or run `supabase login` first.");
+  const candidates = [
+    join(homedir(), ".swiftcard", "supabase-token"),
+    join(homedir(), ".supabase", "access-token"),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      const t = readFileSync(p, "utf8").trim();
+      if (t) return t;
+    }
+  }
+  fail(
+    "no Supabase token. Either:\n" +
+      "  SUPABASE_ACCESS_TOKEN=sbp_... node scripts/supabase-enable-apple.mjs <key.p8>\n" +
+      "or drop it in a file this reads:\n" +
+      "  mkdir -p ~/.swiftcard && chmod 700 ~/.swiftcard\n" +
+      "  echo 'sbp_...' > ~/.swiftcard/supabase-token && chmod 600 ~/.swiftcard/supabase-token\n" +
+      "Create one at https://supabase.com/dashboard/account/tokens"
+  );
 }
 
 const keyPath = process.argv[2];
