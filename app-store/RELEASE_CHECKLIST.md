@@ -83,9 +83,15 @@ vars are in Vercel Production.
       revoked") rather than `invalid_client`. Apple accepted the Services ID,
       the key, and the signature — so the only thing between here and working
       Apple sign-in is the Supabase toggle in §B.
-- [ ] **Private email relay**: register the swiftcard.me sending domain/
-      addresses (Resend's from-address) under Sign in with Apple → Email
-      Sources — without this, Hide-My-Email users get NO product emails.
+- [x] **Private email relay registered** (2026-08-07). Sign in with Apple →
+      Email Sources now has domains `swiftcard.me` and `send.swiftcard.me`
+      plus address `hello@swiftcard.me`. Apple accepted them ("2 Domains and
+      Subdomains, 1 Email address") because SPF and DKIM are already in place
+      — `swiftcard.me` publishes `v=spf1 include:_spf.google.com
+      include:amazonses.com ~all`, Resend's envelope domain
+      `send.swiftcard.me` publishes its own SPF, and `resend._domainkey`
+      resolves. Without this, every Hide-My-Email user would silently receive
+      nothing from the product.
 - [ ] **APNs key** (.p8) created — note Key ID. (SHELL-RUNBOOK §6.)
 - [ ] Pass Type ID for Wallet confirmed valid (existing passes sign with it).
 
