@@ -453,39 +453,48 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
         background: layout.background, fontFamily: layout.fontFamily, color: layout.textColor,
         borderRadius: 16,
         overflow: "clip",
+        // The card is ALWAYS a row; the skeleton's direction lives one level in.
+        // That is what lets the spacer below work: a zero-width flex item only
+        // costs nothing when the axis is horizontal. When the card itself was a
+        // column for the stacked skeleton, the spacer took a full row at the top
+        // and pushed Local Business's header stripe into the middle of the card.
         display: "flex",
-        flexDirection: stacked ? "column" : skeleton === "mirror" ? "row-reverse" : "row",
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10)",
       }}
     >
       {/* Shape floor, not a shape cap.
-          `aspectRatio` is a CAP here, not a floor: with overflow hidden the card
-          is a scroll container whose automatic minimum size is zero, so content
-          taller than the ratio was silently cut — and predicting that height
-          from a row count only moved the failure around (three rounds of tuning,
-          still failing two fuzz runs in five).
+          `aspectRatio` is a CAP: with overflow hidden the card is a scroll
+          container whose automatic minimum size is zero, so content taller than
+          the ratio was silently cut — and predicting that height from a row
+          count only moved the failure around (three rounds of tuning, still
+          failing two fuzz runs in five).
           A zero-width spacer sidesteps prediction entirely. Percentage padding
           resolves against the CONTAINING BLOCK's width, so this is 0 wide and
           exactly width/1.75 tall. The card is therefore never shorter than a
           business card, and simply gets taller when its contents genuinely need
           it — which is what a real card would have to do. */}
       <div aria-hidden style={{ width: 0, flexShrink: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
-      {sidePanel}
-      {rule}
       <div
-        className="flex-1 min-w-0 flex flex-col justify-between"
-        style={{ padding: stacked ? "10px 18px 14px" : "16px 16px 14px 15px" }}
+        className="flex-1 min-w-0 flex"
+        style={{ flexDirection: stacked ? "column" : skeleton === "mirror" ? "row-reverse" : "row" }}
       >
-        <div className="min-w-0 flex flex-col">
-          <Zone blocks={main} data={data} layout={layout} density={density} placeholder={placeholder} gap={gap} />
-        </div>
-        {/* The QR always lands bottom-right at a fixed inset, the same place it
-            sits on all six preset templates. */}
-        {qr ? (
-          <div className="flex items-end justify-end" data-cb={qr.id}>
-            <CustomBlockContent block={qr} data={data} layout={layout} density={density} placeholder={placeholder} />
+        {sidePanel}
+        {rule}
+        <div
+          className="flex-1 min-w-0 flex flex-col justify-between"
+          style={{ padding: stacked ? "10px 18px 14px" : "16px 16px 14px 15px" }}
+        >
+          <div className="min-w-0 flex flex-col">
+            <Zone blocks={main} data={data} layout={layout} density={density} placeholder={placeholder} gap={gap} />
           </div>
-        ) : <div />}
+          {/* The QR always lands bottom-right at a fixed inset, the same place it
+              sits on all six preset templates. */}
+          {qr ? (
+            <div className="flex items-end justify-end" data-cb={qr.id}>
+              <CustomBlockContent block={qr} data={data} layout={layout} density={density} placeholder={placeholder} />
+            </div>
+          ) : <div />}
+        </div>
       </div>
     </div>
   );
