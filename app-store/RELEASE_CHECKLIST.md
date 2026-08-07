@@ -16,26 +16,30 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**Only two things are left, and both need a human.**
+**One thing is left: sign in to Xcode.**
 
-1. **Enable the Apple provider in Supabase** (§B). Everything it needs exists
-   and is proven working against Apple — this is one API call, blocked purely
-   on credentials:
+Sign in with Apple is live end-to-end as of 2026-08-07 — provider enabled,
+redirect allow-listed, `/authorize` verified redirecting to Apple, and the
+button shipped to production. §4.8 is satisfied.
 
-   ```bash
-   SUPABASE_ACCESS_TOKEN=sbp_...  \
-     node scripts/supabase-enable-apple.mjs ~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8
-   ```
-
-   Then `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1` in Vercel Production + redeploy,
-   which is what actually reveals the button. Order matters — the gate exists
-   so the button can't appear while the provider is off.
-
-2. **Sign in to Xcode** (§D) — Settings → Accounts, Apple ID on team
+1. **Sign in to Xcode** (§D) — Settings → Accounts, Apple ID on team
    NHK8FA2RR2. No Apple ID is signed in and there are no signing identities on
    this Mac, so device install / Archive / Validate / upload cannot run.
    `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
    automatic signing should resolve immediately after.
+
+**How Sign in with Apple was verified (2026-08-07), so nobody re-litigates it:**
+1. `/auth/v1/authorize?provider=apple` returns `302 → appleid.apple.com` with
+   `client_id=me.swiftcard.web`. (It briefly returned "provider is not enabled"
+   right after the write — GoTrue reload lag. Re-probe before panicking.)
+2. A secret signed with `C8TWRXCNKA` posted to `appleid.apple.com/auth/token`
+   with a junk code returns `invalid_grant`, not `invalid_client` — Apple
+   accepts the Services ID, key and signature.
+3. The production JS bundle for `/login` contains the "Continue with Apple"
+   button. Proven meaningful by building locally both ways: with
+   `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=0` the minifier eliminates the button
+   entirely, with `=1` it survives. So its presence in production is proof the
+   flag is on, not just that the code exists.
 
 Everything upstream has been checked rather than assumed: the AASA serves the
 real Team ID, the App ID capabilities are correct and the App Group is now
@@ -95,39 +99,34 @@ vars are in Vercel Production.
 - [ ] **APNs key** (.p8) created — note Key ID. (SHELL-RUNBOOK §6.)
 - [ ] Pass Type ID for Wallet confirmed valid (existing passes sign with it).
 
-## B. Supabase dashboard — one command
+## B. Supabase dashboard — DONE (2026-08-07)
 
-Once the SIWA .p8 from §A exists, both items below are done by:
+- [x] Auth → Providers → **Apple enabled**, client id `me.swiftcard.web`,
+      secret = an Apple-signed ES256 JWT.
+- [x] Auth → URL Configuration → Redirect URLs now includes
+      `swiftcard://auth-callback` (the return leg of native OAuth).
+- [x] **Verified live, not just accepted.** `/auth/v1/authorize?provider=apple`
+      now returns `302 → https://appleid.apple.com/auth/authorize` with
+      `client_id=me.swiftcard.web`, the Supabase callback as `redirect_uri`,
+      and `scope=email name`. It answered "provider is not enabled" for a few
+      seconds after the PATCH — GoTrue reload lag, so re-probe before
+      concluding anything is wrong.
+
+Done with:
 
 ```bash
-SUPABASE_ACCESS_TOKEN=sbp_...  \
-  node scripts/supabase-enable-apple.mjs ~/path/AuthKey_<KEYID>.p8
+node scripts/supabase-enable-apple.mjs ~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8
 ```
 
-(token from supabase.com/dashboard/account/tokens, or just `supabase login`
-first and the script reads `~/.supabase/access-token`). It enables the
-provider, adds the redirect URL, and then proves it by re-running the
-`/authorize` probe — so a green run means it actually works, not just that the
-API returned 200.
+The token is read from `~/.swiftcard/supabase-token` (or
+`SUPABASE_ACCESS_TOKEN`). Note `supabase login` cannot be scripted — it is an
+interactive TUI that refuses non-TTY, refuses again in JSON mode, and may keep
+its token in the macOS Keychain rather than on disk. Use a personal access
+token from supabase.com/dashboard/account/tokens instead.
 
-- [ ] Auth → Providers → **Apple enabled** (Services ID + secret).
-      ⚠️ **Verified still OFF on 2026-08-07**:
-      `GET /auth/v1/authorize?provider=apple` returns
-      `{"code":400,"error_code":"validation_failed","msg":"Unsupported
-      provider: provider is not enabled"}`, where `google` returns a 302 to
-      accounts.google.com. This is the 4.8 exposure.
-- [ ] Auth → URL Configuration → Redirect URLs includes
-      `swiftcard://auth-callback` — the return leg of native OAuth. Not
-      checkable from outside (Supabase validates `redirect_to` at the callback,
-      not at `/authorize`, so a bogus scheme 302s too), which is why the script
-      sets it rather than assuming.
-
-⚠️ **The Apple client secret is a JWT you sign, and Apple caps it at 6
-months.** Sign in with Apple will break on its expiry date with no warning.
-`scripts/apple-client-secret.mjs` regenerates it; re-running the enable script
-above is the fix. Put the date in a calendar.
-- [ ] Auth → **leaked-password protection enabled** (one toggle; flagged by
-      the security advisor).
+⚠️ **The Apple client secret expires ~2027-02-05.** Sign in with Apple will
+start failing on that date with no warning. Re-run the exact command above to
+refresh it — it regenerates the JWT and re-verifies. Put it in a calendar.
 
 ## C. Vercel env + deploy
 
@@ -143,12 +142,13 @@ above is the fix. Put the date in a calendar.
       it to `1` only for local Xcode dev builds, and never for TestFlight.
       ⚠️ These are stored as Sensitive in Vercel, so `vercel env pull` shows
       them as `""`. That is expected — it is not evidence they are empty.
-- [ ] **`NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1` — set this LAST, after §B is
-      green, then redeploy.** The Apple button in `LoginForm.tsx` is gated on
-      it precisely so the button cannot exist while the provider is off; a
-      sign-in control that always errors is a 2.1 rejection by itself. It is
-      a `NEXT_PUBLIC_` var, so it is baked in at build time — setting it
-      without a redeploy does nothing.
+- [x] **`NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1`** set in Production after §B went
+      green, and deployed. The Apple button in `LoginForm.tsx` is gated on it
+      precisely so the button cannot exist while the provider is off; a
+      sign-in control that always errors is a 2.1 rejection by itself. It is a
+      `NEXT_PUBLIC_` var, so it is baked in at build time — changing it
+      without a redeploy does nothing. **Set it back to 0 and redeploy if the
+      Apple client secret ever lapses.**
 - [x] **AASA is live and correct** (verified 2026-08-07):
       `curl https://swiftcard.me/.well-known/apple-app-site-association`
       returns `"appID":"NHK8FA2RR2.me.swiftcard.app"` with paths
