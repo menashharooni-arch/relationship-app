@@ -136,9 +136,27 @@ const b = (
  * you already like is the difference between adjusting and building, and
  * "building" is what made the old designer feel like work.
  */
+/** The contact stack every card shares, so presets differ where they should. */
+const contacts = (): CustomBlock[] => [
+  b("phone", "field", "right", "normal", { field: "phone" }),
+  b("email", "field", "right", "normal", { field: "email" }),
+  b("website", "field", "right", "quiet", { field: "website" }),
+  b("address", "field", "right", "quiet", { field: "address", on: false }),
+];
+
+/**
+ * One preset per SHIPPED TEMPLATE. "Start from Logo First" gives you that card,
+ * rebuilt out of blocks, and then you can move things — which is the whole
+ * proposition: every template is a starting point, not a dead end.
+ *
+ * These are reconstructions, not the template components themselves. A fork is
+ * close, not pixel-identical: the preset templates each carry hand-tuned
+ * typography the block engine expresses through three emphasis levels. Close is
+ * the point — you're about to change it anyway.
+ */
 export const LAYOUT_PRESETS: Record<string, { label: string; blurb: string; build: () => CustomLayout }> = {
   "logo-first": {
-    label: "Logo first",
+    label: "Logo First",
     blurb: "Your mark on the left, details down the right.",
     build: () => ({
       background: "#2c3a52", textColor: "#ffffff", accentColor: "#ffffff",
@@ -149,20 +167,39 @@ export const LAYOUT_PRESETS: Record<string, { label: string; blurb: string; buil
         b("name", "field", "right", "hero", { field: "name" }),
         b("company", "field", "right", "quiet", { field: "company" }),
         b("title", "field", "right", "quiet", { field: "title" }),
-        b("phone", "field", "right", "normal", { field: "phone" }),
-        b("email", "field", "right", "normal", { field: "email" }),
-        b("website", "field", "right", "quiet", { field: "website" }),
-        b("address", "field", "right", "quiet", { field: "address", on: false }),
+        ...contacts(),
         b("qr", "qr", "right", "normal"),
         b("socials", "socials", "right", "quiet", { on: false }),
       ],
     }),
   },
+  "classic-pro": {
+    label: "Classic Pro",
+    blurb: "A coloured branding panel, clean white info beside it.",
+    build: () => ({
+      background: "#ffffff", textColor: "#0e1b35", accentColor: "#2563eb",
+      panelBackground: "linear-gradient(160deg, #0e1b35 0%, #162947 100%)",
+      panelTextColor: "#ffffff",
+      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+      skeleton: "split", elements: [],
+      blocks: [
+        b("headshot", "headshot", "left", "normal"),
+        b("logo", "logo", "left", "quiet"),
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("title", "field", "right", "quiet", { field: "title" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        ...contacts(),
+        b("qr", "qr", "right", "normal"),
+      ],
+    }),
+  },
   "photo-first": {
-    label: "Photo first",
+    label: "Photo First",
     blurb: "Face on the left — for people who sell in person.",
     build: () => ({
-      background: "#4f46e5", textColor: "#ffffff", accentColor: "#c7d2fe",
+      background: "#ffffff", textColor: "#1e1b4b", accentColor: "#6d28d9",
+      panelBackground: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)",
+      panelTextColor: "#ffffff",
       fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
       skeleton: "split", elements: [],
       blocks: [
@@ -170,53 +207,65 @@ export const LAYOUT_PRESETS: Record<string, { label: string; blurb: string; buil
         b("name", "field", "right", "hero", { field: "name" }),
         b("title", "field", "right", "quiet", { field: "title" }),
         b("company", "field", "right", "quiet", { field: "company" }),
-        b("phone", "field", "right", "normal", { field: "phone" }),
-        b("email", "field", "right", "normal", { field: "email" }),
-        b("website", "field", "right", "quiet", { field: "website" }),
+        ...contacts(),
         b("qr", "qr", "right", "normal"),
         b("logo", "logo", "left", "quiet", { on: false }),
-        b("address", "field", "right", "quiet", { field: "address", on: false }),
       ],
     }),
   },
-  "classic": {
-    label: "Classic",
-    blurb: "Name up top, details beneath. Nothing to argue with.",
+  "modern-bold": {
+    label: "Modern Bold",
+    blurb: "Full-bleed dark with an oversized name.",
     build: () => ({
-      background: "#0e1b35", textColor: "#ffffff", accentColor: "#60a5fa",
+      background: "#070d1c", textColor: "#ffffff", accentColor: "#3b82f6",
       fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "stacked", elements: [],
-      blocks: [
-        b("logo", "logo", "left", "quiet"),
-        b("name", "field", "right", "hero", { field: "name" }),
-        b("title", "field", "right", "quiet", { field: "title" }),
-        b("company", "field", "right", "quiet", { field: "company" }),
-        b("phone", "field", "right", "normal", { field: "phone" }),
-        b("email", "field", "right", "normal", { field: "email" }),
-        b("website", "field", "right", "quiet", { field: "website" }),
-        b("qr", "qr", "right", "normal"),
-        b("headshot", "headshot", "left", "quiet", { on: false }),
-        b("address", "field", "right", "quiet", { field: "address", on: false }),
-      ],
-    }),
-  },
-  "minimal": {
-    label: "Minimal",
-    blurb: "Ivory and restraint. Say less.",
-    build: () => ({
-      background: "#faf9f6", textColor: "#1c1612", accentColor: "#b08d57",
-      fontFamily: "Georgia, 'Times New Roman', serif",
       skeleton: "split", elements: [],
       blocks: [
         b("logo", "logo", "left", "normal"),
         b("name", "field", "right", "hero", { field: "name" }),
         b("title", "field", "right", "quiet", { field: "title" }),
-        b("phone", "field", "right", "normal", { field: "phone" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        ...contacts(),
+        b("qr", "qr", "right", "normal"),
+      ],
+    }),
+  },
+  "local-business": {
+    label: "Local Business",
+    blurb: "A bold header stripe with the phone as the hero.",
+    build: () => ({
+      background: "#fffaf0", textColor: "#7c2d12", accentColor: "#b45309",
+      panelBackground: "linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)",
+      panelTextColor: "#ffffff",
+      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+      skeleton: "stacked", elements: [],
+      blocks: [
+        b("logo", "logo", "left", "quiet"),
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        b("phone", "field", "right", "hero", { field: "phone" }),
         b("email", "field", "right", "normal", { field: "email" }),
         b("website", "field", "right", "quiet", { field: "website" }),
-        b("qr", "qr", "right", "quiet"),
-        b("company", "field", "right", "quiet", { field: "company", on: false }),
         b("address", "field", "right", "quiet", { field: "address", on: false }),
+        b("qr", "qr", "right", "normal"),
+        b("title", "field", "right", "quiet", { field: "title", on: false }),
+      ],
+    }),
+  },
+  "luxury-minimal": {
+    label: "Luxury Minimal",
+    blurb: "Ivory, a gold accent, and a lot of restraint.",
+    build: () => ({
+      background: "#fafaf6", textColor: "#1c1612", accentColor: "#b08d57",
+      fontFamily: "Georgia, 'Times New Roman', serif",
+      skeleton: "split", elements: [],
+      blocks: [
+        b("logo", "logo", "left", "normal"),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("title", "field", "right", "quiet", { field: "title" }),
+        ...contacts(),
+        b("qr", "qr", "right", "quiet"),
       ],
     }),
   },
