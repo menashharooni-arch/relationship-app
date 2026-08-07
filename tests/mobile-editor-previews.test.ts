@@ -139,11 +139,34 @@ describe("desktop is untouched", () => {
     expect(code(WIZARD)).toMatch(/hidden lg:block lg:order-2 lg:sticky lg:top-6/);
   });
 
-  it("the editor's Socials tab still shows the CARD preview on desktop", () => {
-    // Scoped to the phone this pass — desktop keeps its existing behaviour and
-    // its explanatory caption.
+  it("BOTH Swift Links tabs show the links preview on desktop too", () => {
+    // Was the reverse: desktop showed the CARD on the Socials tab, with a
+    // caption apologising that the card doesn't show any of what you're
+    // editing. Mobile had already been fixed; this is desktop catching up.
     const c = code(EDITOR);
-    expect(c).toMatch(/the card above only shows your name, title/);
+    expect(c).toMatch(/tab === "linkdesign" \|\| tab === "sharing" \? \(/);
+    expect(c, "the apology caption is back, so the card preview must be too")
+      .not.toMatch(/the card above only shows your name, title/);
+  });
+
+  it("the wizard previews the links page on BOTH Swift Links steps", () => {
+    expect(code(WIZARD)).toMatch(/step === 3 \|\| step === 4 \? linkPagePreview : livePreview/);
+  });
+
+  it("the card preview is still what steps 1-2 / the card tabs show", () => {
+    // The swap must not have leaked onto the tabs that really do edit the card.
+    expect(code(EDITOR)).toMatch(/\{cardPreviewInner\}/);
+    expect(code(WIZARD)).toMatch(/: livePreview\}/);
+  });
+
+  it("each Swift Links surface names what THAT step changes", () => {
+    // One preview shared by two steps, so a single caption would be wrong on
+    // one of them — "as you pick colors and fonts" on the Socials step.
+    for (const f of [EDITOR, WIZARD]) {
+      const c = code(f);
+      expect(c, `${f} lost the per-step caption`).toMatch(/Your bio, socials and links appear here/);
+      expect(c).toMatch(/It updates live as you pick colors and fonts/);
+    }
   });
 
   it("both previews are defined once and shared, so the two can't drift", () => {

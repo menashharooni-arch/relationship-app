@@ -998,21 +998,24 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           beside the controls that change it (see mobileCardPreview /
           mobileLinkPreview above). This column used to be order-1 on mobile,
           which put a preview above the entire form on every step.
-          On the Social design tab the Swift Links page preview REPLACES the
-          card preview — that's what's being styled there.
-
-          Desktop behaviour is otherwise UNCHANGED, deliberately: the Socials
-          tab still shows the card preview here with its explanatory caption.
-          Swapping it for the Swift Links preview (as mobile now does) would be
-          the better call, but this pass was scoped to the phone. ── */}
+          BOTH Swift Links tabs — Socials and Social design — show the Swift
+          Links page preview instead of the card. Socials edits the bio, the
+          social handles and the link buttons; none of those appear on the card
+          at all, so previewing the card there showed a picture that could not
+          respond to anything being typed. Mobile has done this since the
+          per-step previews landed; this brings desktop in line. ── */}
       <div className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-6">
-        {tab === "linkdesign" ? (
+        {tab === "linkdesign" || tab === "sharing" ? (
           <>
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
               Your Swift Links page — this is how it will look
             </p>
             {linkPreviewInner}
-            <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
+            <p className="text-gray-600 text-[11px] mt-2 leading-snug">
+              {tab === "sharing"
+                ? "Your bio, socials and links appear here as you add them."
+                : "It updates live as you pick colors and fonts."}
+            </p>
           </>
         ) : (
           <>
@@ -1022,11 +1025,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   this preview link are gone from the card editor. */}
             </div>
             {cardPreviewInner}
-            {tab === "sharing" ? (
-              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Editing your <span className="text-gray-400">Swift Links</span> page — the card above only shows your name, title &amp; contact details.</p>
-            ) : (
-              <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
-            )}
+            {/* Only Card info and Card design reach this branch now, and both
+                edit the card itself — so the old "the card above only shows
+                your name, title & contact details" apology for the Socials tab
+                is gone with the branch that needed it. */}
+            <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your changes appear here instantly.</p>
           </>
         )}
       </div>

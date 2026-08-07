@@ -818,7 +818,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         links={links}
         paid={designUnlocked}
       />
-      <p className="text-gray-600 text-[11px] mt-2 leading-snug">It updates live as you pick colors and fonts.</p>
+      {/* Both Swift Links steps share this preview, so the caption names what
+          the step you are on actually changes. */}
+      <p className="text-gray-600 text-[11px] mt-2 leading-snug">
+        {step === 3
+          ? "Your bio, socials and links appear here as you add them."
+          : "It updates live as you pick colors and fonts."}
+      </p>
     </>
   );
 
@@ -1544,9 +1550,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         )}
         </div>{/* editor column */}
 
-        {/* Pinned preview — DESKTOP ONLY. Steps 1-3 show the card's Live
-            Preview; step 4 (Social design) REPLACES it with the Swift Links
-            page preview, since that's what is being styled.
+        {/* Pinned preview — DESKTOP ONLY. Steps 1-2 build the CARD, so they
+            preview the card. Steps 3 (Socials) and 4 (Social design) build the
+            SWIFT LINKS page — the bio, the social handles, the link buttons and
+            their styling — none of which appear on the card, so both preview
+            the links page. Mobile already worked this way.
 
             Mobile renders nothing here: every step drops its own preview inline
             at the point in the form where it belongs, which CSS `order` cannot
@@ -1554,7 +1562,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             the form column. */}
         {step !== 5 && (
           <div className="hidden lg:block lg:order-2 lg:sticky lg:top-6">
-            {step === 4 ? linkPagePreview : livePreview}
+            {step === 3 || step === 4 ? linkPagePreview : livePreview}
           </div>
         )}
         </div>{/* grid */}

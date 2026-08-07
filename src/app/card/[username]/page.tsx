@@ -11,7 +11,6 @@ import ScanSaveContact from "@/components/ScanSaveContact";
 import ShareButton from "@/components/ShareButton";
 import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import CardActionLinks from "@/components/CardActionLinks";
-import QRCodeModal from "@/components/QRCodeModal";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -409,7 +408,7 @@ export default async function CardPage({
               className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#EDE7DE] hover:text-slate-700 transition-colors"
               style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}
             >
-              View all →
+              View Swift Link page →
             </a>
           </div>
           {/* ml-9 STAYS: it is this page's convention for copy under a numbered
@@ -454,7 +453,12 @@ export default async function CardPage({
           text={`Connect with ${firstName} — save their contact instantly.`}
           label="Share this card"
         />
-        <QRCodeModal url={`${publicCardUrl}?source=qr_code`} firstName={firstName} />
+        {/* "Show QR Code" removed (owner request). It asked the person already
+            holding the card on their phone to display a QR for someone else to
+            scan — a sharer's tool sitting in a viewer's flow. Sharing the link
+            above covers the same job. The QRCodeModal component stays: the
+            three marketing mockups still use it, and it is still the right
+            control on the OWNER's dashboard. */}
         {/* Faint viewer CTA — turns people who receive a card into signups.
             Free only: Pro is sold as "100% your brand", and this line is
             SwiftCard advertising sitting on a paying customer's card page. It
