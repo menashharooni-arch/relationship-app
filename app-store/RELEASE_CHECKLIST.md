@@ -16,12 +16,18 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**Still blocked on the owner:** no Apple ID is signed into Xcode and there are
-no signing identities on this Mac, so nothing below the simulator line
-(device install, Archive, Validate, upload) can run yet. That is the single
-next action: Xcode → Settings → Accounts → add the Apple ID on team
-NHK8FA2RR2. `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
-automatic signing should resolve as soon as the account is there.
+**The two things actually blocking submission, in order:**
+
+1. **No Apple ID is signed into Xcode** and there are no signing identities on
+   this Mac, so nothing below the simulator line (device install, Archive,
+   Validate, upload) can run. Xcode → Settings → Accounts → add the Apple ID
+   on team NHK8FA2RR2. `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both
+   targets, so automatic signing should resolve immediately after.
+2. **Supabase's Apple provider is still disabled** (§B) — the 4.8 risk.
+
+Everything else server-side that was previously listed as unknown has been
+checked and is green: the AASA serves the real Team ID (§C), and the site
+responds 200.
 
 ## A. Apple Developer portal (developer.apple.com)
 
@@ -42,9 +48,17 @@ automatic signing should resolve as soon as the account is there.
 ## B. Supabase dashboard
 
 - [ ] Auth → Providers → **Apple enabled** (Services ID + secret from Team
-      ID/Key ID/.p8).
+      ID/Key ID/.p8). ⚠️ **Verified still OFF on 2026-08-07.**
+      `GET /auth/v1/authorize?provider=apple` returns
+      `{"code":400,"error_code":"validation_failed","msg":"Unsupported
+      provider: provider is not enabled"}`, where the same call for `google`
+      returns a 302 to accounts.google.com. This is the 4.8 rejection risk:
+      the app offers Google sign-in, so it must offer Sign in with Apple.
+      Re-check with that same curl after enabling.
 - [ ] Auth → URL Configuration → Redirect URLs includes
-      `swiftcard://auth-callback`.
+      `swiftcard://auth-callback`. (Not checkable from outside — Supabase
+      validates `redirect_to` at the callback leg, not at `/authorize`, so a
+      bogus scheme also 302s. Must be confirmed in the dashboard.)
 - [ ] Auth → **leaked-password protection enabled** (one toggle; flagged by
       the security advisor).
 
@@ -54,15 +68,13 @@ automatic signing should resolve as soon as the account is there.
       `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY`,
       `APPLE_PUSH_KEY_ID`, `APPLE_PUSH_PRIVATE_KEY`
       (`APPLE_PUSH_SANDBOX=1` only for dev builds — REMOVE for TestFlight+).
-- [ ] AASA needs NO code edit — the route reads the same `APPLE_TEAM_ID` set
-      above, and serves `TEAMID_PLACEHOLDER` until that variable is present.
-      Setting the env var and redeploying is what activates Universal Links.
-      (A malformed value falls back to the placeholder rather than serving an
-      appID Apple silently rejects.)
-- [ ] **Push this repo's audit commits to origin** (this deploys production —
-      the audit run had no deploy approval, so the commits are local).
-      Verify `curl https://swiftcard.me/.well-known/apple-app-site-association`
-      shows the Team ID and `/join/*`.
+- [x] **AASA is live and correct** (verified 2026-08-07):
+      `curl https://swiftcard.me/.well-known/apple-app-site-association`
+      returns `"appID":"NHK8FA2RR2.me.swiftcard.app"` with paths
+      `/card/*`, `/links/*`, `/join/*`, `/auth/callback` — the real Team ID,
+      not `TEAMID_PLACEHOLDER`. So `APPLE_TEAM_ID` is already set in Vercel
+      Production and Universal Links are activated server-side.
+- [x] Audit commits are on origin/main; nothing is local-only any more.
 
 ## D. Xcode (SHELL-RUNBOOK §1–2, §6b)
 
