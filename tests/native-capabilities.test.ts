@@ -102,24 +102,65 @@ describe("iOS shell project wiring", () => {
 });
 
 describe("home-screen QR widget wiring", () => {
-  it("bridge syncs the active card into the shared Preferences store", () => {
+  it("bridge syncs the active card through the WidgetBridge native plugin", () => {
     const bridge = read("src/components/NativeAppBridge.tsx");
-    expect(bridge).toMatch(/@capacitor\/preferences/);
-    expect(bridge).toMatch(/key: "widget_card"/);
+    expect(bridge).toMatch(/Plugins\?\.WidgetBridge/);
+    expect(bridge).toMatch(/setCard\(/);
     expect(bridge).toMatch(/source=widget/);
   });
-  it("capacitor config points Preferences at the app group", () => {
-    expect(read("capacitor.config.ts")).toMatch(/group: "group\.me\.swiftcard\.app"/);
+  // Regression guard for the bug this replaced: @capacitor/preferences' `group`
+  // option is only a key prefix on UserDefaults.standard, which lives in the
+  // app's own container. A widget extension cannot read it, so routing the card
+  // through Preferences left the widget permanently on its empty state.
+  it("bridge does NOT route widget data through @capacitor/preferences", () => {
+    const bridge = read("src/components/NativeAppBridge.tsx");
+    expect(bridge).not.toMatch(/await\s+Preferences\.set/);
+    expect(bridge).not.toMatch(/import\("@capacitor\/preferences"\)/);
   });
   it("app + widget entitlements share the app group", () => {
     expect(read("ios/App/App/App.entitlements")).toContain("group.me.swiftcard.app");
     expect(read("ios/App/SwiftCardWidget/SwiftCardWidget.entitlements")).toContain("group.me.swiftcard.app");
+  });
+  it("WidgetBridge writes the real App Group suite the widget reads", () => {
+    const b = read("ios/App/App/WidgetBridge.swift");
+    // The suite — not UserDefaults.standard — is what makes the data visible.
+    expect(b).toMatch(/UserDefaults\(suiteName:/);
+    expect(b).toContain('appGroup = "group.me.swiftcard.app"');
+    expect(b).toContain('storeKey = "widget_card"');
+    // Without an explicit reload the widget keeps its snapshot for 6 hours.
+    expect(b).toMatch(/WidgetCenter\.shared\.reloadTimelines\(ofKind: "SwiftCardQR"\)/);
   });
   it("widget reads the same group/key and QR-encodes the card url", () => {
     const w = read("ios/App/SwiftCardWidget/SwiftCardWidget.swift");
     expect(w).toContain('APP_GROUP = "group.me.swiftcard.app"');
     expect(w).toContain('STORE_KEY = "widget_card"');
     expect(w).toContain("qrCodeGenerator");
+    // The kind string must match what WidgetBridge reloads.
+    expect(w).toContain('kind: "SwiftCardQR"');
+  });
+  it("the widget target is actually in the Xcode project", () => {
+    // The extension's source existed on disk for weeks without a target to
+    // build it — the app shipped no widget at all.
+    const proj = read("ios/App/App.xcodeproj/project.pbxproj");
+    expect(proj).toContain("SwiftCardWidgetExtension");
+    expect(proj).toContain('productType = "com.apple.product-type.app-extension"');
+    expect(proj).toContain("SwiftCardWidget.swift in Sources");
+    // Embedded into the app bundle's PlugIns folder, or it never installs.
+    expect(proj).toContain("Embed Foundation Extensions");
+    expect(proj).toMatch(/dstSubfolderSpec = 13;/);
+  });
+});
+
+describe("APNs delegate forwarding", () => {
+  // PushNotifications.register() resolves only when the AppDelegate reposts
+  // the UIApplication callbacks as Capacitor notifications. Without these the
+  // registration listener in EnablePushButton just times out.
+  it("AppDelegate forwards both APNs registration outcomes", () => {
+    const d = read("ios/App/App/AppDelegate.swift");
+    expect(d).toMatch(/didRegisterForRemoteNotificationsWithDeviceToken/);
+    expect(d).toContain(".capacitorDidRegisterForRemoteNotifications");
+    expect(d).toMatch(/didFailToRegisterForRemoteNotificationsWithError/);
+    expect(d).toContain(".capacitorDidFailToRegisterForRemoteNotifications");
   });
 });
 
