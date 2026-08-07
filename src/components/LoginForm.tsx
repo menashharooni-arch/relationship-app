@@ -13,11 +13,13 @@ import { safeNextPath } from "@/lib/safe-next";
 // therefore routes through swiftcard.me.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-// Sign in with Apple is off until the Supabase provider is actually enabled on
-// the project (an owner action in the Supabase dashboard). Read at module
-// scope, not per render, and compared to the literal so a stray value can't
-// accidentally switch it on. Set NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1 in Vercel
-// and redeploy once the provider is live.
+// Kill switch for the Apple button, kept deliberately after the provider went
+// live (2026-08-07, NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1 in Vercel Production).
+// It exists so the button can never be visible while Apple sign-in is broken —
+// which it will be roughly every 6 months when the Apple client secret expires.
+// Set to 0 and redeploy to hide it; a dead sign-in control is an App Review 2.1
+// rejection on its own. Read at module scope, not per render, and compared to
+// the literal so a stray value can't accidentally switch it on.
 const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1";
 
 export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
@@ -102,9 +104,11 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
   }
 
   // Sign in with Apple — mirrors handleGoogle. Rendered only in the native app.
-  // Supabase's Apple provider isn't enabled on the project yet (a separate owner
-  // action), so today this call returns an error; we catch it and surface it as
-  // a normal user-facing message rather than letting it throw. Inert but safe.
+  // The Supabase provider went live 2026-08-07, so this is a real sign-in path
+  // now. The error handling stays: the client secret is an Apple-signed JWT that
+  // expires every 6 months (next ≈ 2027-02-05), and when it lapses Supabase
+  // starts answering "provider is not enabled" again — better a readable message
+  // than a thrown promise. See app-store/RELEASE_CHECKLIST.md §B to regenerate.
   async function handleApple() {
     if (mode === "signup") await clearExistingSession();
     try {
