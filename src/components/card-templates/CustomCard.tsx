@@ -195,14 +195,35 @@ const CONTACT_ICON: Record<string, () => React.ReactElement> = {
   phone: IcoPhone, fax: IcoPhone, email: IcoMail, website: IcoGlobe, address: IcoPin,
 };
 
-/** Colour ramp so an owner never has to pick a shade per line. */
+/** Perceived brightness of the first #rrggbb in a colour or gradient string. */
+function lum(color?: string): number | null {
+  const m = /#([0-9a-f]{6})/i.exec(color ?? "");
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+}
+
+/**
+ * Colour ramp so an owner never has to pick a shade per line.
+ *
+ * The accent draws the job title and the contact icons directly on the card's
+ * surface, so unlike a body colour it has no ground of its own. An accent close
+ * to the background renders them invisible — a scanned card reading a dark red
+ * mark on a navy ground produced exactly that, and it is equally reachable by
+ * choosing a custom background under an existing Look. So the accent falls back
+ * to the text colour whenever it doesn't separate from what it sits on.
+ */
 function ramp(layout: CustomLayout, onPanel = false) {
   const strong = (onPanel && layout.panelTextColor) || layout.textColor;
+  const ground = onPanel ? (layout.panelBackground ?? layout.background) : layout.background;
+  const a = lum(layout.accentColor);
+  const g = lum(ground);
+  const accentReads = !layout.accentColor || a === null || g === null || Math.abs(a - g) >= 26;
   return {
     hero: strong,
     normal: strong,
     quiet: withOpacity(strong, 0.72),
-    accent: layout.accentColor || strong,
+    accent: accentReads ? (layout.accentColor || strong) : strong,
   };
 }
 function withOpacity(hex: string, a: number): string {
@@ -240,7 +261,19 @@ export function CustomBlockContent({
             not down, and height is the scarce dimension — raising both together
             made a full card overflow again, which the fuzz caught immediately. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={data.logoUrl} alt="logo" style={{ maxWidth: px * 1.34, maxHeight: px * 0.72, objectFit: "contain", display: "block" }} />
+        <img
+          src={data.logoUrl}
+          alt="logo"
+          style={{
+            maxWidth: Math.min(px * 1.34, 118), maxHeight: px * 0.72,
+            // minWidth 0 is load-bearing: a flex item's automatic minimum size
+            // is its CONTENT size, and for a replaced element that is the
+            // image's own width — so it refused to shrink to the tile's cap and
+            // hung 3px past the panel edge. The fuzz caught it only in the
+            // mirror skeleton, where the panel sits against the card's right.
+            minWidth: 0, objectFit: "contain", display: "block",
+          }}
+        />
       </div>
     );
   }
@@ -250,7 +283,7 @@ export function CustomBlockContent({
       ? <div style={{ width: px, height: px, borderRadius: 9999, border: `1px dashed ${withOpacity(layout.textColor, 0.4)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: c.quiet }}>Photo</div>
       : null;
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={data.photoUrl} alt="" style={{ width: px, height: px, objectFit: "cover", borderRadius: 9999, display: "block" }} />;
+    return <img src={data.photoUrl} alt="" style={{ width: Math.min(px, 116), height: Math.min(px, 116), minWidth: 0, objectFit: "cover", borderRadius: 9999, display: "block" }} />;
   }
 
   if (block.type === "qr") {
@@ -313,7 +346,14 @@ export function CustomBlockContent({
   const Icon = block.type === "field" ? CONTACT_ICON[block.field ?? ""] : undefined;
   // Auto-fit by length so a long value shrinks instead of overflowing. The name
   // additionally fits by longest WORD, the same rule the preset templates use.
-  const sized = isName ? fitName(fs, value, 16) : fitPx(fs, shown, block.emphasis === "hero" ? 18 : 26);
+  // An email or a domain is ONE unbroken token: it either fits its column or it
+  // splits mid-word ("aaron@malvecapita / l.com"). Length-based fitting sizes by
+  // character count against a comfy length, which is a proxy and was still
+  // letting a hero-emphasis email split. Anything without a space is therefore
+  // ALSO clamped to the zone's real width; prose with spaces just wraps.
+  const unbroken = !/\s/.test(shown);
+  let sized = isName ? fitName(fs, value, 16) : fitPx(fs, shown, block.emphasis === "hero" ? 18 : 26);
+  if (unbroken) sized = Math.min(sized, fitToWidth(shown + (Icon ? "xx" : ""), fs));
 
   const text = (
     <span

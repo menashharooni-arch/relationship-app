@@ -316,6 +316,147 @@ export function buildPreset(key: string): CustomLayout {
   return (LAYOUT_PRESETS[key] ?? LAYOUT_PRESETS[DEFAULT_PRESET]).build();
 }
 
+// ── Building a layout from a scanned card ───────────────────────────────────
+
+/** Perceived brightness (YIQ), 0-255. Null for anything unparseable. */
+function yiq(hex: string): number | null {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+}
+
+const hex = (v: unknown, fallback: string): string =>
+  typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : fallback;
+
+/**
+ * Every block a scan is allowed to place, and what it maps to.
+ *
+ * A Map, not an object literal, because the key comes from model output and
+ * `literal["__proto__"]` returns Object.prototype — which is TRUTHY, so a plain
+ * lookup would treat "__proto__" or "constructor" as a valid block and build one
+ * with an undefined type. The renderer degrades gracefully enough that the fuzz
+ * never flagged it, which is exactly why it needed closing rather than trusting.
+ */
+const SCANNABLE = new Map<string, { type: CustomBlock["type"]; field?: string; zone: CardZone }>([
+  ["logo",     { type: "logo", zone: "left" }],
+  ["headshot", { type: "headshot", zone: "left" }],
+  ["qr",       { type: "qr", zone: "right" }],
+  ["name",     { type: "field", field: "name", zone: "right" }],
+  ["title",    { type: "field", field: "title", zone: "right" }],
+  ["company",  { type: "field", field: "company", zone: "right" }],
+  ["phone",    { type: "field", field: "phone", zone: "right" }],
+  ["email",    { type: "field", field: "email", zone: "right" }],
+  ["website",  { type: "field", field: "website", zone: "right" }],
+  ["address",  { type: "field", field: "address", zone: "right" }],
+  ["fax",      { type: "field", field: "fax", zone: "right" }],
+]);
+
+export type ScanReading = {
+  background?: unknown; textColor?: unknown; accentColor?: unknown;
+  panelBackground?: unknown; skeleton?: unknown; serif?: unknown;
+  blocks?: unknown;
+};
+
+/**
+ * Turn what the model saw into a layout.
+ *
+ * The model CHOOSES AMONG OPTIONS; it never authors the layout. Every value is
+ * validated against a whitelist here and anything unrecognised is dropped, so a
+ * hallucinated block type, a malformed colour, or a hostile response can only
+ * ever produce a plainer card — never a broken or unreadable one. The result is
+ * then built through the same shape every preset uses, which is what makes a
+ * scanned card inherit the guarantees the fuzz proved for hand-built ones.
+ */
+export function layoutFromScan(input: ScanReading | null | undefined): CustomLayout {
+  const base = buildPreset(DEFAULT_PRESET);
+  // Defensive rather than relying on the caller. The route already rejects a
+  // non-object body, but this is exported and parses model output — a function
+  // whose whole job is to survive untrusted input should not throw on null.
+  const reading: ScanReading = input && typeof input === "object" ? input : {};
+
+  const skeleton: CardSkeleton =
+    reading.skeleton === "stacked" || reading.skeleton === "mirror" || reading.skeleton === "split"
+      ? reading.skeleton
+      : "split";
+
+  const background = hex(reading.background, base.background);
+  let textColor = hex(reading.textColor, "#ffffff");
+  const accentColor = hex(reading.accentColor, textColor);
+
+  // A card whose text matches its background is unreadable, and a photograph of
+  // a glossy card makes that reading easy to get wrong. Rather than trust it,
+  // flip the text to whichever end actually contrasts.
+  const bgY = yiq(background);
+  const txY = yiq(textColor);
+  if (bgY !== null && txY !== null && Math.abs(bgY - txY) < 60) {
+    textColor = bgY < 140 ? "#ffffff" : "#141b26";
+  }
+
+  const panelBackground = typeof reading.panelBackground === "string" && /^#[0-9a-f]{6}$/i.test(reading.panelBackground.trim())
+    ? reading.panelBackground.trim().toLowerCase()
+    : undefined;
+  const panelY = panelBackground ? yiq(panelBackground) : null;
+
+  // Read the block list, keeping only known ids, in the order given, no repeats.
+  const raw = Array.isArray(reading.blocks) ? reading.blocks : [];
+  const seen = new Set<string>();
+  const chosen: CustomBlock[] = [];
+  for (const item of raw) {
+    const id = typeof item === "string" ? item : (item as { id?: unknown })?.id;
+    if (typeof id !== "string") continue;
+    const key = id.trim().toLowerCase();
+    const spec = SCANNABLE.get(key);
+    if (!spec || seen.has(key)) continue;
+    seen.add(key);
+    const e = (item as { emphasis?: unknown })?.emphasis;
+    const emphasis: CardEmphasis = e === "hero" || e === "quiet" || e === "normal" ? e : "normal";
+    chosen.push({
+      id: key, type: spec.type, field: spec.field as CustomBlock["field"],
+      on: true, zone: spec.zone, emphasis,
+    });
+    if (chosen.length >= MAX_VISIBLE_BLOCKS) break;
+  }
+
+  // A reading that produced nothing usable falls back to the default preset's
+  // blocks rather than an empty card.
+  const blocks = chosen.length >= 3 ? chosen : base.blocks!;
+
+  // Anything the scan didn't mention is kept, switched OFF, so the owner can
+  // turn it on without rebuilding it.
+  const present = new Set(blocks.map((x) => x.id));
+  const rest = (base.blocks ?? [])
+    .filter((x) => !present.has(x.id))
+    .map((x) => ({ ...x, on: false }));
+
+  return {
+    ...base,
+    background, textColor, accentColor, panelBackground,
+    panelTextColor: panelY !== null ? (panelY < 140 ? "#ffffff" : "#141b26") : undefined,
+    fontFamily: reading.serif === true ? "Georgia, 'Times New Roman', serif" : base.fontFamily,
+    skeleton,
+    blocks: [...blocks, ...rest],
+    elements: [],
+  };
+}
+
+/** The exact instruction the vision model is given. Exported so a test can pin it. */
+export const SCAN_PROMPT = [
+  "You are looking at a photograph of a printed business card.",
+  "Describe its DESIGN so it can be recreated. Return ONLY valid JSON, no prose:",
+  '{"background":"#rrggbb","textColor":"#rrggbb","accentColor":"#rrggbb",',
+  '"panelBackground":"#rrggbb or null","skeleton":"split|mirror|stacked","serif":true|false,',
+  '"blocks":[{"id":"...","emphasis":"hero|normal|quiet"}]}',
+  "",
+  "background = the card's main surface colour.",
+  "panelBackground = a SECOND surface if the card has a coloured band or side panel, else null.",
+  'skeleton = "split" if a panel/logo sits on the LEFT, "mirror" if on the RIGHT, "stacked" if a band runs across the TOP.',
+  "blocks = only the things actually printed on the card, IN READING ORDER.",
+  `Allowed ids: ${[...SCANNABLE.keys()].join(", ")}.`,
+  'emphasis = "hero" for the largest element, "quiet" for the smallest, "normal" otherwise.',
+  "Do not invent anything you cannot see. Omit what is not there.",
+].join("\n");
+
 // ── Adding blocks ───────────────────────────────────────────────────────────
 
 /** Blocks the owner can add that aren't in every preset. */

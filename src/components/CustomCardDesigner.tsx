@@ -61,8 +61,11 @@ export default function CustomCardDesigner({
   onChange: (layout: CustomLayout) => void;
 }) {
   const history = useRef<string[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const started = hasBlocks(layout);
   const blocks = useMemo(() => layout.blocks ?? [], [layout.blocks]);
@@ -92,6 +95,66 @@ export default function CustomCardDesigner({
     const next = [...blocks];
     [next[i], next[j]] = [next[j], next[i]];
     setBlocks(next);
+  }
+
+  /**
+   * Photograph the printed card, get it back as a starting point.
+   *
+   * Downscaled in the browser first: a modern phone photo is 4-6MB, which is
+   * slow to upload, slower to bill by the token, and carries no more detail
+   * about a business card's LAYOUT than 1400px does.
+   */
+  async function scanPrintedCard(file: File) {
+    setScanError(null);
+    setScanning(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read"));
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("decode"));
+        i.src = dataUrl;
+      });
+      const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const jpeg = canvas.toDataURL("image/jpeg", 0.82);
+
+      const res = await fetch("/api/scan-design", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: jpeg.split(",")[1] ?? "", mediaType: "image/jpeg" }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setScanError(
+          res.status === 403 ? "Rebuilding a printed card is a Pro feature."
+          : res.status === 429 ? "Too many scans just now — try again in a minute."
+          : res.status === 422 ? "Couldn't read that photo. Try a straight-on shot in good light."
+          : (j as { error?: string }).error === "no_ai" ? "Card scanning is unavailable right now."
+          : "That didn't work. Try another photo.",
+        );
+        return;
+      }
+      const { layout: scanned } = (await res.json()) as { layout?: CustomLayout };
+      if (!scanned?.blocks?.length) {
+        setScanError("Couldn't read that photo. Try a straight-on shot in good light.");
+        return;
+      }
+      commit(scanned);
+    } catch {
+      setScanError("That didn't work. Try another photo.");
+    } finally {
+      setScanning(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   // Preview data with THIS layout applied, so the card reflects edits instantly.
@@ -148,6 +211,43 @@ export default function CustomCardDesigner({
             );
           })}
         </div>
+        {/* Or start from the card you already carry. */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={scanning}
+          className="w-full rounded-xl border border-dashed border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60 px-3 py-3 text-left transition-colors"
+        >
+          <span className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-300 flex items-center justify-center shrink-0">
+              {scanning ? (
+                <span className="block w-4 h-4 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.8 6.8h.01M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
+                </svg>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold text-white">
+                {scanning ? "Reading your card…" : "Scan the card you already have"}
+              </span>
+              <span className="block text-[10.5px] text-gray-400 leading-snug">
+                Take a photo of your printed card and we&apos;ll rebuild it here.
+              </span>
+            </span>
+          </span>
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
+        />
+        {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
+
         {legacy && (
           <button
             type="button"
