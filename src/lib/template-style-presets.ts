@@ -211,6 +211,42 @@ export const META: Record<string, TemplateMeta> = {
       fallback: "#6d28d9",
     },
   },
+  "logo-first": {
+    name: "Logo First",
+    blurb: "A deep navy card that leads with your logo, held in a ring beside your name and details.",
+    looks: [
+      { name: "Dark Navy", bg: "#2c3a52", text: "#ffffff" },
+      { name: "Midnight", bg: "#141b26", text: "#ffffff" },
+      { name: "Slate", bg: "#1e293b", text: "#ffffff" },
+      { name: "Forest", bg: "#16352c", text: "#ffffff" },
+      { name: "Oxblood", bg: "#3a1d22", text: "#ffffff" },
+      { name: "Bone", bg: "#f4f2ed", text: "#141b26" },
+    ],
+    bg: {
+      label: "Card background",
+      help: "The whole card surface. Deep tones make a light logo sing; on a light background the ring and details switch to ink automatically.",
+      presets: ["#2c3a52", "#141b26", "#1e293b", "#16352c", "#3a1d22", "#0e1b35", "#f4f2ed", "#ffffff"],
+      fallback: "#2c3a52",
+    },
+    text: {
+      label: "Name color",
+      help: "Your name, set in caps beside the logo. Keep it bright on a dark card.",
+      presets: ["#ffffff", "#f4f2ed", "#e6ebf3", "#141b26"],
+      fallback: "#ffffff",
+    },
+    info: {
+      label: "Details color",
+      help: "Your phone, email, website, and address. They adapt to the card color, or set your own here.",
+      presets: ["#e6ebf3", "#ffffff", "#c2ccdc", "#141b26", "#5a6b85"],
+      fallback: "#e6ebf3",
+    },
+    accent: {
+      label: "Ring & icons",
+      help: "Draws the ring around your logo, your job title, and the contact icons. A shade too close to the background is nudged back to a readable one so the ring never disappears.",
+      presets: ["#ffffff", "#c9d4e8", "#b08d57", "#d4af7a", "#60a5fa", "#0f766e", "#be123c", "#141b26"],
+      fallback: "#ffffff",
+    },
+  },
 };
 
 export const FALLBACK_META: TemplateMeta = {
