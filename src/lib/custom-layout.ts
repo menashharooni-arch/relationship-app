@@ -322,12 +322,40 @@ export function sideImageScale(skeleton?: CardSkeleton): number {
  */
 export const MAX_VISIBLE_BLOCKS = 12;
 
+/**
+ * What a card is carrying, in ROWS rather than in blocks.
+ *
+ * The cap exists because a fixed-size card can only hold so many rows — so it
+ * has to be counted in rows. Socials share a row three at a time, so counting
+ * them one-for-one said a card starting with the usual nine things was full
+ * after three socials: the owner asks for six, the "+" buttons go grey at
+ * three, and the layout that handles six is unreachable.
+ */
+export function blockLoad(blocks: CustomBlock[]): number {
+  const on = blocks.filter((b) => b.on);
+  const socials = on.filter((b) => b.type === "social").length;
+  return on.length - socials + Math.ceil(socials / SOCIAL_COLS);
+}
+
+/**
+ * Trimmed by the same row count the editor caps by, so the two agree about what
+ * "full" means — and trimmed by whole social ROWS, so a defensive trim can't
+ * leave a group half-drawn.
+ */
 export function visibleBlocks(blocks: CustomBlock[]): CustomBlock[] {
-  return blocks.filter((b) => b.on).slice(0, MAX_VISIBLE_BLOCKS);
+  const on = blocks.filter((b) => b.on);
+  if (blockLoad(on) <= MAX_VISIBLE_BLOCKS) return on;
+  const out: CustomBlock[] = [];
+  for (const b of on) {
+    const next = [...out, b];
+    if (blockLoad(next) > MAX_VISIBLE_BLOCKS) break;
+    out.push(b);
+  }
+  return out;
 }
 
 export function isFull(blocks: CustomBlock[]): boolean {
-  return blocks.filter((b) => b.on).length >= MAX_VISIBLE_BLOCKS;
+  return blockLoad(blocks) >= MAX_VISIBLE_BLOCKS;
 }
 
 export function blockFontPx(emphasis: CardEmphasis, density: number): number {

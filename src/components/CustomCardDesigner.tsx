@@ -29,7 +29,7 @@ import { CustomBlockCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
 import {
   ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
-  buildPreset, canChangeZone, hasBlocks, isFull, newBlockId, zoneFor, zoneLabels,
+  blockLoad, buildPreset, canChangeZone, hasBlocks, isFull, newBlockId, zoneFor, zoneLabels,
 } from "@/lib/custom-layout";
 
 const FONTS = [
@@ -490,8 +490,10 @@ export default function CustomCardDesigner({
         <div className={`${card} overflow-hidden`}>
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800">
             <p className={head}>What&apos;s on your card</p>
+            {/* Counted in ROWS, like the cap itself — three socials share one,
+                so showing raw blocks would have said "full" with room left. */}
             <p className={`text-[11px] ${full ? "text-amber-400" : "text-gray-600"}`}>
-              {blocks.filter((b) => b.on).length} of {MAX_VISIBLE_BLOCKS}
+              {blockLoad(blocks)} of {MAX_VISIBLE_BLOCKS}
             </p>
           </div>
           {full && (
@@ -510,10 +512,10 @@ export default function CustomCardDesigner({
                     <div className="flex flex-col gap-px shrink-0">
                       <button type="button" onClick={() => move(b.id, -1)} disabled={i === 0}
                         aria-label={`Move ${blockLabel(b)} up`}
-                        className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
+                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
                       <button type="button" onClick={() => move(b.id, 1)} disabled={i === blocks.length - 1}
                         aria-label={`Move ${blockLabel(b)} down`}
-                        className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
+                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
                     </div>
 
                     <button
@@ -577,7 +579,10 @@ export default function CustomCardDesigner({
                       <button
                         type="button"
                         onClick={() => { setBlocks(blocks.filter((x) => x.id !== b.id)); setOpenId(null); }}
-                        className="text-[11px] text-red-400 hover:text-red-300"
+                        // Padded to a real target. As a bare text line it was a
+                        // 17px-tall tap area on a phone, which is a hard thing
+                        // to hit and an easy thing to hit by accident.
+                        className="text-[11px] text-red-400 hover:text-red-300 py-1.5 pr-2 -ml-0.5 pl-0.5"
                       >
                         Remove from card
                       </button>
