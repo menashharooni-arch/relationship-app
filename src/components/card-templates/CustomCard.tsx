@@ -12,7 +12,7 @@ import type { CardData, CustomBlock, CustomElement, CustomLayout, CustomSocial }
 import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 import {
-  blockAspect, blockDensity, blockFontPx, blockHasValue, blockImagePx, hasBlocks,
+  blockDensity, blockFontPx, blockHasValue, blockImagePx, hasBlocks,
   normalizeCustomLayout, sideImageScale, visibleBlocks, zoneFor,
 } from "@/lib/custom-layout";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -393,7 +393,15 @@ function Zone({
   return (
     <>
       {blocks.map((bl) => (
-        <div key={bl.id} data-cb={bl.id} style={{ minWidth: 0, marginTop: gap }}>
+        // lineHeight 0 kills the STRUT. Preflight sets line-height 1.5 on the
+        // body, so this wrapper contributed a 16 x 1.5 = 24px line box whatever
+        // was inside it: a 13px name at lineHeight 1.25 wants 16.25px and got
+        // 24. Every text block was 7.75px taller than its own text, the dead
+        // space did NOT shrink with density (the strut comes from the root's
+        // fixed 16px, not the block's), and on a fixed-size card that is the
+        // difference between shrinking working and not. The inner span sets its
+        // own line-height, so the line box is the text's, exactly.
+        <div key={bl.id} data-cb={bl.id} style={{ minWidth: 0, marginTop: gap, lineHeight: 0 }}>
           <CustomBlockContent
             block={bl} data={data} layout={layout} density={density}
             imageScale={imageScale} onPanel={onPanel} placeholder={placeholder}
@@ -426,7 +434,10 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   const blocks = visibleBlocks(
     (layout.blocks ?? []).filter((bl) => placeholder || blockHasValue(bl, data)),
   );
-  const density = blockDensity(blocks, skeleton);
+  // `data` is what lets the model see WRAPPING — the dominant term in how tall
+  // the content really is, and invisible to a block list on its own. Passed in
+  // placeholder mode too, so the designer previews at the size it will publish.
+  const density = blockDensity(blocks, skeleton, data, placeholder);
   const sideScale = sideImageScale(skeleton);
 
   const side = blocks.filter((bl) => zoneFor(bl) === "left");
@@ -487,27 +498,39 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10)",
       }}
     >
-      {/* Shape floor, not a shape cap.
-          `aspectRatio` is a CAP: with overflow hidden the card is a scroll
-          container whose automatic minimum size is zero, so content taller than
-          the ratio was silently cut — and predicting that height from a row
-          count only moved the failure around (three rounds of tuning, still
-          failing two fuzz runs in five).
-          A zero-width spacer sidesteps prediction entirely. Percentage padding
-          resolves against the CONTAINING BLOCK's width, so this is 0 wide and
-          exactly width/1.75 tall. The card is therefore never shorter than a
-          business card, and simply gets taller when its contents genuinely need
-          it — which is what a real card would have to do. */}
+      {/* THE SHAPE, and nothing can change it.
+          A business card is 1.75:1 in the hand and the owner's is 1.75:1 on the
+          screen no matter what they put on it — turning a block on must never
+          make the card a different object.
+          This spacer is the only thing that sets the height: percentage padding
+          resolves against the CONTAINING BLOCK's inline size, so it is 0 wide
+          and exactly width/1.75 tall. `aspectRatio` alone can't do this job —
+          with overflow clip the card is a scroll container whose automatic
+          minimum size is zero, so it collapses rather than holding the shape.
+          The spacer used to be a FLOOR, with the content layer as a sibling
+          flex item free to make the card taller. It is now the whole story: the
+          content layer is absolutely positioned, so it contributes no height at
+          all and physically cannot stretch the card. Fitting inside it is
+          blockDensity's job, and MAX_VISIBLE_BLOCKS is the point past which no
+          amount of shrinking would still be readable — both calibrated against
+          this exact box (see the sweep in custom-layout.ts). */}
       <div aria-hidden style={{ width: 0, flexShrink: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
       <div
-        className="flex-1 min-w-0 flex"
-        style={{ flexDirection: stacked ? "column" : skeleton === "mirror" ? "row-reverse" : "row" }}
+        className="flex min-w-0"
+        style={{
+          position: "absolute",
+          inset: 0,
+          flexDirection: stacked ? "column" : skeleton === "mirror" ? "row-reverse" : "row",
+        }}
       >
         {sidePanel}
         {rule}
         <div
           className="flex-1 min-w-0 flex flex-col justify-between"
-          style={{ padding: stacked ? "10px 18px 14px" : "16px 16px 14px 15px" }}
+          // minHeight 0: a flex item's automatic minimum size is its content,
+          // which would let a tall block push this column past the card it now
+          // has to live inside.
+          style={{ minHeight: 0, padding: stacked ? "10px 18px 14px" : "16px 16px 14px 15px" }}
         >
           <div className="min-w-0 flex flex-col">
             <Zone blocks={main} data={data} layout={layout} density={density} placeholder={placeholder} gap={gap} />

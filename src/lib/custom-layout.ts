@@ -53,52 +53,213 @@ export function canChangeZone(block: CustomBlock): boolean {
   return !TEXT_TYPES.has(block.type);
 }
 
-/**
- * Density factor. More on the card → everything shrinks TOGETHER, so hierarchy
- * survives and nothing has to be cut. Mirrors shared.ts's fitFactor so a custom
- * card behaves like the preset templates it was forked from.
- */
-/**
- * Weighted row count. A block in the side panel is usually an image and costs
- * roughly two text rows of height, so a card with a logo AND a headshot stacked
- * on the left is as tall as one with four contact lines.
- */
-function rowLoad(blocks: CustomBlock[], skeleton?: CardSkeleton): number {
-  const on = blocks.filter((b) => b.on);
-  // Weighted by EMPHASIS, not counted. A hero line is 25 design px and a quiet
-  // one is 10, so treating them as equal rows was the modelling error behind a
-  // string of small overflows: the valve fired on item count while the actual
-  // height depended on which items. Two dial-tweaks failed to converge before
-  // this; weighting by height fixed it in one.
-  const textCost = (b: CustomBlock) =>
-    b.emphasis === "hero" ? 2 : b.emphasis === "quiet" ? 0.85 : 1;
-  const right = on
-    .filter((b) => zoneFor(b) === "right" && b.type !== "qr")
-    .reduce((n, b) => n + (TEXT_TYPES.has(b.type) ? textCost(b) : 2), 0);
-  // What one side block costs in rows. Stacked, images are rendered smaller
-  // (sideImageScale), so they cost less there than in a full-height panel.
-  const cost = (b: CustomBlock) =>
-    TEXT_TYPES.has(b.type) ? 1 : skeleton === "stacked" ? 1.6 : 2.2;
+// ── The card is a FIXED size, so the content has to be solved for ───────────
+//
+// The card used to GROW when it ran out of room. It doesn't any more — a
+// business card is 1.75:1 in the hand and the owner's is 1.75:1 on screen no
+// matter what they put on it — so the height that used to be the release valve
+// is now a hard budget, and the model has to be good enough to live inside it.
+//
+// The old model counted weighted ROWS. Sweeping every reachable shape against
+// the fixed box showed exactly where that breaks: it cannot see WRAPPING. An
+// address is one row and three rendered lines, so cards with four blocks
+// overflowed while cards with nine did not, and no amount of tuning a
+// rows-based curve fixes a model that is blind to the dominant term.
+//
+// So this estimates rendered PIXELS instead. Every quantity below is a design px
+// at the 460 natural card width, measured off the real renderer.
 
-  const leftItems = on.filter((b) => zoneFor(b) === "left");
-  // The side zone is a COLUMN in split/mirror and a ROW in stacked, so its
-  // height is the sum in one and the tallest item in the other. Modelling it as
-  // a sum in both under-fed the stacked band and over-fed it in split — the
-  // fuzz found the failure each time this was wrong.
-  const left = leftItems.length === 0 ? 0
-    : skeleton === "stacked"
-      ? Math.max(...leftItems.map(cost))
-      : leftItems.reduce((n, b) => n + cost(b), 0);
+/** The card's own height: 460 / 1.75. */
+const CARD_PX = 460 / 1.75;
 
-  // Side by side the zones share the height, so the taller one sets it.
-  // Stacked they genuinely ADD.
-  return skeleton === "stacked" ? right + left : Math.max(right, left);
+// Every number below is READ OFF THE RENDERER, not guessed. Where the renderer
+// says `maxHeight: px * 0.72` or `size: round(px * 0.68)`, that factor appears
+// here — a model that invents its own constants is a second implementation of
+// the layout, and it will drift.
+
+/** CustomBlockContent renders text at lineHeight 1.25. */
+const LINE = 1.25;
+
+/** Zone puts `marginTop: round(5 * density)` on EVERY block in the main column. */
+const GAP_PX = 5;
+
+/** Usable text width in the main column, with and without a side panel. */
+const MAIN_W_PANEL = 236;
+const MAIN_W_FULL = 396;
+
+/** Mean glyph advance as a fraction of font size, for the app's stacks. */
+const CHAR_W = 0.52;
+
+/** Vertical padding: main column, and the side panel. */
+const MAIN_PAD_SPLIT = 30;   // 16 top + 14 bottom
+const MAIN_PAD_STACKED = 24; // 10 top + 14 bottom
+const SIDE_PAD = 32;         // 16 + 16
+
+/** Rendered heights, as the renderer computes them from blockImagePx. */
+const LOGO_F = 0.72;     // img maxHeight: px * 0.72
+const QR_F = 0.68;       // MiniQR size: round(px * 0.68)
+const HEADSHOT_CAP = 116; // img height: min(px, 116)
+const DIVIDER_PX = 2;
+
+/** The drawn height of an image block at density 1. */
+function imagePx(block: CustomBlock, scale = 1): number {
+  const px = EMPHASIS_IMG[block.emphasis] * scale;
+  if (block.type === "logo") return px * LOGO_F;
+  if (block.type === "headshot") return Math.min(px, HEADSHOT_CAP);
+  if (block.type === "qr") return px * QR_F;
+  return px;
 }
 
-export function blockDensity(blocks: CustomBlock[], skeleton?: CardSkeleton): number {
-  const rows = rowLoad(blocks, skeleton);
-  if (rows <= 6) return Math.min(1.14, 1 + (6 - rows) * 0.05);
-  return Math.max(0.76, 1 - (rows - 6) * 0.06);
+/**
+ * What one main-column block occupies, in design px, at density 1.
+ *
+ * Text WRAPS, so this is `lines x fontSize x lineHeight` rather than one row per
+ * block — being blind to wrapping is what made the previous row-count model
+ * mispredict by up to 130px. The per-block gap matters just as much at the other
+ * end: eleven quiet blocks are 137px of text and 55px of gaps, so a model that
+ * folded the gap into the line height under-counted the smallest cards worst.
+ *
+ * Without `data` (the designer's placeholder mode) every string is a short
+ * stand-in, which is exactly what placeholder mode draws.
+ */
+function blockPx(block: CustomBlock, data: CardData | undefined, width: number, placeholder: boolean): number {
+  if (!TEXT_TYPES.has(block.type)) {
+    if (block.type === "divider") return DIVIDER_PX + GAP_PX;
+    return imagePx(block) + GAP_PX;
+  }
+  // Real text first, ALWAYS — including in the designer. Sizing the preview off
+  // a stand-in while the published card sizes off a 60-character address is how
+  // a WYSIWYG editor stops being one. The stand-in is only for the blocks that
+  // genuinely have nothing yet, which are exactly the ones placeholder mode
+  // draws a `{name}` chip for, and those chips take room too.
+  const text = (data ? blockTextForFit(block, data) : "") || (placeholder ? "{placeholder}" : "");
+  if (!text) return 0;
+  const fs = EMPHASIS_PX[block.emphasis];
+  // Ceil, because half a rendered line still occupies a whole one.
+  const perLine = Math.max(1, Math.floor(width / (fs * CHAR_W)));
+  const lines = Math.max(1, Math.ceil(text.length / perLine));
+  return lines * fs * LINE + GAP_PX;
+}
+
+/**
+ * The string a block will render, for LENGTH purposes only.
+ *
+ * Deliberately not the renderer's exact formatting — a formatted phone is four
+ * characters longer than the raw one, which is inside the safety margin — but it
+ * has to see the same PRESENCE, so a block with no value costs nothing here just
+ * as it draws nothing there.
+ */
+function blockTextForFit(block: CustomBlock, data: CardData): string {
+  if (!blockHasValue(block, data)) return "";
+  if (block.type === "text") return block.text ?? "";
+  if (block.type === "social" || block.type === "socials") return "@handle_placeholder";
+  const c = data.customization;
+  switch (block.field) {
+    case "name": return data.name ?? "";
+    case "title": return data.title ?? "";
+    case "company": return data.company ?? "";
+    case "phone": return (data.phone || c?.phones?.find((p) => p?.showOnCard)?.number) ?? "";
+    case "email": return data.email ?? "";
+    case "website": return data.website ?? "";
+    case "address": return data.address ?? "";
+    case "fax": return `Fax: ${c?.fax ?? ""}`;
+    default: return "";
+  }
+}
+
+/**
+ * Total design px the content wants at density 1.
+ *
+ * Exported so the calibration sweep can check the model against the real
+ * rendered height rather than trusting it.
+ */
+/**
+ * What the content needs, split into the part that SHRINKS with density and the
+ * part that doesn't.
+ *
+ * Padding is the part that doesn't — it is written in fixed px and stays there
+ * however small the type gets. Multiplying the whole estimate by density
+ * therefore over-credited what shrinking could achieve, and it over-credited it
+ * most at exactly the loads where the card was fullest. Stacked cards carry
+ * 56px of it (a band and a column), which is why they were the last shapes
+ * still overflowing.
+ */
+function budget(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false) {
+  const on = blocks.filter((b) => b.on);
+  const stacked = skeleton === "stacked";
+  const side = on.filter((b) => zoneFor(b) === "left");
+  const width = side.length && !stacked ? MAIN_W_PANEL : MAIN_W_FULL;
+
+  const qr = on.find((b) => zoneFor(b) === "right" && b.type === "qr");
+  const main = on.filter((b) => zoneFor(b) === "right" && b.type !== "qr");
+
+  // The QR sits in its own bottom row, outside Zone, so it carries no gap.
+  const mainScaled =
+    main.reduce((n, b) => n + blockPx(b, data, width, placeholder), 0) + (qr ? imagePx(qr) : 0);
+  const mainFixed = stacked ? MAIN_PAD_STACKED : MAIN_PAD_SPLIT;
+
+  // The side panel's Zone is rendered with gap 0, so its blocks stack flush.
+  const scale = sideImageScale(skeleton);
+  const sideScaled = side.length === 0 ? 0
+    : stacked
+      // A band is a ROW: its height is its tallest item, not their sum.
+      ? Math.max(...side.map((b) => imagePx(b, scale)))
+      : side.reduce((n, b) => n + imagePx(b, scale), 0);
+  const sideFixed = side.length === 0 ? 0 : SIDE_PAD;
+
+  // Stacked, the zones ADD — the band sits above the main column. Side by side
+  // they SHARE the card's height, so the taller one sets it; compare them at
+  // their full size, which is the only point at which they are comparable.
+  return stacked
+    ? { scaled: mainScaled + sideScaled, fixed: mainFixed + sideFixed }
+    : mainScaled + mainFixed >= sideScaled + sideFixed
+      ? { scaled: mainScaled, fixed: mainFixed }
+      : { scaled: sideScaled, fixed: sideFixed };
+}
+
+/** Total design px the content wants at density 1. Exported for the sweep. */
+export function contentPx(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false): number {
+  const b = budget(blocks, skeleton, data, placeholder);
+  return b.scaled + b.fixed;
+}
+
+/**
+ * Density factor: shrink everything TOGETHER so hierarchy survives and nothing
+ * has to be cut. Solved directly — the content wants `contentPx` and the card
+ * has CARD_PX, so the scale is their ratio.
+ *
+ * SAFETY is the margin between a model and a renderer. Wrapping is estimated
+ * from a mean glyph width, so a line of capitals or a run of wide characters
+ * lands slightly over; 0.9 buys back more than the sweep's worst observed
+ * error. Costing more than it needs to only makes a card slightly smaller than
+ * it could be. Costing less makes it wrong.
+ *
+ * FLOOR is legibility, not fit. Past it the answer is "your card is full", which
+ * is what MAX_VISIBLE_BLOCKS says — and the floor is set low enough that the
+ * cap, not the floor, is always what an owner actually meets.
+ */
+const SAFETY = 0.9;
+/**
+ * Low enough that the SOLVE always wins.
+ *
+ * A floor that binds is a floor that overflows: clamping density UP to keep
+ * type readable is the same as deciding to cut the card off, and cutting a
+ * phone number in half is worse than setting it small. Nine blocks all set to
+ * Big on a banded card is the only shape that reaches down here, no real card
+ * looks like that, and the editor's counter warns long before it. So this
+ * exists to stop a hand-edited payload dividing by something absurd, not to
+ * make aesthetic decisions.
+ */
+const FLOOR = 0.42;
+const CEILING = 1.14;
+
+export function blockDensity(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false): number {
+  const { scaled, fixed } = budget(blocks, skeleton, data, placeholder);
+  if (scaled <= 0) return CEILING;
+  // scaled x d + fixed <= room  ->  d <= (room - fixed) / scaled
+  const room = CARD_PX * SAFETY - fixed;
+  if (room <= 0) return FLOOR;
+  return Math.max(FLOOR, Math.min(CEILING, room / scaled));
 }
 
 /** Side-band images sit above the text when stacked, so they cost real height. */
@@ -107,37 +268,16 @@ export function sideImageScale(skeleton?: CardSkeleton): number {
 }
 
 /**
- * Last-resort safety valve, and the reason "you cannot break it" is true rather
- * than merely intended.
- *
- * Flow layout removes overlap and horizontal clipping, but it does NOT stop
- * content from being taller than a fixed-aspect card — a fuzz run of 220 random
- * edits found exactly that: pile on enough blocks and the QR gets pushed out
- * through the bottom edge. Shrinking text alone can't absorb it, because the
- * density floor exists so a card never becomes illegible. So past the point
- * where shrinking is enough, the CARD ITSELF grows taller. Same mechanism, and
- * the same reasoning, as cardAspect() in shared.ts.
- */
-export function blockAspect(blocks: CustomBlock[], skeleton?: CardSkeleton): string {
-  const rows = rowLoad(blocks, skeleton);
-  // A card stays the classic 1.75 business-card shape until it genuinely can't —
-  // a normal fork weighs about 7.4, comfortably inside the threshold.
-  if (rows <= 8) return "1.75 / 1";
-  return `${Math.max(1.3, 1.75 - (rows - 8) * 0.1).toFixed(3)} / 1`;
-}
-
-/**
  * How much a card can hold.
  *
- * Not an arbitrary limit — it is the point past which no amount of shrinking or
- * growing keeps the card readable. The fuzz run put 18 blocks on and the card
- * needed 415px of content in a 336px box even at the density floor and the
- * tallest allowed shape. Real business cards carry six to nine things; twelve is
- * already generous.
+ * Not an arbitrary limit — it is the point past which no amount of shrinking
+ * keeps the card readable. There used to be a second, softer answer to a card
+ * that was too full: grow it. That is gone, so this is the only one, and it is
+ * enforced in BOTH places on purpose — the editor stops you before you get
+ * there and says why, and the renderer trims defensively so a hand-edited
+ * payload can't produce a broken public card.
  *
- * Enforced in BOTH places on purpose: the editor stops you before you get there
- * and says why, and the renderer trims defensively so a hand-edited payload
- * can't produce a broken public card.
+ * Real business cards carry six to nine things; twelve is already generous.
  */
 export const MAX_VISIBLE_BLOCKS = 12;
 
