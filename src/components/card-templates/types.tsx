@@ -29,10 +29,43 @@ export type CustomElement = {
   width?: number;        // px (divider)
 };
 
+// ── Block layout (the current custom designer) ──────────────────────────────
+// Blocks FLOW inside zones instead of floating at x/y. That is the whole reason
+// a custom card can no longer overlap, clip a value, or drift between the editor
+// and the published card: there is no arrangement that produces those, because
+// nothing is positioned absolutely. Size comes from `emphasis`, never from a
+// number the owner types, so it stays proportional to the card at any width.
+export type CardZone = "left" | "right";
+export type CardEmphasis = "hero" | "normal" | "quiet";
+/** How the two zones sit relative to each other. */
+export type CardSkeleton = "split" | "mirror" | "stacked";
+
+export type CustomBlock = {
+  id: string;
+  type: CustomElementType;
+  field?: CustomField;   // type "field"
+  social?: CustomSocial; // type "social"
+  text?: string;         // type "text"
+  /** Off blocks stay in the list so turning one back on restores it in place. */
+  on: boolean;
+  zone: CardZone;
+  emphasis: CardEmphasis;
+  color?: string;
+};
+
 export type CustomLayout = {
   background: string;
   fontFamily: string;
   textColor: string;
+  /** Icons, job title, hairlines. */
+  accentColor?: string;
+  skeleton?: CardSkeleton;
+  /** Present on every layout built by the current designer. */
+  blocks?: CustomBlock[];
+  /**
+   * LEGACY absolute-positioned elements. Kept so a card saved by the old
+   * designer still renders exactly as its owner left it; nothing new writes it.
+   */
   elements: CustomElement[];
 };
 
