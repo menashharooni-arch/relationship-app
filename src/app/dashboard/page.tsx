@@ -729,25 +729,19 @@ export default async function DashboardPage({
                     the most obvious thing in it. */}
                 <p className="hidden sm:block text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
-              {/* Desktop keeps the inline text link exactly where it was. */}
-              <div className="hidden sm:flex items-center gap-3">
-                {canAddCard && (
-                  <Link href="/cards/new?add=1" className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
-                    + Add card
-                  </Link>
-                )}
-              </div>
-              {/* Mobile: a compact pill in the SAME top-right slot as desktop's
-                  link. shrink-0 so a long title can never squeeze it — the
-                  title truncates instead (min-w-0 above makes that possible).
-                  It was a full-width dashed button below this row; at that size
-                  it competed with the card rows for attention. */}
+              {/* ONE pill, both sizes, in the top-right slot. Desktop used to
+                  carry a bare "+ Add card" text link here — the same action
+                  reading as an afterthought next to the phone's button. The
+                  pill is a hair larger from sm up, since a mouse target doesn't
+                  need to be thumb-sized but shouldn't look shrunken either.
+                  shrink-0 so a long title can never squeeze it — the title
+                  truncates instead (min-w-0 above makes that possible). */}
               {canAddCard && (
                 <Link
                   href="/cards/new?add=1"
-                  className="sm:hidden shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-700 text-blue-400 text-[11px] font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[11px] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
                 >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3" aria-hidden="true">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
                     <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
                   </svg>
                   Add card

@@ -128,13 +128,16 @@ describe("nothing still points users at a dashboard Edit button", () => {
   });
 });
 
-describe("the mobile Add card button is wired correctly", () => {
-  it("renders on mobile only, and the desktop link on desktop only", () => {
+describe("the Add card button is wired correctly", () => {
+  it("is ONE pill serving both widths", () => {
+    // Desktop used to carry a separate bare text link in this slot. Owner
+    // asked for the phone's pill on the computer too, so there is now a single
+    // control and no width-gated duplicate. shrink-0 is load-bearing — see the
+    // render test, which measures it at both widths.
     const c = code(DASHBOARD);
-    // Mobile is a compact pill in the header's right slot; desktop keeps its
-    // inline text link. shrink-0 is load-bearing — see the render test.
-    expect(c).toMatch(/className="sm:hidden shrink-0 inline-flex items-center/);
-    expect(c).toMatch(/className="hidden sm:flex items-center gap-3"/);
+    expect(c).toMatch(/className="shrink-0 inline-flex items-center/);
+    expect(c, "a width-gated duplicate is back").not.toMatch(/className="sm:hidden shrink-0 inline-flex/);
+    expect(c, "the desktop-only text link is back").not.toMatch(/className="hidden sm:flex items-center gap-3"/);
   });
 
   it("no full-width mobile add button survives below the header", () => {
@@ -147,14 +150,14 @@ describe("the mobile Add card button is wired correctly", () => {
     );
   });
 
-  it("both controls share one eligibility flag, so they can't disagree", () => {
+  it("is gated on the plan's eligibility flag", () => {
     const c = code(DASHBOARD);
     expect(c).toMatch(/const canAddCard = isPro \|\| allCards\.length < PLAN_LIMITS\.FREE_CARD_LIMIT/);
-    expect((c.match(/\{canAddCard && \(/g) ?? []).length).toBe(2);
+    expect((c.match(/\{canAddCard && \(/g) ?? []).length).toBe(1);
   });
 
-  it("both go to the same add-card destination", () => {
-    // Scoped to the My Cards box. A third /cards/new?add=1 lives in the
+  it("goes to the add-card destination, exactly once", () => {
+    // Scoped to the My Cards box. Another /cards/new?add=1 lives in the
     // card-less empty state ("Create your card") and is not part of this.
     // The box now ends at <MyCardsList, which is where the rows went.
     const c = code(DASHBOARD);
@@ -163,6 +166,6 @@ describe("the mobile Add card button is wired correctly", () => {
     expect(boxStart).toBeGreaterThan(0);
     expect(boxEnd).toBeGreaterThan(boxStart);
     const box = c.slice(boxStart, boxEnd);
-    expect((box.match(/href="\/cards\/new\?add=1"/g) ?? []).length).toBe(2);
+    expect((box.match(/href="\/cards\/new\?add=1"/g) ?? []).length).toBe(1);
   });
 });

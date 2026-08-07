@@ -6,12 +6,17 @@ import { appCss, launchBrowser } from "./harness";
 
 // The dashboard is behind login and needs a database, so it can't be crawled.
 // This lays out the My Cards box with the app's REAL compiled Tailwind and
-// measures the mobile "Add card" control — the claim being tested is a visual
-// one ("smaller, top right"), which no source scan can check.
+// measures the "Add card" control — the claim being tested is a visual one
+// ("smaller, top right"), which no source scan can check.
 //
 // The class strings are READ OUT OF THE PAGE SOURCE rather than copied here, so
 // this measures what actually ships. If someone edits the button's classes, this
 // test measures the edited ones; if they delete it, the extraction fails loudly.
+//
+// There is now ONE pill serving both widths. Desktop used to carry a separate
+// bare text link in this slot; the assertions that pinned that arrangement are
+// gone, replaced by ones that pin the pill rendering at BOTH widths with no
+// duplicate control.
 
 const DASH = join(process.cwd(), "src/app/dashboard/page.tsx");
 const src = () => readFileSync(DASH, "utf8");
@@ -42,8 +47,7 @@ async function measure(width: number, longTitle = false) {
   const css = await appCss();
   const boxCls = classNameContaining("bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5");
   const headerCls = classNameContaining("flex items-center justify-between gap-3 mb-3");
-  const addBtnCls = classNameContaining("sm:hidden shrink-0 inline-flex items-center");
-  const desktopWrapCls = classNameContaining("hidden sm:flex items-center gap-3");
+  const addBtnCls = classNameContaining("shrink-0 inline-flex items-center");
   const captionCls = classNameContaining("hidden sm:block text-gray-600 text-xs mt-0.5");
   const rowCls =
     "flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] bg-gray-800/60 border-gray-700/60";
@@ -66,11 +70,8 @@ async function measure(width: number, longTitle = false) {
                <p id="title" class="text-white font-semibold text-sm">${title}</p>
                <p id="caption" class="${captionCls}">Check a card to view everything about it. Only one card can be selected at a time.</p>
              </div>
-             <div id="desktopWrap" class="${desktopWrapCls}">
-               <a id="desktopLink" href="#" class="text-xs text-blue-400 font-medium">+ Add card</a>
-             </div>
              <a id="addBtn" href="#" class="${addBtnCls}">
-               <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3"><path d="M10 4v12M4 10h12"/></svg>
+               <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 sm:w-3.5 sm:h-3.5"><path d="M10 4v12M4 10h12"/></svg>
                Add card
              </a>
            </div>
@@ -114,7 +115,6 @@ async function measure(width: number, longTitle = false) {
         title: r("title"),
         caption: r("caption"),
         addBtn: r("addBtn"),
-        desktopWrap: r("desktopWrap"),
         row: r("row"),
       };
     });
@@ -181,10 +181,6 @@ describe("mobile: the Add card button is a small control in the top-right", () =
     expect(m.title!.right).toBeLessThanOrEqual(m.addBtn!.x + 1);
   });
 
-  it("the desktop inline link is hidden at this width", async () => {
-    const m = await measure(MOBILE);
-    expect(m.desktopWrap!.display).toBe("none");
-  });
 });
 
 describe("mobile: the explanatory captions are gone", () => {
@@ -202,16 +198,47 @@ describe("mobile: the explanatory captions are gone", () => {
   });
 });
 
-describe("desktop is untouched", () => {
-  it("shows the inline text link", async () => {
+describe("desktop gets the SAME pill, in the same slot", () => {
+  it("renders — it is not a mobile-only control any more", async () => {
     const m = await measure(DESKTOP);
-    expect(m.desktopWrap!.display).toBe("flex");
-    expect(m.desktopWrap!.width).toBeGreaterThan(0);
+    expect(m.innerWidth).toBe(DESKTOP);
+    expect(m.addBtn!.display).not.toBe("none");
+    expect(m.addBtn!.width).toBeGreaterThan(60);
   });
 
-  it("hides the mobile button entirely — no duplicate control", async () => {
+  it("is a real button, not a bare text link", async () => {
+    // The thing the owner asked for. A text link has no rounding; the pill's
+    // border-radius is what makes it read as a control.
     const m = await measure(DESKTOP);
-    expect(m.addBtn!.display).toBe("none");
+    expect(parseFloat(m.addBtn!.borderRadius)).toBeGreaterThan(4);
+  });
+
+  it("is centred in the header, flush with the box's right padding edge", async () => {
+    // NOT aligned to the title's line, as on mobile: desktop keeps the caption,
+    // so the title wrapper is two lines tall and `items-center` centres the pill
+    // against the pair. Aligning it to the title alone would push it up off
+    // centre. The old desktop text link sat exactly here too.
+    const m = await measure(DESKTOP);
+    expect(Math.abs(m.addBtn!.centerY - m.header!.centerY)).toBeLessThan(2);
+    expect(m.addBtn!.top).toBeGreaterThanOrEqual(m.header!.top - 1);
+    expect(m.addBtn!.bottom).toBeLessThanOrEqual(m.header!.bottom + 1);
+    const boxRight = m.box.right - m.box.padRight - m.box.borderRight;
+    expect(Math.abs(m.addBtn!.right - boxRight)).toBeLessThan(1);
+  });
+
+  it("is no smaller than the phone's, and still not full width", async () => {
+    const desktop = await measure(DESKTOP);
+    const mobile = await measure(MOBILE);
+    expect(desktop.addBtn!.height).toBeGreaterThanOrEqual(mobile.addBtn!.height);
+    const inner = desktop.box.width - desktop.box.padLeft - desktop.box.padRight
+      - desktop.box.borderLeft - desktop.box.borderRight;
+    expect(desktop.addBtn!.width).toBeLessThan(inner / 3);
+  });
+
+  it("does not overlap the caption or the title", async () => {
+    const m = await measure(DESKTOP, true);
+    expect(m.title!.right).toBeLessThanOrEqual(m.addBtn!.x + 1);
+    expect(m.caption!.right).toBeLessThanOrEqual(m.addBtn!.x + 1);
   });
 
   it("still shows BOTH captions", async () => {
