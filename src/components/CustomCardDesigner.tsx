@@ -146,6 +146,7 @@ export default function CustomCardDesigner({
   const [canUndo, setCanUndo] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanNote, setScanNote] = useState<string | null>(null);
   const [hoverLook, setHoverLook] = useState<string | null>(null);
 
   // A layout without blocks is a card saved by the old designer (or the legacy
@@ -198,20 +199,35 @@ export default function CustomCardDesigner({
   /** Photograph the printed card, get it back as a starting point. */
   async function scanPrintedCard(file: File) {
     setScanError(null);
+    setScanNote(null);
     setScanning(true);
+    // Nothing downstream is guaranteed to answer: the model call has no timeout
+    // of its own, so without this the button spins until the platform gives up
+    // on the function, which is a long time to watch a spinner.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 45_000);
     try {
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read"));
-        reader.readAsDataURL(file);
-      });
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = () => reject(new Error("decode"));
-        i.src = dataUrl;
-      });
+      let img: HTMLImageElement;
+      try {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("read"));
+          reader.readAsDataURL(file);
+        });
+        img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = () => reject(new Error("decode"));
+          i.src = dataUrl;
+        });
+      } catch {
+        // A browser that can't decode the file — an iPhone library HEIC, a PDF
+        // picked through "All files". Says so, instead of blaming the photo and
+        // sending them to take the same one again.
+        setScanError("We couldn't open that file. Take a photo, or pick a JPG or PNG.");
+        return;
+      }
       // A phone photo is 4-6MB and carries no more information about a card's
       // LAYOUT than 1400px does — slow to upload and billed by the token.
       const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
@@ -225,6 +241,7 @@ export default function CustomCardDesigner({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: jpeg.split(",")[1] ?? "", mediaType: "image/jpeg" }),
+        signal: abort.signal,
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -244,9 +261,18 @@ export default function CustomCardDesigner({
         return;
       }
       commit(scanned);
-    } catch {
-      setScanError("That didn't work. Try another photo.");
+      // Say what happened. The card silently becoming a different card is a
+      // disconcerting way to learn that a paid feature worked — and Undo is
+      // the thing you want to know about if the reading was off.
+      setScanNote("Rebuilt from your photo. Change anything below, or Undo to go back.");
+    } catch (e) {
+      setScanError(
+        (e as { name?: string })?.name === "AbortError"
+          ? "That took too long. Try again in a moment."
+          : "That didn't work. Try another photo.",
+      );
     } finally {
+      clearTimeout(timer);
       setScanning(false);
       if (fileRef.current) fileRef.current.value = "";
     }
@@ -386,6 +412,7 @@ export default function CustomCardDesigner({
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
           />
           {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
+          {scanNote && <p className="text-[11px] text-emerald-400">{scanNote}</p>}
         </div>
 
         {/* Style — colour, type and arrangement in one place, one row each, so
