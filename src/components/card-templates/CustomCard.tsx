@@ -49,6 +49,22 @@ function socialValue(data: CardData, s?: CustomSocial): string {
  */
 const SOCIAL_HANDLE_MIN_PX = 8;
 
+/**
+ * The smallest any line may be shrunk TO FIT ITS WIDTH.
+ *
+ * fitPx floors only RELATIVELY, at a fraction of its base — and its base here
+ * is already multiplied by the density solve, so two multipliers compounded
+ * with nothing absolute underneath them. A normal two-line address rendered at
+ * 4.7px on seven of the eight shipped Looks: present, un-clipped, and a grey
+ * smudge. Nothing overflowed, which is exactly why a sweep measuring overflow
+ * and aspect ratio called those cards clean.
+ *
+ * Capped at `fs` so it can only stop the FIT shrinking, never overrule the
+ * density solve — on a card full enough that even the emphasis size is under
+ * the floor, the card still has to fit, and that is the solve's call to make.
+ */
+const TEXT_MIN_PX = 6.5;
+
 /** The handle a social block will draw — shared so the row can size to its longest. */
 function socialShown(block: CustomBlock, data: CardData, placeholder: boolean): string {
   const raw = socialValue(data, block.social ?? "instagram");
@@ -336,7 +352,15 @@ export function CustomBlockContent({
     if (!shown.length) return null;
     const longest = shown.reduce((m, h) => Math.max(m, shortHandle(h).length), 0);
     return (
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", fontSize: fitToWidth("x".repeat(longest), fs), color: tone, minWidth: 0 }}>
+      // lineHeight is EXPLICIT here, and that is load-bearing. Zone's wrapper
+      // sets lineHeight 0 to kill the preflight strut, and this was the one
+      // branch of CustomBlockContent with no line-height of its own — so the 0
+      // inherited straight through, every line box collapsed, and the row drew
+      // 0px tall with its glyphs painting over the lines above and below it.
+      // Five handles wrapped to two flex lines 9px apart and overlapped each
+      // other. Every other branch is safe by accident: logo, headshot, QR and
+      // divider have explicit heights, and field/text set 1.25 on their span.
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", fontSize: fitToWidth("x".repeat(longest), fs), lineHeight: 1.25, color: tone, minWidth: 0 }}>
         {shown.map((h, i) => <span key={i} style={{ overflowWrap: "anywhere" }}>{shortHandle(h)}</span>)}
       </div>
     );
@@ -370,7 +394,8 @@ export function CustomBlockContent({
     // which reads as a mistake rather than as fitting.
     const sfs = fitToWidth("x".repeat(Math.max(shown.length, peerChars)) + "xx", fs);
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: sfs * 0.45, fontSize: sfs, color: tone, minWidth: 0 }}>
+      // Explicit lineHeight for the same reason as the block above.
+      <span style={{ display: "inline-flex", alignItems: "center", gap: sfs * 0.45, fontSize: sfs, lineHeight: 1.25, color: tone, minWidth: 0 }}>
         <span style={{ width: sfs * 1.15, height: sfs * 1.15, display: "inline-flex", flexShrink: 0, color: c.accent }}>
           <PlatformIcon label={meta.icon} className="w-full h-full" />
         </span>
@@ -400,6 +425,7 @@ export function CustomBlockContent({
   const unbroken = !/\s/.test(shown);
   let sized = isName ? fitName(fs, value, 16) : fitPx(fs, shown, block.emphasis === "hero" ? 18 : 26);
   if (unbroken) sized = Math.min(sized, fitToWidth(shown + (Icon ? "xx" : ""), fs));
+  sized = Math.max(Math.min(TEXT_MIN_PX, fs), sized);
 
   const text = (
     <span
@@ -530,13 +556,24 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   const blocks = visibleBlocks(
     (layout.blocks ?? []).filter((bl) => placeholder || blockHasValue(bl, data)),
   );
+  // Whether a panel will be DRAWN — decided here, once, and handed to both the
+  // sizing model and the markup below so they cannot disagree. A coloured panel
+  // survives an empty side zone, so an owner who has not uploaded a logo still
+  // gets one; the model, reading only the filtered block list, saw no side
+  // blocks, budgeted for a full-width column, and sized the text for 396px of
+  // room that the renderer then gave 236px of. That is how the designer preview
+  // and the published card came out 18-35% apart.
+  const sideForPanel = blocks.filter((bl) => zoneFor(bl) === "left");
+  const panelIntended = (layout.blocks ?? []).some((bl) => bl.on && zoneFor(bl) === "left");
+  const panelShown = sideForPanel.length > 0 || (!!layout.panelBackground && panelIntended);
+
   // `data` is what lets the model see WRAPPING — the dominant term in how tall
   // the content really is, and invisible to a block list on its own. Passed in
   // placeholder mode too, so the designer previews at the size it will publish.
-  const density = blockDensity(blocks, skeleton, data, placeholder);
+  const density = blockDensity(blocks, skeleton, data, placeholder, panelShown);
   const sideScale = sideImageScale(skeleton);
 
-  const side = blocks.filter((bl) => zoneFor(bl) === "left");
+  const side = sideForPanel;
   const main = blocks.filter((bl) => zoneFor(bl) === "right" && bl.type !== "qr");
   const qr = blocks.find((bl) => zoneFor(bl) === "right" && bl.type === "qr");
   const gap = Math.round(5 * density);
@@ -550,9 +587,10 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   // plain white, losing the very thing that made them recognisable. An
   // UNCOLOURED panel is only a container, and an empty container is a third of
   // the card spent on a hairline rule around nothing — that one goes.
+  // panelShown, computed once above, is the SAME decision the sizing model was
+  // given — having the markup re-derive it is how the two drifted apart.
   const panelBg = layout.panelBackground;
-  const panelIntended = (layout.blocks ?? []).some((bl) => bl.on && zoneFor(bl) === "left");
-  const sidePanel = side.length || (panelBg && panelIntended) ? (
+  const sidePanel = panelShown ? (
     <div
       className="shrink-0 flex items-center"
       style={{

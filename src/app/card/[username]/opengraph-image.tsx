@@ -251,14 +251,25 @@ function LuxuryMinimalOG(p: Meta) {
 
 function LogoFirstOG(p: Meta) {
   const NAVY = "#2c3a52";
-  // The ring and icons have no ground of their own, so a dark accent on the
-  // navy would simply vanish. Same guard the card component applies, kept
-  // simple here because the background is fixed rather than owner-chosen.
+  // The title and icons have no ground of their own, so a dark accent on the
+  // navy would simply vanish. The CARD answers that by brightening the owner's
+  // colour until it reads (readableAccent in LogoFirst.tsx); this used to just
+  // throw the colour away and use white, so a crimson card previewed with a
+  // white title. Same idea, one step: lift it toward white until it clears.
   const raw = p.accentColor || "";
   const m = raw.match(/^#([0-9a-f]{6})$/i);
-  const bright = m ? (() => { const n = parseInt(m[1], 16);
-    return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000; })() : null;
-  const ACCENT = bright !== null && bright > 110 ? raw : "#ffffff";
+  const ACCENT = (() => {
+    if (!m) return "#ffffff";
+    const n = parseInt(m[1], 16);
+    let [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    for (let i = 0; i < 12; i++) {
+      if ((r * 299 + g * 587 + b * 114) / 1000 > 110) break;
+      r += (255 - r) * 0.16; g += (255 - g) * 0.16; b += (255 - b) * 0.16;
+    }
+    const hx = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+    const out = `#${hx(r)}${hx(g)}${hx(b)}`;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 100 ? out : "#ffffff";
+  })();
   const website = (p.website ?? "").replace(/^https?:\/\//, "");
 
   return (

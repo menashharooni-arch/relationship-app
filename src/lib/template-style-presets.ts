@@ -224,7 +224,7 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Card background",
-      help: "The whole card surface. Deep tones make a light logo sing; on a light background the ring and details switch to ink automatically.",
+      help: "The whole card surface, and the panel your logo sits on. Deep tones make a light logo sing; on a light background the details switch to ink automatically.",
       presets: ["#2c3a52", "#141b26", "#1e293b", "#16352c", "#3a1d22", "#0e1b35", "#f4f2ed", "#ffffff"],
       fallback: "#2c3a52",
     },

@@ -168,10 +168,16 @@ function blockPx(block: CustomBlock, data: CardData | undefined, width: number, 
   const text = (data ? blockTextForFit(block, data) : "") || (placeholder ? "{placeholder}" : "");
   if (!text) return 0;
   const fs = EMPHASIS_PX[block.emphasis];
-  // Ceil, because half a rendered line still occupies a whole one.
+  // Ceil, because half a rendered line still occupies a whole one. Split on
+  // HARD breaks first: the address arrives as up to three lines joined by \n
+  // and the renderer sets `white-space: pre-line` for it, so counting its
+  // characters alone modelled a three-line address as one — a blind spot in
+  // exactly the field this model was rewritten to see.
   const perLine = Math.max(1, Math.floor(width / (fs * CHAR_W)));
-  const lines = Math.max(1, Math.ceil(text.length / perLine));
-  return lines * fs * LINE + GAP_PX;
+  const lines = text
+    .split("\n")
+    .reduce((n, seg) => n + Math.max(1, Math.ceil(seg.length / perLine)), 0);
+  return Math.max(1, lines) * fs * LINE + GAP_PX;
 }
 
 /**
@@ -217,11 +223,21 @@ function blockTextForFit(block: CustomBlock, data: CardData): string {
  * 56px of it (a band and a column), which is why they were the last shapes
  * still overflowing.
  */
-function budget(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false) {
+function budget(
+  blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false,
+  // Whether the renderer will actually DRAW a side panel. It is not the same
+  // question as "are there side blocks": a coloured panel survives an empty
+  // side zone, so an owner who has not uploaded a logo yet still gets a panel
+  // and a main column 30% narrower than this model assumed. Left unsaid, the
+  // model sized the text for a full-width column and the published card came
+  // out 18-35% off the designer's preview.
+  panelShown?: boolean,
+) {
   const on = blocks.filter((b) => b.on);
   const stacked = skeleton === "stacked";
   const side = on.filter((b) => zoneFor(b) === "left");
-  const width = side.length && !stacked ? MAIN_W_PANEL : MAIN_W_FULL;
+  const hasPanel = panelShown ?? side.length > 0;
+  const width = hasPanel && !stacked ? MAIN_W_PANEL : MAIN_W_FULL;
 
   const qr = on.find((b) => zoneFor(b) === "right" && b.type === "qr");
   const main = on.filter((b) => zoneFor(b) === "right" && b.type !== "qr");
@@ -246,7 +262,7 @@ function budget(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData,
       // A band is a ROW: its height is its tallest item, not their sum.
       ? Math.max(...side.map((b) => imagePx(b, scale)))
       : side.reduce((n, b) => n + imagePx(b, scale), 0);
-  const sideFixed = side.length === 0 ? 0 : SIDE_PAD;
+  const sideFixed = hasPanel ? SIDE_PAD : 0;
 
   // Stacked, the zones ADD — the band sits above the main column. Side by side
   // they SHARE the card's height, so the taller one sets it; compare them at
@@ -259,8 +275,10 @@ function budget(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData,
 }
 
 /** Total design px the content wants at density 1. Exported for the sweep. */
-export function contentPx(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false): number {
-  const b = budget(blocks, skeleton, data, placeholder);
+export function contentPx(
+  blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false, panelShown?: boolean,
+): number {
+  const b = budget(blocks, skeleton, data, placeholder, panelShown);
   return b.scaled + b.fixed;
 }
 
@@ -294,8 +312,10 @@ const SAFETY = 0.9;
 const FLOOR = 0.42;
 const CEILING = 1.14;
 
-export function blockDensity(blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false): number {
-  const { scaled, fixed } = budget(blocks, skeleton, data, placeholder);
+export function blockDensity(
+  blocks: CustomBlock[], skeleton?: CardSkeleton, data?: CardData, placeholder = false, panelShown?: boolean,
+): number {
+  const { scaled, fixed } = budget(blocks, skeleton, data, placeholder, panelShown);
   if (scaled <= 0) return CEILING;
   // scaled x d + fixed <= room  ->  d <= (room - fixed) / scaled
   const room = CARD_PX * SAFETY - fixed;
