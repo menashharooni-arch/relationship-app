@@ -246,12 +246,12 @@ export default function SocialLinkIntercept({
             // shouting object in the section. It is the same quiet white row or
             // capsule in every case.
             socials.length === 0
-              ? "group flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
+              ? "group flex items-center gap-2.5 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors duration-150 hover:bg-[#F2F6FF] active:bg-[#E4ECFE]"
               // self-start, not just inline-flex: this sits in a flex COLUMN,
               // whose default align-items:stretch would blow the capsule out to
               // full width and leave it looking like an empty bar. It is meant
               // to hug its domain.
-              : "group inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7]"
+              : "group inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white transition-colors duration-150 hover:bg-[#F2F6FF] active:bg-[#E4ECFE]"
           }
           style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}
         >
@@ -265,7 +265,7 @@ export default function SocialLinkIntercept({
             {hostLabel(website.href)}
           </span>
           {socials.length === 0 && (
-            <span className="ms-auto text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#8A7E6E] group-hover:translate-x-0.5">
+            <span className="ms-auto text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#1D4ED8] group-hover:translate-x-0.5">
               {chevron}
             </span>
           )}
@@ -278,7 +278,10 @@ export default function SocialLinkIntercept({
           target={alreadyShared ? "_blank" : undefined}
           rel="noopener noreferrer"
           onClick={(e) => handleClick(socials[0], e)}
-          className="flex items-center gap-3 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors active:bg-[#FBF9F6]"
+          // Same blue hover as the website row and the link table — this is the
+          // same kind of object, and it was the only one of the three with no
+          // hover at all.
+          className="group flex items-center gap-3 w-full min-h-[52px] rounded-[14px] px-3.5 bg-white transition-colors duration-150 hover:bg-[#F2F6FF] active:bg-[#E4ECFE]"
           style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}
         >
           <span
@@ -295,7 +298,9 @@ export default function SocialLinkIntercept({
             <span className="text-[14px] font-semibold text-slate-900 leading-tight">{socials[0].label}</span>
             {socials[0].sub && <span className="text-[11px] text-slate-500 truncate">{socials[0].sub}</span>}
           </span>
-          <span className="text-[#C9BFB2]">{chevron}</span>
+          <span className="text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#1D4ED8] group-hover:translate-x-0.5">
+            {chevron}
+          </span>
         </a>
       ) : (
         socials.length > 0 && (

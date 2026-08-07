@@ -50,9 +50,24 @@ describe("every action link is the same quiet row", () => {
   });
 
   it("has a real hover state, plus keyboard focus", () => {
-    expect(c()).toMatch(/hover:bg-\[#FBF9F6\]/);
-    expect(c()).toMatch(/active:bg-\[#F4EFE7\]/);
+    expect(c()).toMatch(/hover:bg-\[#F2F6FF\]/);
+    expect(c()).toMatch(/active:bg-\[#E4ECFE\]/);
     expect(c(), "keyboard users get no visible affordance").toMatch(/focus-visible:/);
+  });
+
+  it("every tappable row in the section shares the SAME blue hover", () => {
+    // Owner asked for blue. Three row shapes across two files — the links
+    // table, the website row/capsule, and the lone-social row — and a
+    // mismatch between them is the kind of thing only a side-by-side catches.
+    for (const f of ["src/components/CardActionLinks.tsx", "src/components/SocialLinkIntercept.tsx"]) {
+      const s = code(f);
+      expect(s, `${f} kept a warm hover`).not.toMatch(/hover:bg-\[#FBF9F6\]|active:bg-\[#F4EFE7\]/);
+      expect(s).toMatch(/hover:bg-\[#F2F6FF\]/);
+    }
+    // Every row that hovers also turns its chevron blue.
+    const rail = code("src/components/SocialLinkIntercept.tsx");
+    expect((rail.match(/group-hover:text-\[#1D4ED8\]/g) ?? []).length).toBe(2);
+    expect(code("src/components/CardActionLinks.tsx")).toMatch(/group-hover:text-\[#1D4ED8\]/);
   });
 
   it("hover changes COLOUR, never position", () => {
@@ -168,6 +183,43 @@ describe("the rail is opt-in, so nothing else changed", () => {
       /onClick=\{\(\) => triggerSignupNudge\("link_button"\)\}/,
     );
     expect((c.match(/triggerSignupNudge\(/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("public card page copy and controls", () => {
+  const PAGE = "src/app/card/[username]/page.tsx";
+
+  it('the Swift Links chip says "View Swift Link page", not "View all"', () => {
+    const c = code(PAGE);
+    expect(c).toMatch(/View Swift Link page →/);
+    expect(c, "the vague label is back").not.toMatch(/>\s*View all →\s*</);
+  });
+
+  it("Share this card no longer offers Show QR Code", () => {
+    // A sharer's control sitting in a viewer's flow: it asked the person
+    // already holding the card to display a QR for someone ELSE to scan.
+    const c = code(PAGE);
+    expect(c, "the QR modal is back on the public card").not.toMatch(/<QRCodeModal/);
+    expect(c, "an unused import was left behind").not.toMatch(/import QRCodeModal/);
+  });
+
+  it("but Share this card still shares", () => {
+    // Removing one control must not have taken the box's actual job with it.
+    const c = code(PAGE);
+    expect(c).toMatch(/<ShareButton/);
+    expect(c).toMatch(/label="Share this card"/);
+  });
+
+  it("the QR modal itself survives for the surfaces that still use it", () => {
+    // Three marketing mockups render it; deleting the component would break
+    // the homepage.
+    for (const f of [
+      "src/components/site/LeadCapturePhone.tsx",
+      "src/components/site/SignatureDemo.tsx",
+      "src/components/site/TemplateGallery.tsx",
+    ]) {
+      expect(code(f), `${f} lost its QR modal`).toMatch(/<QRCodeModal/);
+    }
   });
 });
 

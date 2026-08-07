@@ -42,10 +42,16 @@ export default function CardActionLinks({ links }: { links: CardLink[] }) {
           // Colour change only — NOT a transform. A row inside a shared
           // container must never move independently of its neighbours, or the
           // hairlines visibly break.
-          className="group flex items-center gap-3 min-h-[52px] px-3.5 py-2.5 border-b border-[#F1EBE3] last:border-b-0 transition-colors duration-150 hover:bg-[#FBF9F6] active:bg-[#F4EFE7] focus-visible:bg-[#FBF9F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C9BFB2]"
+          //
+          // Blue hover (owner request). #F2F6FF is the page's blue-600 barely
+          // present — enough to read as "this is live" against the warm white
+          // without turning the row into a coloured button, which is the thing
+          // the uniform-rows change was for. Focus-visible uses the same blue so
+          // keyboard and pointer agree.
+          className="group flex items-center gap-3 min-h-[52px] px-3.5 py-2.5 border-b border-[#F1EBE3] last:border-b-0 transition-colors duration-150 hover:bg-[#F2F6FF] active:bg-[#E4ECFE] focus-visible:bg-[#F2F6FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1D4ED8]/35"
         >
           <span
-            className="shrink-0 w-7 h-7 rounded-[8px] bg-[#FAF7F2] grid place-items-center overflow-hidden transition-shadow duration-150 group-hover:shadow-[inset_0_0_0_1px_#DFD5C7]"
+            className="shrink-0 w-7 h-7 rounded-[8px] bg-[#FAF7F2] grid place-items-center overflow-hidden transition-shadow duration-150 group-hover:shadow-[inset_0_0_0_1px_#BFD2FA]"
             style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}
           >
             {l.emoji ? <span className="text-[13px] leading-none">{l.emoji}</span> : <LinkMark url={l.url} size={14} />}
@@ -57,7 +63,7 @@ export default function CardActionLinks({ links }: { links: CardLink[] }) {
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden="true"
-            className="w-3 h-3 shrink-0 text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#8A7E6E] group-hover:translate-x-0.5"
+            className="w-3 h-3 shrink-0 text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#1D4ED8] group-hover:translate-x-0.5"
           >
             <path d="M7.7 4.3a1 1 0 000 1.4L12 10l-4.3 4.3a1 1 0 101.4 1.4l5-5a1 1 0 000-1.4l-5-5a1 1 0 00-1.4 0z" />
           </svg>
