@@ -572,28 +572,90 @@ export function hasBlocks(layout: CustomLayout | null | undefined): boolean {
 }
 
 /**
+ * Anything that would end a CSS declaration, start a comment, or fetch.
+ *
+ * `customLayout` is a JSON blob the owner PATCHes; the renderer spreads its
+ * colours straight into a style object, so a value of `#111;position:fixed;
+ * top:0;width:100vw;z-index:2147483647` becomes real declarations on the public
+ * card, and `url(https://…)` becomes a request from every visitor. React
+ * escapes quotes, so this was never XSS — but a stored full-viewport overlay on
+ * someone else's card is worth closing anyway, and an office owner can push a
+ * layout onto members' cards through the branding seed.
+ */
+const CSS_UNSAFE = /[;{}<>\\]|url\s*\(|image\s*\(|expression\s*\(|@import|\/\*/i;
+
+/** A colour or gradient, or the fallback. Rejects rather than sanitising. */
+function safeCss(v: unknown, fallback: string): string {
+  if (typeof v !== "string") return fallback;
+  const s = v.trim();
+  // No colon: kills `position:fixed` and every `url(https://…)` in one test.
+  if (!s || s.length > 200 || s.includes(":") || CSS_UNSAFE.test(s)) return fallback;
+  return /^[#a-z0-9.,%()\s/-]+$/i.test(s) ? s : fallback;
+}
+
+/** Same rules, plus the quotes and underscores a font stack legitimately uses. */
+function safeFont(v: unknown, fallback: string): string {
+  if (typeof v !== "string") return fallback;
+  const s = v.trim();
+  if (!s || s.length > 200 || s.includes(":") || CSS_UNSAFE.test(s)) return fallback;
+  return /^[a-z0-9\s,'"()._-]+$/i.test(s) ? s : fallback;
+}
+
+/** Optional colour: undefined stays undefined so `??` defaults still fire. */
+function safeCssOpt(v: unknown): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  const out = safeCss(v, "");
+  return out || undefined;
+}
+
+/**
  * Always hand back something renderable. A corrupted or half-written layout —
  * a restored guest draft that saved `customLayout: {}` is the real case that
  * crashed a card page once — falls back to the default preset rather than
  * throwing on a missing array.
+ *
+ * This is also the security boundary for the style sinks: every colour, every
+ * gradient and the font stack are validated here, once, for both renderers.
  */
 export function normalizeCustomLayout(raw: unknown): CustomLayout {
   const fallback = buildPreset(DEFAULT_PRESET);
   if (!raw || typeof raw !== "object") return fallback;
   const l = raw as CustomLayout;
 
+  const style = {
+    background: safeCss(l.background, fallback.background),
+    textColor: safeCss(l.textColor, fallback.textColor),
+    accentColor: safeCssOpt(l.accentColor),
+    panelBackground: safeCssOpt(l.panelBackground),
+    panelTextColor: safeCssOpt(l.panelTextColor),
+    fontFamily: safeFont(l.fontFamily, fallback.fontFamily),
+  };
+
   if (Array.isArray(l.blocks) && l.blocks.length) {
     return {
       ...fallback,
       ...l,
-      blocks: l.blocks.filter((x) => x && typeof x.id === "string" && typeof x.type === "string"),
-      elements: Array.isArray(l.elements) ? l.elements : [],
+      ...style,
+      blocks: l.blocks
+        .filter((x) => x && typeof x.id === "string" && typeof x.type === "string")
+        .map((x) => ({ ...x, color: safeCssOpt(x.color) })),
+      elements: [],
     };
   }
-  if (Array.isArray(l.elements) && l.elements.length) {
-    return { ...fallback, ...l, blocks: undefined, elements: l.elements };
-  }
-  return { ...fallback, ...l, blocks: fallback.blocks, elements: [] };
+  // An element that isn't an object crashes the legacy renderer on `el.x`, and
+  // `Array.isArray([null]) && .length` was happily letting one through.
+  const elements = Array.isArray(l.elements)
+    ? l.elements
+        .filter((e) => e && typeof e === "object" && typeof e.id === "string" && typeof e.type === "string")
+        .map((e) => ({
+          ...e,
+          x: Number.isFinite(e.x) ? e.x : 0,
+          y: Number.isFinite(e.y) ? e.y : 0,
+          color: safeCssOpt(e.color),
+        }))
+    : [];
+  if (elements.length) return { ...fallback, ...l, ...style, blocks: undefined, elements };
+  return { ...fallback, ...l, ...style, blocks: fallback.blocks, elements: [] };
 }
 
 /** Does this block have anything to show for this card? Drives "hidden" hints. */

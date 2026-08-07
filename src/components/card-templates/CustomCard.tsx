@@ -505,13 +505,16 @@ export default function CustomCard({ data }: { data: CardData }) {
   if (hasBlocks(raw as CustomLayout)) return <CustomBlockCard data={data} />;
 
   // ── Legacy absolute layout ────────────────────────────────────────────────
-  // A corrupted layout (e.g. a restored guest draft that saved `customLayout: {}`
-  // with no elements) would throw on `.elements.map` and crash the card. Fall
-  // back to the default element set when elements isn't an array. (cards audit M4)
-  const base = (raw as CustomLayout) ?? DEFAULT_CUSTOM_LAYOUT;
-  const layout = Array.isArray(base?.elements) && base.elements.length
-    ? base
-    : { ...DEFAULT_CUSTOM_LAYOUT, ...(base as object), elements: DEFAULT_CUSTOM_LAYOUT.elements };
+  // Through normalizeCustomLayout, exactly like the block renderer, rather than
+  // its own inline guard. The old guard only checked `Array.isArray(elements)
+  // && length`, so `elements: [null]` passed it and then threw on `el.x` —
+  // a 500 on the public card page, reachable by PATCH and through the office
+  // branding seed. Normalising also validates the style sinks (colours,
+  // gradients, font stack), which this path was reading straight from the blob.
+  const norm = normalizeCustomLayout(raw);
+  const layout = norm.elements?.length
+    ? norm
+    : { ...norm, elements: DEFAULT_CUSTOM_LAYOUT.elements };
   return (
     <div
       className="sc-card"
