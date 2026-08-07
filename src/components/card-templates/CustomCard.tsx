@@ -12,8 +12,8 @@ import type { CardData, CustomBlock, CustomElement, CustomLayout, CustomSocial }
 import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 import {
-  blockDensity, blockFontPx, blockHasValue, blockImagePx, hasBlocks,
-  normalizeCustomLayout, sideImageScale, visibleBlocks, zoneFor,
+  blockDensity, blockFontPx, blockHasValue, blockImagePx, groupSocials, hasBlocks,
+  normalizeCustomLayout, sideImageScale, socialCols, visibleBlocks, zoneFor,
 } from "@/lib/custom-layout";
 import PlatformIcon from "@/components/PlatformIcon";
 
@@ -42,6 +42,19 @@ function socialValue(data: CardData, s?: CustomSocial): string {
 }
 
 // Shorten stored values (URLs, long handles) to a card-friendly handle.
+/**
+ * The smallest a handle may be set before the row drops to marks instead.
+ * Design px at the 460 card, so ~6px on a phone at the floor — the point where
+ * a handle stops being something you could actually read off a card.
+ */
+const SOCIAL_HANDLE_MIN_PX = 8;
+
+/** The handle a social block will draw — shared so the row can size to its longest. */
+function socialShown(block: CustomBlock, data: CardData, placeholder: boolean): string {
+  const raw = socialValue(data, block.social ?? "instagram");
+  return raw ? shortHandle(raw) : placeholder ? `@your-${block.social}` : "";
+}
+
 function shortHandle(v: string): string {
   const cleaned = v.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   const last = cleaned.split("/").filter(Boolean).pop() ?? cleaned;
@@ -242,9 +255,19 @@ function withOpacity(hex: string, a: number): string {
  */
 export function CustomBlockContent({
   block, data, layout, density, imageScale = 1, onPanel = false, placeholder = false,
+  // What fraction of the zone's width this block gets. 1 for a block on its own
+  // row; 1/3 for a social sharing a row with two others, so it is sized to the
+  // column it actually occupies rather than to the whole card.
+  widthShare = 1,
+  // The longest handle among the socials sharing this row, so they all take one
+  // size instead of each shrinking to its own length.
+  peerChars = 0,
+  // Set when the row decided its handles can't be read at the size they'd need.
+  iconOnly = false,
 }: {
   block: CustomBlock; data: CardData; layout: CustomLayout; density: number;
   imageScale?: number; onPanel?: boolean; placeholder?: boolean;
+  widthShare?: number; peerChars?: number; iconOnly?: boolean;
 }) {
   const c = ramp(layout, onPanel);
   const fs = blockFontPx(block.emphasis, density);
@@ -302,7 +325,8 @@ export function CustomBlockContent({
   // The zone widths are known, so fit against actual PIXELS instead: 0.6em per
   // character is a deliberate over-estimate of average advance, so the result
   // errs small rather than splitting.
-  const zonePx = onPanel ? 116 : 248;
+  // Minus the column gaps a shared row spends: three across lose two gaps.
+  const zonePx = (onPanel ? 116 : 248) * widthShare - (widthShare < 1 ? 8 : 0);
   const fitToWidth = (text: string, base: number) =>
     Math.max(base * 0.4, Math.min(base, zonePx / Math.max(1, text.length * 0.6)));
 
@@ -320,11 +344,31 @@ export function CustomBlockContent({
 
   if (block.type === "social") {
     const meta = SOCIAL_META[block.social ?? "instagram"];
-    const raw = socialValue(data, block.social ?? "instagram");
-    const shown = raw ? shortHandle(raw) : placeholder ? `@your-${block.social}` : "";
+    const shown = socialShown(block, data, placeholder);
     if (!shown) return null;
+    // Past the legibility floor the row shows MARKS instead of handles.
+    // Six handles in three columns is 6.5px design type — about 5px on a phone
+    // — and a handle nobody can read is worse than a logo everybody recognises.
+    // One long handle used to drag the whole row down there; now the row makes
+    // a decision instead, and the QR carries the handles in full.
+    if (iconOnly) {
+      const isz = Math.max(11, fs * 1.5);
+      return (
+        <span
+          title={shown}
+          style={{ display: "inline-flex", width: isz, height: isz, color: c.accent, flexShrink: 0 }}
+        >
+          <PlatformIcon label={meta.icon} className="w-full h-full" />
+        </span>
+      );
+    }
     // The icon eats room too, so the text is fitted to what's left of the zone.
-    const sfs = fitToWidth(shown + "xx", fs);
+    //
+    // Sized against the LONGEST handle in the row, not this one. Fitting each
+    // independently set "@aaronlavicapital" visibly smaller than the
+    // "@aaronlavi" sitting next to it — three different type sizes on one line,
+    // which reads as a mistake rather than as fitting.
+    const sfs = fitToWidth("x".repeat(Math.max(shown.length, peerChars)) + "xx", fs);
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: sfs * 0.45, fontSize: sfs, color: tone, minWidth: 0 }}>
         <span style={{ width: sfs * 1.15, height: sfs * 1.15, display: "inline-flex", flexShrink: 0, color: c.accent }}>
@@ -390,24 +434,76 @@ function Zone({
   blocks: CustomBlock[]; data: CardData; layout: CustomLayout; density: number;
   placeholder: boolean; gap: number; imageScale?: number; onPanel?: boolean;
 }) {
+  // lineHeight 0 kills the STRUT. Preflight sets line-height 1.5 on the body,
+  // so a wrapper contributed a 16 x 1.5 = 24px line box whatever was inside it:
+  // a 13px name at lineHeight 1.25 wants 16.25px and got 24. Every text block
+  // was 7.75px taller than its own text, the dead space did NOT shrink with
+  // density (the strut comes from the root's fixed 16px, not the block's), and
+  // on a fixed-size card that is the difference between shrinking working and
+  // not. The inner span sets its own line-height, so the line box is exact.
+  const row = { minWidth: 0, marginTop: gap, lineHeight: 0 } as const;
   return (
     <>
-      {blocks.map((bl) => (
-        // lineHeight 0 kills the STRUT. Preflight sets line-height 1.5 on the
-        // body, so this wrapper contributed a 16 x 1.5 = 24px line box whatever
-        // was inside it: a 13px name at lineHeight 1.25 wants 16.25px and got
-        // 24. Every text block was 7.75px taller than its own text, the dead
-        // space did NOT shrink with density (the strut comes from the root's
-        // fixed 16px, not the block's), and on a fixed-size card that is the
-        // difference between shrinking working and not. The inner span sets its
-        // own line-height, so the line box is the text's, exactly.
-        <div key={bl.id} data-cb={bl.id} style={{ minWidth: 0, marginTop: gap, lineHeight: 0 }}>
-          <CustomBlockContent
-            block={bl} data={data} layout={layout} density={density}
-            imageScale={imageScale} onPanel={onPanel} placeholder={placeholder}
-          />
-        </div>
-      ))}
+      {groupSocials(blocks).map((g, i) => {
+        if (!Array.isArray(g)) {
+          return (
+            <div key={g.id} data-cb={g.id} style={row}>
+              <CustomBlockContent
+                block={g} data={data} layout={layout} density={density}
+                imageScale={imageScale} onPanel={onPanel} placeholder={placeholder}
+              />
+            </div>
+          );
+        }
+        // A run of socials is ONE row that flows across and wraps down, rather
+        // than one full-width row each. Every social keeps its own data-cb, so
+        // tapping one in the designer still selects that social and not the
+        // group.
+        const cols = socialCols(g.length);
+        const peerChars = g.reduce((m, bl) => Math.max(m, socialShown(bl, data, placeholder).length), 0);
+        const colGap = gap + 3;
+        // The row's decision, made with the same maths CustomBlockContent
+        // fits with, so the two can't disagree about what will fit. `+ 2` is
+        // the icon's share, matching the "xx" the fitter appends.
+        const colPx = (onPanel ? 116 : 248) / cols - 8;
+        const wouldBe = Math.min(blockFontPx(g[0].emphasis, density), colPx / Math.max(1, (peerChars + 2) * 0.6));
+        const iconOnly = wouldBe < SOCIAL_HANDLE_MIN_PX;
+        return (
+          <div
+            key={`socials-${i}`}
+            style={{
+              ...row, display: "flex", flexWrap: "wrap", alignItems: "center",
+              columnGap: iconOnly ? Math.max(7, gap + 2) : colGap,
+              rowGap: Math.max(2, gap - 2),
+            }}
+          >
+            {g.map((bl) => (
+              // A FIXED basis, not natural width. Letting flex decide put four
+              // on the first row and one on the second once they all shared a
+              // type size — a full row then a stray. Three even columns wrap
+              // 3+3 and 3+2, which is the shape a row of handles should have.
+              <span
+                key={bl.id}
+                data-cb={bl.id}
+                style={{
+                  // Handles get even columns so they line up. MARKS don't need
+                  // a column each — held to a third of the card they sat marooned
+                  // in the middle of nothing, so they cluster at their own width
+                  // and still fill right and wrap down.
+                  flex: iconOnly ? "0 0 auto" : `0 0 calc((100% - ${(cols - 1) * colGap}px) / ${cols})`,
+                  minWidth: 0, overflow: "hidden",
+                }}
+              >
+                <CustomBlockContent
+                  block={bl} data={data} layout={layout} density={density}
+                  imageScale={imageScale} onPanel={onPanel} placeholder={placeholder}
+                  widthShare={1 / cols} peerChars={peerChars} iconOnly={iconOnly}
+                />
+              </span>
+            ))}
+          </div>
+        );
+      })}
     </>
   );
 }
