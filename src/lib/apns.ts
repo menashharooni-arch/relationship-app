@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import http2 from "node:http2";
+import { normalizeApplePrivateKey } from "@/lib/apple-key";
 
 // ── APNs sender for the native iOS app ───────────────────────────────────────
 //
@@ -65,7 +66,7 @@ function buildApnsJwt(teamId: string, keyId: string, privateKey: string): string
   const payload = { iss: teamId, iat: Math.floor(Date.now() / 1000) };
   const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
   const signature = crypto.sign("sha256", Buffer.from(signingInput), {
-    key: privateKey,
+    key: normalizeApplePrivateKey(privateKey),
     dsaEncoding: "ieee-p1363",
   });
   return `${signingInput}.${base64url(signature)}`;
