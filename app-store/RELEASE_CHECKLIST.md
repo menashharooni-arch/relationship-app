@@ -16,58 +16,108 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**The two things actually blocking submission, in order:**
+**What is left, in order. Everything upstream of these is done.**
 
-1. **No Apple ID is signed into Xcode** and there are no signing identities on
-   this Mac, so nothing below the simulator line (device install, Archive,
-   Validate, upload) can run. Xcode → Settings → Accounts → add the Apple ID
-   on team NHK8FA2RR2. `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both
+1. **Create the two .p8 keys** (§A) — Sign in with Apple, and APNs. This is
+   the only remaining Apple-portal step; both download exactly once.
+2. **Run `scripts/supabase-enable-apple.mjs`** (§B) — enables the provider and
+   allow-lists the native redirect, then verifies itself.
+3. **Add the Apple env vars and flip `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1`**
+   (§C), then redeploy. Order matters: the button stays hidden until the
+   provider works.
+4. **Sign in to Xcode** (§D) — no Apple ID is signed in and there are no
+   signing identities on this Mac, so device install / Archive / Validate /
+   upload cannot run. `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both
    targets, so automatic signing should resolve immediately after.
-2. **Supabase's Apple provider is still disabled** (§B) — the 4.8 risk.
 
-Everything else server-side that was previously listed as unknown has been
-checked and is green: the AASA serves the real Team ID (§C), and the site
-responds 200.
+Everything else server-side has been checked rather than assumed: the AASA
+serves the real Team ID (§C), the App ID capabilities are correct and the App
+Group is now actually attached (§A), the Services ID exists and Apple has
+validated its URLs (§A), and the site responds 200.
 
 ## A. Apple Developer portal (developer.apple.com)
 
-- [ ] Apple Developer Program membership active on the owning team.
-- [ ] App ID `me.swiftcard.app` registered with capabilities: Associated
-      Domains, Push Notifications, Sign in with Apple, App Groups
-      (`group.me.swiftcard.app`).
-- [ ] **Sign in with Apple**: Services ID (e.g. `me.swiftcard.web`) with
-      domain `grxmovpmlgmjncnyiyrt.supabase.co` and return URL
-      `https://grxmovpmlgmjncnyiyrt.supabase.co/auth/v1/callback`; SIWA key
-      (.p8) created — note Key ID. (SHELL-RUNBOOK §4.)
+- [x] Apple Developer Program membership active — team **Swift Card Inc. —
+      NHK8FA2RR2**, account Aaron Lavi.
+- [x] App ID `me.swiftcard.app` ("SwiftCard iOS") registered. Verified
+      2026-08-07: Associated Domains ✓, Push Notifications ✓, Sign in with
+      Apple ✓, App Groups ✓.
+- [x] **App Group `group.me.swiftcard.app` assigned to the App ID.** It
+      existed as an identifier but was attached to nothing ("Enabled App
+      Groups (0)"), which would have failed device provisioning for the
+      widget's entitlement. Now (1).
+- [x] **Services ID `me.swiftcard.web`** ("SwiftCard Sign in with Apple")
+      created with Sign in with Apple enabled, primary App ID
+      `NHK8FA2RR2.me.swiftcard.app`, domain
+      `grxmovpmlgmjncnyiyrt.supabase.co`, return URL
+      `https://grxmovpmlgmjncnyiyrt.supabase.co/auth/v1/callback`.
+      Apple validated both URLs.
+- [ ] **SIWA key (.p8)** — Keys list is still empty. Create at
+      developer.apple.com → Keys → +, tick "Sign in with Apple", set the
+      primary App ID to `me.swiftcard.app`. **The .p8 downloads exactly once**
+      — keep it somewhere permanent, not ~/Downloads. Note the Key ID.
+- [ ] **APNs key (.p8)** — same page, tick "Apple Push Notifications service".
+      Can be the same key or a separate one; a separate one is easier to
+      rotate. Also download-once.
 - [ ] **Private email relay**: register the swiftcard.me sending domain/
       addresses (Resend's from-address) under Sign in with Apple → Email
       Sources — without this, Hide-My-Email users get NO product emails.
 - [ ] **APNs key** (.p8) created — note Key ID. (SHELL-RUNBOOK §6.)
 - [ ] Pass Type ID for Wallet confirmed valid (existing passes sign with it).
 
-## B. Supabase dashboard
+## B. Supabase dashboard — one command
 
-- [ ] Auth → Providers → **Apple enabled** (Services ID + secret from Team
-      ID/Key ID/.p8). ⚠️ **Verified still OFF on 2026-08-07.**
+Once the SIWA .p8 from §A exists, both items below are done by:
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_...  \
+  node scripts/supabase-enable-apple.mjs ~/path/AuthKey_<KEYID>.p8
+```
+
+(token from supabase.com/dashboard/account/tokens, or just `supabase login`
+first and the script reads `~/.supabase/access-token`). It enables the
+provider, adds the redirect URL, and then proves it by re-running the
+`/authorize` probe — so a green run means it actually works, not just that the
+API returned 200.
+
+- [ ] Auth → Providers → **Apple enabled** (Services ID + secret).
+      ⚠️ **Verified still OFF on 2026-08-07**:
       `GET /auth/v1/authorize?provider=apple` returns
       `{"code":400,"error_code":"validation_failed","msg":"Unsupported
-      provider: provider is not enabled"}`, where the same call for `google`
-      returns a 302 to accounts.google.com. This is the 4.8 rejection risk:
-      the app offers Google sign-in, so it must offer Sign in with Apple.
-      Re-check with that same curl after enabling.
+      provider: provider is not enabled"}`, where `google` returns a 302 to
+      accounts.google.com. This is the 4.8 exposure.
 - [ ] Auth → URL Configuration → Redirect URLs includes
-      `swiftcard://auth-callback`. (Not checkable from outside — Supabase
-      validates `redirect_to` at the callback leg, not at `/authorize`, so a
-      bogus scheme also 302s. Must be confirmed in the dashboard.)
+      `swiftcard://auth-callback` — the return leg of native OAuth. Not
+      checkable from outside (Supabase validates `redirect_to` at the callback,
+      not at `/authorize`, so a bogus scheme 302s too), which is why the script
+      sets it rather than assuming.
+
+⚠️ **The Apple client secret is a JWT you sign, and Apple caps it at 6
+months.** Sign in with Apple will break on its expiry date with no warning.
+`scripts/apple-client-secret.mjs` regenerates it; re-running the enable script
+above is the fix. Put the date in a calendar.
 - [ ] Auth → **leaked-password protection enabled** (one toggle; flagged by
       the security advisor).
 
 ## C. Vercel env + deploy
 
-- [ ] Env vars (Production): `APPLE_TEAM_ID`, `APPLE_SIGN_IN_CLIENT_ID`,
-      `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY`,
-      `APPLE_PUSH_KEY_ID`, `APPLE_PUSH_PRIVATE_KEY`
-      (`APPLE_PUSH_SANDBOX=1` only for dev builds — REMOVE for TestFlight+).
+- Env vars (Production). `vercel env ls production` on 2026-08-07 shows
+      **only `APPLE_TEAM_ID`** is set. Still to add, all of which need the
+      §A keys first:
+  - [ ] `APPLE_SIGN_IN_CLIENT_ID` = `me.swiftcard.web`
+  - [ ] `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY` — used by
+        `src/lib/apple-revoke.ts` to revoke Apple tokens at account deletion.
+        That is App Store requirement 6.2, and it is separate from the
+        Supabase provider: enabling sign-in without these means deletions
+        silently skip revocation.
+  - [ ] `APPLE_PUSH_KEY_ID`, `APPLE_PUSH_PRIVATE_KEY`
+        (`APPLE_PUSH_SANDBOX=1` only for dev builds — REMOVE for TestFlight+).
+- [ ] **`NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1` — set this LAST, after §B is
+      green, then redeploy.** The Apple button in `LoginForm.tsx` is gated on
+      it precisely so the button cannot exist while the provider is off; a
+      sign-in control that always errors is a 2.1 rejection by itself. It is
+      a `NEXT_PUBLIC_` var, so it is baked in at build time — setting it
+      without a redeploy does nothing.
 - [x] **AASA is live and correct** (verified 2026-08-07):
       `curl https://swiftcard.me/.well-known/apple-app-site-association`
       returns `"appID":"NHK8FA2RR2.me.swiftcard.app"` with paths
