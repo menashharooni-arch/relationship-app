@@ -12,7 +12,7 @@ import type { CardData, CustomBlock, CustomElement, CustomLayout, CustomSocial }
 import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 import {
-  blockAspect, blockDensity, blockFontPx, blockImagePx, hasBlocks,
+  blockAspect, blockDensity, blockFontPx, blockHasValue, blockImagePx, hasBlocks,
   normalizeCustomLayout, sideImageScale, visibleBlocks, zoneFor,
 } from "@/lib/custom-layout";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -78,7 +78,9 @@ function fieldValue(data: CardData, field?: string): string {
     case "address": return data.address || "";
     case "fax": {
       const f = data.customization?.fax?.trim();
-      return f ? `Fax: ${f}` : "";
+      // Formatted like the phone. A scanned card that carried a fax was
+      // printing a raw 3125550122 one line under a formatted (312) 555-0121.
+      return f ? `Fax: ${formatPhone(f)}` : "";
     }
     default: return "";
   }
@@ -406,9 +408,24 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   const layout = normalizeCustomLayout(data.customization?.customLayout);
   const skeleton = layout.skeleton ?? "split";
   const stacked = skeleton === "stacked";
+  // A block with nothing to show must not take SPACE either.
+  //
+  // Found by round-tripping real printed cards through the scanner: a card whose
+  // photo shows a logo produces a logo block, but the account that scanned it
+  // may not have uploaded one yet — and `side.length` counted blocks that were
+  // ON rather than blocks that would draw. The result was a third of the card
+  // given to an empty panel with a hairline rule down the middle of nothing.
+  // The same miscount gave every empty text block a phantom `marginTop` gap and
+  // fed blockDensity rows it would never draw, shrinking the card to fit them.
+  //
+  // Not applied in placeholder mode: the designer deliberately shows dashed
+  // stand-ins so you can arrange a card before its content exists.
+  //
   // Trimmed here as well as in the editor: the editor stops an owner going past
   // the cap, and this stops a hand-edited payload from rendering a broken card.
-  const blocks = visibleBlocks(layout.blocks ?? []);
+  const blocks = visibleBlocks(
+    (layout.blocks ?? []).filter((bl) => placeholder || blockHasValue(bl, data)),
+  );
   const density = blockDensity(blocks, skeleton);
   const sideScale = sideImageScale(skeleton);
 
@@ -419,8 +436,16 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
 
   // A panel with its own surface is what makes a two-tone card possible — a
   // coloured column beside a light field, or a band across the top.
+  //
+  // A COLOURED panel is a design element in its own right and stays even when
+  // the mark it was going to hold hasn't been uploaded yet: dropping it turned
+  // a scanned salon card's plum column and a plumber's red header stripe into
+  // plain white, losing the very thing that made them recognisable. An
+  // UNCOLOURED panel is only a container, and an empty container is a third of
+  // the card spent on a hairline rule around nothing — that one goes.
   const panelBg = layout.panelBackground;
-  const sidePanel = side.length ? (
+  const panelIntended = (layout.blocks ?? []).some((bl) => bl.on && zoneFor(bl) === "left");
+  const sidePanel = side.length || (panelBg && panelIntended) ? (
     <div
       className="shrink-0 flex items-center"
       style={{
@@ -441,7 +466,7 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
 
   // The hairline only earns its place when there is no panel colour; with one,
   // the panel's own edge already separates the two halves.
-  const rule = !stacked && side.length && !panelBg ? (
+  const rule = !stacked && side.length > 0 && !panelBg ? (
     <div className="self-stretch shrink-0" style={{ width: 1, margin: "20px 0", background: withOpacity(layout.textColor, 0.2) }} />
   ) : null;
 
