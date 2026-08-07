@@ -263,29 +263,28 @@ function LogoFirstOG(p: Meta) {
 
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", background: NAVY }}>
-      {/* Left: the mark in its ring.
-          The card's ring shrink-wraps the logo so it takes the mark's own shape
-          (circle / pill / capsule). That relies on CSS shrink-to-fit, which is
-          not worth betting a whole OG render on — a throw here drops the card
-          image entirely. A fixed circle is the shape the ring takes for the
-          common crest-style mark anyway, and this path is the FALLBACK: the
-          primary preview is the stored PNG capture of the real card. */}
-      <div style={{ width: "38%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div
-          style={{
-            width: 260, height: 260, borderRadius: 260,
-            border: `3px solid ${ACCENT}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
-        >
-          {p.logoUrl ? (
-            <img src={p.logoUrl} alt="" width={180} height={130} style={{ objectFit: "contain" }} />
-          ) : (
-            <div style={{ fontSize: 92, fontWeight: 700, color: ACCENT, letterSpacing: 4 }}>
-              {initialsOf(p.company || p.name)}
-            </div>
-          )}
-        </div>
+      {/* Left: the mark on its tinted panel.
+          There is no RING here any more, because there is no ring on the card:
+          it was replaced by a clipped tile once it turned out that every logo
+          real owners upload is an opaque rectangle, whose corners punched
+          straight through a circle. A fixed-size tile rather than the card's
+          shrink-to-fit one — shrink-to-fit is not worth betting a whole OG
+          render on, since a throw here drops the card image entirely, and this
+          path is the FALLBACK: the primary preview is a stored PNG capture of
+          the real card. */}
+      <div
+        style={{
+          width: "38%", display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(255,255,255,0.045)",
+        }}
+      >
+        {p.logoUrl ? (
+          <img src={p.logoUrl} alt="" width={230} height={170} style={{ objectFit: "contain", borderRadius: 18 }} />
+        ) : (
+          <div style={{ fontSize: 92, fontWeight: 700, color: ACCENT, letterSpacing: 4 }}>
+            {initialsOf(p.company || p.name)}
+          </div>
+        )}
       </div>
 
       {/* Hairline rule — the card's own divider, at OG scale. */}
@@ -296,12 +295,14 @@ function LogoFirstOG(p: Meta) {
         <div style={{ fontSize: 60, fontWeight: 600, color: "#ffffff", lineHeight: 1.08, letterSpacing: 2, textTransform: "uppercase" }}>
           {p.name}
         </div>
-        {p.company ? <div style={{ fontSize: 30, color: "#c2ccdc", marginTop: 14 }}>{p.company}</div> : null}
+        {/* Name, TITLE, then company — matching the card, which reordered these
+            so the quietest line stopped sitting between the loudest two. */}
         {p.title ? (
           <div style={{ fontSize: 24, color: ACCENT, marginTop: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 600 }}>
             {p.title}
           </div>
         ) : null}
+        {p.company ? <div style={{ fontSize: 30, color: "#c2ccdc", marginTop: 14 }}>{p.company}</div> : null}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 30 }}>
           {p.phone ? <Contact value={p.phone} dot={ACCENT} color="#ffffff" fs={29} /> : null}
           {p.email ? <Contact value={p.email} dot={ACCENT} color="#e6ebf3" /> : null}

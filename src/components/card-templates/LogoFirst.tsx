@@ -15,7 +15,7 @@ import {
 
 const NAVY   = "#2C3A52";
 const INK    = "#141B26";
-const PANEL  = 0.36; // left panel share of the card width
+const PANEL  = 0.33; // left panel share of the card width
 
 /** Perceived brightness (YIQ), 0-255. Null for anything unparseable. */
 function yiq(hex?: string | null): number | null {
@@ -25,32 +25,75 @@ function yiq(hex?: string | null): number | null {
   return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
 }
 
+function rgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+const hex2 = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+
 /**
- * The accent draws the title and the contact icons, so a shade too close to the
- * background disappears. Both the background and the accent are owner-chosen and
- * both preset lists contain light and dark options, so the collision is
- * reachable in normal use rather than only by a crafted value.
+ * Keep the owner's accent, and make it READ.
+ *
+ * The accent draws the job title and the contact icons, so a shade too close to
+ * the background disappears — and both the ground and the accent are chosen from
+ * preset lists that each contain light and dark options, so the collision is an
+ * ordinary thing to do, not a crafted one.
+ *
+ * This used to answer that by DISCARDING the choice and reverting to white. A
+ * probe across the template's own preset list found three of its eight accents
+ * doing visibly nothing when picked — teal, crimson and ink on the default navy
+ * — which is the worst possible answer: the control is offered, the owner uses
+ * it, and the card doesn't change. So the colour is now pushed along its own
+ * hue, toward the light or dark end, until it clears the threshold. You get the
+ * crimson you asked for, at a crimson that can be seen.
  */
-function safeAccent(accent: string | undefined, bg: string, dark: boolean): string {
+function readableAccent(accent: string | undefined, bg: string, dark: boolean): string {
   const fallback = dark ? "#FFFFFF" : NAVY;
   if (!accent) return fallback;
-  const a = yiq(accent);
   const b = yiq(bg);
-  if (a === null || b === null) return fallback;
-  return Math.abs(a - b) < 60 ? fallback : accent;
+  const parts = rgb(accent);
+  if (b === null || !parts) return fallback;
+
+  let [r, g, bl] = parts;
+  // Toward white on a dark card, toward black on a light one — the direction
+  // that gains contrast against THIS ground.
+  const target = dark ? 255 : 0;
+  for (let i = 0; i < 12; i++) {
+    const y = (r * 299 + g * 587 + bl * 114) / 1000;
+    if (Math.abs(y - b) >= 60) break;
+    r += (target - r) * 0.16;
+    g += (target - g) * 0.16;
+    bl += (target - bl) * 0.16;
+  }
+  const out = `#${hex2(r)}${hex2(g)}${hex2(bl)}`;
+  const y = yiq(out);
+  // If twelve steps still couldn't separate them, the two really are the same
+  // colour; only then fall back.
+  return y !== null && Math.abs(y - b) >= 55 ? out : fallback;
 }
 
 export default function LogoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const bg = style.bgColor ?? NAVY;
   const dark = isDarkBg(bg);
-  const accent = safeAccent(style.accentColor, bg, dark);
+  const accent = readableAccent(style.accentColor, bg, dark);
   const nameColor = style.textColor ?? (dark ? "#FFFFFF" : INK);
+  // The light palette was two steps too pale: on Bone, the address rendered at
+  // #7A8AA3 over #F4F2ED and all but vanished. Every tone here now sits at a
+  // contrast a printed card would actually hold.
   const infoPal = style.infoColor
     ? infoPaletteFrom(style.infoColor)
     : dark
       ? { strong: "#FFFFFF", mid: "#E6EBF3", soft: "#C2CCDC", muted: "#A6B2C6" }
-      : { strong: INK, mid: "#2C3A52", soft: "#5A6B85", muted: "#7A8AA3" };
+      : { strong: INK, mid: "#233047", soft: "#3E4C63", muted: "#55637C" };
+
+  // The QR follows the ground instead of being a pale-blue sticker on it. It was
+  // hard-coded to #EEF2F8 on navy, which is fine on navy and wrong on forest,
+  // oxblood and bone — the three grounds the picker offers alongside it.
+  const qrBg = dark ? "#F2F4F7" : "#FFFFFF";
 
   const initials =
     data.initials ??
@@ -63,11 +106,34 @@ export default function LogoFirst({ data }: { data: CardData }) {
   // Company sits under the name as a single line and truncates, so a long one is
   // SHRUNK to fit rather than cut. The contact block now spans the full column
   // (the QR moved to its own row), so the width to budget is the column itself.
-  const companyFit = fitCompany(11, data.company, 26, 210, 0, false);
+  // Floored at 6.5px. fitCompany's own floor is `base * FIT_FLOOR`, and this
+  // template passes the smallest base of the six (11), so its floor landed at
+  // 5.1px — a 55-character company name rendered present and unreadable. The
+  // line is `truncate`, so past the floor it ends in an ellipsis instead, which
+  // says "there is more of this" rather than pretending to show all of it.
+  const rawCompanyFit = fitCompany(11, data.company, 26, 210, 0, false);
+  const companyFit = { ...rawCompanyFit, fontSize: Math.max(6.5, rawCompanyFit.fontSize) };
 
   // The tile's edge. It is the only thing separating a logo whose own background
   // matches the card — a navy mark on a navy card — from the card itself.
   const tileEdge = dark ? "rgba(255,255,255,0.16)" : "rgba(20,27,38,0.14)";
+
+  /**
+   * A single unbroken token has no good break point, so size it to the column.
+   *
+   * fitName shrinks by the longest WORD but floors at half the base, and it
+   * doesn't know about the uppercase tracking this template sets — so a 34
+   * character surname landed at the floor, still ~9px wider than the column,
+   * and `overflowWrap: anywhere` did the only thing left to it and broke the
+   * name in half. Sizing by the column instead keeps the name whole.
+   * Derived from PANEL rather than typed in, so the two move together.
+   */
+  const NAME_COL = 460 * (1 - PANEL) - 31;
+  const fitUnbroken = (base: number, text: string | null | undefined, perChar: number) => {
+    const s = (text ?? "").trim();
+    if (!s || /\s/.test(s)) return base;
+    return Math.max(7, Math.min(base, NAME_COL / (s.length * perChar)));
+  };
 
   return (
     <div
@@ -96,9 +162,19 @@ export default function LogoFirst({ data }: { data: CardData }) {
 
           All of it has to be pure CSS: card templates are SERVER-RENDERED and
           must never use a hook, so the image cannot be measured or sampled. */}
+      {/* A TINTED panel, not a bare third of the card.
+          At 36% wide with no surface of its own, the mark floated in an empty
+          quarter of the card and the whole left side read as something that had
+          failed to load. One step off the ground — lighter on a dark card,
+          darker on a light one — costs nothing, works on every ground the
+          picker offers, and makes the space deliberate. */}
       <div
         className="relative flex items-center justify-center shrink-0"
-        style={{ width: `${PANEL * 100}%`, padding: "16px 12px 16px 17px" }}
+        style={{
+          width: `${PANEL * 100}%`,
+          padding: "14px 12px 14px 15px",
+          background: dark ? "rgba(255,255,255,0.045)" : "rgba(20,27,38,0.035)",
+        }}
       >
         <div
           className="flex items-center justify-center"
@@ -131,8 +207,11 @@ export default function LogoFirst({ data }: { data: CardData }) {
                 // wordmark lands in a square box and the tile stops matching the
                 // mark. A small file therefore renders small and crisp rather
                 // than upscaled and blurry.
-                maxWidth: 126 * (0.94 + 0.06 * grow),
-                maxHeight: 96 * (0.94 + 0.06 * grow),
+                // Bigger than it was: the mark is the thing this template is
+                // named for, and it was rendering at about half the height the
+                // panel could give it.
+                maxWidth: 134 * (0.94 + 0.06 * grow),
+                maxHeight: 116 * (0.94 + 0.06 * grow),
                 objectFit: "contain",
                 display: "block",
               }}
@@ -172,7 +251,9 @@ export default function LogoFirst({ data }: { data: CardData }) {
           <h2
             className="leading-tight min-w-0"
             style={{
-              fontSize: fitName(23 * grow, data.name, 16),
+              // 0.78 per char: uppercase, plus the 0.03em tracking below, at the
+              // widest of the faces the picker offers (Georgia).
+              fontSize: fitUnbroken(fitName(23 * grow, data.name, 16), data.name, 0.78),
               color: nameColor,
               fontWeight: 600,
               letterSpacing: "0.03em",
@@ -184,17 +265,24 @@ export default function LogoFirst({ data }: { data: CardData }) {
             {data.name}
           </h2>
 
-          {data.company ? (
-            <p className="mt-1 min-w-0 truncate" style={{ ...companyFit, color: infoPal.soft, fontWeight: 400 }}>
-              {data.company}
-            </p>
-          ) : null}
-
+          {/* Name, TITLE, then company — the order every other template uses,
+              and the order a person reads an introduction in. This one had the
+              company between the name and the job, which put the quietest line
+              in the middle of the loudest two. */}
           {data.title ? (
             <p
               className="mt-1 min-w-0"
               style={{
-                fontSize: fitTitle(9, data.title),
+                // 0.14em tracking makes the title the widest-per-character line
+                // on the card, so an unbroken one needs the same clamp.
+                //
+                // Floored at 6.5px, the same floor the render suite holds the
+                // company name to. fitTitle shrinks by length with no floor of
+                // its own, so a 73-character title came out at 3.5px — present,
+                // technically un-clipped, and completely unreadable. It has
+                // `overflowWrap: anywhere` below, so past the floor it wraps to
+                // a second line instead, which is what a printer would do.
+                fontSize: Math.max(6.5, fitUnbroken(fitTitle(9, data.title), data.title, 0.86)),
                 color: accent,
                 fontWeight: 600,
                 letterSpacing: "0.14em",
@@ -208,6 +296,12 @@ export default function LogoFirst({ data }: { data: CardData }) {
               {data.title}
             </p>
           ) : null}
+
+          {data.company ? (
+            <p className="mt-1 min-w-0 truncate" style={{ ...companyFit, color: infoPal.soft, fontWeight: 400 }}>
+              {data.company}
+            </p>
+          ) : null}
         </div>
 
         <div className="min-w-0">
@@ -219,7 +313,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
             rather than left a stark white sticker. */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={qrSize(f)} bg="#EEF2F8" fg={NAVY} url={data.cardUrl} />
+            <QR size={qrSize(f)} bg={qrBg} fg={INK} url={data.cardUrl} />
           </div>
         </div>
       </div>
