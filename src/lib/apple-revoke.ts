@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeApplePrivateKey } from "@/lib/apple-key";
 
 // ── Sign in with Apple token revocation (App Store requirement 6.2) ──────────
 //
@@ -51,7 +52,7 @@ function buildAppleClientSecret(opts: {
   const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
   // ES256 → ECDSA P-256 + SHA-256, JOSE raw R||S signature (ieee-p1363).
   const signature = crypto.sign("sha256", Buffer.from(signingInput), {
-    key: opts.privateKey,
+    key: normalizeApplePrivateKey(opts.privateKey),
     dsaEncoding: "ieee-p1363",
   });
   return `${signingInput}.${base64url(signature)}`;

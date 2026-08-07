@@ -16,24 +16,32 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**What is left, in order. Everything upstream of these is done.**
+**Only two things are left, and both need a human.**
 
-1. **Create the two .p8 keys** (§A) — Sign in with Apple, and APNs. This is
-   the only remaining Apple-portal step; both download exactly once.
-2. **Run `scripts/supabase-enable-apple.mjs`** (§B) — enables the provider and
-   allow-lists the native redirect, then verifies itself.
-3. **Add the Apple env vars and flip `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1`**
-   (§C), then redeploy. Order matters: the button stays hidden until the
-   provider works.
-4. **Sign in to Xcode** (§D) — no Apple ID is signed in and there are no
-   signing identities on this Mac, so device install / Archive / Validate /
-   upload cannot run. `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both
-   targets, so automatic signing should resolve immediately after.
+1. **Enable the Apple provider in Supabase** (§B). Everything it needs exists
+   and is proven working against Apple — this is one API call, blocked purely
+   on credentials:
 
-Everything else server-side has been checked rather than assumed: the AASA
-serves the real Team ID (§C), the App ID capabilities are correct and the App
-Group is now actually attached (§A), the Services ID exists and Apple has
-validated its URLs (§A), and the site responds 200.
+   ```bash
+   SUPABASE_ACCESS_TOKEN=sbp_...  \
+     node scripts/supabase-enable-apple.mjs ~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8
+   ```
+
+   Then `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1` in Vercel Production + redeploy,
+   which is what actually reveals the button. Order matters — the gate exists
+   so the button can't appear while the provider is off.
+
+2. **Sign in to Xcode** (§D) — Settings → Accounts, Apple ID on team
+   NHK8FA2RR2. No Apple ID is signed in and there are no signing identities on
+   this Mac, so device install / Archive / Validate / upload cannot run.
+   `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
+   automatic signing should resolve immediately after.
+
+Everything upstream has been checked rather than assumed: the AASA serves the
+real Team ID, the App ID capabilities are correct and the App Group is now
+actually attached, the Services ID exists with Apple-validated URLs, the auth
+key exists and Apple accepts a secret signed with it, and all six Apple env
+vars are in Vercel Production.
 
 ## A. Apple Developer portal (developer.apple.com)
 
@@ -52,16 +60,38 @@ validated its URLs (§A), and the site responds 200.
       `grxmovpmlgmjncnyiyrt.supabase.co`, return URL
       `https://grxmovpmlgmjncnyiyrt.supabase.co/auth/v1/callback`.
       Apple validated both URLs.
-- [ ] **SIWA key (.p8)** — Keys list is still empty. Create at
-      developer.apple.com → Keys → +, tick "Sign in with Apple", set the
-      primary App ID to `me.swiftcard.app`. **The .p8 downloads exactly once**
-      — keep it somewhere permanent, not ~/Downloads. Note the Key ID.
-- [ ] **APNs key (.p8)** — same page, tick "Apple Push Notifications service".
-      Can be the same key or a separate one; a separate one is easier to
-      rotate. Also download-once.
-- [ ] **Private email relay**: register the swiftcard.me sending domain/
-      addresses (Resend's from-address) under Sign in with Apple → Email
-      Sources — without this, Hide-My-Email users get NO product emails.
+- [x] **Auth key created — "SwiftCard Auth and Push", Key ID `C8TWRXCNKA`**,
+      carrying BOTH services: Apple Push Notifications service and Sign in
+      with Apple (primary App ID `me.swiftcard.app`).
+      - APNs environment is **Sandbox & Production**. That choice is
+        permanent — Apple's own dialog says environment and restriction
+        "can't be changed once saved" — and the form defaults to Sandbox
+        only, which would have left production push dead with no way to fix
+        it short of a new key. Key Restriction: Team Scoped (All Topics).
+      - One key covers both services, so revoking it would take down push
+        AND Sign in with Apple together. Acceptable for launch; split them
+        if that coupling ever bites.
+      - **The .p8 downloads exactly once.** It is stored at
+        `~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8` (mode 600, in a 700
+        directory, deliberately outside the iCloud-synced Desktop). It is
+        NOT in the repo and must never be. **Back it up somewhere durable —
+        if that file is lost the key cannot be re-downloaded, only revoked
+        and replaced.**
+- [x] **Verified against Apple, not assumed.** Posting the generated client
+      secret to `https://appleid.apple.com/auth/token` with a deliberately
+      invalid code returns `invalid_grant` ("The code has expired or has been
+      revoked") rather than `invalid_client`. Apple accepted the Services ID,
+      the key, and the signature — so the only thing between here and working
+      Apple sign-in is the Supabase toggle in §B.
+- [x] **Private email relay registered** (2026-08-07). Sign in with Apple →
+      Email Sources now has domains `swiftcard.me` and `send.swiftcard.me`
+      plus address `hello@swiftcard.me`. Apple accepted them ("2 Domains and
+      Subdomains, 1 Email address") because SPF and DKIM are already in place
+      — `swiftcard.me` publishes `v=spf1 include:_spf.google.com
+      include:amazonses.com ~all`, Resend's envelope domain
+      `send.swiftcard.me` publishes its own SPF, and `resend._domainkey`
+      resolves. Without this, every Hide-My-Email user would silently receive
+      nothing from the product.
 - [ ] **APNs key** (.p8) created — note Key ID. (SHELL-RUNBOOK §6.)
 - [ ] Pass Type ID for Wallet confirmed valid (existing passes sign with it).
 
@@ -101,17 +131,18 @@ above is the fix. Put the date in a calendar.
 
 ## C. Vercel env + deploy
 
-- Env vars (Production). `vercel env ls production` on 2026-08-07 shows
-      **only `APPLE_TEAM_ID`** is set. Still to add, all of which need the
-      §A keys first:
-  - [ ] `APPLE_SIGN_IN_CLIENT_ID` = `me.swiftcard.web`
-  - [ ] `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_PRIVATE_KEY` — used by
-        `src/lib/apple-revoke.ts` to revoke Apple tokens at account deletion.
-        That is App Store requirement 6.2, and it is separate from the
-        Supabase provider: enabling sign-in without these means deletions
-        silently skip revocation.
-  - [ ] `APPLE_PUSH_KEY_ID`, `APPLE_PUSH_PRIVATE_KEY`
-        (`APPLE_PUSH_SANDBOX=1` only for dev builds — REMOVE for TestFlight+).
+- [x] Env vars (Production) — all six Apple vars are now set:
+      `APPLE_TEAM_ID`, `APPLE_SIGN_IN_CLIENT_ID` (`me.swiftcard.web`),
+      `APPLE_SIGN_IN_KEY_ID` + `APPLE_SIGN_IN_PRIVATE_KEY`,
+      `APPLE_PUSH_KEY_ID` + `APPLE_PUSH_PRIVATE_KEY` (all `C8TWRXCNKA`).
+      `APPLE_SIGN_IN_*` is what lets `src/lib/apple-revoke.ts` revoke Apple
+      tokens at account deletion — App Store requirement 6.2, separate from
+      the Supabase provider, and a silent no-op without them.
+      `APPLE_PUSH_SANDBOX` is deliberately **not** set: the key is
+      Sandbox & Production, so production APNs is the correct default. Set
+      it to `1` only for local Xcode dev builds, and never for TestFlight.
+      ⚠️ These are stored as Sensitive in Vercel, so `vercel env pull` shows
+      them as `""`. That is expected — it is not evidence they are empty.
 - [ ] **`NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1` — set this LAST, after §B is
       green, then redeploy.** The Apple button in `LoginForm.tsx` is gated on
       it precisely so the button cannot exist while the provider is off; a
