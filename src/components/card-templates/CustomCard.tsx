@@ -13,7 +13,7 @@ import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 import {
   blockAspect, blockDensity, blockFontPx, blockImagePx, hasBlocks,
-  normalizeCustomLayout, sideImageScale, visibleBlocks,
+  normalizeCustomLayout, sideImageScale, visibleBlocks, zoneFor,
 } from "@/lib/custom-layout";
 import PlatformIcon from "@/components/PlatformIcon";
 
@@ -261,13 +261,24 @@ export function CustomBlockContent({
     return <div style={{ width: "62%", height: 2, borderRadius: 2, background: block.color || c.accent, opacity: 0.8 }} />;
   }
 
+  // A handle is ONE unbroken token, so it either fits its column or it splits
+  // mid-word. fitPx sizes by character count against a "comfy" length, which is
+  // a proxy — and two rounds of tuning that proxy still left the fuzz failing.
+  // The zone widths are known, so fit against actual PIXELS instead: 0.6em per
+  // character is a deliberate over-estimate of average advance, so the result
+  // errs small rather than splitting.
+  const zonePx = onPanel ? 116 : 248;
+  const fitToWidth = (text: string, base: number) =>
+    Math.max(base * 0.4, Math.min(base, zonePx / Math.max(1, text.length * 0.6)));
+
   if (block.type === "socials") {
     const handles = socialHandles(data);
     const shown = handles.length ? handles : placeholder ? ["@handle"] : [];
     if (!shown.length) return null;
+    const longest = shown.reduce((m, h) => Math.max(m, shortHandle(h).length), 0);
     return (
-      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", fontSize: fs, color: tone }}>
-        {shown.map((h, i) => <span key={i}>{shortHandle(h)}</span>)}
+      <div style={{ display: "flex", gap: 9, flexWrap: "wrap", fontSize: fitToWidth("x".repeat(longest), fs), color: tone, minWidth: 0 }}>
+        {shown.map((h, i) => <span key={i} style={{ overflowWrap: "anywhere" }}>{shortHandle(h)}</span>)}
       </div>
     );
   }
@@ -277,9 +288,11 @@ export function CustomBlockContent({
     const raw = socialValue(data, block.social ?? "instagram");
     const shown = raw ? shortHandle(raw) : placeholder ? `@your-${block.social}` : "";
     if (!shown) return null;
+    // The icon eats room too, so the text is fitted to what's left of the zone.
+    const sfs = fitToWidth(shown + "xx", fs);
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: fs * 0.45, fontSize: fs, color: tone, minWidth: 0 }}>
-        <span style={{ width: fs * 1.15, height: fs * 1.15, display: "inline-flex", flexShrink: 0, color: c.accent }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: sfs * 0.45, fontSize: sfs, color: tone, minWidth: 0 }}>
+        <span style={{ width: sfs * 1.15, height: sfs * 1.15, display: "inline-flex", flexShrink: 0, color: c.accent }}>
           <PlatformIcon label={meta.icon} className="w-full h-full" />
         </span>
         <span style={{ overflowWrap: "anywhere" }}>{shown}</span>
@@ -359,9 +372,9 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   const density = blockDensity(blocks, skeleton);
   const sideScale = sideImageScale(skeleton);
 
-  const side = blocks.filter((bl) => bl.zone === "left");
-  const main = blocks.filter((bl) => bl.zone === "right" && bl.type !== "qr");
-  const qr = blocks.find((bl) => bl.zone === "right" && bl.type === "qr");
+  const side = blocks.filter((bl) => zoneFor(bl) === "left");
+  const main = blocks.filter((bl) => zoneFor(bl) === "right" && bl.type !== "qr");
+  const qr = blocks.find((bl) => zoneFor(bl) === "right" && bl.type === "qr");
   const gap = Math.round(5 * density);
 
   // A panel with its own surface is what makes a two-tone card possible — a
@@ -396,13 +409,27 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
     <div
       className="sc-card"
       style={{
-        position: "relative", width: "100%", aspectRatio: blockAspect(blocks, skeleton),
+        position: "relative", width: "100%",
         background: layout.background, fontFamily: layout.fontFamily, color: layout.textColor,
-        borderRadius: 16, overflow: "hidden", display: "flex",
+        borderRadius: 16,
+        overflow: "clip",
+        display: "flex",
         flexDirection: stacked ? "column" : skeleton === "mirror" ? "row-reverse" : "row",
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10)",
       }}
     >
+      {/* Shape floor, not a shape cap.
+          `aspectRatio` is a CAP here, not a floor: with overflow hidden the card
+          is a scroll container whose automatic minimum size is zero, so content
+          taller than the ratio was silently cut — and predicting that height
+          from a row count only moved the failure around (three rounds of tuning,
+          still failing two fuzz runs in five).
+          A zero-width spacer sidesteps prediction entirely. Percentage padding
+          resolves against the CONTAINING BLOCK's width, so this is 0 wide and
+          exactly width/1.75 tall. The card is therefore never shorter than a
+          business card, and simply gets taller when its contents genuinely need
+          it — which is what a real card would have to do. */}
+      <div aria-hidden style={{ width: 0, flexShrink: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
       {sidePanel}
       {rule}
       <div

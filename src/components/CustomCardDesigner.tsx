@@ -21,7 +21,7 @@ import { CustomBlockCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
 import {
   ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
-  buildPreset, hasBlocks, isFull, legacyToBlocks, newBlockId, zoneLabels,
+  buildPreset, canChangeZone, hasBlocks, isFull, legacyToBlocks, newBlockId, zoneFor, zoneLabels,
 } from "@/lib/custom-layout";
 
 const FONTS = [
@@ -286,7 +286,7 @@ export default function CustomCardDesigner({
                       {blockLabel(b)}
                     </span>
                     <span className="block text-[10.5px] text-gray-500 truncate">
-                      {empty ? "nothing entered yet — it stays hidden" : `${zones[b.zone]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
+                      {empty ? "nothing entered yet — it stays hidden" : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
                     </span>
                   </button>
 
@@ -322,13 +322,19 @@ export default function CustomCardDesigner({
                           className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
                       ))}
                     </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10.5px] text-gray-500 w-12">Where</span>
-                      {(["left", "right"] as CardZone[]).map((z) => (
-                        <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
-                          className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
-                      ))}
-                    </div>
+                    {/* Only marks can move to the side panel. It is a third of
+                        the card wide, and there is no size at which a job title
+                        or a handle reads well in it — so the control isn't
+                        offered rather than offered and then overridden. */}
+                    {canChangeZone(b) && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10.5px] text-gray-500 w-12">Where</span>
+                        {(["left", "right"] as CardZone[]).map((z) => (
+                          <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
+                            className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
+                        ))}
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => { setBlocks(blocks.filter((x) => x.id !== b.id)); setOpenId(null); }}

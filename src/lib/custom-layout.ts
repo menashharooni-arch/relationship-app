@@ -20,13 +20,38 @@ import type {
 // Design px at the 460 natural card width, exactly like the preset templates.
 // Owners choose an EMPHASIS; the engine owns the number. That is the difference
 // between "make my name bigger" and knowing that 22 is the right value.
-const EMPHASIS_PX: Record<CardEmphasis, number> = { hero: 22, normal: 13, quiet: 10 };
+// Hero is 26, not 22. At 22 a fork came out visibly smaller and emptier than the
+// template it was forked from — the preset templates run their names at 23 to 28
+// — and looking like a downgrade of the card you just chose is the one outcome
+// that would make this feature feel worse than not using it.
+const EMPHASIS_PX: Record<CardEmphasis, number> = { hero: 25, normal: 13, quiet: 10 };
 const EMPHASIS_IMG: Record<CardEmphasis, number> = { hero: 108, normal: 84, quiet: 62 };
 
 export const EMPHASIS_ORDER: CardEmphasis[] = ["quiet", "normal", "hero"];
 
 /** Text blocks that carry a written value, i.e. the ones that cost vertical room. */
 const TEXT_TYPES = new Set(["field", "text", "social", "socials"]);
+
+/**
+ * The side panel holds MARKS, not sentences.
+ *
+ * It is a third of the card wide, and a single unbroken token — a handle, an
+ * email — either fits that column or splits mid-word. Fitting by character
+ * count and then by measured pixels both failed to converge; the fuzz kept
+ * finding a size where a handle broke. The honest answer is that there is no
+ * good rendering of a job title at hero size in 116px, so the layout does not
+ * offer one. Every preset already puts only a logo, headshot or QR there.
+ *
+ * Enforced in the renderer as well as hidden in the editor, so an older or
+ * hand-edited layout can't put text there either.
+ */
+export function zoneFor(block: CustomBlock): CardZone {
+  return TEXT_TYPES.has(block.type) ? "right" : block.zone;
+}
+
+export function canChangeZone(block: CustomBlock): boolean {
+  return !TEXT_TYPES.has(block.type);
+}
 
 /**
  * Density factor. More on the card → everything shrinks TOGETHER, so hierarchy
@@ -40,13 +65,22 @@ const TEXT_TYPES = new Set(["field", "text", "social", "socials"]);
  */
 function rowLoad(blocks: CustomBlock[], skeleton?: CardSkeleton): number {
   const on = blocks.filter((b) => b.on);
-  const right = on.filter((b) => b.zone === "right" && b.type !== "qr").length;
+  // Weighted by EMPHASIS, not counted. A hero line is 25 design px and a quiet
+  // one is 10, so treating them as equal rows was the modelling error behind a
+  // string of small overflows: the valve fired on item count while the actual
+  // height depended on which items. Two dial-tweaks failed to converge before
+  // this; weighting by height fixed it in one.
+  const textCost = (b: CustomBlock) =>
+    b.emphasis === "hero" ? 2 : b.emphasis === "quiet" ? 0.85 : 1;
+  const right = on
+    .filter((b) => zoneFor(b) === "right" && b.type !== "qr")
+    .reduce((n, b) => n + (TEXT_TYPES.has(b.type) ? textCost(b) : 2), 0);
   // What one side block costs in rows. Stacked, images are rendered smaller
   // (sideImageScale), so they cost less there than in a full-height panel.
   const cost = (b: CustomBlock) =>
     TEXT_TYPES.has(b.type) ? 1 : skeleton === "stacked" ? 1.6 : 2.2;
 
-  const leftItems = on.filter((b) => b.zone === "left");
+  const leftItems = on.filter((b) => zoneFor(b) === "left");
   // The side zone is a COLUMN in split/mirror and a ROW in stacked, so its
   // height is the sum in one and the tallest item in the other. Modelling it as
   // a sum in both under-fed the stacked band and over-fed it in split — the
@@ -63,8 +97,8 @@ function rowLoad(blocks: CustomBlock[], skeleton?: CardSkeleton): number {
 
 export function blockDensity(blocks: CustomBlock[], skeleton?: CardSkeleton): number {
   const rows = rowLoad(blocks, skeleton);
-  if (rows <= 5) return Math.min(1.14, 1 + (5 - rows) * 0.055);
-  return Math.max(0.76, 1 - (rows - 5) * 0.06);
+  if (rows <= 6) return Math.min(1.14, 1 + (6 - rows) * 0.05);
+  return Math.max(0.76, 1 - (rows - 6) * 0.06);
 }
 
 /** Side-band images sit above the text when stacked, so they cost real height. */
@@ -86,8 +120,10 @@ export function sideImageScale(skeleton?: CardSkeleton): number {
  */
 export function blockAspect(blocks: CustomBlock[], skeleton?: CardSkeleton): string {
   const rows = rowLoad(blocks, skeleton);
-  if (rows <= 7) return "1.75 / 1";
-  return `${Math.max(1.3, 1.75 - (rows - 7) * 0.085).toFixed(3)} / 1`;
+  // A card stays the classic 1.75 business-card shape until it genuinely can't —
+  // a normal fork weighs about 7.4, comfortably inside the threshold.
+  if (rows <= 8) return "1.75 / 1";
+  return `${Math.max(1.3, 1.75 - (rows - 8) * 0.1).toFixed(3)} / 1`;
 }
 
 /**
@@ -141,7 +177,10 @@ const contacts = (): CustomBlock[] => [
   b("phone", "field", "right", "normal", { field: "phone" }),
   b("email", "field", "right", "normal", { field: "email" }),
   b("website", "field", "right", "quiet", { field: "website" }),
-  b("address", "field", "right", "quiet", { field: "address", on: false }),
+  // ON, matching the templates. A block with no value renders nothing, so this
+  // costs a card without an address exactly nothing — while a fork that silently
+  // dropped an address the original showed looked like the fork had lost it.
+  b("address", "field", "right", "quiet", { field: "address" }),
 ];
 
 /**
