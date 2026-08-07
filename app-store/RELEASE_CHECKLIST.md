@@ -28,6 +28,19 @@ button shipped to production. §4.8 is satisfied.
    `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
    automatic signing should resolve immediately after.
 
+**How Sign in with Apple was verified (2026-08-07), so nobody re-litigates it:**
+1. `/auth/v1/authorize?provider=apple` returns `302 → appleid.apple.com` with
+   `client_id=me.swiftcard.web`. (It briefly returned "provider is not enabled"
+   right after the write — GoTrue reload lag. Re-probe before panicking.)
+2. A secret signed with `C8TWRXCNKA` posted to `appleid.apple.com/auth/token`
+   with a junk code returns `invalid_grant`, not `invalid_client` — Apple
+   accepts the Services ID, key and signature.
+3. The production JS bundle for `/login` contains the "Continue with Apple"
+   button. Proven meaningful by building locally both ways: with
+   `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=0` the minifier eliminates the button
+   entirely, with `=1` it survives. So its presence in production is proof the
+   flag is on, not just that the code exists.
+
 Everything upstream has been checked rather than assumed: the AASA serves the
 real Team ID, the App ID capabilities are correct and the App Group is now
 actually attached, the Services ID exists with Apple-validated URLs, the auth
