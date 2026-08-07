@@ -9,6 +9,7 @@ import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
 import CardScaler from "@/components/CardScaler";
+import { DEFAULT_PRESET, buildPreset } from "@/lib/custom-layout";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
@@ -16,7 +17,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
-import CustomCard, { DEFAULT_CUSTOM_LAYOUT } from "@/components/card-templates/CustomCard";
+import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
 import { PlanGate, PlanNotice } from "@/components/PlanGate";
@@ -240,7 +241,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     designLocked && org?.template ? org.template : (validPresetTemplate ?? "classic-pro")
   );
   const [customLayout, setCustomLayout] = useState<CustomLayout>(
-    designLocked && org?.customLayout ? (org.customLayout as CustomLayout) : DEFAULT_CUSTOM_LAYOUT
+    designLocked && org?.customLayout ? (org.customLayout as CustomLayout) : buildPreset(DEFAULT_PRESET)
   );
   // Preset-template styling (Pro). All fields optional → template defaults apply.
   // Seeded from the office design when locked (see the template seed above).
@@ -495,6 +496,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   };
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
+  // On the design step the custom designer IS a live card you edit by touching
+  // it, so the pinned preview column beside it would be a second, identical,
+  // non-interactive copy. Give the designer the full width instead.
+  const designerIsCanvas = step === 2 && customSelected && designUnlocked && !designLocked;
 
   // Guest autosave: snapshot the exact shape we'd POST to /api/cards into the
   // localStorage draft on every change. The claim route mirrors /api/cards'
@@ -882,7 +887,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         {/* Steps 1–4: form on the left, a live preview pinned to the right on
             DESKTOP. On mobile there is no sidebar — each step renders its own
             preview inline. Step 5 (success) is full-width. */}
-        <div className={step === 5 ? "" : "grid lg:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:items-start"}>
+        <div className={step === 5 ? "" : `grid gap-6 lg:items-start ${designerIsCanvas ? "" : "lg:grid-cols-[minmax(0,1fr)_340px]"}`}>
         <div className={step === 5 ? "" : "min-w-0 order-2 lg:order-1"}>
 
         {/* Step indicator (hidden on the post-create success screen) —
@@ -1402,14 +1407,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 </p>
               )}
 
-              {/* Custom designer is the editing surface for the custom template;
-                  the standard card preview lives in the pinned preview column. */}
-              {customSelected && designUnlocked && (
-                <div className="mb-3">
-                  <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} />
-                </div>
-              )}
-
               {/* Custom design — the freeform "edit every element" path */}
               <div className="mb-2">
                 <CustomDesignCard isPro={designUnlocked} selected={customSelected} onSelect={() => setTemplate("custom")} />
@@ -1431,12 +1428,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 ))}
               </div>
 
-              {/* Mobile: the preview sits BETWEEN the template picker and the
-                  colour/font controls — both change what it shows, so it stays
-                  in view whichever one you are touching. It used to be pinned
-                  sticky at the very top of the step, which ate the screen and
-                  left the controls to be scrolled to blind. */}
-              <div className="lg:hidden mt-4">{livePreview}</div>
+              {/* The designer comes AFTER the picker that selects it, and is
+                  itself a live card you edit by touching — so it stands in for
+                  the inline preview rather than sitting above a second copy. */}
+              {customSelected && designUnlocked ? (
+                <div className="mt-4">
+                  {/* canScan={isPro}, NOT designUnlocked: the designer is shown
+                      to guests and Free first-card users as a preview, but
+                      /api/scan-design needs a session and a paid plan. */}
+                  <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
+                </div>
+              ) : (
+                /* Mobile: the preview sits BETWEEN the template picker and the
+                   colour/font controls — both change what it shows, so it stays
+                   in view whichever one you are touching. It used to be pinned
+                   sticky at the very top of the step, which ate the screen and
+                   left the controls to be scrolled to blind. */
+                <div className="lg:hidden mt-4">{livePreview}</div>
+              )}
 
               {/* Restyle the chosen preset — colors & typography (Pro) */}
               {!customSelected && (
@@ -1562,7 +1571,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             at the point in the form where it belongs, which CSS `order` cannot
             express — order can reorder a sibling, but never place one INSIDE
             the form column. */}
-        {step !== 5 && (
+        {step !== 5 && !designerIsCanvas && (
           <div className="hidden lg:block lg:order-2 lg:sticky lg:top-6">
             {step === 3 || step === 4 ? linkPagePreview : livePreview}
           </div>

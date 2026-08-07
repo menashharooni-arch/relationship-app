@@ -2,26 +2,34 @@
 
 // Pro custom-card designer.
 //
-// The preview is the REAL renderer (CustomBlockCard) inside CardScaler at the
-// same 460 design width the public card page uses. That is deliberate and it is
-// the single most important thing in this file: the previous designer drew its
-// own canvas at whatever width the column happened to be, while element sizes
-// were absolute px — so the same name filled 35.5% of the card while you
-// designed it and 24.7% once it published. Sharing one renderer makes that class
-// of drift unrepresentable rather than merely fixed.
+// ONE screen, not two. An earlier version opened on a "choose a starting point"
+// picker and only then showed the editor, which read as a broken state: the
+// page's own live preview was still rendering the legacy scattered layout while
+// the designer showed a grid of thumbnails, so the card looked like it had
+// exploded. The layout now always exists, the card is always right, and the
+// starting points are a strip inside the editor you can hover to try.
 //
-// Everything the owner can do is a forgiving operation: toggle a block on or
-// off, move it between two zones, change its order, or set its emphasis. There
-// is no coordinate to get wrong and no font size to type, so no sequence of
-// actions produces a broken card.
+// On desktop this is a WORKSPACE: the card is pinned on the left at the size it
+// will actually publish at, every control sits in a column beside it, and the
+// page's own preview column stands down (see designerIsCanvas in the editor and
+// the wizard) so there is exactly one card on screen instead of two.
+//
+// The preview is the REAL renderer (CustomBlockCard) inside CardScaler at the
+// same 460 design width the public card page uses — the previous designer drew
+// its own canvas at whatever width the column happened to be while element sizes
+// were absolute px, so the same name filled 35.5% of the card while you designed
+// it and 24.7% once it published.
+//
+// Every action is forgiving: toggle a block, move it between zones, reorder it,
+// or change its emphasis. No coordinates, no font sizes, and undo on all of it.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomLayout } from "@/components/card-templates/types";
 import { CustomBlockCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
 import {
   ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
-  buildPreset, canChangeZone, hasBlocks, isFull, legacyToBlocks, newBlockId, zoneFor, zoneLabels,
+  buildPreset, canChangeZone, hasBlocks, isFull, newBlockId, zoneFor, zoneLabels,
 } from "@/lib/custom-layout";
 
 const FONTS = [
@@ -32,14 +40,13 @@ const FONTS = [
 ];
 
 // Coordinated grounds. Each carries its own text + accent so one tap restyles
-// the whole card correctly, instead of leaving the owner to fix six colours by
-// hand after changing the background.
+// the whole card correctly, instead of leaving six colours to fix by hand.
 const GROUNDS = [
   { label: "Navy",     background: "#2c3a52", textColor: "#ffffff", accentColor: "#ffffff" },
   { label: "Midnight", background: "#141b26", textColor: "#ffffff", accentColor: "#7fa6f0" },
   { label: "Indigo",   background: "#312e81", textColor: "#ffffff", accentColor: "#c7d2fe" },
   { label: "Forest",   background: "#16352c", textColor: "#ffffff", accentColor: "#8fd3b6" },
-  { label: "Oxblood",  background: "#3a1d22", textColor: "#ffffff", accentColor: "#e9a6a2" },
+  { label: "Oxblood",  background: "#33191d", textColor: "#f6ece9", accentColor: "#e0a3a0" },
   { label: "Graphite", background: "#1f2430", textColor: "#ffffff", accentColor: "#9fb2cc" },
   { label: "Ivory",    background: "#faf9f6", textColor: "#1c1612", accentColor: "#b08d57" },
   { label: "Bone",     background: "#f4f2ed", textColor: "#141b26", accentColor: "#2c3a52" },
@@ -51,14 +58,87 @@ const EMPHASIS: { key: CardEmphasis; label: string }[] = [
   { key: "quiet", label: "Small" },
 ];
 
+/**
+ * A look, drawn as a diagram rather than a name.
+ *
+ * A 96px screenshot of a real card is unreadable mush, and a text chip that says
+ * "Meridian" tells you nothing — so this draws the SHAPE (which side the panel
+ * is on, how big the name runs, where the QR sits) in the look's own colours.
+ * You can tell the eight apart at a glance, which is the whole job; hovering
+ * then puts the real thing on the real card.
+ */
+function LookThumb({ layout }: { layout: CustomLayout }) {
+  const stacked = layout.skeleton === "stacked";
+  const mirror = layout.skeleton === "mirror";
+  const hasPanel = (layout.blocks ?? []).some((b) => b.on && zoneFor(b) === "left");
+  const ink = layout.textColor;
+  const bar = (w: string, h: number, o: number, color = ink) => (
+    <span style={{ display: "block", width: w, height: h, borderRadius: 1, background: color, opacity: o }} />
+  );
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "flex",
+        flexDirection: stacked ? "column" : mirror ? "row-reverse" : "row",
+        width: "100%", aspectRatio: "1.75 / 1", borderRadius: 5, overflow: "hidden",
+        background: layout.background, fontFamily: layout.fontFamily,
+      }}
+    >
+      {hasPanel && (
+        <span
+          style={{
+            flex: stacked ? "0 0 30%" : "0 0 32%",
+            background: layout.panelBackground ?? layout.background,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: layout.panelBackground ? "none" : `inset -1px 0 0 ${ink}22`,
+          }}
+        >
+          {/* Sized off the SHORT axis of the band. Sized by width, a stacked
+              band's mark came out taller than the band that holds it. */}
+          <span style={{
+            display: "block", aspectRatio: "1 / 1", borderRadius: 2,
+            ...(stacked ? { height: "52%" } : { width: "42%" }),
+            background: layout.panelTextColor ?? ink, opacity: 0.5,
+          }} />
+        </span>
+      )}
+      <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "13%  11%" }}>
+        <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {bar("72%", 4, 0.95)}
+          {bar("48%", 2, 0.5, layout.accentColor || ink)}
+        </span>
+        <span style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 4 }}>
+          <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+            {bar("86%", 2, 0.42)}
+            {bar("64%", 2, 0.42)}
+          </span>
+          <span style={{
+            display: "block", width: "22%", aspectRatio: "1 / 1", borderRadius: 1,
+            background: ink, opacity: 0.28,
+          }} />
+        </span>
+      </span>
+    </span>
+  );
+}
+
 export default function CustomCardDesigner({
   layout,
   data,
   onChange,
+  // Scanning a printed card costs an AI call, so /api/scan-design requires a
+  // session AND a paid plan. The wizard shows this whole designer to guests and
+  // to Free first-card users as a preview (designUnlocked), which would put a
+  // button in front of people the route answers 401/403 — they'd retake the
+  // photo and fail again. So the caller says whether scanning is actually
+  // available and the button teaches rather than breaks.
+  canScan = true,
 }: {
   layout: CustomLayout;
   data: CardData;
   onChange: (layout: CustomLayout) => void;
+  canScan?: boolean;
 }) {
   const history = useRef<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -66,11 +146,29 @@ export default function CustomCardDesigner({
   const [canUndo, setCanUndo] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [hoverLook, setHoverLook] = useState<string | null>(null);
 
-  const started = hasBlocks(layout);
+  // A layout without blocks is a card saved by the old designer (or the legacy
+  // default the page still seeds). Upgrade it once, here, so the page's preview
+  // and this editor can never disagree about what the card looks like.
+  const upgraded = useRef(false);
+  useEffect(() => {
+    if (hasBlocks(layout) || upgraded.current) return;
+    upgraded.current = true;
+    const base = buildPreset("ink");
+    onChange({ ...base, ...layout, blocks: base.blocks, elements: [] });
+  }, [layout, onChange]);
+
   const blocks = useMemo(() => layout.blocks ?? [], [layout.blocks]);
   const zones = zoneLabels(layout.skeleton);
   const full = isFull(blocks);
+
+  // Built once, not per render: the thumbnails read colours off these and the
+  // hover preview hands one straight to the renderer.
+  const looks = useMemo(
+    () => Object.entries(LAYOUT_PRESETS).map(([key, p]) => ({ key, ...p, preview: p.build() })),
+    [],
+  );
 
   function commit(next: CustomLayout) {
     history.current.push(JSON.stringify(layout));
@@ -97,13 +195,7 @@ export default function CustomCardDesigner({
     setBlocks(next);
   }
 
-  /**
-   * Photograph the printed card, get it back as a starting point.
-   *
-   * Downscaled in the browser first: a modern phone photo is 4-6MB, which is
-   * slow to upload, slower to bill by the token, and carries no more detail
-   * about a business card's LAYOUT than 1400px does.
-   */
+  /** Photograph the printed card, get it back as a starting point. */
   async function scanPrintedCard(file: File) {
     setScanError(null);
     setScanning(true);
@@ -120,6 +212,8 @@ export default function CustomCardDesigner({
         i.onerror = () => reject(new Error("decode"));
         i.src = dataUrl;
       });
+      // A phone photo is 4-6MB and carries no more information about a card's
+      // LAYOUT than 1400px does — slow to upload and billed by the token.
       const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
@@ -135,7 +229,8 @@ export default function CustomCardDesigner({
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         setScanError(
-          res.status === 403 ? "Rebuilding a printed card is a Pro feature."
+          res.status === 401 ? "Sign in first — rebuilding a printed card needs an account."
+          : res.status === 403 ? "Rebuilding a printed card is a Pro feature."
           : res.status === 429 ? "Too many scans just now — try again in a minute."
           : res.status === 422 ? "Couldn't read that photo. Try a straight-on shot in good light."
           : (j as { error?: string }).error === "no_ai" ? "Card scanning is unavailable right now."
@@ -157,335 +252,345 @@ export default function CustomCardDesigner({
     }
   }
 
-  // Preview data with THIS layout applied, so the card reflects edits instantly.
+  // Hovering a look shows it on the card without committing, so you can try all
+  // eight without a single undo.
+  const shown = useMemo(
+    () => looks.find((l) => l.key === hoverLook)?.preview ?? layout,
+    [looks, hoverLook, layout],
+  );
   const previewData: CardData = useMemo(
-    () => ({ ...data, customization: { ...(data.customization ?? {}), customLayout: layout } }),
-    [data, layout],
+    () => ({ ...data, customization: { ...(data.customization ?? {}), customLayout: shown } }),
+    [data, shown],
   );
 
-  // Tapping the card selects that block — the card itself is a control, not just
-  // an output. Delegation reads the data-cb the renderer emits, which keeps
-  // CustomCard free of handlers and therefore still server-renderable.
+  // Tapping the card selects that block — the card is a control, not just an
+  // output. Delegation reads the data-cb the renderer emits, so CustomCard stays
+  // handler-free and therefore still server-renderable.
   function onCardPointerDown(e: React.PointerEvent) {
     const hit = (e.target as HTMLElement).closest?.("[data-cb]");
     const id = hit?.getAttribute("data-cb");
     if (id) setOpenId((cur) => (cur === id ? null : id));
   }
 
+  const card = "bg-gray-900 border border-gray-800 rounded-xl";
+  const head = "text-[11px] font-semibold uppercase tracking-wide text-gray-400";
+  const row = "text-[10.5px] text-gray-500 w-[52px] shrink-0 pt-1.5";
   const chip = "text-[12px] px-3 py-1.5 rounded-lg border transition-colors";
-  const chipOff = "bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-500";
+  const chipOff = "bg-gray-950 border-gray-700 text-gray-300 hover:text-white hover:border-gray-500";
   const chipOn = "bg-blue-600 border-blue-600 text-white";
 
-  // ── First run: pick a starting point, never a blank canvas ────────────────
-  if (!started) {
-    const legacy = Array.isArray(layout.elements) && layout.elements.length > 0;
-    return (
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm font-semibold text-white">Start from a design</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Pick one, then change anything. You&apos;re never staring at an empty card.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(LAYOUT_PRESETS).map(([key, p]) => {
-            const preset = buildPreset(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => commit(preset)}
-                className="text-left rounded-xl border border-gray-700 hover:border-blue-500 bg-gray-900 p-2 transition-colors"
-              >
-                <div className="pointer-events-none rounded-lg overflow-hidden mb-2">
-                  <CardScaler>
-                    <CustomBlockCard
-                      data={{ ...data, customization: { ...(data.customization ?? {}), customLayout: preset } }}
-                      placeholder
-                    />
-                  </CardScaler>
-                </div>
-                <p className="text-xs font-semibold text-white">{p.label}</p>
-                <p className="text-[10.5px] text-gray-500 leading-snug">{p.blurb}</p>
-              </button>
-            );
-          })}
-        </div>
-        {/* Or start from the card you already carry. */}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={scanning}
-          className="w-full rounded-xl border border-dashed border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60 px-3 py-3 text-left transition-colors"
-        >
-          <span className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-lg bg-blue-600/20 text-blue-300 flex items-center justify-center shrink-0">
-              {scanning ? (
-                <span className="block w-4 h-4 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
-              ) : (
-                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.8 6.8h.01M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
-                </svg>
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-xs font-semibold text-white">
-                {scanning ? "Reading your card…" : "Scan the card you already have"}
-              </span>
-              <span className="block text-[10.5px] text-gray-400 leading-snug">
-                Take a photo of your printed card and we&apos;ll rebuild it here.
-              </span>
-            </span>
-          </span>
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
-        />
-        {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
-
-        {legacy && (
-          <button
-            type="button"
-            onClick={() => commit({ ...layout, blocks: legacyToBlocks(layout.elements) })}
-            className="w-full text-xs text-gray-400 hover:text-white underline underline-offset-2 py-1"
-          >
-            Or rebuild the design I already had
-          </button>
-        )}
-      </div>
-    );
+  if (!hasBlocks(layout)) {
+    return <div className="h-24 rounded-xl bg-gray-900 border border-gray-800 animate-pulse" aria-label="Preparing your design" />;
   }
 
-  // ── Editor ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
-      {/* Live card — the real renderer, at the real design width. */}
-      <div onPointerDown={onCardPointerDown} className="cursor-pointer">
-        <CardScaler>
-          <CustomBlockCard data={previewData} placeholder />
-        </CardScaler>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] text-gray-500">Tap anything on the card to style it.</p>
-        <button
-          type="button"
-          onClick={undo}
-          disabled={!canUndo}
-          className="text-[11px] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500"
-        >
-          ↶ Undo
-        </button>
-      </div>
-
-      {/* Ground + font — one tap restyles the whole card coherently. */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 space-y-2.5">
-        <p className="text-xs font-medium text-gray-400">Look</p>
-        <div className="flex flex-wrap gap-1.5">
-          {GROUNDS.map((g) => (
-            <button
-              key={g.label}
-              type="button"
-              title={g.label}
-              aria-label={g.label}
-              onClick={() => commit({ ...layout, background: g.background, textColor: g.textColor, accentColor: g.accentColor })}
-              className="w-8 h-8 rounded-lg transition-transform hover:scale-110"
-              style={{
-                background: g.background,
-                boxShadow: layout.background === g.background
-                  ? "0 0 0 2px #3b82f6"
-                  : "inset 0 0 0 1px rgba(148,163,184,.35)",
-              }}
-            />
-          ))}
-          <label className="flex items-center gap-1.5 text-[10px] text-gray-500 ml-1">
-            custom
-            <input
-              type="color"
-              aria-label="Custom background"
-              value={/^#[0-9a-f]{6}$/i.test(layout.background) ? layout.background : "#2c3a52"}
-              onChange={(e) => commit({ ...layout, background: e.target.value })}
-              className="w-7 h-7 rounded bg-transparent border border-gray-700"
-            />
-          </label>
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5 lg:items-start">
+      {/* ── The canvas. Pinned on desktop: it stays in view while you work
+             down the controls beside it. Capped and centred so the caption and
+             Undo sit under the CARD rather than at the far edge of the track. ── */}
+      <div className="lg:sticky lg:top-6 w-full max-w-[560px] mx-auto">
+        <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6">
+          <div onPointerDown={onCardPointerDown} className="cursor-pointer">
+            <CardScaler>
+              <CustomBlockCard data={previewData} placeholder />
+            </CardScaler>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {FONTS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => commit({ ...layout, fontFamily: f.value })}
-              className={`${chip} ${layout.fontFamily === f.value ? chipOn : chipOff}`}
-              style={{ fontFamily: f.value }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Arrangement */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 space-y-2">
-        <p className="text-xs font-medium text-gray-400">Arrangement</p>
-        <div className="flex flex-wrap gap-1.5">
-          {SKELETONS.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => commit({ ...layout, skeleton: s.key as CardSkeleton })}
-              className={`${chip} ${(layout.skeleton ?? "split") === s.key ? chipOn : chipOff}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* What's on the card */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800">
-          <p className="text-xs font-medium text-gray-400">What&apos;s on your card</p>
-          <p className={`text-[11px] ${full ? "text-amber-400" : "text-gray-600"}`}>
-            {blocks.filter((b) => b.on).length} of {MAX_VISIBLE_BLOCKS}
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <p className="text-[11px] text-gray-500 min-w-0 truncate">
+            {hoverLook
+              ? `${looks.find((l) => l.key === hoverLook)?.label} — click to use it`
+              : "Tap anything on the card to style it."}
           </p>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            className="text-[11px] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
+          >
+            ↶ Undo
+          </button>
         </div>
-        {full && (
-          <p className="px-3 pt-2 text-[11px] text-amber-400/90">
-            Your card is full — turn something off to add something else. A card this size
-            stays readable up to {MAX_VISIBLE_BLOCKS} things.
-          </p>
-        )}
+      </div>
 
-        <ul className="p-1.5 space-y-1">
-          {blocks.map((b, i) => {
-            const open = openId === b.id;
-            const empty = b.on && !blockHasValue(b, data);
-            return (
-              <li key={b.id} className={`rounded-lg ${open ? "bg-gray-950/60 ring-1 ring-gray-800" : ""}`}>
-                <div className="flex items-center gap-2 px-2 py-1.5">
-                  <div className="flex flex-col gap-px shrink-0">
-                    <button type="button" onClick={() => move(b.id, -1)} disabled={i === 0}
-                      aria-label={`Move ${blockLabel(b)} up`}
-                      className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
-                    <button type="button" onClick={() => move(b.id, 1)} disabled={i === blocks.length - 1}
-                      aria-label={`Move ${blockLabel(b)} down`}
-                      className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setOpenId(open ? null : b.id)}
-                    aria-expanded={open}
-                    className="flex-1 min-w-0 text-left"
-                  >
-                    <span className={`block text-[13px] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
-                      {blockLabel(b)}
-                    </span>
-                    <span className="block text-[10.5px] text-gray-500 truncate">
-                      {empty ? "nothing entered yet — it stays hidden" : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={b.on}
-                    aria-label={`${b.on ? "Hide" : "Show"} ${blockLabel(b)}`}
-                    disabled={!b.on && full}
-                    title={!b.on && full ? "Your card is full" : undefined}
-                    onClick={() => patch(b.id, { on: !b.on })}
-                    className={`relative w-[38px] h-[22px] rounded-full shrink-0 transition-colors disabled:opacity-40 ${b.on ? "bg-blue-600" : "bg-gray-700"}`}
-                  >
-                    <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white transition-transform ${b.on ? "translate-x-4" : ""}`} />
-                  </button>
-                </div>
-
-                {open && (
-                  <div className="px-2 pb-2.5 pl-9 space-y-2">
-                    {b.type === "text" && (
-                      <input
-                        type="text"
-                        value={b.text ?? ""}
-                        onChange={(e) => patch(b.id, { text: e.target.value })}
-                        placeholder="Type your text"
-                        className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                      />
-                    )}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10.5px] text-gray-500 w-12">Size</span>
-                      {EMPHASIS.map((e) => (
-                        <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
-                          className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
-                      ))}
-                    </div>
-                    {/* Only marks can move to the side panel. It is a third of
-                        the card wide, and there is no size at which a job title
-                        or a handle reads well in it — so the control isn't
-                        offered rather than offered and then overridden. */}
-                    {canChangeZone(b) && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10.5px] text-gray-500 w-12">Where</span>
-                        {(["left", "right"] as CardZone[]).map((z) => (
-                          <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
-                            className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { setBlocks(blocks.filter((x) => x.id !== b.id)); setOpenId(null); }}
-                      className="text-[11px] text-red-400 hover:text-red-300"
-                    >
-                      Remove from card
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="px-3 pb-3 pt-1 border-t border-gray-800">
-          <p className="text-[11px] text-gray-500 mb-1.5">Add something</p>
-          <div className="flex flex-wrap gap-1.5">
-            {ADDABLE.filter((a) => !blocks.some((b) =>
-              b.type === a.type && b.field === a.field && b.social === a.social && a.type !== "text" && a.type !== "divider",
-            )).map((a) => (
+      {/* ── The controls ── */}
+      <div className="space-y-3 mt-4 lg:mt-0">
+        {/* Looks — hover any one to see it on your card, click to keep it. */}
+        <div className={`${card} p-3 space-y-2.5`}>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className={head}>Looks</p>
+            <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {looks.map((l) => (
               <button
-                key={a.label}
+                key={l.key}
                 type="button"
-                disabled={full}
-                onClick={() => {
-                  const id = newBlockId(blocks, a.type === "field" ? String(a.field) : a.type === "social" ? String(a.social) : a.type);
-                  setBlocks([...blocks, {
-                    id, type: a.type,
-                    field: a.field as CustomBlock["field"],
-                    social: a.social as CustomBlock["social"],
-                    text: a.type === "text" ? "Your text" : undefined,
-                    on: true, zone: "right", emphasis: "quiet",
-                  }]);
-                  setOpenId(id);
-                }}
-                className={`${chip} ${chipOff} disabled:opacity-40`}
+                title={l.blurb}
+                onMouseEnter={() => setHoverLook(l.key)}
+                onMouseLeave={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
+                onFocus={() => setHoverLook(l.key)}
+                onBlur={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
+                onClick={() => { setHoverLook(null); commit(l.build()); }}
+                className={`rounded-lg p-1 transition-all ${
+                  hoverLook === l.key ? "ring-2 ring-blue-500 scale-[1.03]" : "ring-1 ring-gray-800 hover:ring-gray-600"
+                }`}
               >
-                + {a.label}
+                <LookThumb layout={l.preview} />
+                <span className="block text-[10px] text-gray-400 mt-1 truncate">{l.label}</span>
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={() => { if (canScan) fileRef.current?.click(); }}
+            disabled={scanning || !canScan}
+            className={`w-full rounded-lg border border-dashed px-3 py-2.5 text-left transition-colors ${
+              canScan
+                ? "border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60"
+                : "border-gray-700 bg-gray-950/40 cursor-default"
+            }`}
+          >
+            <span className="flex items-center gap-2.5">
+              <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canScan ? "bg-blue-600/20 text-blue-300" : "bg-gray-800 text-gray-500"}`}>
+                {scanning ? (
+                  <span className="block w-3.5 h-3.5 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
+                ) : (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
+                  </svg>
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-[12px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
+                  {scanning ? "Reading your card…" : "Scan the card you already have"}
+                  {!canScan && (
+                    <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+                  )}
+                </span>
+                <span className="block text-[10.5px] text-gray-400 leading-snug">
+                  {canScan
+                    ? "Photograph your printed card and we'll rebuild it here."
+                    : "On Pro, photograph your printed card and we'll rebuild it here."}
+                </span>
+              </span>
+            </span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
+          />
+          {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
+        </div>
+
+        {/* Style — colour, type and arrangement in one place, one row each, so
+            it reads as a single decision instead of three stacked boxes. */}
+        <div className={`${card} p-3 space-y-2.5`}>
+          <p className={head}>Style</p>
+
+          <div className="flex gap-2">
+            <span className={row}>Colour</span>
+            <div className="flex flex-wrap gap-1.5 min-w-0">
+              {GROUNDS.map((g) => (
+                <button
+                  key={g.label}
+                  type="button"
+                  title={g.label}
+                  aria-label={g.label}
+                  onClick={() => commit({ ...layout, background: g.background, textColor: g.textColor, accentColor: g.accentColor, panelBackground: undefined, panelTextColor: undefined })}
+                  className="w-6 h-6 rounded-lg transition-transform hover:scale-110"
+                  style={{
+                    background: g.background,
+                    boxShadow: layout.background === g.background
+                      ? "0 0 0 2px #3b82f6"
+                      : "inset 0 0 0 1px rgba(148,163,184,.35)",
+                  }}
+                />
+              ))}
+              <label className="flex items-center gap-1 text-[10px] text-gray-500">
+                <input
+                  type="color"
+                  aria-label="Custom background colour"
+                  value={/^#[0-9a-f]{6}$/i.test(layout.background) ? layout.background : "#2c3a52"}
+                  onChange={(e) => commit({ ...layout, background: e.target.value })}
+                  className="w-6 h-6 rounded bg-transparent border border-gray-700"
+                />
+                custom
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <span className={row}>Type</span>
+            <div className="flex flex-wrap gap-1.5 min-w-0">
+              {FONTS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => commit({ ...layout, fontFamily: f.value })}
+                  className={`${chip} ${layout.fontFamily === f.value ? chipOn : chipOff}`}
+                  style={{ fontFamily: f.value }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <span className={row}>Panel</span>
+            <div className="flex flex-wrap gap-1.5 min-w-0">
+              {SKELETONS.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => commit({ ...layout, skeleton: s.key as CardSkeleton })}
+                  className={`${chip} ${(layout.skeleton ?? "split") === s.key ? chipOn : chipOff}`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* What's on the card */}
+        <div className={`${card} overflow-hidden`}>
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800">
+            <p className={head}>What&apos;s on your card</p>
+            <p className={`text-[11px] ${full ? "text-amber-400" : "text-gray-600"}`}>
+              {blocks.filter((b) => b.on).length} of {MAX_VISIBLE_BLOCKS}
+            </p>
+          </div>
+          {full && (
+            <p className="px-3 pt-2 text-[11px] text-amber-400/90">
+              Your card is full — turn something off to add something else.
+            </p>
+          )}
+
+          <ul className="p-1.5 space-y-1">
+            {blocks.map((b, i) => {
+              const open = openId === b.id;
+              const empty = b.on && !blockHasValue(b, data);
+              return (
+                <li key={b.id} className={`rounded-lg ${open ? "bg-gray-950/60 ring-1 ring-gray-800" : ""}`}>
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <div className="flex flex-col gap-px shrink-0">
+                      <button type="button" onClick={() => move(b.id, -1)} disabled={i === 0}
+                        aria-label={`Move ${blockLabel(b)} up`}
+                        className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
+                      <button type="button" onClick={() => move(b.id, 1)} disabled={i === blocks.length - 1}
+                        aria-label={`Move ${blockLabel(b)} down`}
+                        className="w-5 h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(open ? null : b.id)}
+                      aria-expanded={open}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <span className={`block text-[13px] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
+                        {blockLabel(b)}
+                      </span>
+                      <span className="block text-[10.5px] text-gray-500 truncate">
+                        {empty ? "nothing entered yet — it stays hidden"
+                               : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={b.on}
+                      aria-label={`${b.on ? "Hide" : "Show"} ${blockLabel(b)}`}
+                      disabled={!b.on && full}
+                      title={!b.on && full ? "Your card is full" : undefined}
+                      onClick={() => patch(b.id, { on: !b.on })}
+                      className={`relative w-[38px] h-[22px] rounded-full shrink-0 transition-colors disabled:opacity-40 ${b.on ? "bg-blue-600" : "bg-gray-700"}`}
+                    >
+                      <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white transition-transform ${b.on ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
+
+                  {open && (
+                    <div className="px-2 pb-2.5 pl-9 space-y-2">
+                      {b.type === "text" && (
+                        <input
+                          type="text"
+                          value={b.text ?? ""}
+                          onChange={(e) => patch(b.id, { text: e.target.value })}
+                          placeholder="Type your text"
+                          className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                        />
+                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10.5px] text-gray-500 w-12">Size</span>
+                        {EMPHASIS.map((e) => (
+                          <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
+                            className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
+                        ))}
+                      </div>
+                      {/* Only marks can move to the side panel — it is a third of
+                          the card wide and no size reads well there for text. */}
+                      {canChangeZone(b) && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10.5px] text-gray-500 w-12">Where</span>
+                          {(["left", "right"] as CardZone[]).map((z) => (
+                            <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
+                              className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setBlocks(blocks.filter((x) => x.id !== b.id)); setOpenId(null); }}
+                        className="text-[11px] text-red-400 hover:text-red-300"
+                      >
+                        Remove from card
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="px-3 pb-3 pt-1 border-t border-gray-800">
+            <p className="text-[11px] text-gray-500 mb-1.5">Add something</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ADDABLE.filter((a) => !blocks.some((b) =>
+                b.type === a.type && b.field === a.field && b.social === a.social && a.type !== "text" && a.type !== "divider",
+              )).map((a) => (
+                <button
+                  key={a.label}
+                  type="button"
+                  disabled={full}
+                  onClick={() => {
+                    const id = newBlockId(blocks, a.type === "field" ? String(a.field) : a.type === "social" ? String(a.social) : a.type);
+                    setBlocks([...blocks, {
+                      id, type: a.type,
+                      field: a.field as CustomBlock["field"],
+                      social: a.social as CustomBlock["social"],
+                      text: a.type === "text" ? "Your text" : undefined,
+                      on: true, zone: "right", emphasis: "quiet",
+                    }]);
+                    setOpenId(id);
+                  }}
+                  className={`${chip} ${chipOff} disabled:opacity-40`}
+                >
+                  + {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => commit({ ...layout, blocks: undefined })}
-        className="text-[11px] text-gray-500 hover:text-gray-300 underline underline-offset-2"
-      >
-        Start from a different design
-      </button>
     </div>
   );
 }

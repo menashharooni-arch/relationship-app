@@ -183,64 +183,57 @@ const contacts = (): CustomBlock[] => [
   b("address", "field", "right", "quiet", { field: "address" }),
 ];
 
+const SANS = "var(--font-geist-sans), system-ui, sans-serif";
+const SERIF = "Georgia, 'Times New Roman', serif";
+const MONO = "'Courier New', ui-monospace, monospace";
+
 /**
- * One preset per SHIPPED TEMPLATE. "Start from Logo First" gives you that card,
- * rebuilt out of blocks, and then you can move things — which is the whole
- * proposition: every template is a starting point, not a dead end.
+ * Eight looks you CANNOT get anywhere else on SwiftCard.
  *
- * These are reconstructions, not the template components themselves. A fork is
- * close, not pixel-identical: the preset templates each carry hand-tuned
- * typography the block engine expresses through three emphasis levels. Close is
- * the point — you're about to change it anyway.
+ * These used to be one reconstruction per shipped template — "Start from Logo
+ * First", "Start from Classic Pro", and so on. That was the wrong offer: a Pro
+ * subscriber opened the one feature they pay for and was shown the same six
+ * names anybody can pick for free. Nothing here was theirs.
+ *
+ * So the starting points are now their own design set. Between them they use all
+ * three skeletons, both light and dark grounds, three typefaces, and — the part
+ * no template offers at all — different HIERARCHIES: Marquee makes the phone the
+ * biggest thing on the card, Ember leads with the firm rather than the person.
+ * That is the answer to "why would I pay for this": these are the arrangements
+ * the six fixed templates deliberately don't make.
+ *
+ * Every one is a finished card, never a blank canvas. Forking a look you already
+ * like is the difference between adjusting and building, and "building" is what
+ * made the old designer feel like work.
  */
 export const LAYOUT_PRESETS: Record<string, { label: string; blurb: string; build: () => CustomLayout }> = {
-  "logo-first": {
-    label: "Logo First",
-    blurb: "Your mark on the left, details down the right.",
+  ink: {
+    label: "Ink",
+    blurb: "Deep navy, your mark on a darker panel, name large.",
     build: () => ({
-      background: "#2c3a52", textColor: "#ffffff", accentColor: "#ffffff",
-      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "split", elements: [],
+      background: "#141b26", textColor: "#ffffff", accentColor: "#7fa6f0",
+      panelBackground: "#0b1220", panelTextColor: "#ffffff",
+      fontFamily: SANS, skeleton: "split", elements: [],
       blocks: [
         b("logo", "logo", "left", "normal"),
         b("name", "field", "right", "hero", { field: "name" }),
-        b("company", "field", "right", "quiet", { field: "company" }),
         b("title", "field", "right", "quiet", { field: "title" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
         ...contacts(),
         b("qr", "qr", "right", "normal"),
+        b("headshot", "headshot", "left", "normal", { on: false }),
         b("socials", "socials", "right", "quiet", { on: false }),
       ],
     }),
   },
-  "classic-pro": {
-    label: "Classic Pro",
-    blurb: "A coloured branding panel, clean white info beside it.",
+  signal: {
+    label: "Signal",
+    blurb: "Your face on a blue panel — on the right, where nothing else puts it.",
     build: () => ({
       background: "#ffffff", textColor: "#0e1b35", accentColor: "#2563eb",
-      panelBackground: "linear-gradient(160deg, #0e1b35 0%, #162947 100%)",
+      panelBackground: "linear-gradient(200deg, #1d4ed8 0%, #3b82f6 100%)",
       panelTextColor: "#ffffff",
-      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "split", elements: [],
-      blocks: [
-        b("headshot", "headshot", "left", "normal"),
-        b("logo", "logo", "left", "quiet"),
-        b("name", "field", "right", "hero", { field: "name" }),
-        b("title", "field", "right", "quiet", { field: "title" }),
-        b("company", "field", "right", "quiet", { field: "company" }),
-        ...contacts(),
-        b("qr", "qr", "right", "normal"),
-      ],
-    }),
-  },
-  "photo-first": {
-    label: "Photo First",
-    blurb: "Face on the left — for people who sell in person.",
-    build: () => ({
-      background: "#ffffff", textColor: "#1e1b4b", accentColor: "#6d28d9",
-      panelBackground: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)",
-      panelTextColor: "#ffffff",
-      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "split", elements: [],
+      fontFamily: SANS, skeleton: "mirror", elements: [],
       blocks: [
         b("headshot", "headshot", "left", "hero"),
         b("name", "field", "right", "hero", { field: "name" }),
@@ -252,65 +245,123 @@ export const LAYOUT_PRESETS: Record<string, { label: string; blurb: string; buil
       ],
     }),
   },
-  "modern-bold": {
-    label: "Modern Bold",
-    blurb: "Full-bleed dark with an oversized name.",
+  marquee: {
+    label: "Marquee",
+    blurb: "Black band on top, and the phone number as the biggest thing on the card.",
     build: () => ({
-      background: "#070d1c", textColor: "#ffffff", accentColor: "#3b82f6",
-      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "split", elements: [],
-      blocks: [
-        b("logo", "logo", "left", "normal"),
-        b("name", "field", "right", "hero", { field: "name" }),
-        b("title", "field", "right", "quiet", { field: "title" }),
-        b("company", "field", "right", "quiet", { field: "company" }),
-        ...contacts(),
-        b("qr", "qr", "right", "normal"),
-      ],
-    }),
-  },
-  "local-business": {
-    label: "Local Business",
-    blurb: "A bold header stripe with the phone as the hero.",
-    build: () => ({
-      background: "#fffaf0", textColor: "#7c2d12", accentColor: "#b45309",
-      panelBackground: "linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)",
-      panelTextColor: "#ffffff",
-      fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-      skeleton: "stacked", elements: [],
+      background: "#fffdf7", textColor: "#1c1917", accentColor: "#b45309",
+      panelBackground: "#111827", panelTextColor: "#ffffff",
+      fontFamily: SANS, skeleton: "stacked", elements: [],
       blocks: [
         b("logo", "logo", "left", "quiet"),
-        b("name", "field", "right", "hero", { field: "name" }),
         b("company", "field", "right", "quiet", { field: "company" }),
+        b("name", "field", "right", "hero", { field: "name" }),
         b("phone", "field", "right", "hero", { field: "phone" }),
         b("email", "field", "right", "normal", { field: "email" }),
-        b("website", "field", "right", "quiet", { field: "website" }),
-        b("address", "field", "right", "quiet", { field: "address", on: false }),
         b("qr", "qr", "right", "normal"),
+        b("website", "field", "right", "quiet", { field: "website", on: false }),
+        b("address", "field", "right", "quiet", { field: "address", on: false }),
         b("title", "field", "right", "quiet", { field: "title", on: false }),
       ],
     }),
   },
-  "luxury-minimal": {
-    label: "Luxury Minimal",
-    blurb: "Ivory, a gold accent, and a lot of restraint.",
+  atelier: {
+    label: "Atelier",
+    blurb: "Bone paper, a serif face, a gold accent and a lot of restraint.",
     build: () => ({
-      background: "#fafaf6", textColor: "#1c1612", accentColor: "#b08d57",
-      fontFamily: "Georgia, 'Times New Roman', serif",
-      skeleton: "split", elements: [],
+      // A panel tint one step off the ground. Without it the mark sits in a
+      // third of the card that reads as blank space rather than as a panel.
+      background: "#f4f2ed", textColor: "#1c1612", accentColor: "#8a6a3b",
+      panelBackground: "#eae6dd", panelTextColor: "#1c1612",
+      fontFamily: SERIF, skeleton: "split", elements: [],
       blocks: [
-        b("logo", "logo", "left", "normal"),
+        b("logo", "logo", "left", "quiet"),
         b("company", "field", "right", "quiet", { field: "company" }),
         b("name", "field", "right", "hero", { field: "name" }),
         b("title", "field", "right", "quiet", { field: "title" }),
         ...contacts(),
         b("qr", "qr", "right", "quiet"),
+        b("headshot", "headshot", "left", "normal", { on: false }),
+      ],
+    }),
+  },
+  noir: {
+    label: "Noir",
+    blurb: "Near-black, typewriter type, everything small and exact.",
+    build: () => ({
+      background: "#0a0a0a", textColor: "#fafafa", accentColor: "#a3a3a3",
+      panelBackground: "#171717", panelTextColor: "#fafafa",
+      fontFamily: MONO, skeleton: "split", elements: [],
+      blocks: [
+        b("logo", "logo", "left", "normal"),
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("title", "field", "right", "quiet", { field: "title" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        b("phone", "field", "right", "quiet", { field: "phone" }),
+        b("email", "field", "right", "quiet", { field: "email" }),
+        b("website", "field", "right", "quiet", { field: "website" }),
+        b("address", "field", "right", "quiet", { field: "address" }),
+        b("qr", "qr", "right", "quiet"),
+      ],
+    }),
+  },
+  meridian: {
+    label: "Meridian",
+    blurb: "A deep green panel carrying both your photo and your logo.",
+    build: () => ({
+      background: "#f7f5ef", textColor: "#14312a", accentColor: "#2f6f5b",
+      panelBackground: "linear-gradient(165deg, #16352c 0%, #2f6f5b 100%)",
+      panelTextColor: "#ffffff",
+      fontFamily: SANS, skeleton: "split", elements: [],
+      blocks: [
+        b("headshot", "headshot", "left", "normal"),
+        b("logo", "logo", "left", "quiet"),
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("title", "field", "right", "quiet", { field: "title" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        ...contacts(),
+        b("qr", "qr", "right", "normal"),
+      ],
+    }),
+  },
+  broadsheet: {
+    label: "Broadsheet",
+    blurb: "No panel at all — one clean column, edge to edge.",
+    build: () => ({
+      background: "#ffffff", textColor: "#111827", accentColor: "#111827",
+      fontFamily: SANS, skeleton: "split", elements: [],
+      blocks: [
+        b("name", "field", "right", "hero", { field: "name" }),
+        b("title", "field", "right", "normal", { field: "title" }),
+        b("company", "field", "right", "quiet", { field: "company" }),
+        ...contacts(),
+        b("qr", "qr", "right", "normal"),
+        b("logo", "logo", "left", "quiet", { on: false }),
+        b("headshot", "headshot", "left", "normal", { on: false }),
+      ],
+    }),
+  },
+  ember: {
+    label: "Ember",
+    blurb: "Oxblood, panel on the right, and the firm named above the person.",
+    build: () => ({
+      background: "#33191d", textColor: "#f6ece9", accentColor: "#e0a3a0",
+      panelBackground: "#261215", panelTextColor: "#f6ece9",
+      fontFamily: SERIF, skeleton: "mirror", elements: [],
+      blocks: [
+        b("logo", "logo", "left", "normal"),
+        b("company", "field", "right", "hero", { field: "company" }),
+        b("name", "field", "right", "normal", { field: "name" }),
+        b("title", "field", "right", "quiet", { field: "title" }),
+        ...contacts(),
+        b("qr", "qr", "right", "normal"),
+        b("headshot", "headshot", "left", "normal", { on: false }),
       ],
     }),
   },
 };
 
-export const DEFAULT_PRESET = "logo-first";
+export const DEFAULT_PRESET = "ink";
 
 export function buildPreset(key: string): CustomLayout {
   return (LAYOUT_PRESETS[key] ?? LAYOUT_PRESETS[DEFAULT_PRESET]).build();
@@ -612,8 +663,9 @@ export function zoneLabels(skeleton: CardSkeleton | undefined): Record<CardZone,
     : { left: "Side panel", right: "Main area" };
 }
 
+/** Labelled for the "Panel" row in the designer, so they read as one sentence. */
 export const SKELETONS: { key: CardSkeleton; label: string }[] = [
-  { key: "split", label: "Side panel left" },
-  { key: "mirror", label: "Side panel right" },
-  { key: "stacked", label: "Stacked" },
+  { key: "split", label: "Left" },
+  { key: "mirror", label: "Right" },
+  { key: "stacked", label: "Across the top" },
 ];
