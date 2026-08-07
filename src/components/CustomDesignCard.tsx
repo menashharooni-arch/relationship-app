@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { PlanGate } from "@/components/PlanGate";
 
-// The entry point to the freeform custom designer — the "edit every element"
-// path (drag/resize/recolor text, logo, photo, QR, icons; full control of
-// layout & spacing). Presented as a descriptive card so its value is clear,
-// not a bare toggle. Pro-gated. Used by the new-card wizard and the edit form.
+// The entry point to the custom designer. Presented as a descriptive card so
+// its value is clear, not a bare toggle. Pro-gated. Used by the new-card wizard
+// and the edit form.
+//
+// The copy describes what the designer ACTUALLY does now. It used to promise a
+// blank canvas you drag and resize elements on, which is the designer that was
+// replaced — nothing is dragged any more and nothing starts blank.
 export default function CustomDesignCard({
   isPro,
   selected,
@@ -36,7 +39,7 @@ export default function CustomDesignCard({
             <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
           </p>
           <p className="text-[11px] leading-snug mt-0.5 text-gray-400">
-            Start from a blank canvas — drag, resize &amp; recolor every element: text, logo, photo, QR and icons. Full control of layout and spacing.
+            Eight looks you can&apos;t pick as a template — or photograph the card you already have and we&apos;ll rebuild it. Then show, hide, reorder and resize anything on it.
           </p>
         </div>
         <span className={`text-xs font-semibold shrink-0 self-center ${selected ? "text-blue-400" : "text-gray-400"}`}>
