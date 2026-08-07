@@ -83,11 +83,17 @@ export default function NativeAppBridge() {
       } catch { /* plugin unavailable (older shell build) — universal links still open the app's last page */ }
 
       // ── Home-screen QR widget data sync ─────────────────────────────────
-      // Write the signed-in user's active card to the shared App Group store
-      // (@capacitor/preferences with group config) so the SwiftCardWidget
-      // extension can render its QR offline. Best-effort: signed-out or
-      // plugin-less builds simply skip. Honors the dashboard's active-card
-      // choice when one is stored.
+      // Hand the signed-in user's active card to the SwiftCardWidget extension
+      // via the WidgetBridge native plugin (ios/App/App/WidgetBridge.swift),
+      // which writes the shared App Group suite and reloads the timeline.
+      //
+      // ⚠️ Do NOT switch this back to @capacitor/preferences: that plugin's
+      // `group` option is only a key prefix on UserDefaults.standard, which
+      // lives in the app's own container and is unreadable from a widget
+      // extension — the widget would sit on its empty state forever.
+      //
+      // Best-effort: signed-out or plugin-less builds simply skip. Honors the
+      // dashboard's active-card choice when one is stored.
       try {
         const res = await fetch("/api/cards", { credentials: "include" });
         if (res.ok) {
@@ -99,19 +105,18 @@ export default function NativeAppBridge() {
               active = cards.find((c) => c.username === chosen) ?? active;
             } catch { /* default to first card */ }
             if (active?.username) {
-              const { Preferences } = await import("@capacitor/preferences");
-              await Preferences.set({
-                key: "widget_card",
-                value: JSON.stringify({
-                  url: `https://swiftcard.me/card/${active.username}?source=widget`,
-                  name: active.name || "My SwiftCard",
-                  company: active.company || "",
-                }),
+              const widgetBridge = (window as unknown as {
+                Capacitor?: { Plugins?: { WidgetBridge?: { setCard: (o: Record<string, string>) => Promise<void> } } };
+              }).Capacitor?.Plugins?.WidgetBridge;
+              await widgetBridge?.setCard({
+                url: `https://swiftcard.me/card/${active.username}?source=widget`,
+                name: active.name || "My SwiftCard",
+                company: active.company || "",
               });
             }
           }
         }
-      } catch { /* offline or signed out — widget keeps its last data */ }
+      } catch { /* offline, signed out, or older shell — widget keeps its last data */ }
 
       // Push-notification taps: lib/apns.ts puts the in-app destination in the
       // payload's custom `url`; navigate there when the user opens one.

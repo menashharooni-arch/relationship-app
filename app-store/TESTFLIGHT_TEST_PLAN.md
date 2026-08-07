@@ -75,7 +75,7 @@ Core product
 - [ ] Swift Links page renders and edits.
 - [ ] Email signature builder: copy works in the webview.
 - [ ] Analytics screens render.
-- [ ] Widget (after Xcode target added): add from gallery, shows QR after
+- [ ] Widget (target now ships in the binary): add from gallery, shows QR after
       opening the app signed-in, tap opens the app.
 - [ ] Account deletion end-to-end: survey → DELETE → password → signed out →
       /account-deleted state; log back in within window → reopen works.
