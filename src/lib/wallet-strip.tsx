@@ -250,7 +250,9 @@ function GenericStrip(p: Meta) {
 // intentional ground rather than letterbox bars. This is the only way a CUSTOM
 // card design can appear on the pass faithfully — the Satori templates below
 // can only approximate the six stock templates.
-export async function captureDesign(username: string): Promise<{ theme: PassTheme; strips: PassStrips } | null> {
+export type CaptureDesign = { theme: PassTheme; strips: PassStrips; bare: true };
+
+export async function captureDesign(username: string): Promise<CaptureDesign | null> {
   try {
     const { getAdminSupabase } = await import("@/lib/supabase-admin");
     const { data, error } = await getAdminSupabase().storage.from("card-shares").download(`${username}.png`);
@@ -265,7 +267,7 @@ export async function captureDesign(username: string): Promise<{ theme: PassThem
 
 /** The pure capture→(theme, strips) transform — separated so tests can feed it
  *  a synthetic capture without touching storage. */
-export async function captureToDesign(capture: Buffer): Promise<{ theme: PassTheme; strips: PassStrips } | null> {
+export async function captureToDesign(capture: Buffer): Promise<CaptureDesign | null> {
   try {
     const sharp = (await import("sharp")).default;
     const img = sharp(capture);
@@ -286,28 +288,36 @@ export async function captureToDesign(capture: Buffer): Promise<{ theme: PassThe
       darkChrome: dark,
     };
 
+    // The strip's ground is a FLAT fill of the same color as the pass chrome,
+    // so strip and chrome fuse into one continuous card-colored surface — the
+    // card doesn't sit in a visible box (the earlier blurred backdrop read as
+    // "a tag holding a card"). The card itself is as large as the strip
+    // allows, corners rounded and inset just clear of the pass's own radius.
     const makeStrip = async (w: number, h: number, inset: number, rx: number): Promise<Buffer> => {
       const cardH = h - inset * 2;
       const cardW = Math.min(Math.round(cardH * ratio), w - inset * 2);
       const mask = Buffer.from(
         `<svg width="${cardW}" height="${cardH}"><rect x="0" y="0" width="${cardW}" height="${cardH}" rx="${rx}" ry="${rx}"/></svg>`
       );
-      const [backdrop, card] = await Promise.all([
-        sharp(capture).resize(w, h, { fit: "cover" }).blur(30).modulate({ brightness: 0.55 }).toBuffer(),
-        sharp(capture).resize(cardW, cardH, { fit: "fill" }).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer(),
-      ]);
-      return sharp(backdrop)
+      const card = await sharp(capture)
+        .resize(cardW, cardH, { fit: "fill" })
+        .composite([{ input: mask, blend: "dest-in" }])
+        .png()
+        .toBuffer();
+      return sharp({ create: { width: w, height: h, channels: 4, background: { r, g, b, alpha: 1 } } })
         .composite([{ input: card, left: Math.round((w - cardW) / 2), top: inset }])
         .png()
         .toBuffer();
     };
 
+    // Coupon-style strip geometry (375×144pt) — the tallest strip Apple
+    // offers, so the card renders ~17% larger than storeCard's 123pt allowed.
     const [x3, x2, x1] = await Promise.all([
-      makeStrip(1125, 369, 27, 30),
-      makeStrip(750, 246, 18, 20),
-      makeStrip(375, 123, 9, 10),
+      makeStrip(1125, 432, 21, 30),
+      makeStrip(750, 288, 14, 20),
+      makeStrip(375, 144, 7, 10),
     ]);
-    return { theme, strips: { x1, x2, x3 } };
+    return { theme, strips: { x1, x2, x3 }, bare: true };
   } catch {
     return null;
   }

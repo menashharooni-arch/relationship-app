@@ -20,6 +20,11 @@ export type WalletCard = {
 export type WalletDesign = {
   theme: PassTheme;
   strips: PassStrips;
+  /** The capture tier: the strip IS the real card, so the pass shows nothing
+   *  else — no barcode block, no contact rows. The card face already carries
+   *  its own QR and contact details. Also selects the coupon layout, whose
+   *  144pt strip (vs storeCard's 123pt) renders the card ~17% larger. */
+  bare?: boolean;
 };
 
 // Pass images are committed under /public/wallet and served by the CDN — fetched
@@ -87,10 +92,18 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // QR of the card URL — scanning the pass opens the live card. (Phone-to-phone
   // NFC is not possible for a Wallet pass: the nfc key requires Apple's VAS
   // partner certification, and iPhones can't read passes off other iPhones
-  // anyway. The scan IS the tap here.)
-  pass.setBarcodes({ message: card.cardUrl, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
+  // anyway. The scan IS the tap here.) Bare passes skip it — the owner asked
+  // for a clean card, and the card face in the strip has its own QR.
+  if (!design?.bare) {
+    pass.setBarcodes({ message: card.cardUrl, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
+  }
 
-  if (design) {
+  if (design?.bare) {
+    // The real-card tier: the strip is the card, complete. Nothing else on
+    // the front — coupon layout for its taller strip, chrome in the card's
+    // sampled color, all detail on the back of the pass.
+    pass.type = "coupon";
+  } else if (design) {
     // storeCard = the strip-capable layout. The strip carries the identity
     // (name/title/company in the card's own design), so the fields below it
     // hold only the contact details.
