@@ -71,3 +71,32 @@ describe("both Apple signers normalize their key", () => {
     }
   });
 });
+
+describe("Apple refresh-token persistence (5.1.1(v))", () => {
+  // The provider refresh token exists exactly once, on the freshly exchanged
+  // session — identity_data never carries it. Every one of these three legs
+  // has to hold or deletion quietly stops revoking again.
+  it("web callback persists it server-side", () => {
+    const cb = readFileSync("src/app/auth/callback/route.ts", "utf8");
+    expect(cb).toMatch(/provider_refresh_token/);
+    expect(cb).toMatch(/saveAppleRefreshToken/);
+  });
+  it("native flow hands it to the API, stored under the session user", () => {
+    const na = readFileSync("src/lib/native-auth.ts", "utf8");
+    expect(na).toMatch(/\/api\/auth\/apple-token/);
+    const route = readFileSync("src/app/api/auth/apple-token/route.ts", "utf8");
+    // stored under the AUTHENTICATED user's id, never an id from the body
+    expect(route).toMatch(/saveAppleRefreshToken\(user\.id/);
+    expect(route).toMatch(/getUser\(\)/);
+  });
+  it("revocation reads the store, not just identity_data", () => {
+    const rv = readFileSync("src/lib/apple-revoke.ts", "utf8");
+    expect(rv).toMatch(/readAppleRefreshToken/);
+  });
+  it("the table is service-role only and dies with the user", () => {
+    const sql = readFileSync("supabase/apple-refresh-tokens.sql", "utf8");
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/revoke all on public\.apple_refresh_tokens from anon, authenticated/);
+    expect(sql).toMatch(/on delete cascade/);
+  });
+});

@@ -137,11 +137,29 @@ export async function completeNativeOAuth(supabase: SupabaseClient, url: string)
     return true;
   }
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: exchanged, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     window.location.href = "/login?error=oauth";
     return true;
   }
+
+  // Apple only: the provider refresh token exists solely on this freshly
+  // exchanged session, and account deletion needs it to revoke at Apple
+  // (5.1.1(v)). The web flow stores it server-side in /auth/callback; here the
+  // exchange had to happen in the webview (the PKCE verifier lives in webview
+  // storage), so hand it to the API — which stores it under the session user,
+  // cookie-authenticated. Best-effort: never block login on it.
+  try {
+    const s = exchanged?.session;
+    if (s?.provider_refresh_token && s.user?.app_metadata?.provider === "apple") {
+      await fetch("/api/auth/apple-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ refreshToken: s.provider_refresh_token }),
+      });
+    }
+  } catch { /* stored next sign-in instead */ }
 
   // Mirror the web GIS flow: new-or-existing users route through /onboarding,
   // which provisions and forwards to `next` (or the dashboard) — or, for a

@@ -7,19 +7,29 @@
 	<string>app-store-connect</string>
 	<key>teamID</key>
 	<string>NHK8FA2RR2</string>
-	<!-- Let Xcode mint the distribution cert and profiles. Combined with
-	     -allowProvisioningUpdates and an App Store Connect API key, this needs
-	     no Apple ID signed into Xcode at all. -->
+	<!-- MANUAL signing, deliberately. Automatic here means cloud signing
+	     (Apple holds the key), which our App Manager API key is not allowed to
+	     do — export dies with "Cloud signing permission error". Instead,
+	     scripts/asc-provision.mjs mints a classic Apple Distribution
+	     certificate (private key in ~/.swiftcard/dist) and App Store profiles
+	     through the ASC API, and this maps each bundle id to its profile.
+	     App Store profiles need no registered devices. -->
 	<key>signingStyle</key>
-	<string>automatic</string>
-	<!-- dSYMs, so Sentry can symbolicate native crashes. -->
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>me.swiftcard.app</key>
+		<string>SwiftCard App Store</string>
+		<key>me.swiftcard.app.SwiftCardWidgetExtension</key>
+		<string>SwiftCard Widget App Store</string>
+	</dict>
+	<!-- dSYMs, so native crashes can be symbolicated. -->
 	<key>uploadSymbols</key>
 	<true/>
-	<!-- App thinning is irrelevant for a webview shell and only slows the
-	     upload; ship one universal binary. -->
 	<key>stripSwiftSymbols</key>
 	<true/>
-	<!-- We do not use TestFlight's automatic external distribution. -->
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 </dict>

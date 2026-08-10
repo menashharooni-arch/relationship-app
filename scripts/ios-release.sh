@@ -53,21 +53,50 @@ AUTH=(-allowProvisioningUpdates
       -authenticationKeyID "$KEY_ID"
       -authenticationKeyIssuerID "$ISSUER_ID")
 
+# altool is different: --apiKey does NOT take a path. It searches ./private_keys,
+# ~/private_keys, ~/.private_keys and ~/.appstoreconnect/private_keys — or the
+# directory named by API_PRIVATE_KEYS_DIR. Without this line, validate/upload
+# fails with "could not find the private key" even though xcodebuild just used
+# the very same key successfully.
+export API_PRIVATE_KEYS_DIR="$ASC"
+
 echo "Using ASC key $KEY_ID (issuer ${ISSUER_ID:0:8}…)"
+
+# ── signing assets (created by scripts/asc-provision.mjs) ────────────────────
+# The Apple Distribution identity lives in a dedicated keychain with its own
+# password, so no login-keychain password and no GUI prompt is ever needed.
+DIST="$HOME/.swiftcard/dist"
+KC="$HOME/Library/Keychains/swiftcard-release.keychain-db"
+if [[ ! -f "$DIST/keychain-pass" || ! -f "$KC" ]]; then
+  die "signing assets missing — run: node scripts/asc-provision.mjs (see that script's header)"
+fi
+security unlock-keychain -p "$(cat "$DIST/keychain-pass")" "$KC"
+security list-keychains -d user | grep -q swiftcard-release || \
+  security list-keychains -d user -s "$KC" "$HOME/Library/Keychains/login.keychain-db"
+security find-identity -v -p codesigning "$KC" | grep -q "Apple Distribution" || \
+  die "no Apple Distribution identity in $KC — re-run scripts/asc-provision.mjs and the keychain setup"
+echo "Signing identity ready."
 
 # ── keep the web assets in step ──────────────────────────────────────────────
 cd "$ROOT"
 npx cap sync ios
 
 # ── archive ──────────────────────────────────────────────────────────────────
+# The archive is deliberately UNSIGNED (CODE_SIGNING_ALLOWED=NO). Signing an
+# archive with automatic style wants an "Apple Development" profile, and
+# development profiles require at least one registered device — this team has
+# none, so a signed archive fails with "Your team has no devices". App Store
+# distribution profiles require NO devices, and -exportArchive below does the
+# actual distribution signing. Archive unsigned → sign at export is the
+# standard device-less CI pattern.
 rm -rf "$ARCHIVE" "$EXPORT_DIR"
 mkdir -p "$BUILD"
 cd "$ROOT/ios/App"
-echo "Archiving…"
+echo "Archiving (unsigned — distribution signing happens at export)…"
 xcodebuild -scheme App -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
-  "${AUTH[@]}" \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
   archive
 
 # ── export (and upload, unless --dry) ────────────────────────────────────────

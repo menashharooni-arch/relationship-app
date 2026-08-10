@@ -11,3 +11,7 @@ capacitor-cordova-ios-plugins
 # Generated Config files
 App/App/capacitor.config.json
 App/App/config.xml
+
+# iOS release artifacts (scripts/ios-release.sh) — archives and IPAs are
+# rebuilt on demand and can contain a full site snapshot; never commit them.
+build/
