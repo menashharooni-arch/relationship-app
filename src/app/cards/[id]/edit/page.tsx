@@ -8,8 +8,9 @@ import ShareCardCapture from "@/components/ShareCardCapture";
 import { cardHeadshot } from "@/lib/card-media";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
-import type { CardData } from "@/components/card-templates/types";
+
 import { isPaidPlan } from "@/lib/plan";
+import { buildCardData } from "@/lib/card-data";
 
 export default async function CardEditPage({
   params,
@@ -69,36 +70,24 @@ export default async function CardEditPage({
 
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-  // Share-preview capture data — IDENTICAL construction to the dashboard's, so
-  // saving an edit re-photographs the card right here (router.refresh() reloads
-  // this server component with fresh data → content hash changes → re-capture).
-  // Without this, an edited card's texted-link preview stayed stale until the
-  // owner next opened the dashboard with this card selected.
-  const _addr = (card.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
-  const captureData: CardData = {
-    name: card.name || "",
-    title: card.title || "",
-    company: card.company || "",
-    phone: card.phone || "",
-    email: card.email || "",
-    website: card.website || "",
-    instagram: card.instagram || "",
-    twitter: card.twitter || "",
-    tiktok: card.tiktok || "",
-    linkedin: card.linkedin || "",
-    initials: card.name ? (card.name as string).split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "SC",
-    photoUrl: cardPhoto,
-    logoUrl: card.logo_url || null,
-    cardUrl: `${APP_URL.replace("https://", "")}/card/${card.username}`,
-    address: _addr
-      ? [
-          [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
-          _addr.city ?? "",
-          [_addr.state, _addr.zip].filter(Boolean).join(" "),
-        ].filter(Boolean).join("\n")
-      : "",
-    customization: card.customization ?? {},
-  };
+  // Share-preview capture data, so saving an edit re-photographs the card right
+  // here (router.refresh() reloads this server component with fresh data →
+  // content hash changes → re-capture). Without it, an edited card's
+  // texted-link preview stayed stale until the owner next opened the dashboard
+  // with this card selected.
+  //
+  // Built by the SHARED builder. "IDENTICAL construction to the dashboard's"
+  // was the intent, and the comment here used to say so — but it was a sixth
+  // hand-written copy, and this one never sanitized at all, so the image it
+  // re-photographed could carry design keys the live card had already had
+  // stripped. The template comes from the builder too, already plan-gated:
+  // passing the raw one captured a downgraded card as "custom" while the live
+  // card rendered classic-pro.
+  const { data: captureData, template: captureTemplate } = buildCardData(card, {
+    appUrl: APP_URL,
+    isPro,
+    accountPhotoUrl: profile?.photo_url,
+  });
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
@@ -137,7 +126,7 @@ export default async function CardEditPage({
           of this card, re-capturing whenever its content changes. */}
       <ShareCardCapture
         cardData={captureData}
-        template={(card.template as string) ?? "classic-pro"}
+        template={captureTemplate}
         username={card.username as string}
       />
     </main>
