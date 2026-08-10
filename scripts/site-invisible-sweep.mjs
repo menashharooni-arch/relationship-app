@@ -22,13 +22,28 @@ const browser = await chromium.launch();
 async function sweep(page) {
   return page.evaluate(() => {
     const bad = [];
+
+    // Only elements the browser is actually laying out can be "rendered but
+    // invisible". A `display:none` element has no box by definition, and this
+    // site is full of responsive pairs — /cards/new renders the card preview
+    // twice, `lg:hidden` for phone and the desktop one beside it, so one of
+    // the two is ALWAYS display:none. Measuring those reported a 0x0 preview
+    // on every single run and failed CI for days on a non-bug, which is the
+    // exact cry-wolf failure this file's header warns about — and worse, it
+    // masked any genuine regression behind a permanent red.
+    const isLaidOut = (el) =>
+      typeof el.checkVisibility === "function"
+        ? el.checkVisibility({ visibilityProperty: true, contentVisibilityAuto: true })
+        : el.offsetParent !== null;
+
     [...document.querySelectorAll("div")].forEach((el) => {
-      if (((getComputedStyle(el).contain) || "").includes("size")) {
+      if (((getComputedStyle(el).contain) || "").includes("size") && isLaidOut(el)) {
         const r = el.getBoundingClientRect();
         if (r.width < 5 || r.height < 5) bad.push("scaler-collapsed:" + (el.className || "").slice(0, 30));
       }
     });
     [...document.querySelectorAll("[data-preview-locked]")].forEach((el) => {
+      if (!isLaidOut(el)) return;
       const r = el.getBoundingClientRect();
       if (r.width < 5 || r.height < 5) bad.push("preview-frame-collapsed");
     });
