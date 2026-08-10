@@ -835,8 +835,9 @@ html.native-app .sc-tabbar {
 html.native-app .sc-tabbar {
   left: 12px !important;
   right: 12px !important;
-  /* +6, was +10: user feedback — the capsule read as floating too high. */
-  bottom: calc(env(safe-area-inset-bottom) + 6px) !important;
+  /* +2, was +10 then +6: user feedback — sit as low as possible while the
+     safe-area inset still keeps it fully above the home indicator. */
+  bottom: calc(env(safe-area-inset-bottom) + 2px) !important;
   padding-bottom: 0 !important; /* inset replaces the inline safe-area pad */
   border-radius: 28px;
   border-width: 1px !important;
@@ -857,9 +858,10 @@ html.native-app body:has(.sc-tabbar) {
    is display:none and the bubble's own md:bottom-5 is correct. */
 @media (max-width: 767px) {
   html.native-app .sc-help-bubble {
-    /* +80, was +92: user feedback — sat too high. Capsule top is inset+68
-       (bottom inset+6 + ~62px bar), so this keeps ~12px of clearance. */
-    bottom: calc(env(safe-area-inset-bottom) + 80px);
+    /* +76, tracks the capsule: its top is inset+69 (bottom inset+2 + 67px
+       bar), so the bubble keeps the same ~7px gap it had before the capsule
+       was lowered — per user, proximity to the bar must not change. */
+    bottom: calc(env(safe-area-inset-bottom) + 76px);
   }
 }
 /* The OPEN chat panel overlays the capsule by design, but its input row must

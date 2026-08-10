@@ -138,7 +138,8 @@ export default async function SharePage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <SettingsLinkButton />
+            {/* Mobile has Settings in the bottom tab bar — hide the top-bar gear below md, same as the dashboard. */}
+            <span className="hidden md:flex items-center"><SettingsLinkButton /></span>
             <GrowLinkButton />
             <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">← Dashboard</DashboardLink>
           </div>
