@@ -134,6 +134,13 @@ export default function RootLayout({
               "var C=window.Capacitor;" +
               "if((W&&W.bridge)||(C&&(C.isNativePlatform?C.isNativePlatform():C.isNative))){" +
               "document.documentElement.classList.add('native-app');" +
+              // Mark the shell for the SERVER: src/proxy.ts redirects "/" before
+              // any homepage HTML is sent when it sees this cookie (or the
+              // SwiftCardApp UA of future builds). The client redirect below
+              // still handles the very first launch — which is also what plants
+              // the cookie — but every launch after that skips loading the
+              // homepage entirely: no dark interstitial, one navigation, not two.
+              "document.cookie='sc_shell=1;path=/;max-age=31536000;samesite=lax';" +
               "if(location.pathname==='/'){" +
               // Hide before navigating so the homepage cannot paint even one
               // frame during the redirect. Scoped to the shell on "/" only, so
