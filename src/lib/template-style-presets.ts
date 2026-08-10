@@ -241,8 +241,8 @@ export const META: Record<string, TemplateMeta> = {
       fallback: "#e6ebf3",
     },
     accent: {
-      label: "Title & icons",
-      help: "Draws your job title and the contact icons. A shade too close to your background is brightened or darkened until it reads — you keep the colour you picked, at a version of it that can be seen.",
+      label: "Icons, title & QR",
+      help: "Draws your job title, the contact icons and the QR code. A shade too close to your background is brightened or darkened until it reads — you keep the colour you picked, at a version of it that can be seen. The QR is darkened further, because a pale code is one phones stop scanning.",
       presets: ["#ffffff", "#c9d4e8", "#b08d57", "#d4af7a", "#60a5fa", "#0f766e", "#be123c", "#141b26"],
       fallback: "#ffffff",
     },

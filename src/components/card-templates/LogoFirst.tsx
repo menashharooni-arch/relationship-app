@@ -75,6 +75,31 @@ function readableAccent(accent: string | undefined, bg: string, dark: boolean): 
   return y !== null && Math.abs(y - b) >= 55 ? out : fallback;
 }
 
+/**
+ * The accent, made safe to print a QR code in.
+ *
+ * A QR is the only thing on the card with a job beyond looking right, so this
+ * is deliberately stricter than readableAccent: scanners need a wide luminance
+ * gap between the dark modules and the quiet zone, and a pale accent on a pale
+ * square is a code that phones stop reading. The colour is DARKENED along its
+ * own hue until it clears the QR's background by 130 (out of 255) — so a teal
+ * accent gives a deep-teal code rather than being thrown away — and only if
+ * darkening cannot get there does it fall back to ink.
+ */
+function qrInk(accent: string, qrBg: string): string {
+  const bgY = yiq(qrBg);
+  const parts = rgb(accent);
+  if (bgY === null || !parts) return INK;
+  let [r, g, b] = parts;
+  for (let i = 0; i < 14; i++) {
+    if (Math.abs((r * 299 + g * 587 + b * 114) / 1000 - bgY) >= 130) break;
+    r *= 0.82; g *= 0.82; b *= 0.82;
+  }
+  const out = `#${hex2(r)}${hex2(g)}${hex2(b)}`;
+  const y = yiq(out);
+  return y !== null && Math.abs(y - bgY) >= 125 ? out : INK;
+}
+
 export default function LogoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const bg = style.bgColor ?? NAVY;
@@ -94,6 +119,13 @@ export default function LogoFirst({ data }: { data: CardData }) {
   // hard-coded to #EEF2F8 on navy, which is fine on navy and wrong on forest,
   // oxblood and bone — the three grounds the picker offers alongside it.
   const qrBg = dark ? "#F2F4F7" : "#FFFFFF";
+  // ...and its PATTERN follows the accent, so the control that colours the
+  // icons colours the code too. It stays light-on-dark-modules and is darkened
+  // until it clears the background by a wide margin: a QR is the one thing on
+  // the card with a job beyond looking right, and a pale pattern on a pale
+  // square is a code that phones stop reading. Past what darkening can fix it
+  // falls back to ink rather than shipping something unscannable.
+  const qrFg = qrInk(accent, qrBg);
 
   const initials =
     data.initials ??
@@ -313,7 +345,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
             rather than left a stark white sticker. */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
-            <QR size={qrSize(f)} bg={qrBg} fg={INK} url={data.cardUrl} />
+            <QR size={qrSize(f)} bg={qrBg} fg={qrFg} url={data.cardUrl} />
           </div>
         </div>
       </div>
