@@ -21,9 +21,10 @@ export type WalletDesign = {
   theme: PassTheme;
   strips: PassStrips;
   /** The capture tier: the strip IS the real card, so the pass shows nothing
-   *  else — no barcode block, no contact rows. The card face already carries
-   *  its own QR and contact details. Also selects the coupon layout, whose
-   *  144pt strip (vs storeCard's 123pt) renders the card ~17% larger. */
+   *  else — no barcode block, no contact rows, and no header branding (the
+   *  wordmark is BLUE and clashed on card-colored chrome; the card face
+   *  already says who it is). The card face also carries its own QR and
+   *  contact details. */
   bare?: boolean;
 };
 
@@ -55,11 +56,15 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // would vanish, so those passes drop the image and use logoText instead
   // (which renders in foregroundColor and adapts).
   const darkChrome = design ? design.theme.darkChrome : true;
+  // Bare (real-card) passes carry NO logo at all — any header branding sits
+  // on top of the card-colored surface and breaks the "it's just my card"
+  // illusion (and the wordmark is blue, which clashed on dark card colors).
+  const wantLogo = !design?.bare && darkChrome;
   const files: Record<string, Buffer> = {
     "icon.png": icon,
     "icon@2x.png": icon2,
     "icon@3x.png": icon3,
-    ...(darkChrome ? { "logo.png": logo, "logo@2x.png": logo2 } : {}),
+    ...(wantLogo ? { "logo.png": logo, "logo@2x.png": logo2 } : {}),
     ...(design
       ? { "strip.png": design.strips.x1, "strip@2x.png": design.strips.x2, "strip@3x.png": design.strips.x3 }
       : {}),
@@ -82,7 +87,7 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
       // NO logoText on dark chrome: logo.png is a 160x50 WORDMARK that already
       // reads "SwiftCard", so setting logoText printed the brand twice in the
       // pass header. Light chrome has no wordmark (see above) and needs it.
-      ...(darkChrome ? {} : { logoText: "SwiftCard" }),
+      ...(wantLogo || design?.bare ? {} : { logoText: "SwiftCard" }),
       foregroundColor: design?.theme.foregroundColor ?? "rgb(255, 255, 255)",
       backgroundColor: design?.theme.backgroundColor ?? "rgb(13, 27, 62)",
       labelColor: design?.theme.labelColor ?? "rgb(147, 197, 253)",
@@ -100,9 +105,10 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
 
   if (design?.bare) {
     // The real-card tier: the strip is the card, complete. Nothing else on
-    // the front — coupon layout for its taller strip, chrome in the card's
-    // sampled color, all detail on the back of the pass.
-    pass.type = "coupon";
+    // the front — clean-edged storeCard layout (coupon's serrated ticket
+    // edges were rejected), chrome in the card's sampled color, all detail
+    // on the back of the pass.
+    pass.type = "storeCard";
   } else if (design) {
     // storeCard = the strip-capable layout. The strip carries the identity
     // (name/title/company in the card's own design), so the fields below it
