@@ -24,7 +24,7 @@ import { resolveCardMeta } from "@/lib/resolve-card";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { cardHeadshot } from "@/lib/card-media";
+import { buildCardData } from "@/lib/card-data";
 import { buildConnectLinks } from "@/lib/social-url";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ReportCardLink from "@/components/ReportCardLink";
@@ -39,9 +39,9 @@ const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "custom": CustomCard,
 };
 
-function initials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
+// initials / the address join / the whole cardData literal used to live here.
+// They are in @/lib/card-data now, shared with the signature and the dashboard,
+// because three copies of the same derivation is how they came to disagree.
 
 
 function SectionNumber({ n }: { n: number }) {
@@ -226,34 +226,19 @@ export default async function CardPage({
   const actionLinks = (Array.isArray(customization.links) ? customization.links : []).filter((l) => l && l.label && l.url);
   const testimonials = (Array.isArray(customization.testimonials) ? customization.testimonials : []).filter((t) => t && t.name && t.text);
 
+  // Still needed for the saved-contact (vCard) block below, which wants the
+  // address in PARTS rather than the joined lines the card renders. The joined
+  // form now comes from buildCardData, so the two can't disagree about content.
   const addr = customization.address;
-  const addressLine1 = [addr?.street, addr?.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", ");
-  const addressLine2 = addr?.city ?? "";
-  const addressLine3 = [addr?.state, addr?.zip].filter(Boolean).join(" ");
 
-  const cardData: CardData = {
-    name: profile.name || "",
-    title: profile.title || "",
-    company: profile.company || "",
-    phone: profile.phone || "",
-    email: profile.email || "",
-    website: profile.website || "",
-    instagram: profile.instagram || "",
-    twitter: profile.twitter || "",
-    tiktok: profile.tiktok || "",
-    linkedin: profile.linkedin || "",
-    snapchat,
-    initials: profile.name ? initials(profile.name) : "SC",
-    photoUrl: cardHeadshot(profile.customization, accountPhotoUrl),
-    logoUrl: profile.logo_url || null,
-    cardUrl: `${APP_URL.replace("https://", "")}/card/${profile.username}`,
-    address: [addressLine1, addressLine2, addressLine3].filter(Boolean).join("\n"),
-    // Use the plan-SANITIZED customization the templates read design keys from,
-    // so a downgraded Pro's card doesn't keep rendering Pro-only colors/fonts on
-    // Free. (cards audit M1) photoUrl is resolved from raw customization above,
-    // which is fine — it isn't a plan-gated key.
-    customization: customization,
-  };
+  // Built by the SHARED builder, so the Swift Signature, the dashboard preview
+  // and the share images are the same object rather than four re-implementations
+  // of it. This page is the reference every other surface has to match.
+  const { data: cardData } = buildCardData(profile as Parameters<typeof buildCardData>[0], {
+    appUrl: APP_URL,
+    isPro: isPaidPlan(profile.plan),
+    accountPhotoUrl,
+  });
 
   const person = {
     name: profile.name,

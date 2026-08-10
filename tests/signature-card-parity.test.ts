@@ -56,37 +56,54 @@ function callArgs(src: string, fnName: string): string[][] {
   return calls;
 }
 
-const SURFACES: { file: string; label: string }[] = [
+// These used to check that each surface passed the template to the sanitizer
+// ITSELF — three files each doing the same thing correctly. That is a weaker
+// guarantee than it looks: it can only catch a surface doing the shared step
+// wrong, never one that quietly derives a field differently, which is exactly
+// how /share ended up reading snapchat and address out of the RAW blob and the
+// dashboard ended up omitting snapchat.
+//
+// There is one builder now, so the assertions moved to it: the surfaces must
+// USE it, and it must do the right thing. tests/card-data-identity.test.ts
+// covers its behaviour; this file covers the wiring.
+const RENDER_SURFACES: { file: string; label: string }[] = [
   { file: "src/app/card/[username]/page.tsx", label: "public card (source of truth)" },
   { file: "src/app/share/page.tsx", label: "Swift Signature / share captures" },
   { file: "src/app/dashboard/page.tsx", label: "dashboard Your Card preview" },
-  { file: "src/app/api/profile/route.ts", label: "legacy profile-card write path" },
 ];
 
 describe("Swift Signature renders the same card as the live SwiftCard", () => {
-  for (const { file, label } of SURFACES) {
-    it(`${label} passes the template to sanitizeCustomizationForPlan`, () => {
-      const calls = callArgs(read(file), "sanitizeCustomizationForPlan");
-      expect(calls.length).toBeGreaterThan(0);
-      for (const args of calls) {
-        // Assert on the whole argument list rather than a positional index:
-        // TypeScript generics (`Record<string, unknown>`) contain commas, so
-        // positional splitting is unreliable. Neither the customization nor the
-        // paid argument ever mentions a template, so its presence anywhere in
-        // the call is an exact signal that the third argument was supplied.
-        expect(args.join(",").toLowerCase()).toContain("template");
-      }
+  for (const { file, label } of RENDER_SURFACES) {
+    it(`${label} builds its card with the shared builder`, () => {
+      expect(read(file)).toMatch(/buildCardData\(/);
+    });
+
+    it(`${label} does not sanitize its own card customization`, () => {
+      // A surface that sanitizes separately has, by definition, its own opinion
+      // about what the card looks like. The card page still calls the sanitizer
+      // for the page CHROME (bio, links, testimonials); what it must not do is
+      // build a second card object from it.
+      expect(read(file), "a hand-rolled CardData is back").not.toMatch(/^\s*initials:/m);
     });
   }
 
-  it("the signature carries every social field the custom template can render", () => {
+  it("the builder passes the card's own template to the sanitizer", () => {
+    // The third argument decides which palette a downgraded card snaps to.
+    // Omitting it snapped one surface to classic-pro's while another used the
+    // real template's, and the signature stopped matching the card.
+    const calls = callArgs(read("src/lib/card-data.ts"), "sanitizeCustomizationForPlan");
+    expect(calls.length).toBeGreaterThan(0);
+    for (const args of calls) {
+      expect(args.join(",").toLowerCase()).toContain("template");
+    }
+  });
+
+  it("the builder carries every social field the custom template can render", () => {
     // withoutSocials() blanks socials for all standard templates, so these only
-    // surface on "custom", where the data passes through untouched. The share
-    // page builds its own CardData and previously omitted snapchat, so a custom
-    // card showed Snapchat live but not in the signature.
-    const share = read("src/app/share/page.tsx");
+    // surface on "custom", where the data passes through untouched.
+    const lib = read("src/lib/card-data.ts");
     for (const field of ["instagram", "twitter", "tiktok", "linkedin", "snapchat"]) {
-      expect(share).toMatch(new RegExp(`\\b${field}:`));
+      expect(lib).toMatch(new RegExp(`\\b${field}:`));
     }
   });
 
@@ -96,10 +113,19 @@ describe("Swift Signature renders the same card as the live SwiftCard", () => {
     expect(read("src/components/EmailSignatureBox.tsx")).toMatch(rule);
   });
 
-  it("both resolve a custom template down to classic-pro when not on Pro", () => {
-    // A Free/downgraded account can still have "custom" stored; both surfaces
-    // must fall back to the same standard template or the images diverge.
-    expect(read("src/app/card/[username]/page.tsx")).toMatch(/=== "custom" && !isPaidPlan\([\s\S]{0,40}?\? "classic-pro"/);
-    expect(read("src/app/share/page.tsx")).toMatch(/=== "custom" && !isPro[\s\S]{0,40}?\? "classic-pro"/);
+  it("the builder resolves a custom template down to classic-pro off Pro", () => {
+    // A Free/downgraded account can still have "custom" stored. Decided once,
+    // in the builder, so the card and the signature cannot land on different
+    // templates.
+    expect(read("src/lib/card-data.ts")).toMatch(/=== "custom" && !opts\.isPro[\s\S]{0,40}?\? "classic-pro"/);
+  });
+
+  it("the legacy profile write path still sanitizes with a template", () => {
+    // Not a render surface — a WRITE path, so it keeps its own call.
+    const calls = callArgs(read("src/app/api/profile/route.ts"), "sanitizeCustomizationForPlan");
+    expect(calls.length).toBeGreaterThan(0);
+    for (const args of calls) {
+      expect(args.join(",").toLowerCase()).toContain("template");
+    }
   });
 });

@@ -42,9 +42,10 @@ import AiConsentGate from "@/components/AiConsentGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS, LOCKED_LEAD_TAG, sanitizeCustomizationForPlan, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage } from "@/lib/usage";
-import { cardHeadshot, backfillCardPhotos } from "@/lib/card-media";
+import { backfillCardPhotos } from "@/lib/card-media";
+import { buildCardData } from "@/lib/card-data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -483,55 +484,19 @@ export default async function DashboardPage({
     allCards.map((c) => [c.username as string, (c.label || c.name || c.username) as string])
   );
 
-  function initials(name: string) {
-    return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  }
-
-  const _addr = (activeSource.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
-  const activeAddress = _addr
-    ? [
-        [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
-        _addr.city ?? "",
-        [_addr.state, _addr.zip].filter(Boolean).join(" "),
-      ].filter(Boolean).join("\n")
-    : "";
-
-  const cardData = {
-    name: activeSource.name || "",
-    title: activeSource.title || "",
-    company: activeSource.company || "",
-    phone: activeSource.phone || "",
-    email: activeSource.email || "",
-    website: activeSource.website || "",
-    instagram: activeSource.instagram || "",
-    twitter: activeSource.twitter || "",
-    tiktok: activeSource.tiktok || "",
-    linkedin: activeSource.linkedin || "",
-    initials: activeSource.name ? initials(activeSource.name) : "SC",
-    // Per-card headshot (falls back to the account photo only for legacy cards).
-    photoUrl: cardHeadshot(activeSource.customization, profile.photo_url),
-    logoUrl: activeSource.logo_url || null,
-    cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
-    address: activeAddress,
-    // Render-time plan enforcement (matches the public card page): a downgraded
-    // card's saved Pro design keys are stripped so the preview + the signature/
-    // share captures always reflect the CURRENT plan.
-    // The TEMPLATE argument matters: for a downgraded account, colours snap to
-    // the nearest preset OF THAT TEMPLATE. Omitting it snapped this preview (and
-    // the signature / share-image captures built from the same cardData) to
-    // classic-pro's presets while the live card snapped to the real template's —
-    // so the preview and the exported signature didn't match the actual card.
-    // Same third argument the public card page passes.
-    customization: sanitizeCustomizationForPlan(
-      (activeSource.customization ?? {}) as Record<string, unknown>,
-      isPro,
-      (activeSource.template as string) || "classic-pro"
-    ),
-  };
-  // Custom designer is Pro-only — downgraded cards render the standard template.
-  const activeTemplate = (activeSource.template ?? "classic-pro") === "custom" && !isPro
-    ? "classic-pro"
-    : (activeSource.template ?? "classic-pro");
+  // The SAME builder the public card page and the signature use. This one used
+  // to omit `snapchat` entirely, so a card that showed a Snapchat handle
+  // publicly lost it here — and in the share images and signature captured from
+  // this very object.
+  // The builder also plan-gates the template — the custom designer is Pro-only,
+  // so a downgraded card renders the standard one. Taking it from the same
+  // place as the data is what stops the preview and the card disagreeing about
+  // which template they are.
+  const { data: cardData, template: activeTemplate } = buildCardData(activeSource, {
+    appUrl: APP_URL,
+    isPro,
+    accountPhotoUrl: profile.photo_url,
+  });
 
   // Apple Wallet is only offered once the Apple pass certificate is configured.
   const walletEnabled = hasWalletConfig();
