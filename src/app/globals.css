@@ -735,6 +735,17 @@ html.native-app body {
      unaffected by body padding, so nav alignment is preserved. */
   padding-top: env(safe-area-inset-top);
   -webkit-tap-highlight-color: transparent;
+  /* THE WHITE BAR UNDER THE CLOCK. `body` above sets
+     `background: var(--background)`, and --background follows the OS
+     prefers-color-scheme — so on a phone in Light Mode the body painted PURE
+     WHITE over the dark html canvas. The safe-area padding right above is part
+     of the body box, so that white landed exactly in the status-bar strip: a
+     white band under the clock and battery on an otherwise black app.
+     Transparent lets html's themed canvas (#030712, or #FAF7F2 in the app's own
+     light theme) show through, so the status bar always matches the app rather
+     than the phone's OS appearance. The app's theme is `data-sc-theme`, which
+     is deliberately independent of prefers-color-scheme. */
+  background: transparent;
 }
 
 /* ── Glass chrome: top app nav + bottom tab bar ─────────────────────────── */
