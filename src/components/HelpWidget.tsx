@@ -111,7 +111,11 @@ export default function HelpWidget({ floating = false, area = "app" }: { floatin
             onClick={() => setOpen(true)}
             title={isAdmin ? "Chat with the Admin Console assistant" : "Chat with the SwiftCard assistant"}
             aria-label="Open chat assistant"
-            className={`fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full ${accentBtn} shadow-lg ${accentShadow} flex items-center justify-center transition-all hover:scale-105`}
+            // sc-help-bubble: in the native shell, globals.css lifts this above
+            // the floating tab-bar capsule (bottom-20 was tuned for the website's
+            // bottom-0 bar and lands on the Settings tab once the capsule rises
+            // by the home-indicator inset).
+            className={`sc-help-bubble fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full ${accentBtn} shadow-lg ${accentShadow} flex items-center justify-center transition-all hover:scale-105`}
             style={{ width: 52, height: 52 }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.9} className="w-6 h-6">
@@ -135,7 +139,7 @@ export default function HelpWidget({ floating = false, area = "app" }: { floatin
 
       {/* Chat bubble */}
       {open && (
-        <div className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm flex flex-col rounded-2xl border border-gray-700 bg-gray-950 shadow-2xl overflow-hidden" style={{ height: "min(70vh, 560px)" }}>
+        <div className="sc-help-panel fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm flex flex-col rounded-2xl border border-gray-700 bg-gray-950 shadow-2xl overflow-hidden" style={{ height: "min(70vh, 560px)" }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900 shrink-0">
             <div className="flex items-center gap-2">

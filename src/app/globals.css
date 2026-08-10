@@ -697,6 +697,21 @@ html.native-app {
      so bounces feel native, never gray. */
   background: #030712;
   -webkit-text-size-adjust: 100%;
+  /* THE WHITE THAT ONLY APPEARS AT THE VERY TOP OR BOTTOM OF A SCROLL.
+     That is the rubber-band bounce, and it is a different mechanism from the
+     status-bar strip fixed earlier. Dragging past the end of the document
+     detaches the page from the WKWebView's scroll view, and what shows in the
+     gap is the NATIVE view behind the webview — white by default — not this
+     element's background. No CSS on <body> can colour it, which is why setting
+     the body background did not remove it.
+     Suppressing the bounce removes the gap entirely, so there is nothing behind
+     the page to see. Also set ios.backgroundColor in capacitor.config.ts, which
+     colours that native view for any iOS version that bounces anyway — but that
+     one needs a new build, and this does not. */
+  overscroll-behavior: none;
+}
+html.native-app body {
+  overscroll-behavior: none;
 }
 html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
 
@@ -829,6 +844,21 @@ html.native-app body:has(.sc-tabbar) main {
 }
 html.native-app body:has(.sc-tabbar) {
   padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
+}
+/* The floating help bubble must clear the capsule too. Its own bottom-20
+   (80px) was tuned for the WEBSITE's bottom-0 tab bar; once the capsule is
+   raised by the home-indicator inset, 80px lands INSIDE it — squarely on the
+   right-most tab, which is Settings. Mobile widths only: at md+ the tab bar
+   is display:none and the bubble's own md:bottom-5 is correct. */
+@media (max-width: 767px) {
+  html.native-app .sc-help-bubble {
+    bottom: calc(env(safe-area-inset-bottom) + 92px);
+  }
+}
+/* The OPEN chat panel overlays the capsule by design, but its input row must
+   still clear the home indicator, or the send button sits under it. */
+html.native-app .sc-help-panel {
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
 /* ── Sheets & scrims: iOS-style frosted backdrop behind modals ──────────── */
