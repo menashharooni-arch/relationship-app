@@ -104,7 +104,7 @@ export default async function ContactsPage({
       {/* Native-only one-time AI-consent notice (shown before first AI use). */}
       <AiConsentGate accepted={!!(profile.customization as { _aiConsentAccepted?: boolean } | null)?._aiConsentAccepted} />
       {/* Top accent stripe */}
-      <div className="fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
+      <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
       {/* Sticky nav */}
       <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800">

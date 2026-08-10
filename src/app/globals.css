@@ -885,6 +885,28 @@ html.native-app body:has(.sc-tabbar) main.min-h-screen {
   min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 84px);
 }
 
+/* ── No top accent stripe in the shell ────────────────────────────────────
+   The 2px blue→violet gradient at the very top of every portal page is
+   website chrome; in the app it reads as a stray line under the status bar
+   (owner, 2026-08-10). The website keeps it. */
+html.native-app .sc-top-stripe {
+  display: none;
+}
+
+/* ── No scrollbars in the shell ───────────────────────────────────────────
+   Inner overflow containers (chat panel, card lists inside sc-still, any
+   overflow-x row) must not draw scrollbars in the app. The ROOT scroller's
+   flashing indicator is native iOS chrome, untouchable from CSS — MainViewController
+   disables it (showsVerticalScrollIndicator=false, ships with the next build). */
+html.native-app *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+html.native-app * {
+  scrollbar-width: none;
+}
+
 /* ── Still screens (sc-still): the card picker & first-card empty state ───
    A choice screen is not a document — you look and you tap. position:fixed
    takes it out of flow so the document collapses and CANNOT scroll, no matter
