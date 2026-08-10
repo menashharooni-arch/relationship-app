@@ -83,7 +83,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.gate.outputs.proceed == 'true'
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Watch the deploy and roll back if it is breaking the site
         id: watchdog
