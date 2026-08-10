@@ -11,8 +11,8 @@ import HelpWidget from "@/components/HelpWidget";
 import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
-import { cardHeadshot } from "@/lib/card-media";
-import { sanitizeCustomizationForPlan, isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
+import { buildCardData } from "@/lib/card-data";
+import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -73,55 +73,16 @@ export default async function SharePage({
   const cardUrl = `${APP_URL}/card/${activeUsername}?source=email_signature`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
 
-  function initials(name: string) {
-    return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  }
-
-  const _addr = (activeSource.customization as { address?: { street?: string; unit?: string; city?: string; state?: string; zip?: string } } | null)?.address;
-  const activeAddress = _addr
-    ? [
-        [_addr.street, _addr.unit ? `Unit ${_addr.unit}` : ""].filter(Boolean).join(", "),
-        _addr.city ?? "",
-        [_addr.state, _addr.zip].filter(Boolean).join(" "),
-      ].filter(Boolean).join("\n")
-    : "";
-
-  const cardData = {
-    name: activeSource.name || "",
-    title: activeSource.title || "",
-    company: activeSource.company || "",
-    phone: activeSource.phone || "",
-    email: activeSource.email || "",
-    website: activeSource.website || "",
-    instagram: activeSource.instagram || "",
-    twitter: activeSource.twitter || "",
-    tiktok: activeSource.tiktok || "",
-    linkedin: activeSource.linkedin || "",
-    // snapchat lives in the customization blob, and ONLY the custom template
-    // renders it (withoutSocials strips it for every other template). Omitting
-    // it here meant a Pro/Office custom card showed Snapchat on the live card
-    // but not in the Swift Signature — the one field that wasn't carried over.
-    snapchat: ((activeSource.customization as { snapchat?: string } | null)?.snapchat) || "",
-    initials: activeSource.name ? initials(activeSource.name) : "SC",
-    photoUrl: cardHeadshot(activeSource.customization, profile.photo_url),
-    logoUrl: activeSource.logo_url || null,
-    cardUrl: `${APP_URL.replace("https://", "")}/card/${activeUsername}`,
-    address: activeAddress,
-    // The TEMPLATE argument is required for fidelity: on Free, colours snap to
-    // the nearest preset OF THAT TEMPLATE. Omitting it snapped this card to
-    // classic-pro's palette while the live /card page snapped to the real
-    // template's — so a Free account on any non-classic template got a Swift
-    // Signature whose colours didn't match their actual card. Paid plans return
-    // early inside the sanitizer, so they were always identical.
-    customization: sanitizeCustomizationForPlan(
-      (activeSource.customization ?? {}) as Record<string, unknown>,
-      isPro,
-      (activeSource.template as string) || "classic-pro"
-    ),
-  };
-  const activeTemplate = (activeSource.template ?? "classic-pro") === "custom" && !isPro
-    ? "classic-pro"
-    : (activeSource.template ?? "classic-pro");
+  // The SAME builder the public card page uses. This page's whole promise is
+  // that the signature looks identical to the card, and it cannot keep that
+  // promise while being a second implementation of the card — this file used to
+  // read `snapchat` and `address` out of the RAW customization where the card
+  // page read them out of the plan-sanitized one, so the two genuinely differed.
+  const { data: cardData, template: activeTemplate } = buildCardData(activeSource, {
+    appUrl: APP_URL,
+    isPro,
+    accountPhotoUrl: profile.photo_url,
+  });
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">

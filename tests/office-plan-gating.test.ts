@@ -51,17 +51,25 @@ describe("editing a downgraded card no longer deletes what it can't show", () =>
   });
 
   it("every render path still sanitizes — that is what makes storing safe", () => {
+    // Sanitizing now happens inside buildCardData, which every card-rendering
+    // surface goes through. A surface satisfies this by calling the builder OR
+    // by sanitizing directly (the card page still does the latter for its page
+    // chrome — bio, links, testimonials — which is not part of the card).
     for (const f of [
       "src/app/card/[username]/page.tsx",
       "src/app/dashboard/page.tsx",
       "src/app/share/page.tsx",
     ]) {
       const c = code(f);
-      expect(c, `${f} stopped sanitizing`).toMatch(/sanitizeCustomizationForPlan\(/);
+      expect(c, `${f} neither sanitizes nor uses the shared builder`)
+        .toMatch(/sanitizeCustomizationForPlan\(|buildCardData\(/);
       expect(c, `${f} preserves on RENDER — dormant Pro values would go public`).not.toMatch(
         /preserveDowngraded/,
       );
     }
+    // And the builder itself must sanitize, or the above becomes vacuous.
+    expect(code("src/lib/card-data.ts")).toMatch(/sanitizeCustomizationForPlan\(/);
+    expect(code("src/lib/card-data.ts")).not.toMatch(/preserveDowngraded/);
     // The Swift Links page caps inline rather than via this helper.
     const links = code("src/app/links/[username]/page.tsx");
     expect(links).toMatch(/ownerPaid \? allActionLinks : allActionLinks\.slice\(0, PLAN_LIMITS\.FREE_MAX_LINKS\)/);
