@@ -12,7 +12,7 @@ import type { CardData, CustomBlock, CustomElement, CustomLayout, CustomSocial }
 import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
 import {
-  blockDensity, blockFontPx, blockHasValue, blockImagePx, groupSocials, hasBlocks,
+  QR_MIN_PX, blockDensity, blockFontPx, blockHasValue, blockImagePx, groupSocials, hasBlocks,
   normalizeCustomLayout, sideImageScale, socialCols, visibleBlocks, zoneFor,
 } from "@/lib/custom-layout";
 import PlatformIcon from "@/components/PlatformIcon";
@@ -328,7 +328,14 @@ export function CustomBlockContent({
   }
 
   if (block.type === "qr") {
-    return <MiniQR size={Math.round(px * 0.68)} bg="#ffffff" fg="#111827" url={data.cardUrl} />;
+    // FLOORED. The QR is the only thing on the card with a job beyond looking
+    // right, and "quiet" emphasis on a full card took it to 27 design px —
+    // small enough that a phone camera struggles, which makes the card fail at
+    // the one task it exists for. A too-small code is worse than a slightly
+    // larger one crowding the corner, so this floor wins over the density
+    // solve. It costs the layout nothing at normal loads: only Atelier and
+    // Noir, which deliberately set the QR quiet, ever reach it.
+    return <MiniQR size={Math.max(QR_MIN_PX, Math.round(px * 0.68))} bg="#ffffff" fg="#111827" url={data.cardUrl} />;
   }
 
   if (block.type === "divider") {
