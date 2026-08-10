@@ -94,20 +94,24 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
     }
   );
 
-  // QR of the card URL — scanning the pass opens the live card. (Phone-to-phone
-  // NFC is not possible for a Wallet pass: the nfc key requires Apple's VAS
-  // partner certification, and iPhones can't read passes off other iPhones
-  // anyway. The scan IS the tap here.) Bare passes skip it — the owner asked
-  // for a clean card, and the card face in the strip has its own QR.
-  if (!design?.bare) {
-    pass.setBarcodes({ message: card.cardUrl, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
-  }
+  // QR of the card URL — scanning the pass opens the live card on the other
+  // person's phone. (Phone-to-phone NFC is not possible for a Wallet pass:
+  // the nfc key requires Apple's VAS partner certification, and iPhones can't
+  // read passes off other iPhones anyway. The scan IS the tap.) Owner's final
+  // pass design 2026-08-10: card image up top, QR block at the bottom — so
+  // the barcode is back on bare passes too, with a small altText caption.
+  pass.setBarcodes({
+    message: card.cardUrl,
+    format: "PKBarcodeFormatQR",
+    messageEncoding: "iso-8859-1",
+    altText: "Scan to connect",
+  });
 
   if (design?.bare) {
-    // The real-card tier: the strip is the card, complete. Nothing else on
-    // the front — clean-edged storeCard layout (coupon's serrated ticket
-    // edges were rejected), chrome in the card's sampled color, all detail
-    // on the back of the pass.
+    // The real-card tier: the strip is the card, complete — top of the pass.
+    // Apple's QR block anchors the bottom. No fields, no logo between them:
+    // clean-edged storeCard layout (coupon's serrated ticket edges were
+    // rejected), chrome in the card's sampled color, detail on the back.
     pass.type = "storeCard";
   } else if (design) {
     // storeCard = the strip-capable layout. The strip carries the identity
