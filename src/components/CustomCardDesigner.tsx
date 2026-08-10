@@ -127,7 +127,7 @@ export default function CustomCardDesigner({
   layout,
   data,
   onChange,
-  // Scanning a printed card costs an AI call, so /api/scan-design requires a
+  // Copying a layout costs an AI call, so /api/scan-design requires a
   // session AND a paid plan. The wizard shows this whole designer to guests and
   // to Free first-card users as a preview (designUnlocked), which would put a
   // button in front of people the route answers 401/403 — they'd retake the
@@ -196,7 +196,7 @@ export default function CustomCardDesigner({
     setBlocks(next);
   }
 
-  /** Photograph the printed card, get it back as a starting point. */
+  /** Copy the layout of a card or template image — never its contents. */
   async function scanPrintedCard(file: File) {
     setScanError(null);
     setScanNote(null);
@@ -225,7 +225,7 @@ export default function CustomCardDesigner({
         // A browser that can't decode the file — an iPhone library HEIC, a PDF
         // picked through "All files". Says so, instead of blaming the photo and
         // sending them to take the same one again.
-        setScanError("We couldn't open that file. Take a photo, or pick a JPG or PNG.");
+        setScanError("We couldn't open that file. Pick a JPG or PNG, or take a photo.");
         return;
       }
       // A phone photo is 4-6MB and carries no more information about a card's
@@ -246,30 +246,31 @@ export default function CustomCardDesigner({
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         setScanError(
-          res.status === 401 ? "Sign in first — rebuilding a printed card needs an account."
-          : res.status === 403 ? "Rebuilding a printed card is a Pro feature."
-          : res.status === 429 ? "Too many scans just now — try again in a minute."
-          : res.status === 422 ? "Couldn't read that photo. Try a straight-on shot in good light."
-          : (j as { error?: string }).error === "no_ai" ? "Card scanning is unavailable right now."
-          : "That didn't work. Try another photo.",
+          res.status === 401 ? "Sign in first — copying a card layout needs an account."
+          : res.status === 403 ? "Copying a card layout is a Pro feature."
+          : res.status === 429 ? "Too many copies just now — try again in a minute."
+          : res.status === 422 ? "Couldn't read that image. Try a straight-on shot in good light."
+          : (j as { error?: string }).error === "no_ai" ? "Copying a layout is unavailable right now."
+          : "That didn't work. Try another image.",
         );
         return;
       }
       const { layout: scanned } = (await res.json()) as { layout?: CustomLayout };
       if (!scanned?.blocks?.length) {
-        setScanError("Couldn't read that photo. Try a straight-on shot in good light.");
+        setScanError("Couldn't read that image. Try a straight-on shot in good light.");
         return;
       }
       commit(scanned);
-      // Say what happened. The card silently becoming a different card is a
-      // disconcerting way to learn that a paid feature worked — and Undo is
-      // the thing you want to know about if the reading was off.
-      setScanNote("Rebuilt from your photo. Change anything below, or Undo to go back.");
+      // Say what happened, and say what DIDN'T. The card silently becoming a
+      // different card is a disconcerting way to learn that a paid feature
+      // worked — and when the source was somebody else's card, "your details
+      // are untouched" is the reassurance the moment actually needs.
+      setScanNote("Layout copied. Your own details are untouched — change anything below, or Undo.");
     } catch (e) {
       setScanError(
         (e as { name?: string })?.name === "AbortError"
           ? "That took too long. Try again in a moment."
-          : "That didn't work. Try another photo.",
+          : "That didn't work. Try another image.",
       );
     } finally {
       clearTimeout(timer);
@@ -310,11 +311,109 @@ export default function CustomCardDesigner({
   }
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-5 lg:items-start">
+    // Three children, so the phone can interleave them and the desktop cannot.
+    //
+    // On a phone this is a flex column ordered Looks -> card -> Style: you pick
+    // a Look, see it on the card immediately below, and only then work down into
+    // Style. Putting the card first (as it was) meant choosing a Look scrolled
+    // its result off the top of the screen.
+    //
+    // At lg it becomes the same two-column grid as before, with every child
+    // placed EXPLICITLY. Auto-placement would flow the third child back under
+    // the canvas; the row/column starts are what keep Looks and Style stacked in
+    // the right-hand track with the card spanning both rows beside them.
+    <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-5 lg:gap-y-3 lg:items-start">
+      {/* Looks — hover any one to see it on your card, click to keep it. */}
+      <div className={`${card} p-3 space-y-2.5 order-1 lg:col-start-2 lg:row-start-1`}>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className={head}>Looks</p>
+          <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
+        </div>
+        {/* Capped. The controls column has no width of its own below lg, so
+            on a half-screen desktop window (roughly 936-1023px, where the
+            max-w-4xl page has saturated but the two-column layout has not
+            kicked in) each of these diagrams rendered 212x143px — a wall of
+            eight cards above the one card they are miniatures of. */}
+        <div className="grid grid-cols-4 gap-2 max-w-[420px] lg:max-w-none">
+          {looks.map((l) => (
+            <button
+              key={l.key}
+              type="button"
+              title={l.blurb}
+              onMouseEnter={() => setHoverLook(l.key)}
+              onMouseLeave={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
+              onFocus={() => setHoverLook(l.key)}
+              onBlur={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
+              onClick={() => { setHoverLook(null); commit(l.build()); }}
+              className={`rounded-lg p-1 transition-all ${
+                hoverLook === l.key ? "ring-2 ring-blue-500 scale-[1.03]" : "ring-1 ring-gray-800 hover:ring-gray-600"
+              }`}
+            >
+              <LookThumb layout={l.preview} />
+              <span className="block text-[10px] text-gray-400 mt-1 truncate">{l.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* The ninth Look, and the only one that isn't ours — so it is sized to
+            sit alongside the eight rather than look like a footnote under them. */}
+        <button
+          type="button"
+          onClick={() => { if (canScan) fileRef.current?.click(); }}
+          disabled={scanning || !canScan}
+          className={`w-full rounded-xl border border-dashed px-3.5 py-3.5 text-left transition-colors ${
+            canScan
+              ? "border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60"
+              : "border-gray-700 bg-gray-950/40 cursor-default"
+          }`}
+        >
+          <span className="flex items-center gap-3">
+            <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${canScan ? "bg-blue-600/20 text-blue-300" : "bg-gray-800 text-gray-500"}`}>
+              {scanning ? (
+                <span className="block w-4 h-4 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
+                </svg>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className={`block text-[13.5px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
+                {scanning ? "Copying the layout…" : "Copy a card or template you like"}
+                {!canScan && (
+                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+                )}
+              </span>
+              <span className="block text-[11px] text-gray-400 leading-snug mt-0.5">
+                {canScan
+                  ? "Upload your printed card, or a template you found online. We copy the layout only — never anyone's details."
+                  : "On Pro, upload a card or template and we'll copy its layout — never anyone's details."}
+              </span>
+            </span>
+          </span>
+        </button>
+        {/* NO `capture` attribute. With capture="environment" a phone opens
+            straight into the camera, which makes the whole "or a template you
+            found online" half of this feature unreachable — you cannot
+            photograph an image that is already in your camera roll. Without it
+            the OS offers camera AND library, so both routes work. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
+        />
+        {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
+        {scanNote && <p className="text-[11px] text-emerald-400">{scanNote}</p>}
+      </div>
+
       {/* ── The canvas. Pinned on desktop: it stays in view while you work
-             down the controls beside it. Capped and centred so the caption and
-             Undo sit under the CARD rather than at the far edge of the track. ── */}
-      <div className="lg:sticky lg:top-6 w-full max-w-[560px] mx-auto">
+             down the controls beside it. Capped and centred so the caption sits
+             under the CARD rather than at the far edge of the track.
+             row-span-2 gives the sticky box a containing block tall enough to
+             travel in — a single-row area would pin it in place. ── */}
+      <div className="order-2 w-full max-w-[560px] mx-auto lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6">
         <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6">
           <div onPointerDown={onCardPointerDown} className="cursor-pointer">
             <CardScaler>
@@ -322,108 +421,34 @@ export default function CustomCardDesigner({
             </CardScaler>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 mt-2">
-          <p className="text-[11px] text-gray-500 min-w-0 truncate">
-            {hoverLook
-              ? `${looks.find((l) => l.key === hoverLook)?.label} — click to use it`
-              : "Tap anything on the card to style it."}
-          </p>
-          <button
-            type="button"
-            onClick={undo}
-            disabled={!canUndo}
-            className="text-[11px] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
-          >
-            ↶ Undo
-          </button>
-        </div>
+        <p className="text-[11px] text-gray-500 mt-2 min-w-0 truncate">
+          {hoverLook
+            ? `${looks.find((l) => l.key === hoverLook)?.label} — click to use it`
+            : "Tap anything on the card to style it."}
+        </p>
       </div>
 
-      {/* ── The controls ── */}
-      <div className="space-y-3 mt-4 lg:mt-0">
-        {/* Looks — hover any one to see it on your card, click to keep it. */}
-        <div className={`${card} p-3 space-y-2.5`}>
-          <div className="flex items-baseline justify-between gap-2">
-            <p className={head}>Looks</p>
-            <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
-          </div>
-          {/* Capped. The controls column has no width of its own below lg, so
-              on a half-screen desktop window (roughly 936-1023px, where the
-              max-w-4xl page has saturated but the two-column layout has not
-              kicked in) each of these diagrams rendered 212x143px — a wall of
-              eight cards above the one card they are miniatures of. */}
-          <div className="grid grid-cols-4 gap-2 max-w-[420px] lg:max-w-none">
-            {looks.map((l) => (
-              <button
-                key={l.key}
-                type="button"
-                title={l.blurb}
-                onMouseEnter={() => setHoverLook(l.key)}
-                onMouseLeave={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
-                onFocus={() => setHoverLook(l.key)}
-                onBlur={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
-                onClick={() => { setHoverLook(null); commit(l.build()); }}
-                className={`rounded-lg p-1 transition-all ${
-                  hoverLook === l.key ? "ring-2 ring-blue-500 scale-[1.03]" : "ring-1 ring-gray-800 hover:ring-gray-600"
-                }`}
-              >
-                <LookThumb layout={l.preview} />
-                <span className="block text-[10px] text-gray-400 mt-1 truncate">{l.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => { if (canScan) fileRef.current?.click(); }}
-            disabled={scanning || !canScan}
-            className={`w-full rounded-lg border border-dashed px-3 py-2.5 text-left transition-colors ${
-              canScan
-                ? "border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60"
-                : "border-gray-700 bg-gray-950/40 cursor-default"
-            }`}
-          >
-            <span className="flex items-center gap-2.5">
-              <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${canScan ? "bg-blue-600/20 text-blue-300" : "bg-gray-800 text-gray-500"}`}>
-                {scanning ? (
-                  <span className="block w-3.5 h-3.5 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
-                ) : (
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
-                  </svg>
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className={`block text-[12px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
-                  {scanning ? "Reading your card…" : "Scan the card you already have"}
-                  {!canScan && (
-                    <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
-                  )}
-                </span>
-                <span className="block text-[10.5px] text-gray-400 leading-snug">
-                  {canScan
-                    ? "Photograph your printed card and we'll rebuild it here."
-                    : "On Pro, photograph your printed card and we'll rebuild it here."}
-                </span>
-              </span>
-            </span>
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
-          />
-          {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
-          {scanNote && <p className="text-[11px] text-emerald-400">{scanNote}</p>}
-        </div>
-
+      {/* ── The rest of the controls ── */}
+      <div className="space-y-3 order-3 lg:col-start-2 lg:row-start-2">
         {/* Style — colour, type and arrangement in one place, one row each, so
             it reads as a single decision instead of three stacked boxes. */}
         <div className={`${card} p-3 space-y-2.5`}>
-          <p className={head}>Style</p>
+          {/* Undo lives here rather than under the card. It reverses every
+              change — a Look, a copied layout, a colour, a moved block — so it
+              belongs with the controls that make them, and on a phone that puts
+              it within thumb's reach of the thing you just regretted instead of
+              a scroll back up past the preview. */}
+          <div className="flex items-center justify-between gap-2">
+            <p className={head}>Style</p>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              className="text-[11px] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
+            >
+              ↶ Undo
+            </button>
+          </div>
 
           <div className="flex gap-2">
             <span className={row}>Colour</span>

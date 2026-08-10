@@ -654,6 +654,23 @@ export type ScanReading = {
 };
 
 /**
+ * Where a scanned block sits, when the source card puts it somewhere the
+ * default mapping wouldn't.
+ *
+ * Only marks can move. `zoneFor` forces every text block into the main area no
+ * matter what is stored, because the side panel is a third of the card wide and
+ * a single unbroken token — an email, a handle — either fits it or splits
+ * mid-word. So a card with its phone number printed down a coloured spine comes
+ * back with the number in the main area: the closest arrangement this renderer
+ * can actually hold. Reading it and then dropping it would be worse than not
+ * reading it, so the prompt only ever asks about the three that can move.
+ */
+function scannedZone(spec: { type: CustomBlock["type"]; zone: CardZone }, place: unknown): CardZone {
+  if (TEXT_TYPES.has(spec.type)) return spec.zone;
+  return place === "panel" ? "left" : place === "main" ? "right" : spec.zone;
+}
+
+/**
  * Turn what the model saw into a layout.
  *
  * The model CHOOSES AMONG OPTIONS; it never authors the layout. Every value is
@@ -708,7 +725,7 @@ export function layoutFromScan(input: ScanReading | null | undefined): CustomLay
     const emphasis: CardEmphasis = e === "hero" || e === "quiet" || e === "normal" ? e : "normal";
     chosen.push({
       id: key, type: spec.type, field: spec.field as CustomBlock["field"],
-      on: true, zone: spec.zone, emphasis,
+      on: true, zone: scannedZone(spec, (item as { place?: unknown })?.place), emphasis,
     });
     if (chosen.length >= MAX_VISIBLE_BLOCKS) break;
   }
@@ -735,20 +752,48 @@ export function layoutFromScan(input: ScanReading | null | undefined): CustomLay
   };
 }
 
-/** The exact instruction the vision model is given. Exported so a test can pin it. */
+/** The ids whose ZONE the reader is allowed to choose — see `scannedZone`. */
+const PLACEABLE = [...SCANNABLE].filter(([, s]) => !TEXT_TYPES.has(s.type)).map(([k]) => k);
+
+/**
+ * The exact instruction the vision model is given. Exported so a test can pin it.
+ *
+ * Two things this prompt must keep doing, both of which are easy to lose in an
+ * innocent-looking edit:
+ *
+ *  1. It asks for a LAYOUT, never for content. The owner is copying the shape of
+ *     a card — often somebody else's card, or a template they found — and the
+ *     wording has to make that unambiguous, because a vision model handed a
+ *     business card will otherwise volunteer the name and phone number on it.
+ *     Nothing downstream would store them (`layoutFromScan` builds blocks from a
+ *     whitelist and never reads a value), but the cheapest place to not have
+ *     somebody else's phone number is to never ask for it.
+ *  2. It offers a CHOICE AMONG OPTIONS. Every field here is either an enum or a
+ *     #rrggbb, so the worst a bad reading can do is pick the wrong option.
+ */
 export const SCAN_PROMPT = [
-  "You are looking at a photograph of a printed business card.",
-  "Describe its DESIGN so it can be recreated. Return ONLY valid JSON, no prose:",
+  "You are looking at an image of a business card — a photograph of a printed",
+  "card, or a screenshot of a card design or template.",
+  "",
+  "Report only its LAYOUT AND COLOURS so the same arrangement can be rebuilt.",
+  "Do NOT read, transcribe, translate or return any of the text printed on it:",
+  "no names, job titles, company names, phone numbers, emails or addresses.",
+  "Report only WHICH KIND of thing appears and WHERE it sits.",
+  "",
+  "Return ONLY valid JSON, no prose:",
   '{"background":"#rrggbb","textColor":"#rrggbb","accentColor":"#rrggbb",',
   '"panelBackground":"#rrggbb or null","skeleton":"split|mirror|stacked","serif":true|false,',
-  '"blocks":[{"id":"...","emphasis":"hero|normal|quiet"}]}',
+  '"blocks":[{"id":"...","emphasis":"hero|normal|quiet","place":"panel|main"}]}',
   "",
   "background = the card's main surface colour.",
   "panelBackground = a SECOND surface if the card has a coloured band or side panel, else null.",
-  'skeleton = "split" if a panel/logo sits on the LEFT, "mirror" if on the RIGHT, "stacked" if a band runs across the TOP.',
-  "blocks = only the things actually printed on the card, IN READING ORDER.",
+  'skeleton = "split" if that band/panel sits on the LEFT, "mirror" if on the RIGHT,',
+  '  "stacked" if it runs across the TOP. Use "split" when the card has no band.',
+  "blocks = only the kinds of thing actually on the card, IN READING ORDER.",
   `Allowed ids: ${[...SCANNABLE.keys()].join(", ")}.`,
   'emphasis = "hero" for the largest element, "quiet" for the smallest, "normal" otherwise.',
+  `place = only for ${PLACEABLE.join(", ")}: "panel" if it sits on the coloured band`,
+  '  or side panel, "main" if it sits among the text. Omit place for everything else.',
   "Do not invent anything you cannot see. Omit what is not there.",
 ].join("\n");
 
