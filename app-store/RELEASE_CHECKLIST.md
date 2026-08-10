@@ -28,6 +28,20 @@ button shipped to production. §4.8 is satisfied.
    `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
    automatic signing should resolve immediately after.
 
+**APNs verified (2026-08-09).** A provider JWT signed with `C8TWRXCNKA`,
+POSTed to a fake device token, returns HTTP 400 `BadDeviceToken` on BOTH
+`api.push.apple.com` and `api.sandbox.push.apple.com` — never
+`InvalidProviderToken`. Apple accepted the team, key id, signature and topic;
+only the made-up token was rejected. That is as far as push can be proven
+without hardware.
+
+⚠️ **Test push through TestFlight, not a dev build.** `APPLE_PUSH_SANDBOX` is
+unset, so `lib/apns.ts` targets production APNs — correct for TestFlight and
+the App Store. A build run straight from Xcode onto a device gets a *sandbox*
+device token, and production APNs answers `BadDeviceToken` for it. That looks
+exactly like "push is broken" when nothing is. Either test via TestFlight, or
+temporarily set `APPLE_PUSH_SANDBOX=1` and remember to remove it.
+
 **How Sign in with Apple was verified (2026-08-07), so nobody re-litigates it:**
 1. `/auth/v1/authorize?provider=apple` returns `302 → appleid.apple.com` with
    `client_id=me.swiftcard.web`. (It briefly returned "provider is not enabled"
