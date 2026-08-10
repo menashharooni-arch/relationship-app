@@ -714,6 +714,10 @@ html.native-app body {
   overscroll-behavior: none;
 }
 html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
+/* Cream screens (login, profile, legal pages) regardless of app theme: the
+   full-bleed shell paints html's canvas behind the status bar, and a DARK
+   strip over a cream page reads as a glitch band. Match the page instead. */
+html.native-app:has(main.bg-cream) { background: var(--color-cream); }
 
 
 /* ── Marketing chrome never appears in the app ──────────────────────────────
