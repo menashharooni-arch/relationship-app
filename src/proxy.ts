@@ -34,6 +34,24 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
+  // The native shell must never land on the marketing homepage — "/" is the
+  // app. A hero, a "Get started free" CTA and a footer of site links is the
+  // wrong first screen for something you just installed, and it is the shape
+  // App Review reads as a repackaged website (guideline 4.2).
+  //
+  // Keyed on the user-agent suffix the shell appends, so the WEBSITE at "/" is
+  // completely untouched. This is inert until an iOS build ships
+  // `appendUserAgent` in capacitor.config.ts; until then the sc-boot script in
+  // the root layout performs the same redirect before first paint. Placed after
+  // getUser() so it can branch on the real session — a signed-out user goes
+  // straight to /login rather than bouncing through /dashboard's guard.
+  if (
+    request.nextUrl.pathname === "/" &&
+    (request.headers.get("user-agent") ?? "").includes("SwiftCardApp")
+  ) {
+    return redirectWithAuthCookies(new URL(user ? "/dashboard" : "/login", request.url));
+  }
+
   // NOTE: /templates is deliberately NOT here. The marketing nav and footer
   // both link to it, so gating it bounced every signed-out visitor to /login
   // the moment they clicked "Templates" — it's a gallery of designs with
@@ -92,6 +110,10 @@ export async function proxy(request: NextRequest) {
 // including it would mean the redirect target re-enters the same check.
 export const config = {
   matcher: [
+    // Exact "/" only (no :path*), for the native-shell redirect above. On the
+    // website this just means the homepage also gets a session refresh, which
+    // is harmless — it renders identically signed in or out.
+    "/",
     "/dashboard/:path*",
     "/onboarding/:path*",
     "/profile/:path*",

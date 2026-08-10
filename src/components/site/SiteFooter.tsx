@@ -51,7 +51,11 @@ export default function SiteFooter() {
     {/* Site-wide sales chatbot — appears on every marketing page via the footer */}
     {/* App Store 3.1.1: sales chat discusses pricing — never in the native shell. */}
     <NativeHidden><SalesChat /></NativeHidden>
-    <footer className="rd-dark2 relative overflow-hidden border-t border-white/10">
+    {/* sc-site-footer: marketing chrome, hidden in the native shell by
+        globals.css. Three columns of site links and a "Get started free" CTA
+        below every page is the clearest tell that an app is a wrapped website —
+        and the surface App Review reads as one. */}
+    <footer className="sc-site-footer rd-dark2 relative overflow-hidden border-t border-white/10">
       <div className="rd-glow rd-glow-violet" style={{ width: 520, height: 520, left: "-10%", bottom: "-60%", opacity: 0.25 }} />
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-16 relative">
         <div className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
