@@ -241,6 +241,78 @@ function GenericStrip(p: Meta) {
   );
 }
 
+// ── Tier 1: the REAL card, as the strip ─────────────────────────────────────
+// card-shares/{username}.png is the pixel-perfect client-side capture of the
+// actual rendered card — the same Tier-1 asset the OG share preview uses. When
+// it exists, the strip IS the card: the full capture, contain-fit with its
+// corners rounded and safely inset from the pass's own corner radius, over a
+// blurred, dimmed cover-fit echo of itself so the side margins read as
+// intentional ground rather than letterbox bars. This is the only way a CUSTOM
+// card design can appear on the pass faithfully — the Satori templates below
+// can only approximate the six stock templates.
+export async function captureDesign(username: string): Promise<{ theme: PassTheme; strips: PassStrips } | null> {
+  try {
+    const { getAdminSupabase } = await import("@/lib/supabase-admin");
+    const { data, error } = await getAdminSupabase().storage.from("card-shares").download(`${username}.png`);
+    if (error || !data) return null;
+    const buf = Buffer.from(await data.arrayBuffer());
+    if (buf.byteLength < 1000) return null;
+    return await captureToDesign(buf);
+  } catch {
+    return null;
+  }
+}
+
+/** The pure capture→(theme, strips) transform — separated so tests can feed it
+ *  a synthetic capture without touching storage. */
+export async function captureToDesign(capture: Buffer): Promise<{ theme: PassTheme; strips: PassStrips } | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const img = sharp(capture);
+    const m = await img.metadata();
+    if (!m.width || !m.height) return null;
+    const ratio = m.width / m.height;
+    // Same sanity window the OG route applies to the capture.
+    if (ratio < 1.25 || ratio > 2.4) return null;
+
+    // Chrome colors from the card itself: a 1×1 resize is the average color.
+    const avg = await sharp(capture).resize(1, 1, { fit: "cover" }).raw().toBuffer();
+    const [r, g, b] = [avg[0], avg[1], avg[2]];
+    const dark = (r * 299 + g * 587 + b * 114) / 1000 < 128;
+    const theme: PassTheme = {
+      backgroundColor: `rgb(${r}, ${g}, ${b})`,
+      foregroundColor: dark ? "rgb(255, 255, 255)" : "rgb(15, 23, 42)",
+      labelColor: dark ? "rgb(203, 213, 225)" : "rgb(71, 85, 105)",
+      darkChrome: dark,
+    };
+
+    const makeStrip = async (w: number, h: number, inset: number, rx: number): Promise<Buffer> => {
+      const cardH = h - inset * 2;
+      const cardW = Math.min(Math.round(cardH * ratio), w - inset * 2);
+      const mask = Buffer.from(
+        `<svg width="${cardW}" height="${cardH}"><rect x="0" y="0" width="${cardW}" height="${cardH}" rx="${rx}" ry="${rx}"/></svg>`
+      );
+      const [backdrop, card] = await Promise.all([
+        sharp(capture).resize(w, h, { fit: "cover" }).blur(30).modulate({ brightness: 0.55 }).toBuffer(),
+        sharp(capture).resize(cardW, cardH, { fit: "fill" }).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer(),
+      ]);
+      return sharp(backdrop)
+        .composite([{ input: card, left: Math.round((w - cardW) / 2), top: inset }])
+        .png()
+        .toBuffer();
+    };
+
+    const [x3, x2, x1] = await Promise.all([
+      makeStrip(1125, 369, 27, 30),
+      makeStrip(750, 246, 18, 20),
+      makeStrip(375, 123, 9, 10),
+    ]);
+    return { theme, strips: { x1, x2, x3 } };
+  } catch {
+    return null;
+  }
+}
+
 /** Render the card-styled strip at @3x, downscale for @2x/@1x with sharp. */
 export async function renderCardStrips(meta: Meta): Promise<PassStrips> {
   const p: Meta = { ...meta };
