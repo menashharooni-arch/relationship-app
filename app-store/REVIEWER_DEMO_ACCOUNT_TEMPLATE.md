@@ -17,8 +17,24 @@ node scripts/create-apple-review-account.js
   real activity for the reviewer.
 - The password prints ONCE. Store it in your password manager, paste it into
   App Store Connect → App Review Information, and nowhere else.
-- Re-running the script resets the account/password (safe to rotate after
-  each review cycle).
+- Re-running the script does NOT reset the password — it is idempotent and
+  bails if the account exists. To rotate: Supabase Studio → Authentication →
+  Users → applereview@swiftcard.me → Reset password.
+
+### Status: created 2026-08-09
+
+`applereview@swiftcard.me` exists in production, Pro tier, with the card
+provisioned (`/card/apple-review-bd38b805` returns 200), 3 demo contacts and
+24 card views seeded. The generated password is at
+`~/.swiftcard/apple-review-account.txt` (mode 600) — move it into your
+password manager and App Store Connect, then delete that file.
+
+⚠️ The first run seeded **0** card views: the script picked view dates at
+random, `(username, visitor_id, day)` is UNIQUE, and one collision in a single
+batch insert rejects all 24 rows — leaving the reviewer an Analytics screen of
+zeros, which is the opposite of the point. Fixed to derive the day from the
+index so the pairs are unique by construction, and the 24 views were
+backfilled.
 
 ## What the reviewer account must demonstrate (verify before every submission)
 
@@ -29,7 +45,7 @@ node scripts/create-apple-review-account.js
 - [ ] Contacts list contains 2–3 FICTIONAL demo leads with tags/statuses.
 - [ ] Analytics shows non-zero demo views.
 - [ ] Swift Links page is populated.
-- [ ] Apple Wallet add works.
+- [x] Apple Wallet: N/A — not configured, and the button is gated off. Do not list it as a feature to test.
 - [ ] Settings → Advanced account settings → Delete account is reachable
       (reviewer may test deletion — if they do, RE-RUN the script before the
       next submission; deletion is real).

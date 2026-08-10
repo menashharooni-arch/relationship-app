@@ -30,7 +30,8 @@ SwiftCard is the digital business card that does the follow-up for you.
 
 SHARE IN ONE TAP
 Your card lives at your own link and QR code. Anyone can open it — no app
-needed on their end. Add it to your Apple Wallet so it's always one tap away.
+needed on their end. Keep it one tap away on your home screen with the
+SwiftCard QR widget.
 
 NEVER LOSE A LEAD
 When someone views your card, they can share their details back. Every

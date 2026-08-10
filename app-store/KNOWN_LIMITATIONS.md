@@ -10,7 +10,8 @@ hidden from Apple: metadata and reviewer notes stay consistent with this list._
 | Buying Pro / Office, seat management, coupons, billing portal | **Absent** — nothing is sold or priced in-app | Website only | Fully suppressed (no mention, no links) |
 | Office seat purchase / removal pricing | Absent | Website | Member add/remove works; billing steps suppressed with neutral copy |
 | NFC tag WRITING from inside the app | Not possible (no Web NFC in WKWebView) | Android Chrome web, or any free NFC-writer app | Button hidden natively; honest manual path (copy link + NFC app) shown |
-| Dedicated watchOS app | Roadmap — does not exist | — | Wallet pass syncs to Watch Wallet (real today); in-app clarifier on /products/watch says exactly this |
+| Dedicated watchOS app | Roadmap — does not exist | — | In-app clarifier on /products/watch says exactly this. ⚠️ Do NOT restore the old "Wallet pass syncs to Watch Wallet" justification: Apple Wallet is not configured in production (see the Apple Wallet row) |
+| Apple Wallet passes | **Not configured in production.** `/api/wallet/pass` returns 501 `not_configured`; no `APPLE_PASS_*` / `APPLE_WWDR` env vars exist | — | "Add to Apple Wallet" is correctly gated by `hasWalletConfig()`, so no broken button ever renders. Submission copy must not claim Wallet until it is turned on — see RELEASE_CHECKLIST §A |
 | Web push (VAPID) | Web-only | Browsers | Native uses real APNs push instead |
 | Referral program ("free months of Pro") | Hidden natively (compensation touches plan upgrades) | Website | NativeHidden |
 | Home-screen QR widget | Shipping. Target builds and embeds; iOS registers the extension. Population by a real signed-in card is still unverified on a device (P0 in the TestFlight plan) | — | Wallet-page copy has a native clarifier |
