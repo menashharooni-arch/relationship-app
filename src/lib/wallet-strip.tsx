@@ -310,12 +310,14 @@ export async function captureToDesign(capture: Buffer): Promise<CaptureDesign | 
         .toBuffer();
     };
 
-    // Coupon-style strip geometry (375×144pt) — the tallest strip Apple
-    // offers, so the card renders ~17% larger than storeCard's 123pt allowed.
+    // storeCard strip geometry (375×123pt). Coupon's 144pt strip was tried
+    // for the larger card and REJECTED: the coupon layout draws serrated
+    // ticket-perforation edges on the pass, which is exactly the look the
+    // owner is escaping. storeCard has clean rounded edges.
     const [x3, x2, x1] = await Promise.all([
-      makeStrip(1125, 432, 21, 30),
-      makeStrip(750, 288, 14, 20),
-      makeStrip(375, 144, 7, 10),
+      makeStrip(1125, 369, 21, 30),
+      makeStrip(750, 246, 14, 20),
+      makeStrip(375, 123, 7, 10),
     ]);
     return { theme, strips: { x1, x2, x3 }, bare: true };
   } catch {
