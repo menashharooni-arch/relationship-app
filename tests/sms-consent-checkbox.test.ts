@@ -143,3 +143,54 @@ describe("an explicit SMS decline blocks every send path", () => {
     expect(cron).toMatch(/sms-paused/);
   });
 });
+
+// ── A2P 10DLC / TCR campaign vetting ────────────────────────────────────────
+// The first campaign submission was REJECTED with 30882 (Terms and Conditions
+// issues) and 30908 (privacy policy could not be verified). Every required
+// disclosure existed — but on /sms-terms, reachable from /terms only by a
+// link. TCR opens the Terms & Conditions URL and looks for the elements ON
+// that page; a link is not a disclosure. These assertions exist so a tidy-up
+// that moves this copy back behind a link fails here instead of costing
+// another multi-week carrier review cycle.
+const flat = (s: string) => s.replace(/\s+/g, " ");
+
+describe("A2P 10DLC: /terms carries the SMS program disclosures itself", () => {
+  const terms = readFileSync("src/app/terms/page.tsx", "utf8");
+
+  it("states message frequency", () => {
+    expect(terms).toMatch(/[Mm]essage frequency varies/);
+  });
+  it("states that message and data rates may apply", () => {
+    expect(terms).toMatch(/Message and data rates may apply/i);
+  });
+  it("gives STOP and HELP keywords", () => {
+    expect(terms).toMatch(/\bSTOP\b/);
+    expect(terms).toMatch(/\bHELP\b/);
+  });
+  it("names customer-care contact", () => {
+    expect(terms).toMatch(/hello@swiftcard\.me/);
+  });
+  it("describes the program and how opt-in happens", () => {
+    expect(terms).toMatch(/Program description/i);
+    expect(terms).toMatch(/consent box/i);
+  });
+  it("carries the exact no-sharing sentence TCR looks for", () => {
+    // JSX wraps prose across lines; compare on collapsed whitespace so the
+    // assertion tracks the sentence, not the formatting.
+    expect(flat(terms)).toMatch(
+      /do not share, sell, or otherwise provide your mobile phone number or messaging consent information to any third parties or affiliates for marketing or promotional purposes/i
+    );
+  });
+  it("still links out to the full SMS terms", () => {
+    expect(terms).toMatch(/\/sms-terms/);
+  });
+});
+
+describe("A2P 10DLC: /privacy carries the mobile-data sentence", () => {
+  it("has the no-share/sell language on the privacy page too", () => {
+    const privacy = readFileSync("src/app/privacy/page.tsx", "utf8");
+    expect(flat(privacy)).toMatch(
+      /do not share, sell, or otherwise provide your mobile phone number or messaging consent information to any third parties or affiliates for marketing or promotional purposes/i
+    );
+  });
+});
