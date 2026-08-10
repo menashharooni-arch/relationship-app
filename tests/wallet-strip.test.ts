@@ -47,10 +47,14 @@ describe("wallet pass strip", () => {
 
     const design = await captureToDesign(capture);
     expect(design).not.toBeNull();
+    // bare: the real-card tier renders a coupon-layout pass with nothing but
+    // the card — no barcode block, no contact rows (buildPkpass keys on this).
+    expect(design!.bare).toBe(true);
+    // Coupon strip geometry — taller than storeCard's, so the card is larger.
     for (const [buf, w, h] of [
-      [design!.strips.x1, 375, 123],
-      [design!.strips.x2, 750, 246],
-      [design!.strips.x3, 1125, 369],
+      [design!.strips.x1, 375, 144],
+      [design!.strips.x2, 750, 288],
+      [design!.strips.x3, 1125, 432],
     ] as const) {
       expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
       expect(pngSize(buf)).toEqual({ w, h });
