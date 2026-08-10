@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { passTheme, renderCardStrips } from "@/lib/wallet-strip";
+import { captureToDesign, passTheme, renderCardStrips } from "@/lib/wallet-strip";
 
 // The Wallet pass's card-styled strip must actually render — if Satori or
 // sharp break (glyphs, wasm, resize), the route silently degrades to the
@@ -37,6 +37,32 @@ describe("wallet pass strip", () => {
       }
     }
   }, 60_000);
+
+  it("builds the strip from a real-card capture: exact sizes, chrome sampled from the card", async () => {
+    // Synthetic "capture": a dark navy card at the real 1.75:1 aspect.
+    const sharp = (await import("sharp")).default;
+    const capture = await sharp({
+      create: { width: 700, height: 400, channels: 3, background: { r: 13, g: 27, b: 62 } },
+    }).png().toBuffer();
+
+    const design = await captureToDesign(capture);
+    expect(design).not.toBeNull();
+    for (const [buf, w, h] of [
+      [design!.strips.x1, 375, 123],
+      [design!.strips.x2, 750, 246],
+      [design!.strips.x3, 1125, 369],
+    ] as const) {
+      expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
+      expect(pngSize(buf)).toEqual({ w, h });
+    }
+    // Dark card → dark chrome in the card's own color, wordmark allowed.
+    expect(design!.theme.darkChrome).toBe(true);
+    expect(design!.theme.backgroundColor).toBe("rgb(13, 27, 62)");
+
+    // A capture outside the card aspect window is rejected (falls to Tier 2).
+    const square = await sharp({ create: { width: 400, height: 400, channels: 3, background: { r: 0, g: 0, b: 0 } } }).png().toBuffer();
+    expect(await captureToDesign(square)).toBeNull();
+  }, 30_000);
 
   it("themes chrome per template — light templates must not carry the white wordmark", () => {
     expect(passTheme(meta("modern-bold")).darkChrome).toBe(true);
