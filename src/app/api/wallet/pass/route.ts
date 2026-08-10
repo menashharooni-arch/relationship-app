@@ -38,6 +38,23 @@ export async function GET(req: NextRequest) {
   try {
     // Import the signer lazily so the (heavy) library only loads when actually used.
     const { buildPkpass } = await import("@/lib/wallet");
+
+    // The card's own look: theme + strip rendered from the same design
+    // language as its share preview. Any failure here (Satori glyph, image
+    // fetch, sharp) degrades to the plain navy pass rather than a 500 — a
+    // working pass always ships.
+    let design;
+    try {
+      const { resolveCardMeta } = await import("@/lib/resolve-card");
+      const meta = await resolveCardMeta(username);
+      if (meta) {
+        const { passTheme, renderCardStrips } = await import("@/lib/wallet-strip");
+        design = { theme: passTheme(meta), strips: await renderCardStrips(meta) };
+      }
+    } catch (e) {
+      console.error("[wallet] card-styled strip failed, using plain pass:", e);
+    }
+
     const buf = await buildPkpass({
       username: src.username as string,
       name: (src.name as string) || "SwiftCard",
@@ -47,7 +64,7 @@ export async function GET(req: NextRequest) {
       email: src.email as string | null,
       website: src.website as string | null,
       cardUrl: `${APP_URL}/card/${src.username}?source=apple_wallet`,
-    });
+    }, design);
     return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": "application/vnd.apple.pkpass",

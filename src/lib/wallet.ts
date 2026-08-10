@@ -1,4 +1,5 @@
 import { PKPass } from "passkit-generator";
+import type { PassStrips, PassTheme } from "@/lib/wallet-strip";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -13,6 +14,14 @@ export type WalletCard = {
   cardUrl: string; // full https URL the pass barcode/link points at
 };
 
+/** The card's own look, rendered by wallet-strip.tsx. Optional: without it the
+ *  pass falls back to the original fixed navy generic layout, so a strip
+ *  render failure degrades to a working (if plain) pass, never a 500. */
+export type WalletDesign = {
+  theme: PassTheme;
+  strips: PassStrips;
+};
+
 // Pass images are committed under /public/wallet and served by the CDN — fetched
 // here rather than read from disk (files in /public aren't on the serverless FS).
 async function loadAsset(name: string): Promise<Buffer> {
@@ -23,7 +32,12 @@ async function loadAsset(name: string): Promise<Buffer> {
 
 // Build a SIGNED .pkpass for a card. Only called when hasWalletConfig() is true,
 // so the Apple certificate env vars are guaranteed present.
-export async function buildPkpass(card: WalletCard): Promise<Buffer> {
+//
+// With `design` (the normal path): a storeCard whose strip is the card's OWN
+// design — same template language as the OG share preview — and whose chrome
+// colors match the template. Without it: the original fixed navy generic pass,
+// kept as the degrade path so a strip-render failure still ships a pass.
+export async function buildPkpass(card: WalletCard, design?: WalletDesign): Promise<Buffer> {
   const [icon, icon2, icon3, logo, logo2] = await Promise.all([
     loadAsset("icon.png"),
     loadAsset("icon@2x.png"),
@@ -32,14 +46,22 @@ export async function buildPkpass(card: WalletCard): Promise<Buffer> {
     loadAsset("logo@2x.png"),
   ]);
 
+  // The wordmark logo.png is WHITE — on the light chrome of light templates it
+  // would vanish, so those passes drop the image and use logoText instead
+  // (which renders in foregroundColor and adapts).
+  const darkChrome = design ? design.theme.darkChrome : true;
+  const files: Record<string, Buffer> = {
+    "icon.png": icon,
+    "icon@2x.png": icon2,
+    "icon@3x.png": icon3,
+    ...(darkChrome ? { "logo.png": logo, "logo@2x.png": logo2 } : {}),
+    ...(design
+      ? { "strip.png": design.strips.x1, "strip@2x.png": design.strips.x2, "strip@3x.png": design.strips.x3 }
+      : {}),
+  };
+
   const pass = new PKPass(
-    {
-      "icon.png": icon,
-      "icon@2x.png": icon2,
-      "icon@3x.png": icon3,
-      "logo.png": logo,
-      "logo@2x.png": logo2,
-    },
+    files,
     {
       wwdr: process.env.APPLE_WWDR_PEM as string,
       signerCert: process.env.APPLE_PASS_CERT_PEM as string,
@@ -52,27 +74,37 @@ export async function buildPkpass(card: WalletCard): Promise<Buffer> {
       serialNumber: card.username,
       organizationName: "SwiftCard",
       description: `${card.name} — SwiftCard`,
-      // NO logoText. logo.png is a 160x50 WORDMARK that already reads
-      // "SwiftCard", so setting logoText printed the brand twice in the pass
-      // header — the wordmark image with a second "SwiftCard" rendered next to
-      // it. If the logo asset is ever swapped for a bare glyph, put logoText
-      // back.
-      foregroundColor: "rgb(255, 255, 255)",
-      backgroundColor: "rgb(13, 27, 62)",
-      labelColor: "rgb(147, 197, 253)",
+      // NO logoText on dark chrome: logo.png is a 160x50 WORDMARK that already
+      // reads "SwiftCard", so setting logoText printed the brand twice in the
+      // pass header. Light chrome has no wordmark (see above) and needs it.
+      ...(darkChrome ? {} : { logoText: "SwiftCard" }),
+      foregroundColor: design?.theme.foregroundColor ?? "rgb(255, 255, 255)",
+      backgroundColor: design?.theme.backgroundColor ?? "rgb(13, 27, 62)",
+      labelColor: design?.theme.labelColor ?? "rgb(147, 197, 253)",
     }
   );
 
-  pass.type = "generic";
-  // QR of the card URL — scanning the pass opens the live card.
+  // QR of the card URL — scanning the pass opens the live card. (Phone-to-phone
+  // NFC is not possible for a Wallet pass: the nfc key requires Apple's VAS
+  // partner certification, and iPhones can't read passes off other iPhones
+  // anyway. The scan IS the tap here.)
   pass.setBarcodes({ message: card.cardUrl, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
-  pass.primaryFields.push({ key: "name", label: "", value: card.name });
 
-  if (card.title) pass.secondaryFields.push({ key: "title", label: "TITLE", value: card.title });
-  if (card.company) pass.secondaryFields.push({ key: "company", label: "COMPANY", value: card.company });
-
-  if (card.phone) pass.auxiliaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
-  if (card.email) pass.auxiliaryFields.push({ key: "email", label: "EMAIL", value: card.email });
+  if (design) {
+    // storeCard = the strip-capable layout. The strip carries the identity
+    // (name/title/company in the card's own design), so the fields below it
+    // hold only the contact details.
+    pass.type = "storeCard";
+    if (card.phone) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
+    if (card.email) pass.secondaryFields.push({ key: "email", label: "EMAIL", value: card.email });
+  } else {
+    pass.type = "generic";
+    pass.primaryFields.push({ key: "name", label: "", value: card.name });
+    if (card.title) pass.secondaryFields.push({ key: "title", label: "TITLE", value: card.title });
+    if (card.company) pass.secondaryFields.push({ key: "company", label: "COMPANY", value: card.company });
+    if (card.phone) pass.auxiliaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
+    if (card.email) pass.auxiliaryFields.push({ key: "email", label: "EMAIL", value: card.email });
+  }
 
   // The back of the pass (the "..." button) is the only place with room for
   // detail, and it was nearly empty — just a bare URL. Someone who opens it
