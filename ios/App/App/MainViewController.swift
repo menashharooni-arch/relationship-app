@@ -29,5 +29,12 @@ class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+
+        // No scroll indicators: the flashing bar on the right of every scroll
+        // is drawn by iOS on the webview's scroll view — CSS can't reach it.
+        // Native apps built with UIKit lists show one too, but on a webview it
+        // reads as "this is a web page"; the owner wants it gone (2026-08-10).
+        webView?.scrollView.showsVerticalScrollIndicator = false
+        webView?.scrollView.showsHorizontalScrollIndicator = false
     }
 }

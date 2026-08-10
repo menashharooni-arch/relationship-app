@@ -141,6 +141,13 @@ export default function RootLayout({
               // the cookie — but every launch after that skips loading the
               // homepage entirely: no dark interstitial, one navigation, not two.
               "document.cookie='sc_shell=1;path=/;max-age=31536000;samesite=lax';" +
+              // Native apps don't zoom their UI. WKWebView honors
+              // maximum-scale/user-scalable (Safari deliberately ignores them,
+              // so the WEBSITE keeps pinch-zoom and its accessibility) — this
+              // kills the auto-zoom when an input focuses (Add Contact, any
+              // field) and pinch/double-tap zoom, shell only.
+              "var VP=document.querySelector('meta[name=viewport]');" +
+              "if(VP&&VP.content.indexOf('maximum-scale')<0)VP.content+=', maximum-scale=1, user-scalable=no';" +
               "if(location.pathname==='/'){" +
               // Hide before navigating so the homepage cannot paint even one
               // frame during the redirect. Scoped to the shell on "/" only, so

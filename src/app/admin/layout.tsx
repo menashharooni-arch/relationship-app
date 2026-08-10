@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Top accent stripe */}
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400 z-50" />
+      <div className="sc-top-stripe fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400 z-50" />
 
       <header className="sticky top-0 z-40 bg-gray-950/90 backdrop-blur border-b border-gray-800/80">
         <div className="max-w-6xl mx-auto px-5">
