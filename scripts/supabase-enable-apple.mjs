@@ -21,6 +21,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || "grxmovpmlgmjncnyiyrt";
@@ -65,7 +66,7 @@ if (!keyPath) fail("usage: node scripts/supabase-enable-apple.mjs <path to AuthK
 // Reuse the signer so there is exactly one implementation of the JWT rules.
 const secret = execFileSync(
   process.execPath,
-  [join(import.meta.dirname, "apple-client-secret.mjs"), keyPath],
+  [fileURLToPath(new URL("./apple-client-secret.mjs", import.meta.url)), keyPath],
   { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }
 ).trim();
 
@@ -110,17 +111,32 @@ console.log(
 
 // Prove it from the outside rather than trusting the 200: a misconfigured
 // provider still accepts the PATCH and only fails at /authorize.
-const probe = await fetch(
-  `https://${PROJECT_REF}.supabase.co/auth/v1/authorize?provider=apple&redirect_to=${encodeURIComponent(NATIVE_REDIRECT)}`,
-  { redirect: "manual" }
-);
-const location = probe.headers.get("location") || "";
-if (probe.status === 302 && location.startsWith("https://appleid.apple.com")) {
+//
+// GoTrue reloads auth config asynchronously, so for a few seconds after a
+// successful write /authorize still answers "provider is not enabled". Probing
+// once here would fail a run that actually worked and send you off debugging
+// correct config. Observed taking a few seconds on the first enable.
+const probeUrl = `https://${PROJECT_REF}.supabase.co/auth/v1/authorize?provider=apple&redirect_to=${encodeURIComponent(NATIVE_REDIRECT)}`;
+let location = "";
+let status = 0;
+let probeBody = "";
+for (let attempt = 1; attempt <= 10; attempt++) {
+  const probe = await fetch(probeUrl, { redirect: "manual" });
+  status = probe.status;
+  location = probe.headers.get("location") || "";
+  if (status === 302 && location.startsWith("https://appleid.apple.com")) break;
+  probeBody = (await probe.text()).slice(0, 300);
+  if (attempt === 1) process.stdout.write("Waiting for config reload ");
+  process.stdout.write(".");
+  await new Promise((r) => setTimeout(r, 3000));
+}
+if (status === 302 && location.startsWith("https://appleid.apple.com")) {
+  if (probeBody) process.stdout.write("\n");
   console.log(`Verified                /authorize?provider=apple → appleid.apple.com`);
 } else {
   console.error(
-    `\nWARNING: provider is enabled but /authorize returned ${probe.status}` +
-      `${location ? ` → ${location}` : ""}\n${(await probe.text()).slice(0, 300)}`
+    `\nWARNING: provider is enabled but /authorize still returned ${status}` +
+      `${location ? ` → ${location}` : ""} after ~30s\n${probeBody}`
   );
   process.exit(1);
 }
