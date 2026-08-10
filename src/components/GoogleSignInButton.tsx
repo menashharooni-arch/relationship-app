@@ -80,6 +80,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
     // one that worked. Rendering nothing is honest: native has its own Google
     // flow, and this component is not it.
     if (detectNativeApp()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- setting a TERMINAL phase is the whole point: detectNativeApp() is client-only, and returning without it left the pill stuck on "Loading Google…" forever (see above)
       if (!cancelled) setPhase("unavailable");
       return;
     }
