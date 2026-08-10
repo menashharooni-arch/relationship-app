@@ -46,6 +46,11 @@ const config: CapacitorConfig = {
     // auth sessions persist exactly like the website.
     limitsNavigationsToAppBoundDomains: false,
     contentInset: "automatic",
+    // The exact token src/proxy.ts already keys its server-side "/"→app
+    // redirect on (that check shipped before any build carried the token, so
+    // it was inert; installed builds are covered by the sc_shell cookie the
+    // boot script plants instead). Takes effect on the next native build.
+    appendUserAgent: "SwiftCardApp",
     // The native canvas behind the webview — what rubber-band overscroll
     // reveals. White by default, which read as white bars at the top/bottom of
     // every scroll. globals.css also suppresses the bounce itself

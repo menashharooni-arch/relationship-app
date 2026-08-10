@@ -39,15 +39,20 @@ export async function proxy(request: NextRequest) {
   // wrong first screen for something you just installed, and it is the shape
   // App Review reads as a repackaged website (guideline 4.2).
   //
-  // Keyed on the user-agent suffix the shell appends, so the WEBSITE at "/" is
-  // completely untouched. This is inert until an iOS build ships
-  // `appendUserAgent` in capacitor.config.ts; until then the sc-boot script in
-  // the root layout performs the same redirect before first paint. Placed after
-  // getUser() so it can branch on the real session — a signed-out user goes
-  // straight to /login rather than bouncing through /dashboard's guard.
+  // Keyed on two shell-only signals, so the WEBSITE at "/" is completely
+  // untouched: the user-agent suffix future builds append (appendUserAgent in
+  // capacitor.config.ts), and the `sc_shell` cookie the sc-boot script plants
+  // the first time it detects the shell — which is what makes this live for
+  // builds already installed, whose UA carries no token. First-ever launch
+  // still falls back to sc-boot's client-side redirect (and plants the
+  // cookie); every launch after that is redirected here, before any homepage
+  // HTML is sent — one navigation instead of two, no hidden-page gap. Placed
+  // after getUser() so it can branch on the real session — a signed-out user
+  // goes straight to /login rather than bouncing through /dashboard's guard.
   if (
     request.nextUrl.pathname === "/" &&
-    (request.headers.get("user-agent") ?? "").includes("SwiftCardApp")
+    ((request.headers.get("user-agent") ?? "").includes("SwiftCardApp") ||
+      request.cookies.get("sc_shell")?.value === "1")
   ) {
     return redirectWithAuthCookies(new URL(user ? "/dashboard" : "/login", request.url));
   }
