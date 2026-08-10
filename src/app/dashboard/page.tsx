@@ -156,7 +156,9 @@ export default async function DashboardPage({
             <SignOutButton />
           </div>
         </nav>
-        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
+        {/* sc-still: in the native shell this screen is a fixed, non-scrolling
+            surface (globals.css) — a static choice screen, not a document. */}
+        <main className="sc-still sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-blue-600/15 border border-blue-600/30 flex items-center justify-center mb-6">
             <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.5} className="w-8 h-8">
               <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -189,7 +191,12 @@ export default async function DashboardPage({
             </div>
           </div>
         </nav>
-        <main className="sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
+        {/* sc-still: the card picker must be a STILL screen in the shell — you
+            look, you tap a card. It has no tab bar and fits the viewport, yet
+            it scrolled (and rubber-banded) because the document could always
+            move; globals.css pins it. Long card lists scroll INSIDE the fixed
+            surface, the page itself never moves. */}
+        <main className="sc-still sc-app min-h-screen bg-gray-950 flex flex-col items-center justify-center px-5 py-24">
           <div className="w-full max-w-sm">
             <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
             <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>

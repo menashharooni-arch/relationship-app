@@ -864,6 +864,35 @@ html.native-app .sc-help-panel {
   bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
+/* ── Pages must not scroll when their content fits ────────────────────────
+   Every portal main is `min-h-screen` (100vh), and in the shell the BODY adds
+   safe-area padding on top and capsule clearance below. Padding + 100vh child
+   = a document ~90–180px taller than the viewport on every page — so even a
+   screen with three lines of content scrolled, and every scroll could
+   rubber-band. Subtract the body's additions from the main's minimum so
+   "content fits" means "document fits": short pages become genuinely still,
+   long pages scroll exactly as before. */
+html.native-app main.min-h-screen {
+  min-height: calc(100dvh - env(safe-area-inset-top));
+}
+html.native-app body:has(.sc-tabbar) main.min-h-screen {
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 84px);
+}
+
+/* ── Still screens (sc-still): the card picker & first-card empty state ───
+   A choice screen is not a document — you look and you tap. position:fixed
+   takes it out of flow so the document collapses and CANNOT scroll, no matter
+   what padding or viewport math says. If a long card list ever exceeds the
+   screen it scrolls INSIDE this surface; the page itself never moves. Shell
+   only — the website keeps normal pages. */
+html.native-app main.sc-still {
+  position: fixed;
+  inset: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* ── Sheets & scrims: iOS-style frosted backdrop behind modals ──────────── */
 html.native-app .sc-app :is(.bg-black\/60, .bg-black\/50, .bg-black\/70, .bg-black\/80).fixed {
   -webkit-backdrop-filter: blur(10px) saturate(1.2);

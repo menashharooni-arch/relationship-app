@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import MobileNav from "@/components/MobileNav";
+
 // Instant loading skeleton for the signed-in portal (dashboard, contacts, links,
 // settings, grow, admin). Rendered by each route's loading.tsx the MOMENT a link
 // is clicked — so navigation feels immediate instead of showing a frozen screen
@@ -5,11 +8,24 @@
 // these dynamic routes (a dynamic route with no loading boundary isn't
 // prefetched at all).
 //
-// Pure server markup — no state, no effects. It deliberately mirrors the real
-// pages' chrome (top accent stripe + sticky nav bar + dark ground) so the swap
-// to real content is seamless with no layout jump. `animate-pulse` is a cheap,
-// GPU-friendly Tailwind built-in.
-export default function PortalSkeleton() {
+// Mirrors the real pages' chrome (top accent stripe + sticky nav bar + dark
+// ground + REAL tab bar + help-bubble stand-in) so the swap to real content is
+// seamless with no layout jump. The tab bar used to be missing here, which made
+// it blink out on every tab switch — the pages mount it themselves, so during
+// the skeleton phase there was simply no bar. It's the real <MobileNav>
+// (client, pathname-aware) so the active tab is even correct while loading;
+// admin visibility resolves with the page (a brief 4-tab bar for office admins
+// beats no bar for everyone). `animate-pulse` is a cheap, GPU-friendly
+// Tailwind built-in.
+export default function PortalSkeleton({
+  // The floating assistant bubble stand-in. Same classes/geometry as
+  // HelpWidget's trigger so the real one replaces it in place. settings/flows
+  // has no floating bubble (inline widget) → pass false there or a bubble
+  // would appear and then vanish; office/admin's assistant is purple.
+  bubble = "blue",
+}: {
+  bubble?: "blue" | "purple" | false;
+}) {
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10" aria-busy="true" aria-label="Loading">
       {/* Top accent stripe — identical to the real pages */}
@@ -40,6 +56,24 @@ export default function PortalSkeleton() {
           ))}
         </div>
       </div>
+
+      {/* Help-bubble stand-in — non-interactive, replaced in place on load. */}
+      {bubble && (
+        <div
+          aria-hidden="true"
+          className={`sc-help-bubble fixed bottom-20 md:bottom-5 right-4 z-40 rounded-full ${bubble === "purple" ? "bg-purple-600 shadow-purple-900/40" : "bg-blue-600 shadow-blue-900/40"} shadow-lg flex items-center justify-center`}
+          style={{ width: 52, height: 52 }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.9} className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+          </svg>
+        </div>
+      )}
+
+      {/* Real tab bar — useSearchParams inside, hence the Suspense boundary. */}
+      <Suspense>
+        <MobileNav />
+      </Suspense>
     </main>
   );
 }
