@@ -16,50 +16,43 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**One thing is left: sign in to Xcode.**
+**One credential left, and it is not an Apple ID password.**
 
-Sign in with Apple is live end-to-end as of 2026-08-07 — provider enabled,
-redirect allow-listed, `/authorize` verified redirecting to Apple, and the
-button shipped to production. §4.8 is satisfied.
+Create an **App Store Connect API key** and the whole remaining pipeline runs
+headlessly — no Apple ID in Xcode, no 2FA prompt, repeatable in CI:
 
-1. **Sign in to Xcode** (§D) — Settings → Accounts, Apple ID on team
-   NHK8FA2RR2. No Apple ID is signed in and there are no signing identities on
-   this Mac, so device install / Archive / Validate / upload cannot run.
-   `DEVELOPMENT_TEAM = NHK8FA2RR2` is already set on both targets, so
-   automatic signing should resolve immediately after.
+1. appstoreconnect.apple.com → Users and Access → Integrations →
+   App Store Connect API → **Team Keys** → (+). Role **App Manager**.
+2. Download the `.p8` (downloads once), note the **Key ID** and **Issuer ID**.
+3. ```bash
+   mkdir -p ~/.swiftcard/asc && chmod 700 ~/.swiftcard/asc
+   mv ~/Downloads/AuthKey_<KEYID>.p8 ~/.swiftcard/asc/
+   echo '<KEYID>'    > ~/.swiftcard/asc/key-id
+   echo '<ISSUERID>' > ~/.swiftcard/asc/issuer-id
+   chmod 600 ~/.swiftcard/asc/*
+   ```
+4. `npm run ios:release -- --dry`   → archive, sign, export, validate with Apple
+   `npm run ios:release`            → the same, then upload to App Store Connect
 
-**APNs verified (2026-08-09).** A provider JWT signed with `C8TWRXCNKA`,
-POSTed to a fake device token, returns HTTP 400 `BadDeviceToken` on BOTH
-`api.push.apple.com` and `api.sandbox.push.apple.com` — never
-`InvalidProviderToken`. Apple accepted the team, key id, signature and topic;
-only the made-up token was rejected. That is as far as push can be proven
-without hardware.
+That key authenticates BOTH halves: `xcodebuild -allowProvisioningUpdates
+-authenticationKey*` mints the distribution certificate and provisioning
+profiles from it, and `altool` uploads with it. This is why signing into Xcode
+is optional — it was the blocker only while there was no other credential.
 
-⚠️ **Test push through TestFlight, not a dev build.** `APPLE_PUSH_SANDBOX` is
-unset, so `lib/apns.ts` targets production APNs — correct for TestFlight and
-the App Store. A build run straight from Xcode onto a device gets a *sandbox*
-device token, and production APNs answers `BadDeviceToken` for it. That looks
-exactly like "push is broken" when nothing is. Either test via TestFlight, or
-temporarily set `APPLE_PUSH_SANDBOX=1` and remember to remove it.
+⚠️ It is a DIFFERENT key from `~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8` (Sign in
+with Apple + APNs). An APNs key has no App Store Connect authority and fails
+with a confusing 401.
 
-**How Sign in with Apple was verified (2026-08-07), so nobody re-litigates it:**
-1. `/auth/v1/authorize?provider=apple` returns `302 → appleid.apple.com` with
-   `client_id=me.swiftcard.web`. (It briefly returned "provider is not enabled"
-   right after the write — GoTrue reload lag. Re-probe before panicking.)
-2. A secret signed with `C8TWRXCNKA` posted to `appleid.apple.com/auth/token`
-   with a junk code returns `invalid_grant`, not `invalid_client` — Apple
-   accepts the Services ID, key and signature.
-3. The production JS bundle for `/login` contains the "Continue with Apple"
-   button. Proven meaningful by building locally both ways: with
-   `NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=0` the minifier eliminates the button
-   entirely, with `=1` it survives. So its presence in production is proof the
-   flag is on, not just that the code exists.
+**Screenshots**: 2 of 5 are captured and committed
+(`app-store/screenshots/6.9-inch/`). For the other 3, sign in once inside the
+simulator as the review account, then `npm run ios:screenshots` captures them
+all — see that script's header.
 
-Everything upstream has been checked rather than assumed: the AASA serves the
-real Team ID, the App ID capabilities are correct and the App Group is now
-actually attached, the Services ID exists with Apple-validated URLs, the auth
-key exists and Apple accepts a secret signed with it, and all six Apple env
-vars are in Vercel Production.
+**Everything else is done.** Sign in with Apple is live and verified end-to-end
+(the button renders in the real app — see screenshot 01). APNs authenticates
+against Apple. The widget target ships, its plugin is registered, and the
+bridge call was observed at runtime. AASA serves the real Team ID. The demo
+review account exists, populated. All six Apple env vars are in Vercel.
 
 ## A. Apple Developer portal (developer.apple.com)
 
