@@ -17,6 +17,7 @@ import TemplateGallery from "@/components/site/TemplateGallery";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
+import NativeHomeGate from "@/components/NativeHomeGate";
 import GuestFlowReset from "@/components/GuestFlowReset";
 import BadgeCloseButton from "@/components/BadgeCloseButton";
 
@@ -43,6 +44,10 @@ export default function Home() {
   const linkedinEnabled = !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET);
   return (
     <>
+      {/* The native shell never shows the marketing homepage — it redirects to
+          the product. Normally handled before paint by sc-boot in the root
+          layout; this is the fallback. Renders nothing. */}
+      <NativeHomeGate />
       {/* Arriving Home as a guest abandons any half-built card/preview — see
           GuestFlowReset. Renders nothing. */}
       <GuestFlowReset />

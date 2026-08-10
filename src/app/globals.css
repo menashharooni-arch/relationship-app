@@ -29,7 +29,16 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Geist, not Arial. `font-family: Arial, Helvetica, sans-serif` shipped here
+     from the Next.js starter template and, because this rule is declared after
+     `@import "tailwindcss"`, it beat preflight — so every element without an
+     explicit `font-sans` class (which is all but three in the codebase)
+     rendered in Arial, while six Geist faces were downloaded on every page load
+     and never painted. Geist was configured correctly in layout.tsx and exposed
+     as --font-sans in @theme all along; only this line was wrong.
+     Per-card typography is unaffected: cards set their own font from
+     customization.fontFamily and never inherit from body. */
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 @keyframes marquee {
@@ -690,6 +699,36 @@ html.native-app {
   -webkit-text-size-adjust: 100%;
 }
 html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
+
+
+/* ── Marketing chrome never appears in the app ──────────────────────────────
+   A website header with Products/Solutions/Resources dropdowns, and a footer
+   with three columns of site links under a "Get started free" CTA, are the
+   clearest signals that an app is a wrapped web page — to a user scrolling it,
+   and to App Review under guideline 4.2 (minimum functionality / repackaged
+   website). The shell can still legitimately reach a few marketing-shell routes
+   (privacy and terms are linked from the login form), so those pages must render
+   their CONTENT without their SITE CHROME.
+
+   Done in CSS, not by early-returning on useIsNativeApp(): that hook stays false
+   until after mount to avoid a hydration mismatch, so a component-level gate
+   paints one frame of website header before removing it — the flash is precisely
+   the tell we are eliminating. `html.native-app` is set by sc-boot before first
+   paint, so this never renders at all. The website is untouched: it never
+   carries the class. */
+html.native-app .sc-site-nav,
+html.native-app .sc-site-footer { display: none !important; }
+
+/* Those pages pad their top for the fixed marketing header that is now gone. */
+html.native-app body:has(.sc-site-nav) main { padding-top: env(safe-area-inset-top); }
+
+/* Long-press on content should not raise the web text-selection callout; the
+   app's own copy/share affordances handle that. Inputs and anything explicitly
+   marked selectable keep normal behaviour — a note field the user cannot select
+   text in is a worse bug than the callout. */
+html.native-app :not(input):not(textarea):not([contenteditable]):not(.sc-selectable) {
+  -webkit-touch-callout: none;
+}
 
 html.native-app body {
   /* Content clears the taller (safe-area-padded) chrome; fixed elements are

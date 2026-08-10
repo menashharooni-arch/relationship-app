@@ -37,6 +37,36 @@ function pick(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v : undefined;
 }
 
+/**
+ * The typeface a card uses when its owner has not chosen one.
+ *
+ * Pinned, and deliberately NOT inherited from the page. Two reasons:
+ *
+ * 1. The auto-fit logic in card-templates/shared.tsx sizes a company name from
+ *    a MEASURED per-character width table (W_UPPER/W_MIXED), and those numbers
+ *    are Helvetica/Arial advance widths. Let the card inherit some other face
+ *    and the table silently under-measures, so `fitCompany` returns a size that
+ *    does not actually fit and `overflowWrap: anywhere` breaks the name
+ *    mid-word — "Coastline Realty" rendering as "Coas tlin / e Re alty". That
+ *    is exactly what happened when body switched from Arial to Geist.
+ * 2. A card is a shared, printed, screenshotted artifact, and it renders in
+ *    places the app's webfont does not exist: the render-test harness (no
+ *    next/font, so `var(--font-geist-sans)` is undefined) and the OG image
+ *    generator. Pinning keeps a card identical everywhere instead of silently
+ *    reflowing based on which renderer drew it.
+ *
+ * This is the exact stack cards already rendered in — body's old value — so
+ * fixing the app's font changes no existing card. Owners who pick "Sans" from
+ * CARD_FONT_OPTIONS still get Geist; this is only the default.
+ *
+ * Applied at the point of render (`style.fontFamily ?? CARD_BASE_FONT` on each
+ * template root), NOT inside templateStyle(). That function's contract is
+ * normalization — undefined means "no override present" — and the editor's
+ * swatch selection depends on being able to tell "unset" from "explicitly set
+ * to the default".
+ */
+export const CARD_BASE_FONT = "Arial, Helvetica, sans-serif";
+
 export function templateStyle(data: Pick<CardData, "customization">): TemplateStyle {
   const c = data.customization ?? {};
   return {

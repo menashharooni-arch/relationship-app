@@ -13,9 +13,11 @@ export async function createClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          // In a Server Component cookies can't be written — the middleware
-          // refreshes the session there. Swallow so getUser() never throws
-          // on public pages (e.g. /card, /links) for logged-in visitors.
+          // In a Server Component cookies can't be written — src/proxy.ts
+          // refreshes the session there. (Next 16 renamed the `middleware`
+          // file convention to `proxy`; a middleware.ts here would never run.)
+          // Swallow so getUser() never throws on public pages (e.g. /card,
+          // /links) for logged-in visitors.
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import NativeHidden from "@/components/NativeHidden";
+import NativeOnly from "@/components/NativeOnly";
 
 export const metadata: Metadata = {
   title: "Terms of Service — SwiftCard",
@@ -155,7 +157,12 @@ export default function TermsPage() {
 
         <H2>Plans, billing, and cancellation</H2>
         <ul className="mb-3">
-          <LI>SwiftCard offers a Free plan and paid plans (Pro and Office). Current pricing is shown on the <Link href="/pricing" className="text-brand underline">pricing page</Link>.</LI>
+          {/* App Store 3.1.1: the app must not link users out to a purchase
+              page, so the link is web-only — but dropping it would leave "shown
+              on the ." So the app gets equivalent wording with no link. */}
+          <LI>SwiftCard offers a Free plan and paid plans (Pro and Office). Current pricing is shown on the{" "}
+            <NativeHidden><Link href="/pricing" className="text-brand underline">pricing page</Link></NativeHidden>
+            <NativeOnly>pricing page of our website</NativeOnly>.</LI>
           <LI>Paid plans are billed in advance on a recurring basis (monthly or annually) through our payment processor, Stripe, until you cancel. By subscribing you authorize those recurring charges.</LI>
           <LI>You can cancel anytime from your billing settings; cancellation stops future renewals and takes effect at the end of the current billing period. Except where required by law, payments already made are non-refundable.</LI>
           <LI>If a payment fails, we&apos;ll give you a short grace period to update it; if it stays unresolved, your account moves to the Free plan. Your existing cards and contacts aren&apos;t deleted — some paid features simply lock until you upgrade again.</LI>

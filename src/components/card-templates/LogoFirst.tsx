@@ -10,7 +10,7 @@ import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import {
   cardAspect, ContactRows, fitFactor, fitName, fitTitle, fitCompany, heroGrow,
-  qrSize, templateStyle, isDarkBg, infoPaletteFrom,
+  qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
 } from "./shared";
 
 const NAVY   = "#2C3A52";
@@ -173,7 +173,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data),
         background: bg,
-        fontFamily: style.fontFamily,
+        fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >

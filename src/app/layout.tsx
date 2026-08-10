@@ -84,13 +84,35 @@ export default function RootLayout({
             mark that JS is running so scroll-reveals only hide when they can be
             un-hidden — with JS off, content stays fully visible. next/script
             beforeInteractive keeps the raw <script> out of the React tree
-            (a literal <script> logs console errors on every client render). */}
+            (a literal <script> logs console errors on every client render).
+
+            This also decides, BEFORE FIRST PAINT, whether we are the native
+            shell — and it has to happen here rather than in React. Two reasons:
+              • `html.native-app` scopes the entire native design layer in
+                globals.css. Added from an effect (as NativeAppBridge does) the
+                shell paints one frame of website chrome first, which is exactly
+                the "wrapped web page" tell.
+              • The shell's start URL is "/", which renders the MARKETING
+                homepage — hero, signup CTA, footer link columns. That must
+                never be a screen in the app: it is the wrong first impression,
+                and App Review guideline 4.2 rejects apps that are primarily a
+                repackaged website. Redirecting from a React effect would still
+                flash the hero; redirecting here means it is never painted.
+            Capacitor injects window.Capacitor via a document-start user script,
+            so it is already present by the time this runs. NativeAppBridge
+            re-adds the class on mount as a belt-and-braces fallback. */}
         <Script
           id="sc-boot"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html:
-              "try{document.documentElement.classList.add('sc-js');if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light')}catch(e){}",
+              "try{document.documentElement.classList.add('sc-js');" +
+              "if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light');" +
+              "var C=window.Capacitor;" +
+              "if(C&&(C.isNativePlatform?C.isNativePlatform():C.isNative)){" +
+              "document.documentElement.classList.add('native-app');" +
+              "if(location.pathname==='/')location.replace('/dashboard');" +
+              "}}catch(e){}",
           }}
         />
         {/* Brand structured data for Google Search (JSON-LD). ORG_JSONLD is a

@@ -138,7 +138,12 @@ export default function SiteNav() {
       {/* Always the dark glass state so the header is visible on every page,
           including light/cream sections at the very top. */}
       <header
-        className="fixed top-0 inset-x-0 z-[70]"
+        // sc-site-nav: marketing chrome. globals.css hides it outright inside
+        // the native shell — an app does not carry a website's marketing header
+        // with Products/Solutions/Resources dropdowns and a signup CTA. A CSS
+        // rule rather than a `native` early-return so it is gone on the first
+        // painted frame, with no flash and no hydration mismatch.
+        className="sc-site-nav fixed top-0 inset-x-0 z-[70]"
         style={{
           background: "rgba(10,11,16,0.82)",
           backdropFilter: "saturate(1.4) blur(14px)",

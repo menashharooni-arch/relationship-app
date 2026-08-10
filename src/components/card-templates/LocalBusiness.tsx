@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -45,7 +45,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data, 6.5),
         background: CREAM,
-        fontFamily: style.fontFamily,
+        fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
