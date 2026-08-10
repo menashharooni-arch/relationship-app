@@ -97,7 +97,25 @@ vars are in Vercel Production.
       resolves. Without this, every Hide-My-Email user would silently receive
       nothing from the product.
 - [ ] **APNs key** (.p8) created — note Key ID. (SHELL-RUNBOOK §6.)
-- [ ] Pass Type ID for Wallet confirmed valid (existing passes sign with it).
+- [ ] **Apple Wallet is NOT configured** and the submission copy no longer
+      claims it. `/api/wallet/pass` returns 501 `not_configured`, no
+      `APPLE_PASS_*` / `APPLE_WWDR` vars exist, and `hasWalletConfig()` gates
+      the button off — so nothing is broken, but nothing is offered either.
+      To turn it on (all optional, Wallet is not required to ship):
+      1. A 2048-bit key and CSR are already generated and waiting at
+         `~/.swiftcard/wallet/` (`pass-key.pem`, `pass.csr`) — no Keychain
+         needed, they were made with openssl.
+      2. Portal → Identifiers → Pass Type IDs → register `pass.me.swiftcard.card`,
+         then create its certificate and upload `pass.csr`.
+      3. Download the `.cer` and convert:
+         `openssl x509 -inform DER -in pass.cer -out pass-cert.pem`
+      4. Get Apple's WWDR G4 intermediate and convert it the same way.
+      5. Set in Vercel Production: `APPLE_PASS_TYPE_ID=pass.me.swiftcard.card`,
+         `APPLE_PASS_CERT_PEM`, `APPLE_PASS_KEY_PEM`, `APPLE_WWDR_PEM`
+         (`APPLE_TEAM_ID` is already set), redeploy, and confirm
+         `/api/wallet/pass?card=<username>` returns a `.pkpass` not a 501.
+      6. Only then restore the Wallet claims in APP_REVIEW_NOTES.md, the App
+         Store description, and TESTFLIGHT_TEST_PLAN.md.
 
 ## B. Supabase dashboard — DONE (2026-08-07)
 

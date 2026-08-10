@@ -72,11 +72,20 @@ const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistS
   // sources so the analytics dashboard shows real numbers, not zeros.
   const sources = ["qr_code", "direct_link", "nfc_card", "share"];
   const views = [];
+  const VISITORS = 9;
   for (let i = 0; i < 24; i++) {
+    // (username, visitor_id, day) is UNIQUE — uq_card_views_username_visitor_day.
+    // Random days collide within 24 draws over 28 often enough to be effectively
+    // guaranteed, and since this is one batch insert a single collision rejects
+    // ALL 24 rows — leaving the reviewer an analytics dashboard of zeros, which
+    // is the opposite of the point. Derive the day from the index so every pair
+    // is unique by construction; spans ~26 days with a few repeat visitors.
+    const visitor = i % VISITORS;
+    const repeat = Math.floor(i / VISITORS);
     views.push({
       username,
-      viewed_at: days(Math.floor(Math.random() * 28)),
-      visitor_id: "demo-visitor-" + (i % 9),
+      viewed_at: days(visitor * 3 + repeat),
+      visitor_id: "demo-visitor-" + visitor,
       source: sources[i % sources.length],
       location: ["Austin, TX", "San Francisco, CA", "New York, NY", "Chicago, IL"][i % 4],
     });
