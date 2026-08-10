@@ -118,6 +118,31 @@ export default function TermsPage() {
           <Link href="/privacy" className="text-brand underline">Privacy Policy</Link> for how we handle personal information.
         </P>
 
+        {/* A2P 10DLC / TCR vetting reads THIS url as the Terms & Conditions
+            and looks for the program disclosures on the page itself. Our first
+            campaign was rejected 30882 (Terms and Conditions issues) while all
+            of this existed only on /sms-terms behind a link. Keep this block
+            here and in sync with /sms-terms — a link is not a disclosure. */}
+        <H2>SMS &amp; text messaging program</H2>
+        <P>
+          <strong>Program description.</strong> Swift Card Inc (SwiftCard) sends transactional text messages to
+          people who explicitly opt in on a SwiftCard user&apos;s share form after an in-person exchange. Messages
+          contain the contact details of the SwiftCard user you just met, and the follow-ups about that exchange
+          that you consented to receive. We are the sender of every message.
+        </P>
+        <ul className="mb-3">
+          <LI><strong>How you opt in.</strong> By ticking the unchecked SMS consent box on a SwiftCard share form and submitting your mobile number. Consent is never a condition of sharing your details or of any purchase.</LI>
+          <LI><strong>Message frequency.</strong> Message frequency varies — typically 1–5 messages per exchange you opt into.</LI>
+          <LI><strong>Cost.</strong> Message and data rates may apply. SwiftCard does not charge you for these messages; your mobile carrier&apos;s standard rates apply.</LI>
+          <LI><strong>Opting out.</strong> Reply <strong>STOP</strong> to any message to stop all further messages. You will receive a single confirmation and then no further texts.</LI>
+          <LI><strong>Help.</strong> Reply <strong>HELP</strong> for assistance, or contact us at <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a> or via our <Link href="/contact" className="text-brand underline">contact page</Link>.</LI>
+          <LI><strong>Carriers.</strong> Carriers are not liable for delayed or undelivered messages.</LI>
+          <LI><strong>Your data.</strong> We do not share, sell, or otherwise provide your mobile phone number or messaging consent information to any third parties or affiliates for marketing or promotional purposes. See our <Link href="/privacy" className="text-brand underline">Privacy Policy</Link>.</LI>
+        </ul>
+        <P>
+          Full program terms: <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.
+        </P>
+
         <H2>Acceptable use</H2>
         <P>Don&apos;t use SwiftCard to:</P>
         <ul className="mb-3">
