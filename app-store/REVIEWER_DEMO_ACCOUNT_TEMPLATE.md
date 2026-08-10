@@ -45,7 +45,7 @@ backfilled.
 - [ ] Contacts list contains 2–3 FICTIONAL demo leads with tags/statuses.
 - [ ] Analytics shows non-zero demo views.
 - [ ] Swift Links page is populated.
-- [x] Apple Wallet: N/A — not configured, and the button is gated off. Do not list it as a feature to test.
+- [ ] Apple Wallet add works (configured 2026-08-10; endpoint verified serving a signed pass for this very account).
 - [ ] Settings → Advanced account settings → Delete account is reachable
       (reviewer may test deletion — if they do, RE-RUN the script before the
       next submission; deletion is real).

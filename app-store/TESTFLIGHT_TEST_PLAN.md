@@ -70,9 +70,9 @@ Core product
       Pro demo:** tapping Export CSV opens the system browser where the CSV is
       viewable/shareable (native routes through @capacitor/browser). Not a dead
       tap.
-- [ ] ~~Apple Wallet~~ — SKIP. Not configured in production (`/api/wallet/pass`
-      returns 501) and the button is gated off, so there is nothing to test.
-      Re-add this line only when RELEASE_CHECKLIST §A Wallet is done.
+- [ ] Apple Wallet: add pass, pass shows the right card + QR; pass opens on
+      Apple Watch Wallet. (Configured + verified live 2026-08-10: the endpoint
+      serves a signed .pkpass and the uptime cron alarms if it regresses.)
 - [ ] Swift Links page renders and edits.
 - [ ] Email signature builder: copy works in the webview.
 - [ ] Analytics screens render.
