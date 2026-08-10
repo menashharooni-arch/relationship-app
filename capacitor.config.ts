@@ -45,7 +45,14 @@ const config: CapacitorConfig = {
     // Match Safari's cookie/storage behavior for the remote origin so Supabase
     // auth sessions persist exactly like the website.
     limitsNavigationsToAppBoundDomains: false,
-    contentInset: "automatic",
+    // "never", NOT "automatic": the web design layer is built edge-to-edge —
+    // viewport-fit=cover, body/status-bar padding from env(safe-area-inset-*),
+    // glass chrome that hugs the notch. "automatic" DEFEATED all of it: it
+    // pushed the page down below the status bar, env() read 0 inside the
+    // webview, and the exposed native inset strip rendered WHITE above the app
+    // on every screen (the "white bar under the clock" on device). Full-bleed
+    // lets the page own the whole canvas the way the CSS expects.
+    contentInset: "never",
     // The exact token src/proxy.ts already keys its server-side "/"→app
     // redirect on (that check shipped before any build carried the token, so
     // it was inert; installed builds are covered by the sc_shell cookie the
