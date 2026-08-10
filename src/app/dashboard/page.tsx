@@ -29,7 +29,6 @@ import TourBanner from "@/components/TourBanner";
 import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
-import AddToWalletButton from "@/components/AddToWalletButton";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import TrackEvent from "@/components/TrackEvent";
 import AddContactModal from "@/components/AddContactModal";
@@ -543,7 +542,6 @@ export default async function DashboardPage({
           username={activeUsername}
           previewUrl={cardUrl}
         />
-        {walletEnabled && <AddToWalletButton username={activeUsername} className="mt-2" />}
       </div>
 
       {/* Share */}
@@ -554,7 +552,7 @@ export default async function DashboardPage({
           text="Save my contact and connect with me instantly."
           label="Share"
         />
-        <MoreShareOptions url={cardUrl} />
+        <MoreShareOptions url={cardUrl} walletUsername={walletEnabled ? activeUsername : undefined} />
       </div>
     </CardCaptureProvider>
   );

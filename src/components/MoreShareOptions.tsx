@@ -5,6 +5,7 @@ import QRCard from "@/components/QRCard";
 import QRDownloadButton from "@/components/QRDownloadButton";
 import CopyButton from "@/components/CopyButton";
 import NFCWriter from "@/components/NFCWriter";
+import AddToWalletButton from "@/components/AddToWalletButton";
 import DownloadCardButton from "@/components/DownloadCardButton";
 import { useCardCapture } from "@/components/CardCaptureContext";
 import { qrScanUrl } from "@/lib/share-source";
@@ -14,7 +15,13 @@ import { qrScanUrl } from "@/lib/share-source";
 // QR number in Traffic reads zero again. QRCard deliberately shows no URL text,
 // and the CARD LINK field below keeps the plain URL for copying.
 
-export default function MoreShareOptions({ url }: { url: string }) {
+/**
+ * @param walletUsername Card slug to offer "Add to Apple Wallet" for, or
+ *   undefined to omit it. Optional because the wallet certificates may not be
+ *   configured, and because /preview renders this modal for a sample card that
+ *   nobody should be putting in their Wallet.
+ */
+export default function MoreShareOptions({ url, walletUsername }: { url: string; walletUsername?: string }) {
   const [open, setOpen] = useState(false);
   const qrUrl = qrScanUrl(url);
   // null unless a card registered a capturable node next to us. /preview also
@@ -102,6 +109,20 @@ export default function MoreShareOptions({ url }: { url: string }) {
               <span className="text-gray-600 text-[11px] normal-case tracking-normal">· tap any phone to open your card</span>
             </div>
             <NFCWriter url={url} />
+
+            {/* Apple Wallet — last, and only here. It used to sit in the Your
+                Card box beside "Scan to connect", where it competed with the
+                primary share action. It belongs with the other ways to carry
+                the card around, not with the card itself. */}
+            {walletUsername && (
+              <>
+                <div className="flex items-center gap-1.5 mt-5 mb-2">
+                  <p className="text-gray-500 text-[11px] uppercase tracking-wide">Apple Wallet</p>
+                  <span className="text-gray-600 text-[11px] normal-case tracking-normal">· keep your card on your phone to scan</span>
+                </div>
+                <AddToWalletButton username={walletUsername} />
+              </>
+            )}
           </div>
         </div>
       )}

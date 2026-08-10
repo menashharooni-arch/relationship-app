@@ -34,10 +34,28 @@ describe("submission copy only claims features that are actually configured", ()
   it("the Add to Wallet button stays gated behind hasWalletConfig()", () => {
     // The gate is what keeps an unconfigured Wallet from rendering a button
     // that errors. Losing it is worse than the copy problem.
-    expect(read("src/app/dashboard/page.tsx")).toMatch(
-      /walletEnabled\s*&&\s*<AddToWalletButton/
+    //
+    // The button MOVED out of the dashboard's "Your Card" box and into the
+    // "Other ways to share" modal, so the gate moved with it: the dashboard now
+    // passes the card slug only when walletEnabled, and MoreShareOptions renders
+    // nothing without one. Both halves are asserted — checking only the dashboard
+    // would pass even if the modal rendered the button unconditionally.
+    const dash = read("src/app/dashboard/page.tsx");
+    expect(dash).toMatch(/walletUsername=\{\s*walletEnabled\s*\?/);
+    expect(dash).toContain("hasWalletConfig()");
+
+    const modal = read("src/components/MoreShareOptions.tsx");
+    expect(modal).toMatch(/\{walletUsername\s*&&/);
+    expect(modal).toMatch(/<AddToWalletButton\s+username=\{walletUsername\}/);
+  });
+
+  it("visitors are never offered Add to Wallet on someone else's card", () => {
+    // A visitor's Wallet should hold their own card, not a stranger's: the pass
+    // can never be updated and goes stale the moment the owner edits anything.
+    // The public card page therefore gates on isOwnerView as well as config.
+    expect(read("src/app/card/[username]/page.tsx")).toMatch(
+      /hasWalletConfig\(\)\s*&&\s*isOwnerView\s*&&/
     );
-    expect(read("src/app/dashboard/page.tsx")).toContain("hasWalletConfig()");
   });
 
   // Apple Wallet went LIVE 2026-08-10: Pass Type ID pass.me.swiftcard.card,

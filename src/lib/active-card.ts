@@ -1,0 +1,25 @@
+/**
+ * Where the "which card is selected" pointer lives.
+ *
+ * Deliberately a PLAIN module, not part of a "use client" file. The cookie name
+ * first lived in CardSelectionPersist.tsx, which carries "use client" — and a
+ * value imported from a client module into a Server Component arrives as a
+ * client-reference proxy, not the string. `cookies().get(proxy)` then silently
+ * returns undefined, so the Share page kept falling back to the oldest card and
+ * the fix looked like it simply did not work. Constants shared across the
+ * server/client boundary belong in a neutral module like this one.
+ */
+
+/** localStorage key — client-only readers (nav, contacts, tour). */
+export const ACTIVE_CARD_KEY = "swiftcard_active_card";
+
+/**
+ * Cookie mirror of {@link ACTIVE_CARD_KEY}, so the SERVER can read the selection
+ * during render instead of shipping the wrong card and correcting it from an
+ * effect. Not sensitive and not httpOnly: it holds a card slug the user hands
+ * out publicly, and the client has to be able to write it.
+ */
+export const ACTIVE_CARD_COOKIE = "sc_active_card";
+
+/** One year, matching how long the localStorage copy effectively persists. */
+export const ACTIVE_CARD_COOKIE_MAX_AGE = 31536000;

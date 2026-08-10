@@ -359,6 +359,21 @@ async function toResponse(el: React.ReactElement, contentType = "image/png"): Pr
   });
 }
 
+/**
+ * Human-readable US phone formatting for the share preview.
+ *
+ * A local copy, matching lib/wallet.ts: the canonical formatPhone lives in
+ * card-templates/shared.tsx, which also exports React components, and this
+ * route already carries a heavy render. Anything not recognisably US is
+ * returned untouched so international numbers are never mangled.
+ */
+function prettyPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d[0] === "1") return `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return raw;
+}
+
 export default async function Image({
   params,
 }: {
@@ -413,6 +428,13 @@ export default async function Image({
     // (a failed fetch would throw the whole render → brand fallback with no
     // card). If embedding fails, the field is null and the card draws initials.
     [meta.photoUrl, meta.logoUrl] = await Promise.all([embedImage(meta.photoUrl), embedImage(meta.logoUrl)]);
+
+    // Format the phone ONCE here rather than at each template's <Contact>, so
+    // all seven stay consistent. The stored capture is a picture of the real
+    // card, which already formats; this fallback rendered raw digits
+    // ("4048550515"), so the preview someone saw depended on which tier served
+    // it. Non-US numbers pass through untouched.
+    if (meta.phone) meta.phone = prettyPhone(meta.phone);
 
     let card: React.ReactElement;
     switch (meta.template) {
