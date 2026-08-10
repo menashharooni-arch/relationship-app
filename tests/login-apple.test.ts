@@ -46,4 +46,30 @@ describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
     expect(src).toMatch(/\{native && APPLE_SIGNIN_ENABLED && \(/);
     expect(src).toContain("Continue with Apple");
   });
+
+  // Guideline 4.8 is about the COMBINATION, not about Apple in isolation:
+  // offering a third-party social login in-app obliges an equivalent private
+  // option. So the kill switch has to take Google down WITH Apple on native —
+  // hiding only Apple would leave Google standing alone and turn a switch that
+  // exists to prevent a 2.1 into a guaranteed 4.8 on the next submission.
+  // Native then falls back to email/password, which owes Apple nothing.
+  it("the kill switch hides native Google too, or it manufactures a 4.8", () => {
+    // the native branch opens with the same gate that guards Apple
+    expect(src).toMatch(/\{native \?\s*\(?\s*APPLE_SIGNIN_ENABLED && \(/);
+    // and the native Google button lives inside it
+    const nativeBranch = src.slice(src.indexOf("{native ?"), src.indexOf("<GoogleSignInButton"));
+    expect(nativeBranch).toContain("Continue with Google");
+    expect(nativeBranch).toContain("APPLE_SIGNIN_ENABLED");
+  });
+
+  it("web is untouched by that gate — GoogleSignInButton always renders there", () => {
+    // The obligation is in-app only; the website keeps its Google button
+    // regardless of whether the native Apple provider is healthy. Slice just
+    // the ternary's else-branch — reading to end of file would swallow the
+    // Apple block that legitimately follows.
+    const start = src.indexOf("<GoogleSignInButton");
+    const webBranch = src.slice(start, src.indexOf(")}", start));
+    expect(webBranch).toContain("GoogleSignInButton");
+    expect(webBranch).not.toContain("APPLE_SIGNIN_ENABLED");
+  });
 });
