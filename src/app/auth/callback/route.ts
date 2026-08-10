@@ -39,10 +39,24 @@ export async function GET(request: NextRequest) {
     // CRITICAL: if the exchange fails we must NOT fall through to getUser() —
     // a still-present previous session would silently log the visitor into the
     // OLD account (looks like their brand-new Google email "linked" to it).
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: exchanged, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) {
       console.error("[auth/callback] code exchange failed:", exchangeError.message);
       return NextResponse.redirect(new URL("/login?error=oauth", origin));
+    }
+
+    // Sign in with Apple: the provider refresh token exists ONLY here, on the
+    // freshly exchanged session — identity_data never carries it. Persist it
+    // now or account deletion can never revoke the Apple token (5.1.1(v)).
+    // Best-effort: a storage failure must not break sign-in.
+    try {
+      const s = exchanged?.session;
+      if (s?.provider_refresh_token && s.user?.app_metadata?.provider === "apple") {
+        const { saveAppleRefreshToken } = await import("@/lib/apple-token-store");
+        await saveAppleRefreshToken(s.user.id, s.provider_refresh_token);
+      }
+    } catch (e) {
+      console.error("[auth/callback] apple token persist failed:", e);
     }
 
     // Only honour a same-origin relative redirect (no open-redirect to other

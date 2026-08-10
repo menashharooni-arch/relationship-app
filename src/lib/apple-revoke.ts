@@ -22,6 +22,7 @@ import { normalizeApplePrivateKey } from "@/lib/apple-key";
 //   APPLE_SIGN_IN_PRIVATE_KEY – the .p8 private key (PEM text)
 
 type MinimalUser = {
+  id?: string | null;
   identities?: Array<{
     provider?: string | null;
     identity_data?: Record<string, unknown> | null;
@@ -82,31 +83,35 @@ export async function revokeAppleTokensOnDelete(user: MinimalUser | null | undef
     const privateKey = process.env.APPLE_SIGN_IN_PRIVATE_KEY;
     if (!teamId || !clientId || !keyId || !privateKey) return "not_configured";
 
-    // ⚠️ KNOWN GAP (verified 2026-08-09, App Review 5.1.1(v)). This lookup does
-    // not find anything today. `identity_data` holds the Apple ID-token claims
-    // (sub, email, email_verified…) — NOT provider tokens. Supabase returns
-    // `provider_refresh_token` on the SESSION at sign-in only, and nothing
-    // persists it, so this returns "no_token" and appleid.apple.com/auth/revoke
-    // is never called. Deleting an Apple-created account therefore does not
-    // revoke the Apple token.
-    // Fix: capture `session.provider_refresh_token` in /auth/callback for the
-    // apple provider and store it, then read it here. Not yet done because it
-    // needs somewhere durable to live; no Apple accounts exist yet (the
-    // provider went live 2026-08-07). Tracked in app-store/KNOWN_LIMITATIONS.md.
-    // The read below stays deliberately defensive so it starts working the
-    // moment a token IS persisted under any of these names.
-    const data = (appleIdentity.identity_data ?? {}) as Record<string, unknown>;
-    const token =
-      (typeof data.refresh_token === "string" && data.refresh_token) ||
-      (typeof data.provider_refresh_token === "string" && data.provider_refresh_token) ||
-      (typeof data.access_token === "string" && data.access_token) ||
-      "";
-    if (!token) return "no_token";
+    // Primary source: apple_refresh_tokens, written at sign-in by
+    // /auth/callback (web) and /api/auth/apple-token (native shell). Supabase
+    // surfaces the provider refresh token exactly once, on the freshly
+    // exchanged session — identity_data never carries it, which is why this
+    // function silently returned "no_token" before the store existed
+    // (2026-08-10, App Review 5.1.1(v)).
+    let token = "";
+    let tokenTypeHint: "refresh_token" | "access_token" = "refresh_token";
+    if (user?.id) {
+      try {
+        const { readAppleRefreshToken } = await import("@/lib/apple-token-store");
+        token = (await readAppleRefreshToken(user.id)) ?? "";
+      } catch { /* store unreachable — fall through to identity_data */ }
+    }
 
-    const tokenTypeHint =
-      typeof data.refresh_token === "string" || typeof data.provider_refresh_token === "string"
-        ? "refresh_token"
-        : "access_token";
+    // Fallback kept deliberately: if Supabase ever starts persisting provider
+    // tokens on the identity, this picks them up with no further change.
+    if (!token) {
+      const data = (appleIdentity.identity_data ?? {}) as Record<string, unknown>;
+      token =
+        (typeof data.refresh_token === "string" && data.refresh_token) ||
+        (typeof data.provider_refresh_token === "string" && data.provider_refresh_token) ||
+        (typeof data.access_token === "string" && data.access_token) ||
+        "";
+      if (token && typeof data.refresh_token !== "string" && typeof data.provider_refresh_token !== "string") {
+        tokenTypeHint = "access_token";
+      }
+    }
+    if (!token) return "no_token";
 
     const clientSecret = buildAppleClientSecret({ teamId, keyId, clientId, privateKey });
     const bodyParams = new URLSearchParams({
