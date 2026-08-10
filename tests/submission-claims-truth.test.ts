@@ -49,13 +49,15 @@ describe("submission copy only claims features that are actually configured", ()
     expect(modal).toMatch(/<AddToWalletButton\s+username=\{walletUsername\}/);
   });
 
-  it("visitors are never offered Add to Wallet on someone else's card", () => {
-    // A visitor's Wallet should hold their own card, not a stranger's: the pass
-    // can never be updated and goes stale the moment the owner edits anything.
-    // The public card page therefore gates on isOwnerView as well as config.
-    expect(read("src/app/card/[username]/page.tsx")).toMatch(
-      /hasWalletConfig\(\)\s*&&\s*isOwnerView\s*&&/
-    );
+  it("the public card page never offers Add to Wallet — not even to the owner", () => {
+    // A visitor's Wallet should hold their own card, not a stranger's — and per
+    // the owner's 2026-08-10 decision the card page doesn't show the button to
+    // the owner either: that page is the visitor's save-contact surface. Wallet
+    // lives only in the owner's own sharing surfaces (dashboard button and
+    // MoreShareOptions, pinned above).
+    const cardPage = read("src/app/card/[username]/page.tsx");
+    expect(cardPage).not.toMatch(/AddToWalletButton/);
+    expect(cardPage).not.toMatch(/hasWalletConfig/);
   });
 
   // Apple Wallet went LIVE 2026-08-10: Pass Type ID pass.me.swiftcard.card,

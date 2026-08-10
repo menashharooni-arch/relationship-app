@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
-import AddToWalletButton from "@/components/AddToWalletButton";
-import { hasWalletConfig } from "@/lib/wallet-config";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 import CardEventTracker from "@/components/CardEventTracker";
 import ScanSaveContact from "@/components/ScanSaveContact";
@@ -348,18 +346,10 @@ export default async function CardPage({
           ownerFirstName={firstName}
           suppressTracking={isOwnerView}
         />
-        {/* Add to Apple Wallet is for the card's OWNER only — never for visitors.
-            A visitor's Wallet should hold their own card, not a stranger's: a
-            pass they can never update, that goes stale the moment the owner
-            edits anything, and that nobody wanted in there. Visitors get "Save
-            contact" instead, which puts the details where they actually belong,
-            in Contacts. The owner still adds their own card from the dashboard,
-            and keeps the button here when viewing their own live card. */}
-        {hasWalletConfig() && isOwnerView && (
-          <div className="mt-2">
-            <AddToWalletButton username={profile.username} />
-          </div>
-        )}
+        {/* No Add to Apple Wallet here — not even for the owner viewing their
+            own live card (owner decision 2026-08-10: the card page is the
+            visitor's save-contact surface). Wallet lives only in the owner's
+            own sharing surfaces: the dashboard button and MoreShareOptions. */}
       </div>
 
       {/* ── Section 2: Share Your Info Back ── */}
