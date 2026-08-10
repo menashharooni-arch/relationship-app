@@ -40,27 +40,29 @@ describe("submission copy only claims features that are actually configured", ()
     expect(read("src/app/dashboard/page.tsx")).toContain("hasWalletConfig()");
   });
 
-  it("reviewer notes do not tell the reviewer to test Apple Wallet", () => {
-    expect(notes).not.toMatch(/Add to Apple Wallet/i);
-    expect(notes).not.toMatch(/Share → QR \/ Wallet/i);
-  });
-
-  it("the App Store description does not promise Apple Wallet", () => {
+  // Apple Wallet went LIVE 2026-08-10: Pass Type ID pass.me.swiftcard.card,
+  // and /api/wallet/pass verified serving a signed .pkpass in production. The
+  // claims are back — so this guard flips direction: they may exist ONLY while
+  // the safety nets hold. The button gate (above) keeps an env regression from
+  // rendering a broken control, and the uptime health check turns a quiet 501
+  // back into an opened issue before a reviewer can find it.
+  it("wallet claims are present again — the feature is real now", () => {
+    expect(notes).toMatch(/Add to Apple Wallet/i);
     const body = description.slice(description.indexOf("## Description"));
-    expect(body).not.toMatch(/Apple Wallet/i);
+    expect(body).toMatch(/Apple Wallet/i);
+    expect(testPlan).toMatch(/Apple Wallet/);
   });
 
-  it("the TestFlight plan does not ask a tester to verify Wallet", () => {
-    // Skipped/struck-through mentions are fine; an open checkbox is not.
-    expect(testPlan).not.toMatch(/^- \[ \] Apple Wallet/m);
+  it("…but only alongside the health-check probe that keeps them honest", () => {
+    const hc = read("scripts/health-check.mjs");
+    expect(hc).toMatch(/api\/wallet\/pass/);
+    expect(hc).toMatch(/vnd\.apple\.pkpass/);
   });
 
-  // The watchOS story used to rest entirely on "the Wallet pass syncs to Watch
-  // Wallet". With Wallet off, that justification is false too.
-  it("the watchOS limitation does not justify itself with Wallet", () => {
+  it("the watchOS justification may lean on Wallet again — it is real now", () => {
     const limits = read("app-store/KNOWN_LIMITATIONS.md");
     const watchRow = limits.split("\n").find((l) => l.includes("watchOS app")) ?? "";
-    expect(watchRow).not.toMatch(/Wallet pass syncs to Watch Wallet \(real today\)/);
+    expect(watchRow).toMatch(/Wallet pass syncs to Watch Wallet/);
   });
 });
 

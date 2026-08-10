@@ -144,6 +144,20 @@ const CHECKS = [
     },
   },
   {
+    // Apple Wallet went live 2026-08-10 and the App Store submission copy now
+    // promises it to reviewers and users. If the pass cert is revoked or the
+    // APPLE_PASS_* env vars drift, the endpoint quietly reverts to 501 and the
+    // "Add to Apple Wallet" button vanishes — turning the reviewer notes false
+    // without any error anywhere. This keeps the claim honest.
+    name: "Apple Wallet pass endpoint serves a signed pass",
+    run: async () => {
+      const res = await get("/api/wallet/pass?card=" + DEMO);
+      const type = res.headers.get("content-type") || "";
+      const ok = res.status === 200 && type.includes("vnd.apple.pkpass");
+      return { ok, detail: `status ${res.status} type ${type.split(";")[0]}` };
+    },
+  },
+  {
     name: "sign-in page reachable",
     run: async () => {
       const res = await get("/login");

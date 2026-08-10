@@ -16,43 +16,29 @@ resolve the `group.me.swiftcard.app` App Group and its container provisions.
 Two silent-failure bugs were found and fixed while getting there — see
 §"Fixed during first build" at the bottom.
 
-**One credential left, and it is not an Apple ID password.**
+**BUILD 1 IS UPLOADED. 2026-08-10: SwiftCard 1.0.0 (1) validated ("VERIFY
+SUCCEEDED"), uploaded, and shows `processingState: VALID` on app 6798875872.**
 
-Create an **App Store Connect API key** and the whole remaining pipeline runs
-headlessly — no Apple ID in Xcode, no 2FA prompt, repeatable in CI:
+The pipeline is `npm run ios:release` (`--dry` to validate without uploading).
+Fully headless — no Apple ID in Xcode: `scripts/asc-provision.mjs` mints the
+Apple Distribution cert + App Store profiles via the ASC API (key
+`~/.swiftcard/asc/`, id `4T9CJ9M8CA`), the identity lives in the dedicated
+`swiftcard-release` keychain, archives are deliberately unsigned (dev profiles
+need a device; the team has none) and distribution signing happens at export.
+Apple Wallet went live the same night: `pass.me.swiftcard.card`, endpoint
+verified serving a signed `.pkpass`, guarded by the uptime health check.
 
-1. appstoreconnect.apple.com → Users and Access → Integrations →
-   App Store Connect API → **Team Keys** → (+). Role **App Manager**.
-2. Download the `.p8` (downloads once), note the **Key ID** and **Issuer ID**.
-3. ```bash
-   mkdir -p ~/.swiftcard/asc && chmod 700 ~/.swiftcard/asc
-   mv ~/Downloads/AuthKey_<KEYID>.p8 ~/.swiftcard/asc/
-   echo '<KEYID>'    > ~/.swiftcard/asc/key-id
-   echo '<ISSUERID>' > ~/.swiftcard/asc/issuer-id
-   chmod 600 ~/.swiftcard/asc/*
-   ```
-4. `npm run ios:release -- --dry`   → archive, sign, export, validate with Apple
-   `npm run ios:release`            → the same, then upload to App Store Connect
-
-That key authenticates BOTH halves: `xcodebuild -allowProvisioningUpdates
--authenticationKey*` mints the distribution certificate and provisioning
-profiles from it, and `altool` uploads with it. This is why signing into Xcode
-is optional — it was the blocker only while there was no other credential.
-
-⚠️ It is a DIFFERENT key from `~/.swiftcard/keys/AuthKey_C8TWRXCNKA.p8` (Sign in
-with Apple + APNs). An APNs key has no App Store Connect authority and fails
-with a confusing 401.
-
-**Screenshots**: 2 of 5 are captured and committed
-(`app-store/screenshots/6.9-inch/`). For the other 3, sign in once inside the
-simulator as the review account, then `npm run ios:screenshots` captures them
-all — see that script's header.
-
-**Everything else is done.** Sign in with Apple is live and verified end-to-end
-(the button renders in the real app — see screenshot 01). APNs authenticates
-against Apple. The widget target ships, its plugin is registered, and the
-bridge call was observed at runtime. AASA serves the real Team ID. The demo
-review account exists, populated. All six Apple env vars are in Vercel.
+**What remains is App Store Connect housekeeping, then Submit:**
+1. In ASC → App Store → 1.0.0: attach build 1, paste metadata from
+   `docs/ios-review/APP-STORE-METADATA.md`, upload screenshots
+   (`app-store/screenshots/6.9-inch/` has 2; `npm run ios:screenshots` after
+   one manual sim sign-in captures the rest).
+2. App Review Information: paste `app-store/APP_REVIEW_NOTES.md` + the demo
+   account (`applereview@swiftcard.me`, password in
+   `~/.swiftcard/apple-review-account.txt`).
+3. TestFlight the build on a real phone first (`TESTFLIGHT_TEST_PLAN.md` P0s —
+   push and Wallet want hardware confirmation).
+4. Submit.
 
 ## A. Apple Developer portal (developer.apple.com)
 
