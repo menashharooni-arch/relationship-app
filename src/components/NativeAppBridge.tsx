@@ -92,31 +92,61 @@ export default function NativeAppBridge() {
       // lives in the app's own container and is unreadable from a widget
       // extension — the widget would sit on its empty state forever.
       //
-      // Best-effort: signed-out or plugin-less builds simply skip. Honors the
-      // dashboard's active-card choice when one is stored.
-      try {
-        const res = await fetch("/api/cards", { credentials: "include" });
-        if (res.ok) {
-          const { cards } = (await res.json()) as { cards?: Array<{ username?: string; name?: string; company?: string }> };
-          if (cards?.length) {
-            let active = cards[0];
+      // Honors the dashboard's active-card choice when one is stored.
+      //
+      // Failures are logged rather than swallowed. The only visible output of
+      // this block is the widget itself, so a silent skip is indistinguishable
+      // from "working" during device testing — which is how the Preferences
+      // version above went unnoticed for weeks. Capacitor forwards console
+      // output to the Xcode/simctl console, so these lines are visible there.
+      const widgetBridge = (window as unknown as {
+        Capacitor?: {
+          Plugins?: {
+            WidgetBridge?: {
+              setCard: (o: Record<string, string>) => Promise<void>;
+              clearCard: () => Promise<void>;
+            };
+          };
+        };
+      }).Capacitor?.Plugins?.WidgetBridge;
+
+      if (!widgetBridge) {
+        // Means the plugin was not registered natively — see MainViewController.
+        console.warn("[widget] WidgetBridge plugin unavailable; home-screen widget will not update");
+      } else {
+        try {
+          const res = await fetch("/api/cards", { credentials: "include" });
+          const cards = res.ok
+            ? ((await res.json()) as { cards?: Array<{ username?: string; name?: string; company?: string }> }).cards
+            : undefined;
+
+          let active = cards?.length ? cards[0] : undefined;
+          if (active) {
             try {
               const chosen = localStorage.getItem("swiftcard_active_card");
-              active = cards.find((c) => c.username === chosen) ?? active;
+              active = cards!.find((c) => c.username === chosen) ?? active;
             } catch { /* default to first card */ }
-            if (active?.username) {
-              const widgetBridge = (window as unknown as {
-                Capacitor?: { Plugins?: { WidgetBridge?: { setCard: (o: Record<string, string>) => Promise<void> } } };
-              }).Capacitor?.Plugins?.WidgetBridge;
-              await widgetBridge?.setCard({
-                url: `https://swiftcard.me/card/${active.username}?source=widget`,
-                name: active.name || "My SwiftCard",
-                company: active.company || "",
-              });
-            }
           }
+
+          if (active?.username) {
+            await widgetBridge.setCard({
+              url: `https://swiftcard.me/card/${active.username}?source=widget`,
+              name: active.name || "My SwiftCard",
+              company: active.company || "",
+            });
+          } else if (res.status === 401 || res.status === 403 || cards?.length === 0) {
+            // Signed out, or the last card was deleted. Without this the widget
+            // keeps rendering the previous account's QR on the home screen
+            // indefinitely — including after sign-out on a shared or handed-on
+            // device, and after the account itself is gone.
+            await widgetBridge.clearCard();
+          }
+        } catch (e) {
+          // Offline is normal and fine; a native reject is not. Either way the
+          // widget keeps its last data, but say so instead of vanishing.
+          console.warn("[widget] sync failed:", e);
         }
-      } catch { /* offline, signed out, or older shell — widget keeps its last data */ }
+      }
 
       // Push-notification taps: lib/apns.ts puts the in-app destination in the
       // payload's custom `url`; navigate there when the user opens one.

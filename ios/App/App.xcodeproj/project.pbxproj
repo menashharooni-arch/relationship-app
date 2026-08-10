@@ -16,6 +16,7 @@
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		5A1D9F002026071700000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5A1D9F002026071700000001 /* PrivacyInfo.xcprivacy */; };
+		AA0000000000000000000016 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000017 /* MainViewController.swift */; };
 		AA0000000000000000000014 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000015 /* WidgetBridge.swift */; };
 		AA000000000000000000000E /* SwiftCardWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000A /* SwiftCardWidget.swift */; };
 		AA000000000000000000000F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* PrivacyInfo.xcprivacy */; };
@@ -44,6 +45,7 @@
 		5A1D9F002026071700000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000017 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		AA0000000000000000000015 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* SwiftCardWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SwiftCardWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA000000000000000000000A /* SwiftCardWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftCardWidget.swift; sourceTree = "<group>"; };
@@ -121,6 +123,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				AA0000000000000000000015 /* WidgetBridge.swift */,
+				AA0000000000000000000017 /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -248,6 +251,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				AA0000000000000000000014 /* WidgetBridge.swift in Sources */,
+				AA0000000000000000000016 /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

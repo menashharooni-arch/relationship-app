@@ -35,8 +35,17 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     private static let appGroup = "group.me.swiftcard.app"
     private static let storeKey = "widget_card"
 
+    // `UserDefaults(suiteName:)` is NOT a usable App Group check: it returns nil
+    // only for the bundle identifier or the global domain. With a missing or
+    // mismatched App Groups entitlement it hands back a perfectly ordinary
+    // instance whose writes go somewhere the widget cannot see — so setCard
+    // would resolve happily while the widget renders nothing. The container URL
+    // is the thing that actually depends on the entitlement.
     private var shared: UserDefaults? {
-        UserDefaults(suiteName: Self.appGroup)
+        guard FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: Self.appGroup
+        ) != nil else { return nil }
+        return UserDefaults(suiteName: Self.appGroup)
     }
 
     @objc func setCard(_ call: CAPPluginCall) {

@@ -138,6 +138,49 @@ describe("home-screen QR widget wiring", () => {
     // The kind string must match what WidgetBridge reloads.
     expect(w).toContain('kind: "SwiftCardQR"');
   });
+  // Capacitor does NOT scan the ObjC runtime for plugins. registerPlugins()
+  // uses five hardcoded built-ins plus capacitor.config.json's packageClassList,
+  // which `cap sync` regenerates from npm packages only — so an app-local plugin
+  // is invisible to it however correctly it is written. WidgetBridge shipped
+  // unregistered exactly once; window.Capacitor.Plugins.WidgetBridge was
+  // undefined, the optional call no-opped, and the widget stayed empty.
+  it("WidgetBridge is explicitly registered — Capacitor will not find it alone", () => {
+    const vc = read("ios/App/App/MainViewController.swift");
+    expect(vc).toContain("CAPBridgeViewController");
+    expect(vc).toMatch(/override func capacitorDidLoad\(\)/);
+    expect(vc).toMatch(/registerPluginInstance\(WidgetBridgePlugin\(\)\)/);
+    // registerPluginType early-returns while autoRegisterPlugins is true (its
+    // default), so a call to it would silently do nothing. Ignore comment lines
+    // — the file deliberately explains why that API is the wrong one.
+    const code = vc
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("//"))
+      .join("\n");
+    expect(code).not.toMatch(/registerPluginType\s*\(/);
+  });
+
+  it("the storyboard instantiates that subclass, not the stock controller", () => {
+    // Registration only happens if this view controller is the one that loads.
+    const sb = read("ios/App/App/Base.lproj/Main.storyboard");
+    expect(sb).toContain('customClass="MainViewController"');
+    expect(sb).not.toContain('customClass="CAPBridgeViewController"');
+    expect(read("ios/App/App.xcodeproj/project.pbxproj")).toContain(
+      "MainViewController.swift in Sources"
+    );
+  });
+
+  it("a missing App Group is detected by the container, not by suiteName", () => {
+    // UserDefaults(suiteName:) returns non-nil even without the entitlement, so
+    // writes would silently go somewhere the widget cannot read.
+    const b = read("ios/App/App/WidgetBridge.swift");
+    expect(b).toMatch(/containerURL\(\s*forSecurityApplicationGroupIdentifier:/);
+  });
+
+  it("the widget is cleared on sign-out, not left showing the last account", () => {
+    const bridge = read("src/components/NativeAppBridge.tsx");
+    expect(bridge).toMatch(/clearCard\(\)/);
+  });
+
   it("the widget target is actually in the Xcode project", () => {
     // The extension's source existed on disk for weeks without a target to
     // build it — the app shipped no widget at all.

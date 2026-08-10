@@ -29,17 +29,24 @@ function fail(msg) {
   process.exit(1);
 }
 
-const args = process.argv.slice(2);
+// Pull --key-id (and its value) out before looking for the path, or
+// `--key-id ABC ~/AuthKey_ABC.p8` treats "ABC" as the path and dies with a
+// confusing read error — at exactly the moment you are rotating an expired
+// secret and Apple sign-in is already down.
+const argv = process.argv.slice(2);
+const args = [];
+let keyIdFlag = null;
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === "--key-id") { keyIdFlag = argv[++i]; continue; }
+  if (argv[i].startsWith("--key-id=")) { keyIdFlag = argv[i].slice("--key-id=".length); continue; }
+  args.push(argv[i]);
+}
 const keyPath = args.find((a) => !a.startsWith("--"));
 if (!keyPath) {
   fail("usage: node scripts/apple-client-secret.mjs <path to AuthKey_XXXX.p8> [--key-id KEYID]");
 }
 
-const keyIdFlagIndex = args.indexOf("--key-id");
-const keyId =
-  keyIdFlagIndex !== -1
-    ? args[keyIdFlagIndex + 1]
-    : (basename(keyPath).match(/AuthKey_([A-Z0-9]+)\.p8$/) || [])[1];
+const keyId = keyIdFlag || (basename(keyPath).match(/AuthKey_([A-Z0-9]+)\.p8$/) || [])[1];
 if (!keyId) {
   fail(`could not infer the Key ID from "${basename(keyPath)}" — pass --key-id <KEYID>`);
 }
