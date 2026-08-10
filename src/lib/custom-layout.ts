@@ -102,6 +102,16 @@ const HEADSHOT_CAP = 116; // img height: min(px, 116)
 const DIVIDER_PX = 2;
 
 /**
+ * The smallest a QR may be drawn, in design px at the 460 card.
+ *
+ * Shared with the renderer, and it has to be: the floor makes the code BIGGER
+ * than the density solve asked for, so a model that didn't know about it would
+ * budget for a 27px code and the card would draw a 34px one — the overflow this
+ * whole engine exists to prevent.
+ */
+export const QR_MIN_PX = 34;
+
+/**
  * Socials FLOW: they fill across the row and wrap down.
  *
  *   linkedin  tiktok    instagram
@@ -245,6 +255,11 @@ function budget(
   // The QR sits in its own bottom row, outside Zone, so it carries no gap.
   // Socials are grouped with the SAME rule the renderer groups them by, so the
   // budget counts the rows that will actually be drawn.
+  // The QR's floor is ABSOLUTE, so it belongs with the padding in `fixed` —
+  // only the part above the floor shrinks with density. Modelling the whole
+  // code as scalable would let the solve believe it can shrink past a size the
+  // renderer refuses to go below.
+  const qrPx = qr ? imagePx(qr) : 0;
   const mainScaled =
     groupSocials(main).reduce((n, g) => {
       if (!Array.isArray(g)) return n + blockPx(g, data, width, placeholder);
@@ -252,8 +267,8 @@ function budget(
       if (!shown.length) return n;
       const rows = Math.ceil(shown.length / socialCols(shown.length));
       return n + rows * EMPHASIS_PX[shown[0].emphasis] * LINE + GAP_PX;
-    }, 0) + (qr ? imagePx(qr) : 0);
-  const mainFixed = stacked ? MAIN_PAD_STACKED : MAIN_PAD_SPLIT;
+    }, 0) + Math.max(0, qrPx - (qr ? QR_MIN_PX : 0));
+  const mainFixed = (stacked ? MAIN_PAD_STACKED : MAIN_PAD_SPLIT) + (qr ? QR_MIN_PX : 0);
 
   // The side panel's Zone is rendered with gap 0, so its blocks stack flush.
   const scale = sideImageScale(skeleton);
