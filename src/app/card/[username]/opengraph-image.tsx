@@ -50,10 +50,24 @@ async function embedImage(url: string | null): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith("data:")) return url;
   if (!/^https?:\/\//.test(url)) return null;
+  // SSRF guard, same as wallet-strip.tsx: the URL is an owner-controlled DB
+  // value and this fetch runs server-side — only touch the hosts our upload
+  // flows write to (Supabase storage + our own domain), and never follow a
+  // redirect off them. Anything else falls back to initials.
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+    const ok = new Set<string>();
+    for (const env of [process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"]) {
+      if (env) try { ok.add(new URL(env).hostname.toLowerCase()); } catch { /* ignore */ }
+    }
+    if (!ok.has(host)) return null;
+  } catch {
+    return null;
+  }
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 2500);
-    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" }).finally(() => clearTimeout(t));
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store", redirect: "error" }).finally(() => clearTimeout(t));
     if (!res.ok) return null;
     const type = res.headers.get("content-type") || "image/png";
     if (!/^image\//.test(type)) return null;

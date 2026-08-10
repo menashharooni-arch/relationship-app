@@ -75,16 +75,37 @@ function initialsOf(name: string | null | undefined) {
   return (name ?? "").split(" ").map((n) => n[0] ?? "").join("").toUpperCase().slice(0, 2) || "SC";
 }
 
+// Only fetch card images from hosts our upload flows actually write to. The
+// URL comes from a DB column the card owner controls, and this fetch runs
+// server-side — without the allowlist it's an SSRF primitive (point logo_url
+// at an internal host and make the server call it). Legacy rows pointing
+// anywhere else just fall back to initials.
+function allowedImageHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+    const ok = new Set<string>();
+    for (const env of [process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"]) {
+      if (env) try { ok.add(new URL(env).hostname.toLowerCase()); } catch { /* ignore */ }
+    }
+    return ok.has(host);
+  } catch {
+    return false;
+  }
+}
+
 // Pre-fetch a remote image into a data: URI so Satori embeds it and can never
 // throw on a slow/failed fetch (same guard as the OG route). Null → initials.
 async function embedImage(url: string | null): Promise<string | null> {
   if (!url) return null;
   if (url.startsWith("data:")) return url;
   if (!/^https?:\/\//.test(url)) return null;
+  if (!allowedImageHost(url)) return null;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 2500);
-    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store" }).finally(() => clearTimeout(t));
+    // redirect:"error" — storage URLs never redirect, and following one would
+    // let an allowlisted URL bounce the request to an arbitrary host.
+    const res = await fetch(url, { signal: ctrl.signal, cache: "no-store", redirect: "error" }).finally(() => clearTimeout(t));
     if (!res.ok) return null;
     const type = res.headers.get("content-type") || "image/png";
     if (!/^image\//.test(type)) return null;
