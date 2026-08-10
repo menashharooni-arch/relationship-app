@@ -14,6 +14,9 @@
     "ios:release": "bash scripts/ios-release.sh",
     "ios:screenshots": "bash scripts/ios-screenshots.sh"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
     "@capacitor/app": "^8.1.1",
