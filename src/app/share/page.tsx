@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -11,6 +12,7 @@ import HelpWidget from "@/components/HelpWidget";
 import CopyButton from "@/components/CopyButton";
 import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
+import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 import { buildCardData } from "@/lib/card-data";
 import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
@@ -28,7 +30,22 @@ export default async function SharePage({
   searchParams: Promise<{ card?: string }>;
 }) {
   const params = await searchParams;
-  const selectedCard = params.card ?? null;
+  // ?card= wins; otherwise fall back to the cookie written by
+  // CardSelectionPersist when the user picked a card on the dashboard.
+  //
+  // Reading it HERE, during the server render, is the fix for "the signature
+  // shows the wrong card and the headshot is glitchy". The tab bar builds its
+  // Links href from a state value that starts null and is only filled in a mount
+  // effect, so a tap before that lands on a bare /share. This page then fell
+  // back to shareableCards[0] — the OLDEST card — and ShareCardResolver
+  // redirected to the right one a moment later. The user saw the wrong card's
+  // signature, then a reload. Headshots are per-card (see lib/card-media), and
+  // the oldest card is exactly the one holding the legacy account photo, so the
+  // headshot appeared and then disappeared as the correct, photo-less card
+  // loaded. With the cookie the right card is rendered first and no redirect
+  // happens at all.
+  const cookieCard = (await cookies()).get(ACTIVE_CARD_COOKIE)?.value ?? null;
+  const selectedCard = params.card ?? cookieCard;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

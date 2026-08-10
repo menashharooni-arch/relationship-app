@@ -1,18 +1,31 @@
 "use client";
 import { useEffect } from "react";
+import { ACTIVE_CARD_KEY, ACTIVE_CARD_COOKIE, ACTIVE_CARD_COOKIE_MAX_AGE } from "@/lib/active-card";
 
-const KEY = "swiftcard_active_card";
-
-// Persists the currently-selected card so other pages (e.g. Contacts) can default to
-// it. It does NOT auto-select a card — after login you start with no card selected.
+/**
+ * Persists the currently-selected card so other pages can default to it.
+ * It does NOT auto-select a card — after login you start with no card selected.
+ *
+ * Writes BOTH a localStorage key and a cookie. The cookie is what lets the
+ * server know the selection at render time: with localStorage alone, every page
+ * that needs the selected card had to render something first (the oldest card)
+ * and then correct itself from a client effect — a visible flash of the wrong
+ * card, a second navigation, and on the Share page a headshot that appeared and
+ * then vanished, because headshots are per-card and the oldest card is the one
+ * carrying the legacy account photo.
+ */
 export default function CardSelectionPersist({ selectedCard }: { selectedCard: string | null }) {
   useEffect(() => {
-    if (selectedCard) {
-      try {
-        localStorage.setItem(KEY, selectedCard);
-      } catch {
-        /* ignore */
-      }
+    if (!selectedCard) return;
+    try {
+      localStorage.setItem(ACTIVE_CARD_KEY, selectedCard);
+    } catch {
+      /* ignore */
+    }
+    try {
+      document.cookie = `${ACTIVE_CARD_COOKIE}=${encodeURIComponent(selectedCard)}; path=/; max-age=${ACTIVE_CARD_COOKIE_MAX_AGE}; samesite=lax`;
+    } catch {
+      /* ignore */
     }
   }, [selectedCard]);
 

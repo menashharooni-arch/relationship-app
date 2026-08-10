@@ -25,6 +25,15 @@ export default function SignOutButton() {
     } catch {
       /* storage blocked — nothing to clear */
     }
+    // The same pointer also lives in a cookie so the server can read it during
+    // render (CardSelectionPersist). Clearing only the localStorage copy would
+    // leave the previous account's card slug readable server-side for the next
+    // person who signs in on this browser.
+    try {
+      document.cookie = "sc_active_card=; path=/; max-age=0; samesite=lax";
+    } catch {
+      /* ignore */
+    }
     // HARD navigation to the marketing front page — a full reload guarantees no
     // stale client state or in-memory session survives the sign-out.
     window.location.href = "/";

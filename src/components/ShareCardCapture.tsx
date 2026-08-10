@@ -115,23 +115,43 @@ export default function ShareCardCapture({
   // then the off-screen card isn't rendered at all — so a normal dashboard load
   // where the card hasn't changed pays ZERO render cost for this component.
   const [needsCapture, setNeedsCapture] = useState(false);
+  // Photo/logo already resolved to data: URLs, so REACT renders them that way.
+  //
+  // This exists because inlining by mutating `img.src` after the fact is not
+  // safe: React owns those <img> elements, and anything that re-renders this
+  // component between the mutation and the rasterize silently restores the
+  // original src. The lazy `dynamic()` template chunk resolving does exactly
+  // that, and the window is wide — inlining is followed by `await
+  // document.fonts.ready` plus a settle delay. The result was a capture whose
+  // headshot <img> was back to a cross-origin URL that html-to-image then
+  // dropped, producing a card with the photo panel rendered empty. That is the
+  // "my picture doesn't show when I text my link" bug, and it is why the
+  // existing guard never caught it: the image DID inline and decode, it was
+  // just undone afterwards.
+  //
+  // Feeding data URLs in as props removes the race entirely — there is no
+  // original src to restore.
+  const [resolved, setResolved] = useState<{ photoUrl: string | null; logoUrl: string | null } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const capturingRef = useRef(false);
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
 
   // Capture-logic version. Bump to force a global re-capture
-  // ("v6" = wait for web fonts + verify each inlined image actually decodes, so a
-  // capture never bakes a fallback font or a broken headshot; "v5" = images inlined
-  // + reject on missing; "v4" = max-space sizing, banner-aware logos).
-  const contentSig = "share-v6|" + hashStr(JSON.stringify(cardData) + "|" + template);
+  // ("v7" = photo/logo resolved to data URLs BEFORE render, so a re-render can't
+  // undo the inlining; "v6" = wait for web fonts + verify each inlined image
+  // actually decodes; "v5" = images inlined + reject on missing; "v4" = max-space
+  // sizing, banner-aware logos).
+  const contentSig = "share-v7|" + hashStr(JSON.stringify(cardData) + "|" + template);
   const hashKey = `sc_sharehash_${username}`;
 
   // Photo/logo through a same-origin proxy so the browser can read them into the canvas.
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
   const captureData = {
     ...cardData,
-    photoUrl: proxy(cardData.photoUrl),
-    logoUrl: proxy((cardData as { logoUrl?: string | null }).logoUrl),
+    // Prefer the pre-resolved data URL; fall back to the proxied URL so the
+    // node still renders (and inlineImages can still try) if resolving failed.
+    photoUrl: resolved?.photoUrl ?? proxy(cardData.photoUrl),
+    logoUrl: resolved?.logoUrl ?? proxy((cardData as { logoUrl?: string | null }).logoUrl),
   } as CardData;
 
   // Rasterize the card once. Every image (photo/logo) must be loaded first so
@@ -169,6 +189,20 @@ export default function ShareCardCapture({
       inlined = await inlineImages(el, fallbackSrc);
     }
     if (!inlined) return null;
+
+    // A card that HAS a headshot must show one in the capture. inlineImages
+    // reports success over `results.every(...)`, which is vacuously true for an
+    // empty list — so a node that somehow rendered no <img> at all passed the
+    // check and shipped a photo-less card. Assert the thing we actually care
+    // about instead: a decoded, embedded photo is present. Rejecting keeps the
+    // previous preview (or the server-rendered fallback, which embeds the photo
+    // itself) rather than storing a card with an empty photo panel.
+    if (cardData.photoUrl) {
+      const embeddedPhoto = Array.from(el.querySelectorAll("img")).some(
+        (img) => (img.currentSrc || img.src || "").startsWith("data:") && img.naturalWidth > 0,
+      );
+      if (!embeddedPhoto) return null;
+    }
 
     // Wait for web fonts before rasterizing so text can't bake in a fallback
     // font (wrong metrics / clipped) or unpainted glyphs; then let reflow settle.
@@ -246,10 +280,36 @@ export default function ShareCardCapture({
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
     if (prev === contentSig) return; // up to date — nothing to render or capture
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- gate the off-screen render on a real capture need
-    setNeedsCapture(true);
-    const t = setTimeout(() => { captureAndUpload(); }, 800);
-    return () => clearTimeout(t);
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    (async () => {
+      // Resolve the photo/logo to data URLs BEFORE the card is rendered, so the
+      // <img> elements are born with an embedded source. Each falls back from
+      // the same-origin proxy to the raw URL, and to null (the template then
+      // draws its initials avatar, which is honest — better than an empty
+      // panel). Failure here is not fatal: the render still gets the proxied
+      // URL and inlineImages remains as the backstop.
+      const [photoUrl, logoUrl] = await Promise.all([
+        (async () => {
+          const raw = cardData.photoUrl;
+          if (!raw) return null;
+          return (await fetchAsDataUrl(proxy(raw) as string)) ?? (await fetchAsDataUrl(raw));
+        })(),
+        (async () => {
+          const raw = (cardData as { logoUrl?: string | null }).logoUrl;
+          if (!raw) return null;
+          return (await fetchAsDataUrl(proxy(raw) as string)) ?? (await fetchAsDataUrl(raw));
+        })(),
+      ]);
+      if (cancelled) return;
+      setResolved({ photoUrl, logoUrl });
+      setNeedsCapture(true);
+      timer = setTimeout(() => { captureAndUpload(); }, 800);
+    })();
+
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, contentSig]);
 

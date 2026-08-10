@@ -70,6 +70,19 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#030712",
+  // THE WHITE BARS AT THE TOP AND BOTTOM OF THE APP.
+  // This used to be appended to the viewport meta by NativeAppBridge in a mount
+  // effect. Until that effect ran, the webview did not extend beneath the notch
+  // or the home indicator, so the native view behind it — white by default —
+  // showed as bars above the status bar and below the tab bar. Server-rendering
+  // it means the webview is edge-to-edge in the very first painted frame, and
+  // env(safe-area-inset-*) does the insetting from there.
+  //
+  // Safe for the website: viewport-fit=cover only changes anything for a page
+  // that positions content into the safe areas, and every env(safe-area-inset-*)
+  // rule in globals.css is scoped to html.native-app. In Safari the browser
+  // chrome occupies those areas anyway.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
