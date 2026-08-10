@@ -34,7 +34,12 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
       { label: "Company", href: "/company" },
       { label: "Contact Us", href: "/contact" },
       { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms & Legal", href: "/terms" },
+      // "Terms of Service", not "Terms & Legal": A2P 10DLC vetting crawls the
+      // registered website (swiftcard.me) for a Terms & Conditions page and
+      // matches on conventional anchor text. Campaign rejection 30882 said the
+      // T&C could not be verified while this link read "Terms & Legal" — a
+      // label a policy scanner has no reason to recognise.
+      { label: "Terms of Service", href: "/terms" },
       { label: "SMS Terms", href: "/sms-terms" },
     ],
   },
