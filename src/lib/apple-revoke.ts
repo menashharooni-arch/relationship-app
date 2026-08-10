@@ -82,8 +82,19 @@ export async function revokeAppleTokensOnDelete(user: MinimalUser | null | undef
     const privateKey = process.env.APPLE_SIGN_IN_PRIVATE_KEY;
     if (!teamId || !clientId || !keyId || !privateKey) return "not_configured";
 
-    // Supabase stores the provider tokens on the identity's identity_data. Field
-    // naming is finalized once the provider is live; read defensively.
+    // ⚠️ KNOWN GAP (verified 2026-08-09, App Review 5.1.1(v)). This lookup does
+    // not find anything today. `identity_data` holds the Apple ID-token claims
+    // (sub, email, email_verified…) — NOT provider tokens. Supabase returns
+    // `provider_refresh_token` on the SESSION at sign-in only, and nothing
+    // persists it, so this returns "no_token" and appleid.apple.com/auth/revoke
+    // is never called. Deleting an Apple-created account therefore does not
+    // revoke the Apple token.
+    // Fix: capture `session.provider_refresh_token` in /auth/callback for the
+    // apple provider and store it, then read it here. Not yet done because it
+    // needs somewhere durable to live; no Apple accounts exist yet (the
+    // provider went live 2026-08-07). Tracked in app-store/KNOWN_LIMITATIONS.md.
+    // The read below stays deliberately defensive so it starts working the
+    // moment a token IS persisted under any of these names.
     const data = (appleIdentity.identity_data ?? {}) as Record<string, unknown>;
     const token =
       (typeof data.refresh_token === "string" && data.refresh_token) ||

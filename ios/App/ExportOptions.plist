@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Store distribution. Used by scripts/ios-release.sh. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>NHK8FA2RR2</string>
+	<!-- Let Xcode mint the distribution cert and profiles. Combined with
+	     -allowProvisioningUpdates and an App Store Connect API key, this needs
+	     no Apple ID signed into Xcode at all. -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- dSYMs, so Sentry can symbolicate native crashes. -->
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- App thinning is irrelevant for a webview shell and only slows the
+	     upload; ship one universal binary. -->
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<!-- We do not use TestFlight's automatic external distribution. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>

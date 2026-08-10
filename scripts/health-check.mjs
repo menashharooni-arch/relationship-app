@@ -116,6 +116,34 @@ const CHECKS = [
     },
   },
   {
+    // Apple's client secret is a JWT WE sign, and Apple caps its lifetime at 6
+    // months (next expiry ≈ 2027-02-05). When it lapses, Supabase silently goes
+    // back to "provider is not enabled" and every Apple user is locked out —
+    // typically users with a private-relay address and no password, so they
+    // cannot fall back to email either. Nothing else in the stack notices.
+    // Regenerate with scripts/supabase-enable-apple.mjs.
+    name: "Sign in with Apple still works (client secret not expired)",
+    run: async () => {
+      const url =
+        "https://grxmovpmlgmjncnyiyrt.supabase.co/auth/v1/authorize" +
+        "?provider=apple&redirect_to=" + encodeURIComponent("swiftcard://auth-callback");
+      const res = await fetch(url, { redirect: "manual" });
+      const location = res.headers.get("location") || "";
+      const ok = res.status === 302 && location.startsWith("https://appleid.apple.com");
+      if (ok) return { ok, detail: "302 → appleid.apple.com" };
+      const body = await res.text().catch(() => "");
+      return {
+        ok: false,
+        detail:
+          `status ${res.status}` +
+          (/not enabled/i.test(body)
+            ? " — provider disabled; the Apple client secret has most likely EXPIRED. " +
+              "Re-run scripts/supabase-enable-apple.mjs."
+            : ` ${body.slice(0, 120)}`),
+      };
+    },
+  },
+  {
     name: "sign-in page reachable",
     run: async () => {
       const res = await get("/login");
