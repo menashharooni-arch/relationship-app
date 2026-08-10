@@ -121,11 +121,26 @@ export default function RootLayout({
             __html:
               "try{document.documentElement.classList.add('sc-js');" +
               "if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light');" +
+              // Detect the shell from window.webkit.messageHandlers.bridge, the
+              // NATIVE message handler WKWebView installs before any page script
+              // runs. window.Capacitor alone is not reliable here: it is created
+              // by Capacitor's own injected bundle, so whether it exists yet is a
+              // race against this script — and when it lost, the redirect fell
+              // through to a React mount effect and the marketing hero flashed
+              // before the app appeared. This is the same signal @capacitor/core
+              // uses internally (getPlatformId). Capacitor is still checked as a
+              // fallback for any future shell that exposes only that.
+              "var W=window.webkit&&window.webkit.messageHandlers;" +
               "var C=window.Capacitor;" +
-              "if(C&&(C.isNativePlatform?C.isNativePlatform():C.isNative)){" +
+              "if((W&&W.bridge)||(C&&(C.isNativePlatform?C.isNativePlatform():C.isNative))){" +
               "document.documentElement.classList.add('native-app');" +
-              "if(location.pathname==='/')location.replace('/dashboard');" +
-              "}}catch(e){}",
+              "if(location.pathname==='/'){" +
+              // Hide before navigating so the homepage cannot paint even one
+              // frame during the redirect. Scoped to the shell on "/" only, so
+              // the website never hides anything.
+              "document.documentElement.style.visibility='hidden';" +
+              "location.replace('/dashboard');" +
+              "}}}catch(e){}",
           }}
         />
         {/* Brand structured data for Google Search (JSON-LD). ORG_JSONLD is a

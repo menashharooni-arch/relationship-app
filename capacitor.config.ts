@@ -46,6 +46,15 @@ const config: CapacitorConfig = {
     // auth sessions persist exactly like the website.
     limitsNavigationsToAppBoundDomains: false,
     contentInset: "automatic",
+    // The native canvas behind the webview — what rubber-band overscroll
+    // reveals. White by default, which read as white bars at the top/bottom of
+    // every scroll. globals.css also suppresses the bounce itself
+    // (overscroll-behavior, iOS 16+); this covers any WebKit that bounces
+    // anyway. App background dark (#030712): dark is the shell's default
+    // theme, and a dark flash under a light theme is far less jarring than a
+    // white flash under the dark one. Takes effect on the NEXT native build
+    // (cap sync), unlike the CSS fix which ships with the site.
+    backgroundColor: "#030712",
   },
   plugins: {
     // ⚠️ `group` here is NOT an iOS App Group — the Preferences plugin only
