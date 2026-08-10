@@ -52,7 +52,11 @@ export async function buildPkpass(card: WalletCard): Promise<Buffer> {
       serialNumber: card.username,
       organizationName: "SwiftCard",
       description: `${card.name} — SwiftCard`,
-      logoText: "SwiftCard",
+      // NO logoText. logo.png is a 160x50 WORDMARK that already reads
+      // "SwiftCard", so setting logoText printed the brand twice in the pass
+      // header — the wordmark image with a second "SwiftCard" rendered next to
+      // it. If the logo asset is ever swapped for a bare glyph, put logoText
+      // back.
       foregroundColor: "rgb(255, 255, 255)",
       backgroundColor: "rgb(13, 27, 62)",
       labelColor: "rgb(147, 197, 253)",
@@ -67,11 +71,40 @@ export async function buildPkpass(card: WalletCard): Promise<Buffer> {
   if (card.title) pass.secondaryFields.push({ key: "title", label: "TITLE", value: card.title });
   if (card.company) pass.secondaryFields.push({ key: "company", label: "COMPANY", value: card.company });
 
-  if (card.phone) pass.auxiliaryFields.push({ key: "phone", label: "PHONE", value: card.phone });
+  if (card.phone) pass.auxiliaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
   if (card.email) pass.auxiliaryFields.push({ key: "email", label: "EMAIL", value: card.email });
 
-  pass.backFields.push({ key: "open", label: "Your SwiftCard", value: card.cardUrl });
+  // The back of the pass (the "..." button) is the only place with room for
+  // detail, and it was nearly empty — just a bare URL. Someone who opens it
+  // should find everything the card holds and understand what the pass is FOR,
+  // since a Wallet pass with no explanation reads like a coupon that failed.
+  pass.backFields.push({
+    key: "about",
+    label: "About this pass",
+    value:
+      "Your SwiftCard, ready to share. Show the QR code on the front and the other person's camera opens your live card — no app needed on their side. Edit your card at any time and this pass keeps pointing at the current version.",
+  });
+  pass.backFields.push({ key: "open", label: "Your card", value: card.cardUrl });
+  if (card.phone) pass.backFields.push({ key: "phone-back", label: "Phone", value: prettyPhone(card.phone) });
+  if (card.email) pass.backFields.push({ key: "email-back", label: "Email", value: card.email });
   if (card.website) pass.backFields.push({ key: "website", label: "Website", value: card.website });
 
   return pass.getAsBuffer();
+}
+
+/**
+ * Human-readable US phone formatting for the pass.
+ *
+ * Deliberately a local copy rather than an import of formatPhone() from
+ * card-templates/shared.tsx: that module also exports React components, and
+ * this file runs inside a serverless route where pulling a component module in
+ * for four lines of string work is the wrong trade. Anything that is not a
+ * recognisable US number is returned untouched, so international numbers are
+ * never mangled.
+ */
+function prettyPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d[0] === "1") return `+1 (${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return raw;
 }

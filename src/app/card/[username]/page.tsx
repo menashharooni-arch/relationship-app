@@ -348,7 +348,14 @@ export default async function CardPage({
           ownerFirstName={firstName}
           suppressTracking={isOwnerView}
         />
-        {hasWalletConfig() && (
+        {/* Add to Apple Wallet is for the card's OWNER only — never for visitors.
+            A visitor's Wallet should hold their own card, not a stranger's: a
+            pass they can never update, that goes stale the moment the owner
+            edits anything, and that nobody wanted in there. Visitors get "Save
+            contact" instead, which puts the details where they actually belong,
+            in Contacts. The owner still adds their own card from the dashboard,
+            and keeps the button here when viewing their own live card. */}
+        {hasWalletConfig() && isOwnerView && (
           <div className="mt-2">
             <AddToWalletButton username={profile.username} />
           </div>
