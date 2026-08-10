@@ -63,3 +63,33 @@ describe("submission copy only claims features that are actually configured", ()
     expect(watchRow).not.toMatch(/Wallet pass syncs to Watch Wallet \(real today\)/);
   });
 });
+
+// App Store Connect attaches a build to the version record whose string matches
+// CFBundleShortVersionString exactly, and it rejects an upload outright when an
+// embedded extension's version differs from its host app's. Both are silent
+// until the moment you try to ship.
+describe("version numbers line up for upload", () => {
+  const proj = read("ios/App/App.xcodeproj/project.pbxproj");
+  const metadata = read("docs/ios-review/APP-STORE-METADATA.md");
+
+  it("every target builds the version the metadata promises", () => {
+    const documented = metadata.match(/^- (\d+\.\d+\.\d+), build (\d+)\./m);
+    expect(documented, "APP-STORE-METADATA.md ## Version line").not.toBeNull();
+    const [, version, build] = documented!;
+
+    const marketing = [...proj.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map((m) => m[1]);
+    const current = [...proj.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map((m) => m[1]);
+    // App Debug/Release + widget Debug/Release
+    expect(marketing).toHaveLength(4);
+    expect(current).toHaveLength(4);
+    expect(new Set(marketing)).toEqual(new Set([version]));
+    expect(new Set(current)).toEqual(new Set([build]));
+  });
+
+  it("the widget inherits its version instead of hardcoding one", () => {
+    // Hardcoding here is how app and extension drift apart between releases.
+    const plist = read("ios/App/SwiftCardWidget/Info.plist");
+    expect(plist).toContain("$(MARKETING_VERSION)");
+    expect(plist).toContain("$(CURRENT_PROJECT_VERSION)");
+  });
+});
