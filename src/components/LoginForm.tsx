@@ -22,8 +22,29 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // the literal so a stray value can't accidentally switch it on.
 const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1";
 
-export default function LoginForm({ redirectTo, initialMode = "signin" }: { redirectTo?: string; initialMode?: "signin" | "signup" }) {
-  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+export default function LoginForm({
+  redirectTo,
+  initialMode = "signin",
+  signInOnly = false,
+}: {
+  redirectTo?: string;
+  initialMode?: "signin" | "signup";
+  /**
+   * Sign-in only — no account creation anywhere in this form.
+   *
+   * Set by the login page for the iOS shell: accounts are created on the
+   * website, and the app just signs you in. Passed down from a SERVER-rendered
+   * value rather than read from useIsNativeApp() here, because that hook is
+   * false on the first render — gating on it would paint the "Create account"
+   * tab for one frame before removing it.
+   *
+   * Everything signup-shaped keys off this single flag: the mode toggle, the
+   * post-failure "create an account" shortcut, the submit label, and the
+   * signup terms notice. `mode` can then never leave "signin".
+   */
+  signInOnly?: boolean;
+}) {
+  const [mode, setMode] = useState<"signin" | "signup">(signInOnly ? "signin" : initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -226,23 +247,28 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
 
   return (
     <div className="w-full space-y-5">
-      {/* Mode toggle */}
-      <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
-        {(["signin", "signup"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
-            className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
-            style={{
-              background: mode === m ? "#1D4ED8" : "transparent",
-              color: mode === m ? "#fff" : "#8B8070",
-            }}
-          >
-            {m === "signin" ? "Sign in" : "Create account"}
-          </button>
-        ))}
-      </div>
+      {/* Mode toggle — web only. In the app there is nothing to toggle BETWEEN,
+          so the control is removed rather than shown with one dead half: a
+          single-option segmented control reads as a broken toggle. The card
+          then opens straight onto the email field. */}
+      {!signInOnly && (
+        <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
+          {(["signin", "signup"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
+              className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
+              style={{
+                background: mode === m ? "#1D4ED8" : "transparent",
+                color: mode === m ? "#fff" : "#8B8070",
+              }}
+            >
+              {m === "signin" ? "Sign in" : "Create account"}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
@@ -270,7 +296,7 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
         {/* After a failed sign-in, a one-tap path to Create-account (keeps the
             email they typed) — the "redirect to create account" affordance for
             the email/password case, where Supabase can't confirm no-account. */}
-        {mode === "signin" && signinFailed && (
+        {mode === "signin" && signinFailed && !signInOnly && (
           <button
             type="button"
             onClick={() => { setMode("signup"); setSigninFailed(false); setErrorMsg(""); setStatus("idle"); }}
@@ -376,6 +402,20 @@ export default function LoginForm({ redirectTo, initialMode = "signin" }: { redi
           </svg>
           Continue with Apple
         </button>
+      )}
+
+      {/* Where the signup affordance used to be. Deliberately STATIC — not a
+          link, not a button, nothing tappable: the app does not create
+          accounts, so an affordance here would either dead-end or bounce the
+          user out to Safari, which is the whole problem being removed.
+
+          pt-1 + the parent's space-y-5 keeps it clear of the last button, and
+          it inherits the card's centered column so it stays aligned at every
+          width. Muted and small so it reads as a footnote, not an action. */}
+      {signInOnly && (
+        <p className="pt-1 text-center text-xs text-slate-500">
+          Start building your network at swiftcard.me
+        </p>
       )}
     </div>
   );
