@@ -11,17 +11,26 @@ import type { TourTier } from "@/lib/tour-steps";
 export default function TourContextPersist({
   tier,
   isOfficeMember,
+  hasCards,
 }: {
   tier: TourTier;
   isOfficeMember: boolean;
+  /**
+   * Whether this account has any card yet. Without one the dashboard renders a
+   * different tree with none of the tour's anchors in it, so the tour has to
+   * drop every spotlighted step rather than hunt for elements that cannot
+   * exist. isNative is NOT persisted — it is detected live, since the same
+   * account uses both the app and the website.
+   */
+  hasCards: boolean;
 }) {
   useEffect(() => {
     try {
-      localStorage.setItem(TOUR_CTX_KEY, JSON.stringify({ tier, isOfficeMember }));
+      localStorage.setItem(TOUR_CTX_KEY, JSON.stringify({ tier, isOfficeMember, hasCards }));
     } catch {
       /* private mode — the tour just falls back to its base copy */
     }
-  }, [tier, isOfficeMember]);
+  }, [tier, isOfficeMember, hasCards]);
 
   return null;
 }

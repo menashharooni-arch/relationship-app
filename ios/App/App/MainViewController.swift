@@ -60,11 +60,44 @@ class MainViewController: CAPBridgeViewController {
         // Native rather than web-only because this survives any future CSS
         // regression, and because delegate-level zoom cannot be re-enabled by
         // page content.
-        if let scrollView = webView?.scrollView {
-            scrollView.minimumZoomScale = 1.0
-            scrollView.maximumZoomScale = 1.0
-            scrollView.bouncesZoom = false
-            scrollView.pinchGestureRecognizer?.isEnabled = false
+        pinZoom()
+
+        // capacitorDidLoad() runs ONCE, at bridge creation — and this shell
+        // loads a REMOTE url (server.url = https://swiftcard.me) that performs
+        // genuine full-document navigations after that point, starting with
+        // sc-boot's location.replace('/dashboard') on the very first launch.
+        // WebKit re-derives minimum/maximumZoomScale from each new document's
+        // viewport meta and rebuilds its gesture recognisers, so a one-shot pin
+        // is undone by the first navigation — i.e. before the user ever sees a
+        // screen. Re-applying on every committed URL change is what makes it
+        // hold for the life of the app.
+        //
+        // KVO on `url` rather than the navigation delegate or the scroll-view
+        // delegate: Capacitor owns both (CAPBridgeViewController installs its
+        // WebViewDelegationHandler as each), and taking either from it breaks
+        // the bridge — plugin calls, app-bound-domain handling and its own
+        // zoom guard all hang off them.
+        urlObservation = webView?.observe(\.url, options: [.new]) { [weak self] _, _ in
+            self?.pinZoom()
         }
+    }
+
+    /// Zoom pinned to exactly 1.0, in every direction it can be changed.
+    ///
+    /// bouncesZoom must be off too: with it on, a pinch still rubber-bands the
+    /// whole page and springs back, which reads as a zoom that "sticks" for a
+    /// moment rather than one that never happens.
+    private func pinZoom() {
+        guard let scrollView = webView?.scrollView else { return }
+        scrollView.minimumZoomScale = 1.0
+        scrollView.maximumZoomScale = 1.0
+        scrollView.bouncesZoom = false
+        scrollView.pinchGestureRecognizer?.isEnabled = false
+    }
+
+    private var urlObservation: NSKeyValueObservation?
+
+    deinit {
+        urlObservation?.invalidate()
     }
 }

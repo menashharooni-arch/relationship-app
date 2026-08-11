@@ -24,6 +24,10 @@ const PAD = 8;        // spotlight padding around the element
 const GAP = 14;       // gap between spotlight and tooltip
 const TIP_W = 340;    // tooltip width (also used for clamping)
 const FIND_TRIES = 24; // ~2.9s of polling before giving up on a missing element
+// Route pushes for one step before we treat its page as unreachable. Small on
+// purpose: a page that redirects away bounces on the FIRST attempt, and every
+// retry is a wasted navigation the user watches.
+const NAV_TRIES = 2;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -113,6 +117,10 @@ export default function GuidedTour({
 
   // Direction of travel, so a missing element skips the RIGHT way (fwd/back).
   const dirRef = useRef(1);
+  // Route pushes spent trying to reach the current step's page, so a page that
+  // redirects away is skipped instead of pushed forever. Keyed by step index:
+  // a different step starts its own budget, and Back re-earns one.
+  const navTriesRef = useRef<{ step: number; n: number }>({ step: -1, n: 0 });
   const targetRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -188,12 +196,30 @@ export default function GuidedTour({
 
     // Wrong page for this step → go there; this effect re-runs after the route
     // changes (pathname is a dependency) and we resume on arrival.
+    //
+    // NAV_TRIES exists because "push and wait for pathname" assumes the push
+    // lands. Some tour pages bounce: /share redirects to /dashboard for an
+    // account with no cards, so the push changed pathname to /dashboard, this
+    // effect re-ran, saw the wrong page again, and pushed /share again — a
+    // redirect loop under a full-screen scrim with no tooltip and no way out
+    // but Escape. Counting attempts per step turns an unreachable page into a
+    // skipped step, which is what the missing-anchor path already does.
     if (cur.path !== pathname) {
+      const attempts = (navTriesRef.current.step === idx ? navTriesRef.current.n : 0) + 1;
+      navTriesRef.current = { step: idx, n: attempts };
+      if (attempts > NAV_TRIES) {
+        const nextIdx = idxRef.current + dirRef.current;
+        if (nextIdx < 0 || nextIdx >= steps.length) { finish(true); return; }
+        go(nextIdx);
+        return;
+      }
       let card: string | null = null;
       try { card = sessionStorage.getItem(cardKey); } catch { /* ignore */ }
       router.push(resolveTourPath(cur, card));
       return;
     }
+    // Arrived — this step gets a fresh budget if it is ever revisited via Back.
+    if (navTriesRef.current.step === idx) navTriesRef.current = { step: -1, n: 0 };
 
     // Settings steps: open the target section BEFORE looking for its anchor.
     // SettingsShell shows one section at a time and reacts to the #hash, so a

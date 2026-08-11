@@ -48,7 +48,29 @@ export type TourStep = {
 // Which plan the running tour describes. Office covers both owner and member;
 // `isOfficeMember` splits them (a member is a company-managed sub-user).
 export type TourTier = "free" | "pro" | "office";
-export type TourContext = { tier: TourTier; isOfficeMember: boolean };
+export type TourContext = {
+  tier: TourTier;
+  isOfficeMember: boolean;
+  /**
+   * The account has at least one card.
+   *
+   * A dashboard with no cards renders a COMPLETELY different tree — no nav
+   * strip, no tab bar, none of the card/traffic/contacts panels. Eleven steps
+   * pointed at elements that do not exist, and GuidedTour spends ~2.9s polling
+   * for each before skipping: half a minute of a tour that looks frozen, on the
+   * very first run of a brand-new account, which is exactly who auto-starts it.
+   * Defaults to true so an unknown context behaves like an established account.
+   */
+  hasCards: boolean;
+  /**
+   * Running inside the iOS shell.
+   *
+   * Some surfaces are deliberately absent from the app (billing is hidden for
+   * App Review; referrals are hidden natively). A step aimed at one of those
+   * stalls for 2.9s and skips, so EVERY app user paid that at least once.
+   */
+  isNative: boolean;
+};
 
 // Per-step visibility + optional context-aware copy. All omitted = show to all.
 type StepVisibility = {
@@ -58,6 +80,10 @@ type StepVisibility = {
   office?: "owner" | "member";
   /** Hide from office sub-users (members) even when their tier matches. */
   excludeMember?: boolean;
+  /** Step spotlights something that only exists once a card does. */
+  needsCards?: boolean;
+  /** Surface is not rendered in the native shell — never show this in the app. */
+  webOnly?: boolean;
 };
 type TourStepDef = TourStep & {
   vis?: StepVisibility;
@@ -344,7 +370,9 @@ const STEP_DEFS: TourStepDef[] = [
     title: "Refer a friend",
     body: "Share your link: 3 sign-ups = a free month of Pro (up to 3). Your friends get a free month too.",
     placement: "bottom",
-    vis: { tiers: ["free", "pro"] },
+    // webOnly: ReferAFriend is wrapped in <NativeHidden> and returns null in the
+    // shell, so in the app this step spotlighted nothing and stalled 2.9s.
+    vis: { tiers: ["free", "pro"], webOnly: true },
   },
   {
     id: "settings-integrations",
@@ -373,7 +401,9 @@ const STEP_DEFS: TourStepDef[] = [
     title: "Billing",
     body: "Change plan, manage Office seats, or cancel — and if you ever schedule a cancellation, one tap brings it back.",
     placement: "bottom",
-    vis: { excludeMember: true },
+    // webOnly: the billing section carries hideOnNative, so SettingsShell drops
+    // it in the app — this fired for free/pro/office-owner on every app tour.
+    vis: { excludeMember: true, webOnly: true },
     bodyFor: (ctx) =>
       ctx.tier === "free"
         ? "Upgrade to Pro or Office, and manage your plan here anytime."
@@ -402,6 +432,8 @@ function isVisible(vis: StepVisibility | undefined, ctx: TourContext): boolean {
   if (!vis) return true;
   if (vis.tiers && !vis.tiers.includes(ctx.tier)) return false;
   if (vis.excludeMember && ctx.isOfficeMember) return false;
+  if (vis.needsCards && !ctx.hasCards) return false;
+  if (vis.webOnly && ctx.isNative) return false;
   const isOfficeOwner = ctx.tier === "office" && !ctx.isOfficeMember;
   if (vis.office === "owner" && !isOfficeOwner) return false;
   if (vis.office === "member" && !ctx.isOfficeMember) return false;
@@ -410,7 +442,16 @@ function isVisible(vis: StepVisibility | undefined, ctx: TourContext): boolean {
 
 // The plan-accurate step list the running tour uses.
 export function buildTourSteps(ctx: TourContext): TourStep[] {
-  return STEP_DEFS.filter((d) => isVisible(d.vis, ctx)).map((d) => toStep(d, ctx));
+  return STEP_DEFS.filter((d) => {
+    // EVERY anchored step needs a card to exist. With none, /dashboard renders
+    // a different tree entirely (no nav, no tab bar, no panels) and /share
+    // redirects away — so all 19 of them point at nothing, and the tour spends
+    // ~2.9s polling for each. Expressed as a rule about anchors rather than a
+    // flag repeated on 19 steps, so a step added later is covered by default
+    // instead of quietly reintroducing the freeze.
+    if (!ctx.hasCards && d.anchor) return false;
+    return isVisible(d.vis, ctx);
+  }).map((d) => toStep(d, ctx));
 }
 
 // Full base list (every step, base copy) — used by tests and as the fallback

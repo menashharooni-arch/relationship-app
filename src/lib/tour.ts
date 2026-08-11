@@ -20,16 +20,42 @@ export const TOUR_CTX_KEY = "sc_tour_ctx";
 // stored yet (brand-new tab that hasn't loaded the dashboard) — the safest,
 // least-overclaiming tour.
 export function readTourContext(): TourContext {
-  if (typeof window === "undefined") return { tier: "free", isOfficeMember: false };
+  // hasCards defaults TRUE and isNative is detected live rather than trusted
+  // from storage: an unknown context should behave like an ordinary established
+  // account (full tour), and the shell/web split is a property of where the
+  // code is running right now, not of whatever was persisted last time.
+  const detectNative = () => {
+    if (typeof window === "undefined") return false;
+    const w = window as unknown as {
+      webkit?: { messageHandlers?: { bridge?: unknown } };
+      Capacitor?: { isNativePlatform?: () => boolean; isNative?: boolean };
+    };
+    if (w.webkit?.messageHandlers?.bridge) return true;
+    const c = w.Capacitor;
+    return !!(c && (c.isNativePlatform ? c.isNativePlatform() : c.isNative));
+  };
+
+  const base: TourContext = {
+    tier: "free",
+    isOfficeMember: false,
+    hasCards: true,
+    isNative: detectNative(),
+  };
+  if (typeof window === "undefined") return { ...base, isNative: false };
   try {
     const raw = localStorage.getItem(TOUR_CTX_KEY);
     if (raw) {
       const p = JSON.parse(raw) as Partial<TourContext>;
       const tier = p.tier === "pro" || p.tier === "office" ? p.tier : "free";
-      return { tier, isOfficeMember: !!p.isOfficeMember };
+      return {
+        ...base,
+        tier,
+        isOfficeMember: !!p.isOfficeMember,
+        hasCards: p.hasCards !== false,
+      };
     }
   } catch { /* ignore */ }
-  return { tier: "free", isOfficeMember: false };
+  return base;
 }
 
 // localStorage — persists so we don't nag a returning user.

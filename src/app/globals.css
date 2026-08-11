@@ -279,7 +279,7 @@ body {
      (unlayered rules revert into @layer utilities), so the floor only ever
      raises. Nothing in src/ is currently sized this way; this is here so the
      first one added doesn't quietly break. */
-  :is(input, select, textarea):is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
+  :is(input, select, textarea, [contenteditable]):is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
     font-size: revert-layer;
   }
 
