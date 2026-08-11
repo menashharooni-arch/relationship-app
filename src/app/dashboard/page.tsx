@@ -146,6 +146,20 @@ export default async function DashboardPage({
             comment claims that regression was already fixed; it wasn't, because
             the fix went to the other branch. */}
         <Suspense><TourAutoStart /></Suspense>
+        {/* hasCards={false} is the whole point of persisting it HERE too.
+            This branch renders none of the tour's anchors — no nav strip, no
+            tab bar, no card/traffic/contacts panels — so every spotlighted step
+            would poll ~2.9s for an element that cannot exist, ~30s of a tour
+            that looks frozen, and then land on /share which redirects straight
+            back here. Recording it lets buildTourSteps drop those steps up
+            front. Written only from the branch that knows it: the has-cards
+            branch below writes `true` and overwrites this the moment a card
+            exists. */}
+        <TourContextPersist
+          tier={isEnterprise ? "office" : isPro ? "pro" : "free"}
+          isOfficeMember={false}
+          hasCards={false}
+        />
         <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
         <nav className="sc-app fixed top-0.5 left-0 right-0 z-30 bg-gray-950/95 backdrop-blur border-b border-gray-800/60">
           <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
@@ -585,7 +599,7 @@ export default async function DashboardPage({
         <CardSelectionPersist selectedCard={selectedCard} />
       </Suspense>
       {/* Persist plan/role so the guided tour describes the right plan. */}
-      <TourContextPersist tier={tourTier} isOfficeMember={isOfficeMember} />
+      <TourContextPersist tier={tourTier} isOfficeMember={isOfficeMember} hasCards />
 
       {/* Top accent stripe */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />

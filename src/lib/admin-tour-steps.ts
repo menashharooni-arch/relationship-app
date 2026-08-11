@@ -50,6 +50,30 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     placement: "top",
   },
   {
+    id: "admin-team-bell",
+    path: TEAM,
+    anchor: "admin-team-bell",
+    title: "Team notifications",
+    body: "Activity from across the whole office lands here — new leads, cards going live, invites accepted — each tagged with the teammate it came from.",
+    placement: "bottom",
+  },
+  // Analytics is one of the console's four tabs. The tour used to walk past it
+  // to Leads, so an office admin finished a "tour of the console" without ever
+  // being told a whole section existed — and the closing step then claimed the
+  // console was Team, Leads and Branding.
+  //
+  // A nav-tab step rather than a page step: nothing on the analytics page
+  // carries a data-tour anchor, and a step that navigates there would need one
+  // to point at. Naming what the tab holds is honest and needs no new markup.
+  {
+    id: "admin-nav-analytics",
+    path: TEAM,
+    anchor: "admin-nav-analytics",
+    title: "Analytics",
+    body: "Views, saves, and leads per teammate — who's actually sharing their card, and which cards are landing. Tap any teammate for their own breakdown.",
+    placement: "bottom",
+  },
+  {
     id: "admin-nav-leads",
     path: TEAM,
     anchor: "admin-nav-leads",
@@ -93,6 +117,6 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     id: "admin-finish",
     path: BRANDING,
     title: "You're all set",
-    body: "That's Team, Leads, and Branding. Replay this anytime from the Tour button on the Team page.",
+    body: "That's Team, Analytics, Leads, and Branding. Replay this anytime from the Tour button on the Team page.",
   },
 ];

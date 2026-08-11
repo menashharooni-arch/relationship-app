@@ -121,6 +121,25 @@ describe("the app never zooms, and cannot strand the user zoomed", () => {
     expect(swift).toMatch(/pinchGestureRecognizer\?\.isEnabled\s*=\s*false/);
     expect(swift).toMatch(/bouncesZoom\s*=\s*false/);
   });
+
+  it("re-applies the native pin on every navigation, not just at launch", () => {
+    // capacitorDidLoad() runs once. The shell loads a REMOTE url and does full
+    // document navigations — the first is sc-boot's redirect to /dashboard, so
+    // a one-shot pin is already undone before the user sees a screen. WebKit
+    // re-derives the zoom scales per document.
+    const swift = read("ios/App/App/MainViewController.swift");
+    expect(swift, "zoom pin must be re-applied on url change").toMatch(/observe\(\\?\.url/);
+    // Must NOT take Capacitor's delegates to do it — the bridge hangs off both.
+    expect(swift).not.toMatch(/scrollView\.delegate\s*=/);
+    expect(swift).not.toMatch(/webView\?\.navigationDelegate\s*=/);
+  });
+
+  it("keeps PostHog surveys off — they render sub-16px fields in a shadow root", () => {
+    // A shadow boundary is precisely what the globals.css floor cannot cross,
+    // so a survey textarea would zoom the page. Surveys default to ON.
+    const src = read("src/lib/events.ts");
+    expect(src).toMatch(/disable_surveys:\s*true/);
+  });
 });
 
 describe("full-screen overlays clear the status bar", () => {

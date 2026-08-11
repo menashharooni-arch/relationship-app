@@ -108,6 +108,15 @@ async function getPostHog(): Promise<PostHog | null> {
           autocapture: true,
           // Only spend a person profile on identified users — cheaper, less noise.
           person_profiles: "identified_only",
+          // Surveys render into a SHADOW ROOT with their own stylesheet, at
+          // 11–14px, including an open-text <textarea>. A shadow boundary is
+          // exactly what globals.css cannot cross, so the 16px form-control
+          // floor does not reach those fields and focusing one zooms the page —
+          // the bug the floor exists to prevent, reintroduced by a feature
+          // that is ON by default and needs no code change to appear.
+          // Nothing in the product uses PostHog surveys today; turning them on
+          // means solving the shadow-DOM sizing first.
+          disable_surveys: true,
         });
         ph = mod.default;
         return ph;
