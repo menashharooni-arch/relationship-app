@@ -1004,7 +1004,7 @@ export default function ContactsClient({
                 name broke across two lines and "New Contact" was clipped. The
                 phone sizes below give that column back roughly 90px. */}
             <div data-tour="contact-detail" className="flex items-start gap-3 sm:gap-5 mb-6 sm:mb-8">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-blue-600 flex items-center justify-center text-base sm:text-xl font-bold text-white shrink-0">
+              <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-blue-600 flex items-center justify-center text-sm sm:text-xl font-bold text-white shrink-0">
                 {selected.name[0]?.toUpperCase() ?? "?"}
               </div>
               {/* min-w-0: this is the only flexible child in the row — the 64px
@@ -1020,25 +1020,22 @@ export default function ContactsClient({
                     20px bold overran a 375px screen by 400px — which, inside a
                     panel that is its own horizontal scroller, showed up as "the
                     page doesn't fit and I can't reach the back button". */}
-                <h2 className="text-lg sm:text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {/* py-1.5 (was py-0.5) on BOTH pills: the status control is a
-                      real <select> a user has to hit with a thumb, and at 10px
-                      text with 2px padding it rendered ~19px tall — well under a
-                      comfortable touch target. The neighbouring source pill is
-                      bumped by the same amount on purpose: raising only the
-                      select would leave two pills of different heights sitting
-                      side by side. Text size, colours and radius are unchanged;
-                      the pills get ~8px taller. */}
-                  {/* sc-pill-peer: on a touch device the status <select> beside
-                      this is raised to 16px by the form-control floor in
-                      globals.css (under 16px, iOS zooms the page on focus and
-                      will not zoom back). A <span> is not a form control, so it
-                      would keep its 10px and the deliberate matching above would
-                      break — one 16px pill next to one 10px pill. The class puts
-                      this pill on the same rule. */}
+                <h2 className="text-base sm:text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {/* Both the 16px sc-pill-peer class and the py-1.5 padding
+                      that used to be here existed for ONE reason: the status
+                      <select> that sat beside this pill. A <select> is a form
+                      control, so the iOS zoom floor in globals.css forced it to
+                      16px, and it needed a thumb-sized target — so this
+                      neighbour was inflated to match, or the pair rendered at
+                      two different heights.
+                      That select has been removed. This is a plain, non-
+                      interactive <span> with nothing left to match, so it goes
+                      back to its natural 10px and py-0.5 — the same as the flow
+                      badge beside it. Nothing here is tappable, so no touch
+                      target is lost. */}
                   {selected.source && selected.source !== "direct_link" && (
-                    <span className="sc-pill-peer text-[10px] font-semibold px-2.5 py-1.5 rounded-full bg-blue-950 text-blue-300">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300">
                       {getSourceLabel(selected.source)}
                     </span>
                   )}
