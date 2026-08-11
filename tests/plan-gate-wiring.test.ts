@@ -62,7 +62,13 @@ const SITES: Site[] = [
       "Pro feature — Multiple cards are only available on the Pro plan.",
       "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan.",
       "Pro feature — Detailed analytics are only available on the Pro plan.",
-      "Pro feature — Exporting contacts is only available on the Pro plan.",
+      // CSV export is NOT listed here any more. The dashboard's Quick Contacts
+      // header carried a second Export button that hit the same
+      // /api/leads/export endpoint as the one on the Contacts page — and the
+      // dashboard's was strictly weaker, always scoped to the active card,
+      // where the Contacts one exports every card when none is selected. The
+      // duplicate was removed; the gate itself still exists and is asserted
+      // against src/app/contacts/page.tsx below.
     ],
   },
   {

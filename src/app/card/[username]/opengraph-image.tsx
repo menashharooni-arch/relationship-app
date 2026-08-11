@@ -366,10 +366,44 @@ function GenericOG(p: Meta) {
 // here (not returning the streaming ImageResponse) means a Satori failure —
 // a missing glyph, an unexpected value — is caught by OUR try/catch instead of
 // surfacing as a 500 / broken image on the messenger.
-async function toResponse(el: React.ReactElement, contentType = "image/png"): Promise<Response> {
+// ── How long a preview may be cached ────────────────────────────────────────
+//
+// The og:image URL carries ?v=<hash of every field that appears in the preview>
+// (metaVersion, in page.tsx), so ANY edit that changes the picture also changes
+// the URL. A preview is therefore immutable for its version and safe to cache
+// hard — "reflect the live card immediately" is already guaranteed by the
+// versioned URL, not by refusing to cache.
+//
+// stale-while-revalidate is the directive that fixes the reported bug. With it
+// the edge serves the cached image INSTANTLY once it goes stale and refreshes
+// behind the scenes, so a messenger unfurling a link never waits on a render.
+//
+// Measured before this change: s-maxage=60 and no SWR. The second scrape within
+// a minute was a 0.1s HIT, and the first one after expiry was a ~2s MISS. A
+// link shared more than a minute after the last unfurl paid a full cold render,
+// and a scraper that times out shows NO preview and often caches that absence.
+// That is precisely "sometimes it doesn't show the preview".
+const CACHE_COMPLETE = "public, max-age=600, s-maxage=86400, stale-while-revalidate=604800";
+
+// A DEGRADED preview must not be frozen at the edge for a day. If the headshot
+// or logo failed to embed (embedImage gives up after 2.5s and the card falls
+// back to initials), caching that for 24h is how "no headshot" becomes
+// permanent — the other half of the report. Keep the old short TTL so the very
+// next scrape retries the image.
+const CACHE_DEGRADED = "public, max-age=60, s-maxage=60";
+
+async function toResponse(
+  el: React.ReactElement,
+  contentType = "image/png",
+  /** False when the render is missing something it wanted — see CACHE_DEGRADED. */
+  complete = true,
+): Promise<Response> {
   const buf = await new ImageResponse(el, { ...size }).arrayBuffer();
   return new Response(buf, {
-    headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=60, s-maxage=60" },
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": complete ? CACHE_COMPLETE : CACHE_DEGRADED,
+    },
   });
 }
 
@@ -418,8 +452,10 @@ export default async function Image({
           .resize(size.width, size.height, { fit: "cover", position: "centre" })
           .jpeg({ quality: 86 })
           .toBuffer();
+        // The best possible preview — a picture of the real card, nothing
+        // missing. Cache it hard; the versioned URL handles freshness.
         return new Response(new Uint8Array(jpeg), {
-          headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=60, s-maxage=60" },
+          headers: { "Content-Type": "image/jpeg", "Cache-Control": CACHE_COMPLETE },
         });
       }
     }
@@ -441,7 +477,14 @@ export default async function Image({
     // Embed the photo + logo as data URIs so Satori can't fail fetching them
     // (a failed fetch would throw the whole render → brand fallback with no
     // card). If embedding fails, the field is null and the card draws initials.
+    //
+    // Remember what the card WANTED before embedding, so a preview that lost
+    // its headshot to a slow fetch can be told apart from one that never had a
+    // headshot. Only the first is degraded, and only that one must expire fast.
+    const wantedPhoto = !!meta.photoUrl;
+    const wantedLogo = !!meta.logoUrl;
     [meta.photoUrl, meta.logoUrl] = await Promise.all([embedImage(meta.photoUrl), embedImage(meta.logoUrl)]);
+    const complete = (!wantedPhoto || !!meta.photoUrl) && (!wantedLogo || !!meta.logoUrl);
 
     // Format the phone ONCE here rather than at each template's <Contact>, so
     // all seven stay consistent. The stored capture is a picture of the real
@@ -461,20 +504,20 @@ export default async function Image({
       default:                card = meta.template ? GenericOG(meta) : ClassicProOG(meta); break;
     }
     // Full-bleed: the card fills the ENTIRE frame — no backdrop, no blank space.
-    return await toResponse(<div style={{ width: "100%", height: "100%", display: "flex" }}>{card}</div>);
+    return await toResponse(<div style={{ width: "100%", height: "100%", display: "flex" }}>{card}</div>, "image/png", complete);
   } catch {
     /* fall through to the branded fallback */
   }
 
   // ── Tier 3: guaranteed branded image (ASCII only — can't glyph-fail) ──────
   try {
-    return await toResponse(<BrandFallback />);
+    return await toResponse(<BrandFallback />, "image/png", false);
   } catch {
     /* fall through to the static bytes */
   }
 
   // ── Tier 4: static solid PNG — literally cannot fail ──────────────────────
   return new Response(SOLID_PNG, {
-    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=60" },
+    headers: { "Content-Type": "image/png", "Cache-Control": CACHE_DEGRADED },
   });
 }
