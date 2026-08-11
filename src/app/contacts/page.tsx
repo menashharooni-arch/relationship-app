@@ -174,13 +174,16 @@ export default async function ContactsPage({
       {/* Header */}
       <div className="pt-[57px] border-b border-gray-800 px-6 py-5 bg-gray-950">
         <div data-tour="contacts-page" className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          <div>
-            <div className="flex items-baseline gap-2.5">
-              <h1 className="text-xl font-bold text-white">Contacts</h1>
-              <span className="text-white font-bold text-lg tabular-nums">{contactCount}</span>
-              <span className="text-gray-500 text-[11px] font-medium">Total contacts</span>
-            </div>
-            <p className="text-gray-500 text-sm mt-0.5">Everyone who shared their info with you, with full activity history.</p>
+          {/* Title, count and Export sit on ONE line. The descriptive sentence
+              that used to live under this row is gone, and with it the wrapper
+              <div> whose only job was stacking the two — this flex row is now
+              the direct child, so there is no leftover nesting.
+              min-w-0 lets the title truncate rather than push Export (which is
+              shrink-0) off the right edge on a narrow screen. */}
+          <div className="flex items-baseline gap-2.5 min-w-0">
+            <h1 className="text-xl font-bold text-white">Contacts</h1>
+            <span className="text-white font-bold text-lg tabular-nums">{contactCount}</span>
+            <span className="text-gray-500 text-[11px] font-medium truncate">Total contacts</span>
           </div>
           {(leads?.length ?? 0) > 0 && (
             isPaidPlan(profile.plan) ? (
