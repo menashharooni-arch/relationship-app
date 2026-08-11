@@ -175,12 +175,35 @@ export function isEmailOptedOut(set: Set<string>, email: string | null | undefin
   return set.has(normContact("email", email));
 }
 
-export async function addOptOut(channel: "sms" | "email", contact: string): Promise<void> {
-  try {
-    await getAdminSupabase()
-      .from("message_opt_outs")
-      .upsert({ channel, contact: normContact(channel, contact) }, { onConflict: "channel,contact" });
-  } catch { /* ignore */ }
+/**
+ * Record an opt-out. Returns whether it actually landed.
+ *
+ * This used to swallow everything — a thrown error AND the `{ error }` object
+ * PostgREST returns without throwing — and return void. So every caller
+ * (unsubscribe link, RFC 8058 one-click, and the STOP keyword handler) told the
+ * person "you're unsubscribed" whether or not a row existed. isOptedOut() then
+ * found nothing and kept sending. Carrier-level STOP still blocks the SMS, but
+ * EMAIL has no such backstop: we would keep mailing someone who was shown a
+ * confirmation page, which is a CAN-SPAM problem, not just a bug.
+ *
+ * One retry because this is the last chance to honour the request — the person
+ * is not going to click unsubscribe twice — and a report so a persistent
+ * failure is visible rather than inferred from a complaint.
+ */
+export async function addOptOut(channel: "sms" | "email", contact: string): Promise<boolean> {
+  const row = { channel, contact: normContact(channel, contact) };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { error } = await getAdminSupabase()
+        .from("message_opt_outs")
+        .upsert(row, { onConflict: "channel,contact" });
+      if (!error) return true;
+      if (attempt === 1) await reportError("messaging.opt-out.failed", { channel, error: error.message });
+    } catch (e) {
+      if (attempt === 1) await reportError("messaging.opt-out.threw", e);
+    }
+  }
+  return false;
 }
 
 export async function removeOptOut(channel: "sms" | "email", contact: string): Promise<void> {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { addOptOut, removeOptOut, normalizePhone, logMessage } from "@/lib/messaging";
+import { reportError } from "@/lib/report-error";
 
 const STOP_WORDS = new Set(["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "stop all"]);
 const START_WORDS = new Set(["start", "unstop", "yes", "unsubscribe off"]);
@@ -56,7 +57,15 @@ export async function POST(req: NextRequest) {
 
   // STOP / START keyword handling (carrier + our own suppression list).
   if (STOP_WORDS.has(keyword)) {
-    await addOptOut("sms", from);
+    // The carrier blocks further SMS to this number regardless, so the person
+    // is protected either way — but OUR suppression list is what stops the
+    // sequence engine from continuing to burn steps against them, and what
+    // keeps the record of the request. addOptOut retries and reports; a
+    // persistent failure must be loud rather than inferred later from a
+    // complaint.
+    if (!(await addOptOut("sms", from))) {
+      await reportError("twilio.inbound.stop-not-recorded", { from });
+    }
     return twiml(); // Twilio Advanced Opt-Out sends the confirmation; stay silent.
   }
   if (START_WORDS.has(keyword)) {

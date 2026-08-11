@@ -573,10 +573,30 @@ export default function ContactsClient({
     // never-consented contact's new text automation actually sends.
     const pauseTag = draftCh === "email" ? "email-paused" : "sms-paused";
     const curTags = selected.tags ?? [];
+    // This second request is what actually makes the automation SENDABLE — for
+    // SMS it grants sms-ok, which the cron hard-requires. Its result used to be
+    // discarded, so if it failed the sequence saved, the UI said "Saved ✓" and
+    // rendered the toggle on with scheduled dates, and not one text would ever
+    // go out. A dead automation the owner believes is running is worse than a
+    // visible failure: they stop following up manually because they think it is
+    // handled.
+    let tagsOk = true;
     if (draftCh === "sms") {
-      await updateTags(selected.id, curTags.filter((t) => t !== "sms-paused" && t !== "flow-paused"), true);
+      tagsOk = await updateTags(selected.id, curTags.filter((t) => t !== "sms-paused" && t !== "flow-paused"), true);
     } else if (curTags.includes(pauseTag) || curTags.includes("flow-paused")) {
-      await updateTags(selected.id, curTags.filter((t) => t !== pauseTag && t !== "flow-paused"));
+      tagsOk = await updateTags(selected.id, curTags.filter((t) => t !== pauseTag && t !== "flow-paused"));
+    }
+    if (!tagsOk) {
+      // alert() to match the save-failure path six lines up — this component
+      // has no inline error slot for the automation panel, and a silent failure
+      // here is precisely the bug being fixed.
+      alert(
+        draftCh === "sms"
+          ? "Your automation was saved, but we couldn't turn texting on for this contact. Open it and submit again — until then no texts will send."
+          : "Your automation was saved, but we couldn't un-pause email for this contact. Open it and submit again.",
+      );
+      setSeqSaving("idle");
+      return;
     }
     cancelDraft();
     setSeqSaving("saved");
