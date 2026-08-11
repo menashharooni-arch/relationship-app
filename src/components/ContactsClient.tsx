@@ -884,8 +884,16 @@ export default function ContactsClient({
           </div>
         ) : (
           <>
-            {/* Mobile back bar */}
-            <div className="lg:hidden sticky top-0 z-10 flex items-center gap-2 px-4 h-12 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+            {/* Mobile back bar.
+                sc-overlay-topbar: the panel above is `fixed inset-0`, and the
+                app ships viewport-fit=cover, so in the native shell it starts
+                at the true top of the screen — under the clock. `body`'s
+                safe-area padding does not move a fixed element (see the note on
+                html.native-app body in globals.css), and this bar carries
+                neither .sc-app nor .sc-tabbar, the two classes that get the
+                inset. So the status bar sat squarely on top of this 48px bar
+                and the back button could not be tapped at all. */}
+            <div className="sc-overlay-topbar lg:hidden sticky top-0 z-10 flex items-center gap-2 px-4 h-12 bg-gray-950/95 backdrop-blur border-b border-gray-800">
               <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-gray-300 hover:text-white">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                 Contacts
@@ -903,7 +911,14 @@ export default function ContactsClient({
                   contact name (or an email used as one) pushed the whole header
                   past the right edge of a phone screen instead of wrapping. */}
               <div className="min-w-0">
-                <h2 className="text-xl font-bold text-gray-100">{selected.name}</h2>
+                {/* break-words, not just min-w-0 on the parent: min-w-0 lets a
+                    flex ITEM shrink below its min-content width, but nothing
+                    makes an unbreakable STRING wrap. Lead capture accepts an
+                    email address in the name field, and a 48-character token at
+                    20px bold overran a 375px screen by 400px — which, inside a
+                    panel that is its own horizontal scroller, showed up as "the
+                    page doesn't fit and I can't reach the back button". */}
+                <h2 className="text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {/* py-1.5 (was py-0.5) on BOTH pills: the status control is a
                       real <select> a user has to hit with a thumb, and at 10px
@@ -928,7 +943,13 @@ export default function ContactsClient({
                   <select
                     value={selected.status ?? "new_contact"}
                     onChange={(e) => changeStatus(e.target.value)}
-                    className={`text-[10px] font-semibold px-2.5 py-1.5 rounded-full border-0 cursor-pointer focus:outline-none ${STATUS_STYLES[selected.status ?? "new_contact"] ?? STATUS_STYLES.new_contact}`}
+                    /* max-w-full: a <select> takes the intrinsic width of its
+                       WIDEST option, and on a touch device the 16px form-control
+                       floor (globals.css) applies here — "Not interested" at
+                       16px is ~150px, dropped into a column the 64px avatar and
+                       the shrink-0 read/unread button leave ~93px of on a 375px
+                       screen. Without this bound the pill overran the panel. */
+                    className={`max-w-full text-[10px] font-semibold px-2.5 py-1.5 rounded-full border-0 cursor-pointer focus:outline-none ${STATUS_STYLES[selected.status ?? "new_contact"] ?? STATUS_STYLES.new_contact}`}
                     style={{ background: "transparent" }}
                   >
                     {[
@@ -1516,7 +1537,12 @@ export default function ContactsClient({
                       if (it.kind === "in") {
                         return (
                           <div key={it.key} className="flex flex-col items-start">
-                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed">
+                            {/* whitespace-pre-wrap wraps at spaces only, so a
+                                long URL — which auto-sent follow-ups and inbound
+                                replies both routinely contain — blows past
+                                max-w-[85%]. break-words is what actually holds
+                                the bubble to its width. */}
+                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words leading-relaxed">
                               {it.body}
                             </div>
                             <span suppressHydrationWarning className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
@@ -1526,9 +1552,14 @@ export default function ContactsClient({
                       return (
                         <div key={it.key} className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs shrink-0">{it.icon}</div>
-                          <p className="text-gray-300 text-[13px]">{it.text}</p>
+                          {/* min-w-0 + break-words: this phrase leads with the
+                              contact's first name, so an email-shaped name puts
+                              a 48-character unbreakable token in a flex row
+                              whose other children are shrink-0. Without both,
+                              the row cannot shrink AND the token cannot wrap. */}
+                          <p className="text-gray-300 text-[13px] min-w-0 break-words">{it.text}</p>
                           {it.source && it.source !== "direct_link" && (
-                            <span className="text-[10px] text-blue-400">via {getSourceLabel(it.source)}</span>
+                            <span className="text-[10px] text-blue-400 shrink-0">via {getSourceLabel(it.source)}</span>
                           )}
                           <span suppressHydrationWarning className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
                         </div>

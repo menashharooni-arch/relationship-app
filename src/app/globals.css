@@ -845,6 +845,20 @@ html.native-app .sc-app.fixed {
 html.native-app .sc-tabbar {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 -8px 32px rgba(0, 0, 0, 0.35);
 }
+
+/* A full-screen overlay's own top bar (contact detail). The overlay is
+   `fixed inset-0`, so body's safe-area padding does not move it and it opens
+   flush with the physical top of the screen under viewport-fit=cover. Its bar
+   is h-12 (48px) and a notched iPhone's status bar is 47–59px, so without this
+   the bar was entirely underneath the clock and its back button was
+   untappable — the panel had no way out but the home gesture.
+
+   Height is restated because Tailwind's h-12 is border-box: padding alone would
+   push the button out of a fixed 48px instead of growing the bar. */
+html.native-app .sc-overlay-topbar {
+  padding-top: env(safe-area-inset-top);
+  height: calc(3rem + env(safe-area-inset-top));
+}
 /* Light theme: warm glass instead of dark */
 html.native-app[data-sc-theme="light"] .sc-app.fixed,
 html.native-app[data-sc-theme="light"] .sc-tabbar {

@@ -46,10 +46,17 @@ afterAll(async () => {
   await browser?.close();
 });
 
-/** A contact with realistically hostile values — long name, long email, notes. */
+/**
+ * A contact with realistically hostile values.
+ *
+ * The name is a single UNBREAKABLE token on purpose. Lead capture accepts an
+ * email address in the name field, and that is the real-world shape that
+ * breaks: `min-w-0` lets a flex item shrink, but nothing lets a string without
+ * a space or hyphen wrap. A hyphenated name would wrap and prove nothing.
+ */
 const lead = {
   id: "lead-1",
-  name: "Alexandra Constantinopoulos-Fitzgerald",
+  name: "jennifer.rodriguez@northshorepropertiesgroup.com",
   email: "alexandra.constantinopoulos@northbeamstudioarchitects.com",
   phone: "4155550192",
   company: "Northbeam Studio Architects & Interior Design",
@@ -93,11 +100,28 @@ async function measureFit(markup: string, width: number) {
     return await page.evaluate(() => {
       const doc = document.documentElement;
       const vw = doc.clientWidth;
+
+      // Measuring document.scrollWidth ALONE is a trap here, and it is the
+      // reason an earlier version of this test passed on a screen the user was
+      // reporting as broken. The contact detail is `fixed inset-0 …
+      // overflow-y-auto`, and per CSS Overflow §3 an element with overflow-y
+      // set and overflow-x visible computes overflow-x to `auto`. So the panel
+      // is its OWN horizontal scroll container: content overflowing inside it
+      // scrolls the panel and never widens the document. The page looks fine
+      // and the phone still pans sideways.
+      //
+      // So: check every element that can scroll itself, plus the document.
+      const scrollers: { cls: string; overflowX: number }[] = [];
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>("*"))) {
+        const over = el.scrollWidth - el.clientWidth;
+        if (over > 1 && el.clientWidth > 0) {
+          scrollers.push({ cls: (el.className || "").toString().slice(0, 90), overflowX: over });
+        }
+      }
+
       const offenders: { tag: string; cls: string; text: string; right: number }[] = [];
       for (const el of Array.from(document.querySelectorAll<HTMLElement>("#root *"))) {
         const r = el.getBoundingClientRect();
-        // Only report the element itself sticking out, not a parent that is
-        // wide merely because a child is — leaf-ish nodes name the real cause.
         if (r.width === 0 || r.height === 0) continue;
         if (r.right > vw + 1) {
           offenders.push({
@@ -111,7 +135,13 @@ async function measureFit(markup: string, width: number) {
       return {
         viewportWidth: vw,
         scrollWidth: doc.scrollWidth,
-        overflowX: Math.max(0, doc.scrollWidth - vw),
+        // The worst horizontal overflow anywhere: document or any inner scroller.
+        overflowX: Math.max(
+          0,
+          doc.scrollWidth - vw,
+          ...scrollers.map((s) => s.overflowX),
+        ),
+        scrollers: scrollers.slice(0, 8),
         offenders: offenders.slice(0, 12),
       };
     });
@@ -136,7 +166,8 @@ describe("contact detail fits a phone", () => {
       const fit = await measureFit(markup, width);
       expect(
         fit.overflowX,
-        `page is ${fit.overflowX}px wider than the ${width}px viewport. ` +
+        `content is ${fit.overflowX}px wider than the ${width}px viewport.\n` +
+          `Scrollers: ${JSON.stringify(fit.scrollers, null, 2)}\n` +
           `Offenders: ${JSON.stringify(fit.offenders, null, 2)}`,
       ).toBe(0);
     });
