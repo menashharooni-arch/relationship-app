@@ -293,10 +293,6 @@ body {
     touch-action: manipulation;
   }
 
-  /* Opt a non-control INTO the floor, for the case where it sits directly
-     beside a control and the two are meant to read as a matched pair. Without
-     it the control grows and its neighbour does not. */
-  .sc-pill-peer { font-size: 16px; }
 }
 
 /* ── Refined input focus (forms) ───────────────────────────────────────────── */

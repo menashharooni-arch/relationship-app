@@ -28,7 +28,11 @@ describe("light is the default, dark is opt-in", () => {
   it("ThemeToggle reads the default the same way", () => {
     const src = read("src/components/ThemeToggle.tsx");
     expect(src).toMatch(/localStorage\.getItem\("sc_theme"\) === "dark" \? "dark" : "light"/);
-    expect(src, "storage-blocked fallback must match the painted default").toMatch(/catch \{\s*setTheme\("light"\)/s);
+    // Comment lines are allowed between `catch {` and the call — an
+    // eslint-disable directive has to sit directly above the setState — but
+    // nothing else is: the very next STATEMENT must be setTheme("light").
+    expect(src, "storage-blocked fallback must match the painted default")
+      .toMatch(/catch \{(?:\s*\/\/[^\n]*)*\s*setTheme\("light"\)/);
   });
 
   it("still applies the theme BEFORE paint", () => {

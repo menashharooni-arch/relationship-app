@@ -453,17 +453,36 @@ export default function ContactsClient({
     }
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
     setSelected((prev) => (prev && prev.id === selected.id ? { ...prev, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : prev));
-    // Un-pause the channel + clear any legacy master pause so the NEW automation
-    // runs as soon as it's submitted (toggle on = it works). Setting up a TEXT
-    // automation asserts consent to text this contact (grants sms-ok).
-    const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused" && t !== (ch === "email" ? "email-paused" : "sms-paused"));
-    // Same trap as submitDraft: for SMS this is the request that grants sms-ok,
-    // which the cron REQUIRES. Losing it silently leaves a rebuilt automation
-    // that can never send.
-    if (!(await updateTags(selected.id, tags, ch === "sms" ? true : undefined))) {
-      fail(ch === "sms"
-        ? "Reset, but we couldn't re-enable texting for this contact — submit again before relying on it."
-        : "Reset, but we couldn't un-pause email for this contact — submit again before relying on it.");
+    // Reset clears the SEQUENCE. It must not flip the SWITCH.
+    //
+    // This used to strip the channel's own pause tag unconditionally, and for
+    // SMS it passed smsConsent:true — which makes the server grant sms-ok AND
+    // drop sms-paused. So turning a channel off and then pressing Reset turned
+    // it straight back on, silently re-arming a channel the user had just
+    // switched off. Resetting is "throw this cadence away", not "switch this
+    // channel on"; only submitting a new automation means the latter, and
+    // submitDraft still does exactly that.
+    //
+    // The legacy master flow-paused tag is still cleared either way — it is a
+    // migration leftover with no toggle of its own, so nothing the user can see
+    // depends on it.
+    const channelOff = channelPausedFor(ch);
+    const pauseTag = ch === "email" ? "email-paused" : "sms-paused";
+    const tags = (selected.tags ?? []).filter(
+      (t) => t !== "flow-paused" && !(t === pauseTag && !channelOff),
+    );
+    // smsConsent is left UNDEFINED when the channel is off, so consent is not
+    // touched at all. Sending `false` would also work but would rewrite
+    // sms-ok/sms-paused server-side; a reset has no business editing a consent
+    // record it was not asked to change. When the channel is ON this is still
+    // the request that (re-)asserts sms-ok, which the cron requires.
+    const smsConsent = ch === "sms" && !channelOff ? true : undefined;
+    if (!(await updateTags(selected.id, tags, smsConsent))) {
+      fail(channelOff
+        ? "Reset, but we couldn't save that change — please try again."
+        : ch === "sms"
+          ? "Reset, but we couldn't re-enable texting for this contact — submit again before relying on it."
+          : "Reset, but we couldn't un-pause email for this contact — submit again before relying on it.");
     }
     startDraft(ch);
   }
@@ -1022,18 +1041,13 @@ export default function ContactsClient({
                     page doesn't fit and I can't reach the back button". */}
                 <h2 className="text-base sm:text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  {/* Both the 16px sc-pill-peer class and the py-1.5 padding
-                      that used to be here existed for ONE reason: the status
-                      <select> that sat beside this pill. A <select> is a form
-                      control, so the iOS zoom floor in globals.css forced it to
-                      16px, and it needed a thumb-sized target — so this
-                      neighbour was inflated to match, or the pair rendered at
-                      two different heights.
-                      That select has been removed. This is a plain, non-
-                      interactive <span> with nothing left to match, so it goes
-                      back to its natural 10px and py-0.5 — the same as the flow
-                      badge beside it. Nothing here is tappable, so no touch
-                      target is lost. */}
+                  {/* This pill used to be inflated to 16px with taller padding
+                      to match the status <select> beside it — a form control the
+                      iOS zoom floor forces to 16px and which needed a thumb-
+                      sized target. That select is gone, so this is a plain,
+                      non-interactive <span> at its natural 10px, matching the
+                      flow badge next to it. Nothing here is tappable, so no
+                      touch target is lost. */}
                   {selected.source && selected.source !== "direct_link" && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300">
                       {getSourceLabel(selected.source)}

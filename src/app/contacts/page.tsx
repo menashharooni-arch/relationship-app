@@ -179,8 +179,18 @@ export default async function ContactsPage({
           heads — measured 144 vs 168 at 1440, 64 vs 88 at 1280, aligned only on
           narrow screens where neither max-width binds. The border-b stays out
           here so the rule still spans the full viewport. */}
-      <div className="pt-[57px] border-b border-gray-800 py-5 bg-gray-950">
-        <div data-tour="contacts-page" className="max-w-6xl mx-auto w-full px-6 flex items-center justify-between gap-4">
+      {/* Nav clearance and visual padding are SEPARATE, on different elements.
+          They used to be two utilities on the same one — `pt-[57px] … py-5` —
+          which is a cascade race between padding-top and padding-block that
+          pt-[57px] won. So the row got 57px of top padding and none of the 20px
+          it looked like it had, and it began exactly where the nav ended.
+          Worse, 57 was 2px short: the bar is the 2px accent stripe (top-0.5)
+          + h-14 (56) + a 1px border = 59px, so the nav actually covered the
+          title. Measured before: nav bottom 59, title top 58.
+          Now the outer element owns clearance (59) and the inner row owns the
+          20px of breathing room, so neither can override the other. */}
+      <div className="pt-[59px] border-b border-gray-800 bg-gray-950">
+        <div data-tour="contacts-page" className="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between gap-4">
           {/* One phrase, not three fragments. "Contacts 8 Total contacts" said
               the same word twice and read as a label with a stray number; the
               count belongs IN the title.
