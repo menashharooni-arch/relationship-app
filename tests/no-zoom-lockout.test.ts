@@ -85,6 +85,31 @@ describe("pinch-zoom is never disabled", () => {
   });
 });
 
+describe("full-screen overlays clear the status bar", () => {
+  // A `fixed inset-0` overlay is NOT moved by body's safe-area padding, and it
+  // does not carry .sc-app/.sc-tabbar, the two classes that get the inset. Under
+  // viewport-fit=cover that puts its top bar under the clock — the contact
+  // detail's back button was completely untappable in the native shell.
+  //
+  // env(safe-area-inset-*) is always 0 in headless Chromium, so this cannot be
+  // measured in the render harness; the wiring is what gets pinned.
+  it("the contact detail back bar opts into the safe-area inset", () => {
+    const src = read("src/components/ContactsClient.tsx");
+    const bar = src.split("\n").find((l) => l.includes("sticky top-0") && l.includes("h-12"));
+    expect(bar, "no mobile back bar found in the contact detail").toBeDefined();
+    expect(bar).toMatch(/sc-overlay-topbar/);
+  });
+
+  it("globals.css insets that bar only in the native shell", () => {
+    const css = code(read("src/app/globals.css"));
+    const rule = css.slice(css.indexOf("html.native-app .sc-overlay-topbar"));
+    expect(rule).toMatch(/padding-top:\s*env\(safe-area-inset-top\)/);
+    // Border-box: without a matching height bump the padding eats the bar's
+    // 48px and pushes the button back out of reach.
+    expect(rule).toMatch(/height:\s*calc\(3rem \+ env\(safe-area-inset-top\)\)/);
+  });
+});
+
 describe("no control asks for a size the floor would silently shrink", () => {
   // The floor is `max(16px, 1em)` with a `revert-layer` opt-out listing NAMED
   // utilities (text-lg…text-4xl). An ARBITRARY value — text-[18px] — is not on
