@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
@@ -94,6 +94,11 @@ export default function LoginForm({
   // has no account or the password was wrong (by design), so we surface an
   // honest "create one if you're new" affordance rather than a false claim.
   const [signinFailed, setSigninFailed] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  // Focused when "Forgot password?" is tapped with the field empty — see
+  // handleForgot. Pointing at the box beats an error that blames the user for
+  // not having filled in a field they were never asked to fill in.
+  const emailRef = useRef<HTMLInputElement>(null);
   const native = useIsNativeApp();
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
@@ -237,8 +242,13 @@ export default function LoginForm({
 
   async function handleForgot() {
     if (!email) {
-      setErrorMsg("Enter your email first.");
-      setStatus("error");
+      // Point at the field instead of scolding. Someone who taps this is
+      // already locked out; answering with a red error for a box nobody asked
+      // them to fill is the wrong tone AND the wrong instruction. Focusing it
+      // puts the cursor where the next action is and says what to do.
+      setErrorMsg("Enter your email above and tap Forgot password again.");
+      setStatus("idle");
+      emailRef.current?.focus();
       return;
     }
     setStatus("loading");
@@ -328,24 +338,100 @@ export default function LoginForm({
       ) : (
       <>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input
-          type="email"
-          placeholder="your@email.com"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1D4ED8] transition-colors"
-        />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Labelled fields with real autofill hints.
+            The inputs were unlabelled, unnamed placeholders with no autoComplete,
+            so password managers had nothing to bind to — you had to type your
+            credentials by hand every time, which is the single loudest "this is
+            not a real product" signal an auth screen can send. A placeholder is
+            also not a label: it disappears the moment you type, leaving a filled
+            box with no idea what it holds, and screen readers get nothing.
+            sc-input is the app's own focus treatment (globals.css) — these were
+            hand-rolling a border change and skipping the ring. */}
+        <div className="space-y-1.5">
+          <label htmlFor="auth-email" className="block text-xs font-semibold text-slate-600">
+            Email
+          </label>
+          <input
+            id="auth-email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="you@company.com"
+            required
+            ref={emailRef}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="sc-input w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="auth-password" className="block text-xs font-semibold text-slate-600">
+              Password
+            </label>
+            {/* Where every real platform puts it, and only on the tab where it
+                means anything. It used to sit under the OAuth buttons as 12px
+                slate-400 on the warm card — roughly 2:1 contrast, below the
+                submit button, for the one control someone locked out needs to
+                find first. */}
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={handleForgot}
+                disabled={status === "loading"}
+                className="text-xs font-semibold text-[#1D4ED8] hover:text-[#1740C4] hover:underline underline-offset-2 disabled:opacity-50 transition-colors"
+              >
+                {status === "loading" ? "Sending…" : "Forgot password?"}
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <input
+              id="auth-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              // current-password vs new-password decides whether the browser
+              // offers to FILL or to GENERATE — getting it wrong makes managers
+              // behave strangely on the tab you are actually on.
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              placeholder={mode === "signup" ? "At least 6 characters" : "Your password"}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="sc-input w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl pl-4 pr-12 py-3 text-sm"
+            />
+            {/* Typing a password blind on a phone keyboard is where sign-ins
+                get abandoned. Not rendered when the field is empty so it never
+                sits there as a dead control. */}
+            {password.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 px-3.5 flex items-center text-slate-500 hover:text-slate-800 transition-colors"
+              >
+                {showPassword ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} style={{ width: 18, height: 18 }} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
 
         {errorMsg && (
           <p className="text-red-400 text-xs text-center">{errorMsg}</p>
@@ -383,16 +469,7 @@ export default function LoginForm({
         )}
       </form>
 
-      {mode === "signin" && (
-        <button
-          type="button"
-          onClick={handleForgot}
-          disabled={status === "loading"}
-          className="w-full text-center text-slate-400 hover:text-slate-600 text-xs transition-colors disabled:opacity-50"
-        >
-          {status === "loading" ? "Sending…" : "Forgot password?"}
-        </button>
-      )}
+
 
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-[#E4DDD4]" />
