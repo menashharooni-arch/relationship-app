@@ -239,6 +239,66 @@ body {
 .sc-blob-a { animation: sc-drift-a 18s ease-in-out infinite; }
 .sc-blob-b { animation: sc-drift-b 22s ease-in-out infinite; }
 
+/* ── No auto-zoom when a field is focused (iOS) ────────────────────────────────
+   iOS zooms the whole page in when you focus a form control whose COMPUTED
+   font-size is under 16px. That is the entire mechanism — it is not about the
+   viewport meta, and text-sm (14px) on an input is enough to trigger it. Tapping
+   "Add Contact" focused a 14px field, iOS zoomed, and nothing zoomed back out.
+
+   16px on the control itself is the only fix that works in BOTH WKWebView and
+   Safari. The alternative — maximum-scale=1/user-scalable=no on the viewport —
+   does not reliably stop the zoom, makes it impossible to pinch back out when it
+   does happen (the reported "stuck zoomed in"), and fails WCAG 1.4.4. It used to
+   be in sc-boot; it is gone.
+
+   `any-pointer: coarse`, NOT `pointer: coarse`, and the difference is load
+   bearing. `pointer`/`hover` describe the PRIMARY input device, so an iPad with
+   a Magic Keyboard attached reports pointer: fine and hover: hover — while its
+   touchscreen, which is what triggers the zoom, is still right there. Neither
+   `(pointer: coarse)` nor `(hover: none)` matches that device. `any-pointer`
+   asks whether ANY attached pointer is coarse, which is exactly the question.
+
+   Accepted trade-off: touchscreen Windows/Chrome laptops also get 16px
+   controls. Slightly larger fields on a device that can be poked with a finger
+   is the right side to err on; a phone that zooms and won't zoom back is not.
+
+   Pinned by tests/render/ios-input-zoom.test.ts (measured in a real browser with
+   touch emulation) and tests/no-zoom-lockout.test.ts. */
+@media (any-pointer: coarse) {
+  input, select, textarea, [contenteditable]:not([contenteditable="false"]) {
+    font-size: max(16px, 1em);
+  }
+  /* Safari sizes these from the control's own font, so they inherit the fix —
+     except date/time, which keep a UA font-size until told otherwise. */
+  input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"] {
+    font-size: 16px;
+  }
+  /* A FLOOR, not a clamp. `1em` above is the PARENT's size, so a control that
+     asked to be bigger than 16px would otherwise be shrunk TO 16px — silently,
+     on phones only. `revert-layer` hands those back to the Tailwind utility
+     (unlayered rules revert into @layer utilities), so the floor only ever
+     raises. Nothing in src/ is currently sized this way; this is here so the
+     first one added doesn't quietly break. */
+  :is(input, select, textarea):is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
+    font-size: revert-layer;
+  }
+
+  /* Double-tap-to-zoom is back now that user-scalable=no is gone, and on a
+     tab bar or a list row an accidental second tap reads as the app breaking.
+     touch-action: manipulation removes double-tap zoom ON THESE ELEMENTS ONLY
+     (and the legacy 300ms tap delay with it). Pinch-zoom is untouched anywhere,
+     which is the line that matters: the page stays zoomable, the buttons stay
+     tappable. */
+  button, a, [role="button"], summary, label, input[type="checkbox"], input[type="radio"] {
+    touch-action: manipulation;
+  }
+
+  /* Opt a non-control INTO the floor, for the case where it sits directly
+     beside a control and the two are meant to read as a matched pair. Without
+     it the control grows and its neighbour does not. */
+  .sc-pill-peer { font-size: 16px; }
+}
+
 /* ── Refined input focus (forms) ───────────────────────────────────────────── */
 .sc-input { transition: border-color var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out), background-color var(--dur-med) var(--ease-out); }
 .sc-input:focus, .sc-input:focus-visible {

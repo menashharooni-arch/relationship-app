@@ -913,8 +913,15 @@ export default function ContactsClient({
                       select would leave two pills of different heights sitting
                       side by side. Text size, colours and radius are unchanged;
                       the pills get ~8px taller. */}
+                  {/* sc-pill-peer: on a touch device the status <select> beside
+                      this is raised to 16px by the form-control floor in
+                      globals.css (under 16px, iOS zooms the page on focus and
+                      will not zoom back). A <span> is not a form control, so it
+                      would keep its 10px and the deliberate matching above would
+                      break — one 16px pill next to one 10px pill. The class puts
+                      this pill on the same rule. */}
                   {selected.source && selected.source !== "direct_link" && (
-                    <span className="text-[10px] font-semibold px-2.5 py-1.5 rounded-full bg-blue-950 text-blue-300">
+                    <span className="sc-pill-peer text-[10px] font-semibold px-2.5 py-1.5 rounded-full bg-blue-950 text-blue-300">
                       {getSourceLabel(selected.source)}
                     </span>
                   )}
