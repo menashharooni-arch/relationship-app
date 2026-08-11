@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { resolveDownloadUserId } from "@/lib/download-auth";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { buildVCard } from "@/lib/vcard";
 import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const leadId = req.nextUrl.searchParams.get("id");
   if (!leadId) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Session OR a signed ?dl= token (system-browser download from the app).
+  const userId = await resolveDownloadUserId(req, "/api/leads/vcard");
 
   const admin = getAdminSupabase();
 
@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
     notes?: string | null;
   } | null = null;
 
-  if (user) {
-    const { data: profile } = await admin.from("profiles").select("username, plan").eq("id", user.id).single();
-    const { data: extraCards } = await admin.from("cards").select("username").eq("user_id", user.id);
+  if (userId) {
+    const { data: profile } = await admin.from("profiles").select("username, plan").eq("id", userId).single();
+    const { data: extraCards } = await admin.from("cards").select("username").eq("user_id", userId);
     const usernames = [profile?.username, ...(extraCards ?? []).map((c: { username: string }) => c.username)].filter(Boolean);
 
     const { data } = await admin.from("leads").select("name, phone, email, company, where_met, notes, tags").eq("id", leadId).in("card_owner", usernames).single();

@@ -63,6 +63,22 @@ export default function NativeAppBridge() {
             // is what makes the imported photo appear in the editor they came
             // from. Checked before the auth branch because both are swiftcard:
             // URLs and completeNativeOAuth would reject this one.
+            // Integration OAuth return legs. Each finishes server-side (tokens
+            // are already stored); all that is left is to put the WEBVIEW back
+            // on Settings so the UI reflects the connection the user just made.
+            // Matched BEFORE the auth branch because both are swiftcard: URLs
+            // and completeNativeOAuth would reject these (no code to exchange).
+            if (url.startsWith("swiftcard://google-callback")) {
+              const q = new URL(url).searchParams;
+              const nextRaw = q.get("next") ?? "";
+              const next =
+                nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/settings/flows";
+              const sep = next.includes("?") ? "&" : "?";
+              window.location.href =
+                `${next}${sep}integration=google&status=${encodeURIComponent(q.get("status") ?? "error")}`;
+              return;
+            }
+
             if (url.startsWith("swiftcard://linkedin-callback")) {
               const q = new URL(url).searchParams;
               const nextRaw = q.get("next") ?? "";

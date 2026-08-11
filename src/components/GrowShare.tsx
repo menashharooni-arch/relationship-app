@@ -5,7 +5,7 @@
 // Native share sheet first on mobile; explicit per-network intents as the grid.
 
 import { useState } from "react";
-import { useIsNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 
 const PITCH = "I use SwiftCard as my digital business card — one tap to share my info and it auto-saves every contact. Grab a free one:";
 
@@ -52,11 +52,23 @@ export default function GrowShare({ link }: { link: string }) {
   }
 
   async function nativeShare() {
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try { await navigator.share({ text: PITCH, url: link }); } catch { /* cancelled */ }
-    } else {
-      copy();
+    // In the iOS shell this button did nothing: WKWebView may not expose
+    // navigator.share at all (so it fell through to copy(), which flips the
+    // label on a DIFFERENT button and looks like nothing happened), and when it
+    // does exist a rejection was swallowed as "cancelled". The Capacitor plugin
+    // is the real native share sheet — the same path ShareButton and
+    // ShareMyInfoButton already take.
+    if (detectNativeApp()) {
+      try {
+        const { Share } = await import("@capacitor/share");
+        await Share.share({ text: PITCH, url: link });
+        return;
+      } catch { /* plugin missing or user cancelled — fall through */ }
     }
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ text: PITCH, url: link }); return; } catch { /* cancelled */ }
+    }
+    copy();
   }
 
   return (

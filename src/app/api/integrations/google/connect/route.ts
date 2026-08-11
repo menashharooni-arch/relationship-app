@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 const SCOPES = "https://www.googleapis.com/auth/contacts";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(`${APP_URL}/login`);
@@ -28,5 +28,17 @@ export async function GET() {
     state,
   });
 
-  return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+
+  // `?native=1` — started from the iOS shell, which runs this in an in-app
+  // browser because accounts.google.com is not in capacitor.config's
+  // allowNavigation (and Google blocks embedded-webview OAuth anyway). The
+  // callback reads this cookie to finish at a swiftcard:// URL that re-opens
+  // the app, instead of an https one that strands the user on the website with
+  // the app still showing "Connect". Google's registered redirect_uri is fixed,
+  // so nothing about this run can ride in the URL. Same shape as LinkedIn.
+  if (new URL(request.url).searchParams.get("native") === "1") {
+    res.cookies.set("g_native", "1", { httpOnly: true, sameSite: "lax", maxAge: 600, path: "/" });
+  }
+  return res;
 }

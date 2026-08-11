@@ -15,6 +15,18 @@ export default function ExportLeadsButton({ username }: { username: string }) {
     setBusy(true);
     setErr(null);
     try {
+      // NATIVE: a WKWebView cannot save a Blob via an anchor `download` — the
+      // click below silently no-ops, so this button did nothing at all in the
+      // app. Hand the URL to the system browser instead (which mints a signed
+      // download token on the way, since that browser has no session cookie).
+      // The Contacts page's own export already went through this helper; the
+      // dashboard's copy of the same feature never did.
+      const { isNativeShell, openFileViaSystemBrowser } = await import("@/lib/native-file");
+      if (isNativeShell()) {
+        await openFileViaSystemBrowser(`/api/leads/export?username=${encodeURIComponent(username)}`);
+        return;
+      }
+
       const res = await fetch(`/api/leads/export?username=${encodeURIComponent(username)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

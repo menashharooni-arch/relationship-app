@@ -4,6 +4,38 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
 import { PlanGate, PlanBadge } from "@/components/PlanGate";
+import { detectNativeApp } from "@/lib/platform";
+
+/**
+ * Start an integration's OAuth, correctly for wherever we are.
+ *
+ * On the web a plain link is right. In the iOS shell it is NOT: the connect
+ * route 302s to accounts.google.com, which is absent from capacitor.config's
+ * allowNavigation, so the shell hands the whole flow to Safari. The user grants
+ * access there, Google returns to swiftcard.me IN SAFARI, and they end up on
+ * the website reading "Connected" while the app behind it still says "Connect".
+ *
+ * `?native=1` makes the callback finish at a swiftcard:// URL that re-opens the
+ * app, and @capacitor/browser runs the round trip in an in-app sheet that
+ * shares Safari's cookies — so an already-signed-in Google user just taps
+ * Allow. Same fix as the LinkedIn headshot import.
+ */
+async function openConnect(href: string): Promise<void> {
+  if (!detectNativeApp()) {
+    window.location.href = href;
+    return;
+  }
+  const sep = href.includes("?") ? "&" : "?";
+  const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url, presentationStyle: "popover" });
+  } catch {
+    // Plugin missing (older shell build) — degrades to the old Safari hand-off
+    // rather than a dead button.
+    window.location.href = url;
+  }
+}
 
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
@@ -107,6 +139,7 @@ function IntegrationCard({
           needsReconnect ? (
             <a
               href={connectUrl}
+              onClick={(e) => { e.preventDefault(); void openConnect(connectUrl); }}
               className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0"
             >
               Reconnect
@@ -122,6 +155,7 @@ function IntegrationCard({
           ) : (
             <a
               href={connectUrl}
+              onClick={(e) => { e.preventDefault(); void openConnect(connectUrl); }}
               className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0"
             >
               Connect

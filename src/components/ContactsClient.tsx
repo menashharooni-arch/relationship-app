@@ -449,12 +449,14 @@ export default function ContactsClient({
     startDraft(ch);
   }
 
-  async function saveField(field: string, value: string) {
-    if (!selected) return;
+  /** Returns whether the save landed, so the caller can keep the editor open. */
+  async function saveField(field: string, value: string): Promise<boolean> {
+    if (!selected) return false;
     setFieldSaving(field);
     const ok = await updateField(selected.id, field, value);
     if (ok) setSelected((prev) => prev ? { ...prev, [field]: value } : prev);
     setFieldSaving(null);
+    return ok;
   }
 
   // Turn a channel ON to configure it — one channel at a time.
@@ -1230,7 +1232,11 @@ export default function ContactsClient({
                       <div className="flex gap-2">
                         <button onClick={() => setEditingWhereMet(false)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Cancel</button>
                         <button
-                          onClick={async () => { await saveField("where_met", whereMetText); setEditingWhereMet(false); }}
+                          // Close ONLY on success. It used to close regardless,
+                          // so a failed save silently discarded what the user
+                          // had just typed and reverted to the old value with
+                          // no error. saveNotes below always got this right.
+                          onClick={async () => { if (await saveField("where_met", whereMetText)) setEditingWhereMet(false); }}
                           disabled={fieldSaving === "where_met"}
                           className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors disabled:opacity-40"
                         >
