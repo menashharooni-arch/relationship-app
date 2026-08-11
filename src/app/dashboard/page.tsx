@@ -8,7 +8,6 @@ import { canViewOfficeAdmin } from "@/lib/office-roles";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
-import ExportLeadsButton from "@/components/ExportLeadsButton";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
@@ -554,7 +553,7 @@ export default async function DashboardPage({
             can't save a generated PNG data URL, so DownloadCardButton shares
             this link via the native share sheet instead of dead-tapping.
             It renders no visible control — opening the card is the job of the
-            "View live card" button in the header above, and this prop briefly
+            "View live" button in the My Cards box, and this prop briefly
             resurrected a duplicate "Preview" link that had been deliberately
             removed. */}
         <CardPreviewDownload
@@ -679,29 +678,6 @@ export default async function DashboardPage({
           {/* First-run guided-tour invitation */}
           <TourBanner />
 
-          {/* Page header — orientation + quick jump to the live card */}
-          <div className="flex items-end justify-between gap-4 mb-5">
-            <div className="min-w-0">
-              <h1 className="text-white font-bold text-xl sm:text-2xl tracking-tight">Dashboard</h1>
-              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 truncate">
-                {activeCard.label || activeCard.name || activeUsername}
-                <span className="text-gray-600"> · /{activeUsername}</span>
-              </p>
-            </div>
-            <a
-              href={cardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-4 py-2 transition-colors"
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden>
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-              </svg>
-              View live card
-            </a>
-          </div>
-
           {/* My Cards — full width, top of dashboard */}
           <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -713,24 +689,49 @@ export default async function DashboardPage({
                     the most obvious thing in it. */}
                 <p className="hidden sm:block text-gray-600 text-xs mt-0.5">Check a card to view everything about it. Only one card can be selected at a time.</p>
               </div>
-              {/* ONE pill, both sizes, in the top-right slot. Desktop used to
-                  carry a bare "+ Add card" text link here — the same action
-                  reading as an afterthought next to the phone's button. The
-                  pill is a hair larger from sm up, since a mouse target doesn't
-                  need to be thumb-sized but shouldn't look shrunken either.
-                  shrink-0 so a long title can never squeeze it — the title
-                  truncates instead (min-w-0 above makes that possible). */}
-              {canAddCard && (
-                <Link
-                  href="/cards/new?add=1"
-                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[11px] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+              {/* Card actions, top-right of the box.
+
+                  "View live" moved here from a page header that has been
+                  removed: it belongs beside the card list it acts on rather
+                  than floating above the page. It is sized to match "Add card"
+                  exactly so the two read as one control group, and coloured
+                  neutral against Add card's blue so the primary action still
+                  leads.
+
+                  Both pills are a hair larger from sm up — a mouse target
+                  doesn't need to be thumb-sized but shouldn't look shrunken.
+
+                  shrink-0 on the wrapper AND on each pill. The wrapper stops a
+                  long card title squeezing the pair (the title truncates
+                  instead — min-w-0 above is what allows that); the per-pill
+                  shrink-0 stops the two squeezing EACH OTHER, which a
+                  non-shrinking wrapper does not prevent on its own. */}
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={cardUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open your live card in a new tab"
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-gray-300 text-[11px] sm:text-xs font-semibold hover:border-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
-                    <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
+                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                   </svg>
-                  Add card
-                </Link>
-              )}
+                  View live
+                </a>
+                {canAddCard && (
+                  <Link
+                    href="/cards/new?add=1"
+                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[11px] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
+                      <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
+                    </svg>
+                    Add card
+                  </Link>
+                )}
+              </div>
             </div>
             {/* The rows moved into a client component so mobile can collapse to
                 just the selected card with a chevron to reveal the rest.

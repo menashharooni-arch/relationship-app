@@ -47,7 +47,15 @@ async function measure(width: number, longTitle = false) {
   const css = await appCss();
   const boxCls = classNameContaining("bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5");
   const headerCls = classNameContaining("flex items-center justify-between gap-3 mb-3");
-  const addBtnCls = classNameContaining("shrink-0 inline-flex items-center");
+  // The box now holds TWO controls: "View live" (neutral) then "Add card"
+  // (blue), inside a shrink-0 wrapper. The old locator — the first className
+  // containing "shrink-0 inline-flex items-center" — would now match View live,
+  // which sits first in source, and every "rightmost / flush with the edge"
+  // assertion below would be measuring the wrong button. Each is located by the
+  // colour that distinguishes it instead.
+  const viewBtnCls = classNameContaining("border-gray-700 text-gray-300 text-[11px]");
+  const addBtnCls = classNameContaining("text-blue-400 text-[11px]");
+  const actionsCls = classNameContaining("flex items-center gap-2 shrink-0");
   const captionCls = classNameContaining("hidden sm:block text-gray-600 text-xs mt-0.5");
   const rowCls =
     "flex items-center gap-3 rounded-xl px-4 py-3 transition-all border flex-1 min-w-full sm:min-w-[200px] bg-gray-800/60 border-gray-700/60";
@@ -70,10 +78,16 @@ async function measure(width: number, longTitle = false) {
                <p id="title" class="text-white font-semibold text-sm">${title}</p>
                <p id="caption" class="${captionCls}">Check a card to view everything about it. Only one card can be selected at a time.</p>
              </div>
-             <a id="addBtn" href="#" class="${addBtnCls}">
-               <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 sm:w-3.5 sm:h-3.5"><path d="M10 4v12M4 10h12"/></svg>
-               Add card
-             </a>
+             <div id="actions" class="${actionsCls}">
+               <a id="viewBtn" href="#" class="${viewBtnCls}">
+                 <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 sm:w-3.5 sm:h-3.5"><path d="M10 4v12M4 10h12"/></svg>
+                 View live
+               </a>
+               <a id="addBtn" href="#" class="${addBtnCls}">
+                 <svg viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 sm:w-3.5 sm:h-3.5"><path d="M10 4v12M4 10h12"/></svg>
+                 Add card
+               </a>
+             </div>
            </div>
            <div id="rows" class="flex flex-wrap gap-2">
              <div id="row" class="${rowCls}"><span class="text-white text-sm">Work card</span></div>
@@ -115,6 +129,8 @@ async function measure(width: number, longTitle = false) {
         title: r("title"),
         caption: r("caption"),
         addBtn: r("addBtn"),
+        viewBtn: r("viewBtn"),
+        actions: r("actions"),
         row: r("row"),
       };
     });

@@ -58,14 +58,6 @@ const ACTIVITY_PHRASES: Record<string, string> = {
   shared_info:           "shared their info with you",
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  new_contact: "bg-gray-800 text-gray-400",
-  touch:       "bg-blue-950 text-blue-400",
-  dissolved:   "bg-gray-900 text-gray-600",
-  // Settable from the Office Leads tab — listed here so an Office-marked lead
-  // renders correctly in personal contacts instead of falling back to "New".
-  not_interested: "bg-gray-900 text-gray-500",
-};
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
@@ -259,7 +251,7 @@ export default function ContactsClient({
   // must not overwrite the panel with the wrong contact's data.
   // ONE place to say "that didn't work".
   //
-  // deleteLead, toggleRead, changeStatus, toggleChannelPause and resetChannel
+  // deleteLead, toggleRead, toggleChannelPause and resetChannel
   // all discarded their failures: the confirm dialog closed and the contact
   // stayed, or the toggle simply didn't move, with nothing said. The user's
   // only signal was the UI not changing — indistinguishable from a slow tap,
@@ -690,16 +682,6 @@ export default function ContactsClient({
     setTimeout(() => setSeqSaving("idle"), 2000);
   }
 
-  async function changeStatus(newStatus: string) {
-    if (!selected) return;
-    const ok = await updateField(selected.id, "status", newStatus);
-    if (!ok) { fail("Couldn't change the status — please try again."); return; }
-    setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
-    if (newStatus === "dissolved") {
-      const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
-      await updateTags(selected.id, newTags);
-    }
-  }
 
   const filtered = leads
     .filter((l) => {
@@ -1060,27 +1042,6 @@ export default function ContactsClient({
                       {getSourceLabel(selected.source)}
                     </span>
                   )}
-                  <select
-                    value={selected.status ?? "new_contact"}
-                    onChange={(e) => changeStatus(e.target.value)}
-                    /* max-w-full: a <select> takes the intrinsic width of its
-                       WIDEST option, and on a touch device the 16px form-control
-                       floor (globals.css) applies here — "Not interested" at
-                       16px is ~150px, dropped into a column the 64px avatar and
-                       the shrink-0 read/unread button leave ~93px of on a 375px
-                       screen. Without this bound the pill overran the panel. */
-                    className={`max-w-full text-[10px] font-semibold px-2.5 py-1.5 rounded-full border-0 cursor-pointer focus:outline-none ${STATUS_STYLES[selected.status ?? "new_contact"] ?? STATUS_STYLES.new_contact}`}
-                    style={{ background: "transparent" }}
-                  >
-                    {[
-                      { value: "new_contact", label: "New Contact" },
-                      { value: "touch",       label: "Touch" },
-                      { value: "dissolved",   label: "Dissolved" },
-                      { value: "not_interested", label: "Not interested" },
-                    ].map((s) => (
-                      <option key={s.value} value={s.value} className="bg-gray-900 text-gray-200">{s.label}</option>
-                    ))}
-                  </select>
                   <FlowBadge sequence={selected.follow_up_sequence} />
                 </div>
               </div>
