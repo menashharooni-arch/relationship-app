@@ -73,7 +73,21 @@ export default function CardPreviewDownload({ data, template, username, previewU
       <div
         ref={outerRef}
         className="w-full rounded-xl overflow-hidden"
-        style={{ height: height || undefined }}
+        // RESERVE THE SPACE BEFORE THE CARD EXISTS. The templates are
+        // dynamic(ssr:false), so on the server and until that chunk downloads
+        // this box has no content — height resolved to 0 and everything below
+        // it (Share, Traffic, Quick Contacts) sat high, then jumped ~250–300px
+        // the moment the card popped in. On the dashboard, the first screen of
+        // the app, after the skeleton had already handed off.
+        //
+        // 1.75 is the card's own aspect — the same constant the measurement
+        // below falls back to — so the reserved box is the right size, not a
+        // guess. Once measured, the exact height takes over (templates vary
+        // slightly), and aspect-ratio steps aside.
+        style={{
+          height: height || undefined,
+          aspectRatio: height ? undefined : "1.75",
+        }}
       >
         <div
           ref={cardRef}

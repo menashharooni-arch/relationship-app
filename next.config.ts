@@ -22,6 +22,28 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // ── Client router cache ────────────────────────────────────────────────────
+  //
+  // `dynamic` defaults to 0 in Next 15+, and every portal page is dynamic (each
+  // one reads the session). So Home → Contacts → Home re-fetched and re-rendered
+  // the dashboard from the server BOTH ways, showing a full skeleton each time.
+  // Tab switching could never feel instant, which is most of what "the app
+  // doesn't feel native" actually is.
+  //
+  // 30s, not longer: these screens show leads and view counts, and a stale
+  // contact list is its own bug. 30 seconds covers the real pattern — bouncing
+  // between tabs while doing one thing — and anything older refetches. Newly
+  // captured leads still arrive immediately, because the capture path pushes a
+  // notification rather than relying on the list being fresh.
+  //
+  // Back/forward is unaffected by this setting (Next always restores those from
+  // cache to preserve scroll position), so this only changes forward taps.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -23,8 +23,17 @@ export default function PortalSkeleton({
   // has no floating bubble (inline widget) → pass false there or a bubble
   // would appear and then vanish; office/admin's assistant is purple.
   bubble = "blue",
+  // Shape of the content shell.
+  //
+  // A skeleton whose SHAPE differs from the page it covers trades a frozen
+  // screen for a visible reflow at handoff — the ghost boxes rearrange into
+  // something else the moment real content lands. "cards" is the dashboard-style
+  // 2-column grid; "form" is the single-column stack of labelled fields the card
+  // wizard and editor actually render, at their narrower max-w-4xl.
+  variant = "cards",
 }: {
   bubble?: "blue" | "purple" | false;
+  variant?: "cards" | "form";
 }) {
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10" aria-busy="true" aria-label="Loading">
@@ -47,14 +56,26 @@ export default function PortalSkeleton({
       </nav>
 
       {/* Content shell */}
-      <div className="max-w-5xl mx-auto pt-20">
+      <div className={`${variant === "form" ? "max-w-4xl" : "max-w-5xl"} mx-auto pt-20`}>
         <div className="w-44 h-6 rounded bg-gray-800 animate-pulse mb-2" />
         <div className="w-64 h-3.5 rounded bg-gray-800/60 animate-pulse mb-7" />
-        <div className="grid gap-5 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-40 rounded-2xl bg-gray-900 border border-gray-800/80 animate-pulse" />
-          ))}
-        </div>
+        {variant === "form" ? (
+          <div className="rounded-2xl bg-gray-900 border border-gray-800/80 p-5 space-y-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i}>
+                <div className="w-24 h-3 rounded bg-gray-800/70 animate-pulse mb-2" />
+                <div className="h-11 rounded-xl bg-gray-800/50 animate-pulse" />
+              </div>
+            ))}
+            <div className="h-11 w-36 rounded-full bg-gray-800 animate-pulse" />
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-40 rounded-2xl bg-gray-900 border border-gray-800/80 animate-pulse" />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Help-bubble stand-in — non-interactive, replaced in place on load. */}

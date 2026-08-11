@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -15,6 +16,7 @@ import Link from "next/link";
 import DownloadLink from "@/components/DownloadLink";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
+import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 
 export default async function ContactsPage({
   searchParams,
@@ -25,7 +27,22 @@ export default async function ContactsPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { card: selectedCardParam, lead: selectedLeadParam } = await searchParams;
+  const { card: cardParam, lead: selectedLeadParam } = await searchParams;
+
+  // Resolve the active card SERVER-SIDE, the way /share already does.
+  //
+  // Without this the page rendered with no card selected, then ContactsClient's
+  // mount effect read the same value out of localStorage and did a
+  // router.replace to add ?card= — a second full navigation on every visit that
+  // arrived without the param (which is every tap of the Contacts tab). The
+  // user watched skeleton → contacts → skeleton → contacts, roughly doubling
+  // the wait for the app's most-used screen.
+  //
+  // CardSelectionPersist already writes this cookie alongside localStorage, so
+  // the value is identical — it just arrives early enough to matter. With
+  // initialCardFilter set on the first render, that effect returns immediately
+  // and the second navigation never happens.
+  const cookieCard = (await cookies()).get(ACTIVE_CARD_COOKIE)?.value ?? null;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -48,6 +65,16 @@ export default async function ContactsPage({
     .order("created_at", { ascending: true });
 
   const cardList = cards ?? [];
+
+  // Validated against the user's OWN cards before use. The cookie outlives the
+  // card it names — delete a card and the stale value would otherwise filter
+  // the list down to a card that no longer exists, showing an empty Contacts
+  // page that reads as lost data. ContactsClient's effect had this same guard;
+  // moving the resolution to the server has to bring the guard with it.
+  // An explicit ?card= is left alone: that is a deliberate act, and the
+  // existing downstream code already handles an unknown one.
+  const selectedCardParam =
+    cardParam ?? (cookieCard && cardList.some((c) => c.username === cookieCard) ? cookieCard : undefined);
   const allUsernames = cardList.map((c) => c.username);
 
   const { data: rawLeads } = await admin
