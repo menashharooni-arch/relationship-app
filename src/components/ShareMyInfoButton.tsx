@@ -41,12 +41,17 @@ type Props = {
   hasEmail: boolean;
   /** Card slug the contact belongs to — the link the phone share hands off. */
   cardOwner: string | null;
+  /** Called after a send the SERVER accepted, so the Activity & Messages panel
+   *  can re-read the thread it just wrote to. Not called for the phone share:
+   *  that one sends nothing server-side and logs nothing, so there is nothing
+   *  new to read back. */
+  onSent?: () => void;
 };
 
 type Channel = "sms" | "email" | "both";
 type Action = Channel | "phone";
 
-export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmail, cardOwner }: Props) {
+export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmail, cardOwner, onSent }: Props) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<"idle" | "sending" | "sent" | "copied" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
@@ -79,6 +84,9 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
         setState("sent");
+        // The route logged this to the contact's thread; tell the panel to
+        // re-read it so the message appears now rather than on the next visit.
+        onSent?.();
         setTimeout(() => setState("idle"), 4000);
       } else {
         setErrMsg((d as { error?: string }).error || "Couldn't send");

@@ -515,12 +515,75 @@ export default function ContactsClient({
       // unavailable) instead of what we optimistically assumed.
       if (data.message) setConvoMessages((prev) => [...prev, data.message]);
       setReplyText("");
+      // The append above is the instant feedback; this reconciles against what
+      // the server actually holds, so anything the send produced beyond the one
+      // echoed row shows up without leaving the contact.
+      void refreshActivity();
     } catch {
       setReplyError("Couldn't send — please check your connection.");
     } finally {
       setReplySending(false);
     }
   }
+
+  // ── Keeping Activity & Messages current ────────────────────────────────────
+  //
+  // The panel used to load exactly ONCE, in selectLead, when a contact was
+  // opened. Anything that happened afterwards — sharing your card by email or
+  // text, sending a reply — was written server-side and never read back, so the
+  // log stayed silent until you left the contact and came back. That made a
+  // successful send look like it had done nothing.
+  //
+  // This re-reads BOTH feeds behind the panel (the message thread and the
+  // contact's card events), so it is the one call any action can make after
+  // changing anything the panel shows, rather than each action hand-patching
+  // its own row into state and drifting from what the server recorded.
+  async function refreshActivity() {
+    const lead = selected;
+    if (!lead) return;
+    // Same guard selectLead uses: a refresh still in flight for a contact the
+    // user has already navigated away from must not overwrite the one now on
+    // screen. Read at call time and re-checked before every setState below.
+    const seq = selectSeq.current;
+    try {
+      const r = await fetch(`/api/leads/${lead.id}/message`);
+      const d = await r.json();
+      if (selectSeq.current === seq && Array.isArray(d.messages)) setConvoMessages(d.messages);
+    } catch {
+      // Deliberately KEEP what is on screen. selectLead clears to [] because it
+      // is switching contacts and the old thread is simply wrong; here the
+      // displayed log is still accurate and a dropped request is no reason to
+      // blank out a correct history.
+    }
+    if (!lead.visitor_id) return;
+    try {
+      const res = await fetch(`/api/card-events?visitor_id=${lead.visitor_id}`);
+      const data = await res.json();
+      if (selectSeq.current === seq && Array.isArray(data)) setEvents(data);
+    } catch {
+      /* keep what is on screen — see above */
+    }
+  }
+
+  // The other direction of the same staleness. Actions taken HERE now refresh
+  // the panel, but plenty lands in it that nobody in this tab did: a reply from
+  // the contact, a follow-up the scheduler sent, a delivery status Twilio
+  // revised. Those are written while the app is in the background, so re-read
+  // when it comes back to the foreground — the moment the user is looking again.
+  //
+  // Not a poll. A timer would fetch for every open contact forever to catch
+  // something that arrives rarely; this costs one request at the only point
+  // where the answer could have changed AND is about to be read.
+  const refreshRef = useRef(refreshActivity);
+  useEffect(() => { refreshRef.current = refreshActivity; });
+  useEffect(() => {
+    if (!selected?.id) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshRef.current();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [selected?.id]);
 
   /** Returns whether the save landed, so the caller can keep the editor open. */
   async function saveField(field: string, value: string): Promise<boolean> {
@@ -1106,6 +1169,9 @@ export default function ContactsClient({
                 hasPhone={!!selected.phone}
                 hasEmail={!!selected.email}
                 cardOwner={selected.card_owner}
+                // A sent share is logged server-side; without this the new line
+                // did not appear until the contact was reopened.
+                onSent={refreshActivity}
               />
               <button
                 onClick={saveContactToPhone}
