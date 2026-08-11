@@ -1113,10 +1113,10 @@ export default function ContactsClient({
                     <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                     </svg>
-                    <span className="text-gray-300 text-sm font-medium">{selected.company}</span>
+                    <span className="min-w-0 break-words text-gray-300 text-sm font-medium">{selected.company}</span>
                   </div>
                   {selected.company_description ? (
-                    <p className="text-gray-500 text-xs pl-7">{selected.company_description}</p>
+                    <p className="text-gray-500 text-xs pl-7 break-words">{selected.company_description}</p>
                   ) : null}
                 </div>
               )}
@@ -1125,7 +1125,11 @@ export default function ContactsClient({
                   <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" />
                   </svg>
-                  <a href={`mailto:${selected.email}`} className="text-blue-400 text-sm hover:underline">{selected.email}</a>
+                  {/* break-all + min-w-0: an email is one unbreakable token and
+                      the icon beside it is shrink-0, so neither the row nor the
+                      string could give. break-all rather than break-words
+                      because an address has no break opportunity to find. */}
+                  <a href={`mailto:${selected.email}`} className="min-w-0 break-all text-blue-400 text-sm hover:underline">{selected.email}</a>
                 </div>
               )}
               {selected.phone && (
@@ -1141,7 +1145,7 @@ export default function ContactsClient({
                   <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
-                  <span className="text-gray-400 text-sm">{selected.location}</span>
+                  <span className="min-w-0 break-words text-gray-400 text-sm">{selected.location}</span>
                 </div>
               )}
               <div className="flex items-center gap-3 pt-1 border-t border-gray-800">
