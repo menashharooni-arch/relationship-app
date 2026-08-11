@@ -257,6 +257,22 @@ export default function ContactsClient({
   // Guards against out-of-order responses: if the user clicks a second contact
   // before the first contact's message/events fetch resolves, the stale fetch
   // must not overwrite the panel with the wrong contact's data.
+  // ONE place to say "that didn't work".
+  //
+  // deleteLead, toggleRead, changeStatus, toggleChannelPause and resetChannel
+  // all discarded their failures: the confirm dialog closed and the contact
+  // stayed, or the toggle simply didn't move, with nothing said. The user's
+  // only signal was the UI not changing — indistinguishable from a slow tap,
+  // so they tap again. A toast is used rather than an inline slot because
+  // these fire from BOTH the list (delete) and the detail panel.
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function fail(message: string) {
+    setNotice(message);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 5000);
+  }
+
   const selectSeq = useRef(0);
   const [events, setEvents] = useState<CardEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -411,14 +427,14 @@ export default function ContactsClient({
     const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused");
     if (ch === "email") {
       const next = tags.includes("email-paused") ? tags.filter((t) => t !== "email-paused") : [...tags, "email-paused"];
-      await updateTags(selected.id, next);
+      if (!(await updateTags(selected.id, next))) fail("Couldn't change the email setting — please try again.");
       return;
     }
     // Turning SMS ON asserts consent to text this contact (grants sms-ok);
     // turning it OFF pauses and revokes it. The server owns sms-ok — the
     // sms_consent flag drives it.
     const turningOn = channelPausedFor("sms"); // currently off → this turns it on
-    await updateTags(selected.id, tags, turningOn);
+    if (!(await updateTags(selected.id, tags, turningOn))) fail("Couldn't change the text setting — please try again.");
   }
 
   // Reset a channel: wipe its automation entirely (the other channel keeps
@@ -435,8 +451,11 @@ export default function ContactsClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ follow_up_sequence: remaining }),
       });
-      if (!res.ok) return;
+      // "Reset ↺" was a pure no-op on failure: the sequence stayed, the panel
+      // did not change, and nothing was said.
+      if (!res.ok) { fail("Couldn't reset that automation — please try again."); return; }
     } catch {
+      fail("Couldn't reset that automation — please check your connection.");
       return;
     }
     setLeads((prev) => prev.map((l) => (l.id === selected.id ? { ...l, follow_up_sequence: remaining as Lead["follow_up_sequence"] } : l)));
@@ -445,7 +464,14 @@ export default function ContactsClient({
     // runs as soon as it's submitted (toggle on = it works). Setting up a TEXT
     // automation asserts consent to text this contact (grants sms-ok).
     const tags = (selected.tags ?? []).filter((t) => t !== "flow-paused" && t !== (ch === "email" ? "email-paused" : "sms-paused"));
-    await updateTags(selected.id, tags, ch === "sms" ? true : undefined);
+    // Same trap as submitDraft: for SMS this is the request that grants sms-ok,
+    // which the cron REQUIRES. Losing it silently leaves a rebuilt automation
+    // that can never send.
+    if (!(await updateTags(selected.id, tags, ch === "sms" ? true : undefined))) {
+      fail(ch === "sms"
+        ? "Reset, but we couldn't re-enable texting for this contact — submit again before relying on it."
+        : "Reset, but we couldn't un-pause email for this contact — submit again before relying on it.");
+    }
     startDraft(ch);
   }
 
@@ -606,7 +632,7 @@ export default function ContactsClient({
   async function changeStatus(newStatus: string) {
     if (!selected) return;
     const ok = await updateField(selected.id, "status", newStatus);
-    if (!ok) return;
+    if (!ok) { fail("Couldn't change the status — please try again."); return; }
     setSelected((prev) => prev ? { ...prev, status: newStatus } : prev);
     if (newStatus === "dissolved") {
       const newTags = (selected.tags ?? []).filter((t) => !t.startsWith("preset-") && t !== "flow-paused");
@@ -735,7 +761,7 @@ export default function ContactsClient({
     const newTags = tags.includes("unread")
       ? tags.filter((t) => t !== "unread")
       : [...tags, "unread"];
-    await updateTags(lead.id, newTags);
+    if (!(await updateTags(lead.id, newTags))) fail("Couldn't update that contact — please try again.");
   }
 
   async function deleteLead(id: string) {
@@ -745,7 +771,7 @@ export default function ContactsClient({
       ok = res.ok;
     } catch { /* network error — keep the contact in the list */ }
     setConfirmDeleteId(null);
-    if (!ok) return;
+    if (!ok) { fail("Couldn't delete that contact — please try again."); return; }
     setLeads((prev) => prev.filter((l) => l.id !== id));
     if (selected?.id === id) setSelected(null);
   }
@@ -1628,6 +1654,24 @@ export default function ContactsClient({
           </>
         )}
       </div>
+
+      {/* Sits above the bottom tab bar (z-40) and the detail overlay (z-40). */}
+      {notice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-4 bottom-24 md:bottom-6 z-50 mx-auto max-w-sm rounded-xl border border-red-900/60 bg-gray-900 px-4 py-3 shadow-xl flex items-start gap-3"
+        >
+          <span className="text-sm text-red-300 flex-1 min-w-0 break-words">{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss"
+            className="text-gray-500 hover:text-gray-300 shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

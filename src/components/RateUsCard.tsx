@@ -38,6 +38,7 @@ export default function RateUsCard({ name, email }: { name: string; email: strin
   const [msg, setMsg] = useState("");
   const [mode, setMode] = useState<"feedback" | "testimonial" | null>(null);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
   const shown = hover || rating;
@@ -57,8 +58,13 @@ export default function RateUsCard({ name, email }: { name: string; email: strin
           message: `[${tag}]\n\n${msg.trim()}`,
         }),
       });
-      if (res.ok) setSent(true);
-    } catch { /* ignore */ }
+      if (res.ok) { setSent(true); setError(null); }
+      else setError("Couldn't send that — please try again.");
+    } catch {
+      // Was swallowed: the button returned to idle with the message still in
+      // the box and no explanation, so the user assumed it sent.
+      setError("Couldn't send that — please check your connection.");
+    }
     setSending(false);
   }
 
@@ -138,6 +144,7 @@ export default function RateUsCard({ name, email }: { name: string; email: strin
               >
                 {sending ? "Sending…" : mode === "testimonial" ? "Send testimonial" : "Send feedback"}
               </button>
+              {error && <p role="alert" className="mt-2 text-[11px] text-red-300 text-center">{error}</p>}
             </div>
           )}
         </>

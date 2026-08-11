@@ -12,6 +12,7 @@ export default function EmailPreferencesForm({ initialMarketing, initialReceipts
   const [receipts, setReceipts] = useState(initialReceipts);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function save() {
     setSaving(true);
@@ -23,9 +24,13 @@ export default function EmailPreferencesForm({ initialMarketing, initialReceipts
       });
       if (!res.ok) throw new Error("save failed");
       setSaved(true);
+      setError(null);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      /* silently keep the toggles as-is; button just stops showing "Saving…" */
+      // Was: silently keep the toggles and stop showing "Saving…". The user
+      // saw a flicker and assumed it saved — on the screen that decides
+      // whether we may email them, which is the worst place to guess.
+      setError("Couldn't save your preferences — please try again.");
     }
     setSaving(false);
   }
@@ -56,6 +61,11 @@ export default function EmailPreferencesForm({ initialMarketing, initialReceipts
       >
         {saved ? "Saved!" : saving ? "Saving…" : "Save preferences"}
       </button>
+      {error && (
+        <p role="alert" className="text-xs text-center" style={{ color: "#B91C1C" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
