@@ -826,7 +826,13 @@ export default function ContactsClient({
             onClick={(e) => { e.stopPropagation(); toggleRead(lead); }}
             title={unread ? "Mark as read" : "Mark as unread"}
             aria-label={unread ? "Mark as read" : "Mark as unread"}
-            className={`shrink-0 self-center p-1.5 rounded-lg transition-colors ${unread ? "text-blue-400 hover:bg-blue-500/10" : "text-gray-600 hover:text-gray-300 hover:bg-gray-800"}`}
+            // gray-500, not gray-600: at rest this icon measured 2.35:1 on the
+            // gray-900 row and 2.66:1 on the page — under the 3:1 WCAG asks of a
+            // control you have to SEE to use, and it is the only way to mark a
+            // contact read from the list. gray-500 clears it (3.67 / 4.16) while
+            // staying clearly subordinate to the blue unread state, which is the
+            // distinction the two colours exist to make.
+            className={`shrink-0 self-center p-1.5 rounded-lg transition-colors ${unread ? "text-blue-400 hover:bg-blue-500/10" : "text-gray-500 hover:text-gray-300 hover:bg-gray-800"}`}
           >
             {unread ? (
               // filled envelope = unread
