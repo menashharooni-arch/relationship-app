@@ -123,4 +123,4 @@ Suggested five:
 5. Swift Links page
 
 ## Version
-- 1.0.0, build 5. "What's New": `Your digital business card, now on iPhone.`
+- 1.0.0, build 6. "What's New": `Your digital business card, now on iPhone.`

@@ -773,6 +773,31 @@ html.native-app {
 html.native-app body {
   overscroll-behavior: none;
 }
+
+/* ── The app never zooms ──────────────────────────────────────────────────────
+   A native app's UI does not pinch or double-tap zoom, and the owner wants the
+   shell to behave like one. `touch-action: pan-x pan-y` allows scrolling in
+   both directions and nothing else, so WebKit drops the pinch and double-tap
+   zoom gestures.
+
+   Deliberately NOT `user-scalable=no` on the viewport, which is the obvious way
+   to do this and the way that broke: it does not stop iOS's zoom-on-focus (that
+   is decided by the control's font-size), so the page would zoom itself in and
+   then refuse to zoom back out. tests/no-zoom-lockout.test.ts still forbids it.
+
+   This is only safe BECAUSE of the 16px form-control floor further up: with
+   auto-zoom impossible there is no zoomed state to be stranded in. The two are
+   one feature — removing the floor while leaving this turns the app back into a
+   trap. Note the floor cannot reach inside a cross-origin iframe, so any
+   third-party embed keeps its own zoom behaviour; that is what the native
+   pinch-disable in ios/App/App/MainViewController.swift is for.
+
+   Shell only: the website keeps pinch-zoom and its accessibility. */
+html.native-app,
+html.native-app body {
+  touch-action: pan-x pan-y;
+}
+
 html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
 /* Cream screens (login, profile, legal pages) regardless of app theme: the
    full-bleed shell paints html's canvas behind the status bar, and a DARK
