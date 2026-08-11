@@ -371,10 +371,28 @@ body {
 [data-sc-theme="light"] .sc-app :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-indigo-600, .bg-violet-600, .bg-purple-600, .bg-green-500, .bg-green-600, .bg-emerald-600, .bg-red-500, .bg-red-600).text-white { color: #FFFFFF !important; }
 [data-sc-theme="light"] .sc-app .text-gray-200,
 [data-sc-theme="light"] .sc-app .text-gray-300 { color: #1F2937 !important; }
-[data-sc-theme="light"] .sc-app .text-gray-400 { color: #57534E !important; }
-[data-sc-theme="light"] .sc-app .text-gray-500 { color: #78716C !important; }
-[data-sc-theme="light"] .sc-app .text-gray-600 { color: #A29D93 !important; }
-[data-sc-theme="light"] .sc-app .placeholder-gray-600::placeholder { color: #B7B0A4 !important; }
+/* The muted end of this ramp did not survive its own remap. Measured against
+   the two surfaces these actually sit on — cream #FAF7F2 and warm-card #EDE5D8:
+
+     text-gray-400  #57534E   7.14 / 6.10  ✓
+     text-gray-500  #78716C   4.49 / 3.84  ✗ fails AA on the card
+     text-gray-600  #A29D93   2.53 / 2.16  ✗ fails everything, incl. the 3:1
+                                             large-text floor
+
+   These carry real reading text in light mode — "Not set" values, timestamps,
+   helper lines, the source pill on a contact. Dark mode was fine, so nobody
+   caught that the light remap had quietly dropped two tiers below legible.
+
+   Re-anchored so every tier clears 4.5:1 on the DARKER of the two surfaces,
+   while staying ordered (400 darkest → 600 most muted) so hierarchy survives.
+   The range compresses, which is the honest cost: on a cream ground there is
+   simply less room below the body colour than a dark theme has. */
+[data-sc-theme="light"] .sc-app .text-gray-400 { color: #57534E !important; } /* 6.10 on card */
+[data-sc-theme="light"] .sc-app .text-gray-500 { color: #615A54 !important; } /* 5.42 on card */
+[data-sc-theme="light"] .sc-app .text-gray-600 { color: #6B635C !important; } /* 4.71 on card */
+/* Placeholders are held to the same floor — WCAG makes no exception for them,
+   and a placeholder nobody can read is the field with no label all over again. */
+[data-sc-theme="light"] .sc-app .placeholder-gray-600::placeholder { color: #6B635C !important; }
 [data-sc-theme="light"] .sc-app .hover\:text-white:hover { color: #0F172A !important; }
 [data-sc-theme="light"] .sc-app .hover\:text-gray-300:hover { color: #44403C !important; }
 
