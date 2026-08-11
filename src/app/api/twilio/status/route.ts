@@ -23,6 +23,19 @@ import { reportError } from "@/lib/report-error";
 
 const TERMINAL_FAILURES = new Set(["undelivered", "failed"]);
 
+// Statuses a message cannot move OUT of. Twilio sends one INDEPENDENT HTTP POST
+// per transition (queued → sent → undelivered), and independent requests arrive
+// in whatever order the network delivers them. This route wrote every callback
+// unconditionally, so a straggling "queued" landing after "undelivered" reset
+// the row to queued — and the thread then showed "Queued" forever for a text
+// the carrier had rejected.
+//
+// Observed in production on 2026-08-11: three shares failed with error 30034
+// (A2P 10DLC unregistered), the failures were logged, and all three rows still
+// read "queued". Exactly the "never tell someone a message arrived when the
+// carrier said it didn't" rule this file opens with, failing on ordering.
+const TERMINAL = ["delivered", "undelivered", "failed", "canceled"];
+
 export async function POST(req: NextRequest) {
   const form = await req.formData();
   const params: Record<string, string> = {};
@@ -50,11 +63,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const admin = getAdminSupabase();
-    const { data: updated } = await admin
+    let q = admin
       .from("lead_messages")
       .update({ status, ...(errorCode ? { error_code: errorCode } : {}) })
-      .eq("provider_sid", sid)
-      .select("id");
+      .eq("provider_sid", sid);
+
+    // A terminal status always wins. A non-terminal one may only land on a row
+    // that has not already reached a terminal state.
+    //
+    // The null arm is required, not defensive: in PostgREST `status.neq.failed`
+    // evaluates to NULL — not true — for a row whose status IS NULL, so without
+    // it every freshly-inserted message (status NULL) would be excluded and the
+    // first callback would never apply.
+    if (!TERMINAL.includes(status)) {
+      q = q.or(`status.is.null,and(${TERMINAL.map((s) => `status.neq.${s}`).join(",")})`);
+    }
+    const { data: updated } = await q.select("id");
 
     // A delivery failure is an ops signal, not a user error: it usually means
     // the whole sending number is misconfigured (30034 = A2P 10DLC campaign not
