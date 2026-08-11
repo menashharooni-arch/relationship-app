@@ -85,6 +85,44 @@ describe("pinch-zoom is never disabled", () => {
   });
 });
 
+describe("the app never zooms, and cannot strand the user zoomed", () => {
+  // Two layers, and they are one feature. The gestures are disabled so the app
+  // feels native; the 16px floor makes iOS's automatic zoom-on-focus impossible
+  // so there is no zoomed state to be stuck in. Shipping the first without the
+  // second is exactly the bug this whole area came from.
+  it("disables pinch/double-tap zoom in the shell via touch-action", () => {
+    const css = code(read("src/app/globals.css"));
+    expect(css).toMatch(/html\.native-app[^{]*\{[^}]*touch-action:\s*pan-x pan-y/s);
+  });
+
+  it("scopes the gesture lock to the shell, never the website", () => {
+    // The marketing site must keep pinch-zoom: it is a public web page and
+    // WCAG 1.4.4 applies to it with no native app wrapper to excuse it.
+    const css = code(read("src/app/globals.css"));
+    const bare = css.match(/^\s*(html|body)\s*(,\s*(html|body)\s*)*\{[^}]*touch-action:\s*(none|pan-x pan-y)/m);
+    expect(bare, "touch-action zoom lock must be scoped to html.native-app").toBeNull();
+  });
+
+  it("keeps the floor that makes the gesture lock safe", () => {
+    // Guarded here as well as above because deleting the floor is what turns
+    // the gesture lock back into a trap, and that connection is not obvious
+    // from either rule on its own.
+    const css = read("src/app/globals.css");
+    expect(css).toMatch(/font-size:\s*max\(16px/);
+  });
+
+  it("disables zoom natively too, which is the only layer iframes cannot escape", () => {
+    // CSS cannot cross a cross-origin iframe boundary, so a third-party embed
+    // with 14px fields would still zoom the page. Webview zoom IS the scroll
+    // view's zoom, so this covers it.
+    const swift = read("ios/App/App/MainViewController.swift");
+    expect(swift).toMatch(/minimumZoomScale\s*=\s*1\.0/);
+    expect(swift).toMatch(/maximumZoomScale\s*=\s*1\.0/);
+    expect(swift).toMatch(/pinchGestureRecognizer\?\.isEnabled\s*=\s*false/);
+    expect(swift).toMatch(/bouncesZoom\s*=\s*false/);
+  });
+});
+
 describe("full-screen overlays clear the status bar", () => {
   // A `fixed inset-0` overlay is NOT moved by body's safe-area padding, and it
   // does not carry .sc-app/.sc-tabbar, the two classes that get the inset. Under
