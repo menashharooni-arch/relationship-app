@@ -13,12 +13,37 @@ export async function GET(request: NextRequest) {
   // same-origin paths only) — default is Settings. Clear the cookie either way.
   const returnRaw = request.cookies.get("li_return_to")?.value ?? "";
   const returnTo = returnRaw.startsWith("/") && !returnRaw.startsWith("//") ? returnRaw : "/settings/flows";
+  // Set by /connect?native=1 — this run started inside the iOS shell's in-app
+  // browser rather than the webview itself.
+  const isNative = request.cookies.get("li_native")?.value === "1";
+
   const DONE = (status: string) => {
-    const url = new URL(returnTo, APP_URL);
-    url.searchParams.set("integration", "linkedin");
-    url.searchParams.set("status", status);
-    const res = NextResponse.redirect(url.toString());
+    // NATIVE RETURN LEG.
+    //
+    // linkedin.com is not in capacitor.config's allowNavigation, so the shell
+    // cannot run this OAuth in its own webview — it hands the URL to the system
+    // browser. Finishing at an https://swiftcard.me URL therefore left the user
+    // looking at the WEBSITE in Safari, with the app still sitting on the page
+    // they started from and no photo imported. That is the "it takes me to our
+    // website" report.
+    //
+    // A swiftcard:// URL instead re-enters the app: iOS hands it to
+    // NativeAppBridge's appUrlOpen listener, which closes the browser sheet and
+    // navigates the WEBVIEW to `next`. Same custom-scheme mechanism the Google
+    // and Apple sign-in flows already return through.
+    const res = isNative
+      ? NextResponse.redirect(
+          `swiftcard://linkedin-callback?status=${encodeURIComponent(status)}` +
+            `&next=${encodeURIComponent(returnTo)}`,
+        )
+      : (() => {
+          const url = new URL(returnTo, APP_URL);
+          url.searchParams.set("integration", "linkedin");
+          url.searchParams.set("status", status);
+          return NextResponse.redirect(url.toString());
+        })();
     res.cookies.set("li_return_to", "", { maxAge: 0, path: "/" });
+    res.cookies.set("li_native", "", { maxAge: 0, path: "/" });
     return res;
   };
 

@@ -56,5 +56,12 @@ export async function GET(request: Request) {
   if (next) {
     res.cookies.set("li_return_to", next, { httpOnly: true, sameSite: "lax", maxAge: 600, path: "/" });
   }
+  // `?native=1` — started from the iOS shell, which runs this in an in-app
+  // browser because linkedin.com cannot load in the app's own webview. The
+  // callback reads this to finish at a swiftcard:// URL that re-opens the app,
+  // instead of an https one that would strand the user on the website.
+  if (url.searchParams.get("native") === "1") {
+    res.cookies.set("li_native", "1", { httpOnly: true, sameSite: "lax", maxAge: 600, path: "/" });
+  }
   return res;
 }
