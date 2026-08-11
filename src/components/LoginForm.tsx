@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { useIsNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { safeNextPath } from "@/lib/safe-next";
 
@@ -44,7 +44,42 @@ export default function LoginForm({
    */
   signInOnly?: boolean;
 }) {
-  const [mode, setMode] = useState<"signin" | "signup">(signInOnly ? "signin" : initialMode);
+  // No signInOnly override here any more: the app's toggle must be able to
+  // REACH signup mode, because that is what shows the message. The login page
+  // still opens the app on "signin"; this only controls where the toggle can
+  // go, and a deep link to ?mode=signup landing on the message is correct too.
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+
+  /** In the app, "Create account" shows a message instead of a signup form. */
+  const signupRedirect = signInOnly && mode === "signup";
+
+  /**
+   * Open swiftcard.me OUTSIDE the webview.
+   *
+   * A plain link would not work here, and not for the usual reason:
+   * swiftcard.me IS in capacitor.config's allowNavigation, so the shell would
+   * happily load it *in the app's own webview* — where sc-boot detects the
+   * shell and redirects "/" straight back to /dashboard, which for a signed-out
+   * visitor is /login. The user would tap "Swiftcard.me" and arrive back on the
+   * screen they were already looking at.
+   *
+   * @capacitor/browser opens a real browser sheet instead, and sc-boot does not
+   * fire there (no `webkit.messageHandlers.bridge`), so they get the actual
+   * marketing site and can sign up. The href stays on the anchor so the web
+   * build, middle-click and "copy link address" all behave normally.
+   */
+  async function openSite(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (!detectNativeApp()) return; // web: let the browser follow the href
+    e.preventDefault();
+    try {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: APP_URL, presentationStyle: "popover" });
+    } catch {
+      // Plugin missing (older shell build). The in-webview navigation loops
+      // back to /login, so a new tab is the least-bad fallback.
+      window.open(APP_URL, "_blank");
+    }
+  }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -247,28 +282,46 @@ export default function LoginForm({
 
   return (
     <div className="w-full space-y-5">
-      {/* Mode toggle — web only. In the app there is nothing to toggle BETWEEN,
-          so the control is removed rather than shown with one dead half: a
-          single-option segmented control reads as a broken toggle. The card
-          then opens straight onto the email field. */}
-      {!signInOnly && (
-        <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
-          {(["signin", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
-              className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
-              style={{
-                background: mode === m ? "#1D4ED8" : "transparent",
-                color: mode === m ? "#fff" : "#8B8070",
-              }}
-            >
-              {m === "signin" ? "Sign in" : "Create account"}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Mode toggle — both options, on web AND in the app. In the app the
+          "Create account" side does not open a signup form: it swaps the whole
+          card for a message pointing at the website (see signupRedirect below).
+          The toggle stays so the answer is discoverable exactly where someone
+          looks for it, instead of the option silently not existing. */}
+      <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
+        {(["signin", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
+            className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
+            style={{
+              background: mode === m ? "#1D4ED8" : "transparent",
+              color: mode === m ? "#fff" : "#8B8070",
+            }}
+          >
+            {m === "signin" ? "Sign in" : "Create account"}
+          </button>
+        ))}
+      </div>
+
+      {/* THE APP'S "Create account": a message, and nothing else.
+          Returning early replaces the entire rest of the card — form, submit,
+          forgot-password, the divider and both OAuth buttons — so there is no
+          path to an account here, not even an OAuth one. */}
+      {signupRedirect ? (
+        <p className="py-6 text-center text-base leading-relaxed text-slate-600">
+          Ready to grow your network? Join us at{" "}
+          <a
+            href={APP_URL}
+            onClick={openSite}
+            className="font-semibold text-[#1D4ED8] underline underline-offset-2 hover:text-[#1740C4]"
+          >
+            Swiftcard.me
+          </a>
+          .
+        </p>
+      ) : (
+      <>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
@@ -404,18 +457,7 @@ export default function LoginForm({
         </button>
       )}
 
-      {/* Where the signup affordance used to be. Deliberately STATIC — not a
-          link, not a button, nothing tappable: the app does not create
-          accounts, so an affordance here would either dead-end or bounce the
-          user out to Safari, which is the whole problem being removed.
-
-          pt-1 + the parent's space-y-5 keeps it clear of the last button, and
-          it inherits the card's centered column so it stays aligned at every
-          width. Muted and small so it reads as a footnote, not an action. */}
-      {signInOnly && (
-        <p className="pt-1 text-center text-xs text-slate-500">
-          Start building your network at swiftcard.me
-        </p>
+      </>
       )}
     </div>
   );
