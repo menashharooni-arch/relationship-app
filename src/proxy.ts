@@ -21,10 +21,38 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims(), NOT getUser(). getUser() is a NETWORK CALL to Supabase's auth
+  // server, and this proxy runs on every navigation to /dashboard, /contacts,
+  // /cards, /settings, /office, /share, /upgrade, /welcome, /join and
+  // /checkout — plus every prefetch of them. That was 200-600ms of dead time on
+  // cellular BEFORE any page code ran, so it sat underneath every loading
+  // skeleton and delayed the one thing that makes a tap feel answered.
+  //
+  // getClaims verifies the JWT locally against the project's JWKS instead. That
+  // only helps for ASYMMETRIC signing keys: for HS256 it falls back to
+  // getUser() internally and nothing is gained. This project issues ES256 with
+  // a kid (checked against /auth/v1/.well-known/jwks.json), so the verification
+  // really is local, and the JWKS is cached in-process after the first fetch.
+  //
+  // SESSION REFRESH IS PRESERVED, which is the thing that would have broken
+  // silently: with no jwt argument getClaims calls getSession(), and that
+  // refreshes an expired session and writes the rotated cookies through the
+  // setAll handler above — exactly as getUser() did.
+  //
+  // SECURITY IS UNCHANGED for what this proxy decides. Local verification
+  // proves the token was signed by the project and is unexpired, which is all
+  // the login wall needs; it does not re-check the user server-side, so a
+  // session revoked elsewhere stays usable until the access token expires. That
+  // window already existed — signOut only revokes the REFRESH token, which is
+  // precisely why the soft-delete guard below exists — and every protected page
+  // still calls getUser() itself, so a hard-deleted account is caught there.
+  // `sub` is a REQUIRED claim on a Supabase access token, so its absence means
+  // there is no usable session — same signal `user === null` gave before.
+  const { data: claimsResult } = await supabase.auth.getClaims();
+  const userId = claimsResult?.claims?.sub ?? null;
 
   // Any redirect below must carry the auth cookies just written onto
-  // supabaseResponse (e.g. a rotated refresh token from the getUser() call
+  // supabaseResponse (e.g. a rotated refresh token from the session refresh
   // above) — a bare NextResponse.redirect() is a fresh response object that
   // doesn't inherit them, silently discarding a token rotation and desyncing
   // the browser's session (auth audit).
@@ -47,14 +75,14 @@ export async function proxy(request: NextRequest) {
   // still falls back to sc-boot's client-side redirect (and plants the
   // cookie); every launch after that is redirected here, before any homepage
   // HTML is sent — one navigation instead of two, no hidden-page gap. Placed
-  // after getUser() so it can branch on the real session — a signed-out user
+  // after the claims read so it can branch on the real session — a signed-out user
   // goes straight to /login rather than bouncing through /dashboard's guard.
   if (
     request.nextUrl.pathname === "/" &&
     ((request.headers.get("user-agent") ?? "").includes("SwiftCardApp") ||
       request.cookies.get("sc_shell")?.value === "1")
   ) {
-    return redirectWithAuthCookies(new URL(user ? "/dashboard" : "/login", request.url));
+    return redirectWithAuthCookies(new URL(userId ? "/dashboard" : "/login", request.url));
   }
 
   // NOTE: /templates is deliberately NOT here. The marketing nav and footer
@@ -73,7 +101,7 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/cards/new" ||
     request.nextUrl.pathname.startsWith("/cards/new/");
 
-  if (!user && isProtected && !isGuestCardBuilder) {
+  if (!userId && isProtected && !isGuestCardBuilder) {
     return redirectWithAuthCookies(new URL("/login", request.url));
   }
 
@@ -81,11 +109,11 @@ export async function proxy(request: NextRequest) {
   // remaining lifetime (signOut only revokes the refresh token) — without this,
   // that live token could keep loading/editing a "deleted" account's pages for
   // up to an hour after deletion, contradicting the account-deleted messaging.
-  if (user && isProtected) {
+  if (userId && isProtected) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("customization")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
     const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
     if (deleted) {
