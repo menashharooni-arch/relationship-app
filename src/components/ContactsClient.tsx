@@ -1014,10 +1014,15 @@ export default function ContactsClient({
                 Contacts
               </button>
             </div>
-          <div className="max-w-xl mx-auto p-6 sm:p-8 pb-24 lg:pb-8">
+          <div className="max-w-xl mx-auto p-4 sm:p-8 pb-24 lg:pb-8">
             {/* Header */}
-            <div data-tour="contact-detail" className="flex items-start gap-5 mb-8">
-              <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold text-white shrink-0">
+            {/* Tighter on a phone, unchanged from `sm` up. Measured at 390px:
+                the avatar (64) + this button (137) + gaps left the name and the
+                status pill about 130px between them, so an ordinary two-word
+                name broke across two lines and "New Contact" was clipped. The
+                phone sizes below give that column back roughly 90px. */}
+            <div data-tour="contact-detail" className="flex items-start gap-3 sm:gap-5 mb-6 sm:mb-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-blue-600 flex items-center justify-center text-base sm:text-xl font-bold text-white shrink-0">
                 {selected.name[0]?.toUpperCase() ?? "?"}
               </div>
               {/* min-w-0: this is the only flexible child in the row — the 64px
@@ -1033,7 +1038,7 @@ export default function ContactsClient({
                     20px bold overran a 375px screen by 400px — which, inside a
                     panel that is its own horizontal scroller, showed up as "the
                     page doesn't fit and I can't reach the back button". */}
-                <h2 className="text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-100 break-words">{selected.name}</h2>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {/* py-1.5 (was py-0.5) on BOTH pills: the status control is a
                       real <select> a user has to hit with a thumb, and at 10px
@@ -1082,17 +1087,23 @@ export default function ContactsClient({
               <button
                 type="button"
                 onClick={() => toggleRead(selected)}
-                className={`ml-auto shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${isUnread(selected) ? "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"}`}
+                /* The label is hidden on phones, and `hidden` is display:none —
+                   which removes it from the ACCESSIBILITY tree, not just the
+                   layout. Without this the control would be an unlabelled icon
+                   to a screen reader, so the name has to live here too. */
+                aria-label={isUnread(selected) ? "Mark as read" : "Mark as unread"}
+                title={isUnread(selected) ? "Mark as read" : "Mark as unread"}
+                className={`ml-auto shrink-0 flex items-center gap-1.5 text-xs font-semibold p-2 sm:px-3 sm:py-1.5 rounded-full border transition-colors ${isUnread(selected) ? "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25" : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"}`}
               >
                 {isUnread(selected) ? (
                   <>
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M1.5 8.67v8.58a3 3 0 003 3h15a3 3 0 003-3V8.67l-8.928 5.493a3 3 0 01-3.144 0L1.5 8.67z" /><path d="M22.5 6.908V6.75a3 3 0 00-3-3h-15a3 3 0 00-3 3v.158l9.714 5.978a1.5 1.5 0 001.572 0L22.5 6.908z" /></svg>
-                    Mark as read
+                    <span className="hidden sm:inline">Mark as read</span>
                   </>
                 ) : (
                   <>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25H4.5a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5H4.5a2.25 2.25 0 00-2.25 2.25m19.5 0l-9.75 6.75L2.25 6.75" /></svg>
-                    Mark as unread
+                    <span className="hidden sm:inline">Mark as unread</span>
                   </>
                 )}
               </button>
