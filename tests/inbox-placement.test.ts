@@ -54,7 +54,7 @@ describe("the sender decides headers by who pressed send", () => {
   });
 
   it("deliverToLead forwards the flag instead of deciding for itself", () => {
-    // It serves BOTH the reply box and the sequence runner, so the caller is
+    // It serves BOTH one-off sends and the sequence runner, so the caller is
     // the only thing that knows which one this send is.
     const src = messaging();
     expect(src).toMatch(/personal: opts\.personal \}\)/);
@@ -65,7 +65,6 @@ describe("the sender decides headers by who pressed send", () => {
 describe("every hand-sent message is marked personal", () => {
   const humanSends: [string, string][] = [
     ["sharing your card from a contact", "src/app/api/leads/share-card/route.ts"],
-    ["replying in the contact's message box", "src/app/api/leads/[id]/message/route.ts"],
     ["sending a card from the scanner", "src/app/api/scanner/send/route.ts"],
   ];
 

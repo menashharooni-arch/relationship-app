@@ -54,14 +54,29 @@ describe("every action that writes to the panel refreshes it", () => {
     expect(phoneShare).not.toMatch(/onSent/);
   });
 
-  it("replying from the message box", () => {
-    expect(ui()).toMatch(/void refreshActivity\(\);/);
+});
+
+describe("the panel stays read-only", () => {
+  // Messaging a contact happens through AUTOMATIONS, plus the Share button's
+  // one-time card send. There is deliberately NO free-text compose box: a reply
+  // box was added here once, was never a feature of this product, and was
+  // removed. The panel is a log of what happened, not a chat client.
+  const src = () => ui();
+
+  it("has no compose field", () => {
+    expect(src()).not.toMatch(/<textarea[\s\S]{0,400}?placeholder=\{`Write a /);
+    expect(src()).not.toMatch(/setReplyText|replyChannel|sendReply/);
   });
 
-  it("the reply still appends instantly rather than waiting on the round-trip", () => {
-    // The refresh reconciles; it must not replace the immediate feedback with
-    // a network wait.
-    expect(ui()).toMatch(/if \(data\.message\) setConvoMessages\(\(prev\) => \[\.\.\.prev, data\.message\]\)/);
+  it("nothing in the app POSTs a hand-written message", () => {
+    // The route's POST still exists and is owner-gated, but no UI calls it —
+    // the state this product has always been in. Reading the thread is a GET.
+    const posts = src().match(/fetch\(`\/api\/leads\/\$\{[^`]*\}\/message`, \{\s*method: "POST"/g);
+    expect(posts).toBeNull();
+  });
+
+  it("still labels itself as auto-tracked and read-only", () => {
+    expect(src()).toMatch(/Auto-tracked · read-only/);
   });
 });
 
