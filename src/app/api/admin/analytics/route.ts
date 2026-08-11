@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SEEDED_VISITOR_PREFIX, isSeededView } from "@/lib/seeded-views";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin, isAdminEmail } from "@/lib/admin";
 import { getAccountEmailMap } from "@/lib/account-email";
@@ -130,12 +131,23 @@ export async function GET() {
   const activatedCards = Object.keys(ownerCounts).length; // cards that captured ≥1 lead
 
   // ── Views (SwiftCard vs SwiftLink) ────────────────────────────────────────
-  const { count: viewTotal } = await admin.from("card_views").select("*", { count: "exact", head: true });
+  // Excludes the App Review demo account's seeded views — see lib/seeded-views.
+  // They were ~30% of this number, which made our own traction look better than
+  // it was on the one dashboard we use to judge it.
+  const { count: viewTotal } = await admin
+    .from("card_views")
+    .select("*", { count: "exact", head: true })
+    .not("visitor_id", "like", `${SEEDED_VISITOR_PREFIX}%`);
   // card_views has viewed_at (NOT created_at) — selecting the wrong column made
   // this whole block silently return nothing and the views charts showed 0.
-  const { data: recentViews } = await admin.from("card_views").select("username, viewed_at").gte("viewed_at", iso(30)).limit(5000);
+  const { data: recentViews } = await admin
+    .from("card_views")
+    .select("username, viewed_at, visitor_id")
+    .gte("viewed_at", iso(30))
+    .limit(5000);
   let cardViews30 = 0, linkViews30 = 0, views7 = 0;
   (recentViews ?? []).forEach((v) => {
+    if (isSeededView(v.visitor_id as string | null)) return;
     const t = new Date(v.viewed_at as string).getTime();
     if (t >= now - 7 * DAY) views7++;
     if (((v.username as string) || "").endsWith("__links")) linkViews30++; else cardViews30++;
