@@ -10,6 +10,13 @@ import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
+import { reportError } from "@/lib/report-error";
+
+// after() here runs four CRM providers — Pipedrive and HighLevel each make two
+// sequential calls — plus a Zapier webhook. Vercel's default cap can cut that
+// tail off with no error, no alert and no retry, which is the exact failure the
+// reminders route's own header documents. Give the side effects room.
+export const maxDuration = 60;
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
@@ -291,7 +298,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
-        }).catch(() => {}),
+        }).catch((e) => reportError("leads.zapier", e)),
       );
     }
 
@@ -304,28 +311,38 @@ export async function POST(req: NextRequest) {
       // A locked lead (over the free monthly cap) gets a TEASER notification —
       // it must not reveal the contact's name/details, or that would bypass the
       // lock. It's a conversion nudge instead.
-      insertNotification({
-        user_id: ownerProfile.id,
-        card_owner,
-        type: "new_lead",
-        title: locked ? "New lead locked" : `New contact: ${name}`,
-        body: locked
-          ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
-          : `${name} shared their info with you${sourceStr}.`,
-      }).catch(() => {});
+      // after(), like the CRM syncs above and for exactly the same reason: a
+      // bare floating promise can be cut off when the serverless function
+      // freezes after responding. That is the worst version of losing a lead —
+      // the row saves, so nothing looks wrong, but the owner gets no bell and
+      // never learns the contact exists. The syncs twenty lines up were fixed
+      // for this; the notification and push right here were missed.
+      after(
+        insertNotification({
+          user_id: ownerProfile.id,
+          card_owner,
+          type: "new_lead",
+          title: locked ? "New lead locked" : `New contact: ${name}`,
+          body: locked
+            ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
+            : `${name} shared their info with you${sourceStr}.`,
+        }).catch((e) => reportError("leads.notify", e)),
+      );
 
       // Push notification — phone buzz + optional vCard save (teaser when locked)
       if (insertedLead?.id) {
         const vcardUrl = `${APP_URL}/api/leads/vcard?id=${insertedLead.id}`;
-        sendPushToUser(ownerProfile.id, {
-          title: locked ? "New lead locked" : `New contact: ${name}`,
-          body: locked
-            ? "Upgrade to Pro to unlock this lead."
-            : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
-          url: `${APP_URL}/dashboard`,
-          ...(locked ? {} : { vcardUrl }),
-          tag: `lead-${insertedLead.id}`,
-        }).catch(() => {});
+        after(
+          sendPushToUser(ownerProfile.id, {
+            title: locked ? "New lead locked" : `New contact: ${name}`,
+            body: locked
+              ? "Upgrade to Pro to unlock this lead."
+              : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
+            url: `${APP_URL}/dashboard`,
+            ...(locked ? {} : { vcardUrl }),
+            tag: `lead-${insertedLead.id}`,
+          }).catch((e) => reportError("leads.push", e)),
+        );
       }
     }
 

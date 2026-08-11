@@ -79,6 +79,71 @@ function channelPaused(tags: string[] | null | undefined, channel: "email" | "sm
   return (tags ?? []).includes(channel === "email" ? "email-paused" : "sms-paused");
 }
 
+type SeqStep = {
+  day: number;
+  time?: string;
+  message: string;
+  subject?: string;
+  channel?: string;
+  sent_at: string | null;
+  anchor?: string;
+};
+
+const sameStep = (a: SeqStep, b: SeqStep) =>
+  a.day === b.day && (a.channel ?? "email") === (b.channel ?? "email");
+
+/**
+ * Write `sent_at` for ONE step, against a freshly-read sequence.
+ *
+ * Two bugs this exists for.
+ *
+ * DUPLICATE SENDS. The loop used to deliver the message and THEN stamp, in two
+ * un-transacted steps whose update error was never even read. Anything between
+ * them — the 300s ceiling expiring mid-run, a transient PostgREST failure, a
+ * manual retry overlapping the scheduled run — left the message delivered and
+ * the step unstamped, so the next run sent the identical AI-written message to
+ * the same contact again. (The comment there claimed it wrote per-step "so a
+ * crash mid-run never re-sends what already went"; it described the opposite of
+ * the code.) The caller now CLAIMS the step before sending and releases it only
+ * on a transient failure, so the failure mode flips from "sent twice" to "sent
+ * once or not at all" — the right side to be wrong on when a real person
+ * receives it.
+ *
+ * CLOBBERED EDITS. The old write pushed a whole array snapshot read at the top
+ * of a run that can last minutes, so an owner editing or resetting a sequence
+ * mid-run had their change silently overwritten — or worse, deleted steps came
+ * back. Re-reading here narrows that window to a single round trip and means we
+ * never write back steps the owner has since removed.
+ */
+async function stampStep(
+  supabase: ReturnType<typeof getAdminSupabase>,
+  leadId: string,
+  step: SeqStep,
+  sentAt: string | null,
+): Promise<{ ok: boolean; seq: SeqStep[] | null }> {
+  const { data, error: readErr } = await supabase
+    .from("leads")
+    .select("follow_up_sequence")
+    .eq("id", leadId)
+    .single();
+  if (readErr || !data) return { ok: false, seq: null };
+
+  const fresh = (data.follow_up_sequence ?? []) as SeqStep[];
+  // The owner may have removed this step while the run was in flight. Nothing
+  // to claim, and re-adding it would resurrect something they deleted.
+  if (!fresh.some((s) => sameStep(s, step))) return { ok: false, seq: fresh };
+
+  const next = fresh.map((s) => (sameStep(s, step) ? { ...s, sent_at: sentAt } : s));
+  const { error: writeErr } = await supabase
+    .from("leads")
+    .update({ follow_up_sequence: next })
+    .eq("id", leadId);
+  // The error was previously discarded, so a failed write meant the message
+  // went out and the row still said unsent — a permanent daily re-send.
+  if (writeErr) return { ok: false, seq: fresh };
+  return { ok: true, seq: next };
+}
+
 // Email preferences for the two owner-directed plan-status emails below — same
 // token/row the welcome email uses.
 //   • unsubscribeUrl: the footer link + List-Unsubscribe header. Undefined (no
@@ -361,7 +426,15 @@ export async function GET(req: NextRequest) {
     let pageQuery = supabase
       .from("leads")
       .select("id, name, email, phone, card_owner, created_at, follow_up_sequence, tags, status")
-      .neq("status", "dissolved")
+      // "Not interested" now stops the cadence too. Only `dissolved` did, so an
+      // owner who marked someone Not interested in the Office Leads tab watched
+      // the full AI sequence keep going to a person they had explicitly written
+      // off — the single most embarrassing way this automation can misfire.
+      //
+      // `or` with an explicit null arm because `status <> 'x'` is NULL (not
+      // true) for a NULL status in SQL, so a plain .not() would silently drop
+      // every lead whose status was never set.
+      .or("status.is.null,and(status.neq.dissolved,status.neq.not_interested)")
       .not("follow_up_sequence", "is", null)
       .order("id", { ascending: true })
       .limit(SEQ_PAGE);
@@ -495,6 +568,19 @@ export async function GET(req: NextRequest) {
       }
       const asEmail = itemChannel === "email";
 
+      // CLAIM BEFORE SENDING. Recording the step first means a crash, timeout
+      // or overlapping run can only ever LOSE a message, never duplicate one —
+      // and if the claim cannot be written we do not send at all, because a
+      // message we cannot prove we sent is one we will send again tomorrow.
+      // This mirrors _proWarnedFor above, which already claims before emailing.
+      const claimedAt = new Date().toISOString();
+      const claim = await stampStep(supabase, seqLead.id as string, item, claimedAt);
+      if (!claim.ok) {
+        if (claim.seq) curSeq = claim.seq;
+        continue;
+      }
+      curSeq = claim.seq ?? curSeq;
+
       const r = await deliverToLead({
         leadId: seqLead.id,
         cardOwner: seqLead.card_owner,
@@ -512,18 +598,24 @@ export async function GET(req: NextRequest) {
         senderPaid: isPaidPlan(owner.profile.plan as string | null),
       });
 
-      // Mark THIS step (matched by day AND channel) done unless it failed
-      // transiently — so the email and text flows for the same day don't cancel
-      // each other. Stamp into the ACCUMULATING copy (not the stale snapshot)
-      // and write per-step, so a crash mid-run never re-sends what already went.
-      if (r.status === "sent" || r.status === "opted_out" || r.status === "no_contact") {
-        curSeq = curSeq.map((s) =>
-          s.day === item.day && (s.channel ?? "email") === (item.channel ?? "email")
-            ? { ...s, sent_at: new Date().toISOString() }
-            : s
-        );
-        await supabase.from("leads").update({ follow_up_sequence: curSeq }).eq("id", seqLead.id);
-        if (r.status === "sent") totalSent++;
+      // The claim stands for anything final — delivered, opted out, or no
+      // contact details. Only a TRANSIENT failure is released, so the step is
+      // retried on a later run instead of being burned.
+      if (r.status === "sent") {
+        totalSent++;
+      } else if (r.status !== "opted_out" && r.status !== "no_contact") {
+        const released = await stampStep(supabase, seqLead.id as string, item, null);
+        if (released.seq) curSeq = released.seq;
+        // A step that keeps failing would otherwise retry every day forever
+        // with nobody the wiser: sendRawEmail/sendBrandedEmail swallow a thrown
+        // network error and return "failed", and nothing downstream looked at
+        // it. Report it so a dead address or a missing API key is visible.
+        await reportError("reminders.sequences.send-failed", {
+          leadId: seqLead.id,
+          day: item.day,
+          channel: itemChannel,
+          status: r.status,
+        });
       }
     }
     } catch (e) {

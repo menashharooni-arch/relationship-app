@@ -66,12 +66,18 @@ export default function UnsubscribeContent() {
         >
           <span className="text-2xl">!</span>
         </div>
+        {/* Two very different failures. `invalid` is a bad/expired token — the
+            person can stop worrying, nothing was going to be sent from it
+            anyway. `failed` means the link WAS valid and we could not record
+            the opt-out, so telling them the link was invalid would be false and
+            would make them give up instead of trying again. */}
         <h1 className="text-xl font-bold mb-2" style={{ color: "#0f172a" }}>
-          Invalid unsubscribe link
+          {error === "failed" ? "We couldn't complete that" : "Invalid unsubscribe link"}
         </h1>
         <p className="text-sm mb-6" style={{ color: "#64748b" }}>
-          This link may have already been used or is no longer valid.
-          You can manage your email preferences from your account settings.
+          {error === "failed"
+            ? "Something went wrong on our end and you have NOT been unsubscribed yet. Please try the link again in a moment — if it keeps failing, email hello@swiftcard.me and we'll remove you manually."
+            : "This link may have already been used or is no longer valid. You can manage your email preferences from your account settings."}
         </p>
         <Link
           href="/settings/flows"
