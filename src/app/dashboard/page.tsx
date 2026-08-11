@@ -36,7 +36,7 @@ import QuickContactList from "@/components/QuickContactList";
 import Link from "next/link";
 import MobileNavGate from "@/components/MobileNavGate";
 import HelpWidget from "@/components/HelpWidget";
-import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
+import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
@@ -984,27 +984,6 @@ export default async function DashboardPage({
                       <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
                     )}
                     <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
-                    {visibleLeads.length > 0 && (
-                      isPro ? (
-                        <ExportLeadsButton username={activeUsername} />
-                      ) : (
-                        <PlanGate
-                          feature="csv-export"
-                          nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan."
-                          nativeContent={
-                            <span title="Exporting contacts is only available on the Pro plan."
-                              className="text-xs text-gray-500 border border-gray-800 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 whitespace-nowrap">
-                              Export <PlanBadge tier="pro" />
-                            </span>
-                          }
-                        >
-                          <Link href="/upgrade" title="CSV export is a Pro feature"
-                            className="text-xs text-gray-500 hover:text-white transition-colors border border-gray-800 hover:border-gray-600 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                            Export · Pro
-                          </Link>
-                        </PlanGate>
-                      )
-                    )}
                   </div>
                 </div>
 
