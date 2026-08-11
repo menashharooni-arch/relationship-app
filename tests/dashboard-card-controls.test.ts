@@ -40,12 +40,26 @@ describe("the dashboard has exactly one way to open your live card", () => {
     expect(dashboard).toMatch(/previewUrl=\{cardUrl\}/);
   });
 
-  it("View live card is the one control, and it's still there", () => {
+  it("View live is the one control, and it's still there", () => {
     // Match the rendered TEXT NODE, not the bare phrase: the phrase also appears
     // in the comment explaining why previewUrl renders nothing, so a plain count
     // sees two and fails. (Third time a comment of mine has fooled one of these
     // assertions — always anchor on what actually ships.)
-    const rendered = dashboard.match(/>\s*View live card\s*</g) ?? [];
-    expect(rendered.length, "View live card is missing, or duplicated").toBe(1);
+    //
+    // 2026-08-11: the page header that held this button was removed, and the
+    // button moved INTO the My Cards box beside "Add card", shortened to
+    // "View live". The pattern below is deliberately a superset — it still
+    // matches the old "View live card" — so resurrecting the header control
+    // under either label trips the duplicate check rather than sneaking past a
+    // now-stale exact string.
+    const rendered = dashboard.match(/>\s*View live[^<]*</g) ?? [];
+    expect(rendered.length, "View live is missing, or duplicated").toBe(1);
+  });
+
+  it("it lives in the My Cards box, not a page header", () => {
+    // The header (an <h1>Dashboard</h1> and the selected card's name) is gone;
+    // the control belongs beside the card list it acts on.
+    expect(dashboard, "the Dashboard page header is back").not.toMatch(/<h1[^>]*>Dashboard<\/h1>/);
+    expect(dashboard).toMatch(/flex items-center gap-2 shrink-0/);
   });
 });

@@ -69,7 +69,6 @@ async function measure(width: number) {
     return await page.evaluate(() => {
       const hdr = document.querySelector('[data-tour="contact-detail"]') as HTMLElement;
       const h2 = hdr.querySelector("h2") as HTMLElement;
-      const sel = hdr.querySelector("select") as HTMLSelectElement;
       const col = h2.parentElement as HTMLElement;
       const btns = Array.from(hdr.querySelectorAll("button")) as HTMLElement[];
       const readBtn = btns[btns.length - 1];
@@ -80,7 +79,7 @@ async function measure(width: number) {
         readBtnWidth: Math.round(readBtn.getBoundingClientRect().width),
         readBtnAria: readBtn.getAttribute("aria-label"),
         readBtnVisibleText: readBtn.innerText.trim(),
-        selectWidth: Math.round(sel.getBoundingClientRect().width),
+        hasStatusSelect: !!hdr.querySelector("select"),
         headerHeight: Math.round(hdr.getBoundingClientRect().height),
       };
     });
@@ -95,11 +94,14 @@ describe("on a phone (390px)", () => {
     expect((await measure(390)).nameLines).toBe(1);
   }, 120000);
 
-  it("gives the status pill its full width so the label is readable", async () => {
-    // A <select> is held to 16px by the iOS form-control floor, so "New Contact"
-    // needs ~149px. It was rendering in 101px.
-    const m = await measure(390);
-    expect(m.selectWidth).toBeGreaterThanOrEqual(140);
+  it("no longer carries a status dropdown", async () => {
+    // Removed deliberately. Stopping automations for a contact is done with the
+    // per-channel Email/Text switches, which the cron honours via the
+    // email-paused / sms-paused tags — the status pill was a second, unlabelled
+    // way to do the same thing, and it was the widest thing competing for the
+    // name's line. Status itself still exists and is still set from the Office
+    // Leads tab; only this editing surface is gone.
+    expect((await measure(390)).hasStatusSelect).toBe(false);
   }, 120000);
 
   it("does not let the read/unread button eat the row", async () => {
@@ -116,8 +118,14 @@ describe("on a phone (390px)", () => {
     expect(m.readBtnAria).toMatch(/Mark as (read|unread)/);
   }, 120000);
 
-  it("leaves the name column real room", async () => {
-    expect((await measure(390)).nameColumnWidth).toBeGreaterThan(200); // was 101
+  it("leaves the name column far more room than the button beside it", async () => {
+    // Was 101px, squeezed by a 137px button. It is now content-sized rather
+    // than a fixed number: removing the status <select> took the widest item
+    // out of that row, so the column no longer has to be 254px to hold it. The
+    // number that matters is the ratio — the name must dominate the row, not
+    // lose it to a control. (The absolute guarantee is the one-line test above.)
+    const m = await measure(390);
+    expect(m.nameColumnWidth).toBeGreaterThan(m.readBtnWidth * 3);
   }, 120000);
 
   it("is materially shorter than it was", async () => {
