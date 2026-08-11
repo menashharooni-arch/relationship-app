@@ -15,11 +15,16 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
       // Mirrors the boot script in layout.tsx: light unless 'dark' was chosen.
       // If these two ever disagree the icon shows the opposite of the theme.
+      //
+      // The disable must sit DIRECTLY above the call — two explanatory lines
+      // were once added between the two, which silently moved the directive
+      // onto a comment and let the rule fire again.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
       setTheme(localStorage.getItem("sc_theme") === "dark" ? "dark" : "light");
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- same one-time read, storage unavailable
       setTheme("light");
     }
   }, []);
