@@ -153,10 +153,16 @@ export async function POST(req: NextRequest) {
 
       results.email = await sendRawEmail({
         to: lead.email as string,
-        subject: `Save ${ownerName}'s contact information`,
+        // Descriptive, not an imperative CTA. "Save X's contact information"
+        // is the voice of a marketing blast; this is one person handing another
+        // their details, and the subject should read that way in the list.
+        subject: `Contact information from ${ownerName}`,
         html,
         replyTo,
         fromName: ownerName,
+        // The user tapped Share on one contact — this is personal mail, not a
+        // list send, and must not carry List-Unsubscribe headers.
+        personal: true,
       });
       if (results.email === "sent") {
         await logMessage({

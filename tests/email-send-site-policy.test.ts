@@ -51,7 +51,16 @@ describe("email send-site policy", () => {
       if (ALLOWED[rel]) continue;
 
       // Either it passes a headers key, or it goes through the shared layer.
-      const attachesHeaders = /headers:\s*(unsubHeaders|marketingHeaders)/.test(src)
+      //
+      // The header expression is matched to END OF LINE rather than requiring
+      // the helper to sit immediately after the colon, because the shared
+      // senders now DECIDE between bulk and personal headers inline:
+      //   headers: opts.personal ? personalHeaders() : unsubHeaders(opts.to)
+      // That is still a send site consulting unsubHeaders — the deliberate,
+      // reviewed branch this guard exists to require — not the silent omission
+      // that put the office invite in spam. A site that drops headers entirely,
+      // or hardcodes an empty object, still has nothing to match and still fails.
+      const attachesHeaders = /headers:[^\n]*(unsubHeaders|marketingHeaders)/.test(src)
         || /\.\.\.\(\s*unsub\s*\?\s*\{\s*headers:/.test(src);
       if (!attachesHeaders) offenders.push(rel);
     }

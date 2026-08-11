@@ -115,6 +115,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     cardUsername: lead.card_owner,
     channel: preferChannel,
     senderPaid: isPaidPlan(senderPlan?.plan as string | null),
+    // Typed by hand in the contact's reply box, sent on that tap — personal
+    // mail, so no List-Unsubscribe headers to file it under Promotions.
+    personal: true,
   });
   const { channel, status } = result;
 

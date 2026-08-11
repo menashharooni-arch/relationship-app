@@ -69,6 +69,28 @@ function unsubHeaders(to: string): Record<string, string> {
   }
 }
 
+// WHY A ONE-TO-ONE MESSAGE MUST NOT CARRY THE HEADERS ABOVE.
+//
+// List-Unsubscribe is the header that DEFINES a mailing list, and Gmail reads it
+// as a primary signal for the Promotions tab. We were attaching it to every
+// email — including the ones a user sends BY HAND, "here is my contact info", to
+// one person they just met. Gmail correctly concluded those were bulk mail and
+// filed them under Promotions. That is the whole bug: the message was
+// announcing itself as a list send.
+//
+// The split is by WHO PRESSED SEND, not by who paid:
+//   • a human, just now (share card, typed reply) → personal, no headers
+//   • a scheduler (sequences, trial cron, broadcasts) → bulk, headers stay
+//
+// Nothing is lost on the compliance side. Automated mail — the kind the rule is
+// actually about — is unchanged, and personal mail still carries the footer
+// unsubscribe link, which writes to the same message_opt_outs table and still
+// suppresses every future send to that address. The recipient keeps every way
+// out they had; the message just stops claiming to be a list.
+function personalHeaders(): Record<string, string> {
+  return {};
+}
+
 export type SendResult = "sent" | "not_configured" | "failed";
 
 // Build the From header: the per-sender display name on the ONE verified address
@@ -333,6 +355,9 @@ export async function sendRawEmail(opts: {
   fromName?: string | null;
   /** Pre-resolved From address (e.g. getMarketingFrom()); the display name is still applied. */
   fromAddress?: string | null;
+  /** A HUMAN pressed send just now (shared their card, typed a reply) — not a
+   *  scheduler. Omits the List-Unsubscribe headers. See personalHeaders(). */
+  personal?: boolean;
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -348,8 +373,9 @@ export async function sendRawEmail(opts: {
       // multipart/alternative: a plain-text part is a major deliverability
       // signal (HTML-only mail scores as spam). See email-text.ts.
       text: htmlToText(opts.html),
-      // Every email to a lead carries one-click unsubscribe (RFC 8058).
-      headers: unsubHeaders(opts.to),
+      // Automated mail carries one-click unsubscribe (RFC 8058). Mail a human
+      // just sent by hand does not — see personalHeaders().
+      headers: opts.personal ? personalHeaders() : unsubHeaders(opts.to),
     });
     // The SDK RESOLVES with {data, error} for API-level failures — it does not
     // throw — so ignoring the return value reported "sent" for every rejection
@@ -379,6 +405,10 @@ export async function deliverToLead(opts: {
   channel?: "email" | "sms";                  // explicit channel choice; else email-first auto
   /** Sender is on Pro/Office → strip SwiftCard branding from the message. */
   senderPaid?: boolean;
+  /** A HUMAN pressed send just now, rather than a scheduler firing a step.
+   *  Drops the List-Unsubscribe headers that were filing hand-written mail
+   *  under Gmail's Promotions tab. See personalHeaders(). */
+  personal?: boolean;
 }): Promise<DeliverResult> {
   const { lead, sender } = opts;
   const senderName = sender.name || "A SwiftCard user";
@@ -396,8 +426,8 @@ export async function deliverToLead(opts: {
   if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
-      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null })
-      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, senderPaid: opts.senderPaid });
+      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null, personal: opts.personal })
+      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, senderPaid: opts.senderPaid, personal: opts.personal });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
   }
@@ -488,6 +518,8 @@ export async function sendBrandedEmail(opts: {
   cardUsername?: string | null;
   /** Paid sender → no SwiftCard promo line in the footer. */
   senderPaid?: boolean;
+  /** A HUMAN pressed send just now — omits List-Unsubscribe. See personalHeaders(). */
+  personal?: boolean;
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -517,7 +549,7 @@ export async function sendBrandedEmail(opts: {
       html,
       // Plain-text alternative (multipart) — deliverability. See email-text.ts.
       text: htmlToText(html),
-      headers: unsubHeaders(opts.to),
+      headers: opts.personal ? personalHeaders() : unsubHeaders(opts.to),
     });
     // Same trap sendRawEmail documents above: the SDK RESOLVES with {data,
     // error} rather than throwing, so discarding the result reported "sent" for
