@@ -224,6 +224,11 @@ export async function POST(req: Request) {
     subject: invite.subject,
     html: invite.html,
     fromName: invite.fromName,
+    // A named colleague is being invited to a workspace — transactional, and it
+    // has to reach the inbox to be actionable. List-Unsubscribe would both file
+    // it under Promotions and let a one-click opt-out land the invitee in
+    // message_opt_outs, silently blocking the resend they'd then ask for.
+    personal: true,
     // verified domain when set up, Resend sandbox fallback otherwise
     fromAddress: await getMarketingFrom(),
     // The inviting admin's verified auth email — from supabase.auth.getUser(),

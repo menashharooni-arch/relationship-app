@@ -52,6 +52,9 @@ export async function POST(request: NextRequest) {
     to: toEmail,
     fromName: firstName,
     subject: `${firstName} shared their contact card with you`,
+    // Same act as the Share button, from the scanner: one person handing another
+    // their card. Not a list send — no List-Unsubscribe headers.
+    personal: true,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
         <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hi,</p>

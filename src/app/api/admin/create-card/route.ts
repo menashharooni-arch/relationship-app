@@ -110,6 +110,11 @@ export async function POST(req: NextRequest) {
         to: email,
         subject: "Your SwiftCard account is ready",
         fromAddress: await getMarketingFrom(),
+        // Account setup: the recipient cannot get in without the link inside,
+        // so it must reach the inbox. Nobody "unsubscribes" from their own
+        // account creation, and offering it here only risks suppressing the
+        // address before the account is usable.
+        personal: true,
         html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <p style="margin:0 0 16px;">Hi ${escapeHtml(String(name).split(" ")[0] || "there")},</p>
   <p style="margin:0 0 16px;">Your SwiftCard account has been set up for you. Choose a password to get in:</p>
