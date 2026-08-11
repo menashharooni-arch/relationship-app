@@ -120,7 +120,13 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html:
               "try{document.documentElement.classList.add('sc-js');" +
-              "if(localStorage.getItem('sc_theme')==='light')document.documentElement.setAttribute('data-sc-theme','light');" +
+              // LIGHT IS THE DEFAULT. The attribute means "light"; its absence
+              // means dark, so the test is inverted rather than the meaning:
+              // set it unless the user has explicitly stored 'dark'.
+              // Anyone who already chose a side keeps it — only visitors with
+              // no stored preference move. Still applied before paint, so a
+              // light-default user never sees a frame of dark.
+              "if(localStorage.getItem('sc_theme')!=='dark')document.documentElement.setAttribute('data-sc-theme','light');" +
               // Detect the shell from window.webkit.messageHandlers.bridge, the
               // NATIVE message handler WKWebView installs before any page script
               // runs. window.Capacitor alone is not reliable here: it is created

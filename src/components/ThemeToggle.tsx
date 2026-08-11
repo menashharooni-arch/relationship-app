@@ -1,9 +1,11 @@
 "use client";
 
-// Dark / light mode for the app (dashboard, contacts, settings, editors).
-// Dark = the existing look; light = cream-white. The choice is stored in
+// Light / dark mode for the app (dashboard, contacts, settings, editors).
+// LIGHT is the default (cream-white); dark is opt-in. The choice is stored in
 // localStorage and applied as a data attribute on <html>; a tiny inline
 // script in the root layout applies it before paint so there's no flash.
+// The attribute still MEANS "light" — only the default changed, so the
+// boot script sets it unless 'dark' was explicitly stored.
 // Public pages (cards, Swift Links, landing) keep their own designs.
 
 import { useEffect, useState } from "react";
@@ -14,9 +16,11 @@ export default function ThemeToggle() {
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
-      setTheme(localStorage.getItem("sc_theme") === "light" ? "light" : "dark");
+      // Mirrors the boot script in layout.tsx: light unless 'dark' was chosen.
+      // If these two ever disagree the icon shows the opposite of the theme.
+      setTheme(localStorage.getItem("sc_theme") === "dark" ? "dark" : "light");
     } catch {
-      setTheme("dark");
+      setTheme("light");
     }
   }, []);
 
