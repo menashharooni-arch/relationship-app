@@ -30,17 +30,17 @@ export default function LoginForm({
   redirectTo?: string;
   initialMode?: "signin" | "signup";
   /**
-   * Sign-in only — no account creation anywhere in this form.
+   * This form can sign you in, but never create an account.
    *
-   * Set by the login page for the iOS shell: accounts are created on the
-   * website, and the app just signs you in. Passed down from a SERVER-rendered
-   * value rather than read from useIsNativeApp() here, because that hook is
-   * false on the first render — gating on it would paint the "Create account"
-   * tab for one frame before removing it.
+   * Set by the login page for the iOS shell: accounts are made on the website.
+   * Both toggle options still render — the "Create account" side just swaps the
+   * card for a message pointing at the site, so the answer sits exactly where
+   * someone goes looking for it.
    *
-   * Everything signup-shaped keys off this single flag: the mode toggle, the
-   * post-failure "create an account" shortcut, the submit label, and the
-   * signup terms notice. `mode` can then never leave "signin".
+   * Passed down from a SERVER-rendered value rather than read from
+   * useIsNativeApp() here, because that hook is false on the first render —
+   * gating on it would paint a real signup form for one frame before replacing
+   * it.
    */
   signInOnly?: boolean;
 }) {
@@ -65,7 +65,7 @@ export default function LoginForm({
    * swiftcard.me IS in capacitor.config's allowNavigation, so the shell would
    * happily load it *in the app's own webview* — where sc-boot detects the
    * shell and redirects "/" straight back to /dashboard, which for a signed-out
-   * visitor is /login. The user would tap "Swiftcard.me" and arrive back on the
+   * visitor is /login. The user would tap "SwiftCard.me" and arrive back on the
    * screen they were already looking at.
    *
    * @capacitor/browser opens a real browser sheet instead, and sc-boot does not
@@ -321,7 +321,7 @@ export default function LoginForm({
             onClick={openSite}
             className="font-semibold text-[#1D4ED8] underline underline-offset-2 hover:text-[#1740C4]"
           >
-            Swiftcard.me
+            SwiftCard.me
           </a>
           .
         </p>

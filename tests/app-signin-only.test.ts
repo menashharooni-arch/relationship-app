@@ -25,7 +25,7 @@ vi.mock("@/components/GoogleSignInButton", () => ({
 }));
 
 const MESSAGE = "Ready to grow your network? Join us at";
-const LINK_TEXT = "Swiftcard.me";
+const LINK_TEXT = "SwiftCard.me";
 
 async function render(props: Record<string, unknown>) {
   const { default: LoginForm } = await import("@/components/LoginForm");
