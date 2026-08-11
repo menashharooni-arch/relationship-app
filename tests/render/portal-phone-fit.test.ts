@@ -82,7 +82,7 @@ const lead = {
  * condition that lets a user pan the page sideways. The per-element list exists
  * so a failure names the culprit instead of just asserting a number.
  */
-async function measureFit(markup: string, width: number) {
+async function measureFit(markup: string, width: number, revealTabs = false) {
   const css = await appCss();
   const page = await browser.newPage({
     viewport: { width, height: 844 },
@@ -97,6 +97,20 @@ async function measureFit(markup: string, width: number) {
         `<body class="sc-app"><div id="root">${markup}</div></body></html>`,
       { waitUntil: "load" },
     );
+    if (revealTabs) {
+      // The detail view keeps BOTH tabs in the DOM and hides the inactive one
+      // with `hidden` (display:none). A hidden subtree has no geometry, so its
+      // content is invisible to any measurement — the Contact-info fields, which
+      // hold the longest values on the screen (email, company, location), would
+      // never be checked. Un-hiding is faithful: this is the exact markup the
+      // user sees the moment they tap the tab.
+      await page.evaluate(() => {
+        for (const el of Array.from(document.querySelectorAll(".hidden"))) {
+          el.classList.remove("hidden");
+        }
+      });
+    }
+
     return await page.evaluate(() => {
       const doc = document.documentElement;
       const vw = doc.clientWidth;
@@ -111,10 +125,17 @@ async function measureFit(markup: string, width: number) {
       // and the phone still pans sideways.
       //
       // So: check every element that can scroll itself, plus the document.
+      // Only containers the USER can actually pan count. `truncate` sets
+      // overflow:hidden and reports scrollWidth > clientWidth by design — that
+      // is an ellipsis doing its job, not content escaping, and it neither
+      // scrolls nor widens an ancestor. Counting it would fail this test on
+      // every well-behaved truncated label in the app.
       const scrollers: { cls: string; overflowX: number }[] = [];
       for (const el of Array.from(document.querySelectorAll<HTMLElement>("*"))) {
         const over = el.scrollWidth - el.clientWidth;
-        if (over > 1 && el.clientWidth > 0) {
+        if (over <= 1 || el.clientWidth === 0) continue;
+        const ox = getComputedStyle(el).overflowX;
+        if (ox === "auto" || ox === "scroll") {
           scrollers.push({ cls: (el.className || "").toString().slice(0, 90), overflowX: over });
         }
       }
@@ -172,6 +193,29 @@ describe("contact detail fits a phone", () => {
       ).toBe(0);
     });
   }
+
+  it("fits with the Contact-info tab revealed too", async () => {
+    // The info tab holds the longest strings on the screen — a full email, a
+    // company name, a location — each in a flex row beside a shrink-0 icon.
+    // Measuring only the default conversation tab would leave all of it unseen.
+    const { default: ContactsClient } = await import("@/components/ContactsClient");
+    const markup = renderToStaticMarkup(
+      createElement(ContactsClient, {
+        leads: [lead],
+        primaryUsername: "demo-sales",
+        userCards: [{ username: "demo-sales", name: "Demo Sales" }],
+        initialSelectedId: "lead-1",
+      }),
+    );
+
+    const fit = await measureFit(markup, 375, true);
+    expect(
+      fit.overflowX,
+      `contact info overflows by ${fit.overflowX}px at 375px.\n` +
+        `Scrollers: ${JSON.stringify(fit.scrollers, null, 2)}\n` +
+        `Offenders: ${JSON.stringify(fit.offenders, null, 2)}`,
+    ).toBe(0);
+  });
 
   it("keeps the back-to-Contacts control inside the viewport", async () => {
     // The specific reported symptom: the back button existed but could not be
