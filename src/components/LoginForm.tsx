@@ -45,9 +45,14 @@ export default function LoginForm({
   signInOnly?: boolean;
 }) {
   // No signInOnly override here any more: the app's toggle must be able to
-  // REACH signup mode, because that is what shows the message. The login page
-  // still opens the app on "signin"; this only controls where the toggle can
-  // go, and a deep link to ?mode=signup landing on the message is correct too.
+  // REACH signup mode, because that is what shows the message.
+  //
+  // In the app this always starts at "signin" regardless — the login page
+  // resolves ?mode=signup to "signin" before it ever gets here, so a deep link
+  // opens on the sign-in tab and the message is one tap away. Honouring the
+  // deep link straight to the message would work too, but the page heading is
+  // server-rendered from the same value and would then read "Create your
+  // account" above a card saying accounts are made elsewhere.
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
 
   /** In the app, "Create account" shows a message instead of a signup form. */
