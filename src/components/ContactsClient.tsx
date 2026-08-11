@@ -304,6 +304,20 @@ export default function ContactsClient({
   const [contactSaveStatus, setContactSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
 
+  // ── Reply to a contact ─────────────────────────────────────────────────────
+  //
+  // The Activity & Messages panel showed a CONVERSATION with no way to take
+  // part in it — you could read what a contact said and had no reply box.
+  // /api/leads/[id]/message has always been able to send (email preferred, SMS
+  // when they opted in); nothing in the app ever called it.
+  //
+  // Channel is not a free choice: it offers what THIS contact can actually
+  // receive, so the control cannot promise a send that the server will refuse.
+  const [replyText, setReplyText] = useState("");
+  const [replyChannel, setReplyChannel] = useState<"email" | "sms">("email");
+  const [replySending, setReplySending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
   // Guided tour: when the tour reaches the Contacts page, auto-open the sample
   // (demo) contact on its info tab so the tour can walk through the contact's
   // details and the follow-up automations. No-op outside the tour.
@@ -473,6 +487,39 @@ export default function ContactsClient({
         : "Reset, but we couldn't un-pause email for this contact — submit again before relying on it.");
     }
     startDraft(ch);
+  }
+
+  async function sendReply() {
+    if (!selected || replySending) return;
+    const body = replyText.trim();
+    if (!body) return;
+    setReplySending(true);
+    setReplyError(null);
+    try {
+      const res = await fetch(`/api/leads/${selected.id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: body, channel: replyChannel }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // The route distinguishes opted_out / sms_declined / not_configured /
+        // failed / rate-limited and writes a sentence for each. Show THAT rather
+        // than a generic failure — "this contact opted out of texts" tells the
+        // user what to do next; "couldn't send" does not.
+        setReplyError(data.message || data.error || "Couldn't send that message.");
+        return;
+      }
+      // Append the message the server actually recorded, so the thread shows
+      // the channel it really went out on (email can be chosen when SMS is
+      // unavailable) instead of what we optimistically assumed.
+      if (data.message) setConvoMessages((prev) => [...prev, data.message]);
+      setReplyText("");
+    } catch {
+      setReplyError("Couldn't send — please check your connection.");
+    } finally {
+      setReplySending(false);
+    }
   }
 
   /** Returns whether the save landed, so the caller can keep the editor open. */
@@ -1627,6 +1674,75 @@ export default function ContactsClient({
                         </div>
                       );
                     })}
+                  </div>
+                );
+              })()}
+
+              {/* Reply. Sits inside the same panel as the thread because it is
+                  part of the conversation, not a separate tool. */}
+              {(() => {
+                const canEmail = !!selected.email;
+                // A contact who declined texts is not textable, and the server
+                // rejects it anyway — so the option is not offered rather than
+                // offered and refused.
+                const smsDeclined = (selected.tags ?? []).includes("sms-paused");
+                const canSms = !!selected.phone && !smsDeclined;
+                if (!canEmail && !canSms) {
+                  return (
+                    <p className="mt-4 pt-4 border-t border-gray-800 text-xs text-gray-500">
+                      No email or phone on file for {selected.name.split(" ")[0]}, so there is no way to
+                      reach them from here yet.
+                    </p>
+                  );
+                }
+                // Keep the selected channel honest if the contact only supports one.
+                const channel = replyChannel === "sms" && !canSms ? "email" : replyChannel === "email" && !canEmail ? "sms" : replyChannel;
+                return (
+                  <div className="mt-4 pt-4 border-t border-gray-800">
+                    {canEmail && canSms && (
+                      <div className="flex gap-1 mb-2">
+                        {(["email", "sms"] as const).map((ch) => (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => setReplyChannel(ch)}
+                            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                              channel === ch
+                                ? "bg-blue-600 border-blue-600 text-white"
+                                : "border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"
+                            }`}
+                          >
+                            {ch === "email" ? "Email" : "Text"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <textarea
+                      value={replyText}
+                      onChange={(e) => { setReplyText(e.target.value); if (replyError) setReplyError(null); }}
+                      rows={3}
+                      maxLength={5000}
+                      placeholder={`Write a ${channel === "sms" ? "text" : "message"} to ${selected.name.split(" ")[0]}…`}
+                      className="w-full bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-400 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 resize-y break-words"
+                    />
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-[11px] text-gray-400 flex-1 min-w-0 break-words">
+                        {channel === "sms"
+                          ? `Texts ${selected.phone}`
+                          : `Emails ${selected.email}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={sendReply}
+                        disabled={replySending || !replyText.trim()}
+                        className="shrink-0 text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors"
+                      >
+                        {replySending ? "Sending…" : "Send"}
+                      </button>
+                    </div>
+                    {replyError && (
+                      <p role="alert" className="mt-2 text-[11px] text-red-300 break-words">{replyError}</p>
+                    )}
                   </div>
                 );
               })()}
