@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { resolveDownloadUserId } from "@/lib/download-auth";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Session OR a signed ?dl= token — the iOS shell opens this in the system
+  // browser, which does not carry the webview's session cookie.
+  const userId = await resolveDownloadUserId(req, "/api/leads/export");
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
-  if (await isRateLimited(`leads-export:${user.id}`, 10, 10 * 60 * 1000)) {
+  if (await isRateLimited(`leads-export:${userId}`, 10, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
   }
 
 
   const admin = getAdminSupabase();
   const [{ data: profile }, { data: cards }] = await Promise.all([
-    admin.from("profiles").select("username, plan").eq("id", user.id).single(),
-    admin.from("cards").select("username").eq("user_id", user.id),
+    admin.from("profiles").select("username, plan").eq("id", userId).single(),
+    admin.from("cards").select("username").eq("user_id", userId),
   ]);
   if (!profile) return NextResponse.json({ error: "No profile" }, { status: 404 });
 

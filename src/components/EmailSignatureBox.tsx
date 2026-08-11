@@ -279,6 +279,18 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     const img = lastUrlRef.current;
     if (!img) { setStatus("error"); return; }
     const html = buildSignatureHtml(name, company, cardUrl, img);
+
+    // THE BUTTON USED TO LIE. Both writes below can reject — WebKit only allows
+    // a clipboard write inside the user-gesture task, and by this point we have
+    // spent up to 8 seconds polling, re-rendering the card and uploading it, so
+    // the gesture is long gone. Both rejections were swallowed and `copied` was
+    // set unconditionally, so the user saw "Copied ✓", pasted into Gmail, got
+    // nothing, and blamed the paste.
+    //
+    // Now the failure is surfaced: `error` tells them to try again, and a second
+    // tap succeeds because the capture is cached by then (lastUrlRef is set, so
+    // the slow path above is skipped and the write lands inside the gesture).
+    let ok = false;
     try {
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -286,9 +298,17 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
           "text/plain": new Blob([`${name}\n${cardUrl}`], { type: "text/plain" }),
         }),
       ]);
+      ok = true;
     } catch {
-      try { await navigator.clipboard.writeText(html); } catch { /* ignore */ }
+      try {
+        await navigator.clipboard.writeText(html);
+        ok = true;
+      } catch {
+        ok = false;
+      }
     }
+    if (!ok) { setStatus("error"); return; }
+
     setStatus("idle");
     setCopied(true);
     // They now hold a signature that matches the current design — clear the

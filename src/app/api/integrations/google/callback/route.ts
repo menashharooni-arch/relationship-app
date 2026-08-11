@@ -9,19 +9,43 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+
+  // NATIVE RETURN LEG (set by /connect?native=1).
+  //
+  // accounts.google.com is not in capacitor.config's allowNavigation, so the
+  // shell cannot run this OAuth in its own webview — it hands the flow to the
+  // system browser. Finishing at an https://swiftcard.me URL therefore left the
+  // user looking at the WEBSITE showing "Connected", while the app sat behind
+  // it still showing "Connect" and no integration attached to what they could
+  // see. A swiftcard:// URL re-enters the app instead: NativeAppBridge closes
+  // the sheet and navigates the WEBVIEW to Settings, so the UI matches reality.
+  const isNative = request.cookies.get("g_native")?.value === "1";
+  const DONE = (status: string) => {
+    const res = isNative
+      ? NextResponse.redirect(
+          `swiftcard://google-callback?status=${encodeURIComponent(status)}` +
+            `&next=${encodeURIComponent("/settings/flows")}`,
+        )
+      : NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=${status}`);
+    // Cleared on EVERY exit: a stale g_native would send a later WEB connect
+    // into a swiftcard:// redirect the browser cannot follow.
+    res.cookies.set("g_native", "", { maxAge: 0, path: "/" });
+    return res;
+  };
+
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
   if (error || !code || !state) {
-    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+    return DONE("error");
   }
 
   // State must carry a valid signature — an unsigned/forged state (arbitrary
   // user_id) is rejected, so tokens can't be written onto another user's row.
   const userId = verifyState(state);
   if (!userId) {
-    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+    return DONE("error");
   }
 
   // Exchange code for tokens
@@ -38,7 +62,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+    return DONE("error");
   }
 
   const tokens = await tokenRes.json() as {
@@ -61,8 +85,8 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
   } catch (e) {
     console.error("[google/callback] save failed:", e);
-    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+    return DONE("error");
   }
 
-  return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=connected`);
+  return DONE("connected");
 }
