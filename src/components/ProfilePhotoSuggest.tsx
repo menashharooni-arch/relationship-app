@@ -1,6 +1,40 @@
 "use client";
 
 import { useState } from "react";
+import { detectNativeApp } from "@/lib/platform";
+
+/**
+ * Start the LinkedIn connect, correctly for wherever we are.
+ *
+ * On the web a plain link is right. In the iOS shell it is NOT: the connect
+ * route 302s to linkedin.com, which is absent from capacitor.config's
+ * allowNavigation, so the shell hands the whole flow to the system browser —
+ * the user authorises in Safari, LinkedIn returns to swiftcard.me in Safari,
+ * and they end up looking at the WEBSITE while the app sits untouched behind
+ * it with no photo imported.
+ *
+ * `?native=1` makes the callback finish at a swiftcard:// URL instead, and
+ * @capacitor/browser runs the round trip in an in-app sheet that shares
+ * Safari's cookies — so an already-signed-in LinkedIn user just taps Allow.
+ * This is the same shape the Google/Apple sign-in flows use.
+ */
+async function openLinkedInConnect(href: string): Promise<void> {
+  if (!detectNativeApp()) {
+    window.location.href = href;
+    return;
+  }
+  const sep = href.includes("?") ? "&" : "?";
+  const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url, presentationStyle: "popover" });
+  } catch {
+    // Plugin missing (older shell build) — the webview navigation still beats
+    // doing nothing; it degrades to the old Safari hand-off rather than a
+    // dead button.
+    window.location.href = url;
+  }
+}
 
 // "Suggest my profile picture" — drops in next to the headshot uploader in the
 // card editors. Gathers photo candidates from every outlet we can reach for the
@@ -227,6 +261,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               </p>
               <a
                 href={guest ? guestConnectHref : connectUrl}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(guest ? guestConnectHref : connectUrl); }}
                 className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Connect LinkedIn
@@ -236,7 +271,11 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
           {state.linkedin === "reconnect" && (
             <div className="mt-1 pt-2 border-t border-gray-800 flex items-center gap-3 flex-wrap">
               <p className="text-[11px] text-amber-300/90">Your LinkedIn permission expired.</p>
-              <a href={connectUrl} className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors">
+              <a
+                href={connectUrl}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl); }}
+                className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
+              >
                 Reconnect LinkedIn
               </a>
             </div>

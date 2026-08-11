@@ -56,6 +56,27 @@ export default function NativeAppBridge() {
               await Browser.close();
             } catch { /* nothing open — fine */ }
 
+            // swiftcard://linkedin-callback?status=…&next=… — the LinkedIn
+            // headshot import's return leg. It has no code to exchange (the
+            // callback route already did the token work server-side); all that
+            // is left is to put the WEBVIEW back where the user started, which
+            // is what makes the imported photo appear in the editor they came
+            // from. Checked before the auth branch because both are swiftcard:
+            // URLs and completeNativeOAuth would reject this one.
+            if (url.startsWith("swiftcard://linkedin-callback")) {
+              const q = new URL(url).searchParams;
+              const nextRaw = q.get("next") ?? "";
+              // Same-origin relative paths only — an appUrlOpen payload is
+              // attacker-reachable (any app can open a swiftcard:// URL), so it
+              // must never steer the webview off our own origin.
+              const next =
+                nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/settings/flows";
+              const sep = next.includes("?") ? "&" : "?";
+              window.location.href =
+                `${next}${sep}integration=linkedin&status=${encodeURIComponent(q.get("status") ?? "error")}`;
+              return;
+            }
+
             // swiftcard://auth-callback?code=… — the native OAuth return leg.
             if (url.startsWith("swiftcard:")) {
               const [{ completeNativeOAuth }, { createBrowserClient }] = await Promise.all([
