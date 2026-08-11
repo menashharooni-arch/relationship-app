@@ -172,19 +172,27 @@ export default async function ContactsPage({
       </nav>
 
       {/* Header */}
-      <div className="pt-[57px] border-b border-gray-800 px-6 py-5 bg-gray-950">
-        <div data-tour="contacts-page" className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          {/* Title, count and Export sit on ONE line. The descriptive sentence
-              that used to live under this row is gone, and with it the wrapper
-              <div> whose only job was stacking the two — this flex row is now
-              the direct child, so there is no leftover nesting.
-              min-w-0 lets the title truncate rather than push Export (which is
-              shrink-0) off the right edge on a narrow screen. */}
-          <div className="flex items-baseline gap-2.5 min-w-0">
-            <h1 className="text-xl font-bold text-white">Contacts</h1>
-            <span className="text-white font-bold text-lg tabular-nums">{contactCount}</span>
-            <span className="text-gray-500 text-[11px] font-medium truncate">Total contacts</span>
-          </div>
+      {/* px-6 belongs INSIDE max-w-6xl, matching the list container below
+          (`max-w-6xl mx-auto w-full px-6`). With the padding on the OUTER
+          element the centred box was measured against (viewport - 48px), so
+          past ~1150px the header title sat exactly 24px left of the content it
+          heads — measured 144 vs 168 at 1440, 64 vs 88 at 1280, aligned only on
+          narrow screens where neither max-width binds. The border-b stays out
+          here so the rule still spans the full viewport. */}
+      <div className="pt-[57px] border-b border-gray-800 py-5 bg-gray-950">
+        <div data-tour="contacts-page" className="max-w-6xl mx-auto w-full px-6 flex items-center justify-between gap-4">
+          {/* One phrase, not three fragments. "Contacts 8 Total contacts" said
+              the same word twice and read as a label with a stray number; the
+              count belongs IN the title.
+              text-lg/semibold/tracking-tight is the heading idiom used across
+              the app rather than this page's old one-off text-xl bold.
+              tabular-nums keeps the number from reflowing the word beside it as
+              the count changes; min-w-0 + truncate makes the title yield rather
+              than push Export (shrink-0) off the right edge. */}
+          <h1 className="text-lg font-semibold text-white tracking-tight min-w-0 truncate">
+            <span className="tabular-nums">{contactCount}</span>{" "}
+            {contactCount === 1 ? "Contact" : "Contacts"}
+          </h1>
           {(leads?.length ?? 0) > 0 && (
             isPaidPlan(profile.plan) ? (
               <DownloadLink
