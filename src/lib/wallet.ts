@@ -39,6 +39,10 @@ async function loadAsset(name: string): Promise<Buffer> {
 // band without a seam. Without it: the original fixed navy generic pass, kept
 // as the degrade path so a strip-render failure still ships a pass.
 export async function buildPkpass(card: WalletCard, design?: WalletDesign): Promise<Buffer> {
+  const { passAuthToken } = await import("@/lib/wallet-registry");
+  const authToken = passAuthToken(card.username);
+  const webServiceUrl = `${APP_URL}/api/wallet`;
+
   const [icon, icon2, icon3, logo, logo2] = await Promise.all([
     loadAsset("icon.png"),
     loadAsset("icon@2x.png"),
@@ -83,6 +87,16 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
       foregroundColor: design?.theme.foregroundColor ?? "rgb(255, 255, 255)",
       backgroundColor: design?.theme.backgroundColor ?? "rgb(13, 27, 62)",
       labelColor: design?.theme.labelColor ?? "rgb(147, 197, 253)",
+      // The update channel. With these two keys iOS registers the pass against
+      // our web service on add, and a silent push can bring a redesign to a
+      // pass someone is already carrying — without them a pass is frozen at
+      // whatever it looked like the day it was downloaded, forever.
+      //
+      // Both or neither: a webServiceURL without a token makes every device
+      // call an endpoint that can only 401 them.
+      ...(webServiceUrl && authToken
+        ? { webServiceURL: webServiceUrl, authenticationToken: authToken }
+        : {}),
     }
   );
 

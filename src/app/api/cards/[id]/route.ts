@@ -269,6 +269,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (cardChanged) {
         const username = b.username as string;
 
+        // WALLET freshness: a pass already in someone's wallet is frozen at
+        // whatever it looked like when it was added, so the only way an edit
+        // reaches it is to fingerprint the pass and push the devices holding
+        // it. No-ops when the edit didn't touch anything the pass shows, and
+        // when nobody has added this card to Wallet. The daily sweep covers
+        // the change paths that don't run through this route.
+        try {
+          const { touchWalletPass } = await import("@/lib/wallet-registry");
+          await touchWalletPass(username);
+        } catch (e) {
+          console.error("[wallet] pass refresh failed after card edit:", e);
+        }
+
         // SHARE-PREVIEW freshness: the stored pixel-perfect capture
         // (card-shares/<username>.png) is now stale. Delete it so the card's
         // link preview immediately falls back to the LIVE-rendered Tier-2 image
