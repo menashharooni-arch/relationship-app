@@ -12,6 +12,15 @@ export type WalletCard = {
   email?: string | null;
   website?: string | null;
   cardUrl: string; // full https URL the pass barcode/link points at
+  /**
+   * The card's nickname (cards.label) — "Malve Capital", "Personal".
+   *
+   * This is what names the pass, not the person's name. Someone with three
+   * cards has three passes all reading "Aaron Lavi — SwiftCard", which is
+   * exactly as useful as no name at all. Falls back to the person's name for
+   * a card that never got a nickname.
+   */
+  label?: string | null;
 };
 
 // Pass images are committed under /public/wallet and served by the CDN — fetched
@@ -66,7 +75,7 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
       teamIdentifier: process.env.APPLE_TEAM_ID as string,
       serialNumber: card.username,
       organizationName: "SwiftCard",
-      description: `${card.name} — SwiftCard`,
+      description: `${(card.label ?? "").trim() || card.name} — SwiftCard`,
       // NO logoText on dark chrome: logo.png is a 160x50 WORDMARK that already
       // reads "SwiftCard", so setting logoText printed the brand twice in the
       // pass header. Light chrome has no wordmark (see above) and needs it.

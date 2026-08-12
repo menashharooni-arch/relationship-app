@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ResolvedCardMeta } from "@/lib/resolve-card";
 import { bandVariant, passThemeFrom, renderPassStrips, sampleSurface } from "@/lib/wallet-strip";
 import { passPalette, yiq, hexStops } from "@/lib/wallet-palette";
-import { fitLine, textEm } from "@/lib/wallet-fit";
+import { fitLine, textEm, wrapLines } from "@/lib/wallet-fit";
 
 // The Wallet band has to hold every card the product can produce — six preset
 // templates, their Pro colour overrides, custom block layouts, and a
@@ -107,24 +107,52 @@ describe("wallet-fit", () => {
     }
   });
 
-  it("grows a short name into the band, but never past a single line", () => {
-    const box = 719;
-    const fit = fitLine("Aaron Lavi", { box, base: 80, min: 34, maxLines: 2, grow: 100 });
-    expect(fit.fontSize).toBeGreaterThan(80);
-    expect(fit.fontSize).toBeLessThanOrEqual(100);
-    // Growth is bounded by the one-line fit, so it can't introduce a wrap.
-    expect(textEm(fit.text, false) * fit.fontSize * 1.12).toBeLessThanOrEqual(box + 0.01);
-    // A name that already needs two lines is never grown.
-    const long = fitLine("Konstantinos Papadopoulos-Winterbottom", { box, base: 80, min: 34, maxLines: 2, grow: 100 });
-    expect(long.fontSize).toBeLessThan(80);
+  it("never exceeds its line budget, for any string on any band width", () => {
+    // The defect this replaces: "LEV LEV EDUCATIONAL FUND" satisfied a
+    // two-line WIDTH budget and then wrapped to three, overflowing the band
+    // and pushing the job title out of the layout.
+    const strings = [
+      "LEV LEV EDUCATIONAL FUND", "Lev Lev Educational Fund",
+      "Konstantinos Papadopoulos-Winterbottom", "Alexandra Featherstonehaugh",
+      "Featherstonehaugh, Wintermute & Associates International LLP",
+      "田中太郎 株式会社日本橋コーポレーション", "Aaron Lavi", "Al",
+      "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z",
+    ];
+    for (const box of [200, 400, 719, 838, 1005]) {
+      for (const caps of [false, true]) {
+        for (const maxLines of [1, 2]) {
+          for (const s of strings) {
+            const fit = fitLine(s, { box, base: 84, min: 34, uppercase: caps, tracking: caps ? 0.05 : 0, maxLines });
+            if (!fit.text) continue;
+            const tracking = parseFloat(fit.letterSpacing);
+            const laid = wrapLines(fit.text, fit.fontSize, tracking, box, caps);
+            expect(laid.length, `"${s}" @${box} caps=${caps} max=${maxLines} → ${laid.length} lines`)
+              .toBeLessThanOrEqual(maxLines);
+            expect(fit.lines).toBe(laid.length);
+            for (const line of laid) {
+              expect(textEm(line, caps) * fit.fontSize * 1.12 + line.length * tracking * fit.fontSize * 1.12)
+                .toBeLessThanOrEqual(box + 0.01);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps one name size across cards instead of resizing per card", () => {
+    // Every name that fits comes out at the base size — a wallet full of
+    // passes set at different sizes reads as broken, not responsive.
+    for (const n of ["Aaron Lavi", "Al", "Alex Chen", "Menash Harooni"]) {
+      expect(fitLine(n, { box: 719, base: 84, min: 34, maxLines: 2 }).fontSize).toBe(84);
+    }
   });
 
   it("shrinks before it cuts, and only cuts at the floor", () => {
     // Two lines, as the band gives the name — a real long name must survive whole.
-    const long = fitLine("Konstantinos Papadopoulos-Winterbottom", { box: 719, base: 80, min: 34, maxLines: 2 });
+    const long = fitLine("Konstantinos Papadopoulos-Winterbottom", { box: 719, base: 84, min: 34, maxLines: 2 });
     expect(long.truncated).toBe(false);
     expect(long.text).toBe("Konstantinos Papadopoulos-Winterbottom");
-    expect(long.fontSize).toBeLessThan(80);
+    expect(long.fontSize).toBeLessThan(84);
     expect(long.fontSize).toBeGreaterThanOrEqual(34);
 
     const absurd = fitLine("M".repeat(200), { box: 400, base: 80, min: 34 });
@@ -137,7 +165,7 @@ describe("wallet-fit", () => {
     // Budgeting only the two-line total would size this so the long word alone
     // overruns the box and Satori breaks it mid-word.
     const box = 719;
-    const fit = fitLine("Jo Bartholomewsteinbergssonhausen", { box, base: 80, min: 20, maxLines: 2 });
+    const fit = fitLine("Jo Bartholomewsteinbergssonhausen", { box, base: 84, min: 20, maxLines: 2 });
     const word = "Bartholomewsteinbergssonhausen";
     expect(textEm(word, false) * fit.fontSize * 1.12).toBeLessThanOrEqual(box + 0.01);
   });
@@ -246,11 +274,27 @@ describe("wallet-palette", () => {
     expect(yiq(p.bottom)).toBeLessThan(120);
   });
 
-  it("falls back to a portrait when a mark-led template has no logo", () => {
-    expect(bandVariant("mark", false, true)).toBe("mark");
-    expect(bandVariant("mark", false, false)).toBe("portrait");
-    expect(bandVariant("portrait", true, false)).toBe("portrait");
-    expect(bandVariant("type", true, true)).toBe("type");
+  it("always leads with the same square, whatever the card has", () => {
+    // Both variants occupy an identical 241px lead, so the text column starts
+    // at the same x on every pass. What changes is only what fills it.
+    const cases: [Parameters<typeof bandVariant>[0], boolean, boolean, string][] = [
+      // A mark-led template: logo, else a headshot, else a company monogram.
+      ["mark", false, true, "mark"],
+      ["mark", true, false, "portrait"],
+      ["mark", false, false, "mark"],
+      // A portrait-led template: headshot, else a logo, else initials.
+      ["portrait", true, false, "portrait"],
+      ["portrait", false, true, "mark"],
+      ["portrait", false, false, "portrait"],
+      // A type-led template shows a logo when the card has one (its card
+      // template does) and never a headshot (its card template doesn't).
+      ["type", true, true, "mark"],
+      ["type", true, false, "mark"],
+      ["type", false, false, "mark"],
+    ];
+    for (const [prefer, photo, logo, want] of cases) {
+      expect(bandVariant(prefer, photo, logo), `${prefer} photo=${photo} logo=${logo}`).toBe(want);
+    }
   });
 });
 

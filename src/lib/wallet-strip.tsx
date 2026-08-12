@@ -19,14 +19,17 @@ import { fitLine } from "@/lib/wallet-fit";
 //
 // Two rules make it work for every card the product can produce:
 //
-//   1. ONE layout engine, three variants. Six bespoke per-template layouts each
-//      had their own overflow edges, and a custom card fitted none of them. The
-//      character that survives at this size is colour and typographic voice,
-//      both of which arrive from wallet-palette as data.
-//   2. Nothing is positioned absolutely and nothing wraps. Every string goes
-//      through fitLine(), which returns a size and a string that provably fit
-//      the box they are given, so a 40-character company name cannot reach the
-//      edge no matter what else is on the band.
+//   1. ONE layout, one geometry. Every band leads with the same 241px square —
+//      headshot, logo panel or monogram — so the text column starts at the same
+//      x and is measured against the same box on every card in the wallet. Six
+//      bespoke per-template layouts each had their own overflow edges, and a
+//      custom card fitted none of them. What survives at this size is colour
+//      and typographic voice, which arrive from wallet-palette as data.
+//   2. Nothing is positioned absolutely, and every string goes through
+//      fitLine(), which VERIFIES its layout rather than estimating it — the
+//      size it returns is one the text has actually been wrapped at. A long
+//      company name cannot reach the edge, and a long name cannot take a third
+//      line, no matter what else is on the band.
 //
 // Geometry: rendered once at @3x (1125×369) with Satori, downscaled with sharp
 // for @2x/@1x — the same next/og + Node-runtime combination the per-card OG
@@ -59,20 +62,19 @@ const PAD_X = 60;
 /** Photo diameter and logo box height. Leaves 64px of air above and below. */
 const IMG = 241;
 const GAP = 46;
-/** The left rule on the type variant — luxury-minimal's signature edge. */
-const BAR_W = 14;
 
 const IDENTITY_W = (leadWidth: number) => W - PAD_X * 2 - (leadWidth ? leadWidth + GAP : 0);
 
 // Type scale, in @3x px.
-const NAME_BASE = 80, NAME_MIN = 34;
 /**
- * A short name grows into the band rather than leaving a third of it empty.
- * Capped by the one-line fit, so growth can never cause a wrap: the tallest a
- * grown name can be is 108px, which leaves the rule, title and company well
- * inside the band's 325px of usable height.
+ * ONE name size for every card, shrinking only when a name genuinely needs it.
+ *
+ * An earlier version let short names grow into unused width. It filled the
+ * band, but it also meant no two passes in a wallet were set the same size —
+ * "Alex Morgan" at 100px next to "Lev Lev Educational Fund" at 40px reads as
+ * broken rather than responsive. Even beats full.
  */
-const NAME_MAX = 100;
+const NAME_BASE = 84, NAME_MIN = 34;
 const TITLE_BASE = 33, TITLE_MIN = 21;
 const COMPANY_BASE = 31, COMPANY_MIN = 20;
 
@@ -123,13 +125,68 @@ async function fetchImage(url: string | null): Promise<{ buf: Buffer; type: stri
   }
 }
 
-/** Pre-fetch into a data: URI so Satori embeds it and can never throw on a
- *  slow or failed fetch. Null → the band draws initials instead. */
-async function embedImage(url: string | null): Promise<string | null> {
+const dataUri = (buf: Buffer) => `data:image/png;base64,${buf.toString("base64")}`;
+
+async function loadBuffer(url: string | null): Promise<Buffer | null> {
   if (!url) return null;
-  if (url.startsWith("data:")) return url;
+  if (url.startsWith("data:")) {
+    const b64 = url.split(",")[1];
+    return b64 ? Buffer.from(b64, "base64") : null;
+  }
   const got = await fetchImage(url);
-  return got ? `data:${got.type};base64,${got.buf.toString("base64")}` : null;
+  return got?.buf ?? null;
+}
+
+/**
+ * The headshot, cropped to an exact square by sharp before Satori sees it.
+ *
+ * Not `objectFit: cover` on the img. That leans on the renderer to crop, and
+ * when a renderer doesn't implement it the image is SCALED instead — a 3:4
+ * portrait squashed into a circle, which is precisely the "headshots are
+ * uneven" complaint. Cropping here means the element is fed a square and there
+ * is nothing left to get wrong.
+ */
+async function preparePhoto(url: string | null, size: number): Promise<string | null> {
+  const buf = await loadBuffer(url);
+  if (!buf) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    return dataUri(await sharp(buf).resize(size, size, { fit: "cover" }).png().toBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The logo, measured and sized to its OWN aspect ratio inside the box.
+ *
+ * Brand marks are wordmarks, banners and squares in equal measure, and the
+ * element is given explicit width and height derived from the real file rather
+ * than a square it has to fit itself into. A 4:1 wordmark now renders as a 4:1
+ * wordmark — no distortion, no crop, whatever was uploaded.
+ */
+async function prepareLogo(
+  url: string | null, boxW: number, boxH: number,
+): Promise<{ src: string; w: number; h: number } | null> {
+  const buf = await loadBuffer(url);
+  if (!buf) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    const meta = await sharp(buf).metadata();
+    if (!meta.width || !meta.height) return null;
+    const ratio = meta.width / meta.height;
+    let w = boxW;
+    let h = Math.round(boxW / ratio);
+    if (h > boxH) { h = boxH; w = Math.round(boxH * ratio); }
+    w = Math.max(1, w); h = Math.max(1, h);
+    const out = await sharp(buf)
+      .resize(w, h, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+    return { src: dataUri(out), w, h };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -155,7 +212,7 @@ export async function sampleSurface(buf: Buffer): Promise<SampledSurface | null>
 
 // ── The band ────────────────────────────────────────────────────────────────
 
-type BandVariant = "portrait" | "mark" | "type";
+type BandVariant = "portrait" | "mark";
 
 /**
  * What the band can actually lead with, given this card's assets.
@@ -165,29 +222,44 @@ type BandVariant = "portrait" | "mark" | "type";
  * there is no headshot either) rather than rendering an empty box — the one
  * outcome worse than a different layout is a hole where the mark should be.
  */
+/**
+ * Every band leads with a 241px square — a headshot circle, a logo panel, or a
+ * monogram — so the text column starts at the same x on every pass and the
+ * name is measured against the same box everywhere.
+ *
+ * An earlier type-led variant used a thin accent bar instead. On its own it
+ * looked elegant; in a wallet next to other SwiftCard passes it started its
+ * text 227px further left and made the whole stack look misaligned. Consistency
+ * across passes is worth more than the flourish on any one of them.
+ *
+ * A type-led template (Luxury Minimal) also shows a LOGO when the card has one
+ * — its card template does, so dropping the mark showed less than the card it
+ * copies. It shows no headshot either way, which likewise matches.
+ */
 export function bandVariant(prefer: PassPalette["prefer"], hasPhoto: boolean, hasLogo: boolean): BandVariant {
-  if (prefer === "type") return "type";
-  if (prefer === "mark") return hasLogo ? "mark" : "portrait";
-  if (hasPhoto) return "portrait";
-  return hasLogo ? "mark" : "portrait";
+  if (prefer === "type") return "mark";
+  if (prefer === "mark") return hasLogo || !hasPhoto ? "mark" : "portrait";
+  return hasPhoto || !hasLogo ? "portrait" : "mark";
 }
 
+type Logo = { src: string; w: number; h: number };
+
 function Band({ meta, palette, photo, logo }: {
-  meta: Meta; palette: PassPalette; photo: string | null; logo: string | null;
+  meta: Meta; palette: PassPalette; photo: string | null; logo: Logo | null;
 }) {
   const { ink, inkMuted, accent, voice } = palette;
   const variant = bandVariant(palette.prefer, !!photo, !!logo);
 
-  const leadWidth = variant === "type" ? BAR_W : IMG;
-  const box = IDENTITY_W(leadWidth);
+  // One box on every pass: the lead square is always the same width, so a name
+  // is measured against the same space no matter which card it belongs to.
+  const box = IDENTITY_W(IMG);
 
   // The name gets two lines; nothing else does. It is the one string on the
-  // band that must never be cut, and there is vertical room for a second line
-  // (a wrapped name at full size plus title and company still clears the band
-  // by ~30px @3x — the render test asserts that margin on real pixels).
+  // band that must never be cut, and fitLine now VERIFIES the wrap rather than
+  // budgeting for it, so two lines means two lines.
   const name = fitLine(meta.name || "SwiftCard", {
     box, base: NAME_BASE, min: NAME_MIN, uppercase: voice.caps, tracking: voice.tracking,
-    maxLines: 2, grow: NAME_MAX,
+    maxLines: 2,
   });
   const title = fitLine(meta.title, { box, base: TITLE_BASE, min: TITLE_MIN });
   const company = fitLine(meta.company, { box, base: COMPANY_BASE, min: COMPANY_MIN });
@@ -207,13 +279,8 @@ function Band({ meta, palette, photo, logo }: {
     }}>
       {variant === "portrait" ? (
         <Portrait url={photo} name={meta.name} ink={ink} accent={accent} />
-      ) : variant === "mark" ? (
-        <Mark url={logo} label={meta.company || meta.name} ink={ink} accent={accent} />
       ) : (
-        <div style={{
-          width: BAR_W, height: 232, borderRadius: BAR_W, display: "flex",
-          background: `linear-gradient(180deg, ${accent} 0%, ${withAlpha(accent, 0.35)} 100%)`,
-        }} />
+        <Mark logo={logo} label={meta.company || meta.name} ink={ink} />
       )}
 
       <div style={{ width: GAP, display: "flex", flex: "none" }} />
@@ -225,14 +292,17 @@ function Band({ meta, palette, photo, logo }: {
           ...(voice.caps ? { textTransform: "uppercase" as const } : {}),
         }}>{name.text}</div>
 
-        {voice.rule ? (
+        {/* The rule is decoration and it is the first thing to go when the name
+            takes a second line — keeping it there is what pushed a three-part
+            block past the band's usable height. */}
+        {voice.rule && name.lines < 2 ? (
           <div style={{ width: 104, height: 7, borderRadius: 7, background: accent, marginTop: 16, display: "flex" }} />
         ) : null}
 
         {title.text ? (
           <div style={{
             fontSize: title.fontSize, color: accent, fontWeight: 600,
-            marginTop: voice.rule ? 14 : 16, lineHeight: 1.2,
+            marginTop: 14, lineHeight: 1.2,
           }}>{title.text}</div>
         ) : null}
 
@@ -250,8 +320,10 @@ function Band({ meta, palette, photo, logo }: {
 function Portrait({ url, name, ink, accent }: { url: string | null; name: string | null; ink: string; accent: string }) {
   const ring = `6px solid ${withAlpha(accent, 0.75)}`;
   if (url) {
+    // Already cropped square by sharp, so this is a straight scale — no
+    // objectFit to honour and no way to end up with an oval face.
     // eslint-disable-next-line @next/next/no-img-element -- Satori, not the DOM
-    return <img src={url} alt="" width={IMG} height={IMG} style={{ borderRadius: IMG, objectFit: "cover", border: ring, flex: "none" }} />;
+    return <img src={url} alt="" width={IMG} height={IMG} style={{ borderRadius: IMG, border: ring, flex: "none" }} />;
   }
   return (
     <div style={{
@@ -262,21 +334,31 @@ function Portrait({ url, name, ink, accent }: { url: string | null; name: string
   );
 }
 
-function Mark({ url, label, ink, accent }: { url: string | null; label: string | null; ink: string; accent: string }) {
+function Mark({ logo, label, ink }: { logo: Logo | null; label: string | null; ink: string }) {
   // A panel, not a bare logo: brand marks arrive on every ground imaginable
   // (white PNGs, dark PNGs, transparent) and a translucent tile keeps all of
   // them legible without knowing which kind this one is.
+  //
+  // The panel is a fixed square on every card so the text column starts at the
+  // same x in every pass — a panel that resized to each logo made the whole
+  // wallet look ragged. The LOGO inside it keeps its own proportions.
   return (
     <div style={{
       width: IMG, height: IMG, borderRadius: 28, flex: "none",
       background: withAlpha(ink, 0.1), display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 22, overflow: "hidden",
+      overflow: "hidden",
     }}>
-      {url ? (
+      {logo ? (
+        // Explicit width and height, measured from the file by sharp — nothing
+        // is left for the renderer to fit, so no mark is ever squashed.
         // eslint-disable-next-line @next/next/no-img-element -- Satori, not the DOM
-        <img src={url} alt="" width={IMG - 44} height={IMG - 44} style={{ objectFit: "contain" }} />
+        <img src={logo.src} alt="" width={logo.w} height={logo.h} />
       ) : (
-        <div style={{ fontSize: 88, fontWeight: 700, color: accent, letterSpacing: "0.04em", display: "flex" }}>
+        // Ink, not the accent. The panel is a tint of the ink, so ink on it is
+        // guaranteed to separate; an accent can legitimately be a close
+        // neighbour of the ground (Luxury Minimal's gold on warm brown) and the
+        // monogram then reads as a smudge.
+        <div style={{ fontSize: 88, fontWeight: 700, color: ink, letterSpacing: "0.04em", display: "flex" }}>
           {initialsOf(label)}
         </div>
       )}
@@ -299,7 +381,12 @@ export function passThemeFrom(palette: PassPalette): PassTheme {
 export async function renderPassStrips(meta: Meta, palette: PassPalette): Promise<PassStrips> {
   const p: Meta = { ...meta };
   if (!(typeof p.name === "string" && p.name.trim())) p.name = "SwiftCard";
-  const [photo, logo] = await Promise.all([embedImage(p.photoUrl), embedImage(p.logoUrl)]);
+  // The mark is contained inside the panel's padded area; the headshot fills
+  // its circle. Both are sized here, by sharp, from the real files.
+  const [photo, logo] = await Promise.all([
+    preparePhoto(p.photoUrl, IMG),
+    prepareLogo(p.logoUrl, IMG - 48, IMG - 48),
+  ]);
 
   const x3 = Buffer.from(
     await new ImageResponse(
