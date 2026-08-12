@@ -3,6 +3,7 @@ import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import { templateStyle, type TemplateStyle } from "@/lib/template-style";
 import { normalizeCustomLayout } from "@/lib/custom-layout";
+import { isPaidPlan } from "@/lib/plan";
 import type { CardCustomization } from "@/components/card-templates/types";
 
 /**
@@ -90,11 +91,25 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   const cust = (src.customization ?? {}) as CardCustomization & { address?: string };
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? (v as string) : null);
 
-  // Only a card that actually HAS a saved layout gets a custom design read off
-  // it. normalizeCustomLayout falls back to the default preset for anything
-  // unrecognisable, so calling it unconditionally would hand every preset card
-  // the Ink preset's navy and repaint six templates the same colour.
-  const rawLayout = cust.customLayout;
+  // The template the card is ACTUALLY drawn with, mirroring the card page
+  // exactly: the custom designer is Pro-only, so a downgraded card renders the
+  // standard template instead. Anything reading this (the Wallet pass) has to
+  // see the same template the visitor does, or it advertises a design the card
+  // itself no longer shows.
+  const plan = (cardRow ? owner?.plan : profileRow?.plan) as string | null | undefined;
+  const rawTemplate = str(src.template);
+  const template = rawTemplate === "custom" && !isPaidPlan(plan) ? "classic-pro" : rawTemplate;
+
+  // A custom design is read ONLY when the card is actually rendered custom.
+  //
+  // Keying on the presence of customLayout instead was wrong in a way that
+  // showed up on a real card immediately: aaron-lavi-malve-capital is
+  // template "photo-first" and still carries a customLayout blob from a visit
+  // to the designer. The card page ignores that blob; the pass followed it and
+  // came out navy while the card was indigo. The layout is not deleted when a
+  // template changes — by design, so switching back restores it — so its
+  // presence says nothing about what is on screen.
+  const rawLayout = template === "custom" ? cust.customLayout : null;
   const custom: ResolvedCustomDesign | null =
     rawLayout && typeof rawLayout === "object"
       ? (() => {
@@ -124,6 +139,6 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     website: str(src.website),
     address: str(src.address) ?? str(cust.address),
     accentColor: str(cust.accentColor),
-    template: str(src.template),
+    template,
   };
 }
