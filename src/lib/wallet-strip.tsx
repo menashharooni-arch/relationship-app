@@ -56,12 +56,30 @@ export type WalletDesign = {
 
 const W = 1125;
 const H = 369;
-const PAD_X = 60;
+
+/**
+ * Asymmetric on purpose: the band's content sits further from the LEFT edge
+ * than the right.
+ *
+ * The strip is the one image Wallet scales and masks itself — to the pass's
+ * rounded corners, and to whatever width the device's pass actually is — and
+ * the leading edge is where that costs something, because that is where the
+ * headshot, the logo and the monogram live. At 20pt of lead-in they were
+ * reported as cut off on device. The trailing edge carries only the tail of a
+ * name, which is short of the edge on nearly every card, so it can afford to
+ * give the room up.
+ *
+ * 36pt in from the left, 24pt from the right: enough that a mask taking a few
+ * points off each side still lands on background, and the whole group reads as
+ * sitting deliberately right of the corner rather than jammed against it.
+ */
+const PAD_LEFT = 108;
+const PAD_RIGHT = 72;
 /** Photo diameter and logo box height. Leaves 64px of air above and below. */
 const IMG = 241;
 const GAP = 46;
 
-const IDENTITY_W = (leadWidth: number) => W - PAD_X * 2 - (leadWidth ? leadWidth + GAP : 0);
+const IDENTITY_W = (leadWidth: number) => W - PAD_LEFT - PAD_RIGHT - (leadWidth ? leadWidth + GAP : 0);
 
 // Type scale, in @3x px.
 /**
@@ -273,7 +291,7 @@ function Band({ meta, palette, photo, logo }: {
   return (
     <div style={{
       width: "100%", height: "100%", display: "flex", alignItems: "center",
-      background, padding: `0 ${PAD_X}px`, overflow: "hidden",
+      background, padding: `0 ${PAD_RIGHT}px 0 ${PAD_LEFT}px`, overflow: "hidden",
     }}>
       {variant === "portrait" ? (
         <Portrait url={photo} name={meta.name} ink={ink} accent={accent} />

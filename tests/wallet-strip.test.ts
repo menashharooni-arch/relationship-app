@@ -321,13 +321,20 @@ async function gutterIsClean(png: Buffer, w: number, h: number): Promise<{ ok: b
   // The surface is a vertical ramp, so compare each pixel against the leftmost
   // pixel of ITS OWN row — a horizontal difference is content, a vertical one
   // is just the gradient.
-  const MARGIN_X = Math.round(w * 0.032); // 36px of the 60px pad, @3x
+  //
+  // The LEFT margin is checked harder than the right. Wallet masks the strip
+  // to the pass's rounded corners and scales it to the device's pass width,
+  // and the leading edge is where that costs something — the headshot, logo
+  // and monogram all live there, and they were reported cut off on device at
+  // the old 20pt lead-in. 84px of the 108px pad must be clear background.
+  const MARGIN_L = Math.round(w * 0.075); // 84px of the 108px left pad, @3x
+  const MARGIN_R = Math.round(w * 0.042); // 48px of the 72px right pad, @3x
   const MARGIN_Y = Math.round(h * 0.06);  // 22px of the 64px of air
   const TOL = 6;
 
   for (let y = 0; y < info.height; y++) {
     const ref = at(0, y);
-    for (const x of [...range(0, MARGIN_X), ...range(info.width - MARGIN_X, info.width)]) {
+    for (const x of [...range(0, MARGIN_L), ...range(info.width - MARGIN_R, info.width)]) {
       const p = at(x, y);
       if (Math.abs(p[0] - ref[0]) > TOL || Math.abs(p[1] - ref[1]) > TOL || Math.abs(p[2] - ref[2]) > TOL) {
         return { ok: false, where: `side gutter at ${x},${y}` };
