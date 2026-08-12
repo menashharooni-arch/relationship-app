@@ -39,20 +39,17 @@ export async function GET(req: NextRequest) {
     // Import the signer lazily so the (heavy) library only loads when actually used.
     const { buildPkpass } = await import("@/lib/wallet");
 
-    // The card's own look, three tiers exactly like the OG share preview:
-    // (1) the stored pixel-perfect capture of the REAL card as the strip —
-    // the only faithful path for custom designs; (2) a Satori strip in the
-    // template's design language; (3) the plain navy pass. Failures fall
-    // through — a working pass always ships, never a 500.
+    // The card's own look: one path for every card, preset or custom. The band
+    // is composed from the card's colours and parts rather than captured from
+    // it, so there is no tier where the pass quietly stops matching. A failure
+    // still falls through to the plain navy pass — a working pass always ships,
+    // never a 500.
     let design;
     try {
-      const { captureDesign, passTheme, renderCardStrips } = await import("@/lib/wallet-strip");
-      design = (await captureDesign(username)) ?? undefined;
-      if (!design) {
-        const { resolveCardMeta } = await import("@/lib/resolve-card");
-        const meta = await resolveCardMeta(username);
-        if (meta) design = { theme: passTheme(meta), strips: await renderCardStrips(meta) };
-      }
+      const { buildWalletDesign } = await import("@/lib/wallet-strip");
+      const { resolveCardMeta } = await import("@/lib/resolve-card");
+      const meta = await resolveCardMeta(username);
+      if (meta) design = await buildWalletDesign(meta);
     } catch (e) {
       console.error("[wallet] card-styled strip failed, using plain pass:", e);
     }

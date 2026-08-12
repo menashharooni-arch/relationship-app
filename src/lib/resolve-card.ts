@@ -1,6 +1,30 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
+import { templateStyle, type TemplateStyle } from "@/lib/template-style";
+import { normalizeCustomLayout } from "@/lib/custom-layout";
+import type { CardCustomization } from "@/components/card-templates/types";
+
+/**
+ * The colours a CUSTOM card was designed in, already validated.
+ *
+ * Surfaced separately from `style` because a custom card's look lives in a
+ * different shape entirely — a two-tone layout with its own panel surface —
+ * and anything downstream that wants to match the card (the Wallet pass) has
+ * to read the panel, not just the ground, or a Classic-Pro fork comes out the
+ * wrong colour. `background`/`panelBackground` may be a gradient string, not
+ * only a hex.
+ */
+export type ResolvedCustomDesign = {
+  background: string;
+  textColor: string;
+  accentColor?: string;
+  panelBackground?: string;
+  panelTextColor?: string;
+  fontFamily: string;
+  /** Design transfer: the card IS this image, so no palette can be derived. */
+  faceImage?: string;
+};
 
 export type ResolvedCardMeta = {
   name: string | null;
@@ -14,6 +38,14 @@ export type ResolvedCardMeta = {
   address: string | null;
   accentColor: string | null;
   template: string | null;
+  /**
+   * Pro style overrides on a PRESET template (accent, background, hero text,
+   * typeface). Every field optional — a card that never set one normalizes to
+   * all-undefined and the template keeps its baked-in design.
+   */
+  style: TemplateStyle;
+  /** Set only for a custom-designed card. Null for the six presets. */
+  custom: ResolvedCustomDesign | null;
 } | null;
 
 // Resolves a public card by username the same way the card page body does:
@@ -55,10 +87,33 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   const src = (cardRow ?? (legacyOk ? profileRow : null)) as Record<string, unknown> | null;
   if (!src) return null;
 
-  const cust = (src.customization ?? {}) as { address?: string; accentColor?: string };
+  const cust = (src.customization ?? {}) as CardCustomization & { address?: string };
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? (v as string) : null);
 
+  // Only a card that actually HAS a saved layout gets a custom design read off
+  // it. normalizeCustomLayout falls back to the default preset for anything
+  // unrecognisable, so calling it unconditionally would hand every preset card
+  // the Ink preset's navy and repaint six templates the same colour.
+  const rawLayout = cust.customLayout;
+  const custom: ResolvedCustomDesign | null =
+    rawLayout && typeof rawLayout === "object"
+      ? (() => {
+          const l = normalizeCustomLayout(rawLayout);
+          return {
+            background: l.background,
+            textColor: l.textColor,
+            accentColor: l.accentColor,
+            panelBackground: l.panelBackground,
+            panelTextColor: l.panelTextColor,
+            fontFamily: l.fontFamily,
+            faceImage: l.faceImage,
+          };
+        })()
+      : null;
+
   return {
+    style: templateStyle({ customization: cust }),
+    custom,
     name: str(src.name),
     title: str(src.title),
     company: str(src.company),

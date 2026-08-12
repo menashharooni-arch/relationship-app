@@ -470,6 +470,7 @@ export default async function Image({
     const meta: Meta = p ?? {
       name: "SwiftCard", title: null, company: null, photoUrl: null, logoUrl: null,
       phone: null, email: null, website: null, address: null, accentColor: null, template: null,
+      style: {}, custom: null,
     };
     // Never hand the renderers a null name (used for initials/hero text).
     if (!(typeof meta.name === "string" && meta.name.trim())) meta.name = "SwiftCard";
