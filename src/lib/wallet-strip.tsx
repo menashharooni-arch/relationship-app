@@ -29,6 +29,14 @@ export type PassStrips = { x1: Buffer; x2: Buffer; x3: Buffer };
 const W = 1125;
 const H = 369;
 
+// The ground the real-card pass sits on. ONE value in three forms, because the
+// strip PNG and the pass's own backgroundColor must be the same surface — if
+// they drift by even a shade, a seam appears across the pass where the strip
+// image ends and Apple's chrome begins.
+const GROUND = { r: 0xef, g: 0xee, b: 0xf3 };
+const GROUND_RGBA = { ...GROUND, alpha: 1 };
+const GROUND_RGB = `rgb(${GROUND.r}, ${GROUND.g}, ${GROUND.b})`;
+
 function hexToRgb(hex: string | null | undefined, fallback: string): string {
   const m = (hex ?? "").match(/^#([0-9a-f]{6})$/i);
   if (!m) return fallback;
@@ -279,35 +287,71 @@ export async function captureToDesign(capture: Buffer): Promise<CaptureDesign | 
     // Same sanity window the OG route applies to the capture.
     if (ratio < 1.25 || ratio > 2.4) return null;
 
-    // Chrome colors from the card itself: a 1×1 resize is the average color.
-    const avg = await sharp(capture).resize(1, 1, { fit: "cover" }).raw().toBuffer();
-    const [r, g, b] = [avg[0], avg[1], avg[2]];
-    const dark = (r * 299 + g * 587 + b * 114) / 1000 < 128;
+    // Chrome is the GROUND the card sits on, not the card's own color (owner
+    // spec 2026-08-12, matching the reference mock): one light neutral for
+    // every card, so the strip's ground and the pass body below it are a
+    // single continuous surface and the card reads as an object resting on it.
+    // Sampling the card instead — the previous behaviour — tinted that surface
+    // a different colour per card and the seam between strip and pass showed.
     const theme: PassTheme = {
-      backgroundColor: `rgb(${r}, ${g}, ${b})`,
-      foregroundColor: dark ? "rgb(255, 255, 255)" : "rgb(15, 23, 42)",
-      labelColor: dark ? "rgb(203, 213, 225)" : "rgb(71, 85, 105)",
-      darkChrome: dark,
+      backgroundColor: GROUND_RGB,
+      foregroundColor: "rgb(15, 23, 42)",
+      labelColor: "rgb(71, 85, 105)",
+      darkChrome: false,
     };
 
-    // BORDER TO BORDER (owner spec 2026-08-11): the card fills the strip's
-    // full height with ZERO inset, and the leftover width is a blurred,
-    // dimmed cover-fit echo of the card itself — so the band reads as one
-    // continuous edge-to-edge image, not a card floating on a ground. (The
-    // earlier flat-ground + rounded-inset look was explicitly rejected on a
-    // real phone: "a tiny card in an empty page".)
+    // The card as an object on that ground: centred, inset, rounded, with a
+    // soft drop shadow — the reference mock's language.
+    //
+    // SIZE IS CAPPED BY APPLE, not by choice. storeCard's strip is 375×123pt;
+    // a 1.75:1 card at full strip height is 215pt wide, 57% of the pass. The
+    // reference mock shows ~93%, which would need a 198pt strip. Apple's
+    // tallest strip is coupon's 144pt (67%) and that layout draws serrated
+    // ticket edges, which is the look this design exists to avoid. So the card
+    // is rendered at the largest size the strip allows and the inset is kept
+    // deliberately small — every point of height is card.
     const makeStrip = async (w: number, h: number): Promise<Buffer> => {
-      const cardH = h;
-      const cardW = Math.min(Math.round(cardH * ratio), w);
-      const card = await sharp(capture).resize(cardW, cardH, { fit: "fill" }).png().toBuffer();
-      const backdrop = await sharp(capture)
-        .resize(w, h, { fit: "cover" })
-        .blur(Math.max(8, Math.round(w / 46)))
-        .modulate({ brightness: 0.72 })
+      // 2.5%, not a comfortable margin: the card is already capped well under
+      // the reference's proportion, so the inset is only wide enough for the
+      // shadow to read. Every point given to ground is a point off the card.
+      const inset = Math.max(2, Math.round(h * 0.025));
+      const cardH = h - inset * 2;
+      const cardW = Math.min(Math.round(cardH * ratio), w - inset * 2);
+      const radius = Math.max(3, Math.round(cardW * 0.042));
+
+      // dest-in with an rx rect is how the corners get rounded — sharp has no
+      // border-radius, and a rounded PNG composited over the ground is what
+      // makes the card read as a card rather than a pasted rectangle.
+      const mask = Buffer.from(
+        `<svg width="${cardW}" height="${cardH}"><rect width="${cardW}" height="${cardH}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`
+      );
+      const card = await sharp(capture)
+        .resize(cardW, cardH, { fit: "fill" })
+        .composite([{ input: mask, blend: "dest-in" }])
         .png()
         .toBuffer();
-      return sharp(backdrop)
-        .composite([{ input: card, left: Math.round((w - cardW) / 2), top: 0 }])
+
+      // The shadow is the same rounded silhouette, blurred and dimmed, offset
+      // a couple of pixels down. Without it the card looks printed onto the
+      // ground instead of sitting on it.
+      const shadow = await sharp(
+        Buffer.from(
+          `<svg width="${cardW}" height="${cardH}"><rect width="${cardW}" height="${cardH}" rx="${radius}" ry="${radius}" fill="rgba(15,23,42,0.28)"/></svg>`
+        )
+      )
+        .blur(Math.max(2, Math.round(h * 0.022)))
+        .png()
+        .toBuffer();
+
+      const left = Math.round((w - cardW) / 2);
+      const top = Math.round((h - cardH) / 2);
+      return sharp({
+        create: { width: w, height: h, channels: 4, background: GROUND_RGBA },
+      })
+        .composite([
+          { input: shadow, left, top: Math.min(top + Math.round(h * 0.012), h - cardH) },
+          { input: card, left, top },
+        ])
         .png()
         .toBuffer();
     };
