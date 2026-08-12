@@ -210,19 +210,47 @@ export async function aiImageEdit(opts: {
             inline_data: { mime_type: ref.mediaType, data: ref.imageBase64 },
           })),
         ] }],
+        generationConfig: {
+          // REQUIRED for the image model: without declaring IMAGE, the call
+          // can 400 or come back text-only — which is exactly what "couldn't
+          // rebuild that design, every time" looked like in production.
+          // TEXT rides along because the model interleaves commentary.
+          responseModalities: ["TEXT", "IMAGE"],
+          // A business card is 1.75:1; 16:9 (1.78) is the closest ratio the
+          // model offers, and asking for it beats cover-cropping a square.
+          imageConfig: { aspectRatio: "16:9" },
+        },
       }),
     });
-    const d = await r.json();
-    if (!r.ok) return null;
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      // The response body is safe to log (the key rides in a request header),
+      // and without this line every failure mode collapses into one silent
+      // null — undebuggable from the outside, as proven the first time.
+      console.error(`[aiImageEdit] ${model} → ${r.status}:`, JSON.stringify(d).slice(0, 500));
+      return null;
+    }
     const part = (d.candidates?.[0]?.content?.parts ?? []).find(
       (p: { inlineData?: { data?: string; mimeType?: string } }) => p?.inlineData?.data,
     );
-    if (!part) return null;
+    if (!part) {
+      console.error(
+        "[aiImageEdit] no image in response:",
+        JSON.stringify({
+          finishReason: d.candidates?.[0]?.finishReason,
+          parts: (d.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) =>
+            p?.text ? `text:${p.text.slice(0, 120)}` : "other"),
+          promptFeedback: d.promptFeedback,
+        }).slice(0, 500),
+      );
+      return null;
+    }
     return {
       data: Buffer.from(part.inlineData.data as string, "base64"),
       mediaType: (part.inlineData.mimeType as string) || "image/png",
     };
-  } catch {
+  } catch (e) {
+    console.error("[aiImageEdit] request failed:", e);
     return null;
   }
 }
