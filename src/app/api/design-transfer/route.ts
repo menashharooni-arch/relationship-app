@@ -137,7 +137,11 @@ export async function POST(request: NextRequest) {
     prompt: transferPrompt(identity),
     references: [...(headshot ? [headshot] : []), ...(logo ? [logo] : [])],
   });
-  if (!result) return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+  if (!result) {
+    // aiImageEdit already logged the provider's actual answer.
+    console.error(`[design-transfer] generation failed for ${user.id}`);
+    return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+  }
 
   // Normalise to the card's own shape and cap the size. cover-crop, not pad:
   // the model was told to keep the canvas, so any drift is slivers at the
@@ -149,7 +153,8 @@ export async function POST(request: NextRequest) {
       .resize(1400, 800, { fit: "cover" })
       .png()
       .toBuffer();
-  } catch {
+  } catch (e) {
+    console.error("[design-transfer] sharp normalise failed:", e);
     return NextResponse.json({ error: "generation_failed" }, { status: 502 });
   }
 
@@ -160,7 +165,10 @@ export async function POST(request: NextRequest) {
   const { error: upErr } = await adminSupabase.storage
     .from("card-uploads")
     .upload(path, png, { contentType: "image/png", upsert: false });
-  if (upErr) return NextResponse.json({ error: "storage_failed" }, { status: 502 });
+  if (upErr) {
+    console.error("[design-transfer] storage upload failed:", upErr.message);
+    return NextResponse.json({ error: "storage_failed" }, { status: 502 });
+  }
   const { data: pub } = adminSupabase.storage.from("card-uploads").getPublicUrl(path);
 
   return NextResponse.json({
