@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     "How people opt in to receive text messages on SwiftCard: where the consent disclosure appears, the exact wording shown, and how opt-out works.",
 };
 
-const LAST_UPDATED = "July 28, 2026";
+const LAST_UPDATED = "August 12, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -79,10 +79,29 @@ export default function SmsConsentPage() {
           <LI>Every message thereafter honors STOP (opt out platform-wide) and HELP (assistance).</LI>
         </ul>
 
+        <H2>Screenshot of the opt-in form</H2>
+        <P>
+          This is the &quot;Share your info&quot; form as it renders on every public card page. The SMS
+          consent checkbox and full disclosure sit directly above the <strong>Share My Info</strong>{" "}
+          button, visible before anything is submitted, and the checkbox renders unticked:
+        </P>
+
+        {/* Hosted opt-in screenshot required by A2P 10DLC review (Twilio error
+            30896): website opt-in flows must include hosted screenshots, not
+            only a live link. Retake and replace public/sms-optin-screenshot.png
+            whenever the form UI or disclosure copy changes. */}
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/sms-optin-screenshot.png"
+            alt='The "Share your info" form: name, phone, and email fields, the unticked "Text me follow-ups (optional)" SMS consent checkbox with its full disclosure, and the Share My Info submit button below it'
+            className="w-full max-w-md mx-auto rounded-xl border border-slate-200"
+          />
+        </div>
+
         <H2>See the live opt-in for yourself</H2>
         <P>
-          The consent flow is on a public page — no login, no demo environment. Rather than
-          screenshots, which can go stale or be doctored, here is the real thing:
+          The same flow is also on a public page — no login, no demo environment:
         </P>
 
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
