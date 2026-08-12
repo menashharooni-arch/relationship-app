@@ -30,8 +30,12 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
+  // Two selects, not one shared string: `label` (the card's nickname) exists
+  // on cards and NOT on profiles, and asking Postgres for a column that isn't
+  // there fails the whole query — which would 404 every legacy un-migrated
+  // card rather than just leaving it unnamed.
   const select = "username, name, title, company, phone, email, website";
-  const { data: card } = await admin.from("cards").select(select).eq("username", username).maybeSingle();
+  const { data: card } = await admin.from("cards").select(`${select}, label`).eq("username", username).maybeSingle();
   const src = card ?? (await admin.from("profiles").select(select).eq("username", username).maybeSingle()).data;
   if (!src) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -62,6 +66,7 @@ export async function GET(req: NextRequest) {
       phone: src.phone as string | null,
       email: src.email as string | null,
       website: src.website as string | null,
+      label: (src as { label?: string | null }).label ?? null,
       cardUrl: `${APP_URL}/card/${src.username}?source=apple_wallet`,
     }, design);
     return new NextResponse(new Uint8Array(buf), {

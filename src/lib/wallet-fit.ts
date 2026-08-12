@@ -88,6 +88,8 @@ export type FittedLine = {
   letterSpacing: string;
   /** True when the string had to be cut — surfaced so tests can assert on it. */
   truncated: boolean;
+  /** How many lines this will ACTUALLY wrap to. Drives the height budget. */
+  lines: number;
 };
 
 export type FitOpts = {
@@ -109,25 +111,32 @@ export type FitOpts = {
    * worse than the second line it comfortably has room for.
    */
   maxLines?: number;
-  /**
-   * Largest size this line may GROW to, when it fits on one line at more than
-   * `base`. Only the name uses it.
-   *
-   * Without it the band under-fills: "Aaron Lavi" at the 80px base occupies
-   * 520 of its 719px box and leaves a third of the band empty, which is the
-   * complaint this whole design exists to answer. Growth is capped by the
-   * ONE-line fit, so it can never introduce a wrap or an overflow.
-   */
-  grow?: number;
 };
 
 /**
- * Two lines never hold exactly twice one line's worth: the first breaks at a
- * word boundary and gives back whatever was left. Measured against the real
- * corpus, budgeting 90% of the nominal two-line width is what keeps a wrapped
- * name inside its box.
+ * Break text the way the renderer will: greedily, at spaces.
+ *
+ * This replaces a width BUDGET — "two lines hold about 1.8× one line" — that
+ * was wrong in the one direction that matters. A budget says whether the
+ * characters could fit in two lines; it cannot say where the breaks land. On a
+ * real card, "LEV LEV EDUCATIONAL FUND" passed the two-line budget and then
+ * wrapped to THREE, overflowing the band and shoving the job title out of the
+ * layout. Counting the actual lines is the only thing that closes that gap.
  */
-const WRAP_EFFICIENCY = 0.9;
+export function wrapLines(text: string, fontSize: number, tracking: number, box: number, uppercase: boolean): string[] {
+  const width = (s: string) => (textEm(s, uppercase) + chars(s).length * tracking) * fontSize * SAFETY;
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const next = line ? `${line} ${word}` : word;
+    // `!line` keeps a single over-wide word on its own line rather than looping
+    // forever; the size search below is what stops that case arising.
+    if (!line || width(next) <= box) line = next;
+    else { out.push(line); line = word; }
+  }
+  if (line) out.push(line);
+  return out;
+}
 
 /** Longest whitespace-delimited run — the piece that must survive whole. */
 function longestWord(text: string): string {
@@ -135,80 +144,73 @@ function longestWord(text: string): string {
 }
 
 /**
- * Size (and if necessary shorten) one line so it fits `box`.
+ * Size (and if necessary shorten) text so it fits `box` in at most `maxLines`.
  *
  * Order of concessions, cheapest first: tracking, then size down to `min`,
  * then characters. Text is only ever cut once the size has bottomed out, so a
  * long name shrinks gracefully and a pathological one ends in an ellipsis
  * rather than disappearing off the edge.
+ *
+ * The returned size is verified by actually laying the text out, not inferred
+ * from a total-width estimate.
  */
 export function fitLine(raw: string | null | undefined, opts: FitOpts): FittedLine {
   const { box, base, min, uppercase = false } = opts;
-  const lines = Math.max(1, Math.floor(opts.maxLines ?? 1));
+  const maxLines = Math.max(1, Math.floor(opts.maxLines ?? 1));
   const tracking0 = opts.tracking ?? 0;
   const text = (raw ?? "").trim().replace(/\s+/g, " ");
-  const none: FittedLine = { text: "", fontSize: base, letterSpacing: `${tracking0}em`, truncated: false };
-  if (!text || box <= 0) return none;
+  if (!text || box <= 0) {
+    return { text: "", fontSize: base, letterSpacing: `${tracking0}em`, truncated: false, lines: 0 };
+  }
 
-  /** Total width the string needs, laid end to end. */
   const runAt = (s: string, fs: number, tr: number) =>
     (textEm(s, uppercase) + chars(s).length * tr) * fs * SAFETY;
 
-  const budget = lines > 1 ? box * lines * WRAP_EFFICIENCY : box;
-
-  /**
-   * Largest size that satisfies BOTH constraints:
-   *   - the whole string fits the multi-line budget, and
-   *   - the longest single word still fits one line.
-   * The second is what stops a wrapped line from breaking mid-word, which
-   * Satori will happily do and which reads as a rendering fault.
-   */
-  const sizeFor = (s: string, tr: number) => {
-    const whole = budget / Math.max(1e-6, runAt(s, 1, tr));
-    const word = box / Math.max(1e-6, runAt(longestWord(s), 1, tr));
-    return Math.min(whole, word);
+  /** Does this string lay out inside the box, in budget, at this size? */
+  const fits = (s: string, fs: number, tr: number) => {
+    // The longest word must survive on one line — otherwise the renderer
+    // breaks it mid-word, which reads as a fault rather than a wrap.
+    if (runAt(longestWord(s), fs, tr) > box) return false;
+    return wrapLines(s, fs, tr, box, uppercase).length <= maxLines;
   };
 
-  // 1. Fits outright — and may grow into space it would otherwise waste.
-  if (sizeFor(text, tracking0) >= base) {
-    const oneLine = box / Math.max(1e-6, runAt(text, 1, tracking0));
-    const grown = opts.grow && opts.grow > base ? Math.min(opts.grow, oneLine) : base;
-    return {
-      text,
-      fontSize: Math.max(base, grown),
-      letterSpacing: `${tracking0}em`,
-      truncated: false,
-    };
-  }
-
-  // 2. Tighten tracking, down to 40% of the design value (never below zero —
-  //    negative tracking on a small label reads as a rendering fault).
+  // 1. Tracking is decoration and goes first, down to 40% of the design value.
   let tracking = tracking0;
-  if (tracking0 > 0) {
-    const em = textEm(text, uppercase);
-    const n = chars(text).length;
-    const needed = (budget / (base * SAFETY) - em) / n;
-    tracking = Math.max(tracking0 * 0.4, Math.min(tracking0, needed));
-    if (sizeFor(text, tracking) >= base) {
-      return { text, fontSize: base, letterSpacing: `${Number(tracking.toFixed(3))}em`, truncated: false };
+  if (tracking0 > 0 && !fits(text, base, tracking)) {
+    for (const t of [0.8, 0.6, 0.4]) {
+      tracking = tracking0 * t;
+      if (fits(text, base, tracking)) break;
     }
   }
 
-  // 3. Shrink, but not past the legibility floor.
-  const ideal = sizeFor(text, tracking);
-  if (ideal >= min) {
-    return { text, fontSize: ideal, letterSpacing: `${Number(tracking.toFixed(3))}em`, truncated: false };
+  // 2. Then size. Whole pixels, largest first — the search is at most ~50
+  //    cheap steps and lands on a size the layout has been verified at.
+  for (let size = Math.floor(base); size >= Math.ceil(min); size--) {
+    if (fits(text, size, tracking)) {
+      return {
+        text,
+        fontSize: size,
+        letterSpacing: `${Number(tracking.toFixed(3))}em`,
+        truncated: false,
+        lines: wrapLines(text, size, tracking, box, uppercase).length,
+      };
+    }
   }
 
-  // 4. At the floor and still too wide — cut. Longest prefix that fits with the
-  //    ellipsis already accounted for, so the visible result is never wider
-  //    than the space it has.
+  // 3. At the floor and still too big — cut. Longest prefix that lays out
+  //    inside the budget with its ellipsis included.
   const cp = chars(text);
   let keep = 0;
   for (let i = 1; i <= cp.length; i++) {
-    if (sizeFor(`${cp.slice(0, i).join("")}…`, tracking) < min) break;
+    if (!fits(`${cp.slice(0, i).join("")}…`, min, tracking)) break;
     keep = i;
   }
   const cut = keep > 0 ? `${cp.slice(0, keep).join("").trimEnd()}…` : "";
-  return { text: cut, fontSize: min, letterSpacing: `${Number(tracking.toFixed(3))}em`, truncated: true };
+  return {
+    text: cut,
+    fontSize: min,
+    letterSpacing: `${Number(tracking.toFixed(3))}em`,
+    truncated: true,
+    lines: cut ? wrapLines(cut, min, tracking, box, uppercase).length : 0,
+  };
 }
