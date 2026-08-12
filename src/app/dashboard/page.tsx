@@ -359,9 +359,12 @@ export default async function DashboardPage({
       ),
     // Panel (bottom of dashboard): ONLY this card's activity (+ account-level
     // ones like referral months, which have no card scope).
-    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("created_at", { ascending: false }).limit(20),
+    // Unread first, then newest — matching /api/notifications. Ordering on
+    // created_at alone let 20 recent read rows hide every older unread one
+    // from both the list and the badge (the badge counts fetched rows).
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
     // Bell (top nav): EVERY card's notifications, each tagged with its card.
-    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
     // Service-role client: the offices RLS policies are mutually recursive with
     // office_members, so a user-scoped read raises "infinite recursion detected
     // in policy for relation offices" once there's a row to evaluate. Still
@@ -383,6 +386,7 @@ export default async function DashboardPage({
       .from("notifications")
       .select("id, type, title, body, read, created_at")
       .eq("user_id", user.id)
+      .order("read", { ascending: true })
       .order("created_at", { ascending: false })
       .limit(20);
     panelNotifications ??= fallback;
@@ -614,7 +618,7 @@ export default async function DashboardPage({
             {isEnterprise ? (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-600 text-white">Office</span>
             ) : (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500"}`}>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
                 {isPro ? "Pro" : "Free"}
               </span>
             )}
