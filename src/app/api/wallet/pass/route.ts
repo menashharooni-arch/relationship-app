@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSupabase } from "@/lib/supabase-admin";
 import { hasWalletConfig } from "@/lib/wallet-config";
-import { isCardActive } from "@/lib/card-active";
 
 // Signing needs Node (node-forge + fetch of assets) — never the edge runtime.
 export const runtime = "nodejs";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 // GET /api/wallet/pass?card=<slug> → a signed .pkpass for that card.
 // The card is public, so no auth: anyone viewing a card can add it to Wallet.
@@ -21,58 +17,32 @@ export async function GET(req: NextRequest) {
   const username = req.nextUrl.searchParams.get("card");
   if (!username) return NextResponse.json({ error: "missing_card" }, { status: 400 });
 
-  // Kill-switch: no passes for deleted accounts or plan-deactivated cards —
-  // the pass is a durable artifact, so it must never be mintable for a card
-  // whose links are dead. (Passes already in wallets point at the card URL,
-  // which the same kill-switch 404s.)
-  if (!(await isCardActive(username))) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
-  const admin = getAdminSupabase();
-  // Two selects, not one shared string: `label` (the card's nickname) exists
-  // on cards and NOT on profiles, and asking Postgres for a column that isn't
-  // there fails the whole query — which would 404 every legacy un-migrated
-  // card rather than just leaving it unnamed.
-  const select = "username, name, title, company, phone, email, website";
-  const { data: card } = await admin.from("cards").select(`${select}, label`).eq("username", username).maybeSingle();
-  const src = card ?? (await admin.from("profiles").select(select).eq("username", username).maybeSingle()).data;
-  if (!src) return NextResponse.json({ error: "not_found" }, { status: 404 });
-
   try {
-    // Import the signer lazily so the (heavy) library only loads when actually used.
-    const { buildPkpass } = await import("@/lib/wallet");
+    // One builder, shared with the web service that serves updates — so the
+    // pass a device re-downloads is byte-for-byte the pass the website hands
+    // out. passInputs() also carries the kill-switches: a deleted account, an
+    // offline office card or a card past its plan limit resolves to nothing,
+    // and a pass must never be mintable for a card whose links are dead.
+    const { buildPass, passInputs } = await import("@/lib/wallet-pass");
+    const inputs = await passInputs(username);
+    if (!inputs) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-    // The card's own look: one path for every card, preset or custom. The band
-    // is composed from the card's colours and parts rather than captured from
-    // it, so there is no tier where the pass quietly stops matching. A failure
-    // still falls through to the plain navy pass — a working pass always ships,
-    // never a 500.
-    let design;
+    const buf = await buildPass(inputs);
+
+    // Record the fingerprint on the way out. Without this the pass has no
+    // baseline, and the first sweep after an add would count it as "changed"
+    // and push a pointless update to a device that just downloaded it.
     try {
-      const { buildWalletDesign } = await import("@/lib/wallet-strip");
-      const { resolveCardMeta } = await import("@/lib/resolve-card");
-      const meta = await resolveCardMeta(username);
-      if (meta) design = await buildWalletDesign(meta);
+      const { touchWalletPass } = await import("@/lib/wallet-registry");
+      await touchWalletPass(username);
     } catch (e) {
-      console.error("[wallet] card-styled strip failed, using plain pass:", e);
+      console.error("[wallet] fingerprint failed (pass still served):", e);
     }
 
-    const buf = await buildPkpass({
-      username: src.username as string,
-      name: (src.name as string) || "SwiftCard",
-      title: src.title as string | null,
-      company: src.company as string | null,
-      phone: src.phone as string | null,
-      email: src.email as string | null,
-      website: src.website as string | null,
-      label: (src as { label?: string | null }).label ?? null,
-      cardUrl: `${APP_URL}/card/${src.username}?source=apple_wallet`,
-    }, design);
     return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": "application/vnd.apple.pkpass",
-        "Content-Disposition": `attachment; filename="${src.username}.pkpass"`,
+        "Content-Disposition": `attachment; filename="${username}.pkpass"`,
         "Cache-Control": "no-store",
       },
     });
