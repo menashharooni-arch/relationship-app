@@ -175,8 +175,25 @@ export function faceLayoutFromScan(raw: unknown): FaceLayout | null {
       round: q.round === true,
     }];
   });
-  if (!elements.some((e) => e.kind === "name")) return null;
-  return { background: hex(r.background, "#ffffff"), panels, serif: r.serif === true, elements };
+  const background = hex(r.background, "#ffffff");
+  if (!elements.some((e) => e.kind === "name")) {
+    // A reading without a name slot was REJECTED at first — and that killed
+    // real, otherwise-good readings in production (the model sometimes labels
+    // the big text something else, or the elements list truncates). The name
+    // is the one thing we can always place sensibly ourselves: right of the
+    // widest full-height side panel, dark-on-light or light-on-dark.
+    const side = panels
+      .filter((p) => p.x <= 2 && p.h >= 80 && p.w < 60)
+      .reduce((m, p) => Math.max(m, p.x + p.w), 0);
+    const n = parseInt(background.slice(1), 16);
+    const lum = (((n >> 16) & 255) * 299 + (((n >> 8) & 255) * 587) + ((n & 255) * 114)) / 1000;
+    elements.unshift({
+      kind: "name", x: Math.min(side + 5, 60), y: 14, w: Math.max(30, 90 - side), h: 12,
+      align: "left", color: lum < 128 ? "#ffffff" : "#111827", weight: "bold", size: "xl",
+      caps: false, round: false,
+    });
+  }
+  return { background, panels, serif: r.serif === true, elements };
 }
 
 // Design px on the 1400×800 canvas, by prominence tier. Measured against

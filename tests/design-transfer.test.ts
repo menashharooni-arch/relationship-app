@@ -83,8 +83,20 @@ describe("faceLayoutFromScan: the free path's validator", () => {
     expect(out!.elements[0]).toMatchObject({ kind: "name", x: 96, y: 0, align: "left", size: "md", weight: "bold" });
   });
 
-  it("refuses a reading with no name slot — nothing sensible to render", async () => {
+  it("synthesizes a name slot when the reading lacks one — never rejects for it", async () => {
+    // Rejecting killed real readings in production (2026-08-12): the model
+    // sometimes mislabels the big text or truncates the list. The name is the
+    // one element we can always place ourselves.
     const { faceLayoutFromScan } = await import("@/lib/design-transfer");
-    expect(faceLayoutFromScan({ background: "#fff", elements: [{ kind: "phone", x: 1, y: 1, w: 10, h: 5 }] })).toBeNull();
+    const out = faceLayoutFromScan({
+      background: "#0b1020",
+      panels: [{ x: 0, y: 0, w: 35, h: 100, color: "#1a233a" }],
+      elements: [{ kind: "phone", x: 40, y: 60, w: 40, h: 6 }],
+    });
+    expect(out).not.toBeNull();
+    const name = out!.elements.find((e) => e.kind === "name")!;
+    expect(name.x).toBe(40);           // clears the 35%-wide side panel
+    expect(name.color).toBe("#ffffff"); // dark card → light name
+    expect(name.size).toBe("xl");
   });
 });
