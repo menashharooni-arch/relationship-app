@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
+import ProTrialCallout from "@/components/ProTrialCallout";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -104,7 +105,13 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
               <span className="text-white/75 text-sm mb-1">/ {annual ? "year" : "month"}</span>
             </div>
             {annual && <p className="text-white/85 text-xs font-semibold mt-1.5">≈ {formatUsd(perMonthCents(PLAN_PRICES.PRO_ANNUAL_CENTS))}/mo · Save 10%</p>}
-            <p className="text-white/80 text-sm mb-6 mt-2">Everything, unlimited.</p>
+            {/* Only for someone who will actually GET a trial. An ex-subscriber
+                is billed immediately (proHref carries trial=0), so showing them
+                the offer would be a promise checkout then breaks. */}
+            {trialEligible && (
+              <ProTrialCallout className="mt-4" priceLabel={`${formatUsd(proCents)}/${annual ? "year" : "month"}`} />
+            )}
+            <p className={`text-white/80 text-sm mb-6 ${trialEligible ? "mt-4" : "mt-2"}`}>Everything, unlimited.</p>
             <ul className="space-y-2 mb-7 flex-1">
               {PLAN_FEATURES.pro.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check light />{f}</li>
@@ -114,11 +121,11 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
               href={proHref}
               className="w-full text-center bg-white hover:bg-white/90 text-[#2450d8] font-bold py-3 rounded-full transition-colors text-sm shadow-lg"
             >
-              {trialEligible ? "Start 14-day free trial →" : <>Upgrade to Pro — {formatUsd(proCents)}/{per} →</>}
+              {trialEligible ? `Start ${TRIAL_DAYS}-day free trial →` : <>Upgrade to Pro — {formatUsd(proCents)}/{per} →</>}
             </Link>
-            <p className="text-white/70 text-[11px] text-center mt-2">
+            <p className="text-white/70 text-[11px] text-center mt-2.5">
               {trialEligible
-                ? `${TRIAL_DAYS} days free, then ${formatUsd(proCents)}/${per} · auto-renews · Cancel anytime`
+                ? `Card required · renews automatically at ${formatUsd(proCents)}/${per}`
                 : "Billing starts today · Cancel anytime"}
             </p>
           </div>

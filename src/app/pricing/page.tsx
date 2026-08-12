@@ -9,6 +9,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
+import ProTrialCallout from "@/components/ProTrialCallout";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
 import { promoLabel } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -173,15 +174,21 @@ export default function PricingPage() {
               ) : (
                 <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
               )}
-              <p className="text-white/80 text-sm mb-7 mt-2">{PLAN_DESCRIPTIONS.pro}</p>
+              <ProTrialCallout className="mt-4" priceLabel={annual ? `$${PRO_ANNUAL}/year` : `$${PRO_MONTHLY}/month`} />
+              <p className="text-white/80 text-sm mb-7 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
               </ul>
               <button onClick={() => handleUpgrade("pro")} disabled={loading !== null} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
                 {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Start free trial →`}
               </button>
-              <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
-{TRIAL_DAYS} days free for new customers, then auto-renews. Cancel anytime.
+              {/* Fine print keeps the ELIGIBILITY condition and the billing
+                  terms; the callout above carries the offer. Checkout grants a
+                  trial only to customers with no prior Stripe subscription, so
+                  "for new customers" must survive here no matter how the
+                  headline is worded (pinned by copy-truth.test.ts). */}
+              <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+                {TRIAL_DAYS} days free for new customers · card required · renews automatically
               </p>
               {checkoutErr && loading === null && (
                 <p className="text-center text-[12px] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
