@@ -43,24 +43,26 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   const authToken = passAuthToken(card.username);
   const webServiceUrl = `${APP_URL}/api/wallet`;
 
-  const [icon, icon2, icon3, logo, logo2] = await Promise.all([
+  // NO logo.png and NO logoText — owner's call, 2026-08-12. That asset is the
+  // lightning-bolt SwiftCard wordmark, and Apple draws it across the top of the
+  // pass face, above the band. It put our brand on the one surface that is
+  // supposed to be the cardholder's, and it competed with the name for the
+  // first thing the eye lands on. The pass is somebody's business card; the
+  // "Made with SwiftCard" line lives on the card page, not here.
+  //
+  // icon.png STAYS. It is required by Apple (a pass without it fails
+  // validation) but never appears on the pass face — only in the lock-screen
+  // and notification presentations.
+  const [icon, icon2, icon3] = await Promise.all([
     loadAsset("icon.png"),
     loadAsset("icon@2x.png"),
     loadAsset("icon@3x.png"),
-    loadAsset("logo.png"),
-    loadAsset("logo@2x.png"),
   ]);
 
-  // The wordmark logo.png is WHITE — on the light chrome of light templates it
-  // would vanish, so those passes drop the image and use logoText instead
-  // (which renders in foregroundColor and adapts).
-  const darkChrome = design ? design.theme.darkChrome : true;
-  const wantLogo = darkChrome;
   const files: Record<string, Buffer> = {
     "icon.png": icon,
     "icon@2x.png": icon2,
     "icon@3x.png": icon3,
-    ...(wantLogo ? { "logo.png": logo, "logo@2x.png": logo2 } : {}),
     ...(design
       ? { "strip.png": design.strips.x1, "strip@2x.png": design.strips.x2, "strip@3x.png": design.strips.x3 }
       : {}),
@@ -80,10 +82,10 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
       serialNumber: card.username,
       organizationName: "SwiftCard",
       description: `${(card.label ?? "").trim() || card.name} — SwiftCard`,
-      // NO logoText on dark chrome: logo.png is a 160x50 WORDMARK that already
-      // reads "SwiftCard", so setting logoText printed the brand twice in the
-      // pass header. Light chrome has no wordmark (see above) and needs it.
-      ...(wantLogo ? {} : { logoText: "SwiftCard" }),
+      // No logoText either — it is the text equivalent of the wordmark and
+      // lands in the same place on the pass face. `organizationName` above is
+      // not drawn there; it names the pass's issuer in Settings and in the
+      // system prompt when a pass is added, which is where it belongs.
       foregroundColor: design?.theme.foregroundColor ?? "rgb(255, 255, 255)",
       backgroundColor: design?.theme.backgroundColor ?? "rgb(13, 27, 62)",
       labelColor: design?.theme.labelColor ?? "rgb(147, 197, 253)",

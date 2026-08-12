@@ -56,6 +56,21 @@ describe("pass authentication token", () => {
   });
 });
 
+describe("pass face carries no SwiftCard branding", () => {
+  it("never bundles the wordmark or sets logoText", async () => {
+    // Owner's call 2026-08-12: the lightning-bolt wordmark came off the pass
+    // face. Apple draws logo.png and logoText in the same place — above the
+    // band, on the surface that belongs to the cardholder — so a pass must
+    // ship neither. icon.png stays: Apple requires it and it never appears on
+    // the face.
+    const src = await (await import("node:fs/promises")).readFile("src/lib/wallet.ts", "utf8");
+    const code = src.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n");
+    expect(code).not.toMatch(/loadAsset\(\s*["']logo(@2x)?\.png["']\s*\)/);
+    expect(code).not.toMatch(/logoText/);
+    expect(code).toMatch(/loadAsset\(\s*["']icon\.png["']\s*\)/);
+  });
+});
+
 describe("pass content fingerprint", () => {
   const inputs = (over: Partial<PassInputs["card"]> = {}, metaOver = {}): PassInputs => ({
     card: {

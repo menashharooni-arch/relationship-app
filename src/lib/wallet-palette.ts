@@ -34,8 +34,6 @@ export type PassPalette = {
   inkMuted: string;
   /** Rules, the accent bar, field labels. Falls back to ink when it can't be seen. */
   accent: string;
-  /** True when the surface is dark enough to carry the white SwiftCard wordmark. */
-  darkChrome: boolean;
   prefer: BandPrefer;
   /** Typographic personality, carried from the template. See VOICE below. */
   voice: Voice;
@@ -206,7 +204,6 @@ export function passPalette(meta: Meta, sampled?: SampledSurface | null): PassPa
     // legible over a gradient instead of thinning out at the light end.
     inkMuted: mix(ink, midpoint, 0.28),
     accent: readableAccent(midpoint, ink, base.accent),
-    darkChrome: yiq(midpoint) < 150,
     prefer: base.prefer,
     voice: base.voice,
   };
