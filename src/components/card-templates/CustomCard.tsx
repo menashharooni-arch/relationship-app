@@ -689,8 +689,37 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
   );
 }
 
+// ── Design transfer: the card IS a picture ──────────────────────────────────
+// The face image is a finished card design (the owner's approved AI rebuild of
+// a card they photographed), so nothing is composed here — the image fills the
+// 1.75:1 box edge to edge, and the only live element is the QR, overlaid
+// bottom-right where every preset puts it. It is overlaid rather than baked
+// into the image because an image model cannot draw a scannable QR code — the
+// one on the generated picture would LOOK right and scan as garbage.
+function FaceCard({ data, src }: { data: CardData; src: string }) {
+  return (
+    <div className="relative w-full rounded-2xl overflow-hidden" style={{ background: "#0f172a" }}>
+      <div aria-hidden style={{ width: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
+      {/* eslint-disable-next-line @next/next/no-img-element -- storage URL, sized by the box */}
+      <img
+        src={src}
+        alt=""
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+      />
+      <div style={{ position: "absolute", right: 12, bottom: 12 }}>
+        <MiniQR size={52} url={data.cardUrl} />
+      </div>
+    </div>
+  );
+}
+
 export default function CustomCard({ data }: { data: CardData }) {
   const raw = data.customization?.customLayout;
+  // Face image wins over everything: it only exists when the owner explicitly
+  // approved an exact-design preview, and normalizeCustomLayout has already
+  // dropped any URL that isn't ours.
+  const face = normalizeCustomLayout(raw as CustomLayout).faceImage;
+  if (face) return <FaceCard data={data} src={face} />;
   if (hasBlocks(raw as CustomLayout)) return <CustomBlockCard data={data} />;
 
   // ── Legacy absolute layout ────────────────────────────────────────────────

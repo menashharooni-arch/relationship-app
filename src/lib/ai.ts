@@ -168,3 +168,61 @@ export async function aiVision(opts: { imageBase64: string; mediaType: string; p
 
   return null;
 }
+
+// ── Image EDITING (design transfer) ─────────────────────────────────────────
+//
+// Gemini only — unlike aiComplete/aiVision there is no provider waterfall,
+// because the feature this exists for (rebuild an uploaded card design with
+// the owner's own details on it) needs an image-to-image editing model, and
+// Gemini's image model is the only one an existing key here can reach.
+// Callers must treat null as "feature unavailable", exactly like hasAiProvider.
+export function hasImageEditProvider(): boolean {
+  return !!process.env.GEMINI_API_KEY;
+}
+
+/**
+ * Edit `image` per `prompt`, optionally passing extra reference images (the
+ * owner's headshot/logo for the model to place). Returns raw PNG/JPEG bytes,
+ * or null on any failure — same never-throw contract as the other helpers.
+ */
+export async function aiImageEdit(opts: {
+  imageBase64: string;
+  mediaType: string;
+  prompt: string;
+  /** Additional reference images, e.g. the owner's headshot and logo. */
+  references?: { imageBase64: string; mediaType: string }[];
+}): Promise<{ data: Buffer; mediaType: string } | null> {
+  if (!process.env.GEMINI_API_KEY) return null;
+  try {
+    const model = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Header, not query string — see the note in aiComplete.
+        "x-goog-api-key": process.env.GEMINI_API_KEY as string,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: opts.prompt },
+          { inline_data: { mime_type: opts.mediaType, data: opts.imageBase64 } },
+          ...(opts.references ?? []).map((ref) => ({
+            inline_data: { mime_type: ref.mediaType, data: ref.imageBase64 },
+          })),
+        ] }],
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) return null;
+    const part = (d.candidates?.[0]?.content?.parts ?? []).find(
+      (p: { inlineData?: { data?: string; mimeType?: string } }) => p?.inlineData?.data,
+    );
+    if (!part) return null;
+    return {
+      data: Buffer.from(part.inlineData.data as string, "base64"),
+      mediaType: (part.inlineData.mimeType as string) || "image/png",
+    };
+  } catch {
+    return null;
+  }
+}
