@@ -1622,7 +1622,11 @@ export default function ContactsClient({
                         const isSms = it.channel === "sms";
                         return (
                           <div key={it.key} className="flex flex-col items-end">
-                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
+                            {/* text-[13px], same as the event lines — the feed
+                                used to mix 14px bubbles with 13px events and
+                                the whole card read oversized on a phone
+                                (owner call 2026-08-11: uniform sizes). */}
+                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] whitespace-pre-wrap break-words leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
                               {it.body}
                             </div>
                             <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
@@ -1651,7 +1655,7 @@ export default function ContactsClient({
                                 replies both routinely contain — blows past
                                 max-w-[85%]. break-words is what actually holds
                                 the bubble to its width. */}
-                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words leading-relaxed">
+                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] whitespace-pre-wrap break-words leading-relaxed">
                               {it.body}
                             </div>
                             <span suppressHydrationWarning className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
@@ -1659,18 +1663,29 @@ export default function ContactsClient({
                         );
                       }
                       return (
-                        <div key={it.key} className="flex items-center gap-2.5">
+                        // Two lines, not one: this row used to hold the icon,
+                        // the sentence, the "via …" tag AND the timestamp on a
+                        // single line, so on a 375px phone the sentence was
+                        // squeezed into a skinny column and wrapped word by
+                        // word — the owner read it as "words on top of each
+                        // other". The sentence now owns the full width beside
+                        // the icon (the "via" tag riding inline where it can
+                        // wrap naturally), and the timestamp sits underneath
+                        // at the same 10px every bubble's timestamp uses.
+                        <div key={it.key} className="flex items-start gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-xs shrink-0">{it.icon}</div>
-                          {/* min-w-0 + break-words: this phrase leads with the
-                              contact's first name, so an email-shaped name puts
-                              a 48-character unbreakable token in a flex row
-                              whose other children are shrink-0. Without both,
-                              the row cannot shrink AND the token cannot wrap. */}
-                          <p className="text-gray-300 text-[13px] min-w-0 break-words">{it.text}</p>
-                          {it.source && it.source !== "direct_link" && (
-                            <span className="text-[10px] text-blue-400 shrink-0">via {getSourceLabel(it.source)}</span>
-                          )}
-                          <span suppressHydrationWarning className="text-gray-600 text-[11px] ml-auto shrink-0">{formatShort(it.at)}</span>
+                          <div className="min-w-0 flex-1">
+                            {/* break-words stays: an email-shaped contact name
+                                is one unbreakable token, and nothing else
+                                makes a spaceless string wrap. */}
+                            <p className="text-gray-300 text-[13px] leading-snug break-words">
+                              {it.text}
+                              {it.source && it.source !== "direct_link" && (
+                                <span className="text-[10px] text-blue-400 whitespace-nowrap"> · via {getSourceLabel(it.source)}</span>
+                              )}
+                            </p>
+                            <p suppressHydrationWarning className="text-gray-600 text-[10px] mt-0.5">{formatShort(it.at)}</p>
+                          </div>
                         </div>
                       );
                     })}
