@@ -198,6 +198,53 @@ export async function POST(req: NextRequest) {
     (profiles ?? []).map((p) => authEmails.get(p.id) ?? (p.email as string | null)),
   );
 
+  // ── Warm-up guard ───────────────────────────────────────────────────────────
+  // This loop sends one email per profile with nothing throttling it, so a
+  // launch blast to the whole list goes out as a single burst. On a domain with
+  // no sending history that is the classic way to lose deliverability for
+  // months: providers cannot distinguish a real product's launch from a
+  // spammer's first run, and judge it on the only evidence available — a cold
+  // domain that suddenly emitted thousands of messages.
+  //
+  // The cap is a rolling 24-hour count of marketing sends, so it encodes the
+  // warm-up ramp itself: raise EMAIL_DAILY_SEND_CAP as reputation builds
+  // (~50 → 100 → 250 → 500 → 1000, never more than doubling day over day).
+  //
+  // It REFUSES rather than truncating. A partial send would leave half the list
+  // having received a campaign with no record of where it stopped, and re-running
+  // would double-send everyone before it.
+  const dailyCap = Number(process.env.EMAIL_DAILY_SEND_CAP ?? 200);
+  if (Number.isFinite(dailyCap) && dailyCap > 0) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // status='sent' only: email_logs also holds 'skipped' and 'failed' rows, and
+    // counting those would burn the cap on mail that was never delivered — a run
+    // that skipped 500 unsubscribed users would lock out the next 500 real sends.
+    const { count: sentToday } = await admin
+      .from("email_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("type", "marketing")
+      .eq("status", "sent")
+      .gte("created_at", since);
+
+    const already = sentToday ?? 0;
+    const wanted = (profiles ?? []).length;
+    if (already + wanted > dailyCap) {
+      return NextResponse.json(
+        {
+          error: "warmup_cap",
+          message:
+            `This send (${wanted}) plus ${already} already sent in the last 24h would exceed ` +
+            `the ${dailyCap}/day warm-up cap. Send to a smaller segment, wait, or raise ` +
+            `EMAIL_DAILY_SEND_CAP once the domain has more sending history.`,
+          cap: dailyCap,
+          sent_last_24h: already,
+          requested: wanted,
+        },
+        { status: 429 },
+      );
+    }
+  }
+
   let sent = 0;
   let skipped = 0;
   let failed = 0;

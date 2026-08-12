@@ -12,6 +12,21 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // requirement.
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
 
+// Marketing goes out from a SEPARATE sender so campaign reputation and
+// transactional reputation cannot contaminate each other. Mailbox providers
+// score reputation per sending domain/subdomain: with one sender, a single
+// campaign that draws complaints also sends receipts, payment-failure warnings
+// and trial notices to spam — mail the user actually needs and is expecting.
+// Splitting them is standard practice and the reason Resend hands you a
+// `send.` subdomain in the first place.
+//
+// Verify a second subdomain in Resend (e.g. news.swiftcard.me), publish its
+// DNS, then set MARKETING_FROM_EMAIL. Until it is set this falls back to the
+// transactional sender, so nothing breaks — but the isolation does not exist
+// yet either, so set it BEFORE the first campaign, not after.
+const MARKETING_FROM =
+  process.env.MARKETING_FROM_EMAIL?.trim() || FROM;
+
 // CAN-SPAM §7704(a)(5) requires a VALID PHYSICAL POSTAL ADDRESS in every
 // commercial message — a street address, or a registered PO/private mailbox.
 // "New York, NY" is a city, not an address: it satisfies neither the statute
@@ -231,7 +246,7 @@ export function promoEmail(opts: {
     ${btn(safeUrlAttr(`${APP_URL}/pricing?code=${encodeURIComponent(opts.code)}`), `Apply code & upgrade →`)}
     ${p(`Apply it at checkout on the pricing page. If you have any questions, just reply to this email.`)}
   `;
-  return built(FROM, opts.headline, layout(body, opts.unsubscribeUrl));
+  return built(MARKETING_FROM, opts.headline, layout(body, opts.unsubscribeUrl));
 }
 
 export function receiptEmail(opts: {
@@ -379,7 +394,7 @@ export function marketingEmail(opts: {
     ${p(escapeHtml(opts.body))}
     ${btn(safeUrlAttr(opts.ctaUrl), escapeHtml(opts.ctaLabel))}
   `;
-  return built(FROM, opts.subject, layout(emailBody, opts.unsubscribeUrl));
+  return built(MARKETING_FROM, opts.subject, layout(emailBody, opts.unsubscribeUrl));
 }
 
 // ─── Unsubscribe URL helper ───────────────────────────────────────────────────
