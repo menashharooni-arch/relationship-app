@@ -68,12 +68,20 @@ describe("wallet pass strip", () => {
     expect(await captureToDesign(square)).toBeNull();
   }, 30_000);
 
-  it("hybrid strip (capture + identity) keeps the exact storeCard geometry", async () => {
+  it("the strip is edge to edge — the card fills the height, blur fills the sides", async () => {
     const sharp = (await import("sharp")).default;
-    const capture = await sharp({
-      create: { width: 700, height: 400, channels: 3, background: { r: 13, g: 27, b: 62 } },
-    }).png().toBuffer();
-    const design = await captureToDesign(capture, { name: "Menash Harooni", title: "Founder", company: "Swift Card Inc" });
+    // A card with DISTINCT edge colors: red left half, navy right half. If the
+    // strip letterboxed on a flat ground, its outer columns would be one flat
+    // color; the blur extension instead carries the card's own hues out to
+    // the borders — dimmed, so brightness sits below the source's.
+    const left = { r: 200, g: 30, b: 30 }, right = { r: 13, g: 27, b: 62 };
+    const capture = await sharp({ create: { width: 700, height: 400, channels: 3, background: left } })
+      .composite([{
+        input: await sharp({ create: { width: 350, height: 400, channels: 3, background: right } }).png().toBuffer(),
+        left: 350, top: 0,
+      }]).png().toBuffer();
+
+    const design = await captureToDesign(capture);
     expect(design).not.toBeNull();
     for (const [buf, w, h] of [
       [design!.strips.x1, 375, 123],
@@ -83,25 +91,31 @@ describe("wallet pass strip", () => {
       expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
       expect(pngSize(buf)).toEqual({ w, h });
     }
-    // Chrome still sampled from the card, not from the text layer.
-    expect(design!.theme.backgroundColor).toBe("rgb(13, 27, 62)");
+    // Edge-to-edge proof: the strip's leftmost column is reddish (the blurred
+    // red half of the card, dimmed), not a flat sampled-average ground and
+    // not empty padding.
+    const raw = await sharp(design!.strips.x3).raw().toBuffer({ resolveWithObject: true });
+    const px = (x: number, y: number) => {
+      const i = (y * raw.info.width + x) * raw.info.channels;
+      return [raw.data[i], raw.data[i + 1], raw.data[i + 2]];
+    };
+    const [lr, lg, lb] = px(2, 184);
+    expect(lr, "left border should carry the card's red, extended by blur").toBeGreaterThan(60);
+    expect(lr).toBeGreaterThan(lg + 20);
+    expect(lr).toBeGreaterThan(lb + 20);
   }, 30_000);
 
-  it("bare passes carry NO Apple barcode block — the card art has its own QR", async () => {
-    // Owner's call 2026-08-11: the real-card capture already shows the card's
-    // own QR, so pass.setBarcodes() printed a SECOND QR under the card. This
-    // pins the guard at the source level because buildPkpass can't run in
-    // tests (it needs the Apple signing certs). The mechanism: setBarcodes is
-    // reached only when the design is not bare.
+  it("EVERY pass carries the QR block — bare included (owner spec: QR fills the bottom)", async () => {
+    // Owner's final spec 2026-08-11: card art up top, Apple's big QR below.
+    // Source-level pin because buildPkpass can't run in tests (it needs the
+    // Apple signing certs): setBarcodes must be UNCONDITIONAL — reachable on
+    // every path, not gated on the design tier.
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("src/lib/wallet.ts", "utf8");
-    const guard = src.indexOf("if (!design?.bare)");
     const barcodes = src.indexOf("pass.setBarcodes(");
-    expect(guard, "the bare guard around setBarcodes is gone").toBeGreaterThan(-1);
-    expect(barcodes).toBeGreaterThan(guard);
-    // ...and it must still be set for the non-bare tiers (their strips carry
-    // no QR at all — dropping it there would make those passes unscannable).
-    expect(src.slice(guard, barcodes)).not.toMatch(/\breturn\b/);
+    expect(barcodes).toBeGreaterThan(-1);
+    const before = src.slice(Math.max(0, barcodes - 220), barcodes);
+    expect(before, "setBarcodes got re-gated").not.toMatch(/if\s*\(.*design.*\)\s*\{\s*$/);
   });
 
   it("themes chrome per template — light templates must not carry the white wordmark", () => {
