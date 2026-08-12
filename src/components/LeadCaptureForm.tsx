@@ -139,6 +139,19 @@ export default function LeadCaptureForm({
       {status === "error" && (
         <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>
       )}
+      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
+          this form must stay submittable with it unchecked (posts
+          sms_consent:false → captured, never auto-texted). Required by Twilio
+          A2P review; see the header of SmsConsentCheckbox.tsx. It must render
+          ABOVE the submit button — the A2P campaign message_flow states the
+          disclosure sits directly above "Share My Info", and reviewers check
+          the live page against that claim. Email consent is
+          still by submission, and every email carries an unsubscribe link.
+          The "Every email includes an unsubscribe link." sentence stays removed
+          (owner decision, Aug 2026, 1728fe8) — that call was independent of the
+          checkbox and CAN-SPAM wants the mechanism in the email itself, which
+          every send already carries. */}
+      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
       <button
         type="submit"
         disabled={status === "loading"}
@@ -147,16 +160,6 @@ export default function LeadCaptureForm({
       >
         {status === "loading" ? "Sending…" : "Share My Info"}
       </button>
-      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
-          this form must stay submittable with it unchecked (posts
-          sms_consent:false → captured, never auto-texted). Required by Twilio
-          A2P review; see the header of SmsConsentCheckbox.tsx. Email consent is
-          still by submission, and every email carries an unsubscribe link.
-          The "Every email includes an unsubscribe link." sentence stays removed
-          (owner decision, Aug 2026, 1728fe8) — that call was independent of the
-          checkbox and CAN-SPAM wants the mechanism in the email itself, which
-          every send already carries. */}
-      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
     </form>
   );
 }
