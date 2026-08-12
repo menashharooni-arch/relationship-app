@@ -37,6 +37,13 @@ beforeAll(async () => {
       const { href, children, scroll, ...rest } = props;
       return createElement("a", { href: typeof href === "string" ? href : "#", ...rest }, children);
     }
+    // The stub must export EVERYTHING the component imports from next/link.
+    // A missing name is an esbuild BUILD error, and a build error here makes
+    // all 13 tests SKIP rather than fail — they went quiet for a while when
+    // useLinkStatus was added to MyCardsList and nothing said so out loud.
+    // The suite now asserts a non-empty bundle so that can't recur silently.
+    // Always-idle: these tests drive layout and the dropdown, not pending UI.
+    export function useLinkStatus() { return { pending: false }; }
   `);
   writeFileSync(join(tmp, "plangate-stub.tsx"), `
     export function PlanGate({ children }: any) { return children; }
@@ -72,6 +79,9 @@ beforeAll(async () => {
     },
   });
   bundle = out.outputFiles[0].text;
+  // A build failure used to surface only as "13 skipped", which reads like a
+  // deliberate exclusion in the summary line. Fail loudly instead.
+  if (!bundle || bundle.length < 1000) throw new Error("MyCardsList bundle is empty — the esbuild step failed");
 }, 180_000);
 
 afterAll(async () => {
