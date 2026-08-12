@@ -172,9 +172,16 @@ export async function POST(request: NextRequest) {
     let layout = null;
     try {
       layout = match ? faceLayoutFromScan(JSON.parse(match[0])) : null;
-    } catch { /* unreadable → null */ }
+    } catch (e) {
+      console.error("[design-transfer] vision JSON parse failed:", e, (match?.[0] ?? "").slice(0, 200));
+    }
     if (!layout) {
-      console.error(`[design-transfer] both engines failed for ${user.id} (vision reading unusable)`);
+      // Name which stage died — reading missing vs JSON-less vs validator-null
+      // were indistinguishable the first time this failed in production.
+      console.error(
+        `[design-transfer] both engines failed for ${user.id}:`,
+        reading === null ? "aiVision returned null" : match ? `validator rejected: ${match[0].slice(0, 300)}` : `no JSON in: ${String(reading).slice(0, 200)}`,
+      );
       return NextResponse.json({ error: "generation_failed" }, { status: 502 });
     }
     try {
