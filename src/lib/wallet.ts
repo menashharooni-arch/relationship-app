@@ -99,28 +99,24 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // the nfc key requires Apple's VAS partner certification, and iPhones can't
   // read passes off other iPhones anyway. The scan IS the tap.)
   //
-  // NOT on bare passes (owner's call, 2026-08-11): the card capture already
-  // carries the card's own QR, so Apple's barcode block printed a SECOND QR
-  // under the card. Scanning still works — off the QR in the card art itself.
-  // The other tiers keep the block because their strips carry no QR at all.
-  if (!design?.bare) {
-    pass.setBarcodes({
-      message: card.cardUrl,
-      format: "PKBarcodeFormatQR",
-      messageEncoding: "iso-8859-1",
-      altText: "Scan to connect",
-    });
-  }
+  // On EVERY tier, bare included — owner's final spec 2026-08-11: card art up
+  // top, Apple's big QR filling the bottom. (It was briefly removed as a
+  // duplicate of the QR inside the card art; the real pass then read as
+  // empty, and the in-art QR renders too small to scan reliably anyway.)
+  pass.setBarcodes({
+    message: card.cardUrl,
+    format: "PKBarcodeFormatQR",
+    messageEncoding: "iso-8859-1",
+    altText: "Scan to connect",
+  });
 
   if (design?.bare) {
-    // The real-card tier: hybrid strip (card art + name) up top, contact
-    // fields under it. The fields came BACK 2026-08-11: with the barcode gone
-    // and no fields, the real pass rendered as a small card floating in an
-    // empty page (owner's screenshot) — the emptiness read as broken, not
-    // minimal. Chrome stays in the card's sampled color, detail on the back.
+    // The real-card tier, owner's final spec 2026-08-11: the strip is the
+    // card, edge to edge, and Apple's QR block fills the bottom. NO fields
+    // between them — the card art already carries every detail, and rows of
+    // text under it competed with the QR for the bottom half. Chrome stays
+    // in the card's sampled color, detail on the back.
     pass.type = "storeCard";
-    if (card.phone) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
-    if (card.email) pass.secondaryFields.push({ key: "email", label: "EMAIL", value: card.email });
   } else if (design) {
     // storeCard = the strip-capable layout. The strip carries the identity
     // (name/title/company in the card's own design), so the fields below it

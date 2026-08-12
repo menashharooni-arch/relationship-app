@@ -252,30 +252,24 @@ function GenericStrip(p: Meta) {
 // can only approximate the six stock templates.
 export type CaptureDesign = { theme: PassTheme; strips: PassStrips; bare: true };
 
-/** What the hybrid strip prints beside the card. */
-export type CaptureIdentity = { name: string; title?: string | null; company?: string | null };
-
-export async function captureDesign(username: string, identity?: CaptureIdentity): Promise<CaptureDesign | null> {
+export async function captureDesign(username: string): Promise<CaptureDesign | null> {
   try {
     const { getAdminSupabase } = await import("@/lib/supabase-admin");
     const { data, error } = await getAdminSupabase().storage.from("card-shares").download(`${username}.png`);
     if (error || !data) return null;
     const buf = Buffer.from(await data.arrayBuffer());
     if (buf.byteLength < 1000) return null;
-    return await captureToDesign(buf, identity);
+    return await captureToDesign(buf);
   } catch {
     return null;
   }
 }
 
 /** The pure capture→(theme, strips) transform — separated so tests can feed it
- *  a synthetic capture without touching storage. With an identity, the strip
- *  is the HYBRID: card art at max legal size on the left, the owner's name
- *  writ large beside it — because a 1.75:1 card contain-fit in Apple's 3:1
- *  strip leaves half the width as bare ground, and the real pass looked like
- *  a tiny card floating in an empty page (owner's screenshot, 2026-08-11).
- *  Apple caps the art size; it does not cap how intentional the rest looks. */
-export async function captureToDesign(capture: Buffer, identity?: CaptureIdentity): Promise<CaptureDesign | null> {
+ *  a synthetic capture without touching storage. The strip is the owner's
+ *  spec (2026-08-11): the card at full strip height, sides extended to the
+ *  borders with a blurred echo of the card itself — edge to edge, no ground. */
+export async function captureToDesign(capture: Buffer): Promise<CaptureDesign | null> {
   try {
     const sharp = (await import("sharp")).default;
     const img = sharp(capture);
@@ -296,24 +290,24 @@ export async function captureToDesign(capture: Buffer, identity?: CaptureIdentit
       darkChrome: dark,
     };
 
-    // The strip's ground is a FLAT fill of the same color as the pass chrome,
-    // so strip and chrome fuse into one continuous card-colored surface — the
-    // card doesn't sit in a visible box (the earlier blurred backdrop read as
-    // "a tag holding a card"). The card itself is as large as the strip
-    // allows, corners rounded and inset just clear of the pass's own radius.
-    const makeStrip = async (w: number, h: number, inset: number, rx: number): Promise<Buffer> => {
-      const cardH = h - inset * 2;
-      const cardW = Math.min(Math.round(cardH * ratio), w - inset * 2);
-      const mask = Buffer.from(
-        `<svg width="${cardW}" height="${cardH}"><rect x="0" y="0" width="${cardW}" height="${cardH}" rx="${rx}" ry="${rx}"/></svg>`
-      );
-      const card = await sharp(capture)
-        .resize(cardW, cardH, { fit: "fill" })
-        .composite([{ input: mask, blend: "dest-in" }])
+    // BORDER TO BORDER (owner spec 2026-08-11): the card fills the strip's
+    // full height with ZERO inset, and the leftover width is a blurred,
+    // dimmed cover-fit echo of the card itself — so the band reads as one
+    // continuous edge-to-edge image, not a card floating on a ground. (The
+    // earlier flat-ground + rounded-inset look was explicitly rejected on a
+    // real phone: "a tiny card in an empty page".)
+    const makeStrip = async (w: number, h: number): Promise<Buffer> => {
+      const cardH = h;
+      const cardW = Math.min(Math.round(cardH * ratio), w);
+      const card = await sharp(capture).resize(cardW, cardH, { fit: "fill" }).png().toBuffer();
+      const backdrop = await sharp(capture)
+        .resize(w, h, { fit: "cover" })
+        .blur(Math.max(8, Math.round(w / 46)))
+        .modulate({ brightness: 0.72 })
         .png()
         .toBuffer();
-      return sharp({ create: { width: w, height: h, channels: 4, background: { r, g, b, alpha: 1 } } })
-        .composite([{ input: card, left: Math.round((w - cardW) / 2), top: inset }])
+      return sharp(backdrop)
+        .composite([{ input: card, left: Math.round((w - cardW) / 2), top: 0 }])
         .png()
         .toBuffer();
     };
@@ -322,52 +316,10 @@ export async function captureToDesign(capture: Buffer, identity?: CaptureIdentit
     // for the larger card and REJECTED: the coupon layout draws serrated
     // ticket-perforation edges on the pass, which is exactly the look the
     // owner is escaping. storeCard has clean rounded edges.
-    if (!identity?.name?.trim()) {
-      const [x3, x2, x1] = await Promise.all([
-        makeStrip(1125, 369, 21, 30),
-        makeStrip(750, 246, 14, 20),
-        makeStrip(375, 123, 7, 10),
-      ]);
-      return { theme, strips: { x1, x2, x3 }, bare: true };
-    }
-
-    // ── Hybrid strip: card left, identity right, one card-colored surface ──
-    // Rendered once at @3x with Satori (the same next/og engine the template
-    // strips use) and downscaled — the capture rides in as a data URI so
-    // Satori can never stall on a fetch.
-    const name = identity.name.trim();
-    const title = identity.title?.trim() || null;
-    const company = identity.company?.trim() || null;
-    const dataUri = `data:image/png;base64,${capture.toString("base64")}`;
-    const inset = 29; // ~@3x of the sharp path's 1x inset; clears the pass radius
-    const cardH = 369 - inset * 2;
-    const cardW = Math.round(cardH * ratio);
-    const fg = theme.foregroundColor;
-    // Long names shrink instead of wrapping into the card: the strip is a
-    // banner, and a banner with a two-line name reads as an error.
-    const nameSize = name.length > 22 ? 40 : name.length > 14 ? 50 : 60;
-    const x3 = Buffer.from(
-      await new ImageResponse(
-        (
-          <div style={{
-            width: "100%", height: "100%", display: "flex", alignItems: "center", gap: 44,
-            background: theme.backgroundColor, padding: `0 ${inset}px`, fontFamily: "sans-serif",
-          }}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- Satori element, not DOM */}
-            <img src={dataUri} width={cardW} height={cardH} style={{ borderRadius: 24 }} />
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: nameSize, fontWeight: 800, color: fg, lineHeight: 1.05 }}>{name}</div>
-              {title ? <div style={{ fontSize: 27, color: theme.labelColor, marginTop: 10, fontWeight: 600 }}>{title}</div> : null}
-              {company ? <div style={{ fontSize: 25, fontWeight: 700, color: fg, marginTop: 4, opacity: 0.85 }}>{company}</div> : null}
-            </div>
-          </div>
-        ),
-        { width: 1125, height: 369 }
-      ).arrayBuffer()
-    );
-    const [x2, x1] = await Promise.all([
-      sharp(x3).resize(750, 246).png().toBuffer(),
-      sharp(x3).resize(375, 123).png().toBuffer(),
+    const [x3, x2, x1] = await Promise.all([
+      makeStrip(1125, 369),
+      makeStrip(750, 246),
+      makeStrip(375, 123),
     ]);
     return { theme, strips: { x1, x2, x3 }, bare: true };
   } catch {

@@ -47,13 +47,7 @@ export async function GET(req: NextRequest) {
     let design;
     try {
       const { captureDesign, passTheme, renderCardStrips } = await import("@/lib/wallet-strip");
-      // Identity beside the card: the hybrid strip fills the width Apple's
-      // contain-fit would leave as bare ground (see captureToDesign).
-      design = (await captureDesign(username, {
-        name: (src.name as string) || "SwiftCard",
-        title: src.title as string | null,
-        company: src.company as string | null,
-      })) ?? undefined;
+      design = (await captureDesign(username)) ?? undefined;
       if (!design) {
         const { resolveCardMeta } = await import("@/lib/resolve-card");
         const meta = await resolveCardMeta(username);
