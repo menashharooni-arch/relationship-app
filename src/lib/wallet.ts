@@ -97,15 +97,20 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // QR of the card URL — scanning the pass opens the live card on the other
   // person's phone. (Phone-to-phone NFC is not possible for a Wallet pass:
   // the nfc key requires Apple's VAS partner certification, and iPhones can't
-  // read passes off other iPhones anyway. The scan IS the tap.) Owner's final
-  // pass design 2026-08-10: card image up top, QR block at the bottom — so
-  // the barcode is back on bare passes too, with a small altText caption.
-  pass.setBarcodes({
-    message: card.cardUrl,
-    format: "PKBarcodeFormatQR",
-    messageEncoding: "iso-8859-1",
-    altText: "Scan to connect",
-  });
+  // read passes off other iPhones anyway. The scan IS the tap.)
+  //
+  // NOT on bare passes (owner's call, 2026-08-11): the card capture already
+  // carries the card's own QR, so Apple's barcode block printed a SECOND QR
+  // under the card. Scanning still works — off the QR in the card art itself.
+  // The other tiers keep the block because their strips carry no QR at all.
+  if (!design?.bare) {
+    pass.setBarcodes({
+      message: card.cardUrl,
+      format: "PKBarcodeFormatQR",
+      messageEncoding: "iso-8859-1",
+      altText: "Scan to connect",
+    });
+  }
 
   if (design?.bare) {
     // The real-card tier: the strip is the card, complete — top of the pass.

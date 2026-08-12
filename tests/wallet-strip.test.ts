@@ -68,6 +68,23 @@ describe("wallet pass strip", () => {
     expect(await captureToDesign(square)).toBeNull();
   }, 30_000);
 
+  it("bare passes carry NO Apple barcode block — the card art has its own QR", async () => {
+    // Owner's call 2026-08-11: the real-card capture already shows the card's
+    // own QR, so pass.setBarcodes() printed a SECOND QR under the card. This
+    // pins the guard at the source level because buildPkpass can't run in
+    // tests (it needs the Apple signing certs). The mechanism: setBarcodes is
+    // reached only when the design is not bare.
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/lib/wallet.ts", "utf8");
+    const guard = src.indexOf("if (!design?.bare)");
+    const barcodes = src.indexOf("pass.setBarcodes(");
+    expect(guard, "the bare guard around setBarcodes is gone").toBeGreaterThan(-1);
+    expect(barcodes).toBeGreaterThan(guard);
+    // ...and it must still be set for the non-bare tiers (their strips carry
+    // no QR at all — dropping it there would make those passes unscannable).
+    expect(src.slice(guard, barcodes)).not.toMatch(/\breturn\b/);
+  });
+
   it("themes chrome per template — light templates must not carry the white wordmark", () => {
     expect(passTheme(meta("modern-bold")).darkChrome).toBe(true);
     expect(passTheme(meta("logo-first")).darkChrome).toBe(true);
