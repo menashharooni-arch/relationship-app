@@ -107,6 +107,18 @@ describe("wallet-fit", () => {
     }
   });
 
+  it("grows a short name into the band, but never past a single line", () => {
+    const box = 719;
+    const fit = fitLine("Aaron Lavi", { box, base: 80, min: 34, maxLines: 2, grow: 100 });
+    expect(fit.fontSize).toBeGreaterThan(80);
+    expect(fit.fontSize).toBeLessThanOrEqual(100);
+    // Growth is bounded by the one-line fit, so it can't introduce a wrap.
+    expect(textEm(fit.text, false) * fit.fontSize * 1.12).toBeLessThanOrEqual(box + 0.01);
+    // A name that already needs two lines is never grown.
+    const long = fitLine("Konstantinos Papadopoulos-Winterbottom", { box, base: 80, min: 34, maxLines: 2, grow: 100 });
+    expect(long.fontSize).toBeLessThan(80);
+  });
+
   it("shrinks before it cuts, and only cuts at the floor", () => {
     // Two lines, as the band gives the name — a real long name must survive whole.
     const long = fitLine("Konstantinos Papadopoulos-Winterbottom", { box: 719, base: 80, min: 34, maxLines: 2 });
@@ -165,13 +177,30 @@ describe("wallet-palette", () => {
     expect(readable(p.ink, p.bottom)).toBeGreaterThanOrEqual(60);
   });
 
-  it("suppresses an accent that would vanish, exactly like the card does", () => {
-    // Dark red accent on a navy ground — the case CustomCard's ramp() guards.
+  it("lifts an accent that would vanish instead of throwing the brand colour away", () => {
+    // A near-ground accent on navy. CustomCard's ramp() drops this to the text
+    // colour; on the pass the accent is the ONLY trace of the brand, so it is
+    // lifted until it separates, keeping its hue.
     const p = passPalette(meta({
       template: "custom",
-      custom: { background: "#0b1220", textColor: "#ffffff", accentColor: "#0d1424", fontFamily: "sans-serif" },
+      custom: { background: "#0b1220", textColor: "#ffffff", accentColor: "#101b30", fontFamily: "sans-serif" },
     }));
-    expect(p.accent).toBe(p.ink);
+    expect(readable(p.accent, p.bottom)).toBeGreaterThanOrEqual(40);
+    // Still blue — lifting desaturates, it does not replace.
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(p.accent.slice(i, i + 2), 16));
+    expect(b).toBeGreaterThan(r);
+    expect(b).toBeGreaterThan(g);
+  });
+
+  it("uses the PRESET palette when a card only carries a stale custom layout", () => {
+    // The real regression: aaron-lavi-malve-capital renders photo-first and
+    // still holds a customLayout blob from a visit to the designer. The blob
+    // is kept deliberately (switching back restores it), so resolveCardMeta
+    // now hands `custom: null` for any card not actually drawn custom — and
+    // the palette must then be the template's, not the layout's navy.
+    const p = passPalette(meta({ template: "photo-first", custom: null }));
+    expect(p.top).toBe("#4f46e5");
+    expect(p.bottom).toBe("#6d28d9");
   });
 
   it("honours Pro style overrides on a preset template", () => {

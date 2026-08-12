@@ -66,6 +66,13 @@ const IDENTITY_W = (leadWidth: number) => W - PAD_X * 2 - (leadWidth ? leadWidth
 
 // Type scale, in @3x px.
 const NAME_BASE = 80, NAME_MIN = 34;
+/**
+ * A short name grows into the band rather than leaving a third of it empty.
+ * Capped by the one-line fit, so growth can never cause a wrap: the tallest a
+ * grown name can be is 108px, which leaves the rule, title and company well
+ * inside the band's 325px of usable height.
+ */
+const NAME_MAX = 100;
 const TITLE_BASE = 33, TITLE_MIN = 21;
 const COMPANY_BASE = 31, COMPANY_MIN = 20;
 
@@ -179,7 +186,8 @@ function Band({ meta, palette, photo, logo }: {
   // (a wrapped name at full size plus title and company still clears the band
   // by ~30px @3x — the render test asserts that margin on real pixels).
   const name = fitLine(meta.name || "SwiftCard", {
-    box, base: NAME_BASE, min: NAME_MIN, uppercase: voice.caps, tracking: voice.tracking, maxLines: 2,
+    box, base: NAME_BASE, min: NAME_MIN, uppercase: voice.caps, tracking: voice.tracking,
+    maxLines: 2, grow: NAME_MAX,
   });
   const title = fitLine(meta.title, { box, base: TITLE_BASE, min: TITLE_MIN });
   const company = fitLine(meta.company, { box, base: COMPANY_BASE, min: COMPANY_MIN });

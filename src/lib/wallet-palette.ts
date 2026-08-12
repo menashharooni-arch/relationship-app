@@ -128,18 +128,39 @@ export function readableInk(surface: string, preferred?: string): string {
   return ground < 150 ? WHITE : NEAR_BLACK;
 }
 
+/** Below this separation from the ground, an accent is effectively invisible. */
+const ACCENT_MIN_DELTA = 26;
+/** What a lifted accent must reach — comfortably clear, not borderline. */
+const ACCENT_LIFT_DELTA = 45;
+
 /**
- * The accent, or the ink when the accent would vanish.
+ * The accent, lifted until it can be seen, keeping its hue.
  *
- * Same rule and same 26-point threshold as CustomCard's `ramp()` — the pass
- * must not "fix" an accent the card itself already suppressed, or the two
- * surfaces disagree about the card's own colour.
+ * CustomCard's `ramp()` drops an unreadable accent to the text colour. That is
+ * right on the card, where the accent is one of several cues. Here it is the
+ * only trace of the owner's brand colour on the whole pass — the hairline and
+ * the job title — so discarding it costs more than it saves.
+ *
+ * The threshold is a cliff, and real cards sit on it: a #1E3A8A accent on
+ * Classic Pro's navy separates by 25.7 points and lost the brand colour to
+ * white over three tenths of a point. Lifting toward the ground's opposite end
+ * preserves the hue (it desaturates rather than replacing) and clears the
+ * threshold decisively. Only an accent that cannot be lifted into range at all
+ * falls back to the ink.
  */
 export function readableAccent(surface: string, ink: string, accent?: string | null): string {
   const stops = hexStops(accent);
   if (!stops.length) return ink;
   const a = stops[0];
-  return Math.abs(yiq(a) - yiq(surface)) >= 26 ? a : ink;
+  const ground = yiq(surface);
+  if (Math.abs(yiq(a) - ground) >= ACCENT_MIN_DELTA) return a;
+
+  const target = ground < 150 ? WHITE : "#000000";
+  for (let t = 0.12; t <= 0.96; t += 0.12) {
+    const lifted = mix(a, target, t);
+    if (Math.abs(yiq(lifted) - ground) >= ACCENT_LIFT_DELTA) return lifted;
+  }
+  return ink;
 }
 
 // ── The six presets, as their cards are actually drawn ──────────────────────

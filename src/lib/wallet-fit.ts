@@ -109,6 +109,16 @@ export type FitOpts = {
    * worse than the second line it comfortably has room for.
    */
   maxLines?: number;
+  /**
+   * Largest size this line may GROW to, when it fits on one line at more than
+   * `base`. Only the name uses it.
+   *
+   * Without it the band under-fills: "Aaron Lavi" at the 80px base occupies
+   * 520 of its 719px box and leaves a third of the band empty, which is the
+   * complaint this whole design exists to answer. Growth is capped by the
+   * ONE-line fit, so it can never introduce a wrap or an overflow.
+   */
+  grow?: number;
 };
 
 /**
@@ -159,9 +169,16 @@ export function fitLine(raw: string | null | undefined, opts: FitOpts): FittedLi
     return Math.min(whole, word);
   };
 
-  // 1. Fits outright.
+  // 1. Fits outright — and may grow into space it would otherwise waste.
   if (sizeFor(text, tracking0) >= base) {
-    return { text, fontSize: base, letterSpacing: `${tracking0}em`, truncated: false };
+    const oneLine = box / Math.max(1e-6, runAt(text, 1, tracking0));
+    const grown = opts.grow && opts.grow > base ? Math.min(opts.grow, oneLine) : base;
+    return {
+      text,
+      fontSize: Math.max(base, grown),
+      letterSpacing: `${tracking0}em`,
+      truncated: false,
+    };
   }
 
   // 2. Tighten tracking, down to 40% of the design value (never below zero —
