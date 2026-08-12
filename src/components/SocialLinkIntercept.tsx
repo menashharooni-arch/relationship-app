@@ -82,10 +82,12 @@ export default function SocialLinkIntercept({
   cardOwner: string;
   ownerFirstName: string;
   /**
-   * "bars" (default) is the original stacked full-width list. The default is
-   * load-bearing: three marketing mockups render this component inside a narrow
-   * phone frame (site/LeadCapturePhone, site/SignatureDemo, site/TemplateGallery)
-   * and must stay byte-identical. Only the public card page opts into "rail".
+   * "rail" is the card page's current design — website capsule + brand discs.
+   * The three marketing mockups that show the card page (via site/DemoSwiftLinks)
+   * pass it too, so what the site advertises matches what a visitor opens.
+   *
+   * "bars" (the original stacked full-width list) stays the default for any
+   * remaining caller that has not been designed against the rail.
    */
   variant?: "bars" | "rail";
 }) {

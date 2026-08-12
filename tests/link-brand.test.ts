@@ -137,7 +137,12 @@ describe("brandBackground is shared, so the two surfaces can't disagree", () => 
   });
 });
 
-describe("the rail is opt-in, so nothing else changed", () => {
+describe("the marketing mockups show the card page's real Swift Links design", () => {
+  // Reversed on purpose (owner request, 2026-08-12). The rail used to be
+  // card-page-only and this block pinned the three mockups to "bars" so
+  // marketing wouldn't shift under it. That is exactly backwards now: the
+  // mockups advertise the card, so showing a design the card no longer has was
+  // the regression. They render the real section through site/DemoSwiftLinks.
   const MOCKUPS = [
     "src/components/site/LeadCapturePhone.tsx",
     "src/components/site/SignatureDemo.tsx",
@@ -148,17 +153,26 @@ describe("the rail is opt-in, so nothing else changed", () => {
     expect(code("src/components/SocialLinkIntercept.tsx")).toMatch(/variant = "bars"/);
   });
 
-  it("the three marketing mockups never opt in", () => {
-    // They render this component inside a narrow phone frame on the homepage.
-    // A 40px disc rail there would be a silent visual regression on marketing.
+  it("every mockup goes through the one shared section, not its own copy", () => {
+    // The copies are what drifted the first time. If a mockup ever renders
+    // SocialLinkIntercept directly again, it has its own Swift Links markup
+    // and this whole class of bug is back.
     for (const f of MOCKUPS) {
       const c = code(f);
-      expect(c, `${f} does not render SocialLinkIntercept any more — re-check this test`).toMatch(/SocialLinkIntercept/);
-      expect(c, `${f} opted into the rail`).not.toMatch(/variant=/);
+      expect(c, `${f} no longer renders DemoSwiftLinks`).toMatch(/DemoSwiftLinks/);
+      expect(c, `${f} hand-rolls its own Swift Links box again`).not.toMatch(/SocialLinkIntercept/);
     }
   });
 
-  it("only the public card page opts in", () => {
+  it("the shared section renders the rail and the action links", () => {
+    const c = code("src/components/site/DemoSwiftLinks.tsx");
+    expect(c).toMatch(/variant="rail"/);
+    expect(c).toMatch(/CardActionLinks/);
+    // Display-only: a mockup must never fire a lead POST or a nudge.
+    expect((c.match(/pointerEvents: "none"/g) ?? []).length).toBe(2);
+  });
+
+  it("the public card page still opts in", () => {
     expect(code("src/app/card/[username]/page.tsx")).toMatch(/variant="rail"/);
   });
 

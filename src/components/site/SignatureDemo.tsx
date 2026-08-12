@@ -8,10 +8,9 @@ import { withoutSocials, SAMPLE_DATA, SAMPLE_DATA_WITH_PHOTO, DEMO_HEADSHOT } fr
 import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
-import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
-import { buildConnectLinks } from "@/lib/social-url";
+import DemoSwiftLinks from "./DemoSwiftLinks";
 
 // Email Signature showcase: a wide, realistic email whose signature is the REAL
 // SwiftCard — the PhotoFirst template rendered exactly as we ship it, with the
@@ -46,11 +45,6 @@ const PERSON = {
   linkedin: IDENTITY.linkedin, instagram: IDENTITY.instagram, twitter: IDENTITY.twitter, tiktok: IDENTITY.tiktok,
   photoUrl: DEMO_HEADSHOT,
 };
-
-const CONNECT_LINKS = buildConnectLinks({
-  website: IDENTITY.website, linkedin: IDENTITY.linkedin,
-  instagram: IDENTITY.instagram, tiktok: IDENTITY.tiktok, twitter: IDENTITY.twitter,
-});
 
 function SectionNumber({ n }: { n: number }) {
   return <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
@@ -128,15 +122,9 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Swift Links */}
+            {/* Swift Links (the real card section, shared by every mockup) */}
             <div className={PANEL} style={panelStyle}>
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-3 min-w-0"><SectionNumber n={3} /><p className="text-slate-900 font-semibold text-sm">Swift Links</p></div>
-                <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
-              </div>
-              <div style={showOnly}>
-                <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
-              </div>
+              <DemoSwiftLinks n={3} compact={false} />
             </div>
 
             {/* Share this card */}

@@ -5,10 +5,9 @@ import CardScaler from "@/components/CardScaler";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
-import { buildConnectLinks } from "@/lib/social-url";
+import DemoSwiftLinks from "./DemoSwiftLinks";
 
 // The lead-capture page phone: the REAL card-open experience exactly as a
 // visitor sees it when they open a SwiftCard link — the real card template plus
@@ -21,14 +20,6 @@ import { buildConnectLinks } from "@/lib/social-url";
 const CARD: CardData = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/marketing/demo-girl.jpg" };
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
 const DEMO_URL = "https://swiftcard.me/card/alexmorgan";
-
-const CONNECT_LINKS = buildConnectLinks({
-  website: SAMPLE_DATA.website,
-  linkedin: SAMPLE_DATA.linkedin,
-  instagram: SAMPLE_DATA.instagram,
-  tiktok: SAMPLE_DATA.tiktok,
-  twitter: SAMPLE_DATA.twitter,
-});
 
 function StatusBar() {
   return (
@@ -110,18 +101,9 @@ function LinkExperience() {
           )}
         </div>
 
-        {/* 3 — Swift Links (the real card component) */}
+        {/* 3 — Swift Links (the real card section, shared by every mockup) */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <SectionNum n={3} />
-              <p className="text-slate-900 font-semibold text-[13px]">Swift Links</p>
-            </div>
-            <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
-          </div>
-          <div style={{ pointerEvents: "none" }}>
-            <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
-          </div>
+          <DemoSwiftLinks n={3} />
         </div>
 
         {/* 4 — Share this card (the real card components) */}
