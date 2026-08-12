@@ -38,7 +38,7 @@ describe("wallet pass strip", () => {
     }
   }, 60_000);
 
-  it("builds the strip from a real-card capture: exact sizes, chrome sampled from the card", async () => {
+  it("builds the strip from a real-card capture: exact sizes, chrome is the shared ground", async () => {
     // Synthetic "capture": a dark navy card at the real 1.75:1 aspect.
     const sharp = (await import("sharp")).default;
     const capture = await sharp({
@@ -47,8 +47,8 @@ describe("wallet pass strip", () => {
 
     const design = await captureToDesign(capture);
     expect(design).not.toBeNull();
-    // bare: the real-card tier renders a coupon-layout pass with nothing but
-    // the card — no barcode block, no contact rows (buildPkpass keys on this).
+    // bare: the real-card tier shows the card and Apple's QR block and nothing
+    // else — no contact rows between them (buildPkpass keys on this).
     expect(design!.bare).toBe(true);
     // storeCard strip geometry — clean rounded pass edges (coupon serrates).
     for (const [buf, w, h] of [
@@ -59,21 +59,23 @@ describe("wallet pass strip", () => {
       expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
       expect(pngSize(buf)).toEqual({ w, h });
     }
-    // Dark card → dark chrome in the card's own color, wordmark allowed.
-    expect(design!.theme.darkChrome).toBe(true);
-    expect(design!.theme.backgroundColor).toBe("rgb(13, 27, 62)");
+    // Chrome is the GROUND, not the card. It is one light neutral for every
+    // card so the strip's ground and the pass body are a single surface — a
+    // per-card sampled colour left a visible seam where the strip ends.
+    expect(design!.theme.darkChrome).toBe(false);
+    expect(design!.theme.backgroundColor).toBe("rgb(239, 238, 243)");
 
     // A capture outside the card aspect window is rejected (falls to Tier 2).
     const square = await sharp({ create: { width: 400, height: 400, channels: 3, background: { r: 0, g: 0, b: 0 } } }).png().toBuffer();
     expect(await captureToDesign(square)).toBeNull();
   }, 30_000);
 
-  it("the strip is edge to edge — the card fills the height, blur fills the sides", async () => {
+  it("the card sits ON the ground: flat neutral to the borders, card centred and inset", async () => {
     const sharp = (await import("sharp")).default;
-    // A card with DISTINCT edge colors: red left half, navy right half. If the
-    // strip letterboxed on a flat ground, its outer columns would be one flat
-    // color; the blur extension instead carries the card's own hues out to
-    // the borders — dimmed, so brightness sits below the source's.
+    // A card with DISTINCT edge colours: red left half, navy right half. The
+    // old design bled those hues to the strip borders with a blurred echo; the
+    // current one puts the card on a flat neutral ground, so the borders must
+    // be that ground and nothing else.
     const left = { r: 200, g: 30, b: 30 }, right = { r: 13, g: 27, b: 62 };
     const capture = await sharp({ create: { width: 700, height: 400, channels: 3, background: left } })
       .composite([{
@@ -91,18 +93,28 @@ describe("wallet pass strip", () => {
       expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
       expect(pngSize(buf)).toEqual({ w, h });
     }
-    // Edge-to-edge proof: the strip's leftmost column is reddish (the blurred
-    // red half of the card, dimmed), not a flat sampled-average ground and
-    // not empty padding.
+
     const raw = await sharp(design!.strips.x3).raw().toBuffer({ resolveWithObject: true });
     const px = (x: number, y: number) => {
       const i = (y * raw.info.width + x) * raw.info.channels;
       return [raw.data[i], raw.data[i + 1], raw.data[i + 2]];
     };
-    const [lr, lg, lb] = px(2, 184);
-    expect(lr, "left border should carry the card's red, extended by blur").toBeGreaterThan(60);
-    expect(lr).toBeGreaterThan(lg + 20);
-    expect(lr).toBeGreaterThan(lb + 20);
+
+    // Border is the ground — NOT the card's red bleeding outward.
+    const [lr, lg, lb] = px(3, 184);
+    expect([lr, lg, lb], "left border must be the flat ground").toEqual([0xef, 0xee, 0xf3]);
+    expect(px(raw.info.width - 4, 184), "right border too").toEqual([0xef, 0xee, 0xf3]);
+
+    // The card is still THERE and centred: mid-left of the card reads red,
+    // mid-right reads navy. Without this the test would pass on a blank strip.
+    const [cr, cg] = px(Math.round(raw.info.width * 0.35), 184);
+    expect(cr, "card's red half should be present left of centre").toBeGreaterThan(120);
+    expect(cr).toBeGreaterThan(cg + 40);
+    const [nr, , nb] = px(Math.round(raw.info.width * 0.65), 184);
+    expect(nb, "card's navy half should be present right of centre").toBeGreaterThan(nr);
+
+    // Ground runs along the top edge too — the card is inset, not full-bleed.
+    expect(px(Math.round(raw.info.width / 2), 1), "top edge is ground").toEqual([0xef, 0xee, 0xf3]);
   }, 30_000);
 
   it("EVERY pass carries the QR block — bare included (owner spec: QR fills the bottom)", async () => {
