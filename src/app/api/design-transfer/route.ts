@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
-import { aiImageEdit, hasImageEditProvider } from "@/lib/ai";
+import { aiImageEdit, aiVision, hasAiProvider } from "@/lib/ai";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
-import { transferPrompt, transferChecklist, type TransferIdentity } from "@/lib/design-transfer";
+import {
+  transferPrompt, transferChecklist, type TransferIdentity,
+  PRECISE_SCAN_PROMPT, faceLayoutFromScan, renderFaceImage,
+} from "@/lib/design-transfer";
 
 // "Make it EXACTLY this design, with my details" — the image-editing sibling
 // of /api/scan-design. scan-design reads a photographed card's LAYOUT so the
@@ -121,7 +124,7 @@ export async function POST(request: NextRequest) {
   };
   if (!identity.name) return NextResponse.json({ error: "no_name" }, { status: 400 });
 
-  if (!hasImageEditProvider()) return NextResponse.json({ error: "no_ai" }, { status: 503 });
+  if (!hasAiProvider()) return NextResponse.json({ error: "no_ai" }, { status: 503 });
 
   // The owner's own photo/logo ride along so the model can place them.
   const [headshot, logo] = await Promise.all([
@@ -131,31 +134,61 @@ export async function POST(request: NextRequest) {
   identity.hasHeadshot = !!headshot;
   identity.hasLogo = !!logo;
 
+  // Two engines, in order of fidelity:
+  //  1. Image EDITING (paid Google tier) — pixel-faithful backgrounds. Tried
+  //     first so the feature upgrades itself the day billing appears; on the
+  //     free tier it answers 429 in under two seconds, so trying costs nothing.
+  //  2. Measure-and-typeset (vision, FREE tier) — the model only MEASURES the
+  //     design (surfaces, positions, colors, sizes) and we typeset the owner's
+  //     details ourselves. Backgrounds are reconstructed rather than copied,
+  //     but the text can never be misspelled: no letter is model-drawn.
   const result = await aiImageEdit({
     imageBase64,
     mediaType,
     prompt: transferPrompt(identity),
     references: [...(headshot ? [headshot] : []), ...(logo ? [logo] : [])],
   });
-  if (!result) {
-    // aiImageEdit already logged the provider's actual answer.
-    console.error(`[design-transfer] generation failed for ${user.id}`);
-    return NextResponse.json({ error: "generation_failed" }, { status: 502 });
-  }
 
-  // Normalise to the card's own shape and cap the size. cover-crop, not pad:
-  // the model was told to keep the canvas, so any drift is slivers at the
-  // edges, and bars would read as a broken design.
   let png: Buffer;
-  try {
-    const sharp = (await import("sharp")).default;
-    png = await sharp(result.data)
-      .resize(1400, 800, { fit: "cover" })
-      .png()
-      .toBuffer();
-  } catch (e) {
-    console.error("[design-transfer] sharp normalise failed:", e);
-    return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+  const sharp = (await import("sharp")).default;
+  if (result) {
+    try {
+      // Normalise to the card's own shape. cover-crop, not pad: the model was
+      // told to keep the canvas, so drift is slivers, and bars read as broken.
+      png = await sharp(result.data).resize(1400, 800, { fit: "cover" }).png().toBuffer();
+    } catch (e) {
+      console.error("[design-transfer] sharp normalise failed:", e);
+      return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+    }
+  } else {
+    const reading = await aiVision({
+      imageBase64,
+      mediaType,
+      prompt: PRECISE_SCAN_PROMPT,
+      json: true,
+      maxTokens: 1800,
+    });
+    const match = reading?.match(/\{[\s\S]*\}/);
+    let layout = null;
+    try {
+      layout = match ? faceLayoutFromScan(JSON.parse(match[0])) : null;
+    } catch { /* unreadable → null */ }
+    if (!layout) {
+      console.error(`[design-transfer] both engines failed for ${user.id} (vision reading unusable)`);
+      return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+    }
+    try {
+      const toDataUri = (r: { imageBase64: string; mediaType: string } | null) =>
+        r ? `data:${r.mediaType};base64,${r.imageBase64}` : null;
+      const face = await renderFaceImage(layout, identity, {
+        headshot: toDataUri(headshot),
+        logo: toDataUri(logo),
+      });
+      png = await sharp(face).png().toBuffer();
+    } catch (e) {
+      console.error("[design-transfer] face render failed:", e);
+      return NextResponse.json({ error: "generation_failed" }, { status: 502 });
+    }
   }
 
   // Stored immediately (bucket is public, like every card image): the preview

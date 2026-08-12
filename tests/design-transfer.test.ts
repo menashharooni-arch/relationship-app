@@ -63,3 +63,28 @@ describe("normalizeCustomLayout: faceImage is a guarded sink", () => {
     }
   });
 });
+
+describe("faceLayoutFromScan: the free path's validator", () => {
+  it("clamps hostile geometry and drops unknown kinds", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "url(javascript:alert(1))",
+      panels: [{ x: -50, y: 900, w: 1e9, h: 0, color: "red" }],
+      elements: [
+        { kind: "name", x: 120, y: -5, w: 400, h: 2, align: "diagonal", color: "#ZZZZZZ", weight: "heavy", size: "massive" },
+        { kind: "script", x: 0, y: 0, w: 10, h: 10 },
+        { kind: "name", x: 1, y: 1, w: 10, h: 10 }, // duplicate — dropped
+      ],
+    });
+    expect(out).not.toBeNull();
+    expect(out!.background).toBe("#ffffff"); // junk → fallback, never a CSS sink
+    expect(out!.panels[0]).toMatchObject({ x: 0, y: 100, color: "#e5e7eb" });
+    expect(out!.elements).toHaveLength(1);
+    expect(out!.elements[0]).toMatchObject({ kind: "name", x: 96, y: 0, align: "left", size: "md", weight: "bold" });
+  });
+
+  it("refuses a reading with no name slot — nothing sensible to render", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    expect(faceLayoutFromScan({ background: "#fff", elements: [{ kind: "phone", x: 1, y: 1, w: 10, h: 5 }] })).toBeNull();
+  });
+});
