@@ -329,7 +329,11 @@ async function gutterIsClean(png: Buffer, w: number, h: number): Promise<{ ok: b
   // the old 20pt lead-in. 84px of the 108px pad must be clear background.
   const MARGIN_L = Math.round(w * 0.075); // 84px of the 108px left pad, @3x
   const MARGIN_R = Math.round(w * 0.042); // 48px of the 72px right pad, @3x
-  const MARGIN_Y = Math.round(h * 0.06);  // 22px of the 64px of air
+  // Vertically, the margin has to cover the OTHER reading of the slot: if a
+  // renderer ever treats a storeCard strip as 123pt tall, our 144pt image is
+  // cropped 10.5pt (31.5px @3x) off the top and bottom. Requiring 37px of
+  // clear background at each end means content survives either way.
+  const MARGIN_Y = Math.round(h * 0.085); // 37px — covers a 31.5px vertical crop
   const TOL = 6;
 
   for (let y = 0; y < info.height; y++) {
@@ -361,11 +365,17 @@ function range(a: number, b: number): number[] {
 
 describe("wallet pass band renders", () => {
   it("renders every template at exactly the sizes Apple expects", async () => {
+    // 375x144, not 375x123. The 123pt slot is the one a storeCard gets when it
+    // carries a HEADER FIELD; this pass has none, so the slot is 144pt and
+    // Wallet aspect-FILLS it. A 123-tall image had to scale up 144/123 to
+    // cover that height, which made it 439pt wide inside a 375pt pass and
+    // cropped 32pt off each side — the reported "cut off on the left", since
+    // the leading edge is where the headshot and logo sit.
     for (const t of TEMPLATES) {
       const m = meta({ template: t });
       const strips = await renderPassStrips(m, passPalette(m));
       for (const [buf, w, h] of [
-        [strips.x1, 375, 123], [strips.x2, 750, 246], [strips.x3, 1125, 369],
+        [strips.x1, 375, 144], [strips.x2, 750, 288], [strips.x3, 1125, 432],
       ] as const) {
         expect(buf.subarray(0, 4).equals(PNG), `${t}: PNG magic`).toBe(true);
         expect(pngSize(buf), `${t}: dimensions`).toEqual({ w, h });
@@ -382,7 +392,7 @@ describe("wallet pass band renders", () => {
       for (const [cname, content] of Object.entries(CONTENT)) {
         const m = { ...design, ...content };
         const strips = await renderPassStrips(m, passPalette(m));
-        const res = await gutterIsClean(strips.x3, 1125, 369);
+        const res = await gutterIsClean(strips.x3, 1125, 432);
         expect(res.ok, `${label} / ${cname}: ${res.where}`).toBe(true);
       }
     }

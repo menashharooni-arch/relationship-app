@@ -7,7 +7,7 @@ import { fitLine } from "@/lib/wallet-fit";
 
 // ── The Wallet pass band ────────────────────────────────────────────────────
 //
-// Apple gives a storeCard exactly one canvas — a 375×123pt strip — plus a flat
+// Apple gives a storeCard exactly one canvas — a 375×144pt strip — plus a flat
 // colour for everything under it. This module composes that band.
 //
 // It does NOT put a picture of the card in it. That was the previous design and
@@ -31,9 +31,9 @@ import { fitLine } from "@/lib/wallet-fit";
 //      company name cannot reach the edge, and a long name cannot take a third
 //      line, no matter what else is on the band.
 //
-// Geometry: rendered once at @3x (1125×369) with Satori, downscaled with sharp
+// Geometry: rendered once at @3x (1125×432) with Satori, downscaled with sharp
 // for @2x/@1x — the same next/og + Node-runtime combination the per-card OG
-// image already uses in production.
+// image already uses in production. The size is not a preference; see H below.
 
 type Meta = NonNullable<ResolvedCardMeta>;
 
@@ -55,7 +55,24 @@ export type WalletDesign = {
 // ── Canvas ──────────────────────────────────────────────────────────────────
 
 const W = 1125;
-const H = 369;
+
+/**
+ * 375×144pt, NOT 375×123.
+ *
+ * A storeCard's strip slot is 123pt tall only when the pass carries a HEADER
+ * FIELD. This pass has none, so the slot is the full 144pt — and Wallet
+ * aspect-FILLS it. Handing it a 123-tall image meant scaling up by 144/123 to
+ * cover the height, which made the image 439pt wide inside a 375pt pass and
+ * cropped 32pt off each side. The left edge is where the headshot, the logo
+ * and the monogram live, so that is where it showed; the right edge is
+ * background, so its crop was invisible. Matching the slot exactly is what
+ * stops the scaling, and therefore the cropping.
+ *
+ * Kept safe under the other reading too: if a slot ever is 123pt, a 144-tall
+ * image is cropped 10.5pt top and bottom instead, so all content stays inside
+ * the central 123pt band. The render test pins that margin.
+ */
+const H = 432;
 
 /**
  * Asymmetric on purpose: the band's content sits further from the LEFT edge
@@ -75,7 +92,7 @@ const H = 369;
  */
 const PAD_LEFT = 108;
 const PAD_RIGHT = 72;
-/** Photo diameter and logo box height. Leaves 64px of air above and below. */
+/** Photo diameter and logo box height. Leaves 95px of air above and below. */
 const IMG = 241;
 const GAP = 46;
 
@@ -414,8 +431,8 @@ export async function renderPassStrips(meta: Meta, palette: PassPalette): Promis
 
   const sharp = (await import("sharp")).default;
   const [x2, x1] = await Promise.all([
-    sharp(x3).resize(750, 246).png().toBuffer(),
-    sharp(x3).resize(375, 123).png().toBuffer(),
+    sharp(x3).resize(750, 288).png().toBuffer(),
+    sharp(x3).resize(375, 144).png().toBuffer(),
   ]);
   return { x1, x2, x3 };
 }
