@@ -11,11 +11,10 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
-import SocialLinkIntercept from "@/components/SocialLinkIntercept";
 import ShareButton from "@/components/ShareButton";
 import QRCodeModal from "@/components/QRCodeModal";
-import { buildConnectLinks } from "@/lib/social-url";
 import CardMiniBuilder from "./CardMiniBuilder";
+import DemoSwiftLinks from "./DemoSwiftLinks";
 
 // Interactive template gallery for the homepage. It renders the REAL card
 // templates (same components, same sample data as /templates and the live
@@ -36,15 +35,6 @@ const PHOTO_FIRST_DATA: CardData = { ...CARD, photoUrl: "/marketing/demo-girl.jp
 // same reason Photo First gets a face: without one it falls back to initials and
 // shows nothing of what the template is for.
 const LOGO_FIRST_DATA: CardData = { ...CARD, logoUrl: "/marketing/demo-logo.svg" };
-
-// Same connect links the live card builds (Website, LinkedIn, Instagram, TikTok, X).
-const CONNECT_LINKS = buildConnectLinks({
-  website: SAMPLE_DATA.website,
-  linkedin: SAMPLE_DATA.linkedin,
-  instagram: SAMPLE_DATA.instagram,
-  tiktok: SAMPLE_DATA.tiktok,
-  twitter: SAMPLE_DATA.twitter,
-});
 
 type Tmpl = { id: string; name: string; Component: React.ComponentType<{ data: CardData }>; data?: CardData };
 
@@ -133,18 +123,9 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
           )}
         </div>
 
-        {/* 3 — Swift Links (the real card component) */}
+        {/* 3 — Swift Links (the real card section, shared by every mockup) */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <SectionNum n={3} />
-              <p className="text-slate-900 font-semibold text-[13px]">Swift Links</p>
-            </div>
-            <span className="shrink-0 text-[11px] font-medium text-slate-400">Go to Swift Links →</span>
-          </div>
-          <div style={{ pointerEvents: "none" }}>
-            <SocialLinkIntercept links={CONNECT_LINKS} cardOwner="alexmorgan" ownerFirstName={FIRST} />
-          </div>
+          <DemoSwiftLinks n={3} />
         </div>
 
         {/* 4 — Share this card (the real card components) */}

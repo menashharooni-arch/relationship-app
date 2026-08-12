@@ -82,6 +82,7 @@ export default function Home() {
                   "Share by link, QR code, or NFC tap",
                   "They save you in one tap — nothing to download",
                   "Every share becomes a lead + automatic follow-up",
+                  "Includes Link in Bio and Email Signature",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-3 text-slate-600 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
                     <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
