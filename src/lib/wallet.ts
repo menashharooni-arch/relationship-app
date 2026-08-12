@@ -1,5 +1,5 @@
 import { PKPass } from "passkit-generator";
-import type { PassStrips, PassTheme } from "@/lib/wallet-strip";
+import type { WalletDesign } from "@/lib/wallet-strip";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -14,20 +14,6 @@ export type WalletCard = {
   cardUrl: string; // full https URL the pass barcode/link points at
 };
 
-/** The card's own look, rendered by wallet-strip.tsx. Optional: without it the
- *  pass falls back to the original fixed navy generic layout, so a strip
- *  render failure degrades to a working (if plain) pass, never a 500. */
-export type WalletDesign = {
-  theme: PassTheme;
-  strips: PassStrips;
-  /** The capture tier: the strip IS the real card, so the pass shows nothing
-   *  else — no barcode block, no contact rows, and no header branding (the
-   *  wordmark is BLUE and clashed on card-colored chrome; the card face
-   *  already says who it is). The card face also carries its own QR and
-   *  contact details. */
-  bare?: boolean;
-};
-
 // Pass images are committed under /public/wallet and served by the CDN — fetched
 // here rather than read from disk (files in /public aren't on the serverless FS).
 async function loadAsset(name: string): Promise<Buffer> {
@@ -39,10 +25,10 @@ async function loadAsset(name: string): Promise<Buffer> {
 // Build a SIGNED .pkpass for a card. Only called when hasWalletConfig() is true,
 // so the Apple certificate env vars are guaranteed present.
 //
-// With `design` (the normal path): a storeCard whose strip is the card's OWN
-// design — same template language as the OG share preview — and whose chrome
-// colors match the template. Without it: the original fixed navy generic pass,
-// kept as the degrade path so a strip-render failure still ships a pass.
+// With `design` (the normal path): a storeCard whose band is composed from the
+// card's own colours and parts, and whose chrome is coloured to continue that
+// band without a seam. Without it: the original fixed navy generic pass, kept
+// as the degrade path so a strip-render failure still ships a pass.
 export async function buildPkpass(card: WalletCard, design?: WalletDesign): Promise<Buffer> {
   const [icon, icon2, icon3, logo, logo2] = await Promise.all([
     loadAsset("icon.png"),
@@ -56,10 +42,7 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // would vanish, so those passes drop the image and use logoText instead
   // (which renders in foregroundColor and adapts).
   const darkChrome = design ? design.theme.darkChrome : true;
-  // Bare (real-card) passes carry NO logo at all — any header branding sits
-  // on top of the card-colored surface and breaks the "it's just my card"
-  // illusion (and the wordmark is blue, which clashed on dark card colors).
-  const wantLogo = !design?.bare && darkChrome;
+  const wantLogo = darkChrome;
   const files: Record<string, Buffer> = {
     "icon.png": icon,
     "icon@2x.png": icon2,
@@ -87,7 +70,7 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
       // NO logoText on dark chrome: logo.png is a 160x50 WORDMARK that already
       // reads "SwiftCard", so setting logoText printed the brand twice in the
       // pass header. Light chrome has no wordmark (see above) and needs it.
-      ...(wantLogo || design?.bare ? {} : { logoText: "SwiftCard" }),
+      ...(wantLogo ? {} : { logoText: "SwiftCard" }),
       foregroundColor: design?.theme.foregroundColor ?? "rgb(255, 255, 255)",
       backgroundColor: design?.theme.backgroundColor ?? "rgb(13, 27, 62)",
       labelColor: design?.theme.labelColor ?? "rgb(147, 197, 253)",
@@ -110,17 +93,16 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
     altText: "Scan to connect",
   });
 
-  if (design?.bare) {
-    // The real-card tier, owner's final spec 2026-08-11: the strip is the
-    // card, edge to edge, and Apple's QR block fills the bottom. NO fields
-    // between them — the card art already carries every detail, and rows of
-    // text under it competed with the QR for the bottom half. Chrome stays
-    // in the card's sampled color, detail on the back.
-    pass.type = "storeCard";
-  } else if (design) {
-    // storeCard = the strip-capable layout. The strip carries the identity
-    // (name/title/company in the card's own design), so the fields below it
+  if (design) {
+    // storeCard = the strip-capable layout. The band carries the identity
+    // (name, title, company in the card's own colours), so the fields below it
     // hold only the contact details.
+    //
+    // These rows are not decoration. Between the band and Apple's barcode block
+    // sits a third of the pass that nothing else can fill, and the previous
+    // design left it deliberately empty — which is most of why the pass read as
+    // unfinished. Two rows of real information, on the same surface the band
+    // ends on, is what makes the whole face look composed.
     pass.type = "storeCard";
     if (card.phone) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
     if (card.email) pass.secondaryFields.push({ key: "email", label: "EMAIL", value: card.email });
