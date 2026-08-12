@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
-import { hasSharedWith, markSharedWith, getVisitorInfo } from "@/lib/visitor";
+import { hasSharedWith, markSharedWith, getVisitorInfo, getVisitorId } from "@/lib/visitor";
 import LinkMark from "@/components/LinkMark";
 import { brandBackground, hostLabel } from "@/lib/link-brand";
 // The SHARED icon — it accepts a className. The file-local PlatformIcon below
@@ -154,6 +154,8 @@ export default function SocialLinkIntercept({
           phone: form.phone,
           email: form.email || null,
           card_owner: cardOwner,
+          // Joins this contact to their own card_events — see SaveContactButton.
+          visitor_id: getVisitorId(),
           source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
           sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),

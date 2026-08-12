@@ -517,9 +517,8 @@ export default function ContactsClient({
       // displayed log is still accurate and a dropped request is no reason to
       // blank out a correct history.
     }
-    if (!lead.visitor_id) return;
     try {
-      const res = await fetch(`/api/card-events?visitor_id=${lead.visitor_id}`);
+      const res = await fetch(`/api/card-events?lead_id=${encodeURIComponent(lead.id)}`);
       const data = await res.json();
       if (selectSeq.current === seq && Array.isArray(data)) setEvents(data);
     } catch {
@@ -759,10 +758,9 @@ export default function ContactsClient({
       .then((r) => r.json())
       .then((d) => { if (selectSeq.current === seq) setConvoMessages(Array.isArray(d.messages) ? d.messages : []); })
       .catch(() => { if (selectSeq.current === seq) setConvoMessages([]); });
-    if (!lead.visitor_id) return;
     setLoadingEvents(true);
     try {
-      const res = await fetch(`/api/card-events?visitor_id=${lead.visitor_id}`);
+      const res = await fetch(`/api/card-events?lead_id=${encodeURIComponent(lead.id)}`);
       const data = await res.json();
       if (selectSeq.current === seq) setEvents(Array.isArray(data) ? data : []);
     } catch {
