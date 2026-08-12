@@ -259,6 +259,11 @@ export default function SaveContactButton({
           phone: form.phone,
           email: form.email || null,
           card_owner: cardOwner,
+          // The browser id that every card_event for this person also carries.
+          // Without it the contact stores null and its conversation can never
+          // show a single view or save — the events are recorded, they just
+          // have nothing to join to.
+          visitor_id: getVisitorId(),
           source: "save_contact_conversion",
           sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),

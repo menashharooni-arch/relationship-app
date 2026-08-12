@@ -29,8 +29,13 @@ describe("one refresh both feeds behind the panel", () => {
   it("re-reads the contact's card events too", () => {
     // The panel merges BOTH sources. Refreshing only messages would leave a
     // card scan or vCard save just as invisible as the email was.
+    //
+    // Asked for by LEAD, not by visitor id: three share surfaces never stored
+    // a visitor id, so keying the request on one meant those contacts asked
+    // for nothing and showed an empty conversation forever. The route resolves
+    // the lead and matches its visitor id AND its email/phone.
     const fn = ui().match(/async function refreshActivity\(\)[\s\S]*?\n  \}/)?.[0] ?? "";
-    expect(fn).toMatch(/fetch\(`\/api\/card-events\?visitor_id=\$\{lead\.visitor_id\}`\)/);
+    expect(fn).toMatch(/fetch\(`\/api\/card-events\?lead_id=\$\{encodeURIComponent\(lead\.id\)\}`\)/);
   });
 });
 

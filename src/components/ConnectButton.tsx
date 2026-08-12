@@ -3,7 +3,7 @@
 import { useState } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
-import { getVisitorInfo, markSharedWith } from "@/lib/visitor";
+import { getVisitorId, getVisitorInfo, markSharedWith } from "@/lib/visitor";
 
 export default function ConnectButton({
   cardOwner,
@@ -58,6 +58,8 @@ export default function ConnectButton({
           email: form.email.trim() || null,
           message: form.message.trim() || null,
           card_owner: cardOwner,
+          // Joins this contact to their own card_events — see SaveContactButton.
+          visitor_id: getVisitorId(),
           source: "swift_connect",
           // Submitting the share form IS the consent (the disclosure sits right
           // above the Send button) — so every share opts in to text + email.

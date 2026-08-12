@@ -32,8 +32,12 @@ function timeAgo(iso: string) {
 }
 
 // Notification types that are about a contact — clicking these rows opens the
-// active card's contacts ("shared their info" and "saved your contact").
-const CONTACT_TYPES = new Set(["new_lead", "contact_saved"]);
+// active card's contacts ("shared their info", "saved your contact", "viewed
+// your card"). A view lands here too: when the viewer is someone we know, the
+// row names them and the useful destination is that person's conversation, not
+// a chart. When it is "Someone", the name match below finds nothing and the
+// row opens the contacts list, which is still the right place to look.
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed"]);
 
 export default function NotificationsPanel({
   initial,

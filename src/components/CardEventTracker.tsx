@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getVisitorId } from "@/lib/visitor";
+import { getVisitorId, getVisitorInfo } from "@/lib/visitor";
 
 // Fire-once guard, per (username+surface), for this page load. Prevents a double
 // view record from React strict-mode's double-mount (dev) or any remount, so the
@@ -26,6 +26,13 @@ export default function CardEventTracker({
     firedViews.add(viewsKey);
 
     const visitorId = getVisitorId();
+    // Who is viewing, when we already know. A view used to carry ONLY the
+    // browser id, which made it the one event that could never say who it was:
+    // the owner's notification had to read "Someone viewed your card" even for
+    // a contact they had already met, and the contact's own conversation could
+    // only match it by that id. Once a visitor has shared their details with
+    // anyone, every later view is attributable.
+    const info = getVisitorInfo();
     fetch("/api/card-events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -34,6 +41,9 @@ export default function CardEventTracker({
         visitor_id: visitorId,
         event_type: "viewed_card",
         source,
+        visitor_name: info?.name || null,
+        visitor_email: info?.email || null,
+        visitor_phone: info?.phone || null,
         referrer_url: document.referrer || null,
         device_info: navigator.userAgent.slice(0, 250),
       }),

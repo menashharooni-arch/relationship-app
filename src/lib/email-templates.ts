@@ -12,6 +12,16 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // requirement.
 const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
 
+// CAN-SPAM §7704(a)(5) requires a VALID PHYSICAL POSTAL ADDRESS in every
+// commercial message — a street address, or a registered PO/private mailbox.
+// "New York, NY" is a city, not an address: it satisfies neither the statute
+// nor the filters that look for a parseable address block, and its absence is
+// a documented spam signal. Set COMPANY_POSTAL_ADDRESS to the real one (a
+// virtual-mailbox address is fine and is what most small companies use); the
+// fallback below keeps the footer from rendering empty but is NOT compliant.
+const POSTAL_ADDRESS =
+  process.env.COMPANY_POSTAL_ADDRESS?.trim() || "Swift Card Inc · New York, NY";
+
 // RFC 8058 one-click unsubscribe headers. Gmail & Yahoo REQUIRE these on bulk /
 // marketing / automated-lifecycle mail (their Feb-2024 sender rules) — a visible
 // footer link alone is NOT enough and is a leading reason legitimate mail lands
@@ -19,9 +29,22 @@ const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
 // unsubscribe URL (both List-Unsubscribe and the -Post header must be present for
 // one-click to be honored). The URL MUST be a route handler that exports POST —
 // see unsubUrl() below for why a page route can never satisfy this in Next 16.
+// UNSUBSCRIBE_MAILTO adds a second, mailto: method to the same header. Gmail and
+// Yahoo act on the https one-click URI, but a number of clients — Outlook and
+// Hotmail most importantly — only ever surface the mailto form, so an
+// https-only header reads to them as "no unsubscribe offered" and costs
+// reputation on exactly the providers we're weakest with. It is deliberately
+// opt-in: advertising a mailbox that does not exist bounces every opt-out
+// request, which is worse than offering only the link. Set it ONLY once
+// the address actually receives mail.
 export function marketingHeaders(unsubscribeUrl: string): Record<string, string> {
+  const mailto = process.env.UNSUBSCRIBE_MAILTO?.trim();
   return {
-    "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    // RFC 2369 allows several methods, most-preferred last; RFC 8058 one-click
+    // always resolves to the https URI, so the mailto never hijacks it.
+    "List-Unsubscribe": mailto
+      ? `<mailto:${mailto}?subject=unsubscribe>, <${unsubscribeUrl}>`
+      : `<${unsubscribeUrl}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
 }
@@ -55,7 +78,7 @@ function layout(body: string, unsubscribeUrl?: string) {
   <!-- Footer -->
   <tr><td style="padding-top:40px;border-top:1px solid #E4DDD4;margin-top:40px;">
     <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
-      SwiftCard · New York, NY
+      ${POSTAL_ADDRESS}
     </p>
     ${unsubscribeUrl
       ? `<p style="margin:4px 0 0;color:#b6bcc6;font-size:9px;line-height:1.5;"><a href="${unsubscribeUrl}" style="color:#b6bcc6;text-decoration:underline;">Unsubscribe</a></p>`

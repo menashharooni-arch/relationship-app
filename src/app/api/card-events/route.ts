@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
-import { getSourceLabel } from "@/lib/source-labels";
+import { cardEventNotice } from "@/lib/card-event-notify";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -10,6 +10,15 @@ import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
+/**
+ * How long one viewer stays "already announced" for one card.
+ *
+ * Six hours, not a day: the same person opening a card twice in a morning is
+ * one piece of news, but someone coming back the next afternoon genuinely is
+ * fresh interest and is the whole reason an owner watches these.
+ */
+const VIEW_NOTIFY_WINDOW_MS = 6 * 60 * 60 * 1000;
 
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
@@ -69,8 +78,8 @@ export async function POST(req: NextRequest) {
       device_info: device_info || null,
     });
 
-    // Fire in-app notification for meaningful events (not every view)
-    if (event_type === "downloaded_vcard") {
+    // Fire in-app notification for meaningful events.
+    if (event_type === "viewed_card" || event_type === "downloaded_vcard") {
       // card_owner_username is the CARD's slug — resolve through the cards
       // table first (multi-card accounts), then the legacy profile slug.
       const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
@@ -79,38 +88,53 @@ export async function POST(req: NextRequest) {
         : await admin.from("profiles").select("id").eq("username", card_owner_username).maybeSingle();
 
       if (owner?.id) {
-        const sourceLabel = getSourceLabel(source);
-        const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
-        const body = `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`;
-        const { insertNotification } = await import("@/lib/notify");
-        const wrote = await insertNotification({
-          user_id: owner.id,
-          card_owner: card_owner_username,
-          type: "contact_saved",
-          title: "Contact saved",
-          body,
-        });
-        // Buzz the phone too, like new_lead and milestones already do — the
-        // bell row alone meant the owner only learned about a save the next
-        // time they opened the dashboard. Gated on `wrote` so the loser of a
-        // dedupe race doesn't push a notification it never created.
-        if (wrote) {
-          const { sendPushToUser } = await import("@/lib/push");
-          await sendPushToUser(owner.id, {
-            title: "Contact saved",
+        const isView = event_type === "viewed_card";
+        const notice = cardEventNotice({ eventType: event_type, visitorName: visitor_name, source });
+
+        // A view is the one event that repeats: the same person opening the
+        // same card five times is five rows, and five pushes would be noise
+        // the owner learns to ignore. One notification per viewer per card per
+        // window — a genuinely new look tomorrow still surfaces. Keyed on the
+        // visitor rather than the IP where we have one, so two people behind
+        // one office network don't silence each other.
+        const throttled = isView && await isRateLimited(
+          `view-notify:${card_owner_username}:${visitor_id || ip}`,
+          1,
+          VIEW_NOTIFY_WINDOW_MS,
+        );
+
+        if (notice && !throttled) {
+          const { title, body } = notice;
+          const { insertNotification } = await import("@/lib/notify");
+          const wrote = await insertNotification({
+            user_id: owner.id,
+            card_owner: card_owner_username,
+            type: notice.type,
+            title,
             body,
-            url: `${APP_URL}/dashboard`,
-          }).catch(() => { /* a dead subscription must never fail the event */ });
+          });
+          // Buzz the phone too, like new_lead and milestones already do — the
+          // bell row alone meant the owner only learned about a save the next
+          // time they opened the dashboard. Gated on `wrote` so the loser of a
+          // dedupe race doesn't push a notification it never created.
+          if (wrote) {
+            const { sendPushToUser } = await import("@/lib/push");
+            await sendPushToUser(owner.id, {
+              title,
+              body,
+              url: `${APP_URL}/dashboard`,
+            }).catch(() => { /* a dead subscription must never fail the event */ });
+          }
+          // Mirror this conversation notification to the owner's CRM.
+          await dispatchCrmEvent(card_owner_username, {
+            type: "conversation.notification",
+            event: isView ? "card_viewed" : "contact_saved",
+            title,
+            body,
+            contact: { name: visitor_name || null, email: visitor_email || null, phone: visitor_phone || null },
+            source: source || "direct_link",
+          });
         }
-        // Mirror this conversation notification to the owner's CRM.
-        await dispatchCrmEvent(card_owner_username, {
-          type: "conversation.notification",
-          event: "contact_saved",
-          title: "Contact saved",
-          body,
-          contact: { name: visitor_name || null, email: visitor_email || null, phone: visitor_phone || null },
-          source: source || "direct_link",
-        });
       }
     }
 
@@ -127,22 +151,62 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const visitorId = req.nextUrl.searchParams.get("visitor_id");
-    if (!visitorId) return NextResponse.json([], { status: 200 });
+    const params = req.nextUrl.searchParams;
+    const leadId = params.get("lead_id");
+    const visitorIdParam = params.get("visitor_id");
+    if (!leadId && !visitorIdParam) return NextResponse.json([], { status: 200 });
 
     // All the user's card slugs (profile + every card) — a multi-card account
     // must see the visitor's activity on ANY of its cards, not just the primary.
     const usernames = await getOwnerUsernames(user.id);
-
     const admin = getAdminSupabase();
-    const { data } = await admin
-      .from("card_events")
-      .select("id, event_type, source, visitor_name, visitor_email, created_at")
-      .in("card_owner_username", usernames)
-      .eq("visitor_id", visitorId)
-      .order("created_at", { ascending: true });
 
-    return NextResponse.json(data ?? []);
+    // Identity to match on. `lead_id` is the good path: the contact's details
+    // stay server-side and we can match on more than one of them. `visitor_id`
+    // remains accepted so an older client keeps working.
+    let visitorId = visitorIdParam;
+    let email: string | null = null;
+    let phone: string | null = null;
+    if (leadId) {
+      const { data: lead } = await admin
+        .from("leads")
+        .select("visitor_id, email, phone, card_owner")
+        .eq("id", leadId)
+        .maybeSingle();
+      // Scoped to this owner's cards — a lead id from someone else's account
+      // must not return their visitor's activity.
+      if (!lead || !usernames.includes(lead.card_owner as string)) {
+        return NextResponse.json([], { status: 200 });
+      }
+      visitorId = (lead.visitor_id as string | null) ?? null;
+      email = (lead.email as string | null) ?? null;
+      phone = (lead.phone as string | null) ?? null;
+    }
+
+    // Three narrow queries rather than one .or(): the values are user-supplied
+    // emails and phone numbers, and PostgREST's or() takes a comma-separated
+    // filter string, so a comma or a quote inside one would change the query's
+    // shape rather than just fail to match.
+    //
+    // Why more than visitor_id at all: that id is per-browser. The same person
+    // who shared their details in Safari and later opens the link from
+    // Messages is two ids, and matching only the first would show their
+    // conversation as empty. Matching what they TOLD us survives the change.
+    const cols = "id, event_type, source, visitor_name, visitor_email, created_at";
+    const lookups = [
+      visitorId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_id", visitorId) : null,
+      email ? admin.from("card_events").select(cols).in("card_owner_username", usernames).ilike("visitor_email", email) : null,
+      phone ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_phone", phone) : null,
+    ].filter(Boolean);
+
+    const results = await Promise.all(lookups as NonNullable<(typeof lookups)[number]>[]);
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const r of results) for (const row of r.data ?? []) byId.set(row.id as string, row);
+
+    const merged = [...byId.values()].sort(
+      (a, b) => String(a.created_at).localeCompare(String(b.created_at)),
+    );
+    return NextResponse.json(merged);
   } catch {
     return NextResponse.json([]);
   }

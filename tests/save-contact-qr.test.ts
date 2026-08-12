@@ -89,12 +89,18 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     }
   });
 
-  it("that event type is what fires the bell, the activity row and the CRM", () => {
+  it("that event type is what fires the bell, the activity row and the CRM", async () => {
+    // The route now handles views alongside saves, and the copy moved into
+    // lib/card-event-notify so it could be tested directly instead of grepped.
+    // What must not change: a save still reaches all three destinations, and
+    // still under the type the rest of the product keys on.
     expect(events).toMatch(/event_type === "downloaded_vcard"/);
-    const block = events.slice(events.indexOf('event_type === "downloaded_vcard"'));
+    const block = events.slice(events.indexOf('event_type === "viewed_card"'));
     expect(block).toContain("insertNotification");
-    expect(block).toContain('type: "contact_saved"');
     expect(block).toContain("dispatchCrmEvent");
+
+    const { cardEventNotice } = await import("@/lib/card-event-notify");
+    expect(cardEventNotice({ eventType: "downloaded_vcard" })?.type).toBe("contact_saved");
   });
 
   it("both also post the contact_save analytics event", () => {

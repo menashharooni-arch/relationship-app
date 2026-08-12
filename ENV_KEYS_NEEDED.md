@@ -21,6 +21,8 @@ Do NOT commit `.env.local` to git.
 |---|---|
 | `RESEND_API_KEY` | resend.com → Login → API Keys → Create API Key |
 | `RESEND_FROM_EMAIL` | The "from" address for all emails. Format: `Swisscard <hello@yourdomain.com>`. Must be a verified sender/domain in Resend. For testing you can use `onboarding@resend.dev` (Resend sandbox — only sends to your own email). |
+| `COMPANY_POSTAL_ADDRESS` | **Deliverability + legal.** The physical postal address printed in every email footer. CAN-SPAM requires a real street address or a registered PO/private mailbox — a city alone ("New York, NY") satisfies neither the law nor the filters that look for a parseable address block. A virtual-mailbox address is fine. Unset = a non-compliant fallback is used. |
+| `UNSUBSCRIBE_MAILTO` | **Deliverability.** Optional second unsubscribe method (e.g. `unsubscribe@swiftcard.me`) added to the `List-Unsubscribe` header alongside the https one-click URL. Outlook/Hotmail only surface the mailto form. **Only set this once the mailbox actually receives mail** — advertising a dead address bounces every opt-out and is worse than omitting it. |
 | `ADMIN_EMAILS` | Comma-separated emails allowed into the **Admin Panel** at `/admin` (plan toggling, analytics, promo codes, broadcast). e.g. `you@gmail.com,partner@company.com`. Your email MUST be here to see `/admin`. |
 | `ADMIN_SECRET` | Long random string. Only protects the automated `/api/admin/promo-codes/send` endpoint. The Admin Panel itself is gated by `ADMIN_EMAILS`, not this. |
 | `GEMINI_API_KEY` | aistudio.google.com → Get API key. Primary AI provider for follow-up generation (cheaper than Anthropic). Optional fallbacks: `OPENAI_API_KEY` (used first if set), `ANTHROPIC_API_KEY`. |

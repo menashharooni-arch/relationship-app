@@ -73,8 +73,26 @@ export default function NotificationBell({
       } catch { /* ignore */ }
     };
 
+    // Poll NOW, not in 30 seconds. The interval alone meant opening the app —
+    // which is exactly when someone checks whether their card was viewed —
+    // showed whatever was true up to half a minute ago, and a push that had
+    // already buzzed the phone led to a bell that still looked empty.
+    poll();
+
+    // And again whenever the app comes back to the foreground. In the iOS
+    // shell a backgrounded webview's timers are suspended, so without this the
+    // first thing a returning user sees is stale by however long they were
+    // away.
+    const onVisible = () => { if (document.visibilityState === "visible") poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
     const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, []);
 
   async function markAllRead() {
