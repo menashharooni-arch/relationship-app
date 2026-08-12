@@ -455,15 +455,16 @@ export default async function CardPage({
         )}
       </div>
 
-      {/* "Made with SwiftCard" badge — Free only, removed on Pro/Office. A
-          branded pill (colored logo chip + "Get yours free" CTA) so every free
-          card quietly recruits its recipients, without looking spammy on a
-          professional card. src=badge tracks the signups it drives. */}
-      {!isPaidPlan(profile.plan) && (
-        <a
-          href={`${APP_URL}/?src=badge`}
-          className="group w-full max-w-sm flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-white border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
-        >
+      {/* "Made with SwiftCard" badge — EVERY card, every plan (owner decision
+          2026-08-11; it was Free-only before). A branded pill (colored logo
+          chip + "Get yours free" CTA) so every shared card quietly recruits
+          its recipients. src=badge tracks the signups it drives. If a paid
+          "remove branding" tier ever comes back, re-gate this AND the
+          SwiftLinkProfile footer together — they drifted apart once. */}
+      <a
+        href={`${APP_URL}/?src=badge`}
+        className="group w-full max-w-sm flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-white border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all"
+      >
           <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,#1D3FB8,#2563EB 55%,#4DA8F5)" }}>
             <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="#fff" /></svg>
           </span>
@@ -474,8 +475,7 @@ export default async function CardPage({
             Get yours free
             <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" /></svg>
           </span>
-        </a>
-      )}
+      </a>
 
       {/* In-app only (App Review 1.2): report affordance for public cards.
           Renders null on web/SSR — the public page is unchanged. */}

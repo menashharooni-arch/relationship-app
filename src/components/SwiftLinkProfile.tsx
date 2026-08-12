@@ -47,7 +47,6 @@ export default function SwiftLinkProfile({
   verified,
   socials,
   links,
-  ownerPaid,
   appUrl,
   pageStyle,
   embedded = false,
@@ -63,7 +62,6 @@ export default function SwiftLinkProfile({
   verified: boolean;
   socials: BrandSocial[];
   links: LinkItem[];
-  ownerPaid: boolean;
   appUrl: string;
   /** Owner's "Social design" (Pro) — falls back to the stock dark look. */
   pageStyle?: SwiftLinkPageStyle;
@@ -241,20 +239,20 @@ export default function SwiftLinkProfile({
             </a>
           </div>
 
-          {/* Footer — "Made with SwiftCard" attribution badge on Free only. */}
-          {!ownerPaid && (
-            <div className="flex justify-center mt-3">
-              <a
-                href={`${appUrl}/?src=badge`}
-                className="flex items-center gap-1.5 text-white/40 text-[11px] hover:text-white/75 transition-colors"
-              >
-                <svg viewBox="0 0 100 100" className="w-3 h-3">
-                  <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
-                </svg>
-                Powered by SwiftCard.me
-              </a>
-            </div>
-          )}
+          {/* Footer — "Powered by SwiftCard" attribution on EVERY profile,
+              every plan (owner decision 2026-08-11, same call as the card
+              page's badge — the two gates had drifted apart once already). */}
+          <div className="flex justify-center mt-3">
+            <a
+              href={`${appUrl}/?src=badge`}
+              className="flex items-center gap-1.5 text-white/40 text-[11px] hover:text-white/75 transition-colors"
+            >
+              <svg viewBox="0 0 100 100" className="w-3 h-3">
+                <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
+              </svg>
+              Powered by SwiftCard.me
+            </a>
+          </div>
         </div>
       </div>
     </main>
