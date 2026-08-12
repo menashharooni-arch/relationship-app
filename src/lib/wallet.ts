@@ -113,11 +113,14 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   }
 
   if (design?.bare) {
-    // The real-card tier: the strip is the card, complete — top of the pass.
-    // Apple's QR block anchors the bottom. No fields, no logo between them:
-    // clean-edged storeCard layout (coupon's serrated ticket edges were
-    // rejected), chrome in the card's sampled color, detail on the back.
+    // The real-card tier: hybrid strip (card art + name) up top, contact
+    // fields under it. The fields came BACK 2026-08-11: with the barcode gone
+    // and no fields, the real pass rendered as a small card floating in an
+    // empty page (owner's screenshot) — the emptiness read as broken, not
+    // minimal. Chrome stays in the card's sampled color, detail on the back.
     pass.type = "storeCard";
+    if (card.phone) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
+    if (card.email) pass.secondaryFields.push({ key: "email", label: "EMAIL", value: card.email });
   } else if (design) {
     // storeCard = the strip-capable layout. The strip carries the identity
     // (name/title/company in the card's own design), so the fields below it
