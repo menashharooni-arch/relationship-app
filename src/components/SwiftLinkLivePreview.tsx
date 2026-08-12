@@ -107,7 +107,6 @@ export default function SwiftLinkLivePreview({
           verified={paid}
           socials={brandSocials}
           links={cleanLinks}
-          ownerPaid={paid}
           appUrl={APP_URL}
           pageStyle={pageStyle}
         />

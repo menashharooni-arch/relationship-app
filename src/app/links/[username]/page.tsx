@@ -152,7 +152,6 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         verified={ownerPaid}
         socials={socials.map((s) => ({ label: s.label, href: s.href, color: s.color, textColor: s.textColor }))}
         links={actionLinks}
-        ownerPaid={ownerPaid}
         appUrl={APP_URL}
         pageStyle={pageStyle}
       />
