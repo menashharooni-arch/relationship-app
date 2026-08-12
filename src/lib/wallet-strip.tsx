@@ -44,8 +44,6 @@ export type PassTheme = {
   backgroundColor: string;
   foregroundColor: string;
   labelColor: string;
-  /** Dark chrome carries the white SwiftCard wordmark; light chrome can't. */
-  darkChrome: boolean;
 };
 
 export type WalletDesign = {
@@ -373,7 +371,6 @@ export function passThemeFrom(palette: PassPalette): PassTheme {
     backgroundColor: toAppleRgb(palette.bottom),
     foregroundColor: toAppleRgb(palette.ink),
     labelColor: toAppleRgb(palette.accent),
-    darkChrome: palette.darkChrome,
   };
 }
 
