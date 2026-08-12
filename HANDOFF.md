@@ -33,17 +33,25 @@ session: have him retry, iterate on PRECISE_SCAN_PROMPT fidelity if needed
    code** (phone …0348). Ticket #28933836 has the history. See memory:
    twilio-swiftcard-state.
 2. **Notifications audit findings (task #4)** — workflow confirmed 3 real
-   defects (full detail: `.claude` workflow journal wf_fa1d8ca8-c2f):
-   - `viewed_card` notifications DON'T EXIST: `api/card-events/route.ts:71`
-     only notifies on `downloaded_vcard`. A contact viewing a card never hits
-     the bell/panel/push. Menash explicitly wants this ("bulletproof view
-     notifications") → build the viewed_card branch + per-(contact,day) dedupe.
-   - limit(20) cliff: `api/notifications/route.ts:19,:30` +
-     `dashboard/page.tsx:362,:364` — unread rows past 20 vanish from list AND
-     badge (badge counts only fetched rows). Fix: unread-first order + true
-     unread count + pagination.
-   - `contact_saved` never pushes (`card-events/route.ts:84` inserts the row,
-     no `sendPushToUser`) while new_lead/milestones do.
+   defects (full detail: `.claude` workflow journal wf_fa1d8ca8-c2f).
+   **Two are FIXED and deployed (2026-08-12, commit 71f48c9)**; one is left
+   because it's a feature build needing Menash's product call:
+   - STILL OPEN — `viewed_card` notifications DON'T EXIST:
+     `api/card-events/route.ts` only notifies on `downloaded_vcard`. A contact
+     viewing a card never hits the bell/panel/push. Menash explicitly wants
+     this ("bulletproof view notifications") → build the viewed_card branch +
+     per-(contact,day) dedupe. Deliberately NOT built blind: the dedupe window
+     and whether a view should push are his calls, not defaults.
+   - FIXED — limit(20) cliff. All five capped reads (the API's scoped query
+     and its no-migration fallback; the dashboard's panel, bell, and fallback)
+     now order `read` ascending before `created_at` descending, so unread rows
+     can never be pushed out of the window by recent read history. Pinned by
+     `tests/notification-reach.test.ts`. Not done: true unread count +
+     pagination — the badge still caps at the 20 fetched rows, which only
+     shows once someone has 20+ unread (it renders "9+" past 9 anyway).
+   - FIXED — `contact_saved` now calls `sendPushToUser` alongside the row,
+     gated on `insertNotification`'s return so a dedupe-race loser doesn't
+     buzz for a row it never wrote. Same test pins it.
    - 19 more findings were mapped but NOT verified (session limit): journal
      has them (dedupe windows, IP rate-limit swallowing, cross-device
      attribution, silent insertNotification failures…). Re-run verify via
