@@ -383,8 +383,19 @@ export default function Home() {
                 what checkout actually grants. Web only (NativeHidden): the iOS
                 shell must not advertise purchases (App Review 3.1.1). */}
             <NativeHidden>
-              <p className="text-white/40 text-[13px] mt-4" data-reveal>
-                Pro plans start with {TRIAL_DAYS} days free — cancel anytime.
+              {/* Was text-white/40 at 13px — the offer was there but read as a
+                  disclaimer under the buttons and did no selling. Same words,
+                  given an object to sit in so it registers as part of the CTA
+                  block rather than fine print beneath it. */}
+              <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 text-[13.5px] text-white/80" data-reveal>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/90 text-[#2450d8]">
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                    <path d="M11.2 3.3a.6.6 0 011.13 0l1.36 3.66a.6.6 0 00.35.35l3.66 1.36a.6.6 0 010 1.13l-3.66 1.36a.6.6 0 00-.35.35l-1.36 3.66a.6.6 0 01-1.13 0l-1.36-3.66a.6.6 0 00-.35-.35L5.83 9.8a.6.6 0 010-1.13l3.66-1.36a.6.6 0 00.35-.35z" />
+                  </svg>
+                </span>
+                <span>
+                  <span className="font-bold text-white">Pro starts with {TRIAL_DAYS} days free</span> — cancel anytime.
+                </span>
               </p>
             </NativeHidden>
           </div>

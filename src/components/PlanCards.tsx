@@ -6,6 +6,7 @@ import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
+import ProTrialCallout from "@/components/ProTrialCallout";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -118,15 +119,20 @@ export default function PlanCards({
             ) : (
               <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
             )}
-            <p className="text-white/80 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.pro}</p>
+            <ProTrialCallout className="mt-4" priceLabel={annual ? `$${PRO_ANNUAL}/year` : `$${PRO_MONTHLY}/month`} />
+            <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
             <ul className="space-y-2.5 mb-7 flex-1">
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
             </ul>
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
               {busy === "pro" ? "Loading…" : "Start free trial →"}
             </button>
-            <p className="text-white/70 text-[11px] text-center mt-2 leading-relaxed">
-{TRIAL_DAYS} days free for new customers, then auto-renews. Cancel anytime.
+            {/* Eligibility + billing terms stay here; ProTrialCallout above
+                carries the offer itself. "for new customers" is load-bearing —
+                checkout only grants a trial to customers with no prior Stripe
+                subscription (pinned by copy-truth.test.ts). */}
+            <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+              {TRIAL_DAYS} days free for new customers · card required · renews automatically
             </p>
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />
