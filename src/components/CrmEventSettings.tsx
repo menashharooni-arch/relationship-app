@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PlanGate, PlanBadge } from "@/components/PlanGate";
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
 
 type Props = {
   initialNotifications: boolean;

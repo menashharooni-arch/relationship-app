@@ -78,9 +78,48 @@ export function PlanGate({
    */
 }
 
+/** The site phrase the gate copy ends on. Kept here so the one place that has
+ *  to know how to set it is the one place that renders it. */
+const SITE_PHRASE = "on swiftcard.me";
+
 /**
- * The neutral native notice. No link, no button, no price, no "upgrade" verb,
- * no website mention — just a PRO/OFFICE badge and the descriptive copy.
+ * Renders gate copy with "on swiftcard.me" held together on one line.
+ *
+ * Measured, not guessed: at every gate width (320–640px) the domain wrapped
+ * onto a line BY ITSELF, leaving "on" stranded at the end of the line above. A
+ * bare domain sitting alone on the last line reads as a stray link and pulls
+ * exactly the wrong kind of attention to a notice whose whole job is to be
+ * calm. Binding the two words means the phrase moves down together and still
+ * reads as a sentence.
+ *
+ * A nowrap span, NOT a non-breaking space in the 30 copy strings: the strings
+ * are asserted character-for-character across two test files, and typing a
+ * U+00A0 into them would be invisible in review and impossible to grep.
+ */
+export function GateCopy({ copy }: { copy: string }) {
+  const parts = copy.split(SITE_PHRASE);
+  if (parts.length === 1) return <>{copy}</>;
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className="whitespace-nowrap">{SITE_PHRASE}</span>}
+          {part}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The neutral native notice. No link, no button, no price, no "upgrade" verb —
+ * just a PRO/OFFICE badge and the descriptive copy.
+ *
+ * The copy now NAMES the website (owner decision, 2026-08-12) so a Free user
+ * who hits a locked feature in the app learns where the plan lives. It stays
+ * inert text: no anchor, no href, no tap target. That distinction is the whole
+ * compliance posture here and is pinned by plan-gate.test.ts.
+ *
  * Exported so it can be unit-tested in isolation.
  */
 export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: string }) {
@@ -90,7 +129,13 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
       className="flex items-start gap-2.5 rounded-2xl border border-gray-800/80 bg-gray-900 px-4 py-3"
     >
       <PlanBadge tier={tier} />
-      <p className="text-sm leading-snug text-gray-300">{copy}</p>
+      {/* text-wrap:pretty pulls a word down rather than leaving a stubby last
+          line — the copy grew by "on swiftcard.me" and several of these now
+          break onto a short final line. Same pattern the card page's bio uses.
+          Unsupported engines simply ignore it. */}
+      <p className="text-sm leading-snug text-gray-300 [text-wrap:pretty]">
+        <GateCopy copy={copy} />
+      </p>
     </div>
   );
 }

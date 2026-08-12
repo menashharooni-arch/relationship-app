@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
+import { GateCopy } from "@/components/PlanGate";
 
 // Native-safe remaps for stored notification bodies that contain selling copy.
 // The stored body is unchanged on web; only the in-app native render is swapped.
 const NATIVE_BODY_REMAP: Record<string, string> = {
   sequence_paused:
-    "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
+    "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan on swiftcard.me — nothing was deleted.",
 };
 
 type Notification = {
@@ -169,7 +170,7 @@ export default function NotificationsPanel({
                 // string. Web (isNative false, incl. server + first paint) shows
                 // the stored body exactly as today.
                 const displayBody = isNative && NATIVE_BODY_REMAP[n.type] ? NATIVE_BODY_REMAP[n.type] : n.body;
-                return displayBody && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{displayBody}</p>;
+                return displayBody && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><GateCopy copy={displayBody} /></p>;
               })()}
               {/* Referral month earned → the explicit tap-to-claim */}
               {n.type === "referral_claim" && (

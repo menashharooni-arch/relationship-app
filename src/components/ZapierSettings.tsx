@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { PlanGate, PlanBadge } from "@/components/PlanGate";
+import { PlanGate, PlanBadge, GateCopy } from "@/components/PlanGate";
 import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan.";
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
 
 export default function ZapierSettings({
   initialUrl,
@@ -170,7 +170,7 @@ export default function ZapierSettings({
         <PlanGate
           feature="integration-zapier"
           nativeCopy={INTEGRATIONS_NATIVE_COPY}
-          nativeContent={<p className="text-xs text-slate-400">{INTEGRATIONS_NATIVE_COPY}</p>}
+          nativeContent={<p className="text-xs text-slate-400"><GateCopy copy={INTEGRATIONS_NATIVE_COPY} /></p>}
         >
           <p className="text-xs text-slate-400">Upgrade to Pro to connect Zapier and automate your lead workflow.</p>
         </PlanGate>
