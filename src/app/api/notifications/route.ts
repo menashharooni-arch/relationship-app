@@ -16,7 +16,13 @@ export async function GET(req: NextRequest) {
     .eq("user_id", user.id);
   if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
 
-  const { data: scoped, error } = await q.order("created_at", { ascending: false }).limit(20);
+  // Unread first, then newest. With a plain created_at order, 20 recent READ
+  // rows pushed every older unread one out of the window — it vanished from
+  // the list AND from the badge, which only counts the rows it was handed.
+  const { data: scoped, error } = await q
+    .order("read", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(20);
   let data: Record<string, unknown>[] | null = scoped;
 
   // If the card_owner column migration hasn't run yet, selecting/filtering on
@@ -26,6 +32,7 @@ export async function GET(req: NextRequest) {
       .from("notifications")
       .select("id, type, title, body, read, created_at")
       .eq("user_id", user.id)
+      .order("read", { ascending: true })
       .order("created_at", { ascending: false })
       .limit(20));
   }

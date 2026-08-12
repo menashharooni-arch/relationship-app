@@ -9,6 +9,8 @@ import { isOwnerRequest } from "@/lib/self-traffic";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
+
 // Public: called from card page without auth
 export async function POST(req: NextRequest) {
   try {
@@ -81,13 +83,25 @@ export async function POST(req: NextRequest) {
         const who = visitor_name ? `${visitor_name} saved` : "Someone saved";
         const body = `${who} your contact card${source && source !== "direct_link" ? ` from ${sourceLabel}` : ""}.`;
         const { insertNotification } = await import("@/lib/notify");
-        await insertNotification({
+        const wrote = await insertNotification({
           user_id: owner.id,
           card_owner: card_owner_username,
           type: "contact_saved",
           title: "Contact saved",
           body,
         });
+        // Buzz the phone too, like new_lead and milestones already do — the
+        // bell row alone meant the owner only learned about a save the next
+        // time they opened the dashboard. Gated on `wrote` so the loser of a
+        // dedupe race doesn't push a notification it never created.
+        if (wrote) {
+          const { sendPushToUser } = await import("@/lib/push");
+          await sendPushToUser(owner.id, {
+            title: "Contact saved",
+            body,
+            url: `${APP_URL}/dashboard`,
+          }).catch(() => { /* a dead subscription must never fail the event */ });
+        }
         // Mirror this conversation notification to the owner's CRM.
         await dispatchCrmEvent(card_owner_username, {
           type: "conversation.notification",
