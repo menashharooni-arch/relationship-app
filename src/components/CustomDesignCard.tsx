@@ -54,7 +54,7 @@ export default function CustomDesignCard({
       {!isPro && (
         <PlanGate
           feature="custom-designer"
-          nativeCopy="Pro feature — The custom card designer is only available on the Pro plan."
+          nativeCopy="Pro feature — The custom card designer is only available on the Pro plan on swiftcard.me"
         >
           <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
             Make it unmistakably yours — unlock the custom designer with Pro →

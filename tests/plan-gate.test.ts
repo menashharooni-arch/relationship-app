@@ -46,7 +46,7 @@ describe("PlanGate web branch renders children byte-for-byte", () => {
 
 describe("PlanGate native notice is neutral — no selling", () => {
   const NATIVE_COPY =
-    "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan.";
+    "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me";
   const rawOut = renderToStaticMarkup(h(PlanNotice, { tier: "pro" as const, copy: NATIVE_COPY }));
   // React escapes text nodes for HTML; decode the entities React emits so we can
   // compare against the exact human copy string.
@@ -59,10 +59,14 @@ describe("PlanGate native notice is neutral — no selling", () => {
   const out = decode(rawOut);
 
   it("shows the exact neutral copy", () => {
-    expect(out).toContain(NATIVE_COPY);
+    // Compared against the rendered TEXT, not the raw markup: PlanNotice wraps
+    // "on swiftcard.me" in a nowrap span so the domain can't be orphaned onto
+    // a line of its own, which splits the sentence across elements. What must
+    // stay exact is what the user reads.
+    expect(out.replace(/<[^>]+>/g, "")).toContain(NATIVE_COPY);
   });
 
-  it("contains no link, no button, no price, no 'upgrade' verb, no website", () => {
+  it("contains no link, no button, no price, and no 'upgrade' verb", () => {
     expect(out).not.toMatch(/<a[\s>]/i);
     expect(out).not.toMatch(/<button/i);
     expect(out).not.toMatch(/href=/i);
@@ -70,7 +74,26 @@ describe("PlanGate native notice is neutral — no selling", () => {
     // "upgrade" must not appear anywhere in the native output.
     expect(out).not.toMatch(/upgrade/i);
     expect(out).not.toMatch(/pricing/i);
-    expect(out).not.toMatch(/swiftcard\.me|\/pricing|website/i);
+  });
+
+  // The domain used to be banned outright here. It is now named on purpose
+  // (owner decision, 2026-08-12): a Free user hitting a locked feature in the
+  // app had no way to learn where the plan lives. What has NOT changed is that
+  // it must stay inert — the notice may say the word, never offer the tap.
+  //
+  // Apple's 3.1.1 anti-steering rules are the reason the shape matters this
+  // much: a static sentence is a far weaker claim than a link or a button, and
+  // this test is what stops the sentence quietly becoming one.
+  it("names the site as plain text — never as a link or a tappable element", () => {
+    expect(out.replace(/<[^>]+>/g, "")).toContain("swiftcard.me");
+    // Not inside an anchor, and not carrying a URL scheme or a path.
+    expect(out).not.toMatch(/<a[\s>]/i);
+    expect(out).not.toMatch(/href=/i);
+    expect(out).not.toMatch(/https?:\/\//i);
+    expect(out).not.toMatch(/swiftcard\.me\//);
+    expect(out).not.toMatch(/onclick/i);
+    // No role that would announce it as actionable to assistive tech.
+    expect(out).not.toMatch(/role="(link|button)"/i);
   });
 
   it("renders a plain PRO / OFFICE text badge", () => {

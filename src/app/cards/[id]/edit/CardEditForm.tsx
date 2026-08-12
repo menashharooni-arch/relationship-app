@@ -787,7 +787,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 {!isPro && (
                   <PlanGate
                     feature="colors-fonts"
-                    nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                    nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me"
                   >
                     <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
                       Unlock custom colors &amp; fonts with Pro →
@@ -891,7 +891,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {atLinkCap ? (
                 <PlanGate
                   feature="swift-links-cap"
-                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
+                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me"
                 >
                   <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
                     Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> to access unlimited additional links.
@@ -957,7 +957,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             {!isPro && (
               <PlanGate
                 feature="colors-fonts"
-                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me"
               >
                 <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300">
                   Unlock custom colors &amp; fonts with Pro →
@@ -975,7 +975,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           viewOnly ? (
             <PlanGate
               feature="card-view-only"
-              nativeCopy="This card is view-only. Editing multiple cards is only available on the Pro plan."
+              nativeCopy="This card is view-only. Editing multiple cards is only available on the Pro plan on swiftcard.me"
             >
               <p className="text-red-400 text-sm mt-4">
                 {error} <a href="/upgrade" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</a>

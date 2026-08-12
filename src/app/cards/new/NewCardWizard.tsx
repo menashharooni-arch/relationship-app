@@ -1223,7 +1223,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               {atLinkCap ? (
                 <PlanGate
                   feature="swift-links-cap"
-                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan."
+                  nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me"
                 >
                   <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
                     Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300 underline">Upgrade to Pro</a> to access unlimited additional links.
@@ -1460,7 +1460,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   {!isPro && !designUnlocked && (
                     <PlanGate
                       feature="colors-fonts"
-                      nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                      nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me"
                     >
                       <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
                         Unlock custom colors &amp; fonts with Pro →
@@ -1508,7 +1508,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {!isPro && !designUnlocked && (
               <PlanGate
                 feature="colors-fonts"
-                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan."
+                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me"
               >
                 <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300">
                   Unlock custom colors &amp; fonts with Pro →
@@ -1522,7 +1522,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 stays false there). */}
             {multiCardBlocked && (
               <div className="mt-2">
-                <PlanNotice tier="pro" copy="Pro feature — Multiple cards are only available on the Pro plan." />
+                <PlanNotice tier="pro" copy="Pro feature — Multiple cards are only available on the Pro plan on swiftcard.me" />
               </div>
             )}
 

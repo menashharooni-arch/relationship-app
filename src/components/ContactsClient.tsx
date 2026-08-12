@@ -1573,7 +1573,7 @@ export default function ContactsClient({
               {aiUpgrade && (
                 <PlanGate
                   feature="ai-sequences"
-                  nativeCopy="Pro feature — Automated follow-up sequences are only available on the Pro plan."
+                  nativeCopy="Pro feature — Automated follow-up sequences are only available on the Pro plan on swiftcard.me"
                 >
                   <div className="border border-blue-800/40 bg-blue-950/40 rounded-xl py-4 px-4 text-center mt-3">
                     <p className="text-blue-200 text-sm">{aiUpgrade}</p>

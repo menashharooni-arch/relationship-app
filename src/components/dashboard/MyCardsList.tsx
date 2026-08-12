@@ -162,9 +162,9 @@ export default function MyCardsList({
                   {planInactive && (
                     <PlanGate
                       feature="link-off-badge"
-                      nativeCopy="These links are only active on the Pro plan."
+                      nativeCopy="These links are only active on the Pro plan on swiftcard.me"
                       nativeContent={
-                        <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan.">
+                        <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan on swiftcard.me">
                           LINK OFF — PRO ONLY
                         </span>
                       }
