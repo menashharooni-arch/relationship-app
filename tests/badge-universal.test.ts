@@ -14,9 +14,11 @@ describe("the SwiftCard badge is universal", () => {
     const c = code("src/app/card/[username]/page.tsx");
     const badge = c.indexOf("src=badge");
     expect(badge, "the badge is gone from the card page").toBeGreaterThan(-1);
-    // The nearest plan check must not sit directly in front of the badge.
-    const before = c.slice(Math.max(0, badge - 400), badge);
-    expect(before, "the badge got re-gated behind a plan check").not.toMatch(/isPaidPlan\([^)]*\)\s*&&/);
+    // Only the badge's OWN opening — the faint "Create your card" line above
+    // it is still legitimately Free-only, so a wide window would trip on it.
+    const anchorStart = c.lastIndexOf("<a", badge);
+    const before = c.slice(Math.max(0, anchorStart - 80), anchorStart);
+    expect(before, "the badge got re-gated behind a plan check").not.toMatch(/isPaidPlan\([^)]*\)\s*&&|&&\s*\($/);
   });
 
   it("SwiftLinks: the footer attribution is not plan-gated", () => {
