@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TRIAL_DAYS } from "@/lib/plan";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -375,6 +376,16 @@ export default function Home() {
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
               <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
             </div>
+            {/* The trial is the pitch: two free weeks of Pro is what turns a
+                looker into a subscriber, so the top-of-funnel page says it too,
+                not just /pricing. TRIAL_DAYS so this line can never drift from
+                what checkout actually grants. Web only (NativeHidden): the iOS
+                shell must not advertise purchases (App Review 3.1.1). */}
+            <NativeHidden>
+              <p className="text-white/40 text-[13px] mt-4" data-reveal>
+                Pro plans start with {TRIAL_DAYS} days free — cancel anytime.
+              </p>
+            </NativeHidden>
           </div>
         </section>
       </main>

@@ -373,7 +373,9 @@ export default async function FlowSettingsPage({
       label: "Advanced account settings",
       desc: "Account ownership and deletion. Deleting is permanent.",
       icon: I.account,
-      quiet: true,
+      // No `quiet`: it rendered this one row dimmed (gray label, faded card)
+      // as a de-emphasized danger zone, and it read as a GLITCH next to the
+      // white siblings (owner call 2026-08-11 — every row looks the same).
       content: (
         <div data-tour="settings-account">
           <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} email={user.email ?? ""} isOfficeOwner={!!officeCtx?.isOwner} />
