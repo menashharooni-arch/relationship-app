@@ -973,13 +973,10 @@ export default async function DashboardPage({
                     control wraps. Desktop has the room, so it never wraps and is
                     unchanged. */}
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3">
-                  <div className="flex items-baseline gap-2.5">
-                    <h2 className="text-white font-semibold text-sm whitespace-nowrap">Quick Contacts</h2>
-                    {/* text-lg next to a 14px title and an 11px label read as
-                        oversized on a phone; it keeps the emphasis on desktop. */}
-                    <span className="text-white font-bold text-base sm:text-lg tabular-nums">{visibleLeads.length}</span>
-                    <span className="text-gray-500 text-[11px] font-medium whitespace-nowrap">Total leads</span>
-                  </div>
+                  {/* Just the title. The count + "Total leads" label used to sit
+                      beside it and were removed on the owner's call (2026-08-11):
+                      the number duplicates what the list below already shows. */}
+                  <h2 className="text-white font-semibold text-sm whitespace-nowrap">Quick Contacts</h2>
                   <div className="flex items-center gap-2 shrink-0">
                     {!isPro && (
                       <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
