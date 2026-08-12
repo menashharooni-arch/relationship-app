@@ -898,6 +898,29 @@ function safeCssOpt(v: unknown): string | undefined {
 }
 
 /**
+ * The design-transfer face image. Same threat model as the colours: the layout
+ * blob is owner-PATCHable JSON that lands in a render sink — here an <img src>
+ * fetched by every visitor — so only https URLs on our own hosts survive.
+ * (Mirrors the allowlist wallet-strip.tsx uses for the same reason.)
+ */
+function safeFaceImage(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const s = v.trim();
+  if (!s || s.length > 500) return undefined;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:") return undefined;
+    const ok = new Set<string>();
+    for (const env of [process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"]) {
+      if (env) try { ok.add(new URL(env).hostname.toLowerCase()); } catch { /* ignore */ }
+    }
+    return ok.has(u.hostname.toLowerCase().replace(/\.$/, "")) ? s : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Always hand back something renderable. A corrupted or half-written layout —
  * a restored guest draft that saved `customLayout: {}` is the real case that
  * crashed a card page once — falls back to the default preset rather than
@@ -918,6 +941,7 @@ export function normalizeCustomLayout(raw: unknown): CustomLayout {
     panelBackground: safeCssOpt(l.panelBackground),
     panelTextColor: safeCssOpt(l.panelTextColor),
     fontFamily: safeFont(l.fontFamily, fallback.fontFamily),
+    faceImage: safeFaceImage(l.faceImage),
   };
 
   if (Array.isArray(l.blocks) && l.blocks.length) {

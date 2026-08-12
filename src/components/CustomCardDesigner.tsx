@@ -147,6 +147,10 @@ export default function CustomCardDesigner({
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanNote, setScanNote] = useState<string | null>(null);
+  /** A generated exact-copy awaiting the owner's verdict. Holds the source
+   *  upload too, so "Try again" and "make it editable instead" never ask them
+   *  to find the same file twice. */
+  const [transfer, setTransfer] = useState<{ src: string; b64: string; url: string; checklist: string[] } | null>(null);
   const [hoverLook, setHoverLook] = useState<string | null>(null);
 
   // A layout without blocks is a card saved by the old designer (or the legacy
@@ -196,51 +200,108 @@ export default function CustomCardDesigner({
     setBlocks(next);
   }
 
-  /** Copy the layout of a card or template image — never its contents. */
-  async function scanPrintedCard(file: File) {
-    setScanError(null);
-    setScanNote(null);
-    setScanning(true);
-    // Nothing downstream is guaranteed to answer: the model call has no timeout
-    // of its own, so without this the button spins until the platform gives up
-    // on the function, which is a long time to watch a spinner.
-    const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 45_000);
+  /** Decode an upload and re-encode it at ≤1400px. A phone photo is 4-6MB and
+   *  carries no more information about a card than 1400px does — slow to
+   *  upload and billed by the token. Null = the browser can't decode the file
+   *  (an iPhone library HEIC, a PDF picked through "All files"). */
+  async function toJpeg(file: File): Promise<{ b64: string; dataUrl: string } | null> {
     try {
-      let img: HTMLImageElement;
-      try {
-        const dataUrl: string = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error("read"));
-          reader.readAsDataURL(file);
-        });
-        img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const i = new Image();
-          i.onload = () => resolve(i);
-          i.onerror = () => reject(new Error("decode"));
-          i.src = dataUrl;
-        });
-      } catch {
-        // A browser that can't decode the file — an iPhone library HEIC, a PDF
-        // picked through "All files". Says so, instead of blaming the photo and
-        // sending them to take the same one again.
-        setScanError("We couldn't open that file. Pick a JPG or PNG, or take a photo.");
-        return;
-      }
-      // A phone photo is 4-6MB and carries no more information about a card's
-      // LAYOUT than 1400px does — slow to upload and billed by the token.
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read"));
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("decode"));
+        i.src = dataUrl;
+      });
       const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
       canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
       const jpeg = canvas.toDataURL("image/jpeg", 0.82);
+      return { b64: jpeg.split(",")[1] ?? "", dataUrl: jpeg };
+    } catch {
+      return null;
+    }
+  }
 
+  /** The EXACT copy: the model rebuilds the uploaded design carrying the
+   *  owner's own details, and the owner approves a preview before anything
+   *  touches the card. The upload's b64 is kept so "Try again" doesn't make
+   *  them find the file twice. */
+  async function transferDesign(source: { b64: string; dataUrl: string }) {
+    setScanError(null);
+    setScanNote(null);
+    setScanning(true);
+    // Nothing downstream is guaranteed to answer: without a deadline the button
+    // spins until the platform gives up on the function, which is a long time
+    // to watch a spinner. Image generation runs tens of seconds, hence 55.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 55_000);
+    try {
+      const res = await fetch("/api/design-transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: source.b64,
+          mediaType: "image/jpeg",
+          identity: {
+            name: data.name, title: data.title, company: data.company,
+            phone: data.phone, email: data.email, website: data.website, address: data.address,
+          },
+          photoUrl: data.photoUrl ?? undefined,
+          logoUrl: data.logoUrl ?? undefined,
+        }),
+        signal: abort.signal,
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setScanError(
+          res.status === 401 ? "Sign in first — copying a card design needs an account."
+          : res.status === 403 ? "Copying a card design is a Pro feature."
+          : res.status === 429 ? "Too many copies just now — try again in a minute."
+          : (j as { error?: string }).error === "no_ai" ? "Copying a design is unavailable right now."
+          : "Couldn't rebuild that design. Try again, or try a cleaner image.",
+        );
+        return;
+      }
+      const { url, checklist } = (await res.json()) as { url?: string; checklist?: string[] };
+      if (!url) {
+        setScanError("Couldn't rebuild that design. Try again, or try a cleaner image.");
+        return;
+      }
+      setTransfer({ src: source.dataUrl, b64: source.b64, url, checklist: checklist ?? [] });
+    } catch (e) {
+      setScanError(
+        (e as { name?: string })?.name === "AbortError"
+          ? "That took too long. Try again in a moment."
+          : "That didn't work. Try another image.",
+      );
+    } finally {
+      clearTimeout(timer);
+      setScanning(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  /** The old path — copy the LAYOUT into editable blocks, never any contents.
+   *  Offered from the preview as "make it editable instead". */
+  async function scanLayoutOnly(b64: string) {
+    setScanError(null);
+    setScanNote(null);
+    setScanning(true);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 45_000);
+    try {
       const res = await fetch("/api/scan-design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: jpeg.split(",")[1] ?? "", mediaType: "image/jpeg" }),
+        body: JSON.stringify({ imageBase64: b64, mediaType: "image/jpeg" }),
         signal: abort.signal,
       });
       if (!res.ok) {
@@ -260,12 +321,9 @@ export default function CustomCardDesigner({
         setScanError("Couldn't read that image. Try a straight-on shot in good light.");
         return;
       }
-      commit(scanned);
-      // Say what happened, and say what DIDN'T. The card silently becoming a
-      // different card is a disconcerting way to learn that a paid feature
-      // worked — and when the source was somebody else's card, "your details
-      // are untouched" is the reassurance the moment actually needs.
-      setScanNote("Layout copied. Your own details are untouched — change anything below, or Undo.");
+      // Layout-only replaces the face image too: the owner just chose blocks.
+      commit({ ...scanned, faceImage: undefined });
+      setScanNote("Layout copied as editable blocks. Your own details are untouched — change anything below, or Undo.");
     } catch (e) {
       setScanError(
         (e as { name?: string })?.name === "AbortError"
@@ -275,8 +333,19 @@ export default function CustomCardDesigner({
     } finally {
       clearTimeout(timer);
       setScanning(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  /** Entry point from the file input. */
+  async function scanPrintedCard(file: File) {
+    setScanError(null);
+    const prepared = await toJpeg(file);
+    if (!prepared) {
+      setScanError("We couldn't open that file. Pick a JPG or PNG, or take a photo.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    await transferDesign(prepared);
   }
 
   // Hovering a look shows it on the card without committing, so you can try all
@@ -379,15 +448,15 @@ export default function CustomCardDesigner({
             </span>
             <span className="min-w-0">
               <span className={`block text-[13.5px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
-                {scanning ? "Copying the layout…" : "Copy a card or template you like"}
+                {scanning ? "Rebuilding it with your details…" : "Copy a card or template you like"}
                 {!canScan && (
                   <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
                 )}
               </span>
               <span className="block text-[11px] text-gray-400 leading-snug mt-0.5">
                 {canScan
-                  ? "Upload your printed card, or a template you found online. We copy the layout only — never anyone's details."
-                  : "On Pro, upload a card or template and we'll copy its layout — never anyone's details."}
+                  ? "Upload a card design you like. We rebuild it exactly — same colors, fonts and layout — with YOUR details on it. You approve a preview before anything changes."
+                  : "On Pro, upload a card design you like and we'll rebuild it exactly, with your details on it."}
               </span>
             </span>
           </span>
@@ -406,6 +475,96 @@ export default function CustomCardDesigner({
         />
         {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
         {scanNote && <p className="text-[11px] text-emerald-400">{scanNote}</p>}
+
+        {/* Exact design active: the card is the approved image, so the block
+            controls below are dormant — say so where the owner is looking,
+            with the way out right next to the statement. */}
+        {layout.faceImage && (
+          <div className="rounded-lg border border-blue-500/40 bg-blue-950/30 px-3 py-2.5 flex items-center gap-3">
+            <p className="text-[11px] text-blue-200 leading-snug flex-1">
+              Exact design is on — your card shows the approved image. Looks and Style below won&apos;t change it.
+            </p>
+            <button
+              type="button"
+              onClick={() => commit({ ...layout, faceImage: undefined })}
+              className="text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1.5 shrink-0"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
+        {/* ── The approval gate. An image model fumbles small text often enough
+               that nothing may auto-apply: the owner compares the original and
+               the rebuild side by side, walks the checklist, and only their
+               tap writes the card. ── */}
+        {transfer && (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Approve your rebuilt card design">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-5 space-y-4">
+              <p className="text-sm font-semibold text-white">Your card, in that design — check it before it goes on</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10.5px] text-gray-500 mb-1.5">The design you uploaded</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local data URL */}
+                  <img src={transfer.src} alt="The design you uploaded" className="w-full rounded-lg border border-gray-800" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] text-gray-500 mb-1.5">Rebuilt with your details</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- our storage URL */}
+                  <img src={transfer.url} alt="Rebuilt with your details" className="w-full rounded-lg border border-blue-500/50" />
+                </div>
+              </div>
+              {transfer.checklist.length > 0 && (
+                <div className="rounded-lg bg-gray-950 border border-gray-800 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold text-gray-300 mb-1">Look closely — AI rebuilds can misspell:</p>
+                  <ul className="space-y-0.5">
+                    {transfer.checklist.map((item) => (
+                      <li key={item} className="text-[11px] text-gray-400 flex gap-1.5">
+                        <span className="text-blue-400 shrink-0">✓</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    commit({ ...layout, faceImage: transfer.url });
+                    setTransfer(null);
+                    setScanNote("Exact design applied. Your live QR sits bottom-right; remove the design any time.");
+                  }}
+                  className="text-[12.5px] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg px-4 py-2"
+                >
+                  Use this design
+                </button>
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => { const t = transfer; setTransfer(null); if (t) void transferDesign({ b64: t.b64, dataUrl: t.src }); }}
+                  className="text-[12.5px] font-semibold text-gray-200 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 disabled:opacity-60"
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => { const t = transfer; setTransfer(null); if (t) void scanLayoutOnly(t.b64); }}
+                  className="text-[12px] text-gray-400 hover:text-gray-200 px-2 py-2"
+                >
+                  Make it editable blocks instead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTransfer(null)}
+                  className="text-[12px] text-gray-400 hover:text-gray-200 px-2 py-2 ml-auto"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── The canvas. Pinned on desktop: it stays in view while you work

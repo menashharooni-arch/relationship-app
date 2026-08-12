@@ -76,6 +76,15 @@ export type CustomLayout = {
    * designer still renders exactly as its owner left it; nothing new writes it.
    */
   elements: CustomElement[];
+  /**
+   * DESIGN TRANSFER: a finished card face, as an image. When set, the card IS
+   * this picture (plus the live QR the renderer overlays) and the block layout
+   * is dormant, not deleted — "Remove exact design" just clears this field and
+   * the owner's blocks come back untouched. Written only by the approve step
+   * of /api/design-transfer; normalizeCustomLayout drops anything that isn't
+   * an https URL on our own storage/app hosts.
+   */
+  faceImage?: string;
 };
 
 export type CardAddress = {

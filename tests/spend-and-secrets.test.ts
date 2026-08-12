@@ -8,10 +8,12 @@ const code = (p: string) =>
   readFileSync(join(root, p), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("the Gemini key never rides in a URL", () => {
-  it("both call sites send it as a header", () => {
+  it("every call site sends it as a header", () => {
     const c = code("src/lib/ai.ts");
     expect(c, "the key is back in the query string").not.toMatch(/key=\$\{process\.env\.GEMINI_API_KEY\}/);
-    expect((c.match(/x-goog-api-key/g) ?? []).length, "a call site was missed").toBe(2);
+    // aiComplete + aiVision + aiImageEdit (design transfer, added 2026-08-11).
+    // If this count changes, verify the new call site uses the header too.
+    expect((c.match(/x-goog-api-key/g) ?? []).length, "a call site was missed").toBe(3);
   });
 });
 
@@ -55,6 +57,9 @@ describe("outbound-spend endpoints are capped", () => {
     "src/app/api/leads/[id]/message/route.ts",
     "src/app/api/leads/share-card/route.ts",
     "src/app/api/scanner/route.ts",
+    // Image GENERATION — an order of magnitude dearer per call than a vision
+    // read, which is why its own limit is the tightest of the four.
+    "src/app/api/design-transfer/route.ts",
   ];
 
   it.each(SPEND)("%s rate-limits per user", (f) => {
