@@ -101,7 +101,18 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
  */
 export function PlanBadge({ tier = "pro" }: { tier?: PlanTier }) {
   return (
-    <span className="shrink-0 rounded-full bg-[#1D4ED8] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
+    // #3B82F6, not the brand's #1D4ED8: the deep brand blue read as heavy on a
+    // 9px pill sitting against gray-900, which is the only place this badge
+    // ever appears (it is native-only — every call site is a PlanGate
+    // nativeContent slot or PlanNotice). Changing it here changes it at every
+    // gate point at once and cannot touch web, which never renders this.
+    //
+    // Contrast note: white on #3B82F6 measures 3.7:1, under the 4.5:1 AA floor
+    // that 9px bold text needs (#1D4ED8 was 6.6:1). Accepted deliberately —
+    // the badge repeats what the sentence beside it already says in full, so it
+    // carries no information on its own. #2563EB is the nearest shade that
+    // clears AA at 5.1:1 if this should ever become load-bearing.
+    <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
       {tier === "office" ? "OFFICE" : "PRO"}
     </span>
   );
