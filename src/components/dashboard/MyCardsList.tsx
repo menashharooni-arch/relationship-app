@@ -1,8 +1,38 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { PlanGate } from "@/components/PlanGate";
+
+/**
+ * Tap feedback for the card picker.
+ *
+ * Switching cards is a query-param change on the SAME route, so it is a soft
+ * navigation with no new segment — which means /dashboard/loading.tsx never
+ * shows. The tick beside each card is driven by `activeUsername`, a SERVER
+ * value, so until the RSC payload lands the row you just tapped still renders
+ * unticked and the old one stays ticked. On a slow connection that reads as
+ * "nothing happened", and the usual response is to tap again.
+ *
+ * The Next docs name this exact case for useLinkStatus: a dynamic destination
+ * with no loading.js boundary. This only reports THIS link's pending state, so
+ * it cannot lie about which card is selected the way an optimistic tick would —
+ * it says "working", not "done".
+ *
+ * Must be rendered INSIDE the <Link> it reports on; that is how the hook finds
+ * its navigation.
+ */
+function SelectingSpinner() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      role="status"
+      aria-label="Switching card"
+      className="w-3.5 h-3.5 shrink-0 rounded-full border-2 border-blue-400/30 border-t-blue-400 motion-safe:animate-spin"
+    />
+  );
+}
 
 export type MyCard = {
   id: string;
@@ -115,7 +145,13 @@ export default function MyCardsList({
               </span>
               <div
                 className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                  isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-400"
+                  // text-gray-300, not -400: the card's initial is 12px BOLD,
+                  // so it needs 4.5:1, and gray-400 on the gray-700 chip
+                  // measured 3.96:1 in dark mode. gray-300 clears it at 7.34.
+                  // Inactive still reads as the quiet one — that distinction is
+                  // carried by hue and by the active chip's blue fill and
+                  // border, not by making this letter hard to read.
+                  isActive ? "bg-blue-600/30 border border-blue-500/40 text-blue-300" : "bg-gray-700 text-gray-300"
                 }`}
               >
                 {(card.label || card.name || card.username)[0]?.toUpperCase()}
@@ -144,6 +180,9 @@ export default function MyCardsList({
                   {card.name ? ` · ${card.name}` : ""}
                 </p>
               </div>
+              {/* Inside the Link on purpose — useLinkStatus reads the pending
+                  state of the navigation it is rendered within. */}
+              <SelectingSpinner />
             </Link>
 
             {/* Mobile-only switcher, on the right of the SELECTED card. Absent
