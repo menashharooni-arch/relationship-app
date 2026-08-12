@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       mediaType,
       prompt: PRECISE_SCAN_PROMPT,
       json: true,
-      maxTokens: 1800,
+      maxTokens: 2600,
     });
     const match = reading?.match(/\{[\s\S]*\}/);
     let layout = null;
