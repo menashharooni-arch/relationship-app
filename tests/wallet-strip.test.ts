@@ -68,6 +68,25 @@ describe("wallet pass strip", () => {
     expect(await captureToDesign(square)).toBeNull();
   }, 30_000);
 
+  it("hybrid strip (capture + identity) keeps the exact storeCard geometry", async () => {
+    const sharp = (await import("sharp")).default;
+    const capture = await sharp({
+      create: { width: 700, height: 400, channels: 3, background: { r: 13, g: 27, b: 62 } },
+    }).png().toBuffer();
+    const design = await captureToDesign(capture, { name: "Menash Harooni", title: "Founder", company: "Swift Card Inc" });
+    expect(design).not.toBeNull();
+    for (const [buf, w, h] of [
+      [design!.strips.x1, 375, 123],
+      [design!.strips.x2, 750, 246],
+      [design!.strips.x3, 1125, 369],
+    ] as const) {
+      expect(buf.subarray(0, 4).equals(PNG)).toBe(true);
+      expect(pngSize(buf)).toEqual({ w, h });
+    }
+    // Chrome still sampled from the card, not from the text layer.
+    expect(design!.theme.backgroundColor).toBe("rgb(13, 27, 62)");
+  }, 30_000);
+
   it("bare passes carry NO Apple barcode block — the card art has its own QR", async () => {
     // Owner's call 2026-08-11: the real-card capture already shows the card's
     // own QR, so pass.setBarcodes() printed a SECOND QR under the card. This
