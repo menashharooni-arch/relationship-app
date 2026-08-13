@@ -5,7 +5,8 @@ import { cardEventNotice } from "@/lib/card-event-notify";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isRateLimited } from "@/lib/rate-limit";
-import { isOwnerRequest } from "@/lib/self-traffic";
+import { isSelfTraffic, resolveOwnerId } from "@/lib/self-traffic";
+import { authoritativeEventIdentity, resolveSessionViewer } from "@/lib/viewer-identity";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
 
@@ -58,22 +59,37 @@ export async function POST(req: NextRequest) {
 
     const admin = getAdminSupabase();
 
+    // Resolve the request's REAL identity once — it drives both decisions
+    // below. Null for anonymous visitors, which is the common case.
+    const sessionViewer = await resolveSessionViewer(admin);
+
     // Owner self-activity never records — an owner tapping around their own
     // card must not create events or "saved your contact" notifications to
     // themselves. (Client components also suppress this; server closes it.)
     // Shared, identity-based check — never IP-based (see self-traffic.ts).
-    if (await isOwnerRequest(admin, card_owner_username)) {
+    if (sessionViewer && isSelfTraffic(await resolveOwnerId(admin, card_owner_username), sessionViewer.userId)) {
       return NextResponse.json({ ok: true, self: true });
     }
+
+    // WHO viewed: the session decides when there is one. The client-supplied
+    // fields come from a device-global localStorage blob that survives account
+    // switches, which is how one user's views got recorded under another
+    // user's name (see lib/viewer-identity.ts). Anonymous visitors keep the
+    // client fields — being recognized after sharing once is a feature.
+    const identity = authoritativeEventIdentity(sessionViewer, {
+      visitor_name: visitor_name || null,
+      visitor_email: visitor_email || null,
+      visitor_phone: visitor_phone || null,
+    });
 
     await admin.from("card_events").insert({
       card_owner_username,
       visitor_id: visitor_id || null,
       event_type,
       source: source || "direct_link",
-      visitor_name: visitor_name || null,
-      visitor_email: visitor_email || null,
-      visitor_phone: visitor_phone || null,
+      visitor_name: identity.visitor_name,
+      visitor_email: identity.visitor_email,
+      visitor_phone: identity.visitor_phone,
       referrer_url: referrer_url || null,
       device_info: device_info || null,
     });
@@ -89,7 +105,9 @@ export async function POST(req: NextRequest) {
 
       if (owner?.id) {
         const isView = event_type === "viewed_card";
-        const notice = cardEventNotice({ eventType: event_type, visitorName: visitor_name, source });
+        // identity, not the raw client field — the notification must name the
+        // person who ACTUALLY viewed, never a stale cached identity.
+        const notice = cardEventNotice({ eventType: event_type, visitorName: identity.visitor_name, source });
 
         // A view is the one event that repeats: the same person opening the
         // same card five times is five rows, and five pushes would be noise
@@ -131,7 +149,7 @@ export async function POST(req: NextRequest) {
             event: isView ? "card_viewed" : "contact_saved",
             title,
             body,
-            contact: { name: visitor_name || null, email: visitor_email || null, phone: visitor_phone || null },
+            contact: { name: identity.visitor_name, email: identity.visitor_email, phone: identity.visitor_phone },
             source: source || "direct_link",
           });
         }
