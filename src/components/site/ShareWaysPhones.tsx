@@ -1,30 +1,28 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import CardScaler from "@/components/CardScaler";
-import ClassicPro from "@/components/card-templates/ClassicPro";
-import { withoutSocials } from "@/components/card-templates/types";
-import type { CardData } from "@/components/card-templates/types";
+import WalletPassFace, { type WalletPassCard } from "@/components/WalletPassFace";
 
 // Three white-screen iPhones showing the ways to share a SwiftCard:
-//   1) Apple Wallet — the real SwiftCard on top, credit cards tucked below
+//   1) Apple Wallet — the real PASS on top, credit cards tucked below
 //   2) QR code — the EXACT "Show QR Code" modal from the live card (QRCodeSVG)
 //   3) Share sheet — the iOS share button + full share sheet
 // Everything is static/illustrative.
 
-const CARD_DATA: CardData = withoutSocials({
+const CARD_URL = "https://swiftcard.me/card/alexmorgan";
+
+// The demo card, in the shape the pass generator reads. WalletPassFace derives
+// the colours and the band layout from this exactly as the real pass does, so
+// what this mock shows is what the download produces.
+const PASS_CARD: WalletPassCard = {
   name: "Alex Morgan",
   title: "Realtor®",
   company: "Coastline Realty",
   phone: "(415) 555-0188",
   email: "alex@coastlinerealty.com",
-  website: "coastlinehomes.com",
-  initials: "AM",
-  photoUrl: null,
-  logoUrl: null,
-  cardUrl: "swiftcard.me/card/alexmorgan",
-});
-const CARD_URL = "https://swiftcard.me/card/alexmorgan";
+  template: "classic-pro",
+  cardUrl: CARD_URL,
+};
 
 const TUCKED = [
   { grad: "linear-gradient(120deg,#1a1a2e,#3a3a5c)", tail: "2084", network: "VISA" },
@@ -71,13 +69,11 @@ function WalletPhone() {
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </span>
       </div>
-      {/* The real SwiftCard on top */}
-      <div className="px-4 pt-4">
-        {/* pointerEvents: none — see DashboardDemo: the card's contact rows are
-            real tel:/mailto:/https: links, and this demo person isn't real. */}
-        <div className="rounded-[16px] overflow-hidden shadow-[0_12px_28px_-10px_rgba(15,23,42,0.45)] relative z-30" style={{ background: "#FAF7F2", pointerEvents: "none" }}>
-          <CardScaler><ClassicPro data={CARD_DATA} /></CardScaler>
-        </div>
+      {/* The real pass on top — the same face the .pkpass download produces,
+          not a shrunken picture of the business card (which is the design the
+          pass was rebuilt to stop being; see WalletPassFace). */}
+      <div className="px-4 pt-4 relative z-30">
+        <WalletPassFace card={PASS_CARD} width={208} />
       </div>
 
       <div className="flex-1" />

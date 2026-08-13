@@ -152,7 +152,7 @@ export function welcomeEmail(opts: {
   const shareUrl = `${APP_URL}/share`;
   const body = `
     ${h1(`Your SwiftCard is live, ${safeName}! 🎉`)}
-    ${p("Send it as a link, show it as a QR code, or tap it to someone\u2019s phone. When they share their details back, the new contact lands in your dashboard on its own \u2014 nothing to type in, nothing to lose.")}
+    ${p("Send it as a link, show it as a QR code, or tap it over from an NFC card. When they share their details back, the new contact lands in your dashboard on its own \u2014 nothing to type in, nothing to lose.")}
     ${card(`
       <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#94a3b8;text-transform:uppercase;">Your card link</p>
       <a href="${safeCardUrl}" style="color:#1D4ED8;font-size:15px;font-weight:600;text-decoration:none;">${cardUrlText}</a>

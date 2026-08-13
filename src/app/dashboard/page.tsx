@@ -1035,7 +1035,7 @@ export default async function DashboardPage({
                         </svg>
                       </div>
                       <p className="font-semibold text-gray-300 text-sm mb-1">Share your card to get your first contact</p>
-                      <p className="text-gray-600 text-xs mb-5">Send your link, show your QR code, or tap NFC — contacts appear here instantly.</p>
+                      <p className="text-gray-600 text-xs mb-5">Send your link, show your QR code, or tap your NFC card — contacts appear here instantly.</p>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
