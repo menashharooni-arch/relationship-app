@@ -64,19 +64,27 @@ describe("a recorded view is a real visit", () => {
     expect(route).toMatch(/isRateLimited\(`views:\$\{ip\}:\$\{username\}`/);
   });
 
-  it("counts one visitor once per 24h, and survives the race", () => {
-    // The read-then-insert check narrows the window but is not atomic; the
-    // unique-violation branch is what makes two simultaneous tabs one view.
-    expect(route).toMatch(/24 \* 60 \* 60 \* 1000/);
+  it("counts one visitor once per VISIT window, and survives the race", () => {
+    // The dedup window is the shared visit constant (view-window.ts) — a
+    // reload inside it is one visit, a genuine return past it is a REPEAT
+    // VIEW and records again (this used to be 24h, which erased every
+    // same-day return). The read-then-insert check narrows the window but is
+    // not atomic; the unique-violation branch is what makes two simultaneous
+    // tabs one view.
+    expect(route).toMatch(/VIEW_VISIT_WINDOW_MS/);
+    expect(route).not.toMatch(/24 \* 60 \* 60 \* 1000/);
     expect(route).toMatch(/insertErr\.code === "23505"/);
   });
 
   it("takes location from the edge headers, never from the client", () => {
     // A client-supplied location would let anyone write any city into someone
-    // else's analytics.
-    expect(route).toMatch(/x-vercel-ip-city/);
-    expect(route).toMatch(/x-vercel-ip-country/);
-    const body = route.slice(route.indexOf("const body ="), route.indexOf("const city ="));
+    // else's analytics. requestLocation reads ONLY this request's own Vercel
+    // geo headers (see lib/request-geo.ts, which has its own tests).
+    expect(route).toMatch(/requestLocation\(req\)/);
+    const geo = read("src/lib/request-geo.ts");
+    expect(geo).toMatch(/x-vercel-ip-city/);
+    expect(geo).toMatch(/x-vercel-ip-country/);
+    const body = route.slice(route.indexOf("const body ="), route.indexOf("const baseSlug ="));
     expect(body, "location must not be read off the request body").not.toMatch(/location/);
   });
 
@@ -100,11 +108,15 @@ describe("seeded demo views are not counted as real traffic", () => {
     expect(isSeededView("")).toBe(false);
   });
 
-  it("the site-wide admin totals exclude them", () => {
+  it("the site-wide admin totals exclude them — without dropping NULL-visitor rows", () => {
     // 24 of 81 rows were seeded — about 30% of the number we read to judge
-    // whether the product is working.
+    // whether the product is working. The filter must be the or() form: a bare
+    // .not("visitor_id","like",...) is NULL — not true — for NULL visitor_id,
+    // so it silently dropped every pre-visitor-id row from the total while the
+    // 30-day loop kept them; the two numbers counted different populations.
     const admin = read("src/app/api/admin/analytics/route.ts");
-    expect(admin).toMatch(/\.not\("visitor_id", "like", `\$\{SEEDED_VISITOR_PREFIX\}%`\)/);
+    expect(admin).toMatch(/\.or\(`visitor_id\.is\.null,visitor_id\.not\.like\.\$\{SEEDED_VISITOR_PREFIX\}%`\)/);
+    expect(admin).not.toMatch(/\.not\("visitor_id", "like"/);
     expect(admin).toMatch(/if \(isSeededView\(v\.visitor_id as string \| null\)\) return;/);
   });
 

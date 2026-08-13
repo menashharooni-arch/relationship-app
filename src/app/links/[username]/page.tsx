@@ -77,10 +77,17 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   };
 }
 
-export default async function SwiftLinksPage({ params, searchParams }: { params: Promise<{ username: string }>; searchParams: Promise<{ embed?: string }> }) {
+export default async function SwiftLinksPage({ params, searchParams }: { params: Promise<{ username: string }>; searchParams: Promise<{ embed?: string; source?: string | string[] }> }) {
   const { username } = await params;
-  const { embed } = await searchParams;
+  const { embed, source: rawSource } = await searchParams;
   const isEmbed = embed === "1"; // rendered inside the /preview demo — don't log a view or nudge
+  // Real traffic-source attribution, like the card page: a QR/NFC tag pointing
+  // at /links/<slug>?source=qr_code used to be flattened to "swift_links", so
+  // a Swift Links scan could never appear in the scans metric. The surface is
+  // carried separately (viewSurface="links"), so the source no longer has to
+  // double as one.
+  const sourceParam = Array.isArray(rawSource) ? rawSource[0] : rawSource;
+  const source = (sourceParam ?? "swift_links").slice(0, 48);
   const { cardOrLegacy, photoUrl, ownerPlan } = await resolve(username);
   if (!cardOrLegacy) notFound();
 
@@ -137,8 +144,10 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
 
   return (
     <>
-      {!isEmbed && !isOwnerView && <CardEventTracker username={username} source="swift_links" viewSurface="links" />}
-      {!isEmbed && !isOwnerView && <SignupNudgeHost />}
+      {/* The RESOLVED slug, not the raw route param — a case/alias divergence
+          would otherwise record rows under a key the dashboard never reads. */}
+      {!isEmbed && !isOwnerView && <CardEventTracker username={(cardOrLegacy.username as string) || username} source={source} viewSurface="links" />}
+      {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={(cardOrLegacy.username as string) || username} />}
       <SwiftLinkProfile
         name={cardOrLegacy.name || username}
         username={username}

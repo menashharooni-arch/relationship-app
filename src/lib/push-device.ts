@@ -82,6 +82,9 @@ export async function unbindDevicePush(): Promise<void> {
     }
 
     try { localStorage.removeItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+    // The owner stamp too — the silent launch-time re-registration must not
+    // rebind a token for an account whose binding was just severed.
+    try { localStorage.removeItem("swiftcard_push_uid"); } catch { /* ignore */ }
   } catch {
     /* never block the caller */
   }

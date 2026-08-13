@@ -304,8 +304,10 @@ function cardNameFor(m: OfficeTeamMember): string {
 // Per-employee metrics for a date range — the Employee Performance table.
 // NOTE: uniqueVisitors is summed across an employee's card slugs, so a
 // visitor who viewed two of the SAME employee's cards is counted twice in
-// that sum (rare — most accounts have one card); it is NOT double-counted
-// across different employees, since each slug belongs to exactly one person.
+// that sum (rare — most accounts have one card). Summing these PER-EMPLOYEE
+// figures across the team does double-count a visitor who viewed several
+// colleagues' cards — the office-wide tile must use getOfficeUniqueVisitors
+// (one DISTINCT over all keys), never a reduce over this.
 export async function getOfficeEmployeeMetrics(
   officeId: string,
   ownerId: string,
@@ -400,6 +402,22 @@ export async function getOfficeKeys(officeId: string, ownerId: string): Promise<
 
 export { flattenOfficeKeys, memberSlugs, getOfficeTeam };
 export type { OfficeTeamMember };
+
+// TRUE distinct visitors across every office key — one count(DISTINCT) over
+// the whole slug set. Summing per-employee uniques counted one trade-show
+// prospect who opened three reps' cards as three visitors. Returns null when
+// the RPC isn't migrated yet (supabase/view-visit-window.sql) so the caller
+// can fall back — an approximate number beats a zero.
+export async function getOfficeUniqueVisitors(keys: string[], since: string, until: string): Promise<number | null> {
+  if (!keys.length) return 0;
+  const admin = getAdminSupabase();
+  const { data, error } = await admin.rpc("office_unique_visitors", { p_keys: keys, p_since: since, p_until: until });
+  if (error) {
+    console.error("office_unique_visitors failed:", error.message);
+    return null;
+  }
+  return Number(data) || 0;
+}
 
 export async function getOfficeDailyViews(keys: string[], since: string, until: string): Promise<{ date: string; views: number }[]> {
   if (!keys.length) return [];

@@ -21,21 +21,36 @@ export function cardEventNotice(input: {
   eventType: string;
   visitorName?: string | null;
   source?: string | null;
+  // Which page was opened — the links page now forwards real ?source=
+  // attribution (a QR scan is a QR scan on either surface), so the surface is
+  // its own signal rather than being inferred from source === "swift_links".
+  surface?: "card" | "links" | null;
+  // The event's own stored location — never re-derived, never another
+  // visitor's. Absent means absent: the copy simply omits it, no guessing.
+  location?: string | null;
 }): CardEventNotice | null {
   const { eventType } = input;
   const name = (input.visitorName ?? "").trim();
   const source = input.source ?? null;
+  const location = (input.location ?? "").trim();
+  // Coarse city-level context makes the notification concrete ("near the
+  // conference you're at") without claiming precision we don't have.
+  const near = location ? ` near ${location}` : "";
 
   if (eventType === "viewed_card") {
     // Swift Links and the card are different surfaces and an owner shares them
     // for different reasons, so the notification says which one was opened.
-    const surface = source === "swift_links" ? "your Swift Links" : "your card";
+    // source === "swift_links" kept for events from clients that predate the
+    // explicit surface field.
+    const surfaceLabel = input.surface === "links" || source === "swift_links"
+      ? "your Swift Links"
+      : "your card";
     return {
       type: "card_viewed",
       title: "Card viewed",
       // "Someone" when we genuinely don't know. A visitor is only named once
       // they have shared their details, so this never guesses at an identity.
-      body: `${name || "Someone"} viewed ${surface}.`,
+      body: `${name || "Someone"} viewed ${surfaceLabel}${near}.`,
     };
   }
 
@@ -47,7 +62,7 @@ export function cardEventNotice(input: {
     return {
       type: "contact_saved",
       title: "Contact saved",
-      body: `${name ? `${name} saved` : "Someone saved"} your contact card${from}.`,
+      body: `${name ? `${name} saved` : "Someone saved"} your contact card${from}${near}.`,
     };
   }
 

@@ -9,13 +9,19 @@ import { getVisitorInfo } from "@/lib/visitor";
 // Does the visitor already have a SwiftCard account? The "create your free
 // card" nudge must never show to an existing customer (owner request). The
 // endpoint answers yes when the caller is signed in OR the email they shared
-// is tied to an account. Cached per session; fails OPEN (shows the nudge) so a
-// network hiccup never suppresses a genuine new-visitor signup.
+// is tied to an account. Fails OPEN (shows the nudge) so a network hiccup
+// never suppresses a genuine new-visitor signup.
+//
+// Cached IN MEMORY with a short TTL — deliberately NOT sessionStorage. The
+// persisted "1" survived sign-out for the rest of the tab session (the
+// sign-out cleanup exempts device-preference keys), so a device someone had
+// merely been signed in on kept reading "existing customer" and the nudge
+// never appeared for the anonymous visitor now holding it.
+let acctCache: { exists: boolean; at: number } | null = null;
+const ACCT_CACHE_TTL_MS = 5 * 60 * 1000;
+
 async function visitorHasAccount(): Promise<boolean> {
-  try {
-    const cached = sessionStorage.getItem("sc_has_acct");
-    if (cached != null) return cached === "1";
-  } catch { /* private mode */ }
+  if (acctCache && Date.now() - acctCache.at < ACCT_CACHE_TTL_MS) return acctCache.exists;
   try {
     const email = getVisitorInfo()?.email || "";
     const r = await fetch("/api/account-exists", {
@@ -25,11 +31,41 @@ async function visitorHasAccount(): Promise<boolean> {
     });
     const d = await r.json();
     const exists = !!d?.exists;
-    try { sessionStorage.setItem("sc_has_acct", exists ? "1" : "0"); } catch { /* ignore */ }
+    acctCache = { exists, at: Date.now() };
     return exists;
   } catch {
     return false; // fail open
   }
+}
+
+// ── Nudge slots ──────────────────────────────────────────────────────────────
+// Sources are grouped into classes, each with its own once-per-session slot,
+// capped at 2 popups per session overall. One flat slot let an INCIDENTAL
+// trigger (tapping a link, closing a sheet) silently spend the session's only
+// popup before the high-value moment — the visitor SAVING the contact — ever
+// arrived. Slots are only written when a popup actually RENDERS: writing them
+// up front meant a slow account-check or a navigation ate the slot with
+// nothing shown, killing every later nudge in the session.
+const NUDGE_CLASS: Record<string, string> = {
+  vcard: "vcard",
+  save_contact: "vcard",
+  share_info: "share",
+};
+const nudgeClassOf = (src: string) => NUDGE_CLASS[src] ?? "link";
+const classGuardKey = (cls: string) => `sc_nudged_${cls}`;
+const NUDGE_SESSION_CAP = 2;
+
+// The conversion funnel's denominator: without impression/click events the
+// popup's absence was invisible in data — there was literally no number that
+// could reveal it wasn't showing. Attributed to the card that hosted the
+// moment. Best-effort; must never affect whether the popup shows.
+function trackNudge(cardUsername: string | undefined, eventType: string, source: string): void {
+  if (!cardUsername) return;
+  fetch("/api/analytics/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: cardUsername, event_type: eventType, event_data: { source } }),
+  }).catch(() => {});
 }
 
 // The hero: a tilted, floating "your card" mockup with a shine sweep — the
@@ -80,52 +116,68 @@ function HeroCardMockup() {
   );
 }
 
-// Mounted once on public pages. Listens for `triggerSignupNudge(source)` events
-// and shows ONE friendly signup popup per visitor per session, never blocking
-// the action that triggered it. Deliberately does NOT gate on whether a
-// SwiftCard session cookie is present — that check used to suppress the popup
-// for anyone with a stale/leftover cookie (including the site owner testing
-// their own card), which is why it only ever seemed to work in incognito.
-// Exception: "share_info" (the connect/share follow-up) is a deliberate moment
-// with its own once-per-session slot, so it still fires after a generic nudge.
+// Mounted once on public pages. Listens for `triggerSignupNudge(source)`
+// events and shows a friendly signup popup — once per source CLASS per
+// session (vcard/save, share-info, incidental link taps), at most two per
+// session — never blocking the action that triggered it. Deliberately does
+// NOT gate on whether a SwiftCard session cookie is present — that check used
+// to suppress the popup for anyone with a stale/leftover cookie (including
+// the site owner testing their own card); the server-side account check in
+// visitorHasAccount is the one gate, and only a rendered popup spends a slot.
 //
 // Design: a hero moment, not a banner — glowing product mockup up top, bold
 // centered headline, gradient CTA with a shine sweep, trust row underneath.
-export default function SignupNudgeHost() {
+export default function SignupNudgeHost({ cardUsername }: { cardUsername?: string } = {}) {
   const [source, setSource] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Serializes overlapping nudges across the account-check await — without it
+  // two triggers in quick succession could both pass the guards and both
+  // count/track, since the slot is only written at render time now.
+  const deciding = useRef(false);
   const native = useIsNativeApp();
 
   useEffect(() => {
     async function onNudge(e: Event) {
       const src = (e as CustomEvent).detail?.source ?? "default";
+      if (deciding.current) return;
+      deciding.current = true;
       try {
-        const guard = src === "share_info" ? "sc_nudged_share" : "sc_nudged";
-        if (sessionStorage.getItem(guard)) return;
-        sessionStorage.setItem(guard, "1");
-        // A share_info popup also uses up the generic slot — no double nudging.
-        sessionStorage.setItem("sc_nudged", "1");
-      } catch { /* private mode — show once anyway */ }
-      // Existing SwiftCard customers are never nudged to create a card — they
-      // already have one. Checked after the once-per-session guard so an
-      // account-holder's slot is spent silently rather than popping later.
-      if (await visitorHasAccount()) return;
-      // A newer nudge can arrive while an older one's dismiss-fade is still
-      // scheduled — cancel that stale timer so it can't clear the new popup.
-      if (dismissTimer.current) {
-        clearTimeout(dismissTimer.current);
-        dismissTimer.current = null;
+        const cls = nudgeClassOf(src);
+        try {
+          // Per-CLASS slot + session cap — an incidental link-tap nudge no
+          // longer spends the save/share moments' slots.
+          if (sessionStorage.getItem(classGuardKey(cls))) return;
+          if (Number(sessionStorage.getItem("sc_nudge_count") ?? "0") >= NUDGE_SESSION_CAP) return;
+        } catch { /* private mode — show anyway */ }
+        // Existing SwiftCard customers are never nudged to create a card —
+        // they already have one. Checked BEFORE any slot is spent, so a slow
+        // or failed check can no longer eat the session's popup invisibly.
+        if (await visitorHasAccount()) return;
+        // The popup is actually going to render — only now spend the slot.
+        try {
+          sessionStorage.setItem(classGuardKey(cls), "1");
+          sessionStorage.setItem("sc_nudge_count", String(Number(sessionStorage.getItem("sc_nudge_count") ?? "0") + 1));
+        } catch { /* private mode */ }
+        trackNudge(cardUsername, "nudge_impression", src);
+        // A newer nudge can arrive while an older one's dismiss-fade is still
+        // scheduled — cancel that stale timer so it can't clear the new popup.
+        if (dismissTimer.current) {
+          clearTimeout(dismissTimer.current);
+          dismissTimer.current = null;
+        }
+        setClosing(false);
+        setSource(src);
+      } finally {
+        deciding.current = false;
       }
-      setClosing(false);
-      setSource(src);
     }
     window.addEventListener("sc:nudge", onNudge as EventListener);
     return () => {
       window.removeEventListener("sc:nudge", onNudge as EventListener);
       if (dismissTimer.current) clearTimeout(dismissTimer.current);
     };
-  }, []);
+  }, [cardUsername]);
 
   // Native app: never show the public-page "create your free card" signup nudge,
   // regardless of login state.
@@ -171,7 +223,7 @@ export default function SignupNudgeHost() {
             // Start blank: a visitor who reaches this popup from a card/links
             // page may still carry a leftover mini-builder sketch / guest draft
             // from an earlier visit. Wipe it so the builder always opens fresh.
-            onClick={() => resetGuestFlow()}
+            onClick={() => { trackNudge(cardUsername, "nudge_cta_click", source); resetGuestFlow(); }}
             className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
             style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
           >

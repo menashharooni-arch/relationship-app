@@ -21,8 +21,10 @@
 //   • swiftcard_apns_endpoint — the device's push token. The SERVER row that
 //     binds it to an account is what gets severed (see push-device.ts); the
 //     token itself is hardware-scoped and stays.
-//   • sc_theme / tour flags / sc_has_acct — cosmetic device preferences; no
-//     identity content.
+//   • sc_theme / tour flags — cosmetic device preferences; no identity
+//     content. (sc_has_acct is gone entirely: persisting it let a signed-out
+//     device keep reading "existing customer" and suppressed the signup nudge
+//     — SignupNudgeHost now caches that answer in memory with a short TTL.)
 
 /**
  * Identity-bearing keys. Wiped on ANY auth-user mismatch — including the very
@@ -112,6 +114,36 @@ export function clearPersonScopedState(opts?: { includeGuestFlow?: boolean }): v
   try {
     document.cookie = `${ACTIVE_CARD_COOKIE}=; path=/; max-age=0; samesite=lax`;
   } catch { /* ignore */ }
+}
+
+// ── Identity-reconciled barrier ──────────────────────────────────────────────
+//
+// AccountIsolationGuard reconciles inside a getSession() promise callback, but
+// trackers read localStorage synchronously in their mount effects — so the
+// first tracked view after an account switch used to ship the PREVIOUS
+// person's visitor id and identity blob before the guard's wipe landed.
+// Anything that attributes identity from browser state must await this first.
+//
+// Resolves when the guard finishes its first reconcile; falls back after a
+// short timeout so a broken auth client can never block tracking forever
+// (worst case is the old, pre-barrier behavior).
+let reconciled = false;
+let resolveReconciled: (() => void) | null = null;
+const reconciledPromise: Promise<void> = typeof window === "undefined"
+  ? Promise.resolve()
+  : new Promise((resolve) => { resolveReconciled = resolve; });
+
+export function markIdentityReconciled(): void {
+  reconciled = true;
+  resolveReconciled?.();
+}
+
+export function whenIdentityReconciled(timeoutMs = 2000): Promise<void> {
+  if (reconciled || typeof window === "undefined") return Promise.resolve();
+  return Promise.race([
+    reconciledPromise,
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
 
 export function readLastAuthUid(): string | null {

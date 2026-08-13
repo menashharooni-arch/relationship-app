@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
-import { triggerSignupNudge } from "@/lib/nudge";
+import { triggerSignupNudgeWhenVisible } from "@/lib/nudge";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
@@ -64,7 +64,10 @@ export default function LeadCaptureForm({
       markSharedWith(cardOwner, form);
       setStatus("done");
       // Same signup popup as every other "shared their info" moment on the card.
-      setTimeout(() => triggerSignupNudge("share_info"), 900);
+      // Visibility-aware: if the page is backgrounded (keyboard dismiss/app
+      // switch), the nudge waits for the visitor to come back instead of
+      // spending its slot on a page nobody is looking at.
+      triggerSignupNudgeWhenVisible("share_info", 900);
     } else {
       setStatus("error");
     }

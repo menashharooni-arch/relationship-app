@@ -21,6 +21,7 @@ import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
+import { requestLocation } from "@/lib/request-geo";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -81,12 +82,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unable to submit right now." }, { status: 400 });
     }
 
-    // Extract location from Vercel's built-in geo headers (no API key needed)
-    const city = req.headers.get("x-vercel-ip-city");
-    const country = req.headers.get("x-vercel-ip-country");
-    const location = city && country
-      ? `${decodeURIComponent(city)}, ${country}`
-      : country || null;
+    // This request's own edge geo headers — shared helper (request-geo.ts):
+    // guarded decode (a malformed x-vercel-ip-city used to throw here, and the
+    // outer catch turned one bad header into a 500 that LOST THE LEAD), keeps
+    // a city even when the country header is missing, honest null otherwise.
+    const location = requestLocation(req);
 
     const admin = getAdminSupabase();
 

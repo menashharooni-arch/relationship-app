@@ -8,6 +8,7 @@ import {
   getOfficeEmployeeMetricsForTeam,
   getOfficeDailyViews,
   getOfficeTrafficSources,
+  getOfficeUniqueVisitors,
 } from "@/lib/office-analytics";
 import { resolveDateRange, previousPeriod, type DateRangePreset } from "@/lib/office-analytics-dates";
 import { computeConversionRate, pctChange, fillDateRange } from "@/lib/office-analytics-metrics";
@@ -46,6 +47,7 @@ export default async function OfficeAnalyticsPage({
   let prevEmployees: Awaited<ReturnType<typeof getOfficeEmployeeMetricsForTeam>> = [];
   let dailyViews: { date: string; views: number }[] = [];
   let trafficSources: { source: string; views: number }[] = [];
+  let officeUnique: number | null = null;
   let loadError = false;
 
   try {
@@ -55,11 +57,12 @@ export default async function OfficeAnalyticsPage({
     // review).
     const team = await getOfficeTeam(getAdminSupabase(), officeId, ownerId);
     const keys = flattenOfficeKeys(team.flatMap((m) => memberSlugs(m)));
-    [employees, prevEmployees, dailyViews, trafficSources] = await Promise.all([
+    [employees, prevEmployees, dailyViews, trafficSources, officeUnique] = await Promise.all([
       getOfficeEmployeeMetricsForTeam(team, range.since, range.until),
       getOfficeEmployeeMetricsForTeam(team, prevRange.since, prevRange.until),
       getOfficeDailyViews(keys, range.since, range.until),
       getOfficeTrafficSources(keys, range.since, range.until),
+      getOfficeUniqueVisitors(keys, range.since, range.until),
     ]);
   } catch (e) {
     console.error("Office analytics dashboard failed to load:", e);
@@ -76,7 +79,11 @@ export default async function OfficeAnalyticsPage({
   }
 
   const totalViews = employees.reduce((s, e) => s + e.views + e.swiftlinkViews, 0);
-  const totalUnique = employees.reduce((s, e) => s + e.uniqueVisitors, 0);
+  // TRUE distinct across the whole team when the RPC exists; summing the
+  // per-employee figures (the fallback) counts a visitor who opened several
+  // colleagues' cards once per colleague.
+  const summedUnique = employees.reduce((s, e) => s + e.uniqueVisitors, 0);
+  const totalUnique = officeUnique ?? summedUnique;
   const totalScans = employees.reduce((s, e) => s + e.scans, 0);
   const totalLeads = employees.reduce((s, e) => s + e.leads, 0);
   const totalContacts = employees.reduce((s, e) => s + e.contactsSaved, 0);
@@ -100,8 +107,11 @@ export default async function OfficeAnalyticsPage({
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatTile label="Card views" value={totalViews} hint={deltaLabel(totalViews, prevTotalViews)} />
-        <StatTile label="Unique visitors" value={totalUnique} hint="Deduped per visitor per 24h" />
+        {/* "Total views" — it has always included Swift Links views (the
+            SwiftLink tile below is a breakdown of the same number), so the
+            label says so instead of implying cards only. */}
+        <StatTile label="Total views" value={totalViews} hint={deltaLabel(totalViews, prevTotalViews)} />
+        <StatTile label="Unique visitors" value={totalUnique} hint={officeUnique != null ? "Distinct visitors across the whole team" : "Summed per employee"} />
         <StatTile label="Card/QR scans" value={totalScans} hint={deltaLabel(totalScans, prevTotalScans)} />
         <StatTile label="Leads captured" value={totalLeads} hint={deltaLabel(totalLeads, prevTotalLeads)} />
         <StatTile label="Contacts saved" value={totalContacts} hint={deltaLabel(totalContacts, prevTotalContacts)} />
@@ -109,7 +119,7 @@ export default async function OfficeAnalyticsPage({
         <StatTile
           label="Conversion rate"
           value={conversionRate == null ? "—" : `${(conversionRate * 100).toFixed(1)}%`}
-          hint="Leads captured ÷ card views"
+          hint="Leads captured ÷ total views"
         />
       </div>
 

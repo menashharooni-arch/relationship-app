@@ -34,8 +34,11 @@ export function resolveDateRange(
     return { since: new Date(sinceStart).toISOString(), until: new Date(untilExclusive).toISOString() };
   }
 
+  // "(days - 1) back + today" = exactly `days` calendar days including today.
+  // A plain `todayStart - days` spanned days+1 (e.g. "7 days" covered 8), so
+  // every preset quietly overstated its labeled window by one day.
   const days = preset === "7d" ? 7 : preset === "90d" ? 90 : 30;
-  return { since: new Date(todayStart - days * DAY_MS).toISOString(), until: new Date(tomorrowStart).toISOString() };
+  return { since: new Date(todayStart - (days - 1) * DAY_MS).toISOString(), until: new Date(tomorrowStart).toISOString() };
 }
 
 // The immediately-preceding period of the same length, for "change vs
