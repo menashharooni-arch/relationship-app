@@ -402,7 +402,21 @@ export async function deliverToLead(opts: {
   email?: { subject: string; html: string };  // custom email template (automations); omit → personal email
   cardUsername?: string | null;
   log?: boolean;                              // append to conversation thread (default true)
-  channel?: "email" | "sms";                  // explicit channel choice; else email-first auto
+  channel?: "email" | "sms";                  // explicit channel choice; else consent-aware auto
+  /** The lead AFFIRMATIVELY opted in to texts (the `sms-ok` tag: they ticked the
+   *  consent box, or the owner turned texts on for them). In auto mode this
+   *  promotes SMS ahead of email — a consented contact is telling us texts are
+   *  the channel they want, and SMS is read where email is not.
+   *
+   *  Callers derive this from tags, and must treat `sms-paused` as a veto:
+   *    tags.includes("sms-ok") && !tags.includes("sms-paused")
+   *
+   *  Deliberately a caller-supplied flag rather than a lookup in here: this is
+   *  the TCPA gate, and it should be visible at each call site rather than
+   *  buried in a helper. Omitted (undefined) is treated as NOT consented, so a
+   *  caller that forgets it degrades to the old email-first behaviour rather
+   *  than texting someone who never agreed to be texted. */
+  smsConsented?: boolean;
   /** Sender is on Pro/Office → strip SwiftCard branding from the message. */
   senderPaid?: boolean;
   /** A HUMAN pressed send just now, rather than a scheduler firing a step.
@@ -417,9 +431,25 @@ export async function deliverToLead(opts: {
   // An explicit channel choice is STRICT: a text step never leaks out as an
   // email (or vice versa) — that caused duplicate same-day sends when a lead
   // was missing one contact method. Without an explicit channel, email-first.
+  // AUTO mode is CONSENT-FIRST, then email-first:
+  //   1. opted in to texts + has a phone → SMS   (they asked for texts; ~98% read)
+  //   2. has an email                    → email (free, and opt-in-by-sharing)
+  //   3. phone only, no consent          → SMS   (pre-existing fallback, see below)
+  //
+  // Only an AFFIRMATIVE opt-in promotes SMS. Having a phone number is not
+  // consent: the A2P 10DLC message flow we registered (campaign COJQ2MB) states
+  // that ticking the checkbox IS the opt-in, so texting on the strength of a
+  // stored number alone would contradict the flow the carriers approved.
+  //
+  // Case 3 predates this change and is left as-is: it is the only way a
+  // phone-only lead is reachable at all, and removing it would silently make
+  // those contacts undeliverable. It is worth revisiting separately — an
+  // unconsented text is still an unconsented text even when a human pressed
+  // send — but that is a product decision, not a refactor.
   let use: "email" | "sms" | "none" = "none";
   if (opts.channel === "email") use = lead.email ? "email" : "none";
   else if (opts.channel === "sms") use = lead.phone ? "sms" : "none";
+  else if (opts.smsConsented && lead.phone) use = "sms";
   else if (lead.email) use = "email";
   else if (lead.phone) use = "sms";
 

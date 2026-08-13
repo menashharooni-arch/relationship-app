@@ -73,6 +73,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // unsubscribe. A text step must never silently fall back to email either, so
   // reject rather than re-routing.
   const declinedSms = (lead.tags as string[] | null)?.includes("sms-paused") ?? false;
+  // Affirmative opt-in (the sms-ok tag). With no explicit channel from the UI,
+  // this promotes SMS over email in deliverToLead — a contact who ticked the
+  // consent box is telling us texts are the channel they actually read.
+  // sms-paused vetoes it, so a later "stop texting me" outranks the earlier yes.
+  const smsConsented = ((lead.tags as string[] | null) ?? []).includes("sms-ok") && !declinedSms;
   if (declinedSms && (preferChannel === "sms" || !lead.email)) {
     return NextResponse.json(
       { error: "sms_declined", message: "This contact didn't opt in to texts. You can still email them." },
@@ -114,6 +119,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     subject: typeof subject === "string" ? subject : null,
     cardUsername: lead.card_owner,
     channel: preferChannel,
+    smsConsented,
     senderPaid: isPaidPlan(senderPlan?.plan as string | null),
     // Typed by hand in the contact's reply box, sent on that tap — personal
     // mail, so no List-Unsubscribe headers to file it under Promotions.
