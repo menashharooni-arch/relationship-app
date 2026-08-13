@@ -86,7 +86,7 @@ export default async function OfficeAnalyticsMemberPage({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatTile label="Card views" value={totalViews} hint="Deduped per visitor per 24h" />
+        <StatTile label="Total views" value={totalViews} hint="Repeat visits count; reloads within a visit don't" />
         <StatTile label="Unique visitors" value={mine?.uniqueVisitors ?? 0} />
         <StatTile label="Scans" value={mine?.scans ?? 0} hint="QR code or NFC tap" />
         <StatTile label="Leads captured" value={mine?.leads ?? 0} />
@@ -95,7 +95,7 @@ export default async function OfficeAnalyticsMemberPage({
         <StatTile
           label="Conversion rate"
           value={conversionRate == null ? "—" : `${(conversionRate * 100).toFixed(1)}%`}
-          hint="Leads captured ÷ card views"
+          hint="Leads captured ÷ total views"
         />
       </div>
 

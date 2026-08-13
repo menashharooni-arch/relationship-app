@@ -37,11 +37,20 @@ export type EventIdentity = {
  * The identity to record on a card event — the pure decision, testable
  * without a database.
  *
- * Authenticated viewer → their session identity, whole. The phone is set to
- * null rather than kept: a session has no phone number, and the cached one may
- * belong to a different person — recording Mina's name next to Pyramid's phone
- * would cross-link the two people in the owner's contact matching (the events
- * GET matches conversations by phone as well as email).
+ * Authenticated viewer → their session NAME, and nothing else. The phone is
+ * set to null rather than kept: a session has no phone number, and the cached
+ * one may belong to a different person — recording Mina's name next to
+ * Pyramid's phone would cross-link the two people in the owner's contact
+ * matching (the events GET matches conversations by phone as well as email).
+ *
+ * The AUTH EMAIL is deliberately NOT recorded either. It briefly was, which
+ * meant any signed-in SwiftCard user merely OPENING a stranger's card handed
+ * that stranger their account email (visible in the contact timeline and
+ * POSTed to the owner's Zapier webhook) — an identity disclosure the viewer
+ * never consented to. An email enters an event only when the visitor
+ * explicitly typed it into a share form. The cost is that a signed-in
+ * viewer's views join conversations by visitor_id alone; that is the right
+ * trade.
  *
  * A session with no resolvable display name still overrides: the notification
  * then honestly says "Someone viewed your card" instead of confidently naming
@@ -55,7 +64,7 @@ export function authoritativeEventIdentity(
   if (!viewer) return clientSupplied;
   return {
     visitor_name: viewer.name,
-    visitor_email: viewer.email,
+    visitor_email: null,
     visitor_phone: null,
   };
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
-import { triggerSignupNudge } from "@/lib/nudge";
+import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
@@ -238,7 +238,10 @@ export default function SaveContactButton({
     if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
       setTimeout(() => setShowSheet(true), 900);
     } else {
-      setTimeout(() => triggerSignupNudge("vcard"), 900);
+      // Visibility-aware: the OS "Add to Contacts" sheet backgrounds the page
+      // and iOS throttles its timers — a bare setTimeout fired the popup into
+      // a hidden page, invisibly. This waits for the visitor to return.
+      triggerSignupNudgeWhenVisible("vcard", 900);
     }
     } finally {
       setDownloading(false);
@@ -281,7 +284,8 @@ export default function SaveContactButton({
     setStatus("done");
     // After they share back, close whichever surface hosted the form (the
     // bottom sheet or the desktop QR popup) and invite them to make their own card.
-    setTimeout(() => { setShowSheet(false); setShowQr(false); triggerSignupNudge("vcard"); }, 1500);
+    setTimeout(() => { setShowSheet(false); setShowQr(false); }, 1500);
+    triggerSignupNudgeWhenVisible("vcard", 1500);
   }
 
   return (

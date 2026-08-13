@@ -315,11 +315,13 @@ export default async function DashboardPage({
     // it's the OLDEST tail of the window that's dropped.
     (async () => {
       const PAGE = 1000, MAX_PAGES = 10;
-      const all: { viewed_at: string; username: string }[] = [];
+      // visitor_id rides along so the window's unique-viewer / repeat-view
+      // split can be computed from the same rows the graph is built from.
+      const all: { viewed_at: string; username: string; visitor_id: string | null }[] = [];
       for (let p = 0; p < MAX_PAGES; p++) {
         const { data } = await getAdminSupabase()
           .from("card_views")
-          .select("viewed_at, username")
+          .select("viewed_at, username, visitor_id")
           .in("username", [analyticsUsername, linkUsername])
           .gte("viewed_at", daysAgoISO(60))
           .order("viewed_at", { ascending: false })
@@ -330,8 +332,28 @@ export default async function DashboardPage({
       }
       return { data: all };
     })(),
+    // Paged like recentViews above: unpaged, this hit PostgREST's silent
+    // 1000-row cap, so a busy card's "all time" top locations were computed
+    // from an arbitrary 1000-row slice. Newest-first so if the page cap is
+    // ever hit it's the oldest tail that drops.
     viewsRange === "locations"
-      ? getAdminSupabase().from("card_views").select("username, location").in("username", [analyticsUsername, linkUsername]).not("location", "is", null)
+      ? (async () => {
+          const PAGE = 1000, MAX_PAGES = 10;
+          const all: { username: string; location: string | null }[] = [];
+          for (let p = 0; p < MAX_PAGES; p++) {
+            const { data } = await getAdminSupabase()
+              .from("card_views")
+              .select("username, location")
+              .in("username", [analyticsUsername, linkUsername])
+              .not("location", "is", null)
+              .order("viewed_at", { ascending: false })
+              .range(p * PAGE, p * PAGE + PAGE - 1);
+            if (!data?.length) break;
+            all.push(...data);
+            if (data.length < PAGE) break;
+          }
+          return { data: all };
+        })()
       : Promise.resolve({ data: null }),
     // Service-role, like /contacts — NOT the session client. leads' RLS policy
     // keys on profiles.username, but a lead's card_owner is a CARD slug, and
@@ -442,6 +464,24 @@ export default async function DashboardPage({
   const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
   const cardDelta = pct(swiftCardViews ?? 0, prevCard);
   const linkDelta = pct(swiftLinkViews ?? 0, prevLink);
+
+  // Unique viewers vs repeat views for the selected window, from the same rows
+  // the graph buckets. A viewer is their visitor_id; a row with none (storage-
+  // blocked browser) counts as its own viewer — never claimed as a repeat we
+  // can't prove. Repeat = total − unique: every additional visit by a known
+  // returning viewer.
+  const windowIds = new Map<string, number>();
+  let windowNullIdRows = 0;
+  let windowTotalRows = 0;
+  for (const v of recentViews ?? []) {
+    if (new Date(v.viewed_at as string).getTime() < windowStart) continue;
+    windowTotalRows++;
+    const vid = (v as { visitor_id?: string | null }).visitor_id;
+    if (vid) windowIds.set(vid, (windowIds.get(vid) ?? 0) + 1);
+    else windowNullIdRows++;
+  }
+  const uniqueViewers = windowIds.size + windowNullIdRows;
+  const repeatViews = Math.max(0, windowTotalRows - uniqueViewers);
   const deltaPeriod = viewsRange === "month" ? "this month" : viewsRange === "week" ? "this week" : "today";
   const maxBar = Math.max(1, ...trafficBars);
   // Timeline for the chart: each bar's real start instant (local hour / local
@@ -927,6 +967,16 @@ export default async function DashboardPage({
                       </div>
                     ))}
                   </div>
+
+                  {/* Unique vs repeat for the same window — the split that
+                      tells an owner "5 people, and two of them came back",
+                      which raw totals can't. Only shown once there's data. */}
+                  {windowTotalRows > 0 && (
+                    <div className="flex items-center gap-4 mt-2 text-[11px]">
+                      <span className="text-gray-500">Unique viewers <span className="text-gray-200 font-semibold tabular-nums">{uniqueViewers.toLocaleString("en-US")}</span></span>
+                      <span className="text-gray-500">Repeat views <span className="text-gray-200 font-semibold tabular-nums">{repeatViews.toLocaleString("en-US")}</span></span>
+                    </div>
+                  )}
 
                   {/* Time-series bar graph — one bar per hour (Today) or day
                       (Week/Month), with a labeled time axis, baseline, and hover

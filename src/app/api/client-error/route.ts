@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { reportError } from "@/lib/report-error";
+import { clientIp } from "@/lib/client-ip";
 
 // Receives client-side runtime errors (window.onerror / unhandledrejection /
 // React error boundary) and funnels them through the SAME reportError pipeline
@@ -10,7 +11,9 @@ import { reportError } from "@/lib/report-error";
 // client must never flood alerts, and reporting must never itself error.
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+    // Shared clientIp helper — the leftmost XFF hop is attacker-supplied, so
+    // reading it let a caller rotate a fake first hop to bypass this limiter.
+    const ip = clientIp(req) ?? "anon";
     // Cap alert volume: 20 client reports / IP / 10 min. Over that, silently drop.
     if (await isRateLimited(`client-error:${ip}`, 20, 10 * 60 * 1000)) {
       return NextResponse.json({ ok: true }, { status: 202 });

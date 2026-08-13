@@ -10,12 +10,25 @@ const KEY = "kontact_vid";
 // persistent storage is blocked (private mode) so tracking still degrades safely.
 let memoryId = "";
 
+// crypto.randomUUID only exists in secure contexts — on plain-http (LAN dev,
+// old webviews) it is undefined, and a throw here used to abort the tracker's
+// effect AFTER its fire-once guard was set, so the view was lost with no retry.
+// A view id must never be the reason a view isn't counted.
+function newVisitorId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through */ }
+  return `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function getVisitorId(): string {
   if (typeof window === "undefined") return "";
   try {
     let id = localStorage.getItem(KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = newVisitorId();
       localStorage.setItem(KEY, id);
     }
     return id;
@@ -25,12 +38,12 @@ export function getVisitorId(): string {
     try {
       let id = sessionStorage.getItem(KEY);
       if (!id) {
-        id = crypto.randomUUID();
+        id = newVisitorId();
         sessionStorage.setItem(KEY, id);
       }
       return id;
     } catch {
-      if (!memoryId) memoryId = crypto.randomUUID();
+      if (!memoryId) memoryId = newVisitorId();
       return memoryId;
     }
   }

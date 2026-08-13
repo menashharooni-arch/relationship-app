@@ -16,13 +16,13 @@ type SortKey = keyof Pick<
 const COLUMNS: { key: SortKey; label: string; hint: string }[] = [
   { key: "name", label: "Employee", hint: "Team member name" },
   { key: "cardName", label: "Card", hint: "Their card, or how many cards they own" },
-  { key: "views", label: "Views", hint: "Times their card was opened — deduped per visitor per 24h" },
-  { key: "uniqueVisitors", label: "Unique visitors", hint: "Distinct visitors — deduped per visitor per 24h" },
+  { key: "views", label: "Views", hint: "Times their card was opened — repeat visits count; reloads within a visit don't" },
+  { key: "uniqueVisitors", label: "Unique visitors", hint: "Distinct visitors in the selected range" },
   { key: "scans", label: "Scans", hint: "Views attributed to a QR code scan or NFC tap" },
   { key: "leads", label: "Leads", hint: "People who shared their contact info" },
   { key: "contactsSaved", label: "Contacts saved", hint: "Visitors who downloaded this card as a contact" },
   { key: "swiftlinkViews", label: "SwiftLink views", hint: "Visits to their Swift Links page" },
-  { key: "conversionRate", label: "Conversion", hint: "Leads captured ÷ card views" },
+  { key: "conversionRate", label: "Conversion", hint: "Leads captured ÷ total views" },
   { key: "lastActivityAt", label: "Last activity", hint: "Most recent view, lead, or contact save" },
 ];
 

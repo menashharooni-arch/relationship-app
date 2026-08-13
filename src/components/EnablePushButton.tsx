@@ -33,6 +33,28 @@ function nativePushAvailable(): boolean {
 }
 
 const APNS_ENDPOINT_KEY = "swiftcard_apns_endpoint";
+// Which account enabled push on this device — NativeAppBridge's silent
+// launch-time token refresh only re-registers when the CURRENT session matches
+// this, so a rotated APNs token gets rebound for the user who opted in and
+// never for anyone else. Cleared by unbindDevicePush.
+const PUSH_UID_KEY = "swiftcard_push_uid";
+
+// The session uid, for stamping PUSH_UID_KEY. Local cookie decode, no network;
+// null (skip the stamp) on any failure — the stamp is an optimization, not a
+// gate on enabling push.
+async function sessionUid(): Promise<string | null> {
+  try {
+    const { createBrowserClient } = await import("@supabase/ssr");
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function detectEnv() {
   if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false, native: false };
@@ -118,7 +140,11 @@ export function usePushState(): [State, () => Promise<boolean>] {
           body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
         });
         if (!res.ok) { setState("error"); return false; }
-        try { localStorage.setItem(APNS_ENDPOINT_KEY, endpoint); } catch { /* ignore */ }
+        try {
+          localStorage.setItem(APNS_ENDPOINT_KEY, endpoint);
+          const uid = await sessionUid();
+          if (uid) localStorage.setItem(PUSH_UID_KEY, uid);
+        } catch { /* ignore */ }
         setState("subscribed");
         return true;
       } catch {

@@ -132,9 +132,15 @@ describe("wiring — the guard and sign-out actually run this", () => {
     expect(guard).toMatch(/writeLastAuthUid\(sessionUid\)/);
   });
 
-  it("the guard severs the device push binding on a REAL switch only", () => {
+  it("the guard severs the device push binding on EVERY unstamped-state login", () => {
+    // Not just a real switch: a sign-out whose server DELETE failed (offline)
+    // followed by a fresh login arrives with lastUid null — the stale binding
+    // would otherwise keep pushing the previous account's activity here. The
+    // unbind is unconditional within reconcile's reset branch; guest-flow keys
+    // still only clear on a real switch.
     expect(guard).toMatch(/isAccountSwitch\(lastUid, sessionUid\)/);
-    expect(guard).toMatch(/if \(realSwitch\)[\s\S]*unbindDevicePush/);
+    expect(guard).toMatch(/unbindDevicePush/);
+    expect(guard).not.toMatch(/if \(realSwitch\)[\s\S]*unbindDevicePush/);
   });
 
   it("the guard is mounted globally in the root layout", () => {

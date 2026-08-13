@@ -119,6 +119,75 @@ export default function NativeAppBridge() {
         removeListener = () => handle.remove();
       } catch { /* plugin unavailable (older shell build) — universal links still open the app's last page */ }
 
+      // Push-notification taps: lib/apns.ts puts the in-app destination in the
+      // payload's custom `url`; navigate there when the user opens one.
+      // Registered BEFORE the widget sync below (which awaits a network fetch)
+      // — a tap that launches the app from cold start fires as soon as the
+      // listener exists, and every second of delay is a window where the tap
+      // silently does nothing.
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        const tapHandle = await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+          const dest = (action?.notification?.data as { url?: string } | undefined)?.url;
+          if (typeof dest !== "string") return;
+          // Senders pass ABSOLUTE urls (`${APP_URL}/dashboard?card=…`) — the
+          // old relative-only guard rejected every one of them, so tapping a
+          // push never navigated. Accept our own origin and strip it to a
+          // path; still never let a foreign origin steer the webview.
+          let path: string | null = null;
+          if (dest.startsWith("/") && !dest.startsWith("//")) {
+            path = dest;
+          } else {
+            try {
+              const u = new URL(dest);
+              if (u.hostname === "swiftcard.me" || u.hostname === "www.swiftcard.me") {
+                path = u.pathname + u.search + u.hash;
+              }
+            } catch { /* not a URL — ignore */ }
+          }
+          if (path) window.location.href = path;
+        });
+        if (cancelled) { tapHandle.remove(); return; }
+        const prevTap = removeListener;
+        removeListener = () => { prevTap?.(); tapHandle.remove(); };
+
+        // ── Silent token refresh ──────────────────────────────────────────
+        // iOS rotates APNs tokens (OS upgrade, backup restore) and register()
+        // is otherwise only called from the user-initiated enable button — a
+        // rotated token meant pushes silently stopped until the user toggled
+        // the setting again. On each launch, IF this device's push binding
+        // belongs to the CURRENT signed-in user and permission is already
+        // granted, re-register and re-upsert the (possibly new) token. Never
+        // prompts, never binds an account that didn't opt in itself.
+        try {
+          const perm = await PushNotifications.checkPermissions();
+          const pushUid = localStorage.getItem("swiftcard_push_uid");
+          if (perm.receive === "granted" && pushUid) {
+            const { createBrowserClient } = await import("@supabase/ssr");
+            const supabase = createBrowserClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            );
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id && session.user.id === pushUid) {
+              const regHandle = await PushNotifications.addListener("registration", (t) => {
+                const endpoint = `apns:${t.value}`;
+                fetch("/api/push/subscribe", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
+                }).then((r) => {
+                  if (r.ok) { try { localStorage.setItem("swiftcard_apns_endpoint", endpoint); } catch { /* ignore */ } }
+                }).catch(() => { /* offline — next launch retries */ });
+              });
+              const prevReg = removeListener;
+              removeListener = () => { prevReg?.(); regHandle.remove(); };
+              await PushNotifications.register();
+            }
+          }
+        } catch { /* refresh is best-effort — enable button remains the fallback */ }
+      } catch { /* push plugin absent — fine */ }
+
       // ── Home-screen QR widget data sync ─────────────────────────────────
       // Hand the signed-in user's active card to the SwiftCardWidget extension
       // via the WidgetBridge native plugin (ios/App/App/WidgetBridge.swift),
@@ -185,20 +254,6 @@ export default function NativeAppBridge() {
         }
       }
 
-      // Push-notification taps: lib/apns.ts puts the in-app destination in the
-      // payload's custom `url`; navigate there when the user opens one.
-      try {
-        const { PushNotifications } = await import("@capacitor/push-notifications");
-        const tapHandle = await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-          const dest = (action?.notification?.data as { url?: string } | undefined)?.url;
-          if (typeof dest === "string" && dest.startsWith("/") && !dest.startsWith("//")) {
-            window.location.href = dest;
-          }
-        });
-        if (cancelled) { tapHandle.remove(); return; }
-        const prev = removeListener;
-        removeListener = () => { prev?.(); tapHandle.remove(); };
-      } catch { /* push plugin absent — fine */ }
     })();
 
     return () => {

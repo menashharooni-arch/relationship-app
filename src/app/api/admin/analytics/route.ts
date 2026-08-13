@@ -134,16 +134,23 @@ export async function GET() {
   // Excludes the App Review demo account's seeded views — see lib/seeded-views.
   // They were ~30% of this number, which made our own traction look better than
   // it was on the one dashboard we use to judge it.
+  // The or() keeps NULL visitor_id rows in the total: a bare not-like filter
+  // silently dropped them (NULL LIKE is NULL), so `total` and the 30-day loop
+  // below (whose isSeededView(null) is false) were counting two different
+  // populations.
   const { count: viewTotal } = await admin
     .from("card_views")
     .select("*", { count: "exact", head: true })
-    .not("visitor_id", "like", `${SEEDED_VISITOR_PREFIX}%`);
+    .or(`visitor_id.is.null,visitor_id.not.like.${SEEDED_VISITOR_PREFIX}%`);
   // card_views has viewed_at (NOT created_at) — selecting the wrong column made
   // this whole block silently return nothing and the views charts showed 0.
+  // Ordered newest-first: with no order, hitting the 5000 cap kept an ARBITRARY
+  // 5000 of the month's rows; now it's deterministically the most recent ones.
   const { data: recentViews } = await admin
     .from("card_views")
     .select("username, viewed_at, visitor_id")
     .gte("viewed_at", iso(30))
+    .order("viewed_at", { ascending: false })
     .limit(5000);
   let cardViews30 = 0, linkViews30 = 0, views7 = 0;
   (recentViews ?? []).forEach((v) => {

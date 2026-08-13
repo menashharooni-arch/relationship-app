@@ -94,7 +94,9 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     // lib/card-event-notify so it could be tested directly instead of grepped.
     // What must not change: a save still reaches all three destinations, and
     // still under the type the rest of the product keys on.
-    expect(events).toMatch(/event_type === "downloaded_vcard"/);
+    // The allowlist is also the flood gate: only these two event types are
+    // accepted by the public route at all now.
+    expect(events).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard"\]\)/);
     const block = events.slice(events.indexOf('event_type === "viewed_card"'));
     expect(block).toContain("insertNotification");
     expect(block).toContain("dispatchCrmEvent");
@@ -282,9 +284,11 @@ describe("the free-card invite closes out every path", () => {
     expect(sheet, "a dismissal bypasses closeSheet").not.toMatch(/onClick=\{\(\) => setShowSheet\(false\)\}/);
   });
 
-  it("submitting the form invites them too", () => {
+  it("submitting the form invites them too — when the page is visible", () => {
+    // Visibility-aware: the save flow backgrounds the page behind OS sheets,
+    // where a bare setTimeout nudge fired unseen and spent the session slot.
     const done = src.slice(src.indexOf('setStatus("done")'));
-    expect(done.slice(0, 400)).toContain('triggerSignupNudge("vcard")');
+    expect(done.slice(0, 500)).toContain('triggerSignupNudgeWhenVisible("vcard"');
   });
 
   it("the new QR path doesn't spend the invite BEFORE the sheet", () => {

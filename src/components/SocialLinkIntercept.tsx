@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
-import { triggerSignupNudge } from "@/lib/nudge";
+import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
 import { hasSharedWith, markSharedWith, getVisitorInfo, getVisitorId } from "@/lib/visitor";
 import LinkMark from "@/components/LinkMark";
 import { brandBackground, hostLabel } from "@/lib/link-brand";
@@ -179,10 +179,12 @@ export default function SocialLinkIntercept({
     setTimeout(() => {
       if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
       setPendingHref(null);
-      // They just shared their info off someone's card — invite them to make
-      // their own (the host shows it once per session, never to logged-in users).
-      triggerSignupNudge("share_info");
     }, 800);
+    // They just shared their info off someone's card — invite them to make
+    // their own (the host shows it once per session, never to logged-in
+    // users). Visibility-aware: the window.open above may background this tab,
+    // so the nudge waits for them to come back rather than firing unseen.
+    triggerSignupNudgeWhenVisible("share_info", 800);
   }
 
   const arrowIcon = (

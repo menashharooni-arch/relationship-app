@@ -49,10 +49,21 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
-  await admin.from("push_subscriptions").upsert(
+  // The upsert result is CHECKED. A silent failure here told the client
+  // "subscribed" while no row existed — and the failure mode is real: if the
+  // production table lacks the UNIQUE constraint on endpoint that
+  // onConflict:"endpoint" requires, Postgres raises 42P10 on every call. Worse,
+  // without that constraint two accounts could both hold rows for one device
+  // token, so pushes for BOTH would land on the same phone
+  // (supabase/view-visit-window.sql adds the constraint + dedupes old rows).
+  const { error } = await admin.from("push_subscriptions").upsert(
     { user_id: user.id, endpoint, p256dh, auth },
     { onConflict: "endpoint" }
   );
+  if (error) {
+    console.error("push_subscriptions upsert failed:", error.message);
+    return NextResponse.json({ error: "Subscription not stored" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

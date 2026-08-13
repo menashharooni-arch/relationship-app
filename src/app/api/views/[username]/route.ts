@@ -7,6 +7,8 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
+import { requestLocation } from "@/lib/request-geo";
+import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 
 export async function POST(
   req: NextRequest,
@@ -31,14 +33,29 @@ export async function POST(
     return NextResponse.json({ ok: true, bot: true });
   }
 
+  // Browser prefetch/prerender/link-preview machinery announces itself in
+  // these headers. Our tracker fires from a user-visible page (and skips
+  // document.prerendering itself), so anything that arrives pre-flagged is a
+  // speculative load, not a person.
+  const purpose = `${req.headers.get("sec-purpose") ?? ""} ${req.headers.get("purpose") ?? ""} ${req.headers.get("x-purpose") ?? ""}`.toLowerCase();
+  if (/prefetch|prerender|preview/.test(purpose)) {
+    return NextResponse.json({ ok: true, prefetch: true });
+  }
+
   const body = await req.json().catch(() => null);
-  const visitorId: string | null = body?.visitorId || null;
-  // Recorded as-is (the card page computes this: a real `?source=` query param,
-  // or its "direct_link" default). Not currently validated against SOURCE_LABELS
-  // — an unrecognized value just falls back to its raw string in the UI (see
-  // getSourceLabel), so a bogus client-supplied value degrades gracefully rather
-  // than breaking tracking.
-  const source: string | null = body?.source || null;
+  // Type + length validation: both fields are permanent row values and the
+  // dedup/traffic-source pipelines key on them, so a non-string or unbounded
+  // payload must degrade to "absent", never reach the database. (Recorded
+  // source values aren't validated against SOURCE_LABELS — an unrecognized
+  // value just falls back to its raw string in the UI via getSourceLabel.)
+  const visitorId: string | null =
+    typeof body?.visitorId === "string" && body.visitorId.trim()
+      ? body.visitorId.trim().slice(0, 64)
+      : null;
+  const source: string | null =
+    typeof body?.source === "string" && body.source.trim()
+      ? body.source.trim().slice(0, 48)
+      : null;
 
   // Only record views for cards that actually serve. Blocks spam inflation of
   // view counts via direct POSTs for nonexistent/deleted/plan-deactivated slugs
@@ -56,37 +73,48 @@ export async function POST(
     return NextResponse.json({ ok: true, self: true });
   }
 
-  const city = req.headers.get("x-vercel-ip-city");
-  const country = req.headers.get("x-vercel-ip-country");
-  const location = city && country
-    ? `${decodeURIComponent(city)}, ${country}`
-    : country || null;
+  const location = requestLocation(req);
 
   const supabase = getAdminSupabase();
 
-  // Dedupe by visitor: a page reload (same tab, same sessionStorage visitor id)
-  // must not count as a second view. Only a fresh visitor id — a new tab/session,
-  // or the same visitor coming back after 24h — counts as a new view.
+  // Dedupe within ONE VISIT (see view-window.ts): a reload, double-fire, or
+  // back-navigation inside the window is the same visit and must not add a
+  // row. Beyond the window, the same visitor coming back is a GENUINE REPEAT
+  // VIEW and records again — total views count visits, distinct visitor_ids
+  // count unique viewers, and the difference is repeat interest. (This used to
+  // be a 24h window, which silently erased every same-day return — the
+  // dashboard could never show that a hot lead opened the card three times.)
   if (visitorId) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - VIEW_VISIT_WINDOW_MS).toISOString();
     const { data: recent } = await supabase
       .from("card_views")
       .select("id, source")
       .eq("username", username)
       .eq("visitor_id", visitorId)
       .gte("viewed_at", since)
+      // Newest first — with multiple rows in range the source upgrade below
+      // must touch the row for THIS visit, not an arbitrary older one.
+      .order("viewed_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (recent) {
-      // A repeat visit doesn't get a new row, but if this hit carries a more
-      // specific source (e.g. a QR scan minutes after the same visitor opened
-      // a plain link) than what got recorded first, upgrade it in place —
-      // otherwise that scan silently vanishes from traffic-source attribution.
-      // Never downgrades an already-specific source back to a generic one.
+      // A same-visit reload doesn't get a new row, but if this hit carries a
+      // more specific source (e.g. a QR scan minutes after the same visitor
+      // opened a plain link) than what got recorded first, upgrade it in place
+      // — otherwise that scan silently vanishes from traffic-source
+      // attribution. Never downgrades an already-specific source.
       const isGeneric = (s: string | null) => !s || s === "direct_link";
       if (source && !isGeneric(source) && isGeneric(recent.source as string | null)) {
         await supabase.from("card_views").update({ source }).eq("id", recent.id);
       }
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+  } else {
+    // No visitor id (storage-blocked client, scripted POST) — there is nothing
+    // to dedupe rows on, so hold this path to one counted view per (IP, card)
+    // per visit window. A NAT full of distinct real visitors still counts:
+    // real browsers virtually always manage a visitor id.
+    if (await isRateLimited(`views-anon:${ip}:${username}`, 1, VIEW_VISIT_WINDOW_MS)) {
       return NextResponse.json({ ok: true, deduped: true });
     }
   }
@@ -102,8 +130,8 @@ export async function POST(
   // the rate-limit key) — the privacy policy states visitor IPs are not stored
   // with views, so only the pre-derived, coarser `location` string is kept.
   // A concurrent duplicate insert for the same visitor (two tabs, a client
-  // double-fire) is caught by the partial unique index added in
-  // supabase/card-views-race-fix.sql and treated as a normal dedup, not a
+  // double-fire) is caught by the visit-bucket unique index added in
+  // supabase/view-visit-window.sql and treated as a normal dedup, not a
   // failure — the check above narrows the window but is not atomic by itself.
   const { error: insertErr } = await supabase.from("card_views").insert({ username, location, visitor_id: visitorId, source, viewed_at: new Date().toISOString() });
   if (insertErr) {

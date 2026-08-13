@@ -42,7 +42,9 @@ describe("authoritativeEventIdentity — the session always outranks the cached 
   it("(6) Mina's authenticated view is recorded as Mina, never as the cached Pyramid", () => {
     const id = authoritativeEventIdentity(mina, cachedPyramid);
     expect(id.visitor_name).toBe("Mina R");
-    expect(id.visitor_email).toBe("mina@example.com");
+    // The session's AUTH EMAIL is never recorded — merely opening a card must
+    // not disclose the viewer's account email to the owner (or their Zapier).
+    expect(id.visitor_email).toBeNull();
     // Nothing of the cached identity survives.
     expect(JSON.stringify(id)).not.toContain("Pyramid");
     expect(JSON.stringify(id)).not.toContain("pyramid@example.com");
@@ -64,7 +66,7 @@ describe("authoritativeEventIdentity — the session always outranks the cached 
     const anonymousMina: SessionViewer = { userId: "mina-uid", name: null, email: "mina@example.com" };
     const id = authoritativeEventIdentity(anonymousMina, cachedPyramid);
     expect(id.visitor_name).toBeNull();
-    expect(id.visitor_email).toBe("mina@example.com");
+    expect(id.visitor_email).toBeNull();
     const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name });
     expect(n!.body).toBe("Someone viewed your card.");
   });
@@ -91,7 +93,8 @@ describe("wiring — the ingest route actually enforces this server-side", () =>
   });
 
   it("the insert records the DERIVED identity, never the raw client fields", () => {
-    const insert = route.slice(route.indexOf('from("card_events").insert'));
+    // The insert takes a prebuilt `row` object now — assert on its literal.
+    const insert = route.slice(route.indexOf("const row = {"));
     expect(insert).toMatch(/visitor_name: identity\.visitor_name/);
     expect(insert).toMatch(/visitor_email: identity\.visitor_email/);
     expect(insert).toMatch(/visitor_phone: identity\.visitor_phone/);

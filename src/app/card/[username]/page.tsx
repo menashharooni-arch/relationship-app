@@ -112,11 +112,15 @@ export default async function CardPage({
   searchParams,
 }: {
   params: Promise<{ username: string }>;
-  searchParams: Promise<{ source?: string; embed?: string; shared?: string; save?: string }>;
+  searchParams: Promise<{ source?: string | string[]; embed?: string; shared?: string; save?: string }>;
 }) {
   const { username } = await params;
   const { source: rawSource, embed, shared, save } = await searchParams;
-  const source = rawSource ?? "direct_link";
+  // A repeated query param (?source=a&source=b) arrives as an array — passing
+  // that through used to reach the card_views insert as a non-text value and
+  // fail the whole row. First value wins; bounded like the API's own cap.
+  const sourceParam = Array.isArray(rawSource) ? rawSource[0] : rawSource;
+  const source = (sourceParam ?? "direct_link").slice(0, 48);
   // ?save=1 — arrived by scanning the desktop QR. The card renders normally and
   // ScanSaveContact hands the phone the contact on top of it, so dismissing the
   // "Add to Contacts" sheet leaves them on the card instead of a blank page.
@@ -304,7 +308,7 @@ export default async function CardPage({
       {autoSave && !isEmbed && (
         <ScanSaveContact username={profile.username} source={source} suppressTracking={isOwnerView} />
       )}
-      {!isEmbed && !isOwnerView && <SignupNudgeHost />}
+      {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={profile.username} />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
       <div className="w-full max-w-sm">

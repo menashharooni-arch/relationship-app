@@ -23,16 +23,20 @@ export default function ShareButton({
   const [status, setStatus] = useState<"idle" | "copied" | "menu">("idle");
 
   async function handleShare() {
-    // Conversion moment for logged-out visitors on public pages — the popup
-    // host only mounts there, so this is a no-op on the owner's dashboard.
-    triggerSignupNudge("share_card");
     // Native shell: WKWebView often lacks navigator.share — use the native
     // share sheet via the Capacitor plugin. Falls through to the web paths on
     // any failure (plugin missing in an old shell build, user cancel throws).
+    //
+    // The signup nudge fires AFTER the share resolves, never before: firing on
+    // tap rendered the popup BEHIND the OS share sheet, where it burned its
+    // once-per-session slot without ever being seen — and a cancelled share is
+    // no conversion moment at all. (The popup host only mounts on public
+    // pages, so this stays a no-op on the owner's dashboard.)
     if (detectNativeApp()) {
       try {
         const { Share } = await import("@capacitor/share");
         await Share.share({ url });
+        triggerSignupNudge("share_card");
         return;
       } catch { /* fall through to web share / menu */ }
     }
@@ -42,9 +46,10 @@ export default function ShareButton({
         // card preview only when the message is the bare URL — sharing extra
         // text makes it a plain text message with a link and no preview.
         await navigator.share({ url });
+        triggerSignupNudge("share_card");
         return;
       } catch {
-        return;
+        return; // user cancelled — nothing completed, nothing to nudge about
       }
     }
     setStatus("menu");
@@ -54,6 +59,7 @@ export default function ShareButton({
     try {
       await navigator.clipboard.writeText(url);
       setStatus("copied");
+      triggerSignupNudge("share_card");
       setTimeout(() => setStatus("idle"), 2500);
     } catch {
       window.prompt("Copy your card link:", url);
@@ -64,6 +70,7 @@ export default function ShareButton({
   function shareWhatsApp() {
     const msg = encodeURIComponent(`${text}\n${url}`);
     window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener,noreferrer");
+    triggerSignupNudge("share_card");
     setStatus("idle");
   }
 

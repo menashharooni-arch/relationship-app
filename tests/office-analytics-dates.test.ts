@@ -5,15 +5,20 @@ import { resolveDateRange, previousPeriod } from "@/lib/office-analytics-dates";
 const NOW = new Date("2026-03-15T14:32:00.000Z"); // mid-afternoon UTC, on purpose
 
 describe("resolveDateRange — UTC calendar-day boundaries", () => {
-  it("7d: since is 7 UTC days before today's start, until is the start of tomorrow", () => {
+  it("7d: exactly 7 calendar days INCLUDING today — Mar 9 through Mar 15", () => {
     const r = resolveDateRange("7d", NOW);
-    expect(r.since).toBe("2026-03-08T00:00:00.000Z");
+    // Not Mar 8: since = todayStart - 7d covered EIGHT days, so the "7 days"
+    // label overstated its own window.
+    expect(r.since).toBe("2026-03-09T00:00:00.000Z");
     expect(r.until).toBe("2026-03-16T00:00:00.000Z");
+    expect((new Date(r.until).getTime() - new Date(r.since).getTime()) / 86400000).toBe(7);
   });
 
-  it("30d and 90d scale the same way", () => {
-    expect(resolveDateRange("30d", NOW).since).toBe("2026-02-13T00:00:00.000Z");
-    expect(resolveDateRange("90d", NOW).since).toBe("2025-12-15T00:00:00.000Z");
+  it("30d and 90d cover exactly their labeled number of days", () => {
+    for (const [preset, days] of [["30d", 30], ["90d", 90]] as const) {
+      const r = resolveDateRange(preset, NOW);
+      expect((new Date(r.until).getTime() - new Date(r.since).getTime()) / 86400000).toBe(days);
+    }
   });
 
   it("until never carries a time-of-day component — always a UTC midnight", () => {
