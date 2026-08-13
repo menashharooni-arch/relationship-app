@@ -27,17 +27,26 @@ const host = read("src/components/SignupNudgeHost.tsx");
 const share = read("src/components/ShareButton.tsx");
 
 describe("slots are per class, spent only when a popup renders", () => {
-  it("save/share-info/incidental triggers each have their own guard, capped per session", () => {
-    expect(host).toMatch(/sc_nudged_\$\{cls\}/);
-    expect(host).toMatch(/NUDGE_SESSION_CAP = 2/);
-    // The old single flat slot is gone.
+  it("a HIGH-VALUE moment gets its own slot PER CARD; incidental taps share one per session", () => {
+    // The starvation bug: one flat per-class slot plus a global 2-popup cap
+    // meant a visitor who tapped a couple of links before saving a contact
+    // had the budget spent and saw nothing at the moment that converts.
+    expect(host).toMatch(/isHighValue = \(cls: string\) => cls === "save" \|\| cls === "share"/);
+    expect(host).toMatch(/sc_nudged:\$\{cls\}:\$\{card \|\| "any"\}/);
+    expect(host).toMatch(/"sc_nudged:incidental"/);
+    // Saving is a high-value moment however it was triggered.
+    expect(host).toMatch(/vcard: "save"/);
+    expect(host).toMatch(/save_contact: "save"/);
+    // The old flat slot and the global cap that starved it are gone.
+    expect(host).not.toMatch(/NUDGE_SESSION_CAP/);
+    expect(host).not.toMatch(/sc_nudge_count/);
     expect(host).not.toMatch(/sessionStorage\.setItem\("sc_nudged", "1"\)/);
   });
 
   it("the account check runs BEFORE any slot is written", () => {
     const handler = host.slice(host.indexOf("async function onNudge"));
     const acctCheck = handler.indexOf("await visitorHasAccount()");
-    const slotWrite = handler.indexOf("sessionStorage.setItem(classGuardKey(cls)");
+    const slotWrite = handler.indexOf("sessionStorage.setItem(key,");
     expect(acctCheck).toBeGreaterThan(-1);
     expect(slotWrite).toBeGreaterThan(acctCheck);
   });

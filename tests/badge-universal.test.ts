@@ -5,27 +5,61 @@ import { describe, expect, it } from "vitest";
 const code = (p: string) =>
   readFileSync(join(process.cwd(), p), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 
-// "Made with SwiftCard" is on EVERY shared card and SwiftLink — every plan
+// "Made with SwiftCard" reaches EVERY shared card and SwiftLink — every plan
 // (owner decision 2026-08-11). It was Free-only before, and the two surfaces
 // had even drifted apart, which read as a glitch from the outside. If a paid
 // "remove branding" tier ever returns, re-gate BOTH and delete this file.
+//
+// MOVED 2026-08-13 (owner request): on the card page the blurb no longer sits
+// at the bottom of the page. It renders inside the Save Contact section, under
+// "Saved to Contacts!", replacing the blue "Create your free card" button that
+// used to be there — the conversion moment rather than below the fold. The
+// SwiftLinks footer attribution is a separate surface and did not move.
 describe("the SwiftCard badge is universal", () => {
-  it("card page: the badge anchor is not plan-gated", () => {
-    const c = code("src/app/card/[username]/page.tsx");
-    const badge = c.indexOf("src=badge");
-    expect(badge, "the badge is gone from the card page").toBeGreaterThan(-1);
-    // Only the badge's OWN opening — the faint "Create your card" line above
-    // it is still legitimately Free-only, so a wide window would trip on it.
-    const anchorStart = c.lastIndexOf("<a", badge);
-    const before = c.slice(Math.max(0, anchorStart - 80), anchorStart);
-    expect(before, "the badge got re-gated behind a plan check").not.toMatch(/isPaidPlan\([^)]*\)\s*&&|&&\s*\($/);
+  const badge = code("src/components/MadeWithSwiftCard.tsx");
+  const save = code("src/components/SaveContactButton.tsx");
+  const page = code("src/app/card/[username]/page.tsx");
+
+  it("the blurb is one shared component, not re-inlined per placement", () => {
+    expect(badge).toMatch(/Made with/);
+    expect(badge).toMatch(/Get yours free/);
+    // Placements differ only in the ground they stand on.
+    expect(badge).toMatch(/tone === "onWhite"/);
   });
 
-  it("SwiftLinks: the footer attribution is not plan-gated", () => {
+  it("card page: the blurb renders under Saved to Contacts, ungated by plan", () => {
+    expect(save).toMatch(/<MadeWithSwiftCard/);
+    // Inside the `saved &&` block — it is the post-save invite.
+    const savedBlock = save.slice(save.indexOf("{saved && ("), save.indexOf("Conversion bottom sheet"));
+    expect(savedBlock, "the blurb is not in the saved-state block").toMatch(/<MadeWithSwiftCard/);
+    // No plan gate anywhere near it: the badge is universal.
+    expect(savedBlock).not.toMatch(/isPaidPlan|ownerPaid/);
+  });
+
+  it("it is styled for the WHITE section card it now sits in, not the cream page", () => {
+    // A white pill on a white card is invisible — the move required this.
+    const savedBlock = save.slice(save.indexOf("{saved && ("), save.indexOf("Conversion bottom sheet"));
+    expect(savedBlock).toMatch(/tone="onWhite"/);
+  });
+
+  it("at the conversion moment it routes into the BUILDER, not the marketing page", () => {
+    // It replaced a button that went straight to /cards/new; sending this slot
+    // to the home page instead would quietly lengthen its own funnel.
+    const savedBlock = save.slice(save.indexOf("{saved && ("), save.indexOf("Conversion bottom sheet"));
+    expect(savedBlock).toMatch(/href="\/cards\/new\?src=save_contact_cta"/);
+    expect(savedBlock).toMatch(/resetGuestFlow\(\)/);
+  });
+
+  it("the old bottom-of-page copy is gone — one blurb per card, not two", () => {
+    expect(page).not.toMatch(/Get yours free/);
+    expect(page).not.toMatch(/src=badge/);
+  });
+
+  it("SwiftLinks: the footer attribution is unchanged and not plan-gated", () => {
     const c = code("src/components/SwiftLinkProfile.tsx");
-    const badge = c.indexOf("src=badge");
-    expect(badge).toBeGreaterThan(-1);
-    const before = c.slice(Math.max(0, badge - 400), badge);
+    const at = c.indexOf("src=badge");
+    expect(at).toBeGreaterThan(-1);
+    const before = c.slice(Math.max(0, at - 400), at);
     expect(before).not.toMatch(/ownerPaid\s*&&|!ownerPaid\s*&&/);
   });
 });

@@ -71,8 +71,12 @@ session: have him retry, iterate on PRECISE_SCAN_PROMPT fidelity if needed
 ## This session also shipped (all deployed + tested)
 - Wallet pass final spec: card edge-to-edge in strip (blur-extended sides),
   big QR block bottom, no fields (`wallet.ts`, `wallet-strip.tsx`).
-- "Made with SwiftCard" badge on EVERY plan (card page + SwiftLinks),
-  pinned by tests/badge-universal.test.ts.
+- "Made with SwiftCard" blurb on EVERY plan, pinned by
+  tests/badge-universal.test.ts. On the CARD page it renders under "Saved to
+  Contacts!" in the Save Contact section (moved there 2026-08-13 from the
+  bottom of the page — it replaced the blue "Create your free card" button and
+  routes to the same /cards/new?src=save_contact_cta). SwiftLinks keeps its own
+  footer attribution.
 - 14-day Pro trial: already existed end-to-end; homepage now advertises it
   (web only — never in the iOS shell, App Review 3.1.1).
 - Contacts activity feed: two-line rows, uniform 13px/10px type.
