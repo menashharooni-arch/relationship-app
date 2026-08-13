@@ -79,7 +79,7 @@ export default function Home() {
               </p>
               <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
                 {[
-                  "Share by link, QR code, or NFC tap",
+                  "Share by link, QR code, or an NFC card",
                   "They save you in one tap — nothing to download",
                   "Every share becomes a lead + automatic follow-up",
                   "Includes Link in Bio and Email Signature",
@@ -277,7 +277,7 @@ export default function Home() {
                 "Apple Wallet — next to your passes",
                 "QR code — they scan, it opens",
                 "Share sheet — text, email, AirDrop",
-                "NFC tap, a link, or your signature",
+                "An NFC card, a link, or your signature",
               ].map((t) => (
                 <li key={t} className="flex items-center gap-2 text-slate-600 text-[15px] leading-snug">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>

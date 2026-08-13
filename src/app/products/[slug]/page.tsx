@@ -48,7 +48,7 @@ const PRODUCTS: Record<string, Product> = {
     wide: true,
     features: [
       { t: "Six designer templates", d: "Photo-first, logo-first, classic, bold, minimal — all fully customizable to your brand in seconds." },
-      { t: "Tap, QR, or link", d: "Works on every phone with no app. NFC tap, a scannable QR, or a simple shareable link." },
+      { t: "Tap, QR, or link", d: "Works on every phone with no app. A tap on your NFC card, a scannable QR, or a simple shareable link." },
       { t: "Save Contact, built in", d: "Your name, number, email and photo drop straight into their contacts as a vCard." },
       { t: "Unlimited cards on Pro", d: "A card for each side of you — work, personal, speaking — each with its own analytics." },
     ],

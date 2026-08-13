@@ -4,6 +4,15 @@ import {
   passPalette, toAppleRgb, withAlpha, mix, type PassPalette, type SampledSurface,
 } from "@/lib/wallet-palette";
 import { fitLine } from "@/lib/wallet-fit";
+import {
+  BAND_W, BAND_H, PAD_LEFT, PAD_RIGHT, IMG, GAP,
+  NAME_BASE, NAME_MIN, TITLE_BASE, TITLE_MIN, COMPANY_BASE, COMPANY_MIN,
+  IDENTITY_W, bandVariant, initialsOf, bandBackground,
+} from "@/lib/wallet-band";
+
+// Re-exported: this module was the original home of the band's shape, and
+// callers (and tests) still reach for it here.
+export { bandVariant } from "@/lib/wallet-band";
 
 // ── The Wallet pass band ────────────────────────────────────────────────────
 //
@@ -53,69 +62,23 @@ export type WalletDesign = {
 };
 
 // ── Canvas ──────────────────────────────────────────────────────────────────
+//
+// Every measurement below now lives in lib/wallet-band.ts, because the
+// marketing surfaces draw this same band in the DOM and two renderers for one
+// design only stay identical if they read the same numbers. The reasoning for
+// each value moved with it; the short version:
+//
+//   BAND_H is 432 (= 144pt @3x), NOT 123pt. A storeCard's strip slot is 123pt
+//   only when the pass carries a header field; this pass has none, so the slot
+//   is the full 144pt and Wallet aspect-FILLS it. A 123-tall image gets scaled
+//   up to cover, which cropped 32pt off each side — and the left edge is where
+//   the headshot, logo and monogram live.
+//
+//   PAD_LEFT > PAD_RIGHT on purpose: Wallet masks the strip to the pass's
+//   rounded corners, and the leading edge is the one carrying the mark.
 
-const W = 1125;
-
-/**
- * 375×144pt, NOT 375×123.
- *
- * A storeCard's strip slot is 123pt tall only when the pass carries a HEADER
- * FIELD. This pass has none, so the slot is the full 144pt — and Wallet
- * aspect-FILLS it. Handing it a 123-tall image meant scaling up by 144/123 to
- * cover the height, which made the image 439pt wide inside a 375pt pass and
- * cropped 32pt off each side. The left edge is where the headshot, the logo
- * and the monogram live, so that is where it showed; the right edge is
- * background, so its crop was invisible. Matching the slot exactly is what
- * stops the scaling, and therefore the cropping.
- *
- * Kept safe under the other reading too: if a slot ever is 123pt, a 144-tall
- * image is cropped 10.5pt top and bottom instead, so all content stays inside
- * the central 123pt band. The render test pins that margin.
- */
-const H = 432;
-
-/**
- * Asymmetric on purpose: the band's content sits further from the LEFT edge
- * than the right.
- *
- * The strip is the one image Wallet scales and masks itself — to the pass's
- * rounded corners, and to whatever width the device's pass actually is — and
- * the leading edge is where that costs something, because that is where the
- * headshot, the logo and the monogram live. At 20pt of lead-in they were
- * reported as cut off on device. The trailing edge carries only the tail of a
- * name, which is short of the edge on nearly every card, so it can afford to
- * give the room up.
- *
- * 36pt in from the left, 24pt from the right: enough that a mask taking a few
- * points off each side still lands on background, and the whole group reads as
- * sitting deliberately right of the corner rather than jammed against it.
- */
-const PAD_LEFT = 108;
-const PAD_RIGHT = 72;
-/** Photo diameter and logo box height. Leaves 95px of air above and below. */
-const IMG = 241;
-const GAP = 46;
-
-const IDENTITY_W = (leadWidth: number) => W - PAD_LEFT - PAD_RIGHT - (leadWidth ? leadWidth + GAP : 0);
-
-// Type scale, in @3x px.
-/**
- * ONE name size for every card, shrinking only when a name genuinely needs it.
- *
- * An earlier version let short names grow into unused width. It filled the
- * band, but it also meant no two passes in a wallet were set the same size —
- * "Alex Morgan" at 100px next to "Lev Lev Educational Fund" at 40px reads as
- * broken rather than responsive. Even beats full.
- */
-const NAME_BASE = 84, NAME_MIN = 34;
-const TITLE_BASE = 33, TITLE_MIN = 21;
-const COMPANY_BASE = 31, COMPANY_MIN = 20;
-
-function initialsOf(name: string | null | undefined): string {
-  const s = (name ?? "").trim();
-  if (!s) return "SC";
-  return s.split(/\s+/).map((n) => Array.from(n)[0] ?? "").join("").toUpperCase().slice(0, 2) || "SC";
-}
+const W = BAND_W;
+const H = BAND_H;
 
 // ── Remote images ───────────────────────────────────────────────────────────
 
@@ -245,36 +208,6 @@ export async function sampleSurface(buf: Buffer): Promise<SampledSurface | null>
 
 // ── The band ────────────────────────────────────────────────────────────────
 
-type BandVariant = "portrait" | "mark";
-
-/**
- * What the band can actually lead with, given this card's assets.
- *
- * The template states a preference; the content decides whether it can be
- * honoured. A logo-led template with no logo falls to a portrait (initials, if
- * there is no headshot either) rather than rendering an empty box — the one
- * outcome worse than a different layout is a hole where the mark should be.
- */
-/**
- * Every band leads with a 241px square — a headshot circle, a logo panel, or a
- * monogram — so the text column starts at the same x on every pass and the
- * name is measured against the same box everywhere.
- *
- * An earlier type-led variant used a thin accent bar instead. On its own it
- * looked elegant; in a wallet next to other SwiftCard passes it started its
- * text 227px further left and made the whole stack look misaligned. Consistency
- * across passes is worth more than the flourish on any one of them.
- *
- * A type-led template (Luxury Minimal) also shows a LOGO when the card has one
- * — its card template does, so dropping the mark showed less than the card it
- * copies. It shows no headshot either way, which likewise matches.
- */
-export function bandVariant(prefer: PassPalette["prefer"], hasPhoto: boolean, hasLogo: boolean): BandVariant {
-  if (prefer === "type") return "mark";
-  if (prefer === "mark") return hasLogo || !hasPhoto ? "mark" : "portrait";
-  return hasPhoto || !hasLogo ? "portrait" : "mark";
-}
-
 type Logo = { src: string; w: number; h: number };
 
 function Band({ meta, palette, photo, logo }: {
@@ -297,13 +230,7 @@ function Band({ meta, palette, photo, logo }: {
   const title = fitLine(meta.title, { box, base: TITLE_BASE, min: TITLE_MIN });
   const company = fitLine(meta.company, { box, base: COMPANY_BASE, min: COMPANY_MIN });
 
-  // A vertical ramp, never an angled one. The pass's backgroundColor is set to
-  // `bottom`, and only a 180deg gradient puts that exact colour across the
-  // whole bottom edge — at any angle the corners land on a different mix and a
-  // visible seam appears where the strip meets Apple's chrome.
-  const background = palette.top === palette.bottom
-    ? palette.top
-    : `linear-gradient(180deg, ${palette.top} 0%, ${palette.bottom} 100%)`;
+  const background = bandBackground(palette);
 
   return (
     <div style={{
