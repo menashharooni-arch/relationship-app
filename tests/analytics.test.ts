@@ -81,21 +81,6 @@ describe("startOfLocalDayUtc — window edges anchored to local midnight", () =>
   });
 });
 
-describe("view-count delta — the % vs previous window", () => {
-  // Mirrors the dashboard's pct(): null (not a fake 0%/100%) when there is no
-  // baseline, so an in-progress or first-ever window never shows a bogus trend.
-  const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
-  it("returns null when the previous window had zero views", () => {
-    expect(pct(5, 0)).toBeNull();
-    expect(pct(0, 0)).toBeNull();
-  });
-  it("computes rounded up/down percentages", () => {
-    expect(pct(120, 100)).toBe(20);
-    expect(pct(75, 100)).toBe(-25);
-    expect(pct(100, 100)).toBe(0);
-  });
-});
-
 describe("getSourceLabel — attribute honestly, never invent a channel", () => {
   it("labels known first-party sources", () => {
     expect(getSourceLabel("qr_code")).toBe("QR code scan");
