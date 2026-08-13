@@ -39,21 +39,36 @@ async function visitorHasAccount(): Promise<boolean> {
 }
 
 // ── Nudge slots ──────────────────────────────────────────────────────────────
-// Sources are grouped into classes, each with its own once-per-session slot,
-// capped at 2 popups per session overall. One flat slot let an INCIDENTAL
-// trigger (tapping a link, closing a sheet) silently spend the session's only
-// popup before the high-value moment — the visitor SAVING the contact — ever
-// arrived. Slots are only written when a popup actually RENDERS: writing them
-// up front meant a slow account-check or a navigation ate the slot with
-// nothing shown, killing every later nudge in the session.
+//
+// Two kinds of moment, and they must never compete for the same budget:
+//
+//   HIGH-VALUE — the visitor just got something ("save" = they saved this
+//   person's contact, "share" = they handed over their own details). This is
+//   the moment the whole organic loop hangs on. It gets ONE slot PER CARD, and
+//   nothing else can consume it. Per card, not per session, because saving
+//   Alex's contact and later saving Sam's are two separate people experiencing
+//   the product — a session-wide slot silently swallowed the second one.
+//
+//   INCIDENTAL — they tapped a link or hit share. Worth one gentle invite per
+//   session, total, and never more.
+//
+// The bug this replaces: one flat per-class slot plus a global 2-popup cap, so
+// a visitor who tapped a couple of links before saving a contact had the cap
+// spent and got NOTHING at the moment that actually converts.
+//
+// Slots are written only when a popup actually RENDERS — writing them up front
+// meant a slow account-check or a navigation ate the slot with nothing shown.
 const NUDGE_CLASS: Record<string, string> = {
-  vcard: "vcard",
-  save_contact: "vcard",
+  vcard: "save",
+  save_contact: "save",
+  save_contact_cta: "save",
   share_info: "share",
 };
 const nudgeClassOf = (src: string) => NUDGE_CLASS[src] ?? "link";
-const classGuardKey = (cls: string) => `sc_nudged_${cls}`;
-const NUDGE_SESSION_CAP = 2;
+const isHighValue = (cls: string) => cls === "save" || cls === "share";
+/** High-value slots are per card; incidental is one for the whole session. */
+const slotKey = (cls: string, card?: string) =>
+  isHighValue(cls) ? `sc_nudged:${cls}:${card || "any"}` : "sc_nudged:incidental";
 
 // The conversion funnel's denominator: without impression/click events the
 // popup's absence was invisible in data — there was literally no number that
@@ -144,21 +159,18 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
       deciding.current = true;
       try {
         const cls = nudgeClassOf(src);
+        const key = slotKey(cls, cardUsername);
         try {
-          // Per-CLASS slot + session cap — an incidental link-tap nudge no
-          // longer spends the save/share moments' slots.
-          if (sessionStorage.getItem(classGuardKey(cls))) return;
-          if (Number(sessionStorage.getItem("sc_nudge_count") ?? "0") >= NUDGE_SESSION_CAP) return;
+          // A high-value moment has its own per-card slot that incidental
+          // taps cannot touch; incidental taps share one slot per session.
+          if (sessionStorage.getItem(key)) return;
         } catch { /* private mode — show anyway */ }
         // Existing SwiftCard customers are never nudged to create a card —
         // they already have one. Checked BEFORE any slot is spent, so a slow
         // or failed check can no longer eat the session's popup invisibly.
         if (await visitorHasAccount()) return;
         // The popup is actually going to render — only now spend the slot.
-        try {
-          sessionStorage.setItem(classGuardKey(cls), "1");
-          sessionStorage.setItem("sc_nudge_count", String(Number(sessionStorage.getItem("sc_nudge_count") ?? "0") + 1));
-        } catch { /* private mode */ }
+        try { sessionStorage.setItem(key, "1"); } catch { /* private mode */ }
         trackNudge(cardUsername, "nudge_impression", src);
         // A newer nudge can arrive while an older one's dismiss-fade is still
         // scheduled — cancel that stale timer so it can't clear the new popup.

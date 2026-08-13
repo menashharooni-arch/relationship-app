@@ -8,6 +8,7 @@ import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 import { MiniQR } from "@/components/card-templates/MiniQR";
+import MadeWithSwiftCard from "@/components/MadeWithSwiftCard";
 import { SCAN_SAVED_EVENT } from "@/lib/scan-saved-event";
 
 interface Person {
@@ -100,9 +101,13 @@ export default function SaveContactButton({
 
   useEffect(() => {
     if (!cardOwner) return;
+    // Assigned, not just raised: these describe THIS card, so when cardOwner
+    // changes they must fall back to false for the new one. Only ever setting
+    // them true meant a component reused across two cards carried the first
+    // card's "Saved to Contacts!" state onto the second.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
-    if (hasSharedWith(cardOwner)) setAlreadyShared(true);
-    if (hasSavedContact(cardOwner)) setSaved(true);
+    setAlreadyShared(hasSharedWith(cardOwner));
+    setSaved(hasSavedContact(cardOwner));
     // Pre-fill from an earlier share anywhere on SwiftCard — never ask twice.
     const v = getVisitorInfo();
     if (v) setForm({ name: v.name, phone: v.phone, email: v.email });
@@ -115,7 +120,9 @@ export default function SaveContactButton({
   useEffect(() => {
     if (!cardOwner) return;
     function onScanSaved() {
-      if (hasSharedWith(cardOwner!)) { triggerSignupNudge("vcard"); return; }
+      // Visibility-aware: this fires as the visitor comes back from the OS
+      // "Add to Contacts" sheet, where the page can still be backgrounded.
+      if (hasSharedWith(cardOwner!)) { triggerSignupNudgeWhenVisible("vcard"); return; }
       setSaved(true);
       setShowSheet(true);
     }
@@ -283,9 +290,15 @@ export default function SaveContactButton({
     setAlreadyShared(true);
     setStatus("done");
     // After they share back, close whichever surface hosted the form (the
-    // bottom sheet or the desktop QR popup) and invite them to make their own card.
-    setTimeout(() => { setShowSheet(false); setShowQr(false); }, 1500);
-    triggerSignupNudgeWhenVisible("vcard", 1500);
+    // bottom sheet or the desktop QR popup) and invite them to make their own
+    // card. The invite fires INSIDE the close callback, not on a second timer
+    // of the same length: two 1500ms timers race, and on a slow device the
+    // popup could paint in the same frame the sheet was still covering.
+    setTimeout(() => {
+      setShowSheet(false);
+      setShowQr(false);
+      triggerSignupNudgeWhenVisible("vcard", 60);
+    }, 1500);
   }
 
   return (
@@ -338,25 +351,30 @@ export default function SaveContactButton({
           Scan QR code
         </button>
       </div>
-      {/* Once saved: the phone-confirm pointer, plus a persistent "create your
-          free card" CTA right under the button — so after they dismiss the
-          popups the invite is still one tap away on the page itself. */}
+      {/* Once saved: the phone-confirm pointer, plus the "Made with SwiftCard —
+          Get yours free" blurb right under the button. It used to be a blue
+          "Create your free card" button here and the blurb lived at the very
+          bottom of the page (owner request 2026-08-13: move the blurb up into
+          this slot). This is the stronger placement — the visitor has just
+          experienced the product working, and the invite is the same one tap
+          away after they dismiss the popup.
+          `onWhite` because this sits inside the white section card, where the
+          blurb's original white pill would have vanished. */}
       {saved && (
         <div className="mt-1.5 flex flex-col items-center gap-2.5">
           <p className="text-center text-[11px]" style={{ color: "#94a3b8" }}>
             Save — then tap &ldquo;Create New Contact&rdquo;
           </p>
-          <a
+          <MadeWithSwiftCard
+            src="save_contact_cta"
+            tone="onWhite"
+            // Straight into the builder, exactly where the button it replaced
+            // went — this slot is a conversion moment, not a footer.
             href="/cards/new?src=save_contact_cta"
             // Start blank: wipe any leftover mini-builder sketch / guest draft /
-            // plan pick from an earlier visit so this always opens a fresh card.
+            // plan pick from an earlier visit so signup always opens fresh.
             onClick={() => resetGuestFlow()}
-            className="w-full text-center font-semibold py-3 px-6 rounded-full text-sm transition-colors flex items-center justify-center gap-1.5 border"
-            style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
-          >
-            Create your free card
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
-          </a>
+          />
         </div>
       )}
 

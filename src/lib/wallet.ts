@@ -48,7 +48,8 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
   // pass face, above the band. It put our brand on the one surface that is
   // supposed to be the cardholder's, and it competed with the name for the
   // first thing the eye lands on. The pass is somebody's business card; the
-  // "Made with SwiftCard" line lives on the card page, not here.
+  // "Made with SwiftCard" line lives in the card page's Save Contact section
+  // (it appears once a visitor saves), not here.
   //
   // icon.png STAYS. It is required by Apple (a pass without it fails
   // validation) but never appears on the pass face — only in the lock-screen

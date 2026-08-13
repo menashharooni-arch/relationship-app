@@ -287,8 +287,13 @@ describe("the free-card invite closes out every path", () => {
   it("submitting the form invites them too — when the page is visible", () => {
     // Visibility-aware: the save flow backgrounds the page behind OS sheets,
     // where a bare setTimeout nudge fired unseen and spent the session slot.
+    // It fires INSIDE the sheet-close callback, not on a second timer of the
+    // same length — two equal timers race and the popup could paint in the
+    // frame the sheet still covered.
     const done = src.slice(src.indexOf('setStatus("done")'));
-    expect(done.slice(0, 500)).toContain('triggerSignupNudgeWhenVisible("vcard"');
+    const block = done.slice(0, 600);
+    expect(block).toContain('triggerSignupNudgeWhenVisible("vcard"');
+    expect(block.indexOf("setShowSheet(false)")).toBeLessThan(block.indexOf("triggerSignupNudgeWhenVisible"));
   });
 
   it("the new QR path doesn't spend the invite BEFORE the sheet", () => {
@@ -304,7 +309,9 @@ describe("the free-card invite closes out every path", () => {
   it("and neither does the phone scan", () => {
     const onScan = src.slice(src.indexOf("function onScanSaved()"), src.indexOf("window.addEventListener(SCAN_SAVED_EVENT"));
     expect(onScan).toContain("hasSharedWith");
-    expect(onScan, "already-shared must invite directly").toContain('triggerSignupNudge("vcard")');
+    // Visibility-aware: this fires as the visitor returns from the OS "Add to
+    // Contacts" sheet, where the page can still be backgrounded.
+    expect(onScan, "already-shared must invite directly").toContain('triggerSignupNudgeWhenVisible("vcard")');
     expect(onScan, "otherwise the sheet comes first").toContain("setShowSheet(true)");
   });
 });
