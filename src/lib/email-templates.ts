@@ -119,6 +119,19 @@ function btn(href: string, label: string) {
 function card(html: string) {
   return `<div style="background:#EDE5D8;border:1px solid #D4C8B8;border-radius:16px;padding:20px 24px;margin:0 0 24px;">${html}</div>`;
 }
+function step(n: number, title: string, detail: string, last = false) {
+  return `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 ${last ? 0 : 14}px;">
+    <tr>
+      <td valign="top" style="width:24px;padding-right:10px;">
+        <span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:99px;background:#1D4ED8;color:#ffffff;font-size:12px;font-weight:700;">${n}</span>
+      </td>
+      <td valign="top">
+        <p style="margin:0 0 2px;font-size:13.5px;font-weight:700;color:#0f172a;line-height:1.4;">${title}</p>
+        <p style="margin:0;font-size:13px;color:#475569;line-height:1.55;">${detail}</p>
+      </td>
+    </tr>
+  </table>`;
+}
 function row(label: string, value: string) {
   return `<tr>
     <td style="padding:9px 0;border-bottom:1px solid #E4DDD4;font-size:13px;color:#64748b;width:140px;">${label}</td>
@@ -136,19 +149,20 @@ export function welcomeEmail(opts: {
   const safeName = escapeHtml(opts.firstName);
   const safeCardUrl = safeUrlAttr(opts.cardUrl);
   const cardUrlText = escapeHtml(opts.cardUrl);
+  const shareUrl = `${APP_URL}/share`;
   const body = `
     ${h1(`Your SwiftCard is live, ${safeName}! 🎉`)}
-    ${p("Share it anywhere — a link, a QR code, or tap your phone. Every time someone shares their info back, they land in your dashboard automatically.")}
+    ${p("Send it as a link, show it as a QR code, or tap it to someone\u2019s phone. When they share their details back, the new contact lands in your dashboard on its own \u2014 nothing to type in, nothing to lose.")}
     ${card(`
       <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#94a3b8;text-transform:uppercase;">Your card link</p>
       <a href="${safeCardUrl}" style="color:#1D4ED8;font-size:15px;font-weight:600;text-decoration:none;">${cardUrlText}</a>
     `)}
     ${btn(safeCardUrl, "See my live card →")}
     ${card(`
-      <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">3 ways to share your card</p>
-      <p style="margin:0 0 8px;font-size:13px;color:#475569;">📱 <strong>Text the link</strong> — paste into any chat</p>
-      <p style="margin:0 0 8px;font-size:13px;color:#475569;">📸 <strong>QR code</strong> — download from your dashboard and add to your email signature or slide deck</p>
-      <p style="margin:0;font-size:13px;color:#475569;">✉️ <strong>Swift Signature</strong> — add "Save my contact → ${cardUrlText}" to the bottom of your emails</p>
+      <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">Three ways to share it</p>
+      ${step(1, "Send the link", "Paste it into a text, an email, or your social bio. It opens straight away \u2014 the person you send it to never has to install anything.")}
+      ${step(2, "Show your QR code", `Download it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and put it on a slide, a flyer, or your phone\u2019s lock screen for people to scan.`)}
+      ${step(3, "Add your Swift Signature", `Copy it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and paste it into your email signature settings, so every message you send ends with your card.`, true)}
     `)}
   `;
   return built(FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
