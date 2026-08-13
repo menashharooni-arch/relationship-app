@@ -174,7 +174,7 @@ export default function PricingPage() {
               ) : (
                 <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
               )}
-              <ProTrialCallout className="mt-4" priceLabel={annual ? `$${PRO_ANNUAL}/year` : `$${PRO_MONTHLY}/month`} />
+              <ProTrialCallout className="mt-4" />
               <p className="text-white/80 text-sm mb-7 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
