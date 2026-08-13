@@ -541,11 +541,28 @@ export async function GET(req: NextRequest) {
       const ownerFirst = seqSender.name?.split(" ")[0] ?? "there";
       const leadFirst = (seqLead.name as string).split(" ")[0];
 
-      // Resolve the channel for this item (legacy items without a channel are
-      // treated as email when the contact has one, else SMS) — then honor the
-      // contact's per-channel switch: a paused channel sends NOTHING.
+      // Resolve the channel for this item — then honor the contact's
+      // per-channel switch: a paused channel sends NOTHING.
+      //
+      // A step that names its channel keeps it. A LEGACY step (no channel on the
+      // item) now prefers SMS for a contact who affirmatively opted in, falling
+      // back to email as before. Consent is the whole gate: having a phone
+      // number never routes a legacy step to SMS on its own, because the A2P
+      // message flow we registered says ticking the box is the opt-in.
+      //
+      // Routing a consented contact here is safe against the guard below — it
+      // re-checks sms-ok and would `continue` on a mismatch. The one behaviour
+      // change worth knowing: outside SMS quiet hours a consented legacy step
+      // now waits for the next run instead of going out as email that evening.
+      // It is deferred, not lost — the claim is taken after these checks.
+      const legacyTags = seqLead.tags ?? [];
+      const legacyPrefersSms =
+        legacyTags.includes("sms-ok") && !legacyTags.includes("sms-paused") && !!seqLead.phone;
       const itemChannel: "email" | "sms" =
-        item.channel === "sms" ? "sms" : item.channel === "email" ? "email" : (seqLead.email ? "email" : "sms");
+        item.channel === "sms" ? "sms"
+        : item.channel === "email" ? "email"
+        : legacyPrefersSms ? "sms"
+        : (seqLead.email ? "email" : "sms");
       // SMS is OPT-IN (TCPA): an automated text sends ONLY to a contact who
       // affirmatively consented — the sms-ok tag (checked the SMS box, or the
       // owner turned texts on for them). No consent tag, or an explicit
