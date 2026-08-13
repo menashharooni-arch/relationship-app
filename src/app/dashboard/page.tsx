@@ -261,34 +261,12 @@ export default async function DashboardPage({
   const windowStart = windowStartDate.getTime();
   const viewsCutoff = windowStartDate.toISOString();
 
-  // Previous same-size window, immediately before the current one, for the
-  // "▲ 23% this week" trend. Computed as EXACT count queries (added to the batch
-  // below) rather than derived from the capped recentViews array — on a busy
-  // card the array's oldest tail (which IS the previous month window) gets
-  // dropped at the row cap, which silently inflated the delta.
-  // For "today" we compare the SAME ELAPSED slice of yesterday (midnight→now),
-  // not the full prior day — else every morning shows a false ▼ against a whole
-  // day's traffic.
-  const prevWindow = (() => {
-    if (viewsRange === "today") {
-      const yStart = startOfLocalDayUtc(1, ownerTz, tzNow).getTime();
-      const elapsed = tzNow.getTime() - windowStart; // ms into today, in local terms
-      return { start: new Date(yStart).toISOString(), end: new Date(yStart + elapsed).toISOString() };
-    }
-    const backToPrevStart = viewsRange === "month" ? 59 : 13;
-    return {
-      start: startOfLocalDayUtc(backToPrevStart, ownerTz, tzNow).toISOString(),
-      end: viewsCutoff,
-    };
-  })();
   // ONE parallel batch for everything below-the-fold — previously 4 sequential
   // awaits (2 counts → best-day rows → locations → leads+notifications), i.e.
   // 3 extra DB round trips per dashboard load. Now a single round trip's latency.
   const [
     { count: swiftCardViews },
     { count: swiftLinkViews },
-    { count: prevCardCount },
-    { count: prevLinkCount },
     { data: recentViews },
     locViewsRes,
     { data: leads },
@@ -302,13 +280,8 @@ export default async function DashboardPage({
     // safe: analyticsUsername is verified above to be one of THIS user's cards.
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", viewsCutoff),
     getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", viewsCutoff),
-    // Exact previous-window baselines for the trend %, so the comparison never
-    // depends on the capped recentViews array (see prevWindow above).
-    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", analyticsUsername).gte("viewed_at", prevWindow.start).lt("viewed_at", prevWindow.end),
-    getAdminSupabase().from("card_views").select("*", { count: "exact", head: true }).eq("username", linkUsername).gte("viewed_at", prevWindow.start).lt("viewed_at", prevWindow.end),
     // 60 days of raw view timestamps: powers the best-day stat (30d), the
-    // Traffic bar graph buckets, and the vs-previous-window % change (which
-    // needs a full prior window, hence 60d for the month view).
+    // Traffic bar graph buckets, and the window's unique/repeat split.
     // Paged: a single unbounded select is silently capped at the API's max-rows
     // (1000), which made the graph/unique-visitors contradict the exact head
     // counts above on busy cards. Newest-first, so if the cap below is ever hit
@@ -459,11 +432,6 @@ export default async function DashboardPage({
     }
   }
   // % vs the previous window; null when there's no baseline to compare against.
-  const prevCard = prevCardCount ?? 0;
-  const prevLink = prevLinkCount ?? 0;
-  const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
-  const cardDelta = pct(swiftCardViews ?? 0, prevCard);
-  const linkDelta = pct(swiftLinkViews ?? 0, prevLink);
 
   // Unique viewers vs repeat views for the selected window, from the same rows
   // the graph buckets. A viewer is their visitor_id; a row with none (storage-
@@ -482,7 +450,6 @@ export default async function DashboardPage({
   }
   const uniqueViewers = windowIds.size + windowNullIdRows;
   const repeatViews = Math.max(0, windowTotalRows - uniqueViewers);
-  const deltaPeriod = viewsRange === "month" ? "this month" : viewsRange === "week" ? "this week" : "today";
   const maxBar = Math.max(1, ...trafficBars);
   // Timeline for the chart: each bar's real start instant (local hour / local
   // midnight) so the axis labels line up with the buckets above.
@@ -947,23 +914,17 @@ export default async function DashboardPage({
                 )
               ) : (
                 <div>
-                  {/* Stat tiles — side by side, each with its change vs the
-                      previous same-size window. */}
+                  {/* Stat tiles — side by side. The per-tile "▲ 23% this week"
+                      trend line was removed at the owner's request; the counts
+                      themselves are unchanged, and so is everything below. */}
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: "SwiftCard views", value: swiftCardViews ?? 0, delta: cardDelta, accent: "#818cf8" },
-                      { label: "Swift Link views", value: swiftLinkViews ?? 0, delta: linkDelta, accent: "#22d3ee" },
+                      { label: "SwiftCard views", value: swiftCardViews ?? 0 },
+                      { label: "Swift Link views", value: swiftLinkViews ?? 0 },
                     ].map((m) => (
                       <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
                         <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
                         <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value.toLocaleString("en-US")}</p>
-                        {m.delta !== null ? (
-                          <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
-                            {m.delta < 0 ? "▼" : "▲"} {Math.abs(m.delta)}% {deltaPeriod}
-                          </p>
-                        ) : (
-                          <p className="text-[11px] font-medium text-gray-600 mt-0.5">— {deltaPeriod}</p>
-                        )}
                       </div>
                     ))}
                   </div>
