@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import AccountIsolationGuard from "@/components/AccountIsolationGuard";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import GuidedTour from "@/components/GuidedTour";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
@@ -176,6 +177,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD).replace(/</g, "\\u003c") }}
         />
         <ServiceWorkerRegistrar />
+        {/* Person-scoped browser state (visitor identity, active card, device
+            visitor id, push binding) must die the moment a DIFFERENT account is
+            the one signed in — see lib/account-state.ts for the whole story. */}
+        <AccountIsolationGuard />
         {/* Reports uncaught browser errors / promise rejections to the team. */}
         <ClientErrorReporter />
         {/* Capacitor shell only (no-op on web): universal-link → webview navigation. */}

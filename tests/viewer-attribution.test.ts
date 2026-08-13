@@ -1,0 +1,126 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { authoritativeEventIdentity, type SessionViewer } from "@/lib/viewer-identity";
+import { cardEventNotice } from "@/lib/card-event-notify";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHO VIEWED A CARD MUST BE WHO ACTUALLY VIEWED IT.
+//
+// The reported bug: Mina opened a card and the owner was told "Pyramid viewed
+// your card". The event's identity fields came from a device-global
+// localStorage blob written the last time ANYONE shared their details in that
+// browser — it survives logout/login, so on any shared or multi-account device
+// the previous person's identity was stamped onto the next person's views.
+//
+// The rule now pinned here: when the request carries an authenticated session,
+// THE SERVER derives the viewer's identity from that session and the
+// client-supplied identity is ignored. Anonymous viewers keep the shared-info
+// attribution (that recognition is a feature). Scenario numbers refer to the
+// isolation-audit checklist: (5) different logged-in users viewing one card,
+// (6) Mina never recorded as Pyramid, (7) anonymous vs authenticated,
+// (11)(12) server-side enforcement over client-supplied identity.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const root = process.cwd();
+const read = (p: string) => readFileSync(join(root, p), "utf8");
+
+// The stale blob a shared browser would send: the PREVIOUS person's identity.
+const cachedPyramid = {
+  visitor_name: "Pyramid",
+  visitor_email: "pyramid@example.com",
+  visitor_phone: "+15550001111",
+};
+
+const mina: SessionViewer = {
+  userId: "mina-uid",
+  name: "Mina R",
+  email: "mina@example.com",
+};
+
+describe("authoritativeEventIdentity — the session always outranks the cached blob", () => {
+  it("(6) Mina's authenticated view is recorded as Mina, never as the cached Pyramid", () => {
+    const id = authoritativeEventIdentity(mina, cachedPyramid);
+    expect(id.visitor_name).toBe("Mina R");
+    expect(id.visitor_email).toBe("mina@example.com");
+    // Nothing of the cached identity survives.
+    expect(JSON.stringify(id)).not.toContain("Pyramid");
+    expect(JSON.stringify(id)).not.toContain("pyramid@example.com");
+  });
+
+  it("(6) the owner's notification then names Mina, never Pyramid", () => {
+    const id = authoritativeEventIdentity(mina, cachedPyramid);
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name });
+    expect(n!.body).toBe("Mina R viewed your card.");
+  });
+
+  it("the cached phone is dropped for an authenticated viewer — a session has no phone, and the cached one may be another person's", () => {
+    // Keeping Pyramid's phone on Mina's event would cross-link the two people
+    // in the owner's conversation matching (events are matched by phone too).
+    expect(authoritativeEventIdentity(mina, cachedPyramid).visitor_phone).toBeNull();
+  });
+
+  it("an authenticated viewer with NO resolvable name still overrides — honest 'Someone' beats a confident wrong name", () => {
+    const anonymousMina: SessionViewer = { userId: "mina-uid", name: null, email: "mina@example.com" };
+    const id = authoritativeEventIdentity(anonymousMina, cachedPyramid);
+    expect(id.visitor_name).toBeNull();
+    expect(id.visitor_email).toBe("mina@example.com");
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name });
+    expect(n!.body).toBe("Someone viewed your card.");
+  });
+
+  it("(7) an anonymous request keeps the client-supplied identity — shared-info recognition is a feature", () => {
+    expect(authoritativeEventIdentity(null, cachedPyramid)).toEqual(cachedPyramid);
+  });
+
+  it("(5) two different signed-in users viewing the SAME card from the SAME device each get their own identity", () => {
+    const pyramid: SessionViewer = { userId: "pyramid-uid", name: "Pyramid", email: "pyramid@example.com" };
+    // Same stale device blob both times — the session decides, so each view
+    // lands under the person who actually made it.
+    expect(authoritativeEventIdentity(pyramid, cachedPyramid).visitor_name).toBe("Pyramid");
+    expect(authoritativeEventIdentity(mina, cachedPyramid).visitor_name).toBe("Mina R");
+  });
+});
+
+describe("wiring — the ingest route actually enforces this server-side", () => {
+  const route = read("src/app/api/card-events/route.ts");
+
+  it("(12) resolves the session viewer on the server and derives identity from it", () => {
+    expect(route).toMatch(/resolveSessionViewer\(admin\)/);
+    expect(route).toMatch(/authoritativeEventIdentity\(sessionViewer/);
+  });
+
+  it("the insert records the DERIVED identity, never the raw client fields", () => {
+    const insert = route.slice(route.indexOf('from("card_events").insert'));
+    expect(insert).toMatch(/visitor_name: identity\.visitor_name/);
+    expect(insert).toMatch(/visitor_email: identity\.visitor_email/);
+    expect(insert).toMatch(/visitor_phone: identity\.visitor_phone/);
+    expect(insert).not.toMatch(/visitor_name: visitor_name/);
+  });
+
+  it("the notification and the CRM mirror use the derived identity too", () => {
+    expect(route).toMatch(/visitorName: identity\.visitor_name/);
+    expect(route).toMatch(/name: identity\.visitor_name, email: identity\.visitor_email/);
+    // No surface may reach back to the raw client blob for a display name.
+    expect(route).not.toMatch(/visitorName: visitor_name/);
+  });
+
+  it("owner self-views are still excluded by SERVER identity (never client-supplied, never IP)", () => {
+    expect(route).toMatch(/isSelfTraffic\(await resolveOwnerId\(admin, card_owner_username\), sessionViewer\.userId\)/);
+  });
+
+  it("(11) the events GET stays scoped to the caller's own cards and refuses foreign lead ids", () => {
+    expect(route).toMatch(/getOwnerUsernames\(user\.id\)/);
+    expect(route).toMatch(/!usernames\.includes\(lead\.card_owner as string\)/);
+    expect(route).toMatch(/in\("card_owner_username", usernames\)/);
+  });
+
+  it("the viewer's display name comes from THEIR oldest card, and email from the AUTH user — never profiles.email", () => {
+    const resolver = read("src/lib/viewer-identity.ts");
+    expect(resolver).toMatch(/\.eq\("user_id", user\.id\)[\s\S]{0,120}order\("created_at", \{ ascending: true \}\)/);
+    expect(resolver).toMatch(/user\.email \?\? null/);
+    // No query touches the profiles table at all — its email column drifts to
+    // a card's public contact address (see account-email.ts).
+    expect(resolver).not.toMatch(/from\("profiles"\)/);
+  });
+});
