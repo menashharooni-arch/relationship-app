@@ -1,6 +1,9 @@
 -- ── Visit-window view counting + tracking-pipeline hardening ─────────────────
--- Run once in the Supabase SQL Editor. Idempotent (IF EXISTS / IF NOT EXISTS /
--- OR REPLACE throughout), safe to re-run.
+-- APPLIED TO PRODUCTION 2026-08-13 (SQL editor, project grxmovpmlgmjncnyiyrt).
+-- Kept as the canonical record; idempotent (IF EXISTS / IF NOT EXISTS /
+-- OR REPLACE throughout), safe to re-run. The push_subscriptions dedupe DELETE
+-- below was not needed in prod (the unique index built cleanly — no duplicate
+-- endpoints existed); it stays for any environment where that isn't true.
 --
 -- Goes with the app-side change that replaced the 24h view dedup with a
 -- 30-minute VISIT window (src/lib/view-window.ts): a reload inside the window
@@ -38,10 +41,16 @@ ALTER TABLE public.card_events ADD COLUMN IF NOT EXISTS location text;
 
 -- One event (and therefore one notification) per visitor per card per visit
 -- window, guaranteed at the database even when two serverless instances race
--- the app-layer check. Partial: only the two visit-shaped event types.
+-- the app-layer check. Partial: only the two visit-shaped event types, and
+-- only FUTURE rows — card_events was never deduped, so history legitimately
+-- contains same-bucket duplicates (they predate the visit-window semantics)
+-- and an unscoped unique index cannot build over them. The literal cutoff is
+-- the first UTC midnight after the app-side dedup deployed; rows before it
+-- are covered by the app-layer database check alone.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_card_events_visitor_bucket
   ON public.card_events (card_owner_username, visitor_id, event_type, public.card_view_bucket(created_at))
-  WHERE visitor_id IS NOT NULL AND event_type IN ('viewed_card', 'downloaded_vcard');
+  WHERE visitor_id IS NOT NULL AND event_type IN ('viewed_card', 'downloaded_vcard')
+    AND created_at >= '2026-08-14 00:00:00+00';
 
 -- 3 ── push_subscriptions: endpoint must be UNIQUE ---------------------------
 -- The subscribe route upserts with onConflict:"endpoint", which REQUIRES a
