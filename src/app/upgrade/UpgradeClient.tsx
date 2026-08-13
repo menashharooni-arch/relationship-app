@@ -109,7 +109,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
                 is billed immediately (proHref carries trial=0), so showing them
                 the offer would be a promise checkout then breaks. */}
             {trialEligible && (
-              <ProTrialCallout className="mt-4" priceLabel={`${formatUsd(proCents)}/${annual ? "year" : "month"}`} />
+              <ProTrialCallout className="mt-4" />
             )}
             <p className={`text-white/80 text-sm mb-6 ${trialEligible ? "mt-4" : "mt-2"}`}>Everything, unlimited.</p>
             <ul className="space-y-2 mb-7 flex-1">

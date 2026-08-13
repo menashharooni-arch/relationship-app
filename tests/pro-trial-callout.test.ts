@@ -48,12 +48,33 @@ describe("every plan surface shows the trial where the price is", () => {
 });
 
 describe("the callout itself", () => {
-  const out = renderToStaticMarkup(h(ProTrialCallout, { priceLabel: "$4.99/month" }));
+  const out = renderToStaticMarkup(h(ProTrialCallout, {}));
 
-  it("leads with the free days and follows with what happens next", () => {
-    expect(out).toContain(`Start with ${TRIAL_DAYS} days free`);
-    expect(out).toContain("then $4.99/month");
+  it("leads with the free days and answers what it costs today", () => {
+    expect(out).toContain(`First ${TRIAL_DAYS} days free`);
+    expect(out).toContain("Nothing to pay today");
     expect(out).toContain("cancel anytime");
+  });
+
+  it("does NOT reprint the price — it sits directly under a 2.4rem one", () => {
+    // The old version printed "then $4.99/month" forty pixels below a 2.4rem
+    // "$4.99 / month". Saying the number twice in one glance is what made the
+    // offer read as fine print instead of an offer.
+    expect(out).not.toMatch(/\$\d/);
+  });
+
+  it("uses the page's own savings colour and badge shape, at full strength", () => {
+    // bolder: the surrounding card already says "saves you money" in emerald
+    // (SAVE 10%) and states conviction in solid fills (the white CTA). The old
+    // bg-white/[0.16] wash opted out of both and read as a disabled container.
+    // Comments stripped: the file explains the old bg-white/16 wash by name,
+    // and the point is that no such class survives in the MARKUP.
+    const src = read("src/components/ProTrialCallout.tsx").replace(/\/\/.*$/gm, "");
+    expect(src).toMatch(/bg-emerald-400/);
+    expect(src).toMatch(/rounded-full/);
+    expect(src, "a translucent wash is what made it look disabled").not.toMatch(/bg-white\//);
+    // Hugs its content: a full-width band reads as a row, not a stamp.
+    expect(src).toMatch(/w-fit/);
   });
 
   it("reads the day count from TRIAL_DAYS, never a hardcoded 14", () => {
