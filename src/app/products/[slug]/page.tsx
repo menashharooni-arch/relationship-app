@@ -95,30 +95,44 @@ const PRODUCTS: Record<string, Product> = {
     eyebrow: "Lead Capture",
     title: <>Turn every scan into a <A>relationship.</A></>,
     titlePlain: "Lead Capture",
-    subtitle: "When someone opens your card, they can share their info right back — straight into your contacts, with where and when you met. No more lost napkins or half-typed numbers.",
+    subtitle: "When someone opens your card, they can share their info right back — straight into your contacts, with where and when you met. Then you follow up by email or text, and they can text you back. No more lost napkins or half-typed numbers.",
     demo: <LeadCapturePhone />,
+    // Every claim below is enforced in code — the texting ones especially, since
+    // they are new. Registered sender: A2P 10DLC campaign COJQ2MB, approved
+    // 2026-08-13. Consent gate: the sms-ok tag, set only by the checkbox on the
+    // capture form; reminders/route.ts refuses to text without it. Inbound:
+    // api/twilio/inbound logs replies to lead_messages. Manual send: api/sms/send
+    // checks auth and sms-paused, NOT the plan — so it really is every plan.
+    // Sequences: reminders/route.ts hard-gates on isPaidPlan, hence "on Pro".
     features: [
       { t: "Two-way exchange", d: "They save you, you capture them — the whole handshake in one tap." },
       { t: "Context that sticks", d: "Every lead is tagged with the card, time, and location they came from." },
+      { t: "Texts that actually arrive", d: "SwiftCard is a carrier-registered sender, so your follow-up lands in their messages instead of being filtered out on the way." },
+      { t: "Only the people who asked", d: "A text goes out only to someone who ticked the consent box on your card. No box, no text — and STOP is honored instantly." },
+      { t: "They text back, you see it", d: "Replies land in that contact's conversation, next to the views and the notes. One thread, not a second inbox." },
+      { t: "Reply from your dashboard", d: "Answer by text or email from the contact's page, in your name. On every plan, including Free." },
+      { t: "Sequences that run themselves", d: "Set an email and text follow-up once and it sends on your schedule — never outside 8am–9pm their time. On Pro." },
       { t: "Straight to your CRM", d: "Contacts flow into your dashboard and sync to GoHighLevel, Pipedrive, HubSpot or Google Contacts." },
-      { t: "Automated follow-up", d: "Fire off a warm email or text sequence so a lead never goes cold." },
     ],
-    metaDesc: "Capture leads the moment someone opens your card — two-way contact exchange with context and automated follow-up.",
+    metaDesc: "Capture leads the moment someone opens your card — two-way contact exchange, follow-up by email or text from a registered sender, and replies that land in one thread.",
   },
   analytics: {
     eyebrow: "Dashboard & Analytics",
     title: <>See who&apos;s looking. <A>Never lose a lead.</A></>,
     titlePlain: "Dashboard & Analytics",
-    subtitle: "Real-time views, saves, and locations. Every contact who taps your card lands in one searchable place — with full history and automated follow-ups. Try the dashboard right here.",
+    subtitle: "Real-time views, saves, and locations. Every contact who taps your card lands in one searchable place — with full history, their replies, and automated follow-ups. Try the dashboard right here.",
     demo: <DashboardDemo />,
     wide: true,
     features: [
       { t: "Live traffic", d: "SwiftCard and Swift Link views by day, week, and month — see momentum build." },
       { t: "Top locations", d: "Know exactly where your card is getting opened, city by city." },
-      { t: "A real CRM", d: "Statuses, notes, read/unread, and a full timeline for every contact." },
-      { t: "Follow-up on autopilot", d: "Light, medium, or aggressive email and text sequences, written by AI." },
+      // "A real CRM" listed the parts and skipped the thing that changed: the
+      // timeline is now two-way. api/twilio/inbound writes replies into
+      // lead_messages, so a text back appears in the same thread as the views.
+      { t: "One thread per person", d: "Notes, read/unread, every view — and the emails and texts you've exchanged, in the order they happened." },
+      { t: "Follow-up on autopilot", d: "Light, medium, or aggressive email and text sequences, written by AI. On Pro." },
     ],
-    metaDesc: "SwiftCard's dashboard: real-time views, saves, top locations, and a built-in CRM with automated follow-ups.",
+    metaDesc: "SwiftCard's dashboard: real-time views, saves, top locations, and a built-in CRM where replies and automated follow-ups live in one thread.",
   },
   teams: {
     eyebrow: "Teams & Offices",
@@ -146,7 +160,12 @@ const PRODUCTS: Record<string, Product> = {
     features: [
       { t: "One tap to add", d: "Save your card to Wallet and reach it from your lock screen instantly." },
       { t: "Works offline", d: "No signal needed — your QR is right there whenever you need it." },
-      { t: "Always current", d: "Update your details and your Wallet pass updates too." },
+      // Not marketing licence: wallet.ts registers a webServiceURL +
+      // authenticationToken, api/wallet/v1/* implements the full PassKit device
+      // registration spec, and touchWalletPass pushes on change — hot-hooked to
+      // the card editor with a daily sweep behind it. The pass genuinely
+      // re-downloads itself; the old "updates too" undersold a real mechanism.
+      { t: "Updates itself", d: "Change your title or your number and the pass in your Wallet redraws itself — Apple fetches the new one. Nothing to re-add, nothing left stale." },
       { t: "Right where they look", d: "Sitting next to the cards people already pull out every day." },
     ],
     metaDesc: "Add your SwiftCard to Apple Wallet — your digital business card, always a swipe away, even offline.",
