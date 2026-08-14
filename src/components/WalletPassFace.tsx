@@ -212,7 +212,7 @@ export default function WalletPassFace({
 
       {/* 3 ── the barcode block. Apple draws it on white, whatever the pass
               colour, because a scanner needs the contrast. */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(20)}px 0 ${px(64)}px`, flex: "none" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(16)}px 0 ${px(40)}px`, flex: "none" }}>
         <div style={{ background: "#fff", borderRadius: px(18), padding: px(18), lineHeight: 0 }}>
           <QRCodeSVG value={card.cardUrl} size={qr} bgColor="#ffffff" fgColor="#000000" level="M" />
         </div>

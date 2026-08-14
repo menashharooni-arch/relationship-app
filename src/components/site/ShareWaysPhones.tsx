@@ -20,6 +20,12 @@ const PASS_CARD: WalletPassCard = {
   company: "Coastline Realty",
   phone: "(415) 555-0188",
   email: "alex@coastline.com",
+  // The same demo headshot the rest of the marketing site uses for Alex,
+  // pre-cropped square on her face. The full-frame demo-girl.jpg centres on
+  // her collar, so a circular crop of it cuts her chin off — real uploads come
+  // through ImageUpload shape="circle" already face-centred, so the crop makes
+  // this behave like a real one instead of teaching the renderer a special case.
+  photoUrl: "/marketing/demo-girl-face.jpg",
   template: "classic-pro",
   cardUrl: CARD_URL,
 };
@@ -81,11 +87,11 @@ function WalletPhone() {
           and matches. justify-center keeps it centered rather than silently
           overflowing if either number is ever touched again.
 
-          Height: a storeCard with a strip, two fields and a barcode is about
-          1.2x its width — 318 was 1.64 and left a cavern of dead pass colour
-          between the fields and the QR. */}
+          Height: measured against a real 375pt storeCard — header ~40 + strip
+          144 + fields ~44 + barcode block ~194 = ~422pt, so about 1.13x the
+          width, not the 1.64x this started at. 219 is that ratio. */}
       <div className="px-1.5 pt-4 flex justify-center">
-        <WalletPassFace card={PASS_CARD} width={194} height={234} />
+        <WalletPassFace card={PASS_CARD} width={194} height={219} />
       </div>
 
       <div className="flex-1" />
@@ -103,11 +109,16 @@ function WalletPhone() {
           <div
             key={c.tail}
             className="rounded-[16px] shadow-[0_-4px_14px_-6px_rgba(0,0,0,0.35)]"
-            style={{ background: c.grad, marginTop: i === 0 ? 0 : -42, height: 62, zIndex: 20 - i }}
+            // z-index ASCENDS: each card sits in FRONT of the one above it, so
+            // what shows of every card is its TOP strip — which is where the
+            // label row lives, and how Wallet actually stacks. It descended
+            // before, so each card covered the label of the card above it.
+            style={{ background: c.grad, marginTop: i === 0 ? 0 : -42, height: 62, zIndex: 10 + i }}
           >
-            {/* Only the top strip of each card shows; keep the label row inside it,
-                digits right-aligned and tabular so they line up card to card. */}
-            <div className="flex items-center justify-between px-4 h-[22px] pt-2">
+            {/* Only the top ~20px of each card shows; the label row must fit
+                inside that, digits right-aligned and tabular so they line up
+                card to card. */}
+            <div className="flex items-center justify-between px-4 h-[20px] pt-1.5">
               <span className="text-white/60 text-[11px] font-medium tabular-nums tracking-[0.12em] leading-none">•••• {c.tail}</span>
               <span className="text-white text-[11px] font-bold italic tracking-tight leading-none">{c.network}</span>
             </div>
