@@ -277,7 +277,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                     {seatInfo.nextSeatTotalCents != null && (
                       <> and <span className="font-semibold text-white">{usd(seatInfo.nextSeatTotalCents)}/{perWord(seatInfo.interval)}</span> going forward</>
                     )}
-                    . Cancel or change seats anytime in Settings → Billing.
+                    . Cancel or change seats anytime in Settings → Plan and billing.
                   </p>
                   {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
                   <button
@@ -303,7 +303,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                       ? native
                         // Native: neutral, actionable in-app — no billing/website pointer.
                         ? "Remove an existing team member to free up a seat, then send this invite again."
-                        : "Your plan doesn't support adding seats from here — manage seats from Settings → Billing."
+                        : "Your plan doesn't support adding seats from here — manage seats from Settings → Plan and billing."
                       : "Ask the account owner to add a seat, then send this invite again."}
                   </p>
                   <button onClick={() => setNeedsSeat(false)}
@@ -520,7 +520,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(j.error ?? "Couldn't remove the seat — you can also do this later from Settings → Billing.");
+        setError(j.error ?? "Couldn't remove the seat — you can also do this later from Settings → Plan and billing.");
         return;
       }
       setSeatNote(

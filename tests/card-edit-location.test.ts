@@ -116,7 +116,9 @@ describe("nothing still points users at a dashboard Edit button", () => {
   });
 
   it("the in-app AI help sends them to Settings", () => {
-    const c = code("src/app/api/ai/help/route.ts");
+    // The assistants no longer carry their own copy of the product — they
+    // answer from src/lib/knowledge, so that is where this claim now lives.
+    const c = code("src/lib/knowledge/docs/cards.ts");
     expect(c, "AI help still routes people to 'My Cards → Edit'").not.toMatch(/My Cards → Edit/);
     expect(c).toMatch(/Settings → Cards and sharing/);
   });

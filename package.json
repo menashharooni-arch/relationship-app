@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:render": "vitest run --config vitest.render.config.ts",
+    "kb:check": "node scripts/kb-drift.mjs",
     "ios:sync": "cap sync ios",
     "ios:sim": "bash scripts/ios-sim.sh",
     "ios:release": "bash scripts/ios-release.sh",

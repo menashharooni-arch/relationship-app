@@ -41,9 +41,13 @@ describe("KB fast-path — web (flag-absent) answers are unchanged from today", 
     expect(web as string).toMatch(/Pro plan|Pricing page|Settings → Billing|Upgrade/i);
   });
 
-  it("web billing answer still points to Settings → Billing (unchanged)", () => {
+  it("web billing answer still points at the billing section", () => {
+    // Was "Settings → Billing". Settings was regrouped and that section is now
+    // "Plan and billing" — this assertion had been pinning a menu name that no
+    // longer exists on screen, which is the drift src/lib/knowledge exists to
+    // stop. tests/knowledge-truth.test.ts checks the label against the page.
     const web = localAnswer("cancel subscription") as string;
-    expect(web).toContain("Settings → Billing");
+    expect(web).toContain("Settings → Plan and billing");
   });
 
   it("native and web answers differ for a leaky entry (proves the swap happens)", () => {
