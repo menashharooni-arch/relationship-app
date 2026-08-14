@@ -87,9 +87,33 @@ function LinkExperience() {
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {["Full name", "Email address", "Phone number"].map((ph) => (
+              {/* The real form's fields, in the real order: name and PHONE are
+                  required, email is optional, and there is a message field.
+                  The mock previously showed name → email → phone with nothing
+                  marked required, which is not the form a visitor meets. */}
+              {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
                 <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[12px] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
+              {/* The SMS consent checkbox, directly above the submit button —
+                  the position and copy our A2P 10DLC campaign (COJQ2MB) is
+                  registered on, and the affirmative opt-in that gates every
+                  automated text. Leaving it out of the marketing mock hid the
+                  single most load-bearing element of the lead-capture flow.
+                  Shown UNTICKED, as it always renders: it is optional, the form
+                  submits without it, and pre-checking it would break TCPA.
+                  Copy is trimmed to what fits a 300px mock — the full
+                  disclosure lives in SmsConsentCheckbox and on /sms-consent. */}
+              <div className="mt-1 flex items-start gap-2">
+                <span
+                  aria-hidden="true"
+                  className="mt-[2px] w-[13px] h-[13px] rounded-[3px] shrink-0 bg-white"
+                  style={{ border: "1.5px solid #C9BFB2" }}
+                />
+                <span className="text-[9.5px] leading-[1.35] text-slate-500">
+                  <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
+                  Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.
+                </span>
+              </div>
               <button
                 onClick={() => setShared(true)}
                 className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center"
