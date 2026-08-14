@@ -31,9 +31,9 @@ const DEMO_CARD: CardData = withoutSocials({
 
 // ── Traffic data per range ───────────────────────────────────────────────────
 const TRAFFIC = {
-  today: { label: "Today", card: "86", link: "41", pct: 12, period: "today", bars: [24, 18, 32, 28, 44, 38, 56, 48, 70, 62, 84, 100] },
-  week: { label: "Week", card: "1,284", link: "742", pct: 23, period: "this week", bars: [38, 52, 44, 68, 58, 82, 100] },
-  month: { label: "Month", card: "5,190", link: "3,020", pct: 31, period: "this month", bars: [30, 24, 38, 32, 46, 40, 34, 52, 44, 58, 50, 64, 56, 48, 70, 62, 76, 66, 58, 82, 72, 88, 78, 68, 92, 82, 96, 86, 90, 100] },
+  today: { label: "Today", card: "86", link: "41", bars: [24, 18, 32, 28, 44, 38, 56, 48, 70, 62, 84, 100] },
+  week: { label: "Week", card: "1,284", link: "742", bars: [38, 52, 44, 68, 58, 82, 100] },
+  month: { label: "Month", card: "5,190", link: "3,020", bars: [30, 24, 38, 32, 46, 40, 34, 52, 44, 58, 50, 64, 56, 48, 70, 62, 76, 66, 58, 82, 72, 88, 78, 68, 92, 82, 96, 86, 90, 100] },
 } as const;
 type Range = keyof typeof TRAFFIC;
 
@@ -55,12 +55,20 @@ const LEADS = [
   { id: "l5", name: "Jordan Kim", company: "Kimco Partners", phone: true, email: false },
 ];
 
+// Titles and bodies follow the shapes the product actually sends, so the demo
+// bell shows notifications a real owner would recognise:
+//   • new_lead        — lib: `New contact: {name}` / `{name} shared their info with you{source}.`
+//   • contact_saved   — card-event-notify.ts: `Contact saved` / `{name} saved your contact card{from}{near}.`
+//   • card_viewed     — card-event-notify.ts: `Card viewed`   / `{name} viewed {surface}{near}.`
+// The old list invented a "Weekly traffic report" notification that no code
+// path creates, and it quoted the "up 23%" trend stat that was removed from
+// the dashboard in d65b0d5 — advertising a feature twice over that isn't there.
 const NOTIFICATIONS = [
-  { id: "n1", title: "Sarah Chen shared their info with you", body: "Loved the listing on Cole St — can we set up a viewing this weekend?", ago: "2h ago", read: false },
-  { id: "n2", title: "Someone saved your contact", body: "Your card was saved from your QR code.", ago: "6h ago", read: false },
-  { id: "n3", title: "Marcus Webb shared their info with you", body: "Interested in the downtown condos — what's coming up?", ago: "1d ago", read: false },
-  { id: "n4", title: "Weekly traffic report", body: "Your card was viewed 1,284 times this week — up 23%.", ago: "2d ago", read: true },
-  { id: "n5", title: "Tom Farrell shared their info with you", body: "Following up on the office space downtown — is it still available?", ago: "3d ago", read: true },
+  { id: "n1", title: "New contact: Sarah Chen", body: "Sarah Chen shared their info with you from your QR code.", ago: "2h ago", read: false },
+  { id: "n2", title: "Contact saved", body: "Someone saved your contact card from your QR code, near San Francisco, CA.", ago: "6h ago", read: false },
+  { id: "n3", title: "New contact: Marcus Webb", body: "Marcus Webb shared their info with you from your Swift Links page.", ago: "1d ago", read: false },
+  { id: "n4", title: "Card viewed", body: "Someone viewed your card, near Oakland, CA.", ago: "2d ago", read: true },
+  { id: "n5", title: "New contact: Tom Farrell", body: "Tom Farrell shared their info with you from your email signature.", ago: "3d ago", read: true },
 ];
 
 // ── Traffic box — matches the real dashboard's Traffic section ───────────────
@@ -94,16 +102,19 @@ function TrafficBox() {
         <div>
           {/* Stat tiles — side by side */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Label + count only. The real dashboard's per-tile trend line
+                ("▲ 23% this week") was removed in d65b0d5, so showing one here
+                advertised a stat the product no longer has. The counts, the
+                range tabs and the bar graph are untouched — those all still
+                exist. `pct`/`period`/`accent` went with it; nothing else read
+                them. */}
             {[
-              { label: "SwiftCard views", value: d.card, accent: "#818cf8" },
-              { label: "Swift Link views", value: d.link, accent: "#22d3ee" },
+              { label: "SwiftCard views", value: d.card },
+              { label: "Swift Link views", value: d.link },
             ].map((m) => (
               <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
                 <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
                 <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value}</p>
-                <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.accent }}>
-                  ▲ {d.pct}% {d.period}
-                </p>
               </div>
             ))}
           </div>
@@ -467,8 +478,19 @@ export default function DashboardDemo() {
   const [tab, setTab] = useState<TabId>("dashboard");
   const activePath = TABS.find((t) => t.id === tab)?.path ?? TABS[0].path;
 
+  // LIGHT, because the app opens light. 9d7e592 made light mode the default
+  // (dark became opt-in), so a dark demo showed every visitor a product they
+  // would not get on signing in.
+  //
+  // It is themed the way the APP is themed, not by hand: `data-sc-theme="light"`
+  // + `.sc-app` are the exact hooks globals.css keys its light remap on, so the
+  // same gray/blue classes this demo already uses get the same treatment the
+  // real dashboard gets — and if that remap is ever retuned, the demo follows
+  // instead of drifting. Nothing here was recoloured by eye.
+  //
+  // The browser chrome above stays dark: it is a browser window, not the app.
   return (
-    <div className="rounded-[22px] border border-white/10 bg-[#0A0B10] shadow-2xl overflow-hidden">
+    <div data-sc-theme="light" className="rounded-[22px] border border-white/10 bg-[#0A0B10] shadow-2xl overflow-hidden">
       {/* browser chrome */}
       <div className="flex items-center gap-2 px-4 h-11 border-b border-white/8 bg-[#0E1017]">
         <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
@@ -478,6 +500,13 @@ export default function DashboardDemo() {
         </div>
       </div>
 
+      {/* Everything below the browser chrome is app surface, so it carries
+          `.sc-app` once, plus `bg-gray-950` — the real dashboard's page
+          background class, which the light remap turns into the app's cream.
+          Without it the cards went light while the page behind them stayed the
+          dark browser-frame colour, leaving dark gutters and an unreadable
+          "Quick Contacts" heading. */}
+      <div className="sc-app bg-gray-950">
       {/* Page tabs — the actual app nav (Dashboard / Contacts / Links) so
           visitors can click through the real pages, not just Dashboard. */}
       <div className="flex items-center gap-1 px-4 sm:px-5 pt-4">
@@ -507,6 +536,7 @@ export default function DashboardDemo() {
         )}
         {tab === "contacts" && <ContactsPageView />}
         {tab === "links" && <LinksPageView />}
+      </div>
       </div>
     </div>
   );
