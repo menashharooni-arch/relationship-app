@@ -72,7 +72,7 @@ export default function JoinButton({ token }: { token: string }) {
         {hasPersonalSub && (
           <p className="mt-3 rounded-xl border border-blue-500/25 bg-blue-500/10 text-blue-200 text-xs px-3.5 py-3 leading-relaxed">
             Heads up: your team seat includes everything in Pro, and you also have your own Pro
-            subscription. You can cancel yours in <span className="font-semibold">Settings → Billing</span> —
+            subscription. You can cancel yours in <span className="font-semibold">Settings → Plan and billing</span> —
             or keep it for if you ever leave the team. We&apos;ve put this in your notifications too.
           </p>
         )}

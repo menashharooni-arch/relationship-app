@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     // Send them to Billing to CHANGE their plan instead.
     if (isPaidPlan(profile.plan) && profile.stripe_subscription_id) {
       return NextResponse.json(
-        { error: "already_subscribed", message: "You already have an active subscription. Change your plan in Settings → Billing.", redirect: "/settings/flows?billing=1" },
+        { error: "already_subscribed", message: "You already have an active subscription. Change your plan in Settings → Plan and billing.", redirect: "/settings/flows?billing=1" },
         { status: 409 }
       );
     }

@@ -289,7 +289,7 @@ export async function POST(req: Request) {
       user_id: user.id,
       type: "personal_sub_reminder",
       title: "You still have a personal Pro subscription",
-      body: "Your team seat now includes everything in Pro. You can cancel your own subscription in Settings → Billing — or keep it for if you ever leave the team.",
+      body: "Your team seat now includes everything in Pro. You can cancel your own subscription in Settings → Plan and billing — or keep it for if you ever leave the team.",
     }).catch(() => {});
   }
 
