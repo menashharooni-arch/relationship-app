@@ -42,7 +42,7 @@ export const productDocs = defineDocs([
     answer:
       "No app is needed on either side. Your card is a link — share it by QR, text, Apple Wallet, or an NFC card, and it opens in the other person's browser. They save your contact to their phone in one tap.",
     detail:
-      "On the public card page a visitor gets: a one-tap save-to-contacts (a .vcf download), a \"Share your info\" form that sends their name, email and phone straight into your contacts, your Swift Links block, and a share sheet for passing your card on. There is a SwiftCard iOS app, but it is for card OWNERS to manage their own cards — nobody needs it to receive a card.",
+      "On the public card page a visitor gets: a one-tap save-to-contacts (a .vcf download), a \"Share your info\" form that sends their name, email and phone straight into your contacts, an optional \"What people say\" block of testimonials you've added, your Swift Links block, and a share sheet for passing your card on. There is a SwiftCard iOS app, but it is for card OWNERS to manage their own cards — nobody needs it to receive a card.",
   },
   {
     id: "swift-links",
@@ -81,7 +81,7 @@ export const productDocs = defineDocs([
     answer:
       "Your own card can go in Apple Wallet: dashboard → \"Other ways to share\" → \"Add to Apple Wallet\". The pass carries your card's look and a big QR, so it's a couple of taps away and shows on Apple Watch.",
     detail:
-      "Two things people expect that aren't there. There is no \"Add to Apple Wallet\" button on the public card page — a visitor cannot add SOMEONE ELSE's card to their Wallet, only save them as a contact. And there is no watchOS app: the Watch simply shows the Wallet pass. There is no Google Wallet pass either; on Android, share the link or the QR. The \"Add SwiftCard to Wallet\" button on the marketing homepage is a call to action that opens the card builder — a pass only exists once you've built a card and signed in.",
+      "The pass keeps itself current: once it's in Wallet it registers with SwiftCard, so editing your card updates the pass already on the phone — no need to re-add it. Two things people expect that aren't there. There is no \"Add to Apple Wallet\" button on the public card page — a visitor cannot add SOMEONE ELSE's card to their Wallet, only save them as a contact. And there is no watchOS app: the Watch simply shows the Wallet pass. There is no Google Wallet pass either; on Android, share the link or the QR. The \"Add SwiftCard to Wallet\" button on the marketing homepage is a call to action that opens the card builder — a pass only exists once you've built a card and signed in.",
   },
   {
     id: "nfc",

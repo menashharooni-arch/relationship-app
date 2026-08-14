@@ -51,7 +51,7 @@ export const marketingDocs = defineDocs([
     answer:
       "Subscribing to Pro starts with a {trial.days}-day free trial: a card is collected at checkout, and billing starts automatically when the trial ends unless you cancel first. No contracts — cancel anytime and you keep access to the end of the period you've paid for. Payments run through Stripe.",
     detail:
-      "Two limits worth stating plainly rather than letting someone discover them: the trial is Pro ONLY (the Office plan has no trial), and it is for new customers only — someone who has subscribed before is charged immediately on the next subscription. The Free plan is free forever and needs no card at all.",
+      "Two limits worth stating plainly rather than letting someone discover them: the trial is Pro ONLY (the Office plan has no trial), and it is for new customers only — someone who has subscribed before is charged immediately on the next subscription. The Free plan is free forever and needs no card at all. There's a \"Have a promo code?\" field on the pricing page; a code is checked before checkout, so an invalid one is rejected there rather than silently ignored.",
     commerce: true,
     nativeAnswer:
       "The Free plan is free forever. Paid plans can be stopped at any time, and access continues to the end of the period already covered.",
