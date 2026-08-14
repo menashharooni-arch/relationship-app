@@ -28,8 +28,13 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
     try { window.dispatchEvent(new CustomEvent("sc:appstore-done")); } catch { /* ignore */ }
   }
 
-  // An app already running natively should never be told to download itself.
-  if (!open || native) return null;
+  // An app already running natively should never be told to download itself —
+  // and neither should anyone, while the app is still in App Review. Without
+  // APP_STORE_URL this modal was greeting every new account with a download
+  // button that opened the App Store's front page. Hidden until the listing is
+  // live; TourAutoStart reads the same appStoreReady() so the tour does not sit
+  // waiting for a dismissal that can never come.
+  if (!open || native || !APP_STORE_URL) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={(e) => e.target === e.currentTarget && close()}>

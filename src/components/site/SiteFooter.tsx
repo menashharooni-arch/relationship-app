@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SalesChat from "@/components/site/SalesChat";
 import NativeHidden from "@/components/NativeHidden";
+import { APP_STORE_URL } from "@/lib/app-store";
 
 // Marketing footer — real routes only, no invented content.
 const COLS: { title: string; links: { label: string; href: string }[] }[] = [
@@ -67,9 +68,34 @@ export default function SiteFooter() {
             <p className="text-white/45 text-[14px] leading-relaxed max-w-[240px]">
               The digital business card that shares itself. One tap, and you&apos;re in their phone — card, links, and everything you do.
             </p>
-            <div className="mt-5 flex gap-2.5">
+            <div className="mt-5 flex flex-wrap items-center gap-2.5">
               <Link href="/cards/new" className="rd-btn rd-btn-primary text-[13px] px-4 py-2">Get started free</Link>
             </div>
+            {/* The App Store badge, and the site's only link to the iOS app.
+                It renders ONLY once NEXT_PUBLIC_APP_STORE_URL is set, so it is
+                absent while the app is in review and appears by itself the
+                moment the listing is live — no second deploy to remember. That
+                is the same self-activating pattern AppStoreReviews uses.
+                Deliberately NOT wrapped in NativeHidden's opposite: someone
+                reading the marketing site in a browser is exactly who should
+                see it, and the whole footer is already hidden in the shell. */}
+            {APP_STORE_URL && (
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Download SwiftCard on the App Store"
+                className="mt-4 inline-flex items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.06] px-3.5 py-2 transition-colors hover:bg-white/10"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="w-[22px] h-[22px] shrink-0" fill="#fff">
+                  <path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.75.84-1.98 1.49-3.02 1.4-.13-1.09.42-2.24 1.09-2.98.76-.85 2.07-1.47 3.04-1.4zM20.5 17.02c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.01-1.93-1-4.02-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.06-1.78-4.05-3.35-2.77-4.38-3.06-9.52-1.35-12.25 1.21-1.94 3.13-3.08 4.94-3.08 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.19-3.34 7.88.1 9.25z" />
+                </svg>
+                <span className="leading-tight">
+                  <span className="block text-white/50 text-[10px]">Download on the</span>
+                  <span className="block text-white font-semibold text-[14px] tracking-tight">App Store</span>
+                </span>
+              </a>
+            )}
           </div>
           {COLS.map((col) => (
             <div key={col.title}>

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { startTour, tourCompleted } from "@/lib/tour";
+import { appStoreReady } from "@/lib/app-store";
 
 // Auto-starts the guided tour on the first dashboard load of a new account.
 //
@@ -36,9 +37,12 @@ export default function TourAutoStart() {
 
     // Will the app-store popup show first? It appears on a welcome load until
     // it's been seen once (its own localStorage guard).
+    // appStoreReady() first: while the iOS app is unpublished the popup renders
+    // nothing at all, so waiting on its dismissal event would hang the tour
+    // forever for every new account. Same helper the popup itself gates on.
     let popupPending = false;
     try {
-      popupPending = params.get("welcome") === "1" && localStorage.getItem("sc_appstore_seen") !== "1";
+      popupPending = appStoreReady() && params.get("welcome") === "1" && localStorage.getItem("sc_appstore_seen") !== "1";
     } catch { /* storage blocked — treat as no popup */ }
 
     if (!popupPending) {
