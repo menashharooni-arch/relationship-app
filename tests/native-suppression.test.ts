@@ -69,7 +69,11 @@ const GUARDS: Guard[] = [
     patterns: [/NATIVE_GREETING/, /NATIVE_SUGGESTIONS/, /useIsNativeApp\(\)/],
   },
   { file: "src/components/SignupNudgeHost.tsx", patterns: [/if \(!source \|\| native\) return null/] },
-  { file: "src/components/AppStorePopup.tsx", patterns: [/if \(!open \|\| native\) return null/] },
+  // The guard may carry EXTRA conditions (it now also hides while the iOS app
+  // is unpublished — see lib/app-store.ts), so this asserts what the test is
+  // actually for: `native` still short-circuits the render. Pinning the exact
+  // string made an unrelated addition to the same line look like a regression.
+  { file: "src/components/AppStorePopup.tsx", patterns: [/if \(!open \|\| native(?: \|\| [^)]+)*\) return null/] },
   {
     // Web push can't work inside the Capacitor WKWebView, and the web fallback
     // ("Add to Home Screen") is impossible instructions inside a native app.

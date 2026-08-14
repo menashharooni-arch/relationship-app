@@ -153,7 +153,11 @@ const PRODUCTS: Record<string, Product> = {
     eyebrow: "Ways to share",
     title: <>Your card, always <A>in your pocket.</A></>,
     titlePlain: "Apple Wallet",
-    subtitle: "However you meet someone, there's a way to hand them your card in a second — Apple Wallet, a QR code, or the share sheet. No app, no signal, no fumbling. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
+    // The demo shows two phones since the standalone QR phone came out — the
+    // pass carries the QR itself, so a third phone said nothing the first
+    // didn't. Copy now matches: Wallet (QR included) and the share sheet, in
+    // that order. Downloading the QR is still real and still mentioned.
+    subtitle: "However you meet someone, there's a way to hand them your card in a second — your Apple Wallet pass, with the QR right on it, or the share sheet. No app, no signal, no fumbling. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
     demo: <ShareWaysPhones />,
     wide: true,
     ctaLabel: "Get Started",

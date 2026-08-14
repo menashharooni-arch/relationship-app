@@ -38,7 +38,14 @@ export const PLAN_FEATURES = {
     "Contacts CRM to track every connection",
     "One-tap “Share my info” back to any contact",
     "Basic analytics: views, saves & best day",
-    "Shows a “Powered by SwiftCard” badge",
+    // Name only. The badge renders as "Made with SwiftCard" on both the card
+    // and the Swift Links footer, so calling it something else here sent people
+    // looking for a badge that does not exist under that name.
+    // NOTE: this line's OTHER problem is untouched and still open — 532a660 put
+    // the badge on every card on every plan, so listing it as a Free-tier trait
+    // (and Pro's "No SwiftCard branding anywhere" below) no longer matches what
+    // ships. That is a pricing decision, not a rename.
+    "Shows a “Made with SwiftCard” badge",
   ],
   pro: [
     "Everything in Free — with the limits taken off:",
