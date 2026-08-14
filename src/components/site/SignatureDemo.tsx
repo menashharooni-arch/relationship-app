@@ -137,10 +137,12 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
               <span className="block text-center text-slate-400 text-[11px] mt-3">Create your card · swiftcard.me</span>
             </div>
 
-            {/* Powered by badge */}
+            {/* The attribution badge, worded exactly as SwiftLinkProfile now
+                renders it — a marketing mock of a real surface has to say what
+                that surface says. */}
             <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
               <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
-              Powered by SwiftCard.me
+              Made with SwiftCard
             </span>
           </div>
         </div>

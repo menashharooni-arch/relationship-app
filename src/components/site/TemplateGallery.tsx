@@ -138,11 +138,15 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
               so the demo shows the actual sharing experience. */}
           <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
           <QRCodeModal url={DEMO_URL} firstName={FIRST} />
-          {/* The "Powered by SwiftCard" badge a free card carries — and a real
-              conversion path, so it points at the builder. It used to be a hard
-              link to https://swiftcard.me/?src=card, which on production merely
-              reloaded the page you were already on, and from a preview deploy or
-              localhost ejected you onto the live site mid-demo. */}
+          {/* A conversion path out of the demo, pointing at the builder. It used
+              to be a hard link to https://swiftcard.me/?src=card, which on
+              production merely reloaded the page you were already on, and from a
+              preview deploy or localhost ejected you onto the live site
+              mid-demo.
+              This comment used to call it the "Powered by SwiftCard" badge that
+              "a free card carries". Wrong twice: the real badge reads "Made with
+              SwiftCard" and lives in MadeWithSwiftCard.tsx, and since 532a660 it
+              is on every card on every plan, not just Free. */}
           <Link href="/cards/new" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
             Create your card · swiftcard.me
           </Link>
