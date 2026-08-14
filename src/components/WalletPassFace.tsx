@@ -61,14 +61,30 @@ function metaFor(card: WalletPassCard): NonNullable<ResolvedCardMeta> {
   };
 }
 
+// The empty header row. Wallet lays a storeCard out as header → strip →
+// fields → barcode, and the header row exists even when it carries nothing —
+// SwiftCard's pass deliberately ships no logo and no logoText (wallet.ts), so
+// on the real pass that row is a quiet band of backgroundColor above the
+// strip. A mock whose strip touches the top edge is showing a pass Apple
+// never draws. ~40pt, expressed @3x like every other measurement here.
+const HEADER_H = 120;
+
 export default function WalletPassFace({
   card,
   width = 240,
+  height,
   className = "",
 }: {
   card: WalletPassCard;
   /** Pass width in px. Everything scales from this — see bandPx. */
   width?: number;
+  /** Fixed pass height. Wallet anchors the barcode block to the BOTTOM of the
+   *  pass and lets backgroundColor fill the space between the fields and the
+   *  barcode — the pass is a fixed-size object, not a shrink-wrapped stack.
+   *  With a height, this renders that way (flex column, spacer above the
+   *  barcode). Without one it shrink-wraps, for surfaces that need natural
+   *  height. */
+  height?: number;
   className?: string;
 }) {
   const palette = passPalette(metaFor(card));
@@ -77,7 +93,9 @@ export default function WalletPassFace({
   const px = (at3x: number) => bandPx(width, at3x);
 
   const lead = px(IMG);
-  const qr = Math.round(width * 0.46);
+  // Apple's barcode block: a ~150pt white square in a 375pt pass. The QR
+  // inside it is that box minus its quiet zone.
+  const qr = Math.round(width * 0.38);
 
   const field = (label: string, value: string) => (
     <div style={{ minWidth: 0, flex: 1 }}>
@@ -96,13 +114,21 @@ export default function WalletPassFace({
     <div
       className={className}
       style={{
-        width, background: palette.bottom, borderRadius: Math.round(width * 0.055),
+        width,
+        ...(height ? { height, display: "flex", flexDirection: "column" } : {}),
+        background: palette.bottom,
+        // ~10pt at pass scale. The old 0.055 was nearly twice Apple's radius
+        // and read as a widget, not a pass.
+        borderRadius: Math.round(width * 0.03),
         overflow: "hidden", boxShadow: "0 12px 28px -10px rgba(15,23,42,0.45)",
       }}
     >
+      {/* 0 ── the empty header row Wallet always reserves (see HEADER_H) */}
+      <div style={{ height: px(HEADER_H), flex: "none" }} />
+
       {/* 1 ── the strip */}
       <div style={{
-        height: Math.round(width * BAND_ASPECT), background: bandBackground(palette),
+        height: Math.round(width * BAND_ASPECT), flex: "none", background: bandBackground(palette),
         display: "flex", alignItems: "center",
         padding: `0 ${px(PAD_RIGHT)}px 0 ${px(PAD_LEFT)}px`, overflow: "hidden",
       }}>
@@ -168,19 +194,24 @@ export default function WalletPassFace({
 
       {/* 2 ── the fields Wallet draws under the strip */}
       {(card.phone || card.email) && (
-        <div style={{ display: "flex", gap: px(46), padding: `${px(40)}px ${px(PAD_LEFT)}px ${px(24)}px` }}>
+        <div style={{ display: "flex", gap: px(46), padding: `${px(34)}px ${px(PAD_LEFT)}px ${px(30)}px`, flex: "none" }}>
           {card.phone ? field("Phone", card.phone) : null}
           {card.email ? field("Email", card.email) : null}
         </div>
       )}
 
+      {/* Wallet fills the space between the fields and the barcode with the
+          pass colour — the barcode is anchored to the bottom, not stacked
+          under the fields. This spacer is that fill (fixed-height mode only). */}
+      {height ? <div style={{ flex: 1 }} /> : null}
+
       {/* 3 ── the barcode block. Apple draws it on white, whatever the pass
               colour, because a scanner needs the contrast. */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(16)}px 0 ${px(46)}px` }}>
-        <div style={{ background: "#fff", borderRadius: px(24), padding: px(24), lineHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(20)}px 0 ${px(64)}px`, flex: "none" }}>
+        <div style={{ background: "#fff", borderRadius: px(18), padding: px(18), lineHeight: 0 }}>
           <QRCodeSVG value={card.cardUrl} size={qr} bgColor="#ffffff" fgColor="#000000" level="M" />
         </div>
-        <p style={{ margin: `${px(18)}px 0 0`, fontSize: Math.max(7, px(26)), color: inkMuted, letterSpacing: "0.01em" }}>
+        <p style={{ margin: `${px(14)}px 0 0`, fontSize: Math.max(7, px(25)), color: inkMuted, letterSpacing: "0.01em" }}>
           Scan to connect
         </p>
       </div>

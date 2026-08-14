@@ -254,10 +254,8 @@ export default function Home() {
         </section>
 
         {/* ═══════════════ APPLE WALLET ═══════════════ */}
-        {/* Stacked layout: three 240px phones (~720px) never fit a 2-column
-            text|visual grid track (which tops out ~660px even on a laptop), so
-            the third phone was clipped. Full-width below the copy, they fit and
-            center on desktop, and swipe on mobile. */}
+        {/* Stacked layout: the phones sit full-width below the copy — centered
+            on desktop, swipe-snap carousel on mobile (see ShareWaysPhones). */}
         <section id="wallet" className="rd-light relative py-24 sm:py-28 border-y border-slate-200 overflow-hidden">
           <div className="max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl mx-auto text-center">
