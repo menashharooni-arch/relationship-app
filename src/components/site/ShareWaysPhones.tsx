@@ -1,13 +1,13 @@
 "use client";
 
-import { QRCodeSVG } from "qrcode.react";
 import WalletPassFace, { type WalletPassCard } from "@/components/WalletPassFace";
 
-// Three white-screen iPhones showing the ways to share a SwiftCard:
-//   1) Apple Wallet — the real PASS on top, credit cards tucked below
-//   2) QR code — the EXACT "Show QR Code" modal from the live card (QRCodeSVG)
-//   3) Share sheet — the iOS share button + full share sheet
-// Everything is static/illustrative.
+// Two white-screen iPhones showing the ways to share a SwiftCard:
+//   1) Apple Wallet — the real PASS, credit cards tucked below
+//   2) Share sheet — the iOS share button + full share sheet
+// Everything is static/illustrative. (There used to be a third phone showing
+// the QR modal; the pass face already carries the QR, so it said nothing the
+// Wallet phone doesn't — owner cut it 2026-08-14.)
 
 const CARD_URL = "https://swiftcard.me/card/alexmorgan";
 
@@ -19,7 +19,7 @@ const PASS_CARD: WalletPassCard = {
   title: "Realtor®",
   company: "Coastline Realty",
   phone: "(415) 555-0188",
-  email: "alex@coastlinerealty.com",
+  email: "alex@coastline.com",
   template: "classic-pro",
   cardUrl: CARD_URL,
 };
@@ -69,17 +69,21 @@ function WalletPhone() {
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </span>
       </div>
-      {/* The real pass on top — the same face the .pkpass download produces,
-          not a shrunken picture of the business card (which is the design the
-          pass was rebuilt to stop being; see WalletPassFace). */}
-      <div className="px-4 pt-4 relative z-30">
-        <WalletPassFace card={PASS_CARD} width={208} />
+      {/* The real pass — the same face the .pkpass download produces, at the
+          proportion Wallet shows it: a TALL fixed-height object (a real pass
+          is ~0.7 of the screen height), pass colour filling the middle,
+          barcode anchored at its bottom. */}
+      <div className="px-4 pt-4">
+        <WalletPassFace card={PASS_CARD} width={208} height={318} />
       </div>
 
       <div className="flex-1" />
 
-      {/* Credit cards tucked away at the bottom (Apple Wallet stacked look) */}
-      <div className="px-4 pb-6 relative">
+      {/* Credit cards tucked at the bottom, running OFF the screen edge the
+          way Wallet's stack does — every card a sliver, none shown whole. The
+          negative margin pushes the stack past the screen bottom;
+          rd-phone-screen's overflow:hidden clips it. */}
+      <div className="px-4 relative" style={{ marginBottom: -28 }}>
         {TUCKED.map((c, i) => (
           <div
             key={c.tail}
@@ -99,30 +103,7 @@ function WalletPhone() {
   );
 }
 
-// 2 — QR code — the exact "Show QR Code" modal from the live card
-function QrPhone() {
-  return (
-    <>
-      <StatusBar />
-      <div className="flex-1 flex items-center justify-center px-4 pb-6">
-        <div className="w-full max-w-[210px] rounded-3xl overflow-hidden flex flex-col items-center shadow-xl" style={{ background: "#0d1b3e" }}>
-          <div className="w-full flex items-center justify-between px-5 pt-4 pb-1">
-            <p className="text-white font-bold text-[15px] leading-tight">Scan to connect with Alex</p>
-            <span className="text-slate-400 text-xl leading-none">×</span>
-          </div>
-          <div className="bg-white rounded-2xl p-4 mx-5 my-4 shadow-xl">
-            <QRCodeSVG value={CARD_URL} size={150} bgColor="#ffffff" fgColor="#0d1b3e" level="M" />
-          </div>
-          <p className="text-[13px] font-medium pb-5 px-5 text-center" style={{ background: "linear-gradient(to right,#60a5fa,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            swiftcard.me/card/alexmorgan
-          </p>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// 3 — iOS share sheet (share button + full sheet). Kept at a realistic scale so
+// 2 — iOS share sheet (share button + full sheet). Kept at a realistic scale so
 // it reads like an actual screenshot rather than a zoomed-in mock.
 function AppIcon({ bg, children, label }: { bg: string; children: React.ReactNode; label: string }) {
   return (
@@ -202,12 +183,11 @@ function SharePhone() {
 export default function ShareWaysPhones({ light = false }: { light?: boolean }) {
   const labelClass = light ? "text-slate-500" : "text-white/60";
   return (
-    // snap-x: on a phone only ~1.4 of the three phones fit, so a free scroll
+    // snap-x: on a phone only ~1.4 of the two phones fit, so a free scroll
     // stops mid-phone and looks cut off. Snap centers one phone per swipe like
-    // a deliberate carousel. Desktop fits all three, so snapping never engages.
-    <div className="max-w-full flex gap-4 justify-start lg:justify-center overflow-x-auto snap-x snap-mandatory lg:snap-none rd-scrollbar-none pb-2 px-2">
+    // a deliberate carousel. Desktop fits both, so snapping never engages.
+    <div className="max-w-full flex gap-6 justify-start sm:justify-center overflow-x-auto snap-x snap-mandatory sm:snap-none rd-scrollbar-none pb-2 px-2">
       <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
-      <Phone label="QR code" labelClass={labelClass}><QrPhone /></Phone>
       <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>
     </div>
   );
