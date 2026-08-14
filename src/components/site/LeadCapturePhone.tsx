@@ -154,7 +154,14 @@ export default function LeadCapturePhone() {
         Exactly what they see when they open your card
       </div>
       <div className="rd-phone w-[300px]">
-        <div className="rd-phone-screen h-[600px]" style={{ background: "#FAF7F2" }}>
+        {/* 650, not 600. The screen is a scrolling viewport over a ~1270px card
+            page, so where it cuts is a choice — and it should cut on a boundary,
+            not mid-control. Adding the message field and the SMS consent
+            checkbox pushed the "Share my info" button's bottom to 619 and its
+            panel's to 636, so a 600px screen sliced the button in half and read
+            as a rendering bug. 650 lands just past the completed panel, which is
+            the whole point of this page: the capture handshake, finished. */}
+        <div className="rd-phone-screen h-[650px]" style={{ background: "#FAF7F2" }}>
           <div className="rd-notch" />
           <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
             <StatusBar />

@@ -81,7 +81,12 @@ export default function Home() {
                 {[
                   "Share by link, QR code, or an NFC card",
                   "They save you in one tap — nothing to download",
-                  "Every share becomes a lead + automatic follow-up",
+                  // Names the channels now that texts actually deliver (A2P
+                  // campaign COJQ2MB approved 2026-08-13) — before that, "text"
+                  // on the homepage would have been a promise the carriers were
+                  // silently dropping. Same plan-agnostic register as the other
+                  // bullets: automation is Pro, as "automatic follow-up" always was.
+                  "Every share becomes a lead — with automatic email and text follow-up",
                   "Includes Link in Bio and Email Signature",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-3 text-slate-600 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
@@ -219,7 +224,7 @@ export default function Home() {
                 See who&apos;s looking. <span className="rd-aurora-text">Never lose a lead.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed">
-                Real-time views, saves, and locations. Every contact who taps your card lands in one place — searchable, with the full history and automated follow-ups. Try the dashboard right here.
+                Real-time views, saves, and locations. Every contact who taps your card lands in one place — searchable, with the full history, their replies, and automated email and text follow-ups. Try the dashboard right here.
               </p>
             </div>
             <div data-reveal="fade">
