@@ -70,11 +70,22 @@ function WalletPhone() {
         </span>
       </div>
       {/* The real pass — the same face the .pkpass download produces, at the
-          proportion Wallet shows it: a TALL fixed-height object (a real pass
-          is ~0.7 of the screen height), pass colour filling the middle,
-          barcode anchored at its bottom. */}
-      <div className="px-4 pt-4">
-        <WalletPassFace card={PASS_CARD} width={208} height={318} />
+          proportion Wallet shows it: a fixed-size object with pass colour
+          filling the middle and the barcode anchored at its bottom.
+
+          Width: the frame is 240 but .rd-phone carries an 11px bezel per
+          side, so the SCREEN is 218. 208 (the old value) was sized against the
+          FRAME, so it overflowed 22px past the screen's right edge and was
+          clipped by the bezel. Wallet insets a pass by roughly 2.5% of the
+          screen per side, which is px-1.5 here — not px-4 — so 194 both fits
+          and matches. justify-center keeps it centered rather than silently
+          overflowing if either number is ever touched again.
+
+          Height: a storeCard with a strip, two fields and a barcode is about
+          1.2x its width — 318 was 1.64 and left a cavern of dead pass colour
+          between the fields and the QR. */}
+      <div className="px-1.5 pt-4 flex justify-center">
+        <WalletPassFace card={PASS_CARD} width={194} height={234} />
       </div>
 
       <div className="flex-1" />
@@ -83,7 +94,11 @@ function WalletPhone() {
           way Wallet's stack does — every card a sliver, none shown whole. The
           negative margin pushes the stack past the screen bottom;
           rd-phone-screen's overflow:hidden clips it. */}
-      <div className="px-4 relative" style={{ marginBottom: -28 }}>
+      {/* px-3 puts the stack on exactly the pass's left and right edges: the
+          pass is 194 centred in a 206 box, so it sits 12px in from the screen
+          — matching that here is what makes the two read as one stack rather
+          than two differently-sized objects. */}
+      <div className="px-3 relative" style={{ marginBottom: -28 }}>
         {TUCKED.map((c, i) => (
           <div
             key={c.tail}

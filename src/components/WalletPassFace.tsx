@@ -103,8 +103,13 @@ export default function WalletPassFace({
         margin: 0, fontSize: Math.max(6.5, px(26)), fontWeight: 600, color: accent,
         letterSpacing: "0.06em", textTransform: "uppercase", lineHeight: 1.2,
       }}>{label}</p>
+      {/* The 7.5px floor is what keeps this legible in a small marketing mock:
+          proportionally px(30) lands near 5px, which no one can read. The
+          floor does mean the value type runs slightly large for the pass at
+          mock scale — the tradeoff is deliberate, but it is also why the
+          demo email has to be short enough to survive it without ellipsis. */}
       <p style={{
-        margin: `${px(6)}px 0 0`, fontSize: Math.max(8, px(30)), fontWeight: 500, color: ink,
+        margin: `${px(6)}px 0 0`, fontSize: Math.max(7.5, px(30)), fontWeight: 500, color: ink,
         lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
       }}>{value}</p>
     </div>
