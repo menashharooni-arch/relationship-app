@@ -38,7 +38,11 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     path: TEAM,
     anchor: "admin-add-member",
     title: "Add a team member",
-    body: "Invite someone by email — their card is ready before your meeting ends. Seats are unlimited; add or remove people here anytime.",
+    // Was "Seats are unlimited; add or remove people here anytime." Seats are
+    // purchased, a pending invite holds one, and the invite dialog offers to
+    // buy another when you run out — so "unlimited" set up the exact surprise
+    // the tour exists to prevent.
+    body: "Invite someone by email — their card is ready before your meeting ends. Each person uses a seat; if you're out, the invite offers to add one.",
     placement: "left",
   },
   {
@@ -46,7 +50,9 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     path: TEAM,
     anchor: "admin-team-list",
     title: "Your roster",
-    body: "Everyone with a company card, plus anyone you've invited who hasn't finished yet. Tap Manage on anyone to see their card, resend an invite, or remove them.",
+    // "resend an invite" from Manage described a button that isn't in the
+    // drawer — resending is "Remind" on the pending invitation's own row.
+    body: "Everyone with a company card, plus anyone you've invited who hasn't finished yet. Tap Manage on anyone to see their card or remove them; a pending invite has its own Remind button.",
     placement: "top",
   },
   {
@@ -54,7 +60,10 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     path: TEAM,
     anchor: "admin-team-bell",
     title: "Team notifications",
-    body: "Activity from across the whole office lands here — new leads, cards going live, invites accepted — each tagged with the teammate it came from.",
+    // Deliberately quiet: this inbox carries joins, departures and declined
+    // invitations only. Promising leads and cards-going-live here sent admins
+    // looking for team lead alerts that arrive on their personal bell instead.
+    body: "Changes to your team land here — someone joining, someone leaving, an invitation declined. Leads and card views stay on your own dashboard's bell.",
     placement: "bottom",
   },
   // Analytics is one of the console's four tabs. The tour used to walk past it
@@ -102,7 +111,12 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     path: BRANDING,
     anchor: "admin-branding-note",
     title: "One look, set once",
-    body: "Your own card's colors, fonts, and layout are the template — change your card and every teammate's card updates with it automatically.",
+    // Was "Your own card's colors, fonts, and layout are the template — change
+    // your card and every teammate's card updates with it automatically."
+    // Backwards: the brand lives on the OFFICE and is set here, and the owner's
+    // personal card is explicitly left alone (office-brand targets sub-users).
+    // Editing your own card and expecting the team to follow does nothing.
+    body: "The design you set here is the one every teammate's card uses — save it and their cards update automatically. Your own personal card stays yours and is never overwritten.",
     placement: "bottom",
   },
   {

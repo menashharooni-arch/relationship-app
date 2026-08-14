@@ -59,7 +59,7 @@ export const cardDocs = defineDocs([
     answer:
       "In the \"Card design\" tab, above the templates, there's a \"Custom design\" option marked PRO: eight looks you can't pick as a template, or photograph the printed card you already have and it gets rebuilt for you. From there you can show, hide, reorder and resize anything on the card.",
     detail:
-      "This is the one genuinely Pro-only design path — the templates themselves are not gated. If an account drops to Free, a custom-designed card falls back to the nearest standard template; the layout is not deleted, and it returns when the account is paid again.",
+      "Inside the designer the button for the photo route reads \"Copy a card or template you like\" — upload a picture of a card and it is measured and rebuilt with your own details on it. Like the rest of the custom designer it is Pro; a Free account gets a clear refusal rather than a silent failure. This is the one genuinely Pro-only design path — the templates themselves are not gated. If an account drops to Free, a custom-designed card falls back to the nearest standard template; the layout is not deleted, and it returns when the account is paid again.",
   },
   {
     id: "photos",
