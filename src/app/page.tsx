@@ -5,7 +5,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
-import HeroImage from "@/components/site/HeroImage";
+import HeroRecipientPhone from "@/components/site/HeroRecipientPhone";
 import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import SwiftLinkMiniBuilder from "@/components/site/SwiftLinkMiniBuilder";
 import SignatureDemo from "@/components/site/SignatureDemo";
@@ -74,13 +74,19 @@ export default function Home() {
               </h1>
               {/* Subheader tagline — scales down cleanly on phones via clamp and
                   wraps within the same max-width as the bullets below. */}
+              {/* The subhead carries the objection now, in its own sentence,
+                  naming WHO doesn't download anything. It used to be half of
+                  bullet two ("nothing to download"), where a skimmer read it as
+                  a property of the product rather than a promise about the
+                  person they hand it to — and "no app" with no subject reads by
+                  default as "I don't need an app", which is the weaker claim. */}
               <p className="mt-5 text-slate-500 text-[clamp(1.05rem,1.9vw,1.35rem)] leading-snug max-w-[560px]" data-reveal>
-                Saves you in one tap — and does the follow-ups for you.
+                Your card opens in their browser and saves to their phone in one tap.{" "}
+                <span className="text-slate-900 font-semibold">They install nothing.</span>
               </p>
               <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
                 {[
                   "Share by link, QR code, or an NFC card",
-                  "They save you in one tap — nothing to download",
                   // Names the channels now that texts actually deliver (A2P
                   // campaign COJQ2MB approved 2026-08-13) — before that, "text"
                   // on the homepage would have been a promise the carriers were
@@ -116,7 +122,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center lg:justify-end" data-reveal="scale">
-              <HeroImage />
+              <HeroRecipientPhone />
             </div>
           </div>
         </section>
@@ -128,7 +134,10 @@ export default function Home() {
               <div className="rd-steps-line" aria-hidden="true" />
               <div className="grid md:grid-cols-3 gap-4">
                 {[
-                  { n: "01", t: "Share in one tap", d: "Tap a phone, show your QR, or drop your link. Your card opens instantly — no app, no friction." },
+                  // "no app" with no subject reads as "I don't need an app",
+                  // which nobody is asking. The question is whether the person
+                  // on the other end does — so every instance names them.
+                  { n: "01", t: "Share in one tap", d: "Tap a phone, show your QR, or drop your link. Your card opens in their browser — nothing for them to install." },
                   { n: "02", t: "They save you", d: "Your name, number, email and photo land in their contacts. You share theirs back, too." },
                   { n: "03", t: "You see everything", d: "Every view, save, and location — in a dashboard built to turn moments into relationships." },
                 ].map((s, i) => (
@@ -269,7 +278,7 @@ export default function Home() {
                 Your card, always <span className="rd-aurora-text">in your pocket.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                However you meet someone, there&apos;s a way to hand them your card in a second — no app, no signal, no fumbling.
+                However you meet someone, there&apos;s a way to hand them your card in a second — and whatever they&apos;re holding, it opens in their browser with nothing to install.
               </p>
             </div>
 
