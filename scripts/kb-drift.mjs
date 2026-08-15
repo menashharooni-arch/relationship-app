@@ -88,6 +88,10 @@ console.log(git("log", "--oneline", `${since}..HEAD`).split("\n").map((l) => `  
 console.log(`
 Next: decide which of these changed what a user should be TOLD, then update the
 matching doc in ${KB}/docs/ and re-run. Prices, limits, templates and CRM
-providers need no action — knowledge/derived.ts reads those from the code.`);
+providers need no action — knowledge/derived.ts reads those from the code.
+
+If nothing here changes what a user should be told, say so in
+${KB}/REVIEWED.md and commit that. Otherwise this same list comes back every
+run, and the next person re-reads the diffs you already cleared.`);
 
 process.exit(strict ? 1 : 0);
