@@ -67,7 +67,7 @@ const USE_CASES: { role: string; title: string; body: string }[] = [
 const FACTS = [
   { v: "Free", l: "to start — no credit card" },
   { v: "1 tap", l: "to share your card" },
-  { v: "No app", l: "needed to receive it" },
+  { v: "No app", l: "for the person you give it to" },
   { v: "Cancel", l: "anytime, no lock-in" },
 ];
 
