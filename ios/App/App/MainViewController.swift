@@ -29,6 +29,11 @@ class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+        // Same reason as above — app-local plugins are never auto-discovered.
+        // Without this line window.Capacitor.Plugins.ExternalPurchase is
+        // undefined, and src/lib/external-purchase.ts (which fails closed)
+        // renders no subscribe button, which is the 3.1.1 rejection again.
+        bridge?.registerPluginInstance(ExternalPurchasePlugin())
 
         // No scroll indicators: the flashing bar on the right of every scroll
         // is drawn by iOS on the webview's scroll view — CSS can't reach it.
