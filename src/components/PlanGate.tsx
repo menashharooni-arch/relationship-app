@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
+import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
 
 /**
  * PlanGate — the single component every locked-feature surface renders through.
@@ -12,9 +13,21 @@ import { useIsNativeApp } from "@/lib/platform";
  * live at the call site. Byte-for-byte unchanged.
  *
  * NATIVE (isNativeApp === true, only inside the Capacitor iOS shell): renders a
- * neutral descriptive notice with the EXACT `nativeCopy` string — no button, no
- * link, no price, no "upgrade" verb, no mention of the website. A plain PRO /
- * OFFICE text badge is allowed (and is what {@link PlanBadge} / the notice use).
+ * neutral descriptive notice with the EXACT `nativeCopy` string — no price and
+ * no "upgrade" verb — followed by a subscribe button that opens the DEFAULT
+ * BROWSER. A plain PRO / OFFICE text badge is allowed (and is what
+ * {@link PlanBadge} / the notice use).
+ *
+ * That button is new in the resubmission after App Review rejected 1.0.0 (3)
+ * under Guideline 3.1.1. The notice used to be entirely inert — no button, no
+ * link — which was right under the pre-2025 rule and is precisely what got the
+ * build rejected: the app unlocked paid content with no way to buy it. Apple's
+ * own rejection named the remedy (link out to the default browser on the US
+ * storefront), and 3.1.1(a) confirms it needs no entitlement there.
+ *
+ * ⚠️ THE APP MUST STAY US-STOREFRONT-ONLY while this is the purchase path. In
+ * any other storefront a link out is a 3.1.1 violation rather than the fix, and
+ * IAP would be required instead.
  *
  * Because `useIsNativeApp()` returns false on the server and on the first client
  * render, the web branch is what hydrates on both platforms; native only swaps
@@ -58,23 +71,22 @@ export function PlanGate({
   return <PlanNotice tier={tier} copy={nativeCopy} />;
 
   /*
-   * ─────────────────────────────────────────────────────────────────────────
-   * FUTURE EXTENSION POINT — US-only external-purchase link (region-aware).
-   * ─────────────────────────────────────────────────────────────────────────
-   * Apple's StoreKit External Purchase Link entitlement permits a SINGLE
-   * region-gated link to an external web purchase flow, US storefront only.
-   * When/if we adopt it, this is where it plugs in:
+   * The external-purchase link this comment used to reserve space for is now
+   * implemented, inside <PlanNotice/> below, as <ExternalPurchaseButton/>.
    *
-   *   1. Thread a `region` signal into this component (a prop resolved from the
-   *      server, or a native geolocation/StoreKit-storefront plugin lookup).
-   *   2. Render an ADDITIONAL element BELOW <PlanNotice/> ONLY when region is
-   *      "US" and the entitlement is active — nothing in any other region.
-   *   3. That link's copy must stay within Apple's approved external-purchase
-   *      wording; it does not reintroduce "upgrade"/pricing into the notice
-   *      itself, which stays neutral for all users everywhere.
+   * Two things changed since it was written. Apple's US storefront no longer
+   * requires the StoreKit External Purchase Link Entitlement at all —
+   * guideline 3.1.1(a): "These entitlements are not required for developers to
+   * include buttons, external links, or other calls to action in their United
+   * States storefront apps." And the region signal it planned for is handled by
+   * shipping the app to the US storefront only, which is a far harder guarantee
+   * than anything resolvable at runtime.
    *
-   * Nothing renders here today. Do not implement behavior at this point without
-   * the entitlement in place.
+   * A `nativeContent` override bypasses PlanNotice, so those call sites do NOT
+   * get the button. That is intentional — they are inline pills and badges with
+   * no room for one — but it means PlanNotice must stay the primary gate
+   * surface. If the overrides ever become the common case, the purchase path
+   * needs a second home.
    */
 }
 
@@ -126,16 +138,26 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
   return (
     <div
       role="note"
-      className="flex items-start gap-2.5 rounded-2xl border border-gray-800/80 bg-gray-900 px-4 py-3"
+      className="rounded-2xl border border-gray-800/80 bg-gray-900 px-4 py-3"
     >
-      <PlanBadge tier={tier} />
-      {/* text-wrap:pretty pulls a word down rather than leaving a stubby last
-          line — the copy grew by "on swiftcard.me" and several of these now
-          break onto a short final line. Same pattern the card page's bio uses.
-          Unsupported engines simply ignore it. */}
-      <p className="text-sm leading-snug text-gray-300 [text-wrap:pretty]">
-        <GateCopy copy={copy} />
-      </p>
+      <div className="flex items-start gap-2.5">
+        <PlanBadge tier={tier} />
+        {/* text-wrap:pretty pulls a word down rather than leaving a stubby last
+            line — the copy grew by "on swiftcard.me" and several of these now
+            break onto a short final line. Same pattern the card page's bio uses.
+            Unsupported engines simply ignore it. */}
+        <p className="text-sm leading-snug text-gray-300 [text-wrap:pretty]">
+          <GateCopy copy={copy} />
+        </p>
+      </div>
+      {/* The purchase path. Until 1.0.0 (3) this notice was deliberately inert —
+          no button, no link — which was the correct posture under the old rule
+          and is what App Review rejected: the app unlocked paid content with no
+          way to buy it. On the US storefront Apple permits a link out to the
+          default browser instead of IAP, so the notice now ends in one.
+          Renders nothing on web, and nothing in a build without the native
+          plugin (see ExternalPurchaseButton). */}
+      <ExternalPurchaseButton className="mt-3" />
     </div>
   );
 }
