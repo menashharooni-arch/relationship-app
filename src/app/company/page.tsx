@@ -4,29 +4,10 @@ import SiteNav from "@/components/site/SiteNav";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import NativeHidden from "@/components/NativeHidden";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
 export const metadata: Metadata = {
   title: "Company — SwiftCard",
   description:
     "SwiftCard is a digital business card and link-in-bio platform operated by Swift Card Inc. Company information, leadership, and legal policies.",
-};
-
-// Organization structured data for THIS page (the root layout also carries the
-// site-wide copy). Public business facts only — no EIN, no private records.
-const COMPANY_JSONLD = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "SwiftCard",
-  legalName: "Swift Card Inc",
-  url: APP_URL,
-  logo: `${APP_URL}/brand-icon.png`,
-  description:
-    "SwiftCard is a digital business card and link-in-bio platform operated by Swift Card Inc.",
-  founder: { "@type": "Person", name: "Menash Harooni", jobTitle: "Founder & Authorized Representative" },
-  email: "hello@swiftcard.me",
-  foundingLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "New York", addressRegion: "NY", addressCountry: "US" } },
-  contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "hello@swiftcard.me", url: `${APP_URL}/contact` },
 };
 
 function H2({ children }: { children: React.ReactNode }) {
@@ -39,10 +20,10 @@ function P({ children }: { children: React.ReactNode }) {
 export default function CompanyPage() {
   return (
     <main className="min-h-screen bg-cream flex flex-col">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(COMPANY_JSONLD).replace(/</g, "\\u003c") }}
-      />
+      {/* No Organization JSON-LD here: the root layout emits it (lib/brand.ts)
+          on every page, this one included. This page used to carry a SECOND,
+          slightly different Organization node — two conflicting descriptions of
+          one company on the same URL is what makes Google pick neither. */}
       <SiteNav />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
