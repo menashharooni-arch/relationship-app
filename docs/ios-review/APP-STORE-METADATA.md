@@ -123,4 +123,8 @@ Suggested five:
 5. Swift Links page
 
 ## Version
-- 1.0.0, build 6. "What's New": `Your digital business card, now on iPhone.`
+- 1.0.0, build 7. "What's New": `Your digital business card, now on iPhone.`
+  (Build 7 is the resubmission after the 1.0.0 (3) rejection: it adds the US
+  external purchase link for Guideline 3.1.1 and the rewritten AI consent
+  notice for 5.1.1(i)/5.1.2(i). Availability is now United States only, which
+  the purchase link depends on.)
