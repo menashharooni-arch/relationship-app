@@ -37,6 +37,8 @@ import MobileNavGate from "@/components/MobileNavGate";
 import HelpWidget from "@/components/HelpWidget";
 import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import AiConsentGate from "@/components/AiConsentGate";
+import { readAiConsent, aiConsentCopy } from "@/lib/ai-consent";
+import { aiProviderName } from "@/lib/ai";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
@@ -592,7 +594,11 @@ export default async function DashboardPage({
     <>
       <AppStorePopup trigger={params.welcome === "1"} />
       {/* Native-only one-time AI-consent notice (the dashboard scanner uses AI). */}
-      <AiConsentGate accepted={!!(profile.customization as { _aiConsentAccepted?: boolean } | null)?._aiConsentAccepted} />
+      <AiConsentGate
+        consent={readAiConsent(profile.customization)}
+        provider={aiProviderName()}
+        copy={aiConsentCopy(aiProviderName() ?? "our AI provider")}
+      />
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>

@@ -1,0 +1,81 @@
+// ── Consent to send data to the AI provider ─────────────────────────────────
+//
+// App Review rejected 1.0.0 (3) under Guidelines 5.1.1(i) and 5.1.2(i):
+//
+//   "The app appears to share the user's personal data with a third-party AI
+//    service but the app does not clearly explain what data is sent, identify
+//    who the data is sent to, and ask the user's permission before sharing."
+//
+// The previous notice failed all three: it said "our AI provider" (nobody
+// named), "contact details you provide" (nothing enumerated — and it never
+// mentioned that the scanner uploads a photograph of somebody ELSE's business
+// card), and its only button was "Got it", which is an acknowledgement rather
+// than permission. Apple also notes that putting this in the privacy policy
+// alone is not sufficient, so it has to be asked in the app.
+//
+// What is sent, honestly, per feature:
+//   • Card scanner        — the photo you take of another person's card
+//   • Follow-up drafts    — that contact's name, company, where you met, notes
+//   • Design rebuild      — the photo of the card design you upload
+//   • In-app assistant    — the message you type
+//
+// Consent is stored per ACCOUNT on profiles.customization, alongside the other
+// underscore-prefixed flags (_deleted, _usage, _aiConsentAccepted).
+
+export type AiConsent = "accepted" | "declined" | "unset";
+
+/**
+ * Read the stored decision.
+ *
+ * `_aiConsentAccepted: true` is the pre-rejection shape and still means yes —
+ * those users already saw a notice and agreed, so re-asking them would be
+ * noise. Everything new writes `_aiConsent`.
+ */
+export function readAiConsent(customization: unknown): AiConsent {
+  const c = (customization ?? {}) as Record<string, unknown>;
+  if (c._aiConsent === "accepted" || c._aiConsent === "declined") return c._aiConsent;
+  if (c._aiConsentAccepted === true) return "accepted";
+  return "unset";
+}
+
+/**
+ * Whether an AI request may proceed for this account.
+ *
+ * "unset" passes: the web has never shown a prompt (adding new visible web UI
+ * is off-limits) and its users have not refused anything. In the app the notice
+ * blocks before any AI screen is usable, so a native user reaches an AI feature
+ * only after choosing. What must be honoured everywhere is an explicit NO —
+ * a declined account's data is not sent from any platform.
+ */
+export function aiConsentAllows(customization: unknown): boolean {
+  return readAiConsent(customization) !== "declined";
+}
+
+/**
+ * The exact disclosure shown before anything is sent.
+ *
+ * Built from the live provider name (see aiProviderName) so swapping providers
+ * cannot silently make this sentence false — which is the failure mode that
+ * produced the rejection in the first place.
+ */
+export function aiConsentCopy(provider: string): {
+  title: string;
+  what: string[];
+  who: string;
+  control: string;
+} {
+  return {
+    title: "Before you use AI features",
+    what: [
+      "Photos you take of a business card, when you scan one",
+      "A contact's name, company, where you met and your notes, when AI writes a follow-up",
+      "Messages you type to the in-app assistant",
+    ],
+    // Deliberately does NOT claim anything about model training. Whether the
+    // provider trains on API input depends on the plan we are on, and a
+    // privacy promise we cannot verify is a worse problem than the one this
+    // notice exists to fix. State only what is ours to state.
+    who: `This is sent to ${provider} to produce the result, and to no one else. SwiftCard never sells your data or your contacts' data.`,
+    control: "You can say no and keep using everything else in SwiftCard. AI features simply stay off.",
+  };
+}

@@ -77,7 +77,7 @@ export default function PrivacyPage() {
           <LI><strong>Card content</strong> — everything you choose to put on your card or Swift Links page: name, title, company, phone numbers, email, website, address, photo, logo, bio, and social links. This content is public by design — anyone with your card link can see it.</LI>
           <LI><strong>Contacts you collect</strong> — when someone fills out the &quot;share your info&quot; form on your card, their name, phone, email, company, and message are stored in your account&apos;s contact list.</LI>
           <LI><strong>Payment details</strong> — handled entirely by Stripe. We never see or store your card number.</LI>
-          <LI><strong>Business-card photos</strong> — if you use the AI card scanner, the photo you take is sent to our AI provider to extract the contact details, then used only to create the contact.</LI>
+          <LI><strong>Business-card photos</strong> — if you use the AI card scanner, the photo you take is sent to Google (our AI provider) to extract the contact details, then used only to create the contact. Because the card belongs to someone else, that photo can contain their personal details; we ask your permission before the first time anything is sent, and you can decline.</LI>
           <LI><strong>Messages to us</strong> — anything you send through the contact form, feedback, or support.</LI>
         </ul>
 
@@ -153,7 +153,14 @@ export default function PrivacyPage() {
           <LI><strong>Twilio</strong> — sending text messages (where SMS features are enabled).</LI>
           <LI><strong>PostHog</strong> — product analytics.</LI>
           <LI><strong>Upstash</strong> — rate limiting (helps stop abuse of our forms and APIs).</LI>
-          <LI><strong>AI providers</strong> (e.g. Google Gemini) — only for features you actively use, like the card scanner or AI-drafted follow-ups.</LI>
+          <LI>
+            <strong>Google</strong> (the Gemini API) — our AI provider. Data reaches Google only when you use a feature that needs it,
+            and only the data that feature needs: the photograph you take when you scan a business card; a contact&apos;s name, company,
+            where you met and your notes when AI drafts a follow-up for them; the design photo you upload to rebuild a card; and the
+            messages you type to the in-app assistant. Google processes it to return the result and we do not send it anywhere else.
+            We ask for your permission in the app before any of this is sent, and you can decline — the rest of SwiftCard keeps working
+            and AI features stay off.
+          </LI>
         </ul>
         <P>
           If you connect an integration yourself — GoHighLevel, Pipedrive, HubSpot, Google Contacts or Zapier — we send new contacts to that
