@@ -48,11 +48,11 @@ const PRODUCTS: Record<string, Product> = {
     wide: true,
     features: [
       { t: "Six designer templates", d: "Photo-first, logo-first, classic, bold, minimal — all fully customizable to your brand in seconds." },
-      { t: "Tap, QR, or link", d: "Works on every phone, and the person receiving it installs nothing. A tap on your NFC card, a scannable QR, or a simple shareable link." },
+      { t: "Tap, QR, or link", d: "Works on every phone with no app. A tap on your NFC card, a scannable QR, or a simple shareable link." },
       { t: "Save Contact, built in", d: "Your name, number, email and photo drop straight into their contacts as a vCard." },
       { t: "Unlimited cards on Pro", d: "A card for each side of you — work, personal, speaking — each with its own analytics." },
     ],
-    metaDesc: "Beautiful, customizable digital business cards that share themselves with one tap — QR, NFC, or link. The person you hand it to never installs an app.",
+    metaDesc: "Beautiful, customizable digital business cards that share themselves with one tap — QR, NFC, or link, no app required.",
   },
   swiftlinks: {
     eyebrow: "SwiftLinks",
@@ -157,7 +157,7 @@ const PRODUCTS: Record<string, Product> = {
     // pass carries the QR itself, so a third phone said nothing the first
     // didn't. Copy now matches: Wallet (QR included) and the share sheet, in
     // that order. Downloading the QR is still real and still mentioned.
-    subtitle: "However you meet someone, there's a way to hand them your card in a second — your Apple Wallet pass, with the QR right on it, or the share sheet. Whatever they're holding, your card opens in their browser and there is nothing for them to install. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
+    subtitle: "However you meet someone, there's a way to hand them your card in a second — your Apple Wallet pass, with the QR right on it, or the share sheet. No app, no signal, no fumbling. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
     demo: <ShareWaysPhones />,
     wide: true,
     ctaLabel: "Get Started",
