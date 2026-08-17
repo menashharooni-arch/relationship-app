@@ -170,12 +170,17 @@ Set to `https://eu.i.posthog.com` for an EU project.
 
 ## Search Console (optional)
 
-`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` — the `content` value from Google Search
-Console → Add property → `https://swiftcard.me` → **HTML tag** method. Set it in
-Vercel (Production), redeploy, then press Verify; the root layout renders the
-`google-site-verification` meta tag and emits nothing while it's unset. Leave it
-set permanently — Google re-checks the tag and un-verifies the property if it
-disappears, which also silently stops sitemap and indexing reports.
+`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` — **already set in Vercel Production**
+(2026-08-17) for the `https://swiftcard.me/` URL-prefix property. It's the
+`content` value from Search Console's **HTML tag** method; the root layout
+renders the `google-site-verification` meta tag and emits nothing while unset.
+Leave it set permanently — Google re-checks the tag and un-verifies the property
+if it disappears, which silently stops sitemap and indexing reports.
+
+`public/google9d510ed9f03ed408.html` is the same verification as a static file
+(Search Console's "HTML file" method), kept as a second, git-tracked proof of
+ownership so deleting the env var alone can't un-verify the property. Both
+methods point at the same property — don't delete either one.
 
 ## Referenced in code but previously undocumented
 
