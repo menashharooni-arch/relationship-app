@@ -9,28 +9,11 @@ import GuidedTour from "@/components/GuidedTour";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import SiteAnalytics from "@/components/SiteAnalytics";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
+import { ORGANIZATION_JSONLD, WEBSITE_JSONLD, jsonLdScript } from "@/lib/brand";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
-// Organization structured data (schema.org). Feeds Google's brand knowledge
-// panel with the correct name, logo, operator, and founder — the highest-impact
-// Google Search signal for a SaaS. Only verifiable facts; no invented profiles.
-const ORG_JSONLD = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "SwiftCard",
-  legalName: "Swift Card Inc",
-  url: APP_URL,
-  logo: `${APP_URL}/brand-icon.png`,
-  description:
-    "SwiftCard is a digital business card that shares itself — build your card once and share it by tap, QR code, Apple Wallet, or link, with built-in lead capture and automatic follow-up.",
-  founder: { "@type": "Person", name: "Menash Harooni", jobTitle: "Founder & Authorized Representative" },
-  email: "hello@swiftcard.me",
-  foundingLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "New York", addressRegion: "NY", addressCountry: "US" } },
-  contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "hello@swiftcard.me", url: `${APP_URL}/contact` },
-};
 
 const SITE_TITLE = "SwiftCard — The digital business card that shares itself";
 const SITE_DESC =
@@ -67,6 +50,15 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: SITE_DESC,
   },
+  // Google Search Console site verification. Search Console's "HTML tag" method
+  // wants <meta name="google-site-verification" content="…"> on the homepage;
+  // this renders it once the token is set and emits nothing at all until then.
+  // Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION in Vercel (Production) to the
+  // content value Search Console shows, redeploy, then press Verify. Keep it
+  // set afterwards — Google re-checks periodically and un-verifies if it's gone.
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
@@ -166,15 +158,17 @@ export default function RootLayout({
               "}}}catch(e){}",
           }}
         />
-        {/* Brand structured data for Google Search (JSON-LD). ORG_JSONLD is a
-            static literal today, so this is safe as-is — but `<` is escaped
-            anyway, matching /company. Inside a <script> block the sequence
-            "</script>" in ANY string value closes the tag early and everything
-            after it parses as markup, so the escape is what keeps this safe on
-            the day someone interpolates a card name or company here. */}
+        {/* Brand structured data for Google Search (JSON-LD) — see lib/brand.ts.
+            Organization feeds the knowledge/brand box (name, logo, operator,
+            founder); WebSite is what decides the SITE NAME shown above the URL
+            in a result, which otherwise gets guessed from the <title>. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD).replace(/</g, "\\u003c") }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(ORGANIZATION_JSONLD) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(WEBSITE_JSONLD) }}
         />
         <ServiceWorkerRegistrar />
         {/* Person-scoped browser state (visitor identity, active card, device

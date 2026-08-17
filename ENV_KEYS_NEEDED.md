@@ -168,6 +168,15 @@ but documented nowhere and set in no environment, so the funnel recorded nothing
 `NEXT_PUBLIC_POSTHOG_HOST` — optional, defaults to `https://us.i.posthog.com`.
 Set to `https://eu.i.posthog.com` for an EU project.
 
+## Search Console (optional)
+
+`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` — the `content` value from Google Search
+Console → Add property → `https://swiftcard.me` → **HTML tag** method. Set it in
+Vercel (Production), redeploy, then press Verify; the root layout renders the
+`google-site-verification` meta tag and emits nothing while it's unset. Leave it
+set permanently — Google re-checks the tag and un-verifies the property if it
+disappears, which also silently stops sitemap and indexing reports.
+
 ## Referenced in code but previously undocumented
 
 These are all read somewhere in `src/` but appeared in no env file or doc, so
