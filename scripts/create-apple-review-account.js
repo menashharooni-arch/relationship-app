@@ -105,9 +105,27 @@ async function ensure(tier) {
   const spec = ACCOUNTS[tier];
   const { email, plan } = spec;
 
-  const { data: existing } = await admin.from("profiles").select("id, plan").eq("email", email).maybeSingle();
+  const { data: existing } = await admin
+    .from("profiles").select("id, plan, customization").eq("email", email).maybeSingle();
   if (existing) {
     console.log(`• ${tier.toUpperCase()} account already exists (id ${existing.id}, plan ${existing.plan}) — ${email}`);
+
+    // Clear the AI-consent flag on every run. A reviewer who tapped the notice
+    // in a PREVIOUS review leaves the account marked as having consented, so
+    // the notice never appears again — and the 1.0.0 (3) rejection was partly
+    // ABOUT that notice. We would have shipped a fix the reviewer could not
+    // see, and been rejected for not fixing it. Found exactly that on
+    // applereview@swiftcard.me before the resubmission.
+    const c = { ...(existing.customization || {}) };
+    const had = c._aiConsentAccepted ?? c._aiConsent;
+    if (had !== undefined) {
+      delete c._aiConsentAccepted;
+      delete c._aiConsent;
+      const { error } = await admin.from("profiles").update({ customization: c }).eq("id", existing.id);
+      console.log(error
+        ? `  ✗ could not clear AI consent (${error.message}) — clear it before submitting.`
+        : `  ✓ AI consent reset (was ${JSON.stringify(had)}) so the notice shows again.`);
+    }
     console.log(`  Reset its password in Supabase Studio → Authentication → Users → ${email}.`);
     return;
   }
