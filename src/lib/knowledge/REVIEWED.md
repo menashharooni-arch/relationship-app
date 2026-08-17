@@ -20,3 +20,12 @@ One line per review, newest last.
   **No doc change needed:** `no-app-needed` in `docs/product.ts` already states
   the fact correctly and the assistants never described the hero image. Nothing
   moved, was renamed, or changed plan.
+
+- **2026-08-17 · up to the revert of `3a4c611`** — The change above was reverted
+  in full at the owner's request: it pushed the "they install nothing" point
+  harder than intended. The hero photo, hero subhead, the four-bullet list, the
+  "01 Share in one tap" copy, the wallet-section line, the `/products/*` and
+  `/testimonials` wording, and the template gallery's "Scroll on phone to view"
+  label are all back to their pre-`3a4c611` text. **Still no doc change needed,**
+  for the same reason as above — and the docs never described either version of
+  the hero, so they were correct before, during, and after.
