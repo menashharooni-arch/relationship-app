@@ -6,15 +6,27 @@ the password into App Store Connect only._
 ## Creating the account
 
 ```bash
-node scripts/create-apple-review-account.js
+node scripts/create-apple-review-account.js          # both tiers
+node scripts/create-apple-review-account.js free     # just the Free one
 ```
 
-- Creates `applereview@swiftcard.me` on the **Pro** tier with a fully
-  populated demo card (fictional persona **Alex Chen, Founder & Principal at
-  Northbeam Studio** — never real customer data), plus **3 seeded demo
-  contacts** (Jordan Rivera, Priya Nair, Marcus Webb) and **~24 card views**
-  across the last 4 weeks so Contacts, the pipeline, and Analytics all show
-  real activity for the reviewer.
+**TWO accounts, and the Free one leads.** Giving App Review only a Pro account
+is part of how 1.0.0 (3) was rejected under Guideline 3.1.1: the reviewer saw
+Pro-only features working with no way to buy them, while our notes claimed
+nothing was unlocked in-app. The Free account shows the app in its default
+state — plan gates visible, each carrying the "Subscribe on swiftcard.me"
+button that opens the default browser.
+
+- **Free** — `applereview-free@swiftcard.me`, fictional persona **Sam Okafor,
+  Real Estate Agent at Harbor & Oak Realty**, 2 seeded demo contacts and ~24
+  card views. This is the account to put in the App Store Connect
+  username/password fields.
+- **Pro** — `applereview@swiftcard.me`, fictional persona **Alex Chen, Founder
+  & Principal at Northbeam Studio**, 3 seeded demo contacts and ~24 card views,
+  so every feature can be exercised without payment. Give these credentials in
+  the notes text.
+
+Neither uses real customer data.
 - The password prints ONCE. Store it in your password manager, paste it into
   App Store Connect → App Review Information, and nowhere else.
 - Re-running the script does NOT reset the password — it is idempotent and
@@ -49,15 +61,25 @@ backfilled.
 - [ ] Settings → Advanced account settings → Delete account is reachable
       (reviewer may test deletion — if they do, RE-RUN the script before the
       next submission; deletion is real).
-- [ ] No pricing, upgrade, billing, or Stripe surface is visible anywhere
-      while signed in as this account inside the app.
+- [ ] On the FREE account, a locked feature (Contacts → Add contact → "Scan a
+      business card") shows the plan gate WITH the "Subscribe on swiftcard.me"
+      button, and tapping it leaves the app for the default browser. ⚠️ Test
+      this on a device every time — the whole 3.1.1 remedy is that the tap
+      genuinely exits to Safari rather than opening an in-app sheet.
+- [ ] The AI notice appears before the first AI feature, names Google, lists
+      what is sent, and "Don't allow" actually blocks the scanner.
+- [ ] No in-app checkout, price, or embedded payment surface exists — the only
+      purchase path is the external link above.
 
 ## App Store Connect fields
 
 | Field | Value |
 |---|---|
-| Username | `applereview@swiftcard.me` |
+| Username | `applereview-free@swiftcard.me` (the Free account — default state) |
 | Password | `<from the script run — DO NOT write it here>` |
+
+The Pro credentials go in the notes text, not these fields. App Store Connect
+accepts one pair, and the reviewer should start where a new customer starts.
 
 ## Notes
 
