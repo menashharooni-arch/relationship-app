@@ -4,11 +4,16 @@ import { createClient } from "@/lib/supabase-server";
 import { aiVision, hasAiProvider } from "@/lib/ai";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
+import { aiConsentBlock } from "@/lib/ai-consent-server";
 
 export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
   const { data: { user } } = await userSupabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Declining the AI notice has to actually stop the data leaving —
+  // see lib/ai-consent-server.ts (App Review 5.1.1(i)/5.1.2(i)).
+  const consentBlocked = await aiConsentBlock(user.id);
+  if (consentBlocked) return consentBlocked;
 
   const adminSupabase = getAdminSupabase();
   const { data: profile } = await adminSupabase

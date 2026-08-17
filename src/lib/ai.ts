@@ -7,6 +7,26 @@ export function hasAiProvider(): boolean {
   return !!(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
 }
 
+/**
+ * The company that actually receives user data, named the way a person would
+ * say it — resolved with the SAME waterfall the calls below use.
+ *
+ * App Review rejected 1.0.0 (3) partly under 5.1.1(i)/5.1.2(i) because the
+ * consent notice said "our AI provider" without naming anyone. Apple requires
+ * the recipient to be identified. Hardcoding a name would have been the same
+ * bug one release later: swap a key and the disclosure silently becomes false.
+ * So the disclosure reads the provider from the same place the request does.
+ *
+ * Returns null when nothing is configured, in which case no AI call can happen
+ * and there is nothing to disclose.
+ */
+export function aiProviderName(): string | null {
+  if (process.env.OPENAI_API_KEY) return "OpenAI";
+  if (process.env.GEMINI_API_KEY) return "Google";
+  if (process.env.ANTHROPIC_API_KEY) return "Anthropic";
+  return null;
+}
+
 export async function aiComplete(prompt: string, opts?: { maxTokens?: number; json?: boolean }): Promise<string | null> {
   const maxTokens = opts?.maxTokens ?? 300;
 

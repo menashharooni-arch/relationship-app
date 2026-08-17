@@ -6,11 +6,16 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { aiComplete, hasAiProvider } from "@/lib/ai";
+import { aiConsentBlock } from "@/lib/ai-consent-server";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Declining the AI notice has to actually stop the data leaving —
+  // see lib/ai-consent-server.ts (App Review 5.1.1(i)/5.1.2(i)).
+  const consentBlocked = await aiConsentBlock(user.id);
+  if (consentBlocked) return consentBlocked;
   // Per-user throttle: authenticated but previously uncapped (cost/abuse guard).
   if (await isRateLimited(`ai-suggest:${user.id}`, 20, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });

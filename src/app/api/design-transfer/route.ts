@@ -8,6 +8,7 @@ import {
   transferPrompt, transferChecklist, type TransferIdentity,
   PRECISE_SCAN_PROMPT, faceLayoutFromScan, renderFaceImage,
 } from "@/lib/design-transfer";
+import { aiConsentBlock } from "@/lib/ai-consent-server";
 
 // "Make it EXACTLY this design, with my details" — the image-editing sibling
 // of /api/scan-design. scan-design reads a photographed card's LAYOUT so the
@@ -66,6 +67,10 @@ export async function POST(request: NextRequest) {
   const userSupabase = await createClient();
   const { data: { user } } = await userSupabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Declining the AI notice has to actually stop the data leaving —
+  // see lib/ai-consent-server.ts (App Review 5.1.1(i)/5.1.2(i)).
+  const consentBlocked = await aiConsentBlock(user.id);
+  if (consentBlocked) return consentBlocked;
 
   const adminSupabase = getAdminSupabase();
   const { data: profile } = await adminSupabase

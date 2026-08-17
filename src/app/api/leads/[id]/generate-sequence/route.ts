@@ -5,6 +5,7 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { ownsLead } from "@/lib/lead-access";
 import { isPaidPlan } from "@/lib/plan";
 import { aiComplete } from "@/lib/ai";
+import { aiConsentBlock } from "@/lib/ai-consent-server";
 
 type Step = { day: number; time: string };
 
@@ -24,6 +25,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Declining the AI notice has to actually stop the data leaving —
+  // see lib/ai-consent-server.ts (App Review 5.1.1(i)/5.1.2(i)).
+  const consentBlocked = await aiConsentBlock(user.id);
+  if (consentBlocked) return consentBlocked;
 
   const { presetKey, whereMet, notes, channel } = await req.json();
   const preset = PRESET_CADENCES[presetKey];

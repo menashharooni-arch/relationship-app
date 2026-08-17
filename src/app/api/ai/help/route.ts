@@ -2,6 +2,7 @@ import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
+import { aiConsentAllowsFor } from "@/lib/ai-consent-server";
 import { KNOWLEDGE } from "@/lib/knowledge";
 import { buildPrompt, instantAnswer, type Scope } from "@/lib/knowledge/retrieval";
 import {
@@ -89,8 +90,10 @@ export async function POST(req: NextRequest) {
   if (local) return NextResponse.json({ reply: local });
 
   // 2) Otherwise ask the LLM, grounded in the same corpus, IF a provider is
-  //    configured. If not (or it errors), fall back to the helpful default.
-  if (hasAiProvider()) {
+  //    configured AND the account hasn't refused AI. A declined account keeps a
+  //    working assistant — it just answers from the corpus above and the
+  //    fallback below, and its message never leaves for the provider.
+  if (hasAiProvider() && (await aiConsentAllowsFor(user.id))) {
     const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
     const prompt = buildPrompt({
       corpus: KNOWLEDGE,
