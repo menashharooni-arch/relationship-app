@@ -314,20 +314,29 @@ export async function renderFaceImage(
           }
           const text = value(e.kind);
           if (!text) return null;
-          // Fit the VALUE to the measured box: an email is routinely longer
-          // than the token it replaces, and a wrapped or overflowing line reads
-          // as broken. Shrink until the single line fits, floored at legible.
-          const availPx = (e.w / 100) * W;
-          const estW = (px: number) => text.length * px * 0.56;
+          // Fit the VALUE to the measured box, on ONE line: an email is
+          // routinely longer than the token it replaces, and both a wrapped
+          // stack and an overflowing line read as broken. Shrink toward a
+          // legible floor first; if the floor still doesn't fit, widen the box
+          // (re-anchored by its alignment) instead of letting the text wrap.
+          const estW = (px: number) => text.length * px * (0.56 + (e.caps ? 0.06 : 0));
           let fontPx = FACE_PX[e.size];
-          if (estW(fontPx) > availPx) fontPx = Math.max(24, Math.floor(availPx / (text.length * 0.56)));
+          if (estW(fontPx) > (e.w / 100) * W) fontPx = Math.max(24, Math.floor(((e.w / 100) * W) / (text.length * 0.56)));
+          let wPct = e.w, xPct = e.x;
+          const needPct = Math.min(96, (estW(fontPx) / W) * 100 + 1);
+          if (needPct > wPct) {
+            if (e.align === "right") xPct = Math.max(2, xPct + wPct - needPct);
+            else if (e.align === "center") xPct = Math.max(2, xPct + (wPct - needPct) / 2);
+            else xPct = Math.min(xPct, 100 - needPct);
+            wPct = needPct;
+          }
           return (
             <div key={`e${i}`} style={{
-              position: "absolute", left: `${e.x}%`, top: `${e.y}%`, width: `${e.w}%`, minHeight: `${e.h}%`,
+              position: "absolute", left: `${xPct}%`, top: `${e.y}%`, width: `${wPct}%`, minHeight: `${e.h}%`,
               display: "flex", alignItems: "center",
               justifyContent: e.align === "center" ? "center" : e.align === "right" ? "flex-end" : "flex-start",
               fontSize: fontPx, fontWeight: e.weight === "bold" ? 700 : 400, color: e.color,
-              textTransform: e.caps ? "uppercase" : "none", lineHeight: 1.15,
+              textTransform: e.caps ? "uppercase" : "none", lineHeight: 1.15, whiteSpace: "nowrap",
               letterSpacing: e.caps ? 2 : 0,
             }}>
               {text}
