@@ -32,13 +32,7 @@ type Props = {
   ogUrl: string;
 };
 
-// Short stable hash of a string (djb2). Used to detect when the SELECTED card's
-// content changes so the signature re-captures — and only ever for that card.
-function hashStr(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return h.toString(36);
-}
+import { signatureContentSig } from "@/lib/signature-content";
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
@@ -135,12 +129,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const lastSigRef = useRef<string | null>(null); // content hash of the last successful capture
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
-  // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v12" bump = WebKit warm-up passes + explicit font embed CSS, so
-  // WKWebView/Safari captures stop shipping without the photo or in a fallback font.
-  // "v11" = wait for web fonts + verify each inlined image decodes. "v10" =
-  // pixel-exact copy of the card.
-  const contentSig = "v12|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // version). Re-captures exactly when the CARD IMAGE's content changes — card
+  // info, card design, template — and never for Swift Links page edits (bio,
+  // links, Looks), which the signature cannot show; see lib/signature-content.
+  // Never reuses another card's image. "v12" bump = WebKit warm-up passes +
+  // explicit font embed CSS, so WKWebView/Safari captures stop shipping without
+  // the photo or in a fallback font.
+  const contentSig = signatureContentSig(cardData, template, cardUrl);
   const hashKey = `sc_sighash_${username}`;
   // Separate from hashKey (which tracks the last CAPTURE): this tracks the last
   // content the user actually COPIED into their email. If the card design has

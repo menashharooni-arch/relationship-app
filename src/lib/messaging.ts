@@ -556,7 +556,12 @@ export async function sendBrandedEmail(opts: {
   const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
   // Sign off with the sender's actual Swift Signature card image when available.
-  const signatureImageUrl = await resolveSignatureImageUrl(opts.cardUsername);
+  // No stored signature yet (they never opened Preview & copy)? Fall back to the
+  // card page's opengraph-image — a live render of the same card that always
+  // exists — so every automated email still shows the card, not a bare link.
+  const signatureImageUrl =
+    (await resolveSignatureImageUrl(opts.cardUsername)) ??
+    (opts.cardUsername ? `${APP_URL}/card/${encodeURIComponent(opts.cardUsername)}/opengraph-image?v=${Date.now()}` : null);
   const signature = emailSignatureHtml({
     senderName: opts.senderName,
     company: opts.company,
