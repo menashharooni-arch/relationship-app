@@ -104,7 +104,7 @@ export const productDocs = defineDocs([
     answer:
       "Swift Signature turns your card into an email signature for Gmail, Outlook, Apple Mail and the rest. Open the \"Links\" tab (/share), find \"SWIFT SIGNATURE\", and use \"Preview & copy\" — then paste it into your mail app's signature settings. It's on every plan.",
     detail:
-      "The signature is a picture of your card that links back to your card page, so anyone replying to an ordinary email can still save you or share their details back. Because it's a snapshot rather than a live render, changing your card design takes about a day to show up in signatures already pasted into inboxes — mail apps cache the image. The Links page prompts you to regenerate after a design change.",
+      "The signature is a picture of your card that links back to your card page, so anyone replying to an ordinary email can still save you or share their details back. Because it's a snapshot rather than a live render, changing your card design takes about a day to show up in signatures already pasted into inboxes — mail apps cache the image. The Links page prompts you to re-copy only when the card itself changed (card info or card design) — Swift Links page edits don't affect the card image, so they never trigger it. Automated follow-up emails sign off with the same card image automatically, and texts end with your card link, which unfurls into a card preview in messaging apps.",
   },
   {
     id: "lead-capture",
