@@ -55,7 +55,7 @@ export const productDocs = defineDocs([
     answer:
       "Every card comes with a Swift Links page at swiftcard.me/links/<your-url> — your photo, bio, social icons, video previews and custom link buttons on one page. It is what you put in an Instagram or TikTok bio.",
     detail:
-      "You set the bio, socials and extra buttons on the Socials step of the card builder (step 3), or the \"Socials\" tab when editing a card. How the page LOOKS — background, text colour, font — is the separate \"Social design\" step/tab, which is a Pro control; Free serves the standard dark page. Free allows {limit.links} additional link buttons; paid plans are unlimited. Video previews and featured tiles are Pro.",
+      "You set the bio, socials and extra buttons on the Socials step of the card builder (step 3), or the \"Socials\" tab when editing a card. How the page LOOKS is the separate \"Social design\" step/tab: pick a named Look — one tap sets the whole scheme. Every page defaults to the light \"Paper\" Look; Free can also choose the dark \"Onyx\", while the full Look library (Blush, Sand, Chrome, Forest, Midnight, Orchid) and the custom background/text/font pickers are Pro. Free allows {limit.links} additional link buttons; paid plans are unlimited. Video previews and featured tiles are Pro.",
   },
   {
     id: "sharing-a-card",

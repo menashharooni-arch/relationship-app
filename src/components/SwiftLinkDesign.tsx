@@ -6,16 +6,21 @@
 // surfaces, so each has its own keys (LINK_STYLE_KEYS in lib/plan) and styling
 // one never restyles the other.
 //
-// Exports SwiftLinkStyleControls — the background / text color / font pickers.
+// Exports SwiftLinkStyleControls — a named-Look picker (the whole scheme in
+// one tap; see lib/swiftlink-looks, designed against hoo.be) with the custom
+// background / text / font pickers beneath it as Pro fine-tuning.
 // The live PREVIEW is no longer a mock here: SwiftLinkLivePreview renders the
 // REAL SwiftLinkProfile (embedded + scaled) so the wizard/editor/mini-builder
 // previews are byte-for-byte the published page — see SwiftLinkLivePreview.tsx.
-// Free accounts keep the standard dark page (keys are stripped server-side);
-// the custom color pickers carry the same PRO gating as the card controls.
+// Plan line: FREE picks between the two free Looks (light "Paper" default and
+// the dark "Onyx" stock); the rest of the Look library and every custom picker
+// carry PRO gating, enforced server-side in sanitizeCustomizationForPlan.
 
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
+import { SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook } from "@/lib/swiftlink-looks";
 
 export type SwiftLinkStyle = {
+  linkLook?: string;
   linkBgColor?: string;
   linkTextColor?: string;
   linkFontFamily?: string;
@@ -98,6 +103,50 @@ function SwatchRow({
   );
 }
 
+function LookPicker({
+  value,
+  onPick,
+  locked,
+}: {
+  value?: string;
+  onPick: (id: string | undefined) => void;
+  /** Free session: free Looks stay tappable (that IS the free feature); the
+   *  Pro library renders with a PRO tag, disabled. */
+  locked: boolean;
+}) {
+  const selected = value ?? DEFAULT_SWIFTLINK_LOOK;
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {SWIFTLINK_LOOKS.map((l) => {
+        const active = selected === l.id;
+        const proLocked = locked && !isFreeLook(l.id);
+        return (
+          <button
+            key={l.id}
+            type="button"
+            disabled={proLocked}
+            onClick={() => onPick(l.id === DEFAULT_SWIFTLINK_LOOK ? undefined : l.id)}
+            aria-pressed={active}
+            className={`relative rounded-xl p-3 text-left transition-all border-2 ${
+              active ? "border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]" : "border-transparent"
+            } ${proLocked ? "opacity-45 cursor-default" : "hover:scale-[1.02]"}`}
+            style={{ background: l.sheet, boxShadow: active ? undefined : "inset 0 0 0 1px rgba(127,127,127,0.35)" }}
+          >
+            {/* The swatch IS the look: its own sheet, its own text, its accent
+                as the dot — no abstract color chips to decode. */}
+            <span className="block text-[15px] font-extrabold leading-none" style={{ color: l.text }}>Ag</span>
+            <span className="mt-2 flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.accent }} />
+              <span className="text-[11px] font-semibold" style={{ color: l.text }}>{l.name}</span>
+              {proLocked && <ProTag />}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SwiftLinkStyleControls({
   value,
   onChange,
@@ -110,7 +159,13 @@ export function SwiftLinkStyleControls({
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
       <div>
-        <p className={`${rowLabel} mb-0.5`}>Page background</p>
+        <p className={`${rowLabel} mb-0.5`}>Look</p>
+        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together.</p>
+        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v })} locked={locked} />
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">The surface behind your photo, bio, socials and links.</p>
         <SwatchRow
           presets={BG_PRESETS}

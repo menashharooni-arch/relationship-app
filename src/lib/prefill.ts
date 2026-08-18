@@ -38,6 +38,7 @@ export type CardPrefill = {
   infoColor?: string;
   fontFamily?: string;
   // Swift Links PAGE design ("Social design") — separate surface, separate keys.
+  linkLook?: string;
   linkBgColor?: string;
   linkTextColor?: string;
   linkFontFamily?: string;
@@ -55,7 +56,7 @@ export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoC
 
 // Swift Links page design keys — separate list so the wizard can hydrate them
 // into its OWN "Social design" state instead of the card's style state.
-export const PREFILL_LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"] as const;
+export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily"] as const;
 
 const KEY = "swiftcard_prefill";
 

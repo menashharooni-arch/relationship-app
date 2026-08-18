@@ -701,7 +701,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             // Preset-template style overrides (Pro; stripped server-side on Free).
             // Only fields the user actually set are present here.
             ...templateStyleState,
-            // Swift Links page design ("Social design" — Pro, stripped on Free).
+            // Swift Links page design: the named Look saves on every plan
+            // (Free snapped to the free pair server-side); the custom bg/text/font
+            // fine-tune keys are Pro and stripped on Free.
             ...linkStyleState,
             // Headshot is per-card (explicit key, null when none) — never inherits
             // another card's photo.

@@ -8,9 +8,17 @@ import { getVisitorId, getVisitorInfo, markSharedWith } from "@/lib/visitor";
 export default function ConnectButton({
   cardOwner,
   ownerFirstName,
+  accent = "#1D4ED8",
+  accentText = "#FFFFFF",
 }: {
   cardOwner: string;
   ownerFirstName: string;
+  /** The page Look's action color — this button is the page's hero action
+   *  (lead capture is what a SwiftLink does that a Linktree can't), so it
+   *  wears the Look's accent rather than a fixed brand blue. Defaults keep
+   *  every non-Looks caller byte-for-byte as before. */
+  accent?: string;
+  accentText?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
@@ -91,8 +99,8 @@ export default function ConnectButton({
       <button
         type="button"
         onClick={openModal}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm text-white shadow-sm transition-all active:scale-[0.98]"
-        style={{ background: "#1D4ED8" }}
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+        style={{ background: accent, color: accentText }}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -111,7 +119,7 @@ export default function ConnectButton({
                   </svg>
                 </div>
                 <p className="text-slate-900 font-bold text-base">Info shared!</p>
-                <button type="button" onClick={closeModal} className="mt-5 w-full font-semibold py-3 rounded-full text-white text-sm" style={{ background: "#1D4ED8" }}>
+                <button type="button" onClick={closeModal} className="mt-5 w-full font-semibold py-3 rounded-full text-white text-sm" style={{ background: accent, color: accentText }}>
                   Done
                 </button>
               </div>
@@ -149,7 +157,7 @@ export default function ConnectButton({
                   {/* SMS consent — separate affirmative opt-in (unchecked by
                       default, optional); same block as every capture surface. */}
                   <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
-                  <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: "#1D4ED8" }}>
+                  <button type="submit" disabled={status === "loading"} className="w-full font-bold py-3 rounded-full text-white text-sm disabled:opacity-50" style={{ background: accent, color: accentText }}>
                     {status === "loading" ? "Sending…" : "Send message"}
                   </button>
                 </form>

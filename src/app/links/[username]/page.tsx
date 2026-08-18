@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { buildConnectLinks } from "@/lib/social-url";
 import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
+import { freeSafeLook } from "@/lib/swiftlink-looks";
 import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import CardEventTracker from "@/components/CardEventTracker";
@@ -109,16 +110,22 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     snapchat?: string;
     youtube?: string;
     links?: { emoji: string; label: string; url: string }[];
-    // "Social design" — the owner's Swift Links page look (Pro).
+    // "Social design" — the page's named Look (every plan) + Pro fine-tuning.
+    linkLook?: string;
     linkBgColor?: string;
     linkTextColor?: string;
     linkFontFamily?: string;
   };
-  // Page theming is part of premium Swift Links: applied for paid owners only,
-  // matching sanitizeCustomizationForPlan (which strips these keys for Free).
-  const pageStyle = ownerPaid
-    ? { bg: customization.linkBgColor, text: customization.linkTextColor, font: customization.linkFontFamily }
-    : undefined;
+  // The named Look renders for EVERY plan — Free is snapped to the free pair
+  // at render time (a Pro Look kept in storage after a downgrade is hidden,
+  // never deleted, same philosophy as the links cap below). The custom
+  // fine-tune keys stay paid-only, matching sanitizeCustomizationForPlan.
+  const pageStyle = {
+    look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
+    ...(ownerPaid
+      ? { bg: customization.linkBgColor, text: customization.linkTextColor, font: customization.linkFontFamily }
+      : {}),
+  };
   const bio = customization.bio || "";
   // Free is capped at FREE_MAX_LINKS Swift Links buttons; paid plans get
   // unlimited. Trimmed here so the cap applies to existing accounts on view,

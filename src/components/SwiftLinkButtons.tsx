@@ -34,7 +34,16 @@ function fullHref(url: string) {
   return `https://${v.replace(/^\/+/, "")}`;
 }
 
-export default function SwiftLinkButtons({ links }: { links: Link[] }) {
+export default function SwiftLinkButtons({
+  links,
+  tileBg = "#242526",
+}: {
+  links: Link[];
+  /** The Look's tile surface — what shows behind a tile while its preview
+   *  image loads. Defaults to the old dark stock so non-Looks callers are
+   *  unchanged. (Image tiles and gradient fallbacks cover it once loaded.) */
+  tileBg?: string;
+}) {
   // Fetched preview (og:image + favicon fallback) for non-video links, by index.
   const [previews, setPreviews] = useState<Record<number, Preview>>({});
   // Index of the tile currently playing an inline video, if any.
@@ -188,7 +197,7 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
               type="button"
               onClick={() => { triggerSignupNudge("link_button"); setPlaying(i); }}
               className={`${tileClasses} text-left`}
-              style={{ background: "#242526" }}
+              style={{ background: tileBg }}
             >
               {inner}
             </button>
@@ -202,7 +211,7 @@ export default function SwiftLinkButtons({ links }: { links: Link[] }) {
             rel="noopener noreferrer"
             onClick={() => triggerSignupNudge("link_button")}
             className={tileClasses}
-            style={{ background: "#242526" }}
+            style={{ background: tileBg }}
           >
             {inner}
           </a>

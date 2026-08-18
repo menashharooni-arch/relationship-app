@@ -5,6 +5,7 @@ import InertPreview from "@/components/InertPreview";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 import { buildConnectLinks } from "@/lib/social-url";
 import { PLAN_LIMITS } from "@/lib/plan";
+import { freeSafeLook } from "@/lib/swiftlink-looks";
 import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -68,9 +69,15 @@ export default function SwiftLinkLivePreview({
   }).map((s) => ({ label: s.label, href: s.href, color: s.color, textColor: s.textColor }));
 
   const subtitle = [title, company].filter(Boolean).join("  ·  ");
-  const pageStyle = paid
-    ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily }
-    : undefined;
+  // The Look previews for EVERY plan — Free's pick of the free pair is real
+  // and must preview truthfully (a Free pick that previewed live but was
+  // stripped on save is the exact audit bug the custom pickers had). Free's
+  // look is snapped the same way the live page snaps it; the Pro fine-tune
+  // keys preview only when paid, matching the server.
+  const pageStyle = {
+    look: paid ? style?.linkLook : freeSafeLook(style?.linkLook),
+    ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily } : {}),
+  };
 
   // Only real, filled links carry to the page (same filter the live page uses),
   // with an emoji default so the tile fallback still renders.
