@@ -920,18 +920,20 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     </div>
                     ),
                   )}
-                  {/* Section headers — chapters for a long page. Pro, like the
-                      tile sizes: Free pages don't render them. */}
-                  {isPro && (
-                    <button
-                      type="button"
-                      onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
-                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
-                    >
-                      + Add a section header
-                    </button>
-                  )}
                 </div>
+              )}
+              {/* Section headers — chapters for a long page. Pro, like the
+                  tile sizes: Free pages don't render them. OUTSIDE the
+                  links-exist wrapper so a header can open the page's first
+                  section before any link has been added. */}
+              {isPro && (
+                <button
+                  type="button"
+                  onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
+                  className="block mb-2 text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  + Add a section header
+                </button>
               )}
               {atLinkCap ? (
                 <PlanGate
