@@ -4,6 +4,9 @@ export type CardLink = {
   url: string;
   /** Swift Links tile size (see lib/swiftlink-tiles). Absent = auto. */
   size?: "featured" | "grid" | "compact";
+  /** "header" = a section heading on the Swift Links page (label only, no
+   *  destination — its url is ignored). Absent = an ordinary link. */
+  kind?: "link" | "header";
 };
 
 export type CardTestimonial = {

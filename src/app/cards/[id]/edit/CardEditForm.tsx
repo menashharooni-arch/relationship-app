@@ -349,7 +349,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             snapchat: normalizeSocial(socials.snapchat, "snapchat"),
             youtube: normalizeSocial(socials.youtube, "youtube"),
             address,
-            links,
+            links: links.filter((l) => (l.kind === "header" ? l.label.trim() : true)),
             customLayout,
             phones: cleanPhones,
             fax: fax.trim(),
@@ -879,7 +879,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <p className="text-gray-600 text-[11px] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
-                  {links.map((l, i) => (
+                  {links.map((l, i) =>
+                    l.kind === "header" ? (
+                      // A section header — label only, editable in place.
+                      <div key={i} className="flex items-center gap-2.5 bg-gray-900 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
+                        <input
+                          type="text"
+                          value={l.label}
+                          onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value } : x)))}
+                          placeholder="Section title (e.g. Watch)"
+                          className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
+                        />
+                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                      </div>
+                    ) : (
                     <div key={i} className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
                         <LinkPreviewThumb url={l.url} />
@@ -900,7 +914,19 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                         </div>
                       )}
                     </div>
-                  ))}
+                    ),
+                  )}
+                  {/* Section headers — chapters for a long page. Pro, like the
+                      tile sizes: Free pages don't render them. */}
+                  {isPro && (
+                    <button
+                      type="button"
+                      onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
+                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                    >
+                      + Add a section header
+                    </button>
+                  )}
                 </div>
               )}
               {atLinkCap ? (

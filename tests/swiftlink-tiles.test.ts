@@ -44,3 +44,16 @@ describe("mixed sizes never leave a lone half-width tile", () => {
     expect(t).toEqual(["compact", "compact", "compact"]);
   });
 });
+
+describe("section headers", () => {
+  const H = (label: string): SizedLink => ({ label, url: "", kind: "header" });
+  it("pass through in place for paid, and never join grid pairing", () => {
+    const t = layoutTiles([H("Watch"), L(), L(), H("Shop"), L()], true).map((x) => x.size);
+    // 3 grid tiles → odd → first auto promoted; headers untouched, in order.
+    expect(t).toEqual(["header", "featured", "grid", "header", "grid"]);
+  });
+  it("are dropped entirely on Free (chapters over a two-row page are furniture)", () => {
+    const t = layoutTiles([H("Watch"), L(), L()], false).map((x) => x.size);
+    expect(t).toEqual(["compact", "compact"]);
+  });
+});

@@ -99,8 +99,13 @@ export default function ConnectButton({
       <button
         type="button"
         onClick={openModal}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
-        style={{ background: accent, color: accentText }}
+        // The page's HERO action, styled like one. Lead capture is what a
+        // SwiftLink does that a Linktree can't — hoo.be's pages end in a shop,
+        // ours ends in a relationship — so this is taller and bolder than any
+        // tile, and it glows in the Look's own accent rather than a generic
+        // drop shadow (a fixed dark shadow reads as dirt on the light Looks).
+        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[15px] transition-all active:scale-[0.98] hover:brightness-110"
+        style={{ background: accent, color: accentText, boxShadow: `0 8px 24px -6px ${accent}59` }}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

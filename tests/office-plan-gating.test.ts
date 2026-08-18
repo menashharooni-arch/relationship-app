@@ -72,7 +72,7 @@ describe("editing a downgraded card no longer deletes what it can't show", () =>
     expect(code("src/lib/card-data.ts")).not.toMatch(/preserveDowngraded/);
     // The Swift Links page caps inline rather than via this helper.
     const links = code("src/app/links/[username]/page.tsx");
-    expect(links).toMatch(/ownerPaid \? allActionLinks : allActionLinks\.slice\(0, PLAN_LIMITS\.FREE_MAX_LINKS\)/);
+    expect(links).toMatch(/allActionLinks\.filter\(\(l\) => l\.kind !== "header"\)\.slice\(0, PLAN_LIMITS\.FREE_MAX_LINKS\)/);
   });
 });
 

@@ -109,7 +109,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     facebook?: string;
     snapchat?: string;
     youtube?: string;
-    links?: { emoji: string; label: string; url: string }[];
+    links?: { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" }[];
     // "Social design" — the page's named Look (every plan) + Pro fine-tuning.
     linkLook?: string;
     linkBgColor?: string;
@@ -133,8 +133,14 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   // Array.isArray, not `?? []`: a corrupted/legacy customization where `links`
   // is an object or string would throw on .filter and 500 this PUBLIC page.
   // Same guard the card page already applies (cards audit M4).
-  const allActionLinks = (Array.isArray(customization.links) ? customization.links : []).filter((l) => l.label && l.url);
-  const actionLinks = ownerPaid ? allActionLinks : allActionLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
+  // Headers (kind:"header") are label-only rows — kept for paid owners, and
+  // never counted against the Free links cap (they're organization, not
+  // links; layoutTiles drops them from the Free rendering anyway).
+  const allActionLinks = (Array.isArray(customization.links) ? customization.links : [])
+    .filter((l) => (l.kind === "header" ? !!l.label : l.label && l.url));
+  const actionLinks = ownerPaid
+    ? allActionLinks
+    : allActionLinks.filter((l) => l.kind !== "header").slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   const socials = buildConnectLinks({
     website: cardOrLegacy.website,
