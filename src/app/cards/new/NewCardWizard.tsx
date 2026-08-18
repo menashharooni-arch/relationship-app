@@ -1251,18 +1251,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                     </div>
                     ),
                   )}
-                  {/* Section headers — chapters for a long page. Pro-gated the
-                      same way as the size control. */}
-                  {designUnlocked && (
-                    <button
-                      type="button"
-                      onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
-                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
-                    >
-                      + Add a section header
-                    </button>
-                  )}
                 </div>
+              )}
+              {/* Section headers — chapters for a long page. Pro-gated the
+                  same way as the size control, and OUTSIDE the links-exist
+                  wrapper so a header can open the page's first section before
+                  any link has been added. */}
+              {designUnlocked && (
+                <button
+                  type="button"
+                  onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
+                  className="block mb-2 text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  + Add a section header
+                </button>
               )}
               {atLinkCap ? (
                 <PlanGate
