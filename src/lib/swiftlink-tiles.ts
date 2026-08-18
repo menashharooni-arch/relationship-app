@@ -23,7 +23,16 @@
 
 export type TileSize = "featured" | "grid" | "compact";
 
-export type SizedLink = { label: string; url: string; emoji?: string; size?: TileSize };
+/** What a row renders as: a tile size, or a section header. */
+export type TileRender = TileSize | "header";
+
+export type SizedLink = {
+  label: string;
+  url: string;
+  emoji?: string;
+  size?: TileSize;
+  kind?: "link" | "header";
+};
 
 /** What one link renders as, given the plan. */
 export function resolveTileSize(link: SizedLink, paid: boolean): TileSize {
@@ -39,8 +48,15 @@ export function resolveTileSize(link: SizedLink, paid: boolean): TileSize {
  * the pre-sizes layout rule — and only falls back to the first EXPLICIT grid
  * tile when every grid tile was explicitly chosen.
  */
-export function layoutTiles(links: SizedLink[], paid: boolean): { link: SizedLink; size: TileSize }[] {
-  const out = links.map((link) => ({ link, size: resolveTileSize(link, paid) }));
+export function layoutTiles(links: SizedLink[], paid: boolean): { link: SizedLink; size: TileRender }[] {
+  // Section headers: chapters for long pages, so Pro-only by design — Free
+  // caps at two links, and a heading over two rows is furniture. They pass
+  // through in place and never count toward grid pairing.
+  const visible = paid ? links : links.filter((l) => l.kind !== "header");
+  const out: { link: SizedLink; size: TileRender }[] = visible.map((link) => ({
+    link,
+    size: link.kind === "header" ? "header" : resolveTileSize(link, paid),
+  }));
   const grids = out.filter((t) => t.size === "grid");
   if (grids.length % 2 === 1) {
     const firstAuto = out.find((t) => t.size === "grid" && t.link.size === undefined);

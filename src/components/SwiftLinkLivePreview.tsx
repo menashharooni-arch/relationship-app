@@ -51,7 +51,7 @@ export default function SwiftLinkLivePreview({
   /** Card logo — the hero falls back to it when there is no headshot. */
   logoUrl?: string | null;
   socials: PreviewSocials;
-  links: { label: string; url: string; emoji?: string; size?: "featured" | "grid" | "compact" }[];
+  links: { label: string; url: string; emoji?: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" }[];
   /** The owner's "Social design" (linkBgColor/linkTextColor/linkFontFamily). */
   style?: SwiftLinkStyle;
   /** Paid owner → page theming + verified badge apply, matching the live page. */
@@ -82,12 +82,14 @@ export default function SwiftLinkLivePreview({
   // Only real, filled links carry to the page (same filter the live page uses),
   // with an emoji default so the tile fallback still renders.
   const allCleanLinks = (links ?? [])
-    .filter((l) => (l.label || "").trim() && (l.url || "").trim())
-    .map((l) => ({ emoji: l.emoji ?? "", label: l.label, url: l.url, size: l.size }));
+    .filter((l) => (l.kind === "header" ? (l.label || "").trim() : (l.label || "").trim() && (l.url || "").trim()))
+    .map((l) => ({ emoji: l.emoji ?? "", label: l.label, url: l.url, size: l.size, kind: l.kind }));
   // Free is capped at FREE_MAX_LINKS on the LIVE page, which trims on view — so
   // a Pro→Free downgrade with more saved links saw a preview promising buttons
   // the public page doesn't render. Mirror the cap here.
-  const cleanLinks = paid ? allCleanLinks : allCleanLinks.slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
+  const cleanLinks = paid
+    ? allCleanLinks
+    : allCleanLinks.filter((l) => l.kind !== "header").slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
 
   return (
     // w-full is load-bearing, not cosmetic. CardScaler's outer div is w-full

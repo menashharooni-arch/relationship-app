@@ -219,6 +219,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState(orgWebsite ?? "");
   const [links, setLinks] = useState<CardLink[]>([]);
+  // What actually saves: an added-but-never-titled section header is
+  // scaffolding, not content — it never persists.
+  const savableLinks = links.filter((l) => (l.kind === "header" ? l.label.trim() : true));
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Socials>(EMPTY_SOCIALS);
 
@@ -641,7 +644,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           facebook: normalizeSocial(socials.facebook, "facebook"),
           snapchat: normalizeSocial(socials.snapchat, "snapchat"),
           youtube: normalizeSocial(socials.youtube, "youtube"),
-          links, address, phones: cleanPhones, fax: fax.trim(),
+          links: savableLinks, address, phones: cleanPhones, fax: fax.trim(),
           ...templateStyleState,
           ...linkStyleState,
           photoUrl: null,
@@ -695,7 +698,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             facebook: normalizeSocial(socials.facebook, "facebook"),
             snapchat: normalizeSocial(socials.snapchat, "snapchat"),
             youtube: normalizeSocial(socials.youtube, "youtube"),
-            links,
+            links: savableLinks,
             address,
             phones: cleanPhones,
             fax: fax.trim(),
@@ -1212,7 +1215,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-600 text-[11px] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
-                  {links.map((l, i) => (
+                  {links.map((l, i) =>
+                    l.kind === "header" ? (
+                      <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
+                        <input
+                          type="text"
+                          value={l.label}
+                          onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value } : x)))}
+                          placeholder="Section title (e.g. Watch)"
+                          className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
+                        />
+                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                      </div>
+                    ) : (
                     <div key={i} className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="flex-1 min-w-0">
@@ -1233,7 +1249,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                         </div>
                       )}
                     </div>
-                  ))}
+                    ),
+                  )}
+                  {/* Section headers — chapters for a long page. Pro-gated the
+                      same way as the size control. */}
+                  {designUnlocked && (
+                    <button
+                      type="button"
+                      onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
+                      className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                    >
+                      + Add a section header
+                    </button>
+                  )}
                 </div>
               )}
               {atLinkCap ? (

@@ -17,7 +17,7 @@ import { getLook, hexAlpha } from "@/lib/swiftlink-looks";
 // layered on top of it. No style at all → the default Look ("Paper", light).
 export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string };
 
-type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact" };
+type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
 
 // Perceived lightness of a hex surface — decides whether neutral chrome
 // (rings, hover wells) should be dark-on-light or light-on-dark when a Pro
@@ -240,9 +240,15 @@ export default function SwiftLinkProfile({
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
           <SocialIcons socials={socials} mode={light ? "light" : "dark"} />
 
-          {/* Connect (lead capture) */}
+          {/* Connect (lead capture) — the page's hero action, with a one-line
+              value prompt so a first-time visitor knows what tapping DOES.
+              The button used to sit unexplained; "Connect with Sam" reads as
+              anything from a follow to a DM. */}
           <div className="w-full mt-6">
             <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={look.accent} accentText={look.accentText} />
+            <p className="text-[11.5px] mt-2" style={{ color: textColor, opacity: 0.5 }}>
+              Share your details back — you&apos;ll land in {firstName}&apos;s contacts.
+            </p>
           </div>
 
           {/* Featured links — rich preview cards */}

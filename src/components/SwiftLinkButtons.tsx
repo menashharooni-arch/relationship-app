@@ -63,6 +63,7 @@ export default function SwiftLinkButtons({
   useEffect(() => {
     let cancelled = false;
     links.forEach((link, i) => {
+      if (link.kind === "header") return; // nothing to fetch for a heading
       if (videoThumbnail(link.url)) return; // video handled instantly below
       fetch(`/api/link-preview?url=${encodeURIComponent(fullHref(link.url))}`)
         .then((r) => r.json())
@@ -88,6 +89,19 @@ export default function SwiftLinkButtons({
       `}</style>
 
       {tiles.map(({ link, size }, i) => {
+        // ── SECTION HEADER — a chapter title, not a destination ─────────────
+        if (size === "header") {
+          return (
+            <p
+              key={i}
+              className="w-full text-left text-[11px] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5"
+              style={{ color: textColor, opacity: 0.55 }}
+            >
+              {link.emoji ? `${link.emoji} ` : ""}{link.label}
+            </p>
+          );
+        }
+
         const href = fullHref(link.url);
         const videoThumb = videoThumbnail(link.url);
         const embed = videoEmbed(link.url);
