@@ -121,3 +121,31 @@ describe("Look press resets fine-tune overrides", () => {
     expect(src).toMatch(/onPick=\{\(v\) => onChange\(\{ linkLook: v, linkBgColor: undefined, linkTextColor: undefined \}\)\}/);
   });
 });
+
+// ── Gradient + Aura looks ────────────────────────────────────────────────────
+// A gradient look's text must read against BOTH stops (the sheet renders
+// sheet→sheetTo top to bottom), and Aura's hex fields are its no-photo
+// fallback AND its contrast floor — the photo overlay only ever darkens.
+describe("gradient and Aura looks", () => {
+  it("text passes AA against every gradient's second stop", () => {
+    for (const l of SWIFTLINK_LOOKS) {
+      if (!l.sheetTo) continue;
+      expect(l.sheetTo).toMatch(/^#[0-9A-F]{6}$/i);
+      expect(contrast(l.text, l.sheetTo), `${l.id} text/sheetTo = ${contrast(l.text, l.sheetTo).toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it("the library ships Dawn and Nebula gradients and the Aura photo look, all Pro", () => {
+    const dawn = SWIFTLINK_LOOKS.find((l) => l.id === "dawn");
+    const nebula = SWIFTLINK_LOOKS.find((l) => l.id === "nebula");
+    const aura = SWIFTLINK_LOOKS.find((l) => l.id === "aura");
+    expect(dawn?.sheetTo).toBeTruthy();
+    expect(nebula?.sheetTo).toBeTruthy();
+    expect(aura?.aura).toBe(true);
+    for (const id of ["dawn", "nebula", "aura"]) expect(isFreeLook(id)).toBe(false);
+  });
+  it("Aura's fallback is dark: a photoless page must still read", () => {
+    const aura = SWIFTLINK_LOOKS.find((l) => l.id === "aura")!;
+    expect(aura.mode).toBe("dark");
+    expect(contrast(aura.text, aura.sheet)).toBeGreaterThanOrEqual(4.5);
+  });
+});
