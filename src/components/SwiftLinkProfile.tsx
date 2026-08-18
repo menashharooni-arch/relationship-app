@@ -106,6 +106,15 @@ export default function SwiftLinkProfile({
   const sheetBg = pageStyle?.bg || look.sheet;
   const textColor = pageStyle?.text || look.text;
   const pageFont = pageStyle?.font;
+  // Gradient and Aura are properties of the LOOK's surface, so a Pro custom
+  // background (which replaces that surface) turns them off — otherwise the
+  // custom color would paint over half the effect and leave the rest orphaned.
+  const sheetTo = pageStyle?.bg ? undefined : look.sheetTo;
+  const auraOn = !pageStyle?.bg && !!look.aura && !!photoUrl;
+  // The one color the sheet's chrome (hero fade end-stop, glass tint) meets:
+  // solid for normal looks, a translucent tint of the same hex for Aura so
+  // the blurred photo glows through.
+  const sheetMeet = auraOn ? hexAlpha(sheetBg, 0.42) : sheetBg;
   // A custom Pro background can flip the effective mode out from under the
   // Look, and the neutral chrome (rings, hovers, hero fade edge) must follow
   // the SURFACE, not the label — judge the sheet actually in use.
@@ -121,6 +130,18 @@ export default function SwiftLinkProfile({
         }`}
         style={{ background: sheetBg, fontFamily: pageFont }}
       >
+        {/* Aura — the owner's own photo, blurred and dimmed, as the page
+            atmosphere behind everything (the glass sheet included). First
+            child so every sibling paints above it; scale-125 hides the blur's
+            washed-out edges outside the rounded clip. */}
+        {auraOn && (
+          <div aria-hidden className="absolute inset-0 pointer-events-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photoUrl!} alt="" className="absolute inset-0 w-full h-full object-cover scale-125" style={{ filter: "blur(48px) saturate(1.25)" }} />
+            <div className="absolute inset-0" style={{ background: "rgba(8,8,12,0.5)" }} />
+          </div>
+        )}
+
         {/* Sticky mini header — zero-height wrapper so it draws over the hero.
             Skipped in a preview (no page scroll to reveal it). */}
         {!embedded && (
@@ -196,15 +217,27 @@ export default function SwiftLinkProfile({
               <span className="text-white/90 font-extrabold text-7xl tracking-wide">{initials}</span>
             </div>
           )}
-          {/* Soft fade into the sheet */}
+          {/* Soft fade into the sheet — ends at exactly the surface the sheet
+              opens with: the solid sheet hex normally, the same hex's glass
+              tint on Aura, and a gradient look's 0% stop IS the sheet hex. */}
           <div
             className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
-            style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetBg} 100%)` }}
+            style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetMeet} 100%)` }}
           />
         </div>
 
         {/* Sheet */}
-        <div className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center" style={{ background: sheetBg }}>
+        <div
+          className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center"
+          style={{
+            background: auraOn
+              ? sheetMeet
+              : sheetTo
+                ? `linear-gradient(180deg, ${sheetBg} 0%, ${sheetTo} 100%)`
+                : sheetBg,
+            ...(auraOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
+          }}
+        >
           {/* Name + verified badge */}
           {/* items-start so the badge sits with the FIRST line once the name
               wraps, rather than drifting to the vertical middle of a two-line
@@ -247,15 +280,11 @@ export default function SwiftLinkProfile({
             accentText={look.accentText}
           />
 
-          {/* Connect (lead capture) — the page's hero action, with a one-line
-              value prompt so a first-time visitor knows what tapping DOES.
-              The button used to sit unexplained; "Connect with Sam" reads as
-              anything from a follow to a DM. */}
+          {/* Connect (lead capture) — the page's hero action. Its one-line
+              value prompt below the button was removed 2026-08-18 on the
+              owner's request; the button stands alone. */}
           <div className="w-full mt-6">
             <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={look.accent} accentText={look.accentText} />
-            <p className="text-[11.5px] mt-2" style={{ color: textColor, opacity: 0.5 }}>
-              Share your details back — you&apos;ll land in {firstName}&apos;s contacts.
-            </p>
           </div>
 
           {/* Featured links — rich preview cards */}

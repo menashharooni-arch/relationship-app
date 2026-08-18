@@ -38,6 +38,18 @@ export type SwiftLinkLook = {
   accentText: string;
   /** Surface behind link tiles while their image loads / with no image. */
   tile: string;
+  /** Optional second stop: the sheet renders as a top-to-bottom gradient from
+   *  `sheet` to this. `sheet` stays the single source of truth for everything
+   *  that needs ONE color — the hero fade's end stop, the sticky mini-header's
+   *  translucent bar — because the gradient's 0% stop IS `sheet`, so those
+   *  chrome pieces still meet the surface seamlessly. Text must pass AA
+   *  against BOTH stops (tested). */
+  sheetTo?: string;
+  /** Photo-backed look: the owner's headshot, blurred and dimmed, fills the
+   *  whole column behind a translucent glass sheet. The hex fields above are
+   *  the no-photo fallback AND the contrast floor — the overlay only ever
+   *  darkens past them. */
+  aura?: boolean;
 };
 
 export const SWIFTLINK_LOOKS: SwiftLinkLook[] = [
@@ -87,6 +99,28 @@ export const SWIFTLINK_LOOKS: SwiftLinkLook[] = [
     id: "orchid", name: "Orchid", mode: "dark",
     sheet: "#1C1229", page: "#0F0A18", text: "#F3EEFB",
     accent: "#A78BFA", accentText: "#1C1229", tile: "#271A38",
+  },
+  // ── Pro: gradients (hoo.be's premium themes are soft gradients, not flats) ─
+  {
+    // Peach dawn falling into rose. Warm, feminine, creator-coded.
+    id: "dawn", name: "Dawn", mode: "light",
+    sheet: "#FFF4EC", sheetTo: "#FBDDE2", page: "#F4E2D8", text: "#4A1D0E",
+    accent: "#C2410C", accentText: "#FFFFFF", tile: "#F8E4DC",
+  },
+  {
+    // Deep navy sinking into violet. The dark-mode gradient flagship.
+    id: "nebula", name: "Nebula", mode: "dark",
+    sheet: "#121A33", sheetTo: "#2A1B4D", page: "#090D1D", text: "#EDEBFB",
+    accent: "#A5B4FC", accentText: "#121A33", tile: "#1D2440",
+  },
+  // ── Pro: the signature photo look ─────────────────────────────────────────
+  {
+    // The owner's own headshot, blurred and dimmed, as the page atmosphere —
+    // a personalized theme nobody has to design. Falls back to these solid
+    // colors (an Onyx-family dark) when the card has no photo.
+    id: "aura", name: "Aura", mode: "dark", aura: true,
+    sheet: "#101016", page: "#08080C", text: "#FFFFFF",
+    accent: "#E5E7EB", accentText: "#101016", tile: "#1A1A22",
   },
 ];
 
