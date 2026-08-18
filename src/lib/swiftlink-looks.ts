@@ -119,3 +119,36 @@ export function hexAlpha(hex: string, alpha: number): string {
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
+
+// ── Social icon styling (hoo.be-informed) ───────────────────────────────────
+//
+// hoo.be lets a page make its social chips one uniform color or keep brand
+// colors, and vary their shape. Same here: SHAPE × FILL, chosen in "Social
+// design" next to the Look. Both are Pro fine-tuning (they live in
+// LINK_STYLE_KEYS, stripped for Free at create and gated at render), so Free
+// pages keep the stock brand-colored circles.
+
+export type IconShape = "circle" | "squircle" | "square";
+export type IconFill = "brand" | "accent" | "mono";
+
+export const ICON_SHAPES: { id: IconShape; name: string }[] = [
+  { id: "circle", name: "Circle" },
+  { id: "squircle", name: "Squircle" },
+  { id: "square", name: "Square" },
+];
+
+export const ICON_FILLS: { id: IconFill; name: string; hint: string }[] = [
+  { id: "brand", name: "Brand", hint: "Each platform in its own color" },
+  { id: "accent", name: "Accent", hint: "All chips in your Look's accent" },
+  { id: "mono", name: "Mono", hint: "Quiet neutral chips" },
+];
+
+export const DEFAULT_ICON_SHAPE: IconShape = "circle";
+export const DEFAULT_ICON_FILL: IconFill = "brand";
+
+export function normalizeIconShape(v?: string | null): IconShape {
+  return v === "squircle" || v === "square" ? v : DEFAULT_ICON_SHAPE;
+}
+export function normalizeIconFill(v?: string | null): IconFill {
+  return v === "accent" || v === "mono" ? v : DEFAULT_ICON_FILL;
+}

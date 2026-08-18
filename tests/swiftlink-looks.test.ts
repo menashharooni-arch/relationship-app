@@ -77,3 +77,35 @@ describe("the plan line", () => {
     expect(getLook(null).id).toBe(DEFAULT_SWIFTLINK_LOOK);
   });
 });
+
+// ── Social icon shape & fill ─────────────────────────────────────────────────
+// The icon customization keys are Pro styling: they must be stripped for free
+// accounts exactly like the other link-style keys, and unknown stored values
+// must normalize to safe defaults so an old or hand-edited row can't break the
+// public page.
+import { normalizeIconShape, normalizeIconFill, DEFAULT_ICON_SHAPE, DEFAULT_ICON_FILL, ICON_SHAPES, ICON_FILLS } from "../src/lib/swiftlink-looks";
+import { LINK_STYLE_KEYS } from "../src/lib/plan";
+
+describe("social icon shape & fill", () => {
+  it("normalizes unknown shapes and fills to the defaults", () => {
+    expect(normalizeIconShape("squircle")).toBe("squircle");
+    expect(normalizeIconShape("square")).toBe("square");
+    expect(normalizeIconShape("circle")).toBe("circle");
+    expect(normalizeIconShape("hexagon")).toBe(DEFAULT_ICON_SHAPE);
+    expect(normalizeIconShape(undefined)).toBe(DEFAULT_ICON_SHAPE);
+    expect(normalizeIconShape(null)).toBe(DEFAULT_ICON_SHAPE);
+    expect(normalizeIconFill("accent")).toBe("accent");
+    expect(normalizeIconFill("mono")).toBe("mono");
+    expect(normalizeIconFill("brand")).toBe("brand");
+    expect(normalizeIconFill("rainbow")).toBe(DEFAULT_ICON_FILL);
+    expect(normalizeIconFill(undefined)).toBe(DEFAULT_ICON_FILL);
+  });
+  it("every advertised option normalizes to itself", () => {
+    for (const s of ICON_SHAPES) expect(normalizeIconShape(s.id)).toBe(s.id);
+    for (const f of ICON_FILLS) expect(normalizeIconFill(f.id)).toBe(f.id);
+  });
+  it("icon keys are plan-gated like the rest of the link styling", () => {
+    expect(LINK_STYLE_KEYS).toContain("linkIconShape");
+    expect(LINK_STYLE_KEYS).toContain("linkIconFill");
+  });
+});

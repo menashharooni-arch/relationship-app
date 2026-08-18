@@ -10,12 +10,12 @@ import { useEffect, useState } from "react";
 import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
-import { getLook, hexAlpha } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
 // layered on top of it. No style at all → the default Look ("Paper", light).
-export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string };
+export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string };
 
 type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
 
@@ -238,7 +238,14 @@ export default function SwiftLinkProfile({
           {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
 
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
-          <SocialIcons socials={socials} mode={light ? "light" : "dark"} />
+          <SocialIcons
+            socials={socials}
+            mode={light ? "light" : "dark"}
+            shape={normalizeIconShape(pageStyle?.iconShape)}
+            fill={normalizeIconFill(pageStyle?.iconFill)}
+            accent={look.accent}
+            accentText={look.accentText}
+          />
 
           {/* Connect (lead capture) — the page's hero action, with a one-line
               value prompt so a first-time visitor knows what tapping DOES.

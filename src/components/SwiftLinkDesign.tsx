@@ -17,13 +17,18 @@
 // carry PRO gating, enforced server-side in sanitizeCustomizationForPlan.
 
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
-import { SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook } from "@/lib/swiftlink-looks";
+import {
+  SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
+  ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
+} from "@/lib/swiftlink-looks";
 
 export type SwiftLinkStyle = {
   linkLook?: string;
   linkBgColor?: string;
   linkTextColor?: string;
   linkFontFamily?: string;
+  linkIconShape?: string;
+  linkIconFill?: string;
 };
 
 export const LINK_DEFAULT_BG = "#191a1a"; // the page's stock dark sheet
@@ -132,17 +137,103 @@ function LookPicker({
             } ${proLocked ? "opacity-45 cursor-default" : "hover:scale-[1.02]"}`}
             style={{ background: l.sheet, boxShadow: active ? undefined : "inset 0 0 0 1px rgba(127,127,127,0.35)" }}
           >
-            {/* The swatch IS the look: its own sheet, its own text, its accent
-                as the dot — no abstract color chips to decode. */}
-            <span className="block text-[15px] font-extrabold leading-none" style={{ color: l.text }}>Ag</span>
+            {/* The swatch is a MINI PAGE, not an abstract chip — avatar dot,
+                a name line in the look's text, and its accent as the Connect
+                bar, so each card previews the page it produces. */}
+            <span className="flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full shrink-0" style={{ background: l.text, opacity: 0.25 }} />
+              <span className="text-[12px] font-extrabold leading-none truncate" style={{ color: l.text }}>Sam Okafor</span>
+            </span>
+            <span className="mt-1.5 block h-1 w-2/3 rounded-full" style={{ background: l.text, opacity: 0.18 }} />
+            <span className="mt-2 block h-[14px] w-full rounded-full" style={{ background: l.accent }} />
             <span className="mt-2 flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: l.accent }} />
               <span className="text-[11px] font-semibold" style={{ color: l.text }}>{l.name}</span>
               {proLocked && <ProTag />}
             </span>
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function IconStyleControls({
+  look,
+  shape,
+  fill,
+  onChange,
+  locked,
+}: {
+  look: ReturnType<typeof getLook>;
+  shape: ReturnType<typeof normalizeIconShape>;
+  fill: ReturnType<typeof normalizeIconFill>;
+  onChange: (patch: Partial<SwiftLinkStyle>) => void;
+  locked: boolean;
+}) {
+  const radius = (sh: string) => (sh === "circle" ? "9999px" : sh === "squircle" ? "10px" : "5px");
+  // The three demo chips preview the CURRENT selection against the CURRENT
+  // Look, so what you see here is what the page renders — same contract as
+  // the live preview beside the panel.
+  const chipStyle = (brand: string): React.CSSProperties =>
+    fill === "accent"
+      ? { background: look.accent, color: look.accentText }
+      : fill === "mono"
+        ? look.mode === "light"
+          ? { background: "#FFFFFF", color: "#111827", boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.12)" }
+          : { background: "rgba(255,255,255,0.12)", color: "#FFFFFF" }
+        : { background: brand, color: "#fff" };
+  return (
+    <div className="space-y-3">
+      {/* Live chips on the Look's own sheet */}
+      <div className="flex items-center justify-center gap-2.5 rounded-xl py-3" style={{ background: look.sheet }}>
+        {["#0A66C2", "#E4405F", "#FF0000"].map((brand) => (
+          <span
+            key={brand}
+            className="w-9 h-9 flex items-center justify-center text-[13px] font-bold"
+            style={{ ...chipStyle(brand), borderRadius: radius(shape) }}
+          >
+            in
+          </span>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {ICON_SHAPES.map((o) => {
+          const active = shape === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              disabled={locked}
+              onClick={() => onChange({ linkIconShape: o.id === "circle" ? undefined : o.id })}
+              className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+              }`}
+            >
+              <span className="w-4 h-4 bg-gray-300" style={{ borderRadius: radius(o.id) }} />
+              {o.name}
+            </button>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {ICON_FILLS.map((o) => {
+          const active = fill === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              disabled={locked}
+              onClick={() => onChange({ linkIconFill: o.id === "brand" ? undefined : o.id })}
+              title={o.hint}
+              className={`px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+              }`}
+            >
+              {o.name}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -162,6 +253,21 @@ export function SwiftLinkStyleControls({
         <p className={`${rowLabel} mb-0.5`}>Look</p>
         <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together.</p>
         <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v })} locked={locked} />
+        {locked && (
+          <p className="text-[10px] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
+        )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
+        <IconStyleControls
+          look={getLook(value.linkLook)}
+          shape={normalizeIconShape(value.linkIconShape)}
+          fill={normalizeIconFill(value.linkIconFill)}
+          onChange={onChange}
+          locked={locked}
+        />
       </div>
 
       <div className="border-t border-gray-800 pt-4">
