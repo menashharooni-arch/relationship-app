@@ -136,10 +136,11 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
   // Freshness is keyed to THIS card's username + a hash of its own content (+ a code
   // version). Re-captures exactly when the selected card changes; never reuses another
-  // card's image. "v11" bump = wait for web fonts + verify each inlined image
-  // actually decodes before shipping, so a capture can never miss the headshot/logo
-  // or bake in a fallback font. "v10" = pixel-exact copy of the card.
-  const contentSig = "v11|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
+  // card's image. "v12" bump = WebKit warm-up passes + explicit font embed CSS, so
+  // WKWebView/Safari captures stop shipping without the photo or in a fallback font.
+  // "v11" = wait for web fonts + verify each inlined image decodes. "v10" =
+  // pixel-exact copy of the card.
+  const contentSig = "v12|" + hashStr(JSON.stringify(cardData) + "|" + template + "|" + cardUrl);
   const hashKey = `sc_sighash_${username}`;
   // Separate from hashKey (which tracks the last CAPTURE): this tracks the last
   // content the user actually COPIED into their email. If the card design has
@@ -210,18 +211,37 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // Render the card NATIVELY larger (transform scale) rather than bumping pixelRatio:
       // foreignObject HTML rasterizes at 1x and pixelRatio only upscales it (blurry), so
       // scaling the node up makes the text crisp at full resolution.
-      const { toPng } = await import("html-to-image");
+      const { toPng, getFontEmbedCSS } = await import("html-to-image");
       const w = el.offsetWidth || NATURAL;
       const h = el.offsetHeight || NATURAL;
       const SCALE = 4;
-      const dataUrl = await toPng(el, {
+      // Resolve @font-face CSS once and pass it explicitly: WebKit won't apply a
+      // web font (Geist, via var(--font-geist-sans)) inside the SVG foreignObject
+      // unless its data is inlined in the capture itself — without this the text
+      // rasterizes in a fallback font with different metrics (overlapping /
+      // clipped "messed up" letters).
+      const fontEmbedCSS = await getFontEmbedCSS(el).catch(() => undefined);
+      const opts = {
         width: w * SCALE,
         height: h * SCALE,
         pixelRatio: 1,
         cacheBust: false, // images are already inlined; cache-busting was dropping the photo
         backgroundColor: CARD_BG, // the card page's background, so corners match exactly
         style: { transform: `scale(${SCALE})`, transformOrigin: "top left" },
-      });
+        ...(fontEmbedCSS ? { fontEmbedCSS } : {}),
+      };
+      // WebKit (the iOS shell's WKWebView, and desktop Safari) paints
+      // foreignObject lazily: the first draw of the generated SVG routinely
+      // skips images and freshly-embedded fonts, which is exactly the
+      // "photo missing, letters messed up" signature bug. Two discarded
+      // warm-up passes let WebKit decode everything; the third is complete.
+      // Chromium/Firefox don't need it, so they skip the extra work.
+      const isWebKit = /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg\/|Android/i.test(navigator.userAgent);
+      if (isWebKit) {
+        await toPng(el, opts).catch(() => undefined);
+        await toPng(el, opts).catch(() => undefined);
+      }
+      const dataUrl = await toPng(el, opts);
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
