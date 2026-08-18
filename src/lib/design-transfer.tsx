@@ -142,6 +142,11 @@ const hex = (v: unknown, fb: string): string =>
 
 const KINDS = new Set<FaceElementKind>(["name", "title", "company", "phone", "email", "website", "address", "headshot", "logo"]);
 
+// Design px on the 1400×800 canvas, by prominence tier. Measured against
+// printed-card conventions (name ≈ 2-3× body size). Declared before
+// faceLayoutFromScan because the bounds pass needs real glyph heights.
+const FACE_PX: Record<FaceElement["size"], number> = { xs: 26, sm: 32, md: 42, lg: 58, xl: 84 };
+
 /** Model output → renderable layout. Whitelist + clamp everything; a hostile
  *  or confused reading can only produce a plain card, never bad values. */
 export function faceLayoutFromScan(raw: unknown): FaceLayout | null {
@@ -176,6 +181,51 @@ export function faceLayoutFromScan(raw: unknown): FaceLayout | null {
     }];
   });
   const background = hex(r.background, "#ffffff");
+
+  // ── Rescue passes over the measured elements ──────────────────────────────
+  // The model's measurements are kept wherever they're usable, but two classes
+  // of reading produced visibly broken cards in production (2026-08-18 probe):
+  // an element COLORED for one surface but POSITIONED on another (white name
+  // on a white panel), and an element measured so low/right that its glyphs
+  // rendered half off the canvas. Both are fixed here, in the pure validator,
+  // so they're testable without a model.
+  const yiqOf = (h: string): number | null => {
+    const m = /^#([0-9a-f]{6})$/i.exec(h);
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return (((n >> 16) & 255) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000;
+  };
+  // The surface actually under a point: the LAST matching panel wins, matching
+  // paint order in the renderer (later panels draw on top).
+  const surfaceAt = (x: number, y: number): string => {
+    let c = background;
+    for (const p of panels) {
+      if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) c = p.color;
+    }
+    return c;
+  };
+  for (const e of elements) {
+    if (e.kind === "headshot" || e.kind === "logo") {
+      // Images: slide fully onto the canvas.
+      if (e.x + e.w > 100) e.x = Math.max(0, 100 - e.w);
+      if (e.y + e.h > 100) e.y = Math.max(0, 100 - e.h);
+      continue;
+    }
+    // Text: the box must hold the GLYPHS, not just the measured h — an "xl"
+    // line is ~11% of the card tall regardless of what the model said.
+    const glyphH = ((FACE_PX[e.size] * 1.3) / 800) * 100;
+    const needH = Math.max(e.h, glyphH);
+    if (e.y + needH > 98) e.y = Math.max(0, 98 - needH);
+    if (e.x + e.w > 100) e.x = Math.max(0, 100 - e.w);
+    // Unreadable ink for the surface it actually sits on → flip to whichever
+    // pole contrasts. A readable measured color (accents included) is kept.
+    const sy = yiqOf(surfaceAt(e.x + e.w / 2, e.y + needH / 2));
+    const ty = yiqOf(e.color);
+    if (sy !== null && ty !== null && Math.abs(sy - ty) < 70) {
+      e.color = sy < 140 ? "#ffffff" : "#141b26";
+    }
+  }
+
   if (!elements.some((e) => e.kind === "name")) {
     // A reading without a name slot was REJECTED at first — and that killed
     // real, otherwise-good readings in production (the model sometimes labels
@@ -196,9 +246,34 @@ export function faceLayoutFromScan(raw: unknown): FaceLayout | null {
   return { background, panels, serif: r.serif === true, elements };
 }
 
-// Design px on the 1400×800 canvas, by prominence tier. Measured against
-// printed-card conventions (name ≈ 2-3× body size).
-const FACE_PX: Record<FaceElement["size"], number> = { xs: 26, sm: 32, md: 42, lg: 58, xl: 84 };
+// ── Serif support ────────────────────────────────────────────────────────────
+// The vision model measures whether the design is set in a serif face, and the
+// renderer used to throw that reading away (Satori only draws fonts it has
+// data for, and only the default sans ships). One cached fetch per lambda
+// instance loads a real serif; a failed fetch falls back to sans rather than
+// failing the render.
+let serifFontsPromise: Promise<{ name: string; data: ArrayBuffer; weight: 400 | 700 }[] | null> | null = null;
+function loadSerifFonts(): Promise<{ name: string; data: ArrayBuffer; weight: 400 | 700 }[] | null> {
+  serifFontsPromise ??= (async () => {
+    try {
+      const css = await (await fetch(
+        "https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;700&display=swap",
+        // A non-browser UA makes Google serve plain TTF urls, which Satori can read.
+        { headers: { "User-Agent": "curl/8" } },
+      )).text();
+      const urls = [...css.matchAll(/src:\s*url\((https:\/\/fonts\.gstatic\.com[^)]+\.ttf)\)/g)].map((m) => m[1]);
+      if (urls.length < 2) return null;
+      const [reg, bold] = await Promise.all(urls.slice(0, 2).map(async (u) => (await fetch(u)).arrayBuffer()));
+      return [
+        { name: "face-serif", data: reg, weight: 400 as const },
+        { name: "face-serif", data: bold, weight: 700 as const },
+      ];
+    } catch {
+      return null;
+    }
+  })();
+  return serifFontsPromise;
+}
 
 /** Typeset the owner's details onto the measured layout. 1400×800 (1.75:1). */
 export async function renderFaceImage(
@@ -219,9 +294,10 @@ export async function renderFaceImage(
       default: return null;
     }
   };
+  const serifFonts = layout.serif ? await loadSerifFonts() : null;
   const res = new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: layout.background, fontFamily: "sans-serif" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: layout.background, fontFamily: serifFonts ? "face-serif" : "sans-serif" }}>
         {layout.panels.map((p, i) => (
           <div key={`p${i}`} style={{ position: "absolute", left: `${p.x}%`, top: `${p.y}%`, width: `${p.w}%`, height: `${p.h}%`, background: p.color, display: "flex" }} />
         ))}
@@ -238,12 +314,19 @@ export async function renderFaceImage(
           }
           const text = value(e.kind);
           if (!text) return null;
+          // Fit the VALUE to the measured box: an email is routinely longer
+          // than the token it replaces, and a wrapped or overflowing line reads
+          // as broken. Shrink until the single line fits, floored at legible.
+          const availPx = (e.w / 100) * W;
+          const estW = (px: number) => text.length * px * 0.56;
+          let fontPx = FACE_PX[e.size];
+          if (estW(fontPx) > availPx) fontPx = Math.max(24, Math.floor(availPx / (text.length * 0.56)));
           return (
             <div key={`e${i}`} style={{
               position: "absolute", left: `${e.x}%`, top: `${e.y}%`, width: `${e.w}%`, minHeight: `${e.h}%`,
               display: "flex", alignItems: "center",
               justifyContent: e.align === "center" ? "center" : e.align === "right" ? "flex-end" : "flex-start",
-              fontSize: FACE_PX[e.size], fontWeight: e.weight === "bold" ? 700 : 400, color: e.color,
+              fontSize: fontPx, fontWeight: e.weight === "bold" ? 700 : 400, color: e.color,
               textTransform: e.caps ? "uppercase" : "none", lineHeight: 1.15,
               letterSpacing: e.caps ? 2 : 0,
             }}>
@@ -253,7 +336,10 @@ export async function renderFaceImage(
         })}
       </div>
     ),
-    { width: W, height: H },
+    {
+      width: W, height: H,
+      ...(serifFonts ? { fonts: serifFonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: "normal" as const })) } : {}),
+    },
   );
   return Buffer.from(await res.arrayBuffer());
 }
