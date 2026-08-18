@@ -160,4 +160,26 @@ describe("faceLayoutFromScan: contrast and bounds rescue", () => {
     expect(img.x + img.w).toBeLessThanOrEqual(100);
     expect(img.y + img.h).toBeLessThanOrEqual(100);
   });
+  it("slides a thin accent bar off a text element's glyphs (no strike-through)", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#ffffff",
+      panels: [{ x: 40, y: 26, w: 20, h: 1, color: "#673ab7" }],
+      elements: [{ kind: "name", x: 40, y: 22, w: 40, h: 6, color: "#111111", size: "xl", weight: "bold", align: "left" }],
+    })!;
+    const bar = out.panels[0];
+    const name = out.elements.find((e) => e.kind === "name")!;
+    const nameBottom = name.y + Math.max(name.h, (84 * 1.3 / 800) * 100);
+    expect(bar.y).toBeGreaterThanOrEqual(nameBottom); // below the glyphs, an underline again
+  });
+
+  it("leaves a real side panel alone even when text sits on it", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#ffffff",
+      panels: [{ x: 0, y: 0, w: 35, h: 100, color: "#1e0f2d" }],
+      elements: [{ kind: "name", x: 5, y: 40, w: 25, h: 8, color: "#ffffff", size: "lg", weight: "bold", align: "left" }],
+    })!;
+    expect(out.panels[0]).toMatchObject({ x: 0, y: 0, h: 100 }); // untouched
+  });
 });

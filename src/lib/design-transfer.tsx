@@ -226,6 +226,23 @@ export function faceLayoutFromScan(raw: unknown): FaceLayout | null {
     }
   }
 
+  // Thin accent bars (underlines, rules) measured at the original text's
+  // position land mid-glyph once OUR value renders taller or lower than the
+  // original — a line through the owner's name (seen in the 2026-08-18 sweep).
+  // A bar that crosses a text element's glyph box slides to just below it,
+  // which is where an underline was always meant to sit.
+  for (const p of panels) {
+    if (p.h > 3) continue; // only rules/underlines, never real surfaces
+    for (const e of elements) {
+      if (e.kind === "headshot" || e.kind === "logo") continue;
+      const glyphH = ((FACE_PX[e.size] * 1.3) / 800) * 100;
+      const top = e.y, bottom = e.y + Math.max(e.h, glyphH);
+      const overlapsX = p.x < e.x + e.w && p.x + p.w > e.x;
+      const crossesText = p.y + p.h > top + 1 && p.y < bottom - 1;
+      if (overlapsX && crossesText) p.y = Math.min(100 - p.h, bottom + 0.5);
+    }
+  }
+
   if (!elements.some((e) => e.kind === "name")) {
     // A reading without a name slot was REJECTED at first — and that killed
     // real, otherwise-good readings in production (the model sometimes labels
