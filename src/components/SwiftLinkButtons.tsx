@@ -1,21 +1,23 @@
 "use client";
 
-// Featured links, replicating link.me's "album" grid exactly:
-// - Two tiles per row (calc(50% - 6px)); with an odd count the FIRST tile goes
-//   full-width with a taller image and bigger title.
-// - Every tile is an image card: video thumbnail or og:image, with a dark
-//   bottom gradient, a centered 2-line title, and a small favicon circle
-//   top-left. Links with no preview image get a branded gradient tile so they
-//   still look designed.
-// - A glossy "shine" sweeps across tiles (link.me's featured-link animation).
-// - YouTube/Vimeo links play INLINE: tapping the play button swaps the tile to
-//   an autoplaying embed (expanding it to full width) instead of leaving.
+// Featured links — hoo.be-informed tile system driven by lib/swiftlink-tiles:
+// - FEATURED: full-width 1.91:1 image card (video thumbnail or og:image) with
+//   a dark bottom gradient, centered 2-line title, favicon circle top-left.
+// - GRID: the same card at half width, packing in pairs; the odd tile out is
+//   promoted to featured by layoutTiles so none ever sits beside a gap.
+// - COMPACT: a slim row — icon circle, label, chevron — for plain links that
+//   don't deserve a big image tile. Mode-aware so it reads on light Looks.
+// - Links with no preview image get a branded gradient tile so they still
+//   look designed; a glossy shine sweeps across image tiles (link.me's touch).
+// - YouTube/Vimeo tiles play INLINE (paid): tapping play swaps the tile to an
+//   autoplaying embed. Free renders every link compact and videos link out —
+//   featured tiles, the grid and inline video are the advertised premium.
 
 import { useEffect, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { layoutTiles, type SizedLink } from "@/lib/swiftlink-tiles";
 
-type Link = { emoji: string; label: string; url: string };
 type Preview = { image: string | null; favicon: string | null; title: string | null };
 
 // Fallback gradients for links with no preview image — picked by index so
@@ -37,14 +39,23 @@ function fullHref(url: string) {
 export default function SwiftLinkButtons({
   links,
   tileBg = "#242526",
+  mode = "dark",
+  textColor = "#ffffff",
+  paid = false,
 }: {
-  links: Link[];
-  /** The Look's tile surface — what shows behind a tile while its preview
-   *  image loads. Defaults to the old dark stock so non-Looks callers are
-   *  unchanged. (Image tiles and gradient fallbacks cover it once loaded.) */
+  links: SizedLink[];
+  /** The Look's tile surface — behind a tile while its preview image loads. */
   tileBg?: string;
+  /** The Look's mode — drives the compact row's neutral surface. */
+  mode?: "light" | "dark";
+  /** The Look's text color — compact row labels sit on the sheet itself. */
+  textColor?: string;
+  /** Paid owner: featured/grid tiles + inline video. Free (and the default,
+   *  which fails CLOSED to the free rendering): every link compact. */
+  paid?: boolean;
 }) {
-  // Fetched preview (og:image + favicon fallback) for non-video links, by index.
+  // Fetched preview (og:image + favicon fallback) by index. Compact rows use
+  // the favicon; image tiles use both — one fetch serves every size.
   const [previews, setPreviews] = useState<Record<number, Preview>>({});
   // Index of the tile currently playing an inline video, if any.
   const [playing, setPlaying] = useState<number | null>(null);
@@ -63,7 +74,8 @@ export default function SwiftLinkButtons({
 
   if (!links.length) return null;
 
-  const odd = links.length % 2 === 1;
+  const tiles = layoutTiles(links, paid);
+  const light = mode === "light";
 
   return (
     <div className="w-full mt-6 flex flex-wrap justify-between">
@@ -75,19 +87,55 @@ export default function SwiftLinkButtons({
           animation: sc-shine 3.8s ease-in-out infinite; }
       `}</style>
 
-      {links.map((link, i) => {
+      {tiles.map(({ link, size }, i) => {
         const href = fullHref(link.url);
         const videoThumb = videoThumbnail(link.url);
         const embed = videoEmbed(link.url);
         const pv = previews[i];
-        const img = videoThumb || pv?.image || null;
         const favicon = pv?.favicon || null;
-        const isPlaying = playing === i;
-        // First tile goes full-width when the count is odd (link.me's rule);
-        // a tile also expands while its video is playing.
-        const big = (odd && i === 0) || isPlaying;
 
-        // Inline video player — tile swaps to an autoplaying embed
+        // ── COMPACT — slim row on the sheet itself ──────────────────────────
+        if (size === "compact") {
+          return (
+            <a
+              key={i}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => triggerSignupNudge("link_button")}
+              className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-transform active:scale-[0.98] ring-1 ${
+                light ? "bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]" : "bg-white/[0.07] ring-white/10"
+              }`}
+            >
+              <span className={`w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center ${light ? "bg-black/[0.05]" : "bg-white/10"}`}>
+                {favicon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />
+                ) : link.emoji ? (
+                  <span className="text-[16px] leading-none">{link.emoji}</span>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke={textColor} strokeOpacity={0.7} strokeWidth={2} className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
+                )}
+              </span>
+              <span className="flex-1 min-w-0 text-left text-[14px] font-semibold truncate" style={{ color: textColor }}>
+                {link.label}
+              </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke={textColor} strokeOpacity={0.4} strokeWidth={2.2} className="w-4 h-4 shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </a>
+          );
+        }
+
+        // ── FEATURED / GRID — image tiles ───────────────────────────────────
+        const img = videoThumb || pv?.image || null;
+        const isPlaying = playing === i;
+        const big = size === "featured" || isPlaying;
+
+        // Inline video player — tile swaps to an autoplaying embed (paid only;
+        // free never reaches here, every free link is compact).
         if (isPlaying && embed) {
           return (
             <div key={i} className="relative w-full rounded-[14px] overflow-hidden mb-2.5 bg-black" style={{ aspectRatio: "16/9" }}>
@@ -110,14 +158,9 @@ export default function SwiftLinkButtons({
           );
         }
 
-        // A fixed pixel height here (vs a percentage width) forced the tile
-        // toward square as the viewport narrowed — on a phone the tile's real
-        // aspect ratio drifted far from the ~1.91:1 link-preview image's own
-        // ratio, so object-cover had to crop far more off the sides to fill
-        // it (cutting off the logo/wordmark). An aspect-ratio box instead of a
-        // fixed height keeps width and height scaling together at every
-        // viewport, matching the image's natural ratio so it fits without
-        // cropping instead of getting cut off.
+        // An aspect-ratio box (not a fixed height) keeps width and height
+        // scaling together at every viewport, matching the ~1.91:1 preview
+        // image's own ratio so it fits without cropping.
         const tileClasses = `relative overflow-hidden rounded-[14px] mb-2.5 block group transition-transform active:scale-[0.98] aspect-[1.91/1] ${
           big ? "w-full" : "w-[calc(50%-6px)]"
         }`;
@@ -173,11 +216,9 @@ export default function SwiftLinkButtons({
             <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
               <span
                 className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
-                // Break BETWEEN words (overflow-wrap), never mid-word like the
-                // old word-break:break-word did — a whole word only splits if it
-                // alone is wider than the tile. The 2-line clamp then ends on a
-                // complete word with an ellipsis, so the title always fits its
-                // box cleanly and never shows a chopped word.
+                // Break BETWEEN words (overflow-wrap), never mid-word — a word
+                // only splits if it alone is wider than the tile, and the
+                // 2-line clamp ends on a complete word with an ellipsis.
                 style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "normal", overflowWrap: "break-word", textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
               >
                 {link.label}
