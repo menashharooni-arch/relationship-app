@@ -2,6 +2,8 @@ export type CardLink = {
   emoji?: string; // legacy — new links have no emoji (picker removed)
   label: string;
   url: string;
+  /** Swift Links tile size (see lib/swiftlink-tiles). Absent = auto. */
+  size?: "featured" | "grid" | "compact";
 };
 
 export type CardTestimonial = {

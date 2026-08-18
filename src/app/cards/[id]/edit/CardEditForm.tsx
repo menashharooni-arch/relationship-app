@@ -39,6 +39,7 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
+import LinkSizeControl from "@/components/LinkSizeControl";
 import CardUrlEditor from "@/components/CardUrlEditor";
 
 
@@ -879,13 +880,25 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) => (
-                    <div key={i} className="flex items-center gap-2.5 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
-                      <LinkPreviewThumb url={l.url} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
-                        <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
+                    <div key={i} className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <LinkPreviewThumb url={l.url} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
+                          <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
+                        </div>
+                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                       </div>
-                      <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                      {/* Tile size on the Swift Links page — Pro only (Free renders
+                          every link compact, so a picker would be a lie there). */}
+                      {isPro && (
+                        <div className="mt-2 pl-[2px]">
+                          <LinkSizeControl
+                            value={l.size}
+                            onChange={(size) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, size } : x)))}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

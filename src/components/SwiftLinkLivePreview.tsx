@@ -51,7 +51,7 @@ export default function SwiftLinkLivePreview({
   /** Card logo — the hero falls back to it when there is no headshot. */
   logoUrl?: string | null;
   socials: PreviewSocials;
-  links: { label: string; url: string; emoji?: string }[];
+  links: { label: string; url: string; emoji?: string; size?: "featured" | "grid" | "compact" }[];
   /** The owner's "Social design" (linkBgColor/linkTextColor/linkFontFamily). */
   style?: SwiftLinkStyle;
   /** Paid owner → page theming + verified badge apply, matching the live page. */
@@ -83,7 +83,7 @@ export default function SwiftLinkLivePreview({
   // with an emoji default so the tile fallback still renders.
   const allCleanLinks = (links ?? [])
     .filter((l) => (l.label || "").trim() && (l.url || "").trim())
-    .map((l) => ({ emoji: l.emoji ?? "", label: l.label, url: l.url }));
+    .map((l) => ({ emoji: l.emoji ?? "", label: l.label, url: l.url, size: l.size }));
   // Free is capped at FREE_MAX_LINKS on the LIVE page, which trims on view — so
   // a Pro→Free downgrade with more saved links saw a preview promising buttons
   // the public page doesn't render. Mirror the cap here.
@@ -112,6 +112,7 @@ export default function SwiftLinkLivePreview({
           subtitle={subtitle}
           bio={bio || ""}
           verified={paid}
+          paidTiles={paid}
           socials={brandSocials}
           links={cleanLinks}
           appUrl={APP_URL}

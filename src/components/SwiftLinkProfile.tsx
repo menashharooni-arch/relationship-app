@@ -17,7 +17,7 @@ import { getLook, hexAlpha } from "@/lib/swiftlink-looks";
 // layered on top of it. No style at all → the default Look ("Paper", light).
 export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string };
 
-type LinkItem = { emoji: string; label: string; url: string };
+type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact" };
 
 // Perceived lightness of a hex surface — decides whether neutral chrome
 // (rings, hover wells) should be dark-on-light or light-on-dark when a Pro
@@ -60,6 +60,7 @@ export default function SwiftLinkProfile({
   appUrl,
   pageStyle,
   embedded = false,
+  paidTiles = false,
 }: {
   name: string;
   username: string;
@@ -81,6 +82,9 @@ export default function SwiftLinkProfile({
    *  no page scroll to drive it). Everything else — hero, bio, socials, link
    *  cards, footer — is byte-for-byte the real page, so the preview is exact. */
   embedded?: boolean;
+  /** Paid owner: featured/grid image tiles + inline video. Defaults FALSE —
+   *  fails closed to the Free rendering (every link compact). */
+  paidTiles?: boolean;
 }) {
   // Mini header fades in once the hero photo scrolls out from under it. Not in
   // a preview: there's no page scroll, so it would just sit invisible.
@@ -242,7 +246,7 @@ export default function SwiftLinkProfile({
           </div>
 
           {/* Featured links — rich preview cards */}
-          <SwiftLinkButtons links={links} tileBg={look.tile} />
+          <SwiftLinkButtons links={links} tileBg={look.tile} mode={light ? "light" : "dark"} textColor={textColor} paid={paidTiles} />
 
           {/* Faint link to this person's full SwiftCard (every plan) */}
           <div className="flex justify-center mt-10">
