@@ -49,13 +49,23 @@ function navigateTo(url: string) {
 export default function SocialIcons({
   socials,
   mode = "dark",
+  shape = "circle",
+  fill = "brand",
+  accent = "#1D4ED8",
+  accentText = "#FFFFFF",
 }: {
   socials: BrandSocial[];
-  /** The surface the row sits on. The chips are brand-colored either way; this
-   *  only adapts the NEUTRAL chrome — on a light sheet a white ring and a
-   *  heavy black shadow are respectively invisible and dirty. Defaults to
-   *  "dark" so every pre-Looks caller renders byte-for-byte as before. */
+  /** The surface the row sits on — adapts the NEUTRAL chrome (ring, shadow,
+   *  and the mono fill's chip color). Defaults keep pre-Looks callers
+   *  byte-for-byte as before. */
   mode?: "light" | "dark";
+  /** Chip geometry (hoo.be-style): circle / squircle / square. */
+  shape?: "circle" | "squircle" | "square";
+  /** Chip color: per-platform brand colors, the Look's accent, or quiet
+   *  neutral chips. */
+  fill?: "brand" | "accent" | "mono";
+  accent?: string;
+  accentText?: string;
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -91,12 +101,22 @@ export default function SocialIcons({
           rel="noopener noreferrer"
           aria-label={s.label}
           onClick={(e) => handle(e, s)}
-          className={`w-[54px] h-[54px] rounded-full flex items-center justify-center ring-1 transition-transform active:scale-95 hover:scale-105 ${
+          className={`w-[54px] h-[54px] flex items-center justify-center ring-1 transition-transform active:scale-95 hover:scale-105 ${
+            shape === "circle" ? "rounded-full" : shape === "squircle" ? "rounded-[18px]" : "rounded-[8px]"
+          } ${
             mode === "light"
               ? "shadow-[0_4px_14px_rgba(15,23,42,0.16)] ring-black/[0.08]"
               : "shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-white/10"
           }`}
-          style={{ background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }}
+          style={
+            fill === "accent"
+              ? { background: accent, color: accentText }
+              : fill === "mono"
+                ? mode === "light"
+                  ? { background: "#FFFFFF", color: "#111827" }
+                  : { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" }
+                : { background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }
+          }
         >
           <PlatformIcon label={s.label} className="w-6 h-6" />
         </a>

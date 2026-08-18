@@ -115,6 +115,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkBgColor?: string;
     linkTextColor?: string;
     linkFontFamily?: string;
+    linkIconShape?: string;
+    linkIconFill?: string;
   };
   // The named Look renders for EVERY plan — Free is snapped to the free pair
   // at render time (a Pro Look kept in storage after a downgrade is hidden,
@@ -123,7 +125,13 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const pageStyle = {
     look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
     ...(ownerPaid
-      ? { bg: customization.linkBgColor, text: customization.linkTextColor, font: customization.linkFontFamily }
+      ? {
+          bg: customization.linkBgColor,
+          text: customization.linkTextColor,
+          font: customization.linkFontFamily,
+          iconShape: customization.linkIconShape,
+          iconFill: customization.linkIconFill,
+        }
       : {}),
   };
   const bio = customization.bio || "";

@@ -126,6 +126,8 @@ function fromPrefill(p: CardPrefill): Sketch {
     },
     linkStyle: {
       linkLook: p.linkLook,
+      linkIconShape: p.linkIconShape,
+      linkIconFill: p.linkIconFill,
       linkBgColor: p.linkBgColor,
       linkTextColor: p.linkTextColor,
       linkFontFamily: p.linkFontFamily,

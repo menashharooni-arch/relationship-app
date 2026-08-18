@@ -59,7 +59,7 @@ export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textCo
 // from the card's design keys above so styling the card never restyles the
 // Swift Links page or vice versa (they are different surfaces with different
 // looks). Pro-gated the same way: stripped server-side for non-paid accounts.
-export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"] as const;
+export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill"] as const;
 
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
 export function isPaidPlan(plan?: string | null): boolean {

@@ -94,7 +94,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -215,6 +215,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // card's style, so styling one surface never restyles the other.
   const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>({
     linkLook: card.customization?.linkLook ?? undefined,
+    linkIconShape: card.customization?.linkIconShape ?? undefined,
+    linkIconFill: card.customization?.linkIconFill ?? undefined,
     linkBgColor: card.customization?.linkBgColor ?? undefined,
     linkTextColor: card.customization?.linkTextColor ?? undefined,
     linkFontFamily: card.customization?.linkFontFamily ?? undefined,
@@ -362,6 +364,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             fontFamily: templateStyleState.fontFamily ?? null,
             // Swift Links page design ("Social design" — Pro, stripped on Free).
             linkLook: linkStyleState.linkLook ?? null,
+            linkIconShape: linkStyleState.linkIconShape ?? null,
+            linkIconFill: linkStyleState.linkIconFill ?? null,
             linkBgColor: linkStyleState.linkBgColor ?? null,
             linkTextColor: linkStyleState.linkTextColor ?? null,
             linkFontFamily: linkStyleState.linkFontFamily ?? null,
