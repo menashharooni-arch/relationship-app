@@ -5,6 +5,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { safeNextPath } from "@/lib/safe-next";
+import { canOpenInDefaultBrowser, openInDefaultBrowser } from "@/lib/external-purchase";
 
 // Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
 // Origin-based redirects break sign-in if the form is ever loaded on a Vercel
@@ -59,31 +60,33 @@ export default function LoginForm({
   const signupRedirect = signInOnly && mode === "signup";
 
   /**
-   * Open swiftcard.me OUTSIDE the webview.
+   * Open swiftcard.me in the DEFAULT BROWSER.
    *
-   * A plain link would not work here, and not for the usual reason:
-   * swiftcard.me IS in capacitor.config's allowNavigation, so the shell would
-   * happily load it *in the app's own webview* — where sc-boot detects the
-   * shell and redirects "/" straight back to /dashboard, which for a signed-out
-   * visitor is /login. The user would tap "SwiftCard.me" and arrive back on the
-   * screen they were already looking at.
+   * A plain link cannot work here: swiftcard.me IS in capacitor.config's
+   * allowNavigation, so the shell loads it in the app's own webview — where
+   * sc-boot redirects "/" back to /dashboard, i.e. straight back to this login
+   * screen for a signed-out visitor.
    *
-   * @capacitor/browser opens a real browser sheet instead, and sc-boot does not
-   * fire there (no `webkit.messageHandlers.bridge`), so they get the actual
-   * marketing site and can sign up. The href stays on the anchor so the web
-   * build, middle-click and "copy link address" all behave normally.
+   * ⚠️ This used to call @capacitor/browser, and THAT IS WHAT GOT 1.0.0 (7)
+   * REJECTED under Guideline 3.1.1 a second time. @capacitor/browser opens an
+   * SFSafariViewController — an in-app sheet that merely looks like Safari.
+   * `detectNativeApp()` is false inside it (no webkit.messageHandlers.bridge),
+   * so the native guards on /pricing and /upgrade switch off and the reviewer
+   * reached the $4.99 plan and Stripe checkout without ever leaving the app.
+   * Apple's screenshot was precisely that sheet.
+   *
+   * Only UIApplication.open — the native ExternalPurchase plugin — reaches the
+   * default browser, which is what the US-storefront allowance in 3.1.1(a)
+   * actually permits. See lib/external-purchase.ts. Never route this through an
+   * in-app browser again.
    */
   async function openSite(e: React.MouseEvent<HTMLAnchorElement>) {
     if (!detectNativeApp()) return; // web: let the browser follow the href
     e.preventDefault();
-    try {
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url: APP_URL, presentationStyle: "popover" });
-    } catch {
-      // Plugin missing (older shell build). The in-webview navigation loops
-      // back to /login, so a new tab is the least-bad fallback.
-      window.open(APP_URL, "_blank");
-    }
+    // No fallback on purpose. If this returns false the app stays put rather
+    // than opening a selling surface inside the webview — and the link is not
+    // rendered as a link at all in that case (see canLeaveApp below).
+    await openInDefaultBrowser("/");
   }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -100,6 +103,16 @@ export default function LoginForm({
   // not having filled in a field they were never asked to fill in.
   const emailRef = useRef<HTMLInputElement>(null);
   const native = useIsNativeApp();
+
+  // Can this build actually leave the app? Resolved after mount because the
+  // plugin lives on window.Capacitor, which is absent during SSR. Any shell
+  // older than the one carrying ExternalPurchasePlugin resolves false, and the
+  // "SwiftCard.me" link then renders as PLAIN TEXT rather than something that
+  // would open the marketing site — and its checkout — inside the app.
+  const [canLeaveApp, setCanLeaveApp] = useState(false);
+  useEffect(() => {
+    setCanLeaveApp(canOpenInDefaultBrowser());
+  }, []);
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
   // ?error=oauth) or a sign-in attempt for an email with no account
@@ -326,13 +339,21 @@ export default function LoginForm({
       {signupRedirect ? (
         <p className="py-6 text-center text-base leading-relaxed text-slate-600">
           Ready to grow your network? Join us at{" "}
-          <a
-            href={APP_URL}
-            onClick={openSite}
-            className="font-semibold text-[#1D4ED8] underline underline-offset-2 hover:text-[#1740C4]"
-          >
-            SwiftCard.me
-          </a>
+          {/* FAIL CLOSED. In a shell that cannot reach the default browser this
+              is deliberately not a link: no tap target beats a tap target that
+              opens a selling surface inside the app (Guideline 3.1.1). The
+              address is still readable, so it can be typed into Safari. */}
+          {native && !canLeaveApp ? (
+            <span className="font-semibold text-slate-900">SwiftCard.me</span>
+          ) : (
+            <a
+              href={APP_URL}
+              onClick={openSite}
+              className="font-semibold text-[#1D4ED8] underline underline-offset-2 hover:text-[#1740C4]"
+            >
+              SwiftCard.me
+            </a>
+          )}
           .
         </p>
       ) : (
