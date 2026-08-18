@@ -80,7 +80,10 @@ describe("faceLayoutFromScan: the free path's validator", () => {
     expect(out!.background).toBe("#ffffff"); // junk → fallback, never a CSS sink
     expect(out!.panels[0]).toMatchObject({ x: 0, y: 100, color: "#e5e7eb" });
     expect(out!.elements).toHaveLength(1);
-    expect(out!.elements[0]).toMatchObject({ kind: "name", x: 96, y: 0, align: "left", size: "md", weight: "bold" });
+    // The bounds pass slides the element fully onto the canvas (x+w ≤ 100)
+    // rather than leaving the raw clamp artifact of x=96 with w=100.
+    expect(out!.elements[0]).toMatchObject({ kind: "name", x: 0, align: "left", size: "md", weight: "bold" });
+    expect(out!.elements[0].x + out!.elements[0].w).toBeLessThanOrEqual(100);
   });
 
   it("synthesizes a name slot when the reading lacks one — never rejects for it", async () => {
@@ -98,5 +101,63 @@ describe("faceLayoutFromScan: the free path's validator", () => {
     expect(name.x).toBe(40);           // clears the 35%-wide side panel
     expect(name.color).toBe("#ffffff"); // dark card → light name
     expect(name.size).toBe("xl");
+  });
+});
+
+// ── The rescue passes (2026-08-18) ──────────────────────────────────────────
+// A production probe produced a card with a white name on a white panel,
+// half-clipped off the bottom edge. The validator now fixes both classes of
+// reading; these pin that it keeps doing so.
+describe("faceLayoutFromScan: contrast and bounds rescue", () => {
+  it("flips ink that matches the surface it sits on", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#f0f0ee",
+      elements: [{ kind: "name", x: 5, y: 80, w: 40, h: 10, color: "#ffffff", size: "xl", weight: "bold", align: "left" }],
+    })!;
+    const name = out.elements.find((e) => e.kind === "name")!;
+    expect(name.color).toBe("#141b26"); // white-on-light rescued to dark
+  });
+
+  it("respects the panel under the element, not just the background", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#ffffff",
+      panels: [{ x: 50, y: 0, w: 50, h: 100, color: "#1e0f2d" }],
+      elements: [{ kind: "phone", x: 60, y: 30, w: 30, h: 8, color: "#111111", size: "md", weight: "normal", align: "left" }],
+    })!;
+    // dark ink on the dark panel → flipped to white
+    expect(out.elements.find((e) => e.kind === "phone")!.color).toBe("#ffffff");
+  });
+
+  it("keeps a readable measured color (accents survive)", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#f0f0ee",
+      elements: [{ kind: "company", x: 5, y: 10, w: 40, h: 8, color: "#673ab7", size: "md", weight: "bold", align: "left" }],
+    })!;
+    expect(out.elements.find((e) => e.kind === "company")!.color).toBe("#673ab7");
+  });
+
+  it("pulls low text up so its glyphs stay on the canvas", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#ffffff",
+      elements: [{ kind: "name", x: 5, y: 95, w: 40, h: 3, color: "#111111", size: "xl", weight: "bold", align: "left" }],
+    })!;
+    const name = out.elements.find((e) => e.kind === "name")!;
+    // xl glyphs are ~13.65% of the card tall; y + glyph height must fit in 98.
+    expect(name.y + (84 * 1.3 / 800) * 100).toBeLessThanOrEqual(98.01);
+  });
+
+  it("slides an off-canvas image back inside", async () => {
+    const { faceLayoutFromScan } = await import("@/lib/design-transfer");
+    const out = faceLayoutFromScan({
+      background: "#ffffff",
+      elements: [{ kind: "headshot", x: 92, y: 90, w: 20, h: 20, color: "#000000", size: "md", weight: "normal", align: "left" }],
+    })!;
+    const img = out.elements.find((e) => e.kind === "headshot")!;
+    expect(img.x + img.w).toBeLessThanOrEqual(100);
+    expect(img.y + img.h).toBeLessThanOrEqual(100);
   });
 });
