@@ -3,6 +3,7 @@
 // nothing drifts. If you change a number, change it HERE — every route and
 // component reads from this file.
 import { metaForTemplate } from "./template-style-presets";
+import { freeSafeLook, DEFAULT_SWIFTLINK_LOOK } from "./swiftlink-looks";
 
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
@@ -197,8 +198,15 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
     cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
   }
   cust = convertCustomizationToFreeClosest(cust, template).customization;
-  // Swift Links page theming ("Social design") is part of premium Swift Links —
-  // Free serves the standard dark page, so stored link-style keys are dropped.
+  // Swift Links "Social design": Free keeps a FREE-tier Look (see
+  // lib/swiftlink-looks — the free pair is the deliberate floor of the
+  // feature), while a Pro-only Look snaps to the default and the custom
+  // fine-tune keys (bg/text/font) are dropped — those stay Pro.
+  if (cust.linkLook !== undefined) {
+    const safe = freeSafeLook(typeof cust.linkLook === "string" ? cust.linkLook : null);
+    if (safe === DEFAULT_SWIFTLINK_LOOK && cust.linkLook !== DEFAULT_SWIFTLINK_LOOK) delete cust.linkLook;
+    else cust.linkLook = safe;
+  }
   for (const key of LINK_STYLE_KEYS) delete cust[key];
   return cust as T;
 }

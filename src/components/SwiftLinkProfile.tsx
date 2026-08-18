@@ -10,15 +10,25 @@ import { useEffect, useState } from "react";
 import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
+import { getLook, hexAlpha } from "@/lib/swiftlink-looks";
 
-const SHEET = "#191a1a"; // link.me's dark sheet color (stock look)
-const PAGE = "#09090B"; // page background behind the column
-
-// Owner-picked "Social design" (Pro): background / text / font for THIS page.
-// Absent (Free, or never styled) → the stock dark look above.
-export type SwiftLinkPageStyle = { bg?: string; text?: string; font?: string };
+// Owner-picked "Social design": a named Look (every plan — Free gets the free
+// pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
+// layered on top of it. No style at all → the default Look ("Paper", light).
+export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string };
 
 type LinkItem = { emoji: string; label: string; url: string };
+
+// Perceived lightness of a hex surface — decides whether neutral chrome
+// (rings, hover wells) should be dark-on-light or light-on-dark when a Pro
+// custom background replaces the Look's sheet.
+function isLightHex(hex: string): boolean {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
+}
 
 function initialsOf(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -86,13 +96,19 @@ export default function SwiftLinkProfile({
   const firstName = name.split(" ")[0] || username;
   const initials = initialsOf(name || username);
 
-  // Resolved page look — owner style over the stock dark theme.
-  const sheetBg = pageStyle?.bg || SHEET;
-  const textColor = pageStyle?.text || "#ffffff";
+  // Resolved page look: the named Look supplies the whole scheme, and the Pro
+  // fine-tune keys (bg/text) override it individually where set.
+  const look = getLook(pageStyle?.look);
+  const sheetBg = pageStyle?.bg || look.sheet;
+  const textColor = pageStyle?.text || look.text;
   const pageFont = pageStyle?.font;
+  // A custom Pro background can flip the effective mode out from under the
+  // Look, and the neutral chrome (rings, hovers, hero fade edge) must follow
+  // the SURFACE, not the label — judge the sheet actually in use.
+  const light = pageStyle?.bg ? isLightHex(pageStyle.bg) : look.mode === "light";
 
   return (
-    <main className={embedded ? "" : "min-h-[100dvh]"} style={{ background: embedded ? "transparent" : PAGE }}>
+    <main className={embedded ? "" : "min-h-[100dvh]"} style={{ background: embedded ? "transparent" : look.page }}>
       <div
         className={`relative mx-auto w-full max-w-[430px] overflow-hidden ${
           embedded
@@ -109,14 +125,14 @@ export default function SwiftLinkProfile({
               className={`flex items-center gap-2.5 px-4 h-[54px] transition-opacity duration-300 md:rounded-t-[30px] ${
                 scrolled ? "opacity-100" : "opacity-0 pointer-events-none"
               }`}
-              style={{ background: pageStyle?.bg ? sheetBg : "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+              style={{ background: hexAlpha(sheetBg, 0.84), backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0" style={{ background: "#2c2d2d" }}>
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0" style={{ background: light ? "rgba(17,24,39,0.08)" : "#2c2d2d" }}>
                 {photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-white/80">{initials}</div>
+                  <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ color: textColor, opacity: 0.8 }}>{initials}</div>
                 )}
               </div>
               <span className="font-bold text-[15px] truncate" style={{ color: textColor }}>{name}</span>
@@ -179,7 +195,7 @@ export default function SwiftLinkProfile({
           {/* Soft fade into the sheet */}
           <div
             className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
-            style={{ background: `linear-gradient(180deg, rgba(25,26,26,0) 0%, ${sheetBg} 100%)` }}
+            style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetBg} 100%)` }}
           />
         </div>
 
@@ -218,21 +234,21 @@ export default function SwiftLinkProfile({
           {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
 
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
-          <SocialIcons socials={socials} />
+          <SocialIcons socials={socials} mode={light ? "light" : "dark"} />
 
           {/* Connect (lead capture) */}
           <div className="w-full mt-6">
-            <ConnectButton cardOwner={username} ownerFirstName={firstName} />
+            <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={look.accent} accentText={look.accentText} />
           </div>
 
           {/* Featured links — rich preview cards */}
-          <SwiftLinkButtons links={links} />
+          <SwiftLinkButtons links={links} tileBg={look.tile} />
 
           {/* Faint link to this person's full SwiftCard (every plan) */}
           <div className="flex justify-center mt-10">
             <a
               href={`/card/${username}`}
-              className="inline-block px-4 py-2 text-xs hover:bg-white/10 rounded-lg transition-colors"
+              className={`inline-block px-4 py-2 text-xs rounded-lg transition-colors ${"" /* hover well must be visible on BOTH modes */}${light ? "hover:bg-black/[0.06]" : "hover:bg-white/10"}`}
               style={{ color: textColor, opacity: 0.5 }}
             >
               View SwiftCard →
@@ -250,7 +266,8 @@ export default function SwiftLinkProfile({
           <div className="flex justify-center mt-3">
             <a
               href={`${appUrl}/?src=badge`}
-              className="flex items-center gap-1.5 text-white/40 text-[11px] hover:text-white/75 transition-colors"
+              className="flex items-center gap-1.5 text-[11px] transition-opacity opacity-40 hover:opacity-75"
+              style={{ color: textColor }}
             >
               <svg viewBox="0 0 100 100" className="w-3 h-3">
                 <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />

@@ -93,7 +93,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -213,6 +213,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // "Social design" — the Swift Links PAGE's look. Separate keys from the
   // card's style, so styling one surface never restyles the other.
   const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>({
+    linkLook: card.customization?.linkLook ?? undefined,
     linkBgColor: card.customization?.linkBgColor ?? undefined,
     linkTextColor: card.customization?.linkTextColor ?? undefined,
     linkFontFamily: card.customization?.linkFontFamily ?? undefined,
@@ -359,6 +360,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             infoColor: templateStyleState.infoColor ?? null,
             fontFamily: templateStyleState.fontFamily ?? null,
             // Swift Links page design ("Social design" — Pro, stripped on Free).
+            linkLook: linkStyleState.linkLook ?? null,
             linkBgColor: linkStyleState.linkBgColor ?? null,
             linkTextColor: linkStyleState.linkTextColor ?? null,
             linkFontFamily: linkStyleState.linkFontFamily ?? null,

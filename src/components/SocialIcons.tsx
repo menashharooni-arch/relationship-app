@@ -46,7 +46,17 @@ function navigateTo(url: string) {
   window.location.href = url;
 }
 
-export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
+export default function SocialIcons({
+  socials,
+  mode = "dark",
+}: {
+  socials: BrandSocial[];
+  /** The surface the row sits on. The chips are brand-colored either way; this
+   *  only adapts the NEUTRAL chrome — on a light sheet a white ring and a
+   *  heavy black shadow are respectively invisible and dirty. Defaults to
+   *  "dark" so every pre-Looks caller renders byte-for-byte as before. */
+  mode?: "light" | "dark";
+}) {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -81,7 +91,11 @@ export default function SocialIcons({ socials }: { socials: BrandSocial[] }) {
           rel="noopener noreferrer"
           aria-label={s.label}
           onClick={(e) => handle(e, s)}
-          className="w-[54px] h-[54px] rounded-full flex items-center justify-center shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-1 ring-white/10 transition-transform active:scale-95 hover:scale-105"
+          className={`w-[54px] h-[54px] rounded-full flex items-center justify-center ring-1 transition-transform active:scale-95 hover:scale-105 ${
+            mode === "light"
+              ? "shadow-[0_4px_14px_rgba(15,23,42,0.16)] ring-black/[0.08]"
+              : "shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-white/10"
+          }`}
           style={{ background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }}
         >
           <PlatformIcon label={s.label} className="w-6 h-6" />
