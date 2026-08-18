@@ -109,3 +109,15 @@ describe("social icon shape & fill", () => {
     expect(LINK_STYLE_KEYS).toContain("linkIconFill");
   });
 });
+
+// Picking a Look must clear the fine-tune background/text overrides — they win
+// over the Look at render time, so a stale custom color would make every Look
+// in the picker appear broken. Pinned at source level (the panel is a client
+// component; the invariant is the shape of the patch it emits).
+import { readFileSync } from "node:fs";
+describe("Look press resets fine-tune overrides", () => {
+  it("LookPicker's onPick clears linkBgColor and linkTextColor", () => {
+    const src = readFileSync("src/components/SwiftLinkDesign.tsx", "utf8");
+    expect(src).toMatch(/onPick=\{\(v\) => onChange\(\{ linkLook: v, linkBgColor: undefined, linkTextColor: undefined \}\)\}/);
+  });
+});

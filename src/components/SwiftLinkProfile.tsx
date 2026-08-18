@@ -272,24 +272,22 @@ export default function SwiftLinkProfile({
             </a>
           </div>
 
-          {/* Footer — "Made with SwiftCard" attribution on EVERY profile,
+          {/* Footer — "Made with swiftcard.me" attribution on EVERY profile,
               every plan (owner decision 2026-08-11, same call as the card
               page's badge — the two gates had drifted apart once already).
-              The WORDING was drifting too: this said "Powered by SwiftCard.me"
-              while the card badge said "Made with SwiftCard", so one product
-              had two names for one thing. Matched to the card, which is the
-              surface people actually see and the one MadeWithSwiftCard.tsx is
-              named for. The link is unchanged. */}
-          <div className="flex justify-center mt-3">
+              Wording changed 2026-08-18 (owner request): the brand word is the
+              DOMAIN, underlined, so visitors can tell it's a tappable link —
+              plain "SwiftCard" read as a label and nobody knew to tap it. */}
+          <div className="flex justify-center mt-5">
             <a
               href={`${appUrl}/?src=badge`}
               className="flex items-center gap-1.5 text-[11px] transition-opacity opacity-40 hover:opacity-75"
               style={{ color: textColor }}
             >
-              <svg viewBox="0 0 100 100" className="w-3 h-3">
+              <svg viewBox="0 0 100 100" className="w-3 h-3 shrink-0">
                 <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
               </svg>
-              Made with SwiftCard
+              <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
             </a>
           </div>
         </div>

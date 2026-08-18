@@ -252,7 +252,10 @@ export function SwiftLinkStyleControls({
       <div>
         <p className={`${rowLabel} mb-0.5`}>Look</p>
         <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together.</p>
-        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v })} locked={locked} />
+        {/* Picking a Look also clears the fine-tune background/text overrides:
+            they'd win over the Look at render time, so a stale custom color
+            would make every Look "not work" until the user found and reset it. */}
+        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined })} locked={locked} />
         {locked && (
           <p className="text-[10px] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}

@@ -125,7 +125,7 @@ export const productDocs = defineDocs([
     audience: ["visitor", "user"],
     triggers: ["badge", "made with swiftcard", "branding", "remove branding", "white label", "your logo on my card"],
     answer:
-      "There's a small \"Made with SwiftCard — Get yours free\" badge, and it shows on every plan: on a card page it appears once a visitor taps Save Contact, and it sits in the footer of every Swift Links page. What a paid plan does remove is the faint \"Create your card · swiftcard.me\" line under the card, and SwiftCard's branding on the automated emails and texts you send.",
+      "There's a small \"Made with SwiftCard — Get yours free\" badge, and it shows on every plan: on a card page it appears once a visitor taps Save Contact, and every Swift Links page ends with a \"Made with swiftcard.me\" footer link. What a paid plan does remove is the faint \"Create your card · swiftcard.me\" line under the card, and SwiftCard's branding on the automated emails and texts you send.",
     detail:
       "Be precise here, because it's easy to overstate and it's a paid promise. Paying removes two things: the faint \"Create your card\" advert under the card, and SwiftCard branding in automated follow-up emails and texts. It does NOT remove the \"Made with SwiftCard\" badge — that one is universal, on Free, Pro and Office alike. If someone asks whether upgrading takes the badge off their card page, the honest answer is no. Some marketing copy still says \"no SwiftCard branding anywhere\", which overstates it. The unsubscribe link in follow-up emails is never removed on any plan either; that's a legal requirement, not branding.",
   },
