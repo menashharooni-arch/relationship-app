@@ -75,11 +75,11 @@ export default function Home() {
             loop
             playsInline
             preload="metadata"
-            poster="/hero-bg-poster.jpg"
+            poster="/hero-bg-poster.jpg?v=2"
             aria-hidden="true"
             tabIndex={-1}
           >
-            <source src="/hero-bg.mp4" type="video/mp4" />
+            <source src="/hero-bg.mp4?v=2" type="video/mp4" />
           </video>
           <div
             className="absolute inset-0 pointer-events-none"
