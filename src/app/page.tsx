@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
 import SiteNav from "@/components/site/SiteNav";
+import HeroClaim from "@/components/site/HeroClaim";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -97,21 +98,18 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              {/* ONE primary. The secondary is deliberately a quiet outline and
-                  goes straight to the Swift Cards section — the live card demo
-                  with the phone (owner decision, Jul 2026): "see how it works"
-                  should show the card working, not the steps list. */}
+              {/* Owner redesign 2026-08-19 (modeled on link.me's hero): the
+                  "Create your free card" button is gone — the claim box IS the
+                  signup CTA. "See how it works" moves into the first slot and
+                  keeps going straight to the Swift Cards live demo (owner
+                  decision, Jul 2026): it should show the card working, not the
+                  steps list. The claim box takes the visitor's first name into
+                  the builder pre-filled (?name=…). */}
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
-                <Link
-                  id="hero-cta"
-                  href="/cards/new"
-                  className="rd-btn rd-btn-aurora rd-btn-lg sc-btn-orbit"
-                >
-                  Create your free card
-                </Link>
-                <Link href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg">
+                <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg">
                   See how it works
                 </Link>
+                <HeroClaim />
               </div>
             </div>
 

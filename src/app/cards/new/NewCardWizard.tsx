@@ -144,6 +144,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
   // visitor still builds their card first, but AFTER account creation goes
   // straight to payment for that plan — no plan chooser again (unified flow).
+  // Hero claim box (homepage): /cards/new?name=First — the visitor just typed
+  // their name, so it is the freshest intent and wins over a restored draft's.
+  const heroName = (searchParams.get("name") ?? "").trim().slice(0, 80);
   const planParam = searchParams.get("plan");
   const presetPlan: "pro" | "office" | null = planParam === "pro" ? "pro" : planParam === "office" ? "office" : null;
   const presetAnnual = searchParams.get("interval") === "annual";
@@ -207,7 +210,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // Step 1 — card details. Managed fields start (and stay) on the org's values;
   // the server enforces them again on create.
   const [nickname, setNickname] = useState(orgCompany ?? "");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(heroName);
   const [company, setCompany] = useState(orgCompany ?? "");
   const [title, setTitle] = useState("");
   const [phones, setPhones] = useState<CardPhone[]>([{ number: "", label: "mobile", showOnCard: true }]);
@@ -545,7 +548,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
       if (draft && Object.keys(p).length > 0) {
         const s = (v: unknown) => (typeof v === "string" ? v : "");
-        setName(s(p.name));
+        setName(heroName || s(p.name));
         setCompany(s(p.company));
         setTitle(s(p.title));
         setEmail(s(p.email));
