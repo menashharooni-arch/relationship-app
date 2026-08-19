@@ -9,7 +9,7 @@ import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
-import ProTrialCallout from "@/components/ProTrialCallout";
+import ProTrialPrice from "@/components/ProTrialPrice";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
 import { promoLabel } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -166,21 +166,20 @@ export default function PricingPage() {
             <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
             <div className="relative z-[2] flex flex-col flex-1">
               <p className="text-[1.4rem] font-extrabold tracking-tight text-white mb-3">Pro</p>
+              {/* "Free for your first 14 days, then $X" — owner-approved
+                  2026-08-19; the word Free IS the price block, the real price
+                  stated plainly under it. */}
               {annual ? (
-                <div className="mb-1">
-                  <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-white leading-none">${PRO_ANNUAL}</span><span className="text-white/75 text-sm mb-1">/ year</span></div>
-                  <p className="text-white/85 text-xs font-semibold mt-1.5">~$4.50/mo · Save 10%</p>
-                </div>
+                <ProTrialPrice then={`$${PRO_ANNUAL} / year`} note="~$4.50/mo · Save 10%" />
               ) : (
-                <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
+                <ProTrialPrice then={`$${PRO_MONTHLY} / month`} />
               )}
-              <ProTrialCallout className="mt-4" />
               <p className="text-white/80 text-sm mb-7 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
               </ul>
               <button onClick={() => handleUpgrade("pro")} disabled={loading !== null} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Start free trial →`}
+                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Start free →`}
               </button>
               {/* Fine print keeps the ELIGIBILITY condition and the billing
                   terms; the callout above carries the offer. Checkout grants a

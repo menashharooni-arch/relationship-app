@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
-import ProTrialCallout from "@/components/ProTrialCallout";
+import ProTrialPrice from "@/components/ProTrialPrice";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -100,16 +100,24 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
           <div className="absolute top-6 right-6 bg-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative flex flex-col flex-1">
             <p className="text-[1.3rem] font-extrabold tracking-tight text-white mb-3">Pro</p>
-            <div className="flex items-end gap-1">
-              <span className="text-[2.4rem] font-bold text-white leading-none">{formatUsd(proCents)}</span>
-              <span className="text-white/75 text-sm mb-1">/ {annual ? "year" : "month"}</span>
-            </div>
-            {annual && <p className="text-white/85 text-xs font-semibold mt-1.5">≈ {formatUsd(perMonthCents(PLAN_PRICES.PRO_ANNUAL_CENTS))}/mo · Save 10%</p>}
-            {/* Only for someone who will actually GET a trial. An ex-subscriber
-                is billed immediately (proHref carries trial=0), so showing them
-                the offer would be a promise checkout then breaks. */}
-            {trialEligible && (
-              <ProTrialCallout className="mt-4" />
+            {/* "Free for your first 14 days, then $X" — owner-approved
+                2026-08-19 — but ONLY for someone who will actually GET a
+                trial. An ex-subscriber is billed immediately (proHref carries
+                trial=0), so they see the plain price instead of a promise
+                checkout then breaks. */}
+            {trialEligible ? (
+              <ProTrialPrice
+                then={`${formatUsd(proCents)} / ${annual ? "year" : "month"}`}
+                note={annual ? `≈ ${formatUsd(perMonthCents(PLAN_PRICES.PRO_ANNUAL_CENTS))}/mo · Save 10%` : undefined}
+              />
+            ) : (
+              <>
+                <div className="flex items-end gap-1">
+                  <span className="text-[2.4rem] font-bold text-white leading-none">{formatUsd(proCents)}</span>
+                  <span className="text-white/75 text-sm mb-1">/ {annual ? "year" : "month"}</span>
+                </div>
+                {annual && <p className="text-white/85 text-xs font-semibold mt-1.5">≈ {formatUsd(perMonthCents(PLAN_PRICES.PRO_ANNUAL_CENTS))}/mo · Save 10%</p>}
+              </>
             )}
             <p className={`text-white/80 text-sm mb-6 ${trialEligible ? "mt-4" : "mt-2"}`}>Everything, unlimited.</p>
             <ul className="space-y-2 mb-7 flex-1">
