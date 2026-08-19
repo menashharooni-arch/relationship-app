@@ -22,7 +22,13 @@ describe("transferPrompt", () => {
     // No company given → the word must not appear as a fact line.
     expect(p).not.toMatch(/^- Company:/m);
     // The removal order — the defence against the template owner's details.
-    expect(p).toMatch(/REMOVED/);
+    // Strengthened 2026-08-19 after a production copy kept the original
+    // owner's email: erase FIRST, then print, and say so in absolutes.
+    expect(p).toMatch(/FIRST erase every trace of the original owner/);
+    expect(p).toMatch(/must not contain\s+a single character of the original owner/);
+    // Photo-of-a-card handling — the output is the flat card face, never the scene.
+    expect(p).toMatch(/flat, straight-on, filling the\s+entire canvas/);
+    expect(p).toMatch(/Never include hands/);
     // The exactness order — misspelling a phone number is worse than failing.
     expect(p).toMatch(/character for character/i);
   });
