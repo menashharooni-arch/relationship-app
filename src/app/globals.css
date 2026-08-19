@@ -492,13 +492,14 @@ body {
   --rd-ink-300:  #93A0C4;
   --rd-ink-200:  #C2CAE0;
   --rd-ink-100:  #E9ECF6;
-  /* Light surfaces — a soft off-white (each shade pulled 25% toward pure white
-     from the original warmer cream, so the marketing pages read whiter/cleaner
-     while keeping a hint of warmth). */
-  --rd-paper:    #FCFAF4;
-  --rd-paper-50: #F8F4EA;
-  --rd-paper-100:#F1ECDF;
-  --rd-paper-200:#E7E0D1;
+  /* Light surfaces — near-white (owner request 2026-08-19: the light homepage
+     sections read "very dark" against the dark ones; each shade pulled hard
+     toward pure white, keeping only a whisper of warmth so the pure-#fff
+     cards sitting on them still separate via border + shadow). */
+  --rd-paper:    #FEFDFB;
+  --rd-paper-50: #FBF9F4;
+  --rd-paper-100:#F5F1E9;
+  --rd-paper-200:#EAE4D7;
   /* Brand blues — royal → navy → sky, all in the logo family */
   --rd-violet:   #4C6EF5;
   --rd-indigo:   #3457D5;
