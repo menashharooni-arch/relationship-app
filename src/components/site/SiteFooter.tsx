@@ -27,6 +27,22 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
     ],
   },
   {
+    // The /for/[slug] vertical landing pages. Linked here so they aren't
+    // orphans — pages with no internal links barely rank, and ranking for
+    // "digital business card for <industry>" is their entire job.
+    title: "Who it's for",
+    links: [
+      { label: "Real estate agents", href: "/for/real-estate-agents" },
+      { label: "Contractors", href: "/for/contractors" },
+      { label: "Insurance agents", href: "/for/insurance-agents" },
+      { label: "Loan officers", href: "/for/loan-officers" },
+      { label: "Lawyers", href: "/for/lawyers" },
+      { label: "Photographers", href: "/for/photographers" },
+      { label: "Barbers & stylists", href: "/for/barbers-and-stylists" },
+      { label: "Car salespeople", href: "/for/car-salespeople" },
+    ],
+  },
+  {
     title: "Resources",
     links: [
       { label: "Preview", href: "/preview" },
@@ -59,7 +75,7 @@ export default function SiteFooter() {
     <footer className="sc-site-footer rd-dark2 relative overflow-hidden border-t border-white/10">
       <div className="rd-glow rd-glow-violet" style={{ width: 520, height: 520, left: "-10%", bottom: "-60%", opacity: 0.25 }} />
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-16 relative">
-        <div className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
+        <div className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <SwiftCardIcon size={30} />

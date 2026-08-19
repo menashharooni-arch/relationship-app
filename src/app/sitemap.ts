@@ -8,6 +8,19 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // The nine /products/[slug] pages, which are statically generated and linked
 // from the main nav and footer. Kept in sync by hand with the PRODUCTS map in
 // src/app/products/[slug]/page.tsx (a page file can't safely export it).
+// The /for/[slug] vertical landing pages — kept in sync by hand with
+// FOR_VERTICALS in src/app/for/[slug]/page.tsx.
+const FOR_SLUGS = [
+  "real-estate-agents",
+  "contractors",
+  "insurance-agents",
+  "loan-officers",
+  "lawyers",
+  "photographers",
+  "barbers-and-stylists",
+  "car-salespeople",
+];
+
 const PRODUCT_SLUGS = [
   "digital-cards",
   "swiftlinks",
@@ -29,6 +42,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "", "/pricing", "/compare", "/contact", "/privacy", "/terms", "/company",
     "/sms-terms", "/sms-consent", "/login", "/templates", "/testimonials",
     ...PRODUCT_SLUGS.map((s) => `/products/${s}`),
+    ...FOR_SLUGS.map((s) => `/for/${s}`),
   ];
   return routes.map((route) => ({
     url: `${APP_URL}${route}`,

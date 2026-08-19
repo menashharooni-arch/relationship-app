@@ -58,6 +58,20 @@ export const productDocs = defineDocs([
       "You set the bio, socials and extra buttons on the Socials step of the card builder (step 3), or the \"Socials\" tab when editing a card. How the page LOOKS is the separate \"Social design\" step/tab: pick a named Look — one tap sets the whole scheme. Every page defaults to the light \"Paper\" Look; Free can also choose the dark \"Onyx\", while the full Look library and the custom background/text/font pickers are Pro. The Pro library is Blush, Sand, Chrome, Forest, Midnight, Orchid, two gradients (Dawn, Nebula), and \"Aura\" — which uses the owner's own headshot, blurred and dimmed, as the page background (with a plain dark page as the fallback if the card has no photo). The \"Social icons\" control on the same step restyles the social chips at the top of the page — shape (Circle, Squircle or Square) and color (each network's own Brand color, all in the Look's Accent color, or quiet Mono) — and is also Pro. Free allows {limit.links} additional link buttons, shown as slim rows; paid plans are unlimited and each link gets a tile-size control (Auto, Featured full-width, Grid half-width pairs, or Compact rows) next to it in the editor, plus an \"+ Add a section header\" option to break a long page into titled sections. Video previews, featured tiles, the grid and section headers are Pro.",
   },
   {
+    id: "who-its-for",
+    title: "Who SwiftCard is built for",
+    audience: ["visitor"],
+    triggers: [
+      "who is this for", "is this for realtors", "real estate", "realtor", "contractor",
+      "insurance agent", "loan officer", "lawyer", "photographer", "barber", "stylist",
+      "car sales", "my industry", "for my business",
+    ],
+    answer:
+      "SwiftCard works for anyone who meets people and wants to be remembered — and it's especially loved by real estate agents (open-house QR sign-ins), contractors, insurance agents, loan officers, lawyers, photographers, barbers and stylists, and car salespeople. There's a dedicated page for each at swiftcard.me/for/<industry>, e.g. swiftcard.me/for/real-estate-agents.",
+    detail:
+      "The /for/[slug] pages (real-estate-agents, contractors, insurance-agents, loan-officers, lawyers, photographers, barbers-and-stylists, car-salespeople) walk through how that profession uses SwiftCard: where they share the card, what lead capture replaces (sign-in sheets, fishbowls, DMs), and industry-specific FAQ. When a visitor names their industry, point them at the matching page; when their industry isn't listed, the honest answer is that SwiftCard is industry-agnostic — cards, QR/NFC sharing, lead capture and follow-up work the same everywhere.",
+  },
+  {
     id: "sharing-a-card",
     title: "Every way to share a card",
     audience: ["visitor", "user"],
