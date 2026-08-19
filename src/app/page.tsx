@@ -6,7 +6,6 @@ import HeroClaim from "@/components/site/HeroClaim";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
-import HeroImage from "@/components/site/HeroImage";
 import SwiftLinksPhone from "@/components/site/SwiftLinksPhone";
 import SwiftLinkMiniBuilder from "@/components/site/SwiftLinkMiniBuilder";
 import SignatureDemo from "@/components/site/SignatureDemo";
@@ -63,9 +62,10 @@ export default function Home() {
         <section className="rd-light relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
           {/* Ambient video background (owner request 2026-08-19): a bright
               networking scene, sped up ~1.4×, looping muted behind the hero.
-              The white gradient overlay keeps the dark hero text at full
-              legibility — near-solid over the text column, lighter on the
-              right so the footage shows through. motion-reduce hides the
+              The white gradient overlay is deliberately LIGHT (owner request:
+              "less of that white dim") — strongest over the text column and
+              nearly clear on the right, so the footage reads as footage while
+              the headline keeps its contrast. motion-reduce hides the
               video entirely (the rd-light paper stays as the fallback), and
               the poster paints the first frame before the 2MB file arrives. */}
           <video
@@ -84,10 +84,10 @@ export default function Home() {
           <div
             className="absolute inset-0 pointer-events-none"
             aria-hidden="true"
-            style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.86) 45%, rgba(255,255,255,0.62) 100%)" }}
+            style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.76) 50%, rgba(255,255,255,0.32) 78%, rgba(255,255,255,0.22) 100%)" }}
           />
-          <div className="relative max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[1.05fr_0.95fr] gap-14 items-center">
-            <div>
+          <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
+            <div className="max-w-[640px]">
               <div data-reveal="fade">
                 <span className="rd-green-badge">
                   <span className="rd-green-dot" />
@@ -136,10 +136,6 @@ export default function Home() {
                 </Link>
                 <HeroClaim />
               </div>
-            </div>
-
-            <div className="flex justify-center lg:justify-end" data-reveal="scale">
-              <HeroImage />
             </div>
           </div>
         </section>
