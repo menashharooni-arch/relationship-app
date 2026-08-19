@@ -37,6 +37,12 @@ const TEMPLATES = [
   { id: "logo-first", label: "Logo", Component: LogoFirst },
 ];
 
+// Same derivation the SwiftLink mini-builder (and the real wizard) uses, so
+// the card face previews the handle the visitor would actually get.
+function slugify(str: string): string {
+  return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
+}
+
 export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -64,7 +70,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     initials: (sketch.name || "Y")[0].toUpperCase(),
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
-    cardUrl: "swiftcard.me/your-card",
+    cardUrl: `swiftcard.me/${slugify(sketch.company.trim() ? `${sketch.name} ${sketch.company}` : sketch.name) || "your-card"}`,
     linkedin: sketch.socials.linkedin,
     instagram: sketch.socials.instagram,
     twitter: sketch.socials.twitter,
@@ -143,7 +149,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     },
     {
       title: "Make it yours",
-      subtitle: "Pick a template, then fine-tune the colours and font — exactly like the real editor.",
+      subtitle: "Pick a template, then fine-tune the colours and font — the same design controls as the real editor.",
       previewFirst: true,
       content: (
         <div className="space-y-4">
@@ -220,7 +226,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         onLaunch={launch}
         launching={launching}
         launchLabel="Make it live →"
-        previewCaption="This is your real card — same as recipients see."
+        previewCaption="This is your real card — recipients open it as a full page in their browser."
         preview={
           <InertPreview className="w-[260px] max-w-full">
             <div className="rounded-2xl overflow-hidden shadow-2xl">

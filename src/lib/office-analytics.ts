@@ -52,7 +52,7 @@ async function getOfficeTeam(admin: Admin, officeId: string, ownerId: string): P
       userId: uid,
       name: (prof?.name as string) || (prof?.username as string) || "Member",
       // The member's PUBLIC card slug, preferring a real card over the account
-      // handle. The team drawer builds /card/<this> for its View, Copy and QR
+      // handle. The team drawer builds /<this> for its View, Copy and QR
       // actions — including a QR the admin is invited to print — and every one
       // of them 404'd for members provisioned with a blank profile handle and
       // a separate card slug. Pre-migration accounts, where the two coincide,

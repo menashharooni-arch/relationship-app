@@ -10,7 +10,7 @@ export const marketingDocs = defineDocs([
     audience: ["visitor"],
     triggers: ["what pages", "site map", "where do i find", "menu", "navigation", "more info"],
     answer:
-      "The site covers: pricing at swiftcard.me/pricing, a live demo at swiftcard.me/preview, the six card designs at swiftcard.me/templates, use cases at swiftcard.me/testimonials, and product pages under swiftcard.me/products/ (digital cards, SwiftLinks, Swift Signature, lead capture, analytics, teams, ways to share, Apple Watch, integrations). The footer has swiftcard.me/company, swiftcard.me/privacy, swiftcard.me/terms and swiftcard.me/sms-terms.",
+      "The site covers: pricing at swiftcard.me/pricing, a live demo at swiftcard.me/preview, the card designs at swiftcard.me/templates, use cases at swiftcard.me/testimonials, and product pages under swiftcard.me/products/ (digital cards, SwiftLinks, Swift Signature, lead capture, analytics, teams, ways to share, Apple Watch, integrations), plus industry pages under swiftcard.me/for/. The footer carries Product, Solutions and \"Who it's for\" link columns, Preview, Templates, Why SwiftCard, Contact Us, and swiftcard.me/company, swiftcard.me/privacy, swiftcard.me/terms and swiftcard.me/sms-terms.",
     detail:
       "Nav layout: Home, a Products menu (Digital Cards, SwiftLinks, Swift Signature, Lead Capture), a Solutions menu (Dashboard & Analytics, Teams & Offices, Ways to share, Apple Watch, Integrations), a Resources menu (Preview, Templates, Why SwiftCard, Contact Us, Privacy), then Pricing, Log in, and Get started free. /testimonials is labelled \"Why SwiftCard\" in the menus. There is also a comparison page at swiftcard.me/compare that is not linked from the nav. Note that swiftcard.me/share, swiftcard.me/grow and swiftcard.me/upgrade are NOT public marketing pages — they need an account and will send a signed-out visitor to the login screen.",
   },
@@ -33,7 +33,7 @@ export const marketingDocs = defineDocs([
     audience: ["visitor"],
     triggers: ["get started", "sign up", "signup", "create a card", "start", "how do i begin", "make a card"],
     answer:
-      "Go to swiftcard.me/cards/new and build your card — there's no login wall. It's four steps: Card information, Card design, Socials, then Social design. At the end you choose a plan and create your account, and your card goes live.",
+      "Go to swiftcard.me/cards/new and build your card — there's no login wall. Quickest start: on the homepage, type your name into the SwiftCard.me/\"full name\" box and press \"Start for free\" — the builder opens with your name already filled in. It's four steps: Card information, Card design, Socials, then Social design. At the end you choose a plan and create your account, and your card goes live.",
     detail:
       "The steps in order: 1 \"New card\" (name, title, phones, email, website, address) → \"Next: Card design →\"; 2 Card design (logo, headshot, template, colours) → \"Next: Socials →\"; 3 Socials (bio, social profiles, extra link buttons) → \"Next: Social design →\"; 4 Social design (style the Swift Links page) → \"Continue to plans →\", which opens \"Choose your plan\". Picking Free (\"Start free →\") creates the account and publishes the card.",
     commerce: true,

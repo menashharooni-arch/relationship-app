@@ -197,9 +197,9 @@ export default function Home() {
               </p>
               <ul className="mt-7 space-y-3.5" data-reveal>
                 {[
-                  "Unlimited links and social buttons",
+                  "Looks — one-tap page themes: clean lights, rich gradients, or your own photo",
+                  "Video tiles, section headers, and styled social icons",
                   "Capture leads right from your page",
-                  "Matches your brand, updates in real time",
                 ].map((t) => (
                   <li key={t} className="flex items-center gap-3 text-white/75 text-[15px]">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.14)" }}>

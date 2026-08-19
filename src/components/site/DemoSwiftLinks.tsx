@@ -15,10 +15,12 @@ import { buildConnectLinks } from "@/lib/social-url";
 // full-width "bars" list with a "Go to Swift Links →" footnote. One component,
 // used by all three, is what stops that happening again.
 //
-// The structure below mirrors src/app/card/[username]/page.tsx section 3
-// exactly — header + chip, bio, rule, socials rail, rule, action links — and
-// the pieces that ARE the design (SocialLinkIntercept's "rail", CardActionLinks)
-// are the live components, not copies, so a change there lands here for free.
+// The structure below mirrors src/app/[username]/page.tsx's Swift Links
+// section exactly — plain bold heading + chip (the numbered badges are gone
+// from the real page, owner redesign 2026-08-19), bio, rule, socials rail,
+// rule, action links — and the pieces that ARE the design
+// (SocialLinkIntercept's "rail", CardActionLinks) are the live components,
+// not copies, so a change there lands here for free.
 
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
 
@@ -32,7 +34,7 @@ const CONNECT_LINKS = buildConnectLinks({
   twitter: SAMPLE_DATA.twitter,
 });
 
-// Bio and links match the live demo card (/card/demo-realty) so the marketing
+// Bio and links match the live demo card (/demo-realty) so the marketing
 // mockup and the card people actually open tell the same story. Both URLs are
 // already reached by CONNECT_LINKS, so nothing new is fetched for the favicons.
 const BIO = "Bay Area homes, from first tour to closing day. Let's find yours.";
@@ -50,26 +52,19 @@ const RULE = <div className="h-px bg-[#EFE9E1]" />;
 
 /**
  * `compact` is the 300px-wide phone frame (TemplateGallery, LeadCapturePhone),
- * where the mockups' own chrome — badge, heading, chip — runs one step down
- * from the real card's. SignatureDemo renders at the card's true scale, so it
- * passes compact={false} and is pixel-identical to the live page.
+ * where the mockups' own chrome — heading, chip — runs one step down from the
+ * real card's. SignatureDemo renders at the card's true scale, so it passes
+ * compact={false} and matches the live page.
  *
  * Only the chrome scales. The embedded live components keep their real sizes,
  * which is the convention these mockups already follow for the socials block.
  */
-export default function DemoSwiftLinks({ n = 3, compact = true }: { n?: number; compact?: boolean }) {
+export default function DemoSwiftLinks({ compact = true }: { compact?: boolean }) {
   return (
     <>
-      <div className={`flex items-center justify-between gap-3 ${compact ? "mb-3" : "mb-3"}`}>
-        <div className={`flex items-center ${compact ? "gap-2.5" : "gap-3"} min-w-0`}>
-          <span
-            className={`rounded-full flex items-center justify-center shrink-0 font-bold text-white ${compact ? "w-5 h-5 text-[10px]" : "w-6 h-6 text-xs"}`}
-            style={{ background: "#1D4ED8" }}
-          >
-            {n}
-          </span>
-          <p className={`text-slate-900 font-semibold whitespace-nowrap ${compact ? "text-[13px]" : "text-sm"}`}>Swift Links</p>
-        </div>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        {/* Plain bold heading, matching the real page's SectionHeading. */}
+        <p className={`text-slate-900 font-bold tracking-tight whitespace-nowrap ${compact ? "text-[13px]" : "text-[15px]"}`}>Swift Links</p>
         {/* The card page's warm ghost chip. A span, not a link: everything in
             these mockups is display-only, and a chip that looks clickable and
             does nothing is worse than one that never invited the tap. Hover
@@ -91,9 +86,7 @@ export default function DemoSwiftLinks({ n = 3, compact = true }: { n?: number; 
         </span>
       </div>
 
-      {/* ml matches the numbered badge + gap above it, the card page's
-          convention for copy under a section number. */}
-      <p className={`text-slate-600 leading-[1.6] ${compact ? "text-[12px] ml-[30px]" : "text-[13px] ml-9"}`}>{BIO}</p>
+      <p className={`text-slate-600 leading-[1.6] ${compact ? "text-[12px]" : "text-[13px]"}`}>{BIO}</p>
 
       <div className={compact ? "my-3" : "my-4"}>{RULE}</div>
 

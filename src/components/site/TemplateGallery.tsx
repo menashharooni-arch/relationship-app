@@ -12,17 +12,18 @@ import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import ShareButton from "@/components/ShareButton";
-import QRCodeModal from "@/components/QRCodeModal";
 import CardMiniBuilder from "./CardMiniBuilder";
+import { cardPageTheme } from "@/lib/card-page-theme";
 import DemoSwiftLinks from "./DemoSwiftLinks";
 
 // Interactive template gallery for the homepage. It renders the REAL card
 // templates (same components, same sample data as /templates and the live
-// /card pages) so what people see here is identical to the card they'd ship.
+// card pages) so what people see here is identical to the card they'd ship.
 // Hovering a template swaps the phone to that template's actual link
 // experience — the card plus the Save-contact / Share-info / Swift Links /
-// Share sections, exactly like opening a SwiftCard link. All interactions are
-// local, so nothing here ever counts as real traffic.
+// Share sections on the template's own ambient accent wash (cardPageTheme),
+// exactly like opening a SwiftCard link. All interactions are local, so
+// nothing here ever counts as real traffic.
 
 const CARD: CardData = withoutSocials(SAMPLE_DATA);
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
@@ -60,37 +61,35 @@ function StatusBar() {
   );
 }
 
-function SectionNum({ n }: { n: number }) {
-  return <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
-}
-
 const Panel = "w-full rounded-2xl p-4 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
 
 // The full "what you get when you open the link" experience for one template.
 // Keyed on the template id by the parent, so switching templates resets state.
-function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; data: CardData }) {
+function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["Component"]; data: CardData }) {
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
+  // The live page borrows the card's palette — same derivation, same wash —
+  // so hovering templates retints the whole page behind the card.
+  const theme = cardPageTheme(null, id);
 
   return (
-    <div className="px-4 pt-2 pb-8" style={{ background: "#FAF7F2" }}>
+    <div className="px-4 pt-2 pb-8" style={{ background: theme.pageBackground, ["--sc-accent" as string]: theme.accent, ["--sc-accent-text" as string]: theme.accentText }}>
       <div className="mx-auto max-w-[300px] flex flex-col gap-4">
         {/* The real card template — contact links are display-only in the demo */}
         <div className="rounded-2xl overflow-hidden" style={{ pointerEvents: "none" }}>
           <CardScaler><Component data={data} /></CardScaler>
         </div>
 
-        {/* 1 — Save contact */}
+        {/* Save contact — plain bold heading, like the live page (the numbered
+            badges were removed in the 2026-08-19 card-page redesign). */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-2">
-            <SectionNum n={1} />
-            <p className="text-slate-900 font-semibold text-[13px]">Save {FIRST}&apos;s contact</p>
-          </div>
+          <p className="text-slate-900 font-bold text-[13px] tracking-tight">Save {FIRST}&apos;s contact</p>
+          <p className="text-slate-500 text-[11px] mt-0.5 mb-2.5">One tap adds them to your phone contacts — no app needed.</p>
           <button
             onClick={() => setSaved(true)}
             className="w-full rounded-full py-2.5 text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors"
-            style={{ background: saved ? "#16a34a" : "#2563EB" }}
+            style={{ background: saved ? "#16a34a" : theme.accent }}
           >
             {saved ? (
               <><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>Saved to Contacts</>
@@ -100,12 +99,9 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
           </button>
         </div>
 
-        {/* 2 — Share your info back */}
+        {/* Share your info back */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-2">
-            <SectionNum n={2} />
-            <p className="text-slate-900 font-semibold text-[13px]">Share your info with {FIRST}</p>
-          </div>
+          <p className="text-slate-900 font-bold text-[13px] tracking-tight mb-2">Share your info with {FIRST}</p>
           {shared ? (
             <div className="py-3 text-center">
               <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-green-100 flex items-center justify-center">
@@ -115,38 +111,48 @@ function LinkExperience({ Component, data }: { Component: Tmpl["Component"]; dat
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {["Full name", "Email address", "Phone number"].map((ph) => (
+              {/* The real form's fields, in the real order: name and PHONE are
+                  required, email is optional, and there is a message field. */}
+              {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
                 <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[12px] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
-              <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center" style={{ background: "#2563EB" }}>Share my info →</button>
+              {/* The SMS consent checkbox, shown UNTICKED as it always renders
+                  (optional; pre-checking would break TCPA). Copy trimmed to the
+                  300px mock — full disclosure lives in SmsConsentCheckbox. */}
+              <div className="mt-1 flex items-start gap-2">
+                <span
+                  aria-hidden="true"
+                  className="mt-[2px] w-[13px] h-[13px] rounded-[3px] shrink-0 bg-white"
+                  style={{ border: "1.5px solid #C9BFB2" }}
+                />
+                <span className="text-[9.5px] leading-[1.35] text-slate-500">
+                  <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
+                  Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.
+                </span>
+              </div>
+              <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center" style={{ background: theme.accent }}>Share my info →</button>
             </div>
           )}
         </div>
 
-        {/* 3 — Swift Links (the real card section, shared by every mockup) */}
+        {/* Swift Links (the real card section, shared by every mockup) */}
         <div className={Panel} style={panelStyle}>
-          <DemoSwiftLinks n={3} />
+          <DemoSwiftLinks />
         </div>
 
-        {/* 4 — Share this card (the real card components) */}
+        {/* Share this card — just the share button, like the live page (the
+            "Show QR Code" control was removed from the card page: a sharer's
+            tool sitting in a viewer's flow). */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-4">
-            <SectionNum n={4} />
-            <p className="text-slate-900 font-semibold text-[13px]">Share this card</p>
-          </div>
-          {/* Live, like on a real card: the share sheet and QR modal both work
-              so the demo shows the actual sharing experience. */}
           <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-          <QRCodeModal url={DEMO_URL} firstName={FIRST} />
           {/* A conversion path out of the demo, pointing at the builder. It used
               to be a hard link to https://swiftcard.me/?src=card, which on
               production merely reloaded the page you were already on, and from a
               preview deploy or localhost ejected you onto the live site
               mid-demo.
-              This comment used to call it the "Powered by SwiftCard" badge that
-              "a free card carries". Wrong twice: the real badge reads "Made with
-              SwiftCard" and lives in MadeWithSwiftCard.tsx, and since 532a660 it
-              is on every card on every plan, not just Free. */}
+              On the live page this line is Free-only (Pro is sold as "100%
+              your brand"); the demo card is a Free card, so showing it here is
+              truthful. */}
           <Link href="/cards/new" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
             Create your card · swiftcard.me
           </Link>
@@ -173,7 +179,7 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
             <div className="rd-notch" />
             <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
               <StatusBar />
-              <LinkExperience key={activeT.id} Component={activeT.Component} data={activeT.data ?? CARD} />
+              <LinkExperience key={activeT.id} id={activeT.id} Component={activeT.Component} data={activeT.data ?? CARD} />
             </div>
             <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 26%)" }} />
           </div>

@@ -52,7 +52,7 @@ export default async function OnboardingPage({
     // NO signup invite code / invite-only gate. (The Task-4 "you don't have an
     // account" check runs earlier, in the auth callback, only for a SIGN-IN
     // attempt — a genuine Create-account flow always provisions.)
-    // Card slugs and profile handles share ONE public namespace (/card/<slug>
+    // Card slugs and profile handles share ONE public namespace (/<slug>
     // resolves against both), and getOwnerUsernames treats a profile's handle as
     // an owned slug. Minting this handle without checking the cards table meant a
     // collision would silently hand the new account read/write access to another

@@ -18,14 +18,14 @@ export async function getOwnerUsernames(userId: string): Promise<string[]> {
 }
 
 /**
- * The slug to put in a PUBLIC /card/<slug> link for this user.
+ * The slug to put in a PUBLIC /<slug> card link for this user.
  *
  * Prefers their oldest card's slug, falling back to the legacy profile handle.
  * Three surfaces built these URLs straight from `profiles.username` and all
  * three 404'd: the Grow page's "Share your live card" CTA, the office team
  * drawer's View / Copy / QR actions (including a QR the admin is invited to
  * print), and the scanner's emailed card link. Modern accounts are provisioned
- * with a blank profile name and a SEPARATE card slug, so /card/<account
+ * with a blank profile name and a SEPARATE card slug, so /<account
  * handle> is refused — while pre-migration accounts, where the two happen to
  * coincide, work fine and hide it.
  *

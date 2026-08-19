@@ -196,7 +196,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
     ],
     scenes: [
       { t: "At every shoot", d: "Guests ask \"do you have a card?\" — tap, and your portfolio page is on their phone with a booking button." },
-      { t: "One page, everything", d: "Swift Links holds your galleries, packages, testimonials, and calendar link — with video tiles that autoplay your reel." },
+      { t: "One page, everything", d: "Swift Links holds your galleries, packages, testimonials, and calendar link — with video tiles that play your reel right on the page." },
       { t: "Second-shooter ready", d: "Your QR on a table card or welcome sign captures inquiries even while you're shooting." },
       { t: "Inquiries with context", d: "\"Share your info\" sends name, contact, and their event date straight into your inbox — tagged with where you met." },
       { t: "Follow-up on autopilot", d: "Post-event sequences deliver your \"lovely to meet you + booking link\" while the glow is fresh." },
