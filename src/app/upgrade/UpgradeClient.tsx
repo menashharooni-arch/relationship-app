@@ -99,7 +99,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
           <div className="absolute top-6 right-6 bg-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative flex flex-col flex-1">
-            <p className="text-[1.3rem] font-extrabold tracking-tight text-white mb-3">Pro</p>
+            <p className="text-[1.3rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
             {/* "Free for your first 14 days, then $X" — owner-approved
                 2026-08-19 — but ONLY for someone who will actually GET a
                 trial. An ex-subscriber is billed immediately (proHref carries

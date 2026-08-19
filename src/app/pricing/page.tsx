@@ -165,7 +165,7 @@ export default function PricingPage() {
             <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
             <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
             <div className="relative z-[2] flex flex-col flex-1">
-              <p className="text-[1.4rem] font-extrabold tracking-tight text-white mb-3">Pro</p>
+              <p className="text-[1.4rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
               {/* "Free for your first 14 days, then $X" — owner-approved
                   2026-08-19; the word Free IS the price block, the real price
                   stated plainly under it. */}
