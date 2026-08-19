@@ -314,7 +314,7 @@ export default function SaveContactButton({
         <button
           onClick={downloadVCard}
           className={`flex-1 min-w-0 text-white font-semibold py-3 px-4 rounded-full transition-colors text-sm flex items-center justify-center gap-2 whitespace-nowrap ${saved ? "" : "active:bg-blue-800"}`}
-          style={{ background: saved ? "#16a34a" : "#1D4ED8" }}
+          style={{ background: saved ? "#16a34a" : "var(--sc-accent, #1D4ED8)" }}
         >
           {saved ? (
             <>
@@ -342,7 +342,7 @@ export default function SaveContactButton({
           // taking flex-1; shrinking the LABEL to do that made them visibly
           // mismatched, which is what this restores.
           className="hidden md:flex shrink-0 items-center justify-center gap-2 font-semibold py-3 px-3 rounded-full text-sm whitespace-nowrap border transition-colors hover:bg-blue-50"
-          style={{ borderColor: "#1D4ED8", color: "#1D4ED8", background: "#fff" }}
+          style={{ borderColor: "var(--sc-accent, #1D4ED8)", color: "var(--sc-accent, #1D4ED8)", background: "#fff" }}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
@@ -446,7 +446,7 @@ export default function SaveContactButton({
                     type="submit"
                     disabled={status === "loading"}
                     className="w-full font-bold py-3 rounded-full text-white text-sm transition-all disabled:opacity-50"
-                    style={{ background: "#1D4ED8" }}
+                    style={{ background: "var(--sc-accent, #1D4ED8)" }}
                   >
                     {status === "loading" ? "Sending…" : `Share my info with ${ownerFirstName ?? "them"} →`}
                   </button>
