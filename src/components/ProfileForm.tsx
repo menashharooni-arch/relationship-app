@@ -195,7 +195,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
     logoUrl,
     // Without this the preview's QR encoded MiniQR's generic swiftcard.me
     // fallback instead of this person's actual card.
-    cardUrl: `${(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/^https?:\/\//, "")}/card/${profile.username}`,
+    cardUrl: `${(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/^https?:\/\//, "")}/${profile.username}`,
     customization,
   };
 
@@ -203,7 +203,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 mb-2 shadow-sm">
         <p className="text-xs text-slate-400">Card URL</p>
-        <p className="text-[#1D4ED8] text-sm">swiftcard.me/card/{profile.username}</p>
+        <p className="text-[#1D4ED8] text-sm">swiftcard.me/{profile.username}</p>
       </div>
 
       {/* Photo + Logo uploads */}

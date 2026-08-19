@@ -106,7 +106,7 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
   async function sharePhone() {
     setOpen(false);
     if (!cardOwner) return;
-    const url = `${APP_URL}/card/${cardOwner}?shared=1`;
+    const url = `${APP_URL}/${cardOwner}?shared=1`;
 
     // Native shell: WKWebView often lacks navigator.share.
     if (detectNativeApp()) {

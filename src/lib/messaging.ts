@@ -464,7 +464,7 @@ export async function deliverToLead(opts: {
 
   if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
-    const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
+    const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
     const { status, sid } = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
     // providerSid lets the delivery callback correct this row from "sent" to
     // "undelivered" if the carrier drops it after Twilio accepted it.
@@ -553,7 +553,7 @@ export async function sendBrandedEmail(opts: {
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const cardUrl = opts.cardUsername ? `${APP_URL}/card/${opts.cardUsername}` : null;
+  const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
   // Sign off with the sender's actual Swift Signature card image when available.
   // No stored signature yet (they never opened Preview & copy)? Fall back to the
@@ -561,7 +561,7 @@ export async function sendBrandedEmail(opts: {
   // exists — so every automated email still shows the card, not a bare link.
   const signatureImageUrl =
     (await resolveSignatureImageUrl(opts.cardUsername)) ??
-    (opts.cardUsername ? `${APP_URL}/card/${encodeURIComponent(opts.cardUsername)}/opengraph-image?v=${Date.now()}` : null);
+    (opts.cardUsername ? `${APP_URL}/${encodeURIComponent(opts.cardUsername)}/opengraph-image?v=${Date.now()}` : null);
   const signature = emailSignatureHtml({
     senderName: opts.senderName,
     company: opts.company,

@@ -81,7 +81,7 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
             <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
           </div>
           <h1 className="text-white font-bold text-2xl sm:text-3xl">Your card is live!</h1>
-          {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/card/{cardSlug}</p>}
+          {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/{cardSlug}</p>}
           <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">One quick thing, then you&apos;re all set.</p>
         </div>
 

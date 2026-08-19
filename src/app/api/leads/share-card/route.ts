@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const paid = isPaidPlan(profile?.plan as string | null);
 
   const contactFirst = ((lead.name as string) || "").split(" ")[0];
-  const cardUrl = `${APP_URL}/card/${lead.card_owner}?shared=1`;
+  const cardUrl = `${APP_URL}/${lead.card_owner}?shared=1`;
 
   const results: { sms?: SendResult | "opted_out"; email?: SendResult | "opted_out" } = {};
 

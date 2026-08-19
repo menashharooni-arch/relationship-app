@@ -31,7 +31,7 @@ import DemoSwiftLinks from "./DemoSwiftLinks";
 // what makes that impossible: a field added there now reaches both.
 const IDENTITY = SAMPLE_DATA;
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
-const CARD_URL = "https://swiftcard.me/card/alexmorgan";
+const CARD_URL = "https://swiftcard.me/alexmorgan";
 
 // Byte-for-byte the gallery's Photo First card (see TemplateGallery's
 // PHOTO_FIRST_DATA): the shared sample, socials stripped, demo headshot on.

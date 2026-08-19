@@ -475,7 +475,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     initials: (name || "?")[0]?.toUpperCase() ?? "?",
     photoUrl: headshotUrl,
     logoUrl,
-    cardUrl: `swiftcard.me/card/${username || "your-card"}`,
+    cardUrl: `swiftcard.me/${username || "your-card"}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
       address.city,
@@ -1018,7 +1018,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-                <p className="text-gray-600 text-xs mt-1">Card URL: /card/{username || "your-name"}</p>
+                <p className="text-gray-600 text-xs mt-1">Card URL: swiftcard.me/{username || "your-name"}</p>
               </div>
             )}
             <div>
@@ -1340,7 +1340,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Your card is live!</h1>
-              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/card/{createdUsername || username}</p>
+              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/{createdUsername || username}</p>
             </div>
 
             <EnablePushButton />

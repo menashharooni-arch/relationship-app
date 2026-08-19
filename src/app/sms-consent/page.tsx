@@ -41,7 +41,7 @@ export default function SmsConsentPage() {
 
         <H2>Where the opt-in appears</H2>
         <P>
-          Every SwiftCard user has a public card page (for example, swiftcard.me/card/their-name). When a
+          Every SwiftCard user has a public card page (for example, swiftcard.me/their-name). When a
           visitor wants to share their contact information with that person, they use the{" "}
           <strong>&quot;Share your info&quot;</strong> form on the card. The SMS consent checkbox and its
           disclosure sit directly on that form, immediately next to the submit button — the same block
@@ -106,12 +106,12 @@ export default function SmsConsentPage() {
 
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
           <a
-            href="https://swiftcard.me/card/swift-card-swift-card-inc"
+            href="https://swiftcard.me/swift-card-swift-card-inc"
             target="_blank"
             rel="noopener"
             className="text-brand underline font-semibold text-[15px] break-all"
           >
-            swiftcard.me/card/swift-card-swift-card-inc
+            swiftcard.me/swift-card-swift-card-inc
           </a>
           <p className="text-slate-600 text-[15px] leading-relaxed mt-3">
             Scroll to <strong>&quot;Share your info&quot;</strong>. The disclosure quoted below sits

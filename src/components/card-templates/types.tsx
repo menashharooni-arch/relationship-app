@@ -178,7 +178,7 @@ export const SAMPLE_DATA: CardData = {
   initials: "AM",
   photoUrl: null,
   logoUrl: null,
-  cardUrl: "swiftcard.me/card/alexmorgan",
+  cardUrl: "swiftcard.me/alexmorgan",
 };
 
 // The one demo headshot used across the marketing site. Deliberately NOT on

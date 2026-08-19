@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { normalizeSlug } from "@/lib/username";
+import { isReservedSlug } from "@/lib/slug";
 
 // POST /api/cards/[id]/rename { slug }
 // Changes a card's public URL slug and atomically migrates every row keyed by
@@ -21,6 +22,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const slug = normalizeSlug(String(body?.slug ?? ""));
   if (!slug) {
     return NextResponse.json({ error: "Enter a URL made of letters, numbers, and dashes." }, { status: 400 });
+  }
+
+  // Card pages live at the ROOT (2026-08-19), so an app-route name would make
+  // the card unreachable. The DB function only checks uniqueness; reserved
+  // names are an app concept and are refused here.
+  if (isReservedSlug(slug)) {
+    return NextResponse.json({ error: "That URL is reserved — try another." }, { status: 409 });
   }
 
   // The function itself re-checks ownership (p_user_id) and uniqueness, and does

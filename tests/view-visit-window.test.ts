@@ -111,7 +111,7 @@ describe("the client tracker fires once per visit, not once per JS context", () 
   });
 
   it("a repeated ?source= query param can no longer fail the insert", () => {
-    const card = read("src/app/card/[username]/page.tsx");
+    const card = read("src/app/[username]/page.tsx");
     expect(card).toMatch(/Array\.isArray\(rawSource\) \? rawSource\[0\] : rawSource/);
   });
 });

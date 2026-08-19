@@ -121,7 +121,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
         <div className="flex items-center gap-2 shrink-0">
           {primarySlug ? (
             <>
-              <a href={`/card/${primarySlug}`} target="_blank" rel="noopener noreferrer"
+              <a href={`/${primarySlug}`} target="_blank" rel="noopener noreferrer"
                 className="text-xs font-semibold text-gray-300 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full px-3 py-1.5 transition-colors">
                 View card ↗
               </a>
@@ -229,7 +229,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                     <td className="px-4 py-2.5 text-white font-semibold tabular-nums">{c.leads}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2 text-[11px]">
-                        <a href={`/card/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
+                        <a href={`/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
                         <a href={`/links/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
                         {/* Moderation kill-switch (App Review 1.2): reversible
                             takedown of everything this card serves publicly. */}

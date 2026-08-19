@@ -56,7 +56,7 @@ describe("ensureUniqueUsername — never blocks, always returns a free slug", ()
 
   it("falls back to 'card' for empty/junk bases", async () => {
     const out = await ensureUniqueUsername("!!!", fakeAdmin(new Set()));
-    expect(out).toBe("card");
+    expect(out).toBe("my-card");
   });
 
   it("treats a profile-handle collision as taken too", async () => {
@@ -64,5 +64,25 @@ describe("ensureUniqueUsername — never blocks, always returns a free slug", ()
     // distinguish tables, so a taken slug models either source.
     const out = await ensureUniqueUsername("john", fakeAdmin(new Set(["john"])));
     expect(out).toBe("john-2");
+  });
+});
+
+// Card pages live at the ROOT since 2026-08-19: an app-route name as a slug
+// would produce an unreachable card, so reserved names read as "taken".
+import { isReservedSlug, RESERVED_SLUGS } from "@/lib/slug";
+describe("reserved slugs (root-URL move)", () => {
+  it("every current top-level app route is reserved", () => {
+    for (const r of ["pricing", "login", "dashboard", "links", "card", "cards", "api", "admin", "join", "settings", "contact"]) {
+      expect(isReservedSlug(r), r).toBe(true);
+    }
+  });
+  it("normal names are not reserved", () => {
+    for (const r of ["menash-harooni-swiftcard", "sam-okafor", "acme-realty"]) {
+      expect(isReservedSlug(r), r).toBe(false);
+    }
+  });
+  it("reservation is normalization-proof", () => {
+    expect(isReservedSlug("  PRICING ")).toBe(true);
+    expect(RESERVED_SLUGS.size).toBeGreaterThan(40);
   });
 });

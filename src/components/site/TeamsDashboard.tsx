@@ -152,7 +152,7 @@ export default function TeamsDashboard() {
     address: "660 Market St, Suite 400, San Francisco, CA, 94104",
     initials: "DL",
     logoUrl,
-    cardUrl: "swiftcard.me/card/dana",
+    cardUrl: "swiftcard.me/dana",
   });
 
   // LIGHT, for the same reason as DashboardDemo: 9d7e592 made light the app's

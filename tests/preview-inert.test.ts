@@ -31,7 +31,7 @@ const INERT_VIA: Record<string, string> = {
 
 // Rendering the real card, for real, for the public. Must NOT be locked.
 const PUBLIC_SURFACES = [
-  "src/app/card/[username]/page.tsx",
+  "src/app/[username]/page.tsx",
   "src/app/links/[username]/page.tsx",
 ];
 

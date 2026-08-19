@@ -243,7 +243,7 @@ export default function UsersClient() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       {u.primary_username ? (
                         <div className="flex items-center gap-2 text-[11px] whitespace-nowrap">
-                          <a href={`/card/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
+                          <a href={`/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
                           <a href={`/links/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
                         </div>
                       ) : (

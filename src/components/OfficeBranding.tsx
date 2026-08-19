@@ -144,7 +144,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     address: addrLine || undefined,
     initials: "DL",
     logoUrl,
-    cardUrl: "swiftcard.me/card/dana",
+    cardUrl: "swiftcard.me/dana",
     // The brand's own saved layout, so the "custom" preview shows the design
     // the team actually has rather than a default one. normalizeCustomLayout
     // is what CustomCard would apply anyway, and it turns whatever shape the

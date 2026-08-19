@@ -16,7 +16,7 @@ export const DEMO_CARD: CardData = {
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,
-  cardUrl: "swiftcard.me/card/alexmorgan",
+  cardUrl: "swiftcard.me/alexmorgan",
   customization: {
     accentColor: "#5D6BFF",
     about: "Helping brands grow with sharp strategy for 12 years.",
