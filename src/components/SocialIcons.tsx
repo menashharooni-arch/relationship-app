@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
 import { brandBackground } from "@/lib/link-brand";
+import { triggerSignupNudge } from "@/lib/nudge";
 
 export type BrandSocial = { label: string; href: string; color?: string; textColor?: string };
 
@@ -79,6 +80,12 @@ export default function SocialIcons({
 
   // On mobile: try to open the native app; if it doesn't take over, fall back to web.
   function handle(e: React.MouseEvent, s: BrandSocial) {
+    // A social-chip tap is the same incidental moment as a link-tile tap
+    // (2026-08-19 popup audit: chips were the ONE tap that never invited the
+    // visitor). Shares the link_button slot, so a visitor who taps a chip AND
+    // a tile still sees at most one incidental nudge per session, and the
+    // marketing mock is unaffected (no SignupNudgeHost mounted there).
+    triggerSignupNudge("link_button");
     if (!isMobile) return; // desktop: normal new-tab behavior
     const scheme = appScheme(s.label, s.href);
     if (!scheme) return; // no app scheme: normal web behavior
