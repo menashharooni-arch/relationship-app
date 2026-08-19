@@ -850,6 +850,9 @@ html.native-app:has(main.bg-cream) { background: var(--color-cream); }
    carries the class. */
 html.native-app .sc-site-nav,
 html.native-app .sc-site-footer { display: none !important; }
+/* The top-header settings gear duplicates the native bottom tab bar's
+   Settings entry — hidden in the shell (owner request 2026-08-19). */
+html.native-app .sc-settings-gear { display: none !important; }
 
 /* Those pages pad their top for the fixed marketing header that is now gone. */
 html.native-app body:has(.sc-site-nav) main { padding-top: env(safe-area-inset-top); }
