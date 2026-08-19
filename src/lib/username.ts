@@ -2,14 +2,14 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { normalizeSlug, isReservedSlug } from "@/lib/slug";
 
 // ── Public card slug (username) uniqueness ───────────────────────────────────
-// A card's `username` is only the public URL slug (/card/<username>) — it is NOT
+// A card's `username` is only the public URL slug (/<username>) — it is NOT
 // the account's identity. Identity is the email / auth user; the account handle
 // (profiles.username) is already email-derived and unique. So a slug collision
 // (two people named "Aaron Lavi" at "Malve Capital", or the same person's second
 // card) must NEVER block card creation — we just pick the next free variant.
 //
 // A slug is "taken" if any CARD uses it OR any account handle (profiles.username)
-// uses it, since the public /card/<username> route resolves against both.
+// uses it, since the public /<username> route resolves against both.
 
 // Re-exported from the pure @/lib/slug module (no server deps) so client code
 // and this server module share ONE normalizer — the slug a user is shown while
@@ -21,7 +21,7 @@ type Admin = ReturnType<typeof getAdminSupabase>;
 /**
  * Is this slug already in use by EITHER a card or a profile?
  *
- * Card slugs and profile handles share one public namespace (/card/<slug>
+ * Card slugs and profile handles share one public namespace (/<slug>
  * resolves against both), so checking only one table is not a check. Exported
  * because the admin create-card route was doing exactly that — see the comment
  * at its call site.

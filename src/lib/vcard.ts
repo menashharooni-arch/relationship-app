@@ -34,7 +34,7 @@ export interface VCardPerson {
   fax?: string | null;
   website?: string | null;
   /**
-   * The saver's own SwiftCard link (https://swiftcard.me/card/<slug>).
+   * The saver's own SwiftCard link (https://swiftcard.me/<slug>).
    *
    * Saved into the contact so the card doesn't end at "Create New Contact":
    * everything that lives on the card but not in a vCard — the design, Swift

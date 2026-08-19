@@ -10,7 +10,7 @@ import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import ProTrialPrice from "@/components/ProTrialPrice";
-import { PLAN_FEATURES, PLAN_DESCRIPTIONS } from "@/lib/plan-content";
+import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import { promoLabel } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -170,7 +170,7 @@ export default function PricingPage() {
                   2026-08-19; the word Free IS the price block, the real price
                   stated plainly under it. */}
               {annual ? (
-                <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note="~$4.50/mo · Save 10%" />
+                <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note={`~$${money(PRO_ANNUAL / 12)}/mo · Save 10%`} />
               ) : (
                 <ProTrialPrice price={`$${PRO_MONTHLY}`} period="month" />
               )}

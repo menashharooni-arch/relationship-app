@@ -6,13 +6,14 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import ShareButton from "@/components/ShareButton";
-import QRCodeModal from "@/components/QRCodeModal";
 import DemoSwiftLinks from "./DemoSwiftLinks";
+import { cardPageTheme } from "@/lib/card-page-theme";
 
 // The lead-capture page phone: the REAL card-open experience exactly as a
 // visitor sees it when they open a SwiftCard link — the real card template plus
 // the real card-page sections (Save contact, Share your info, Swift Links,
-// Share this card), built from the same components the live /card page uses.
+// Share this card), built from the same components the live card page uses,
+// on the same ambient accent-washed background the live page paints.
 // The Save-contact and Share-your-info buttons work for view (local state, no
 // network); everything else is display-only. Nothing here ever counts as real
 // traffic.
@@ -20,6 +21,9 @@ import DemoSwiftLinks from "./DemoSwiftLinks";
 const CARD: CardData = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/marketing/demo-girl.jpg" };
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
 const DEMO_URL = "https://swiftcard.me/alexmorgan";
+
+// The live page borrows the card's palette — same derivation, same wash.
+const THEME = cardPageTheme(null, "photo-first");
 
 function StatusBar() {
   return (
@@ -34,10 +38,6 @@ function StatusBar() {
   );
 }
 
-function SectionNum({ n }: { n: number }) {
-  return <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
-}
-
 const Panel = "w-full rounded-2xl p-4 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
 
@@ -46,23 +46,22 @@ function LinkExperience() {
   const [shared, setShared] = useState(false);
 
   return (
-    <div className="px-4 pt-2 pb-8" style={{ background: "#FAF7F2" }}>
+    <div className="px-4 pt-2 pb-8" style={{ background: THEME.pageBackground, ["--sc-accent" as string]: THEME.accent, ["--sc-accent-text" as string]: THEME.accentText }}>
       <div className="mx-auto max-w-[300px] flex flex-col gap-4">
         {/* The real card template — contact links are display-only in the demo */}
         <div className="rounded-2xl overflow-hidden" style={{ pointerEvents: "none" }}>
           <CardScaler><PhotoFirst data={CARD} /></CardScaler>
         </div>
 
-        {/* 1 — Save contact */}
+        {/* Save contact — plain bold heading, like the live page (the numbered
+            badges were removed in the 2026-08-19 card-page redesign). */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-2">
-            <SectionNum n={1} />
-            <p className="text-slate-900 font-semibold text-[13px]">Save {FIRST}&apos;s contact</p>
-          </div>
+          <p className="text-slate-900 font-bold text-[13px] tracking-tight">Save {FIRST}&apos;s contact</p>
+          <p className="text-slate-500 text-[11px] mt-0.5 mb-2.5">One tap adds them to your phone contacts — no app needed.</p>
           <button
             onClick={() => setSaved(true)}
             className="w-full rounded-full py-2.5 text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors"
-            style={{ background: saved ? "#16a34a" : "#2563EB" }}
+            style={{ background: saved ? "#16a34a" : THEME.accent }}
           >
             {saved ? (
               <><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>Saved to Contacts</>
@@ -72,12 +71,9 @@ function LinkExperience() {
           </button>
         </div>
 
-        {/* 2 — Share your info back (the lead-capture handshake) */}
+        {/* Share your info back (the lead-capture handshake) */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-2">
-            <SectionNum n={2} />
-            <p className="text-slate-900 font-semibold text-[13px]">Share your info with {FIRST}</p>
-          </div>
+          <p className="text-slate-900 font-bold text-[13px] tracking-tight mb-2">Share your info with {FIRST}</p>
           {shared ? (
             <div className="py-3 text-center">
               <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-green-100 flex items-center justify-center">
@@ -117,7 +113,7 @@ function LinkExperience() {
               <button
                 onClick={() => setShared(true)}
                 className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center"
-                style={{ background: "#2563EB", border: "1.5px solid #ffffff", boxShadow: "0 0 0 2px #2563EB, 0 0 0 5px rgba(37,99,235,0.18)" }}
+                style={{ background: THEME.accent, border: "1.5px solid #ffffff", boxShadow: `0 0 0 2px ${THEME.accent}, 0 0 0 5px ${THEME.accent}2E` }}
               >
                 Share my info →
               </button>
@@ -125,21 +121,16 @@ function LinkExperience() {
           )}
         </div>
 
-        {/* 3 — Swift Links (the real card section, shared by every mockup) */}
+        {/* Swift Links (the real card section, shared by every mockup) */}
         <div className={Panel} style={panelStyle}>
-          <DemoSwiftLinks n={3} />
+          <DemoSwiftLinks />
         </div>
 
-        {/* 4 — Share this card (the real card components) */}
+        {/* Share this card — just the share button, like the live page (the
+            "Show QR Code" control was removed from the card page: a sharer's
+            tool sitting in a viewer's flow). */}
         <div className={Panel} style={panelStyle}>
-          <div className="flex items-center gap-2.5 mb-4">
-            <SectionNum n={4} />
-            <p className="text-slate-900 font-semibold text-[13px]">Share this card</p>
-          </div>
-          {/* Live, like on a real card: the share sheet and QR modal both work
-              so the demo shows the actual sharing experience. */}
           <ShareButton url={DEMO_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-          <QRCodeModal url={DEMO_URL} firstName={FIRST} />
         </div>
       </div>
     </div>

@@ -224,15 +224,18 @@ describe("public card page copy and controls", () => {
     expect(c).toMatch(/label="Share this card"/);
   });
 
-  it("the QR modal itself survives for the surfaces that still use it", () => {
-    // Three marketing mockups render it; deleting the component would break
-    // the homepage.
+  it("no mockup renders the QR modal the live card page removed", () => {
+    // "Show QR Code" was removed from the public card page (a sharer's tool in
+    // a viewer's flow); the marketing mockups mirror that page, so none of them
+    // may show the control either. The QRCodeModal component itself may exist,
+    // but nothing on the card page or its mockups renders it.
     for (const f of [
       "src/components/site/LeadCapturePhone.tsx",
       "src/components/site/SignatureDemo.tsx",
       "src/components/site/TemplateGallery.tsx",
+      "src/app/[username]/page.tsx",
     ]) {
-      expect(code(f), `${f} lost its QR modal`).toMatch(/<QRCodeModal/);
+      expect(code(f), `${f} renders the retired QR modal`).not.toMatch(/<QRCodeModal/);
     }
   });
 });

@@ -38,13 +38,13 @@ export const PLAN_FEATURES = {
     "Contacts CRM to track every connection",
     "One-tap “Share my info” back to any contact",
     "Basic analytics: views, saves & best day",
-    // Name only. The badge renders as "Made with SwiftCard" on both the card
-    // and the Swift Links footer, so calling it something else here sent people
-    // looking for a badge that does not exist under that name.
-    // NOTE: this line's OTHER problem is untouched and still open — 532a660 put
-    // the badge on every card on every plan, so listing it as a Free-tier trait
-    // (and Pro's "No SwiftCard branding anywhere" below) no longer matches what
-    // ships. That is a pricing decision, not a rename.
+    // Name only. The badge renders as "Made with SwiftCard" in the card's
+    // save-contact flow and as "Made with swiftcard.me" in the Swift Links
+    // footer — both on every plan. What Pro actually removes is the SwiftCard
+    // PROMOS: the card page's "Create your card" viewer CTA and the follow-up
+    // emails' "Sent with SwiftCard" line (texts keep a bare "via SwiftCard"
+    // sender line on every plan). The bullets on both tiers now say exactly
+    // that and no more.
     "Shows a “Made with SwiftCard” badge",
   ],
   pro: [
@@ -53,12 +53,12 @@ export const PLAN_FEATURES = {
     "Unlimited AI follow-up drafts",
     "Scan any business card — AI fills the contact in",
     "Unlimited additional links on Swift Links",
-    "Social design — style your Swift Links page: backgrounds, colors & fonts",
+    "Social design — Looks for your Swift Links page: gradients, your own photo, styled icons, colors & fonts",
     // "your exact colors & fonts" described what the FREE templates already do,
     // and undersold the thing being charged for. The designer's actual claim is
     // that a template is a starting point rather than a fixed choice.
     "Custom card designer — eight Pro-only looks, or scan your printed card and we'll rebuild it",
-    "No SwiftCard branding anywhere — emails, texts & pages are 100% your brand",
+    "No SwiftCard promos — your card page and follow-up emails carry your brand, not ours",
     "Automated follow-up sequences — email + text",
     "Full analytics: who viewed, when & where",
     "Premium Swift Links: video previews & featured tiles",

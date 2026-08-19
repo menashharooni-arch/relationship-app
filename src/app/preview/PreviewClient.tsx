@@ -314,7 +314,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         </div>
         <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share — tap to open.</p>
         <button type="button" onClick={() => openDemo("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
-          <CardOnlyPreview key={card.handle} src={`/card/${card.handle}?embed=card`} />
+          <CardOnlyPreview key={card.handle} src={`/${card.handle}?embed=card`} />
         </button>
         <button type="button" onClick={() => openDemo("card")} className="mt-3 w-full text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 transition-colors">Preview SwiftCard →</button>
       </Box>
@@ -673,8 +673,8 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
 
       {/* Full-page live previews */}
       {modal === "card" && (
-        <FullScreen title={`${card.label} — your live SwiftCard`} href={`/card/${card.handle}`} onClose={() => setModal(null)}>
-          <IframePhone src={`/card/${card.handle}?embed=1`} />
+        <FullScreen title={`${card.label} — your live SwiftCard`} href={`/${card.handle}`} onClose={() => setModal(null)}>
+          <IframePhone src={`/${card.handle}?embed=1`} />
         </FullScreen>
       )}
       {modal === "links" && (
@@ -697,7 +697,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 <p className="mt-2">Best,</p>
                 <div className="mt-3">
                   <p className="text-[14px] text-gray-900 mb-1.5"><strong>{card.data.name}</strong> | {card.data.company}</p>
-                  <div className="rounded-[10px] overflow-hidden border border-gray-200 w-[240px] max-w-full bg-[#FAF7F2]"><CardOnlyPreview key={`sig-${card.handle}`} src={`/card/${card.handle}?embed=card`} /></div>
+                  <div className="rounded-[10px] overflow-hidden border border-gray-200 w-[240px] max-w-full bg-[#FAF7F2]"><CardOnlyPreview key={`sig-${card.handle}`} src={`/${card.handle}?embed=card`} /></div>
                   <span className="inline-block mt-2 text-[14px] font-bold text-blue-600">Contact me</span>
                 </div>
               </div>

@@ -275,7 +275,7 @@ export default async function CardPage({
   const rawTemplateId = (profile.template as string) || "classic-pro";
   const templateId = rawTemplateId === "custom" && !isPaidPlan(profile.plan) ? "classic-pro" : rawTemplateId;
   const TemplateComponent = TEMPLATES[templateId] ?? ClassicPro;
-  const publicCardUrl = `${APP_URL}/card/${profile.username}`;
+  const publicCardUrl = `${APP_URL}/${profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "them";
 
   // Swift Links — socials in canonical order (Website first)

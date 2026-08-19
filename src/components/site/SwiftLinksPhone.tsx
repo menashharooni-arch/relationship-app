@@ -2,16 +2,25 @@
 
 import { useState } from "react";
 import SocialIcons from "@/components/SocialIcons";
+import { getLook } from "@/lib/swiftlink-looks";
 
 // Marketing phone for the SwiftLinks section. A plain phone frame whose screen
 // replicates the REAL SwiftLink profile (SwiftLinkProfile) — full-bleed hero
-// photo, a dark sheet that scrolls up over it, name + verified badge, @handle,
-// socials, connect, and link.me-style featured tiles (including a video tile) —
-// and scrolls inside the phone exactly like the live page. Everything is
-// display-only (pointer-events:none); only scrolling is live.
+// photo, a sheet that scrolls up over it, name + verified badge, @handle,
+// socials, connect, section headers, and link.me-style featured tiles
+// (including a video tile) — and scrolls inside the phone exactly like the
+// live page. Everything is display-only (pointer-events:none); only scrolling
+// is live.
+//
+// The colors come from the REAL look library, pinned to Nebula (the gradient
+// flagship) with squircle/accent icon chips — so the mock showcases the Looks,
+// icon styling, and section headers the product actually ships, and follows
+// automatically if the Nebula palette is ever retuned.
 
-const SHEET = "#191a1a";
-const PAGE = "#09090B";
+const LOOK = getLook("nebula");
+const SHEET = LOOK.sheet;
+const SHEET_TO = LOOK.sheetTo ?? LOOK.sheet;
+const PAGE = LOOK.page;
 
 const SOCIALS = [
   { label: "Website", href: "#", color: "#1D4ED8" },
@@ -29,11 +38,15 @@ const FALLBACK = [
 // Sample featured links — mix of a video, image previews, and gradient tiles,
 // so the section shows how videos and rich links render (link.me album grid:
 // odd count → first tile goes full-width + taller).
-type Tile = { label: string; kind: "video" | "image" | "gradient"; img?: string; gi?: number };
+// Section headers ("header" kind) render exactly like the live page's chapter
+// titles — they can open the page before any link, and split long pages.
+type Tile = { label: string; kind: "video" | "image" | "gradient" | "header"; img?: string; gi?: number };
 const TILES: Tile[] = [
+  { label: "On the market", kind: "header" },
   { label: "Neighborhood tour", kind: "video", img: "/marketing/ll-video.jpg" },
   { label: "See current listings", kind: "image", img: "/marketing/ll-listings.jpg" },
   { label: "From the blog", kind: "image", img: "/marketing/ll-blog.jpg" },
+  { label: "Work with me", kind: "header" },
   { label: "Book a viewing", kind: "gradient", gi: 0 },
   { label: "Read client reviews", kind: "gradient", gi: 1 },
 ];
@@ -48,9 +61,18 @@ function VerifiedBadge({ className = "w-[22px] h-[22px]" }: { className?: string
 }
 
 function FeaturedTile({ t, big }: { t: Tile; big: boolean }) {
+  // Mirrors SwiftLinkButtons' section-header render: an uppercase chapter
+  // title in the Look's text color, not a destination.
+  if (t.kind === "header") {
+    return (
+      <p className="w-full text-left text-[11px] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5" style={{ color: LOOK.text, opacity: 0.55 }}>
+        {t.label}
+      </p>
+    );
+  }
   const hasImg = t.kind === "video" || t.kind === "image";
   return (
-    <div className={`relative overflow-hidden rounded-[14px] mb-2.5 ${big ? "w-full h-[190px]" : "w-[calc(50%-6px)] h-[148px]"}`} style={{ background: "#242526" }}>
+    <div className={`relative overflow-hidden rounded-[14px] mb-2.5 ${big ? "w-full h-[190px]" : "w-[calc(50%-6px)] h-[148px]"}`} style={{ background: LOOK.tile }}>
       {hasImg ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={t.img} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -83,11 +105,11 @@ function Profile() {
       <div className="relative w-full aspect-square overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/marketing/demo-girl.jpg" alt="Alex Morgan" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-x-0 bottom-0 h-28 pointer-events-none" style={{ background: `linear-gradient(180deg, rgba(25,26,26,0) 0%, ${SHEET} 100%)` }} />
+        <div className="absolute inset-x-0 bottom-0 h-28 pointer-events-none" style={{ background: `linear-gradient(180deg, ${SHEET}00 0%, ${SHEET} 100%)` }} />
       </div>
 
       {/* Sheet */}
-      <div className="relative -mt-9 rounded-t-[26px] px-4 pt-6 pb-8 text-center" style={{ background: SHEET }}>
+      <div className="relative -mt-9 rounded-t-[26px] px-4 pt-6 pb-8 text-center" style={{ background: `linear-gradient(180deg, ${SHEET} 0%, ${SHEET_TO} 100%)` }}>
         <div className="flex items-center justify-center gap-1.5 px-2">
           <h3 className="text-white font-extrabold" style={{ fontSize: 26, letterSpacing: "0.25px", lineHeight: 1.15 }}>Alex Morgan</h3>
           <VerifiedBadge className="w-[19px] h-[19px]" />
@@ -97,13 +119,15 @@ function Profile() {
         <p className="text-white/75 text-[13px] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look</p>
 
         {/* Social icons (display-only) */}
+        {/* Squircle chips in the Look's accent — the icon shape × fill styling
+            the product's "Social design" step offers. */}
         <div style={{ pointerEvents: "none" }}>
-          <SocialIcons socials={SOCIALS} />
+          <SocialIcons socials={SOCIALS} shape="squircle" fill="accent" accent={LOOK.accent} accentText={LOOK.accentText} />
         </div>
 
         {/* Connect (display-only) */}
         <div className="w-full mt-6" style={{ pointerEvents: "none" }}>
-          <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm text-white shadow-sm" style={{ background: "#1D4ED8" }}>
+          <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm shadow-sm" style={{ background: LOOK.accent, color: LOOK.accentText }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
             Connect with Alex
           </div>
@@ -111,8 +135,8 @@ function Profile() {
 
         {/* Featured links — link.me album grid (display-only) */}
         <div className="w-full mt-6 flex flex-wrap justify-between" style={{ pointerEvents: "none" }}>
-          {TILES.map((t, i) => (
-            <FeaturedTile key={t.label} t={t} big={i === 0} />
+          {TILES.map((t) => (
+            <FeaturedTile key={t.label} t={t} big={t.kind === "video"} />
           ))}
         </div>
 
@@ -159,7 +183,7 @@ export default function SwiftLinksPhone() {
         <div className="rd-phone-screen h-[610px]" style={{ background: PAGE }}>
           <div className="rd-notch" />
           {/* Sticky mini header — fades in once the hero scrolls away */}
-          <div className="absolute top-0 inset-x-0 z-30 h-[50px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: "rgba(25,26,26,0.82)", backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0, pointerEvents: "none" }}>
+          <div className="absolute top-0 inset-x-0 z-30 h-[50px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: `${SHEET}D6`, backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0, pointerEvents: "none" }}>
             <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />

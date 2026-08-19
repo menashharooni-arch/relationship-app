@@ -105,7 +105,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       website: str(c.website),
       // Their SwiftCard itself — so the contact keeps a door back to the full
       // card (design, Swift Links, everything a vCard can't hold).
-      cardUrl: `${APP_URL}/card/${username}`,
+      cardUrl: `${APP_URL}/${username}`,
       address: {
         street: str(addr.street),
         unit: str(addr.unit),

@@ -149,7 +149,7 @@ describe("a saved contact carries everything the card holds", () => {
     phone: "(415) 555-0188",
     fax: "(415) 555-0199",
     website: "coastlinehomes.com",
-    cardUrl: "https://swiftcard.me/card/demo-realty",
+    cardUrl: "https://swiftcard.me/demo-realty",
     address: { street: "1200 Ocean Ave", unit: "4B", city: "San Francisco", state: "CA", zip: "94122" },
     linkedin: "alexmorgan",
     instagram: "@coastlinerealty",
@@ -183,7 +183,7 @@ describe("a saved contact carries everything the card holds", () => {
     // Without this the contact is a dead end: the design, Swift Links and
     // everything else on the card become unreachable once the sheet closes.
     const out = buildVCard(full);
-    expect(out).toContain("URL;type=SwiftCard:https://swiftcard.me/card/demo-realty");
+    expect(out).toContain("URL;type=SwiftCard:https://swiftcard.me/demo-realty");
   });
 
   it("keeps the card link distinguishable from the personal website", () => {

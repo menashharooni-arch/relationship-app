@@ -104,7 +104,8 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
     // 3 — style your page (the Swift Links page's own design keys)
     {
       title: "Style your page",
-      subtitle: "Background, text colour and font — your Swift Links page updates live.",
+      subtitle: "Pick a Look — solid, gradient, or your own photo — then style your social icons and font. Updates live.",
+      previewFirst: true,
       content: <SwiftLinkStyleControls value={sketch.linkStyle} onChange={patchLinkStyle} />,
     },
   ];

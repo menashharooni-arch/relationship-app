@@ -32,7 +32,7 @@ export default async function GrowPage() {
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
-  // The public /card/<slug> for this account. NOT profile.username — modern
+  // The public /<slug> card link for this account. NOT profile.username — modern
   // accounts carry a blank profile handle and a separate card slug, so the
   // account handle 404s.
   const cardSlug = await publicCardSlug(user.id);

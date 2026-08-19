@@ -236,7 +236,7 @@ export default function NativeAppBridge() {
 
           if (active?.username) {
             await widgetBridge.setCard({
-              url: `https://swiftcard.me/card/${active.username}?source=widget`,
+              url: `https://swiftcard.me/${active.username}?source=widget`,
               name: active.name || "My SwiftCard",
               company: active.company || "",
             });

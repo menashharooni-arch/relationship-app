@@ -16,7 +16,7 @@
 // and `user-select` are belt-and-braces for older engines that ship one but not
 // the other, and they also stop the text-selection smear when dragging near it.
 //
-// Applies to EDITOR previews only. The published card at /card/[username] and
+// Applies to EDITOR previews only. The published card at /[username] and
 // the Swift Links page render the same templates WITHOUT this wrapper, so their
 // phone, email, buttons and links keep working normally.
 export default function InertPreview({

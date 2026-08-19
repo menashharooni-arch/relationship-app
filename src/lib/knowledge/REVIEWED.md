@@ -29,3 +29,16 @@ One line per review, newest last.
   label are all back to their pre-`3a4c611` text. **Still no doc change needed,**
   for the same reason as above — and the docs never described either version of
   the hero, so they were correct before, during, and after.
+
+- **2026-08-19 · up to `7207811`** — Marketing mockups caught up to the shipped
+  card page (numbered badges removed, ambient accent wash, real lead form, QR
+  button dropped) and to Swift Links (Nebula-pinned phone with section headers
+  and styled icon chips); pricing/plan bullets rewritten to what actually ships
+  (Looks in "Social design", "No SwiftCard promos" instead of "no branding
+  anywhere"); legacy `/card/` URLs replaced with root everywhere they were
+  still emitted (.vcf download, iOS widget, /preview iframes, share button).
+  **Doc changes made in the same pass:** `marketing-site.ts` gained the
+  homepage claim-box entry point, the fuller footer description, and dropped
+  the hardcoded template count. Everything else the mockup work touched is
+  visual-only and already documented correctly (`product.ts` was current on
+  Looks, headers, icon styling, and root URLs).

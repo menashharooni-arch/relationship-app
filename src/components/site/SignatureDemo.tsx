@@ -9,8 +9,8 @@ import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import ShareButton from "@/components/ShareButton";
-import QRCodeModal from "@/components/QRCodeModal";
 import DemoSwiftLinks from "./DemoSwiftLinks";
+import { cardPageTheme } from "@/lib/card-page-theme";
 
 // Email Signature showcase: a wide, realistic email whose signature is the REAL
 // SwiftCard — the PhotoFirst template rendered exactly as we ship it, with the
@@ -37,6 +37,9 @@ const CARD_URL = "https://swiftcard.me/alexmorgan";
 // PHOTO_FIRST_DATA): the shared sample, socials stripped, demo headshot on.
 const CARD_DATA: CardData = withoutSocials(SAMPLE_DATA_WITH_PHOTO);
 
+// The live page borrows the card's palette — same derivation, same wash.
+const THEME = cardPageTheme(null, "photo-first");
+
 const PERSON = {
   name: IDENTITY.name, title: IDENTITY.title, company: IDENTITY.company,
   // CardData types these as optional; Person requires `website`. The sample
@@ -46,9 +49,6 @@ const PERSON = {
   photoUrl: DEMO_HEADSHOT,
 };
 
-function SectionNumber({ n }: { n: number }) {
-  return <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "#1D4ED8" }}>{n}</span>;
-}
 const PANEL = "w-full rounded-2xl p-5 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
 // The boxes are a faithful preview — disable interaction so the marketing page
@@ -84,16 +84,17 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[90] overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-start justify-center py-8 px-4">
         <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-          <div className="flex flex-col items-center gap-5 rounded-3xl px-4 py-6" style={{ background: "#FAF7F2" }}>
+          <div className="flex flex-col items-center gap-5 rounded-3xl px-4 py-6" style={{ background: THEME.pageBackground, ["--sc-accent" as string]: THEME.accent, ["--sc-accent-text" as string]: THEME.accentText }}>
             {/* The SwiftCard — identical PhotoFirst card as the signature */}
             <div className="w-full" style={showOnly}>
               <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>
             </div>
 
-            {/* Save contact */}
+            {/* Save contact — plain bold heading, like the live page (the
+                numbered badges were removed in the 2026-08-19 redesign). */}
             <div className={PANEL} style={panelStyle}>
-              <div className="flex items-center gap-3 mb-1"><SectionNumber n={1} /><p className="text-slate-900 font-semibold text-sm">Save {FIRST}&apos;s contact</p></div>
-              <p className="text-slate-400 text-xs mb-4 ml-9">One tap adds them to your phone contacts — no app needed.</p>
+              <p className="text-slate-900 font-bold text-[15px] tracking-tight">Save {FIRST}&apos;s contact</p>
+              <p className="text-slate-500 text-xs mt-1 mb-4">One tap adds them to your phone contacts — no app needed.</p>
               <div style={showOnly}>
                 <SaveContactButton person={PERSON} username="alexmorgan" source="signature_demo" cardOwner="alexmorgan" ownerFirstName={FIRST} suppressTracking />
               </div>
@@ -101,7 +102,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
 
             {/* Share your info */}
             <div className={PANEL} style={panelStyle}>
-              <div className="flex items-center gap-3 mb-4"><SectionNumber n={2} /><p className="text-slate-900 font-semibold text-sm">Share your info with {FIRST}</p></div>
+              <p className="text-slate-900 font-bold text-[15px] tracking-tight mb-4">Share your info with {FIRST}</p>
               <div style={showOnly}>
                 {/* Blank form — a faithful copy of the real LeadCaptureForm, empty. */}
                 <div className="w-full space-y-3">
@@ -109,7 +110,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
                   <input type="tel" placeholder="Your phone number *" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
                   <input type="email" placeholder="Your email (optional)" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
                   <textarea placeholder="Quick message (optional)" rows={2} readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm resize-none" />
-                  <button type="button" className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm" style={{ background: "#1D4ED8" }}>Share My Info</button>
+                  <button type="button" className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm" style={{ background: THEME.accent }}>Share My Info</button>
                   {/* The REAL disclosure component, not a copy of its words.
                       This was a hand-written paragraph carrying the wording and
                       the 8px size the live form used until July — so the demo
@@ -124,16 +125,15 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
 
             {/* Swift Links (the real card section, shared by every mockup) */}
             <div className={PANEL} style={panelStyle}>
-              <DemoSwiftLinks n={3} compact={false} />
+              <DemoSwiftLinks compact={false} />
             </div>
 
-            {/* Share this card */}
+            {/* Share this card — just the share button, like the live page
+                (the "Show QR Code" control was removed from the card page).
+                The demo card is a Free card, so the Free-only viewer CTA line
+                below the button is truthful here. */}
             <div className={PANEL} style={panelStyle}>
-              <div className="flex items-center gap-3 mb-4"><SectionNumber n={4} /><p className="text-slate-900 font-semibold text-sm">Share this card</p></div>
-              {/* Live, like on a real card — the QR modal portals to <body> at
-                  z-[100], above this z-[90] popup. */}
               <ShareButton url={CARD_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-              <QRCodeModal url={CARD_URL} firstName={FIRST} />
               <span className="block text-center text-slate-400 text-[11px] mt-3">Create your card · swiftcard.me</span>
             </div>
 
