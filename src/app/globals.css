@@ -496,9 +496,9 @@ body {
      sections read "very dark" against the dark ones; each shade pulled hard
      toward pure white, keeping only a whisper of warmth so the pure-#fff
      cards sitting on them still separate via border + shadow). */
-  --rd-paper:    #FEFDFB;
-  --rd-paper-50: #FBF9F4;
-  --rd-paper-100:#F5F1E9;
+  --rd-paper:    #FFFFFF;
+  --rd-paper-50: #FDFCFA;
+  --rd-paper-100:#F7F4EE;
   --rd-paper-200:#EAE4D7;
   /* Brand blues — royal → navy → sky, all in the logo family */
   --rd-violet:   #4C6EF5;
