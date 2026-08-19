@@ -25,24 +25,32 @@ export default function HeroClaim() {
     router.push(v ? `/cards/new?name=${encodeURIComponent(v)}&src=hero_claim` : "/cards/new?src=hero_claim");
   }
 
+  // Reads as the URL they are claiming: "SwiftCard.me/" in solid dark ink
+  // (never faded), the typed name completing it; the placeholder "full name"
+  // sits in light gray until they type (owner spec 2026-08-19). Sized up to a
+  // comfortable hero weight.
   return (
     <form
       onSubmit={go}
-      className="flex items-center gap-2 rounded-full bg-white pl-3 pr-1.5 py-1.5 w-full sm:w-auto"
-      style={{ boxShadow: "0 12px 32px -10px rgba(15,23,42,0.28), inset 0 0 0 1px rgba(15,23,42,0.08)" }}
+      className="flex items-center gap-2.5 rounded-full bg-white pl-4 pr-2 py-2 w-full sm:w-auto"
+      style={{ boxShadow: "0 14px 36px -10px rgba(15,23,42,0.28), inset 0 0 0 1px rgba(15,23,42,0.08)" }}
     >
-      <SwiftCardIcon size={26} />
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Your first name"
-        aria-label="Your first name"
-        autoComplete="given-name"
-        maxLength={80}
-        className="min-w-0 flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-400 text-[15px] font-medium focus:outline-none"
-      />
-      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-5 text-sm whitespace-nowrap">
+      <SwiftCardIcon size={30} />
+      <label className="flex items-baseline min-w-0 flex-1 cursor-text" htmlFor="hero-claim-name">
+        <span className="text-slate-900 font-semibold text-[17px] whitespace-nowrap select-none">SwiftCard.me/</span>
+        <input
+          id="hero-claim-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="full name"
+          aria-label="Your full name"
+          autoComplete="name"
+          maxLength={80}
+          className="min-w-0 flex-1 sm:w-[130px] bg-transparent text-slate-900 placeholder-slate-300 text-[17px] font-semibold focus:outline-none"
+        />
+      </label>
+      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-3 !px-6 text-[15px] whitespace-nowrap">
         Start for free
       </button>
     </form>
