@@ -21,6 +21,15 @@ const FOR_SLUGS = [
   "car-salespeople",
 ];
 
+// /compare/[slug] competitor-alternative pages — kept in sync by hand with
+// COMPETITORS in src/app/compare/[slug]/page.tsx.
+const COMPARE_SLUGS = [
+  "linktree-alternative",
+  "popl-alternative",
+  "blinq-alternative",
+  "hihello-alternative",
+];
+
 const PRODUCT_SLUGS = [
   "digital-cards",
   "swiftlinks",
@@ -43,6 +52,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/sms-terms", "/sms-consent", "/login", "/templates", "/testimonials",
     ...PRODUCT_SLUGS.map((s) => `/products/${s}`),
     ...FOR_SLUGS.map((s) => `/for/${s}`),
+    ...COMPARE_SLUGS.map((s) => `/compare/${s}`),
   ];
   return routes.map((route) => ({
     url: `${APP_URL}${route}`,
