@@ -6,7 +6,7 @@ import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
-import ProTrialCallout from "@/components/ProTrialCallout";
+import ProTrialPrice from "@/components/ProTrialPrice";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -111,21 +111,19 @@ export default function PlanCards({
           <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative z-[2] flex flex-col flex-1">
             <p className="text-[1.35rem] font-extrabold tracking-tight text-white mb-3">Pro</p>
+            {/* "Free for your first 14 days, then $X" — owner-approved
+                2026-08-19; identical block on /pricing and /upgrade. */}
             {annual ? (
-              <div className="mb-1">
-                <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-white leading-none">${PRO_ANNUAL}</span><span className="text-white/75 text-sm mb-1">/ year</span></div>
-                <p className="text-white/85 text-xs font-semibold mt-1.5">~${PRO_ANNUAL_PER_MO}/mo · Save 10%</p>
-              </div>
+              <ProTrialPrice then={`$${PRO_ANNUAL} / year`} note={`~$${PRO_ANNUAL_PER_MO}/mo · Save 10%`} />
             ) : (
-              <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-white leading-none">${PRO_MONTHLY}</span><span className="text-white/75 text-sm mb-1">/ month</span></div>
+              <ProTrialPrice then={`$${PRO_MONTHLY} / month`} />
             )}
-            <ProTrialCallout className="mt-4" />
             <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
             <ul className="space-y-2.5 mb-7 flex-1">
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
             </ul>
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-              {busy === "pro" ? "Loading…" : "Start free trial →"}
+              {busy === "pro" ? "Loading…" : "Start free →"}
             </button>
             {/* Eligibility + billing terms stay here; ProTrialCallout above
                 carries the offer itself. "for new customers" is load-bearing —
