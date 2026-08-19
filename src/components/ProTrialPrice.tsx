@@ -29,16 +29,19 @@ export default function ProTrialPrice({
   note?: string;
   className?: string;
 }) {
+  // One loud word, everything else quiet and uniform: "Free" carries all the
+  // weight, and the qualifier + real price share a single calm tone so the
+  // block reads as one sentence instead of three competing lines.
   return (
     <div className={className}>
       <div className="flex items-baseline gap-2.5 flex-wrap">
         <span className="text-[2.6rem] font-bold text-white leading-none tracking-tight">Free</span>
-        <span className="text-white/[0.78] text-[14.5px] font-medium">for your first {TRIAL_DAYS} days</span>
+        <span className="text-white/70 text-sm">for your first {TRIAL_DAYS} days</span>
       </div>
-      <p className="text-white/85 text-[14.5px] font-semibold mt-2.5">
-        then {then} <span className="text-white/60 font-normal">· cancel anytime</span>
+      <p className="text-white/70 text-sm mt-2">
+        then {then} · cancel anytime
       </p>
-      {note && <p className="text-white/85 text-xs font-semibold mt-1.5">{note}</p>}
+      {note && <p className="text-white/60 text-xs mt-1">{note}</p>}
     </div>
   );
 }
