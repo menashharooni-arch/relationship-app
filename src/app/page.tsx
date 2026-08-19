@@ -60,7 +60,32 @@ export default function Home() {
 
       <main className="overflow-clip">
         {/* ═══════════════ HERO ═══════════════ */}
-        <section className="rd-light relative pt-32 pb-24 sm:pt-40 sm:pb-32">
+        <section className="rd-light relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
+          {/* Ambient video background (owner request 2026-08-19): a bright
+              networking scene, sped up ~1.4×, looping muted behind the hero.
+              The white gradient overlay keeps the dark hero text at full
+              legibility — near-solid over the text column, lighter on the
+              right so the footage shows through. motion-reduce hides the
+              video entirely (the rd-light paper stays as the fallback), and
+              the poster paints the first frame before the 2MB file arrives. */}
+          <video
+            className="absolute inset-0 w-full h-full object-cover motion-reduce:hidden"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/hero-bg-poster.jpg"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            <source src="/hero-bg.mp4" type="video/mp4" />
+          </video>
+          <div
+            className="absolute inset-0 pointer-events-none"
+            aria-hidden="true"
+            style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.86) 45%, rgba(255,255,255,0.62) 100%)" }}
+          />
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6 grid lg:grid-cols-[1.05fr_0.95fr] gap-14 items-center">
             <div>
               <div data-reveal="fade">
