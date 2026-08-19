@@ -132,7 +132,7 @@ export default function ShareButton({
       className="w-full flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-full transition-colors text-sm"
       style={
         isPrimary
-          ? { background: "linear-gradient(to right, #2563eb, #7c3aed)", color: "#fff" }
+          ? { background: "var(--sc-accent, #2563eb)", color: "var(--sc-accent-text, #fff)" }
           : { background: "transparent", border: "1px solid #374151", color: "#d1d5db" }
       }
     >

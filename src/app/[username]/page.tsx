@@ -21,6 +21,8 @@ import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
+import CardTilt from "@/components/CardTilt";
+import { cardPageTheme } from "@/lib/card-page-theme";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { buildCardData } from "@/lib/card-data";
 import { buildConnectLinks } from "@/lib/social-url";
@@ -42,12 +44,11 @@ const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
 // because three copies of the same derivation is how they came to disagree.
 
 
-function SectionNumber({ n }: { n: number }) {
-  return (
-    <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style={{ background: "#1D4ED8" }}>
-      {n}
-    </span>
-  );
+// The numbered 1-2-3-4 badges are gone (owner redesign 2026-08-19): they read
+// as a form wizard, and the page now guides with hierarchy instead — the card
+// as the hero object, then plain bold headings on ambient-tinted surfaces.
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
 }
 
 // Short, stable content hash (djb2) — used to VERSION the share-preview image
@@ -303,8 +304,31 @@ export default async function CardPage({
     );
   }
 
+  // The page borrows the CARD's palette — its accent (or the template's
+  // default) washes the top of the page and colors every action button via
+  // the --sc-accent custom property those buttons read.
+  const theme = cardPageTheme(customization.accentColor, templateId);
+
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5" style={{ background: "#FAF7F2" }}>
+    <main
+      className="min-h-screen flex flex-col items-center px-4 pt-10 pb-16 gap-5"
+      style={{
+        background: theme.pageBackground,
+        ["--sc-accent" as string]: theme.accent,
+        ["--sc-accent-text" as string]: theme.accentText,
+      }}
+    >
+      {/* The page's one authored motion moment: the card SETTLES in — a small
+          rise + scale resolving flat — and the rest of the page fades up once
+          behind it. CSS-only (this is a server component), disabled wholesale
+          for reduced-motion visitors. */}
+      <style>{`
+        @keyframes sc-card-settle { from { opacity: 0; transform: translateY(16px) scale(0.965); } to { opacity: 1; transform: none; } }
+        @keyframes sc-page-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .sc-card-settle { animation: sc-card-settle 620ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .sc-page-rise { animation: sc-page-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both; }
+        @media (prefers-reduced-motion: reduce) { .sc-card-settle, .sc-page-rise { animation: none; } }
+      `}</style>
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
       {/* Scanned the desktop QR: deliver the contact over this page. */}
       {autoSave && !isEmbed && (
@@ -313,11 +337,15 @@ export default async function CardPage({
       {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={profile.username} />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
-      <div className="w-full max-w-sm">
-        <CardScaler>
-          <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
-        </CardScaler>
+      <div className="w-full max-w-sm sc-card-settle">
+        <CardTilt>
+          <CardScaler>
+            <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
+          </CardScaler>
+        </CardTilt>
       </div>
+
+      <div className="w-full max-w-sm flex flex-col gap-5 items-center sc-page-rise">
 
       {/* Address now lives inside the card design above (no separate section). */}
 
@@ -337,13 +365,10 @@ export default async function CardPage({
         </div>
       )}
 
-      {/* ── Section 1: Save Contact ── */}
+      {/* ── Save Contact — the page's primary action ── */}
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-        <div className="flex items-center gap-3 mb-1">
-          <SectionNumber n={1} />
-          <p className="text-slate-900 font-semibold text-sm">Save {firstName}&apos;s contact</p>
-        </div>
-        <p className="text-slate-400 text-xs mb-4 ml-9">One tap adds them to your phone contacts — no app needed.</p>
+        <SectionHeading>Save {firstName}&apos;s contact</SectionHeading>
+        <p className="text-slate-500 text-xs mt-1 mb-4">One tap adds them to your phone contacts — no app needed.</p>
         <SaveContactButton
           person={person}
           username={profile.username}
@@ -358,37 +383,33 @@ export default async function CardPage({
             own sharing surfaces: the dashboard button and MoreShareOptions. */}
       </div>
 
-      {/* ── Section 2: Share Your Info Back ── */}
+      {/* ── Share Your Info Back ── */}
       {alreadyShared ? (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
           <div className="flex items-center gap-3">
             <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#16a34a" }}>
               <svg viewBox="0 0 20 20" fill="#fff" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
             </span>
-            <p className="text-slate-900 font-semibold text-sm">Your contact info has already been shared</p>
+            <SectionHeading>Your contact info has already been shared</SectionHeading>
           </div>
-          <p className="text-slate-400 text-xs mt-1.5 ml-9">
+          <p className="text-slate-500 text-xs mt-1.5 ml-9">
             {firstName} already has your details — just save {firstName}&apos;s contact above and you&apos;re all set.
           </p>
         </div>
       ) : (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <SectionNumber n={2} />
-            <p className="text-slate-900 font-semibold text-sm">Share your info with {firstName}</p>
+          <SectionHeading>Share your info with {firstName}</SectionHeading>
+          <div className="mt-4">
+            <LeadCaptureForm cardOwner={profile.username} source={source} />
           </div>
-          <LeadCaptureForm cardOwner={profile.username} source={source} />
         </div>
       )}
 
-      {/* ── Section 3: Other Ways to Connect ── */}
+      {/* ── Swift Links + Share — one compact closing card ── */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
           <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <SectionNumber n={3} />
-              <p className="text-slate-900 font-semibold text-sm">Swift Links</p>
-            </div>
+            <SectionHeading>Swift Links</SectionHeading>
             {/* A warm ghost chip, not a footnote. "Go to Swift Links →" at
                 text-slate-400 sat next to a heading that already says Swift
                 Links — word noise at legal-disclaimer weight. Deliberately NOT
@@ -401,13 +422,8 @@ export default async function CardPage({
               View Swift Link page →
             </a>
           </div>
-          {/* ml-9 STAYS: it is this page's convention for copy under a numbered
-              badge (sections 1 and 2 both use it), so breaking it here alone
-              would read as a bug. The full-width rule beneath is what fixes the
-              ragged edge — indented text above a full-width rule reads as
-              intentional, and it separates "who this is" from "where to go". */}
           {bio && (
-            <p className="text-slate-600 text-[13px] leading-[1.6] whitespace-pre-wrap [text-wrap:pretty] ml-9">{bio}</p>
+            <p className="text-slate-600 text-[13px] leading-[1.6] whitespace-pre-wrap [text-wrap:pretty]">{bio}</p>
           )}
           {bio && (connectLinks.length > 0 || actionLinks.length > 0) && (
             <div className="h-px bg-[#EFE9E1] my-4" />
@@ -431,12 +447,8 @@ export default async function CardPage({
         </div>
       )}
 
-      {/* ── Section 4: Share This Card ── */}
+      {/* ── Share This Card ── */}
       <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-        <div className="flex items-center gap-3 mb-4">
-          <SectionNumber n={hasConnectSection ? 4 : 3} />
-          <p className="text-slate-900 font-semibold text-sm">Share this card</p>
-        </div>
         <ShareButton
           url={publicCardUrl}
           title={`${profile.name}'s digital card`}
@@ -459,6 +471,7 @@ export default async function CardPage({
             Create your card · swiftcard.me
           </a>
         )}
+      </div>
       </div>
 
       {/* The "Made with SwiftCard — Get yours free" blurb used to sit here, at
