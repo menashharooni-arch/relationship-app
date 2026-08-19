@@ -7,6 +7,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import {
   transferPrompt, transferChecklist, type TransferIdentity,
   PRECISE_SCAN_PROMPT, faceLayoutFromScan, renderFaceImage,
+  LEAK_SCAN_PROMPT, findLeaks, leakRetrySuffix,
 } from "@/lib/design-transfer";
 import { aiConsentBlock } from "@/lib/ai-consent-server";
 
@@ -147,12 +148,36 @@ export async function POST(request: NextRequest) {
   //     design (surfaces, positions, colors, sizes) and we typeset the owner's
   //     details ourselves. Backgrounds are reconstructed rather than copied,
   //     but the text can never be misspelled: no letter is model-drawn.
-  const result = await aiImageEdit({
-    imageBase64,
-    mediaType,
-    prompt: transferPrompt(identity),
-    references: [...(headshot ? [headshot] : []), ...(logo ? [logo] : [])],
-  });
+  const references = [...(headshot ? [headshot] : []), ...(logo ? [logo] : [])];
+
+  // Engine 1 with the LEAK GATE: generate, then have a vision pass transcribe
+  // every email/phone on the OUTPUT. Anything that isn't the owner's is the
+  // original card's data surviving — the one failure the prompt alone proved
+  // unable to prevent (live test 2026-08-19). One corrective retry names the
+  // leaked text; a second leak abandons the engine for this request and falls
+  // through to measure-and-typeset, which cannot leak by construction.
+  let result: { data: Buffer; mediaType: string } | null = null;
+  let lastLeaks: string[] = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const prompt = transferPrompt(identity) + (attempt === 0 ? "" : leakRetrySuffix(lastLeaks));
+    const candidate = await aiImageEdit({ imageBase64, mediaType, prompt, references });
+    if (!candidate) break; // engine unavailable — nothing a retry would change
+    const scan = await aiVision({
+      imageBase64: candidate.data.toString("base64"),
+      mediaType: candidate.mediaType,
+      prompt: LEAK_SCAN_PROMPT,
+      json: true,
+      maxTokens: 400,
+    });
+    let leaks: string[] = [];
+    try {
+      const m = scan?.match(/\{[\s\S]*\}/);
+      leaks = m ? findLeaks(JSON.parse(m[0]), identity) : [];
+    } catch { /* unreadable scan — treat as clean rather than burning a retry */ }
+    if (leaks.length === 0) { result = candidate; break; }
+    console.error(`[design-transfer] leak gate caught attempt ${attempt + 1} for ${user.id}:`, leaks.join(", "));
+    lastLeaks = leaks;
+  }
 
   let png: Buffer;
   const sharp = (await import("sharp")).default;

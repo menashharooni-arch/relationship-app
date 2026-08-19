@@ -375,3 +375,55 @@ export async function renderFaceImage(
   );
   return Buffer.from(await res.arrayBuffer());
 }
+
+// ── The leak gate ─────────────────────────────────────────────────────────────
+//
+// The image model was ORDERED to erase the original owner's details, and in
+// live tests (2026-08-19) it still occasionally kept an email beside the new
+// one. Orders aren't guarantees, so the route verifies: a vision pass
+// transcribes every email and phone on the GENERATED card, and anything that
+// isn't the owner's is a leak. Emails and phones are the checkable, dangerous
+// leaks — a stray first name can't misroute anyone's call.
+
+export const LEAK_SCAN_PROMPT = [
+  "Transcribe every email address and every phone number printed on this",
+  "business card image. Return ONLY valid JSON:",
+  '{"emails":["..."],"phones":["..."]}',
+  "Empty arrays if none. Do not include anything else.",
+].join("\n");
+
+const digits = (s: string) => s.replace(/\D/g, "");
+
+/** Emails/phones on the generated card that do NOT belong to the identity. */
+export function findLeaks(
+  scan: unknown,
+  id: TransferIdentity,
+): string[] {
+  if (!scan || typeof scan !== "object") return [];
+  const r = scan as { emails?: unknown; phones?: unknown };
+  const leaks: string[] = [];
+  const okEmail = (id.email ?? "").trim().toLowerCase();
+  for (const e of Array.isArray(r.emails) ? r.emails : []) {
+    if (typeof e !== "string") continue;
+    const v = e.trim().toLowerCase();
+    if (v && v !== okEmail) leaks.push(e.trim());
+  }
+  const okPhone = digits(id.phone ?? "");
+  for (const p of Array.isArray(r.phones) ? r.phones : []) {
+    if (typeof p !== "string") continue;
+    const d = digits(p);
+    // Same last-10 rule the SMS suppression uses; short fragments are noise.
+    if (d.length >= 7 && d.slice(-10) !== okPhone.slice(-10)) leaks.push(p.trim());
+  }
+  return leaks;
+}
+
+/** One corrective sentence for the retry attempt. */
+export function leakRetrySuffix(leaks: string[]): string {
+  return [
+    "",
+    `YOUR PREVIOUS ATTEMPT FAILED: it kept ${leaks.map((l) => `"${l}"`).join(" and ")}`,
+    "from the original card. Remove every trace of it. That text must not",
+    "appear anywhere on the output.",
+  ].join("\n");
+}
