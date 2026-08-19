@@ -32,12 +32,12 @@ export default function HeroClaim() {
   return (
     <form
       onSubmit={go}
-      className="flex items-center gap-2.5 rounded-full bg-white pl-4 pr-2 py-2 w-full sm:w-auto"
+      className="flex items-center gap-2 sm:gap-2.5 rounded-full bg-white pl-3 sm:pl-4 pr-1.5 sm:pr-2 py-1.5 sm:py-2 w-full sm:w-auto"
       style={{ boxShadow: "0 14px 36px -10px rgba(15,23,42,0.28), inset 0 0 0 1px rgba(15,23,42,0.08)" }}
     >
-      <SwiftCardIcon size={30} />
+      <SwiftCardIcon size={26} />
       <label className="flex items-baseline min-w-0 flex-1 cursor-text" htmlFor="hero-claim-name">
-        <span className="text-slate-900 font-semibold text-[17px] whitespace-nowrap select-none">SwiftCard.me/</span>
+        <span className="text-slate-900 font-semibold text-[14px] sm:text-[17px] whitespace-nowrap select-none">SwiftCard.me/</span>
         <input
           id="hero-claim-name"
           type="text"
@@ -47,10 +47,10 @@ export default function HeroClaim() {
           aria-label="Your full name"
           autoComplete="name"
           maxLength={80}
-          className="min-w-0 flex-1 sm:w-[130px] bg-transparent text-slate-900 placeholder-slate-300 text-[17px] font-semibold focus:outline-none"
+          className="min-w-[84px] flex-1 sm:w-[130px] bg-transparent text-slate-900 placeholder-slate-300 text-[14px] sm:text-[17px] font-semibold focus:outline-none"
         />
       </label>
-      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-3 !px-6 text-[15px] whitespace-nowrap">
+      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-4 sm:!py-3 sm:!px-6 text-[13px] sm:text-[15px] whitespace-nowrap">
         Start for free
       </button>
     </form>
