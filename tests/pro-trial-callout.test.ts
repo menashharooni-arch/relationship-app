@@ -35,18 +35,19 @@ describe("every plan surface prices Pro with the Free-first block", () => {
     it(`${f} passes the REAL price into the block ("then …")`, () => {
       // The honesty half of the design: "Free" may never appear without the
       // actual price beside it. Every usage must supply `then`.
-      expect(src).toMatch(/<ProTrialPrice[\s\S]{0,200}?then=/);
+      expect(src).toMatch(/<ProTrialPrice[\s\S]{0,200}?price=/);
     });
   }
 });
 
 describe("the price block itself", () => {
-  const out = renderToStaticMarkup(h(ProTrialPrice, { then: "$4.99 / month" }));
+  const out = renderToStaticMarkup(h(ProTrialPrice, { price: "$4.99", period: "month" }));
 
   it("reads as one honest sentence", () => {
     expect(out).toContain("Free");
     expect(out).toContain(`for your first ${TRIAL_DAYS} days`);
-    expect(out).toContain("then $4.99 / month");
+    expect(out).toContain("$4.99");
+    expect(out).toContain("/ month");
     expect(out).toContain("cancel anytime");
   });
 

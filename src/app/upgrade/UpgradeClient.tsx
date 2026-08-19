@@ -107,7 +107,8 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
                 checkout then breaks. */}
             {trialEligible ? (
               <ProTrialPrice
-                then={`${formatUsd(proCents)} / ${annual ? "year" : "month"}`}
+                price={formatUsd(proCents)}
+                period={annual ? "year" : "month"}
                 note={annual ? `≈ ${formatUsd(perMonthCents(PLAN_PRICES.PRO_ANNUAL_CENTS))}/mo · Save 10%` : undefined}
               />
             ) : (
