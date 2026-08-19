@@ -38,7 +38,7 @@ export default function ProTrialPrice({
   return (
     <div className={className}>
       <div className="flex items-baseline gap-2.5 flex-wrap">
-        <span className="text-[2.6rem] font-bold text-white leading-none tracking-tight">Free</span>
+        <span className="text-[2.6rem] font-bold text-black leading-none tracking-tight">Free</span>
         <span className="text-white/70 text-sm">for your first {TRIAL_DAYS} days</span>
       </div>
       <p className="text-white/70 text-sm mt-2">
