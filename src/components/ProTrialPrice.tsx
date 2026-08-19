@@ -19,19 +19,22 @@ import { TRIAL_DAYS } from "@/lib/plan";
 // the conditions.
 
 export default function ProTrialPrice({
-  then,
+  price,
+  period,
   note,
   className = "",
 }: {
-  /** The real price, stated plainly: "$4.99 / month" or "$53.99 / year". */
-  then: string;
+  /** The real price alone: "$4.99" or "$53.99". Rendered emphasized. */
+  price: string;
+  /** The billing period: "month" or "year". */
+  period: string;
   /** Optional extra after the price, e.g. "~$4.50/mo · Save 10%". */
   note?: string;
   className?: string;
 }) {
-  // One loud word, everything else quiet and uniform: "Free" carries all the
-  // weight, and the qualifier + real price share a single calm tone so the
-  // block reads as one sentence instead of three competing lines.
+  // Two anchors, one quiet voice between them: "Free" carries the offer, the
+  // PRICE carries the commitment (owner request 2026-08-19: bigger, black,
+  // bolder — the number must not hide), and the connective words stay calm.
   return (
     <div className={className}>
       <div className="flex items-baseline gap-2.5 flex-wrap">
@@ -39,7 +42,7 @@ export default function ProTrialPrice({
         <span className="text-white/70 text-sm">for your first {TRIAL_DAYS} days</span>
       </div>
       <p className="text-white/70 text-sm mt-2">
-        then {then} · cancel anytime
+        then <span className="text-black font-extrabold text-[17px]">{price}</span> / {period} · cancel anytime
       </p>
       {note && <p className="text-white/60 text-xs mt-1">{note}</p>}
     </div>

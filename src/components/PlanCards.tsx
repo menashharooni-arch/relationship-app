@@ -114,9 +114,9 @@ export default function PlanCards({
             {/* "Free for your first 14 days, then $X" — owner-approved
                 2026-08-19; identical block on /pricing and /upgrade. */}
             {annual ? (
-              <ProTrialPrice then={`$${PRO_ANNUAL} / year`} note={`~$${PRO_ANNUAL_PER_MO}/mo · Save 10%`} />
+              <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note={`~$${PRO_ANNUAL_PER_MO}/mo · Save 10%`} />
             ) : (
-              <ProTrialPrice then={`$${PRO_MONTHLY} / month`} />
+              <ProTrialPrice price={`$${PRO_MONTHLY}`} period="month" />
             )}
             <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
             <ul className="space-y-2.5 mb-7 flex-1">

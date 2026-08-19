@@ -170,9 +170,9 @@ export default function PricingPage() {
                   2026-08-19; the word Free IS the price block, the real price
                   stated plainly under it. */}
               {annual ? (
-                <ProTrialPrice then={`$${PRO_ANNUAL} / year`} note="~$4.50/mo · Save 10%" />
+                <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note="~$4.50/mo · Save 10%" />
               ) : (
-                <ProTrialPrice then={`$${PRO_MONTHLY} / month`} />
+                <ProTrialPrice price={`$${PRO_MONTHLY}`} period="month" />
               )}
               <p className="text-white/80 text-sm mb-7 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
