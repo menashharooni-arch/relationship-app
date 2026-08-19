@@ -23,7 +23,7 @@ describe("buildWatchCard", () => {
       },
       APP,
     );
-    expect(card.cardUrl).toBe("https://swiftcard.me/card/jane-acme");
+    expect(card.cardUrl).toBe("https://swiftcard.me/jane-acme");
     expect(card.walletPassUrl).toBe("https://swiftcard.me/api/wallet/pass?card=jane-acme");
     expect(card.qrValue).toBe(card.cardUrl);
     expect(card.title).toBe("CEO");
@@ -32,7 +32,7 @@ describe("buildWatchCard", () => {
 
   it("trims a trailing slash on appUrl and defaults a blank name", () => {
     const card = buildWatchCard({ username: "x" }, "https://swiftcard.me/");
-    expect(card.cardUrl).toBe("https://swiftcard.me/card/x");
+    expect(card.cardUrl).toBe("https://swiftcard.me/x");
     expect(card.name).toBe("SwiftCard");
     expect(card.title).toBeNull();
   });

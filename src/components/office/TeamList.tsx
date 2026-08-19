@@ -90,7 +90,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
   person: TeamPerson; appUrl: string; caps: Caps; onClose: () => void;
 }) {
   const [qr, setQr] = useState(false);
-  const cardUrl = person.username ? `${appUrl}/card/${person.username}` : null;
+  const cardUrl = person.username ? `${appUrl}/${person.username}` : null;
   const hasCard = person.totalCards > 0;
 
   return (

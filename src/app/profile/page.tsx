@@ -48,16 +48,16 @@ export default async function ProfilePage() {
         {/* Live card link */}
         <div className="mb-6 flex items-center gap-2 bg-white border border-warm-card-border rounded-2xl px-4 py-3 shadow-sm">
           <a
-            href={`${APP_URL}/card/${profile.username}`}
+            href={`${APP_URL}/${profile.username}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 min-w-0 text-blue-600 text-xs font-mono truncate hover:underline"
           >
-            {`${APP_URL}/card/${profile.username}`.replace("https://", "")}
+            {`${APP_URL}/${profile.username}`.replace("https://", "")}
           </a>
-          <CopyButton text={`${APP_URL}/card/${profile.username}`} />
+          <CopyButton text={`${APP_URL}/${profile.username}`} />
           <a
-            href={`${APP_URL}/card/${profile.username}`}
+            href={`${APP_URL}/${profile.username}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors shrink-0"

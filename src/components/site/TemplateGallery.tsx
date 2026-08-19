@@ -26,7 +26,7 @@ import DemoSwiftLinks from "./DemoSwiftLinks";
 
 const CARD: CardData = withoutSocials(SAMPLE_DATA);
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
-const DEMO_URL = "https://swiftcard.me/card/alexmorgan";
+const DEMO_URL = "https://swiftcard.me/alexmorgan";
 
 // Photo First is face-forward, so it gets a real headshot (royalty-free portrait).
 const PHOTO_FIRST_DATA: CardData = { ...CARD, photoUrl: "/marketing/demo-girl.jpg" };

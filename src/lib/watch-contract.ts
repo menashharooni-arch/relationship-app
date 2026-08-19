@@ -53,7 +53,7 @@ export type WatchCardResponse = {
 export function buildWatchCard(row: CardRowLike, appUrl: string): WatchCard {
   const base = appUrl.replace(/\/$/, "");
   const username = (row.username ?? "").trim();
-  const cardUrl = `${base}/card/${username}`;
+  const cardUrl = `${base}/${username}`;
   return {
     username,
     name: (row.name ?? "").trim() || "SwiftCard",

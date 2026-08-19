@@ -205,7 +205,7 @@ export default function SaveContactButton({
         website: person.website,
         // Same SwiftCard link the QR/server vCard embeds — a contact saved from
         // the phone button and one saved by scanning must be identical.
-        cardUrl: username || cardOwner ? `${window.location.origin}/card/${username ?? cardOwner}` : undefined,
+        cardUrl: username || cardOwner ? `${window.location.origin}/${username ?? cardOwner}` : undefined,
         address: person.address,
         linkedin: person.linkedin,
         instagram: person.instagram,
@@ -502,7 +502,7 @@ export default function SaveContactButton({
             <div className="flex justify-center">
               <MiniQR
                 size={196}
-                url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/card/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1&source=qr_code`}
+                url={`${typeof window !== "undefined" ? window.location.origin : "https://swiftcard.me"}/${encodeURIComponent(username ?? cardOwner ?? "")}?save=1&source=qr_code`}
               />
             </div>
 

@@ -70,7 +70,7 @@ export default function ContactPage() {
         setForm((p) => ({
           ...p,
           topic: REPORT_TOPIC,
-          message: slug ? `Reporting this card: swiftcard.me/card/${slug}\n\nWhat's wrong with it: ` : p.message,
+          message: slug ? `Reporting this card: swiftcard.me/${slug}\n\nWhat's wrong with it: ` : p.message,
         }));
       }
     } catch {

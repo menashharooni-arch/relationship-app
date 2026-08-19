@@ -56,7 +56,7 @@ describe("editing a downgraded card no longer deletes what it can't show", () =>
     // by sanitizing directly (the card page still does the latter for its page
     // chrome — bio, links, testimonials — which is not part of the card).
     for (const f of [
-      "src/app/card/[username]/page.tsx",
+      "src/app/[username]/page.tsx",
       "src/app/dashboard/page.tsx",
       "src/app/share/page.tsx",
     ]) {

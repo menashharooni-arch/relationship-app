@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   // card slug and /card/<account handle> 404s — so this emailed link, the one
   // thing the scanner send exists to deliver, dead-ended for every account
   // provisioned after that split.
-  const cardUrl = `${APP_URL}/card/${(await publicCardSlug(user.id)) ?? profile.username}`;
+  const cardUrl = `${APP_URL}/${(await publicCardSlug(user.id)) ?? profile.username}`;
   const firstName = profile.name?.split(" ")[0] ?? "Someone";
   const safeFirstName = escapeHtml(firstName);
 

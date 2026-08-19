@@ -39,7 +39,7 @@ describe("every action link is the same quiet row", () => {
     for (const f of ["src/components/CardActionLinks.tsx", "src/components/SocialLinkIntercept.tsx"]) {
       expect(code(f), `${f} still fills something with the accent`).not.toMatch(/safeAccent|inkOn|color-mix/);
     }
-    expect(code("src/app/card/[username]/page.tsx"), "the page still passes an accent down")
+    expect(code("src/app/[username]/page.tsx"), "the page still passes an accent down")
       .not.toMatch(/accent=\{customization\.accentColor\}/);
   });
 
@@ -173,7 +173,7 @@ describe("the marketing mockups show the card page's real Swift Links design", (
   });
 
   it("the public card page still opts in", () => {
-    expect(code("src/app/card/[username]/page.tsx")).toMatch(/variant="rail"/);
+    expect(code("src/app/[username]/page.tsx")).toMatch(/variant="rail"/);
   });
 
   it("the intercept mechanic is intact in every rail branch", () => {
@@ -201,7 +201,7 @@ describe("the marketing mockups show the card page's real Swift Links design", (
 });
 
 describe("public card page copy and controls", () => {
-  const PAGE = "src/app/card/[username]/page.tsx";
+  const PAGE = "src/app/[username]/page.tsx";
 
   it('the Swift Links chip says "View Swift Link page", not "View all"', () => {
     const c = code(PAGE);

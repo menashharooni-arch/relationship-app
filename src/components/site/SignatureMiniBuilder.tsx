@@ -57,7 +57,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
     initials: (sketch.name || "Y")[0].toUpperCase(),
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
-    cardUrl: "swiftcard.me/card/your-card",
+    cardUrl: "swiftcard.me/your-card",
     // No socials: the Swift Signature is a replica of the card, and cards
     // render withoutSocials() — the preview must match the real thing.
     customization: { ...sketch.style },

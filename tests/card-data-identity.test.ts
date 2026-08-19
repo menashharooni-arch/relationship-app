@@ -109,7 +109,7 @@ describe("nothing bleeds in from the account", () => {
   });
 
   it("the card URL is the CARD's username", () => {
-    expect(buildCardData(CARD, OPTS).data.cardUrl).toBe("swiftcard.me/card/aaron-lavi");
+    expect(buildCardData(CARD, OPTS).data.cardUrl).toBe("swiftcard.me/aaron-lavi");
   });
 });
 
@@ -137,7 +137,7 @@ describe("the surfaces actually go through the builder", () => {
   // CardData again. A new copy would pass every test above while reintroducing
   // exactly the drift they exist to prevent.
   const SURFACES = [
-    "src/app/card/[username]/page.tsx",
+    "src/app/[username]/page.tsx",
     "src/app/share/page.tsx",
     "src/app/dashboard/page.tsx",
   ];

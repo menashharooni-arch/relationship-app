@@ -19,7 +19,7 @@ const DEMO_CARD: CardData = withoutSocials({
   initials: "AM",
   photoUrl: "/marketing/demo-girl.jpg",
   logoUrl: null,
-  cardUrl: "swiftcard.me/card/alexmorgan",
+  cardUrl: "swiftcard.me/alexmorgan",
 });
 
 // Marketing-site replica of the real Pro /dashboard, inside a browser chrome.

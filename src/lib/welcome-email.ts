@@ -59,7 +59,7 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
     const unsub = unsubUrl(prefsRow?.unsubscribe_token as string | undefined ?? "");
     const template = welcomeEmail({
       firstName: (profile.name as string | null)?.split(" ")[0] || "there",
-      cardUrl: `${APP_URL}/card/${profile.username}`,
+      cardUrl: `${APP_URL}/${profile.username}`,
       unsubscribeUrl: unsub,
     });
 

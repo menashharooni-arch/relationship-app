@@ -27,14 +27,14 @@ describe("scanning saves the contact AND leaves them on the card", () => {
     // the visitor on a blank page — the card they scanned is gone. The card
     // page has to be what loads, so it's underneath the contact sheet.
     const block = qrCallBlock();
-    expect(block, "QR no longer lands on the card page").toMatch(/\/card\/.+save=1/);
+    expect(block, "QR no longer lands on the card page").toMatch(/save=1&source=qr_code/);
     expect(block, "QR points straight at the raw vCard again — that strands the visitor").not.toMatch(/\/api\/card\//);
   });
 
   it("?save=1 actually hands the phone the contact", () => {
     // The landing page is only half the job: without this the visitor gets the
     // card and no contact at all.
-    const page = readFileSync(join(root, "src/app/card/[username]/page.tsx"), "utf8");
+    const page = readFileSync(join(root, "src/app/[username]/page.tsx"), "utf8");
     expect(page).toMatch(/save === "1"/);
     expect(page).toContain("<ScanSaveContact");
     const comp = readFileSync(join(root, "src/components/ScanSaveContact.tsx"), "utf8");
@@ -188,7 +188,7 @@ describe("a QR save notifies the owner exactly like a button save", () => {
   it("stays scannable: the encoded URL is sparse enough at the rendered size", () => {
     // A dense QR photographed across a desk fails to scan. At the popup's 196px,
     // keep modules comfortably above the ~4px phone cameras need.
-    const url = `https://swiftcard.me/card/${"a".repeat(40)}?save=1`;
+    const url = `https://swiftcard.me/${"a".repeat(40)}?save=1`;
     const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
     const pxPerModule = 196 / qr.modules.size;
     expect(pxPerModule, `${qr.modules.size}x${qr.modules.size} is too dense`).toBeGreaterThan(4);

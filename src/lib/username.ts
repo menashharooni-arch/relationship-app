@@ -1,5 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { normalizeSlug } from "@/lib/slug";
+import { normalizeSlug, isReservedSlug } from "@/lib/slug";
 
 // ── Public card slug (username) uniqueness ───────────────────────────────────
 // A card's `username` is only the public URL slug (/card/<username>) — it is NOT
@@ -27,6 +27,9 @@ type Admin = ReturnType<typeof getAdminSupabase>;
  * at its call site.
  */
 export async function slugTaken(admin: Admin, slug: string): Promise<boolean> {
+  // Card pages live at the ROOT since 2026-08-19, so an app route name is
+  // permanently "taken" — a card at /pricing would be unreachable.
+  if (isReservedSlug(slug)) return true;
   const [{ data: card }, { data: profile }] = await Promise.all([
     admin.from("cards").select("id").eq("username", slug).limit(1).maybeSingle(),
     admin.from("profiles").select("id").eq("username", slug).limit(1).maybeSingle(),
@@ -39,11 +42,11 @@ export async function slugTaken(admin: Admin, slug: string): Promise<boolean> {
 // non-empty, ≤60-char slug — never throws, so card creation can't be blocked.
 export async function ensureUniqueUsername(base: string, admin: Admin = getAdminSupabase()): Promise<string> {
   let root = normalizeSlug(base);
-  if (!root) root = "card";
+  if (!root) root = "my-card"; // "card" itself is a reserved route since the root-URL move
 
   // Leave headroom for the "-<n>" / "-<rand>" suffix within the 60-char cap.
   const MAX_ROOT = 52;
-  if (root.length > MAX_ROOT) root = root.slice(0, MAX_ROOT).replace(/-+$/g, "") || "card";
+  if (root.length > MAX_ROOT) root = root.slice(0, MAX_ROOT).replace(/-+$/g, "") || "my-card";
 
   if (!(await slugTaken(admin, root))) return root;
 

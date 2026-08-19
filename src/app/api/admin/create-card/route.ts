@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   <p style="margin:0 0 16px;">Hi ${escapeHtml(String(name).split(" ")[0] || "there")},</p>
   <p style="margin:0 0 16px;">Your SwiftCard account has been set up for you. Choose a password to get in:</p>
   <p style="margin:0 0 24px;"><a href="${safeUrlAttr(setupLink)}" style="display:inline-block;background:#1D4ED8;color:#fff;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:999px;">Set your password</a></p>
-  <p style="margin:0 0 16px;color:#6b7280;font-size:13px;">Your card is live at <a href="${safeUrlAttr(`${APP_URL}/card/${username}`)}" style="color:#2563eb;">${escapeHtml(`swiftcard.me/card/${username}`)}</a>.</p>
+  <p style="margin:0 0 16px;color:#6b7280;font-size:13px;">Your card is live at <a href="${safeUrlAttr(`${APP_URL}/${username}`)}" style="color:#2563eb;">${escapeHtml(`swiftcard.me/${username}`)}</a>.</p>
 </div>`,
       });
       loginEmailed = result === "sent";
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    cardUrl: `${APP_URL}/card/${username}`,
+    cardUrl: `${APP_URL}/${username}`,
     userId: newUserId,
     // Reported so the console can stop claiming success it can't vouch for,
     // and hand the admin the link to pass on by hand.

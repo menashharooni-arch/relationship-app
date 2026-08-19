@@ -131,7 +131,7 @@ export function buildCardData(
     // have never set a headshot of their own.
     photoUrl: cardHeadshot(card.customization, opts.accountPhotoUrl ?? null),
     logoUrl: card.logo_url || null,
-    cardUrl: `${opts.appUrl.replace(/^https?:\/\//, "")}/card/${username}`,
+    cardUrl: `${opts.appUrl.replace(/^https?:\/\//, "")}/${username}`,
     address: formatCardAddress(customization.address),
     customization,
   };

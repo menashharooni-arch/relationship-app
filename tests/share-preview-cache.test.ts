@@ -27,7 +27,7 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const og = () => readFileSync(join(root, "src/app/card/[username]/opengraph-image.tsx"), "utf8");
-const page = () => readFileSync(join(root, "src/app/card/[username]/page.tsx"), "utf8");
+const page = () => readFileSync(join(root, "src/app/[username]/page.tsx"), "utf8");
 
 describe("a complete preview is cached hard", () => {
   it("serves a stale copy instantly while refreshing", () => {

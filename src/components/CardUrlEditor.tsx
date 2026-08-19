@@ -57,7 +57,7 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
     return (
       <div className="mt-1 space-y-1">
         <p className="text-gray-600 text-xs">
-          Card URL: /card/{currentSlug}{" "}
+          Card URL: swiftcard.me/{currentSlug}{" "}
           <button type="button" onClick={() => { setOpen(true); setValue(currentSlug); setError(""); }} className="text-blue-400 hover:text-blue-300 font-semibold ml-1">
             Change
           </button>
@@ -70,7 +70,7 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
               onClick={() => { setOpen(true); setValue(suggestedSlug); setError(""); }}
               className="text-blue-400 hover:text-blue-300 font-semibold"
             >
-              Update to /card/{suggestedSlug} →
+              Update to swiftcard.me/{suggestedSlug} →
             </button>
           </p>
         )}
@@ -84,7 +84,7 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
     return (
       <div className="mt-2 bg-gray-900 border border-emerald-600/40 rounded-xl p-3 space-y-2">
         <p className="text-emerald-400 text-xs font-semibold">
-          Your URL is now /card/{newSlug}
+          Your URL is now swiftcard.me/{newSlug}
         </p>
         <p className="text-gray-400 text-[11px] leading-relaxed">
           Inside SwiftCard everything already moved to the new URL — your card page, your{" "}
@@ -113,7 +113,7 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
     <div className="mt-2 bg-gray-900 border border-gray-700 rounded-xl p-3 space-y-2">
       <label className="block text-[11px] font-medium text-gray-400">Card URL</label>
       <div className="flex items-center gap-1.5">
-        <span className="text-gray-500 text-xs shrink-0">/card/</span>
+        <span className="text-gray-500 text-xs shrink-0">swiftcard.me/</span>
         <input
           type="text"
           value={value}
@@ -123,7 +123,7 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
         />
       </div>
       {normalized && normalized !== value && (
-        <p className="text-gray-500 text-[11px]">Will be saved as <span className="text-gray-300">/card/{normalized}</span></p>
+        <p className="text-gray-500 text-[11px]">Will be saved as <span className="text-gray-300">swiftcard.me/{normalized}</span></p>
       )}
       <p className="text-amber-400/90 text-[11px] leading-relaxed">
         Heads up: everything inside SwiftCard — your card, your SwiftLinks page, and all your views, leads &amp;

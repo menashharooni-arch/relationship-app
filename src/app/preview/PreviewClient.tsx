@@ -287,11 +287,11 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only clock-derived data
     setBuckets({ list, max: Math.max(...list.map((b) => b.count), 1) });
   }, [card, range]);
-  const cardUrl = `https://swiftcard.me/card/${card.handle}`;
+  const cardUrl = `https://swiftcard.me/${card.handle}`;
   const toggleRead = (id: string) => setRead((p) => ({ ...p, [id]: !p[id] }));
 
   function copySig() {
-    try { navigator.clipboard?.writeText(`${card.data.name}\nhttps://swiftcard.me/card/${card.handle}`); } catch { /* ignore */ }
+    try { navigator.clipboard?.writeText(`${card.data.name}\nhttps://swiftcard.me/${card.handle}`); } catch { /* ignore */ }
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
   }

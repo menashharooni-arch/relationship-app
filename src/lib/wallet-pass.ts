@@ -109,6 +109,6 @@ export async function buildPass(inputs: PassInputs): Promise<Buffer> {
     email: card.email,
     website: card.website,
     label: card.label ?? null,
-    cardUrl: `${APP_URL}/card/${card.username}?source=apple_wallet`,
+    cardUrl: `${APP_URL}/${card.username}?source=apple_wallet`,
   }, design);
 }

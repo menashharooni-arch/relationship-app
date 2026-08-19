@@ -64,7 +64,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     initials: (sketch.name || "Y")[0].toUpperCase(),
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
-    cardUrl: "swiftcard.me/card/your-card",
+    cardUrl: "swiftcard.me/your-card",
     linkedin: sketch.socials.linkedin,
     instagram: sketch.socials.instagram,
     twitter: sketch.socials.twitter,

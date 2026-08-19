@@ -293,7 +293,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     initials: (name || card.username)[0]?.toUpperCase() ?? "?",
     photoUrl: photoState,
     logoUrl: cardLogoUrl,
-    cardUrl: `swiftcard.me/card/${card.username}`,
+    cardUrl: `swiftcard.me/${card.username}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
       address.city,

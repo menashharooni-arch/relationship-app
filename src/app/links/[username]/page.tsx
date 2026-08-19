@@ -72,7 +72,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
       description,
       url: `${APP_URL}/links/${username}`,
       siteName: "SwiftCard",
-      images: [{ url: `${APP_URL}/card/${username}/opengraph-image`, width: 1200, height: 686 }],
+      images: [{ url: `${APP_URL}/${username}/opengraph-image`, width: 1200, height: 686 }],
     },
     twitter: { card: "summary_large_image", title: `${name} — Swift Links`, description },
   };

@@ -19,7 +19,7 @@ import DemoSwiftLinks from "./DemoSwiftLinks";
 
 const CARD: CardData = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/marketing/demo-girl.jpg" };
 const FIRST = SAMPLE_DATA.name.split(" ")[0];
-const DEMO_URL = "https://swiftcard.me/card/alexmorgan";
+const DEMO_URL = "https://swiftcard.me/alexmorgan";
 
 function StatusBar() {
   return (

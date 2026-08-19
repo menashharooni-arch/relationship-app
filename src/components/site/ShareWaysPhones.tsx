@@ -9,7 +9,7 @@ import WalletPassFace, { type WalletPassCard } from "@/components/WalletPassFace
 // the QR modal; the pass face already carries the QR, so it said nothing the
 // Wallet phone doesn't — owner cut it 2026-08-14.)
 
-const CARD_URL = "https://swiftcard.me/card/alexmorgan";
+const CARD_URL = "https://swiftcard.me/alexmorgan";
 
 // The demo card, in the shape the pass generator reads. WalletPassFace derives
 // the colours and the band layout from this exactly as the real pass does, so
@@ -170,7 +170,7 @@ function SharePhone() {
           <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>AM</span>
           <span className="min-w-0 flex-1">
             <span className="block text-slate-900 text-[11px] font-bold leading-tight truncate">Alex Morgan&apos;s SwiftCard</span>
-            <span className="block text-slate-400 text-[9px] truncate">swiftcard.me/card/alexmorgan</span>
+            <span className="block text-slate-400 text-[9px] truncate">swiftcard.me/alexmorgan</span>
           </span>
           <span className="text-slate-400 text-[10px] font-medium shrink-0">Options ›</span>
         </div>

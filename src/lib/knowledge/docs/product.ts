@@ -29,7 +29,7 @@ export const productDocs = defineDocs([
     answer:
       "SwiftCard is a digital business card. You build a card once and share it by link, QR code, Apple Wallet pass, or an NFC card — the other person needs no app, because it opens in their browser and saves to their contacts in one tap. Everyone who shares their details back lands in your contacts, with follow-up that can run automatically. Build one free in about a minute at swiftcard.me/cards/new.",
     detail:
-      "One account can hold several cards. Every card gets two public pages: the card page at swiftcard.me/card/<your-url>, and a Swift Links page at swiftcard.me/links/<your-url> — a link-in-bio with your photo, bio, social icons, video previews and custom buttons. The same card also powers Swift Signature (your live card in your email footer) and the Apple Wallet pass. Nothing about receiving a card requires the recipient to install anything.",
+      "One account can hold several cards. Every card gets two public pages: the card page at swiftcard.me/<your-url>, and a Swift Links page at swiftcard.me/links/<your-url> — a link-in-bio with your photo, bio, social icons, video previews and custom buttons. The same card also powers Swift Signature (your live card in your email footer) and the Apple Wallet pass. Nothing about receiving a card requires the recipient to install anything.",
   },
   {
     id: "no-app-needed",

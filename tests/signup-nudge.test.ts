@@ -114,7 +114,7 @@ describe("(28) the funnel is measured and attributed to the hosting card", () =>
   });
 
   it("both public mount points pass the card", () => {
-    expect(read("src/app/card/[username]/page.tsx")).toMatch(/<SignupNudgeHost cardUsername=\{profile\.username\}/);
+    expect(read("src/app/[username]/page.tsx")).toMatch(/<SignupNudgeHost cardUsername=\{profile\.username\}/);
     expect(read("src/app/links/[username]/page.tsx")).toMatch(/<SignupNudgeHost cardUsername=/);
   });
 });

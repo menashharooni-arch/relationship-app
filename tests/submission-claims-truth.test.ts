@@ -55,7 +55,7 @@ describe("submission copy only claims features that are actually configured", ()
     // the owner either: that page is the visitor's save-contact surface. Wallet
     // lives only in the owner's own sharing surfaces (dashboard button and
     // MoreShareOptions, pinned above).
-    const cardPage = read("src/app/card/[username]/page.tsx");
+    const cardPage = read("src/app/[username]/page.tsx");
     expect(cardPage).not.toMatch(/AddToWalletButton/);
     expect(cardPage).not.toMatch(/hasWalletConfig/);
   });

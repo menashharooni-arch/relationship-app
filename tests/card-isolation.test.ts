@@ -142,7 +142,7 @@ describe("every card-rendering surface goes through the one builder", () => {
   // scan is the only thing that catches the SEVENTH copy being added.
   const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
   const SURFACES = [
-    "src/app/card/[username]/page.tsx",
+    "src/app/[username]/page.tsx",
     "src/app/share/page.tsx",
     "src/app/dashboard/page.tsx",
     "src/app/cards/[id]/edit/page.tsx",
@@ -167,7 +167,7 @@ describe("every card-rendering surface goes through the one builder", () => {
     for (const f of [
       "src/lib/resolve-card.ts",
       "src/app/links/[username]/page.tsx",
-      "src/app/card/[username]/page.tsx",
+      "src/app/[username]/page.tsx",
     ]) {
       const code = src(f);
       // Every `from("profiles").select("...")` that runs alongside a card row.

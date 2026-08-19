@@ -75,7 +75,7 @@ export default function OfficeCardActions({ card, appUrl }: { card: Card; appUrl
 
       <div className="flex flex-wrap items-center gap-2">
         <a
-          href={`${appUrl}/card/${card.username}`}
+          href={`${appUrl}/${card.username}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3.5 py-2 rounded-full transition-colors"

@@ -43,7 +43,7 @@ export default async function PrimaryCardEditPage() {
             Settings
           </Link>
           <a
-            href={`${APP_URL}/card/${profile.username}`}
+            href={`${APP_URL}/${profile.username}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-blue-400 hover:text-blue-300 transition-colors"

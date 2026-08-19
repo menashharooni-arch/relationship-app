@@ -87,7 +87,7 @@ export default async function SharePage({
   // Keep the "Admin" nav item present across the app shell (same gate as the page).
   const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
 
-  const cardUrl = `${APP_URL}/card/${activeUsername}?source=email_signature`;
+  const cardUrl = `${APP_URL}/${activeUsername}?source=email_signature`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
 
   // The SAME builder the public card page uses. This page's whole promise is
@@ -195,7 +195,7 @@ export default async function SharePage({
               cardUrl={cardUrl}
               username={activeUsername}
               storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
-              ogUrl={`${APP_URL}/card/${activeUsername}/opengraph-image`}
+              ogUrl={`${APP_URL}/${activeUsername}/opengraph-image`}
             />
           </div>
         </div>

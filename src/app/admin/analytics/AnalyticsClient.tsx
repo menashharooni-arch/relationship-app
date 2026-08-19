@@ -176,7 +176,7 @@ export default function AnalyticsClient() {
                       <div key={c.username} className="flex items-center justify-between py-2 text-sm">
                         <span className="flex items-center gap-2 min-w-0">
                           <span className="text-gray-600 text-xs w-4">{i + 1}</span>
-                          <a href={`/card/${c.username.replace("__links", "")}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 truncate">/{c.username}</a>
+                          <a href={`/${c.username.replace("__links", "")}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 truncate">/{c.username}</a>
                         </span>
                         <span className="text-white font-semibold tabular-nums shrink-0">{c.count.toLocaleString()}</span>
                       </div>

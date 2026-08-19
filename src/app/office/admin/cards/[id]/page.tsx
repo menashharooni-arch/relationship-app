@@ -41,7 +41,7 @@ export default async function OfficeCardDetailPage({ params }: { params: Promise
             </h1>
             {card.is_offline ? <Badge tone="gray">Offline</Badge> : <Badge tone="green">Live</Badge>}
           </div>
-          <p className="text-gray-500 text-sm mt-0.5">/card/{card.username}</p>
+          <p className="text-gray-500 text-sm mt-0.5">/{card.username}</p>
         </div>
       </div>
 

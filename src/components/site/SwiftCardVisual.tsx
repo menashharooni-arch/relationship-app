@@ -37,7 +37,7 @@ export default function SwiftCardVisual({
   accent = "#5D6BFF",
   photoUrl = "/marketing/demo-girl.jpg",
   initials = "AM",
-  qrUrl = "https://swiftcard.me/card/alexmorgan",
+  qrUrl = "https://swiftcard.me/alexmorgan",
   className = "",
 }: Props) {
   const accent2 = "#22D3EE";

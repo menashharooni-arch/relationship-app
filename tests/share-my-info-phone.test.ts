@@ -39,7 +39,7 @@ describe("contact Share menu — share from my phone", () => {
     // carries the same warning for auth redirects.
     expect(code).not.toContain("window.location.origin");
     expect(code).toContain('process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"');
-    expect(functionBody(code, "sharePhone")).toContain("${APP_URL}/card/");
+    expect(functionBody(code, "sharePhone")).toContain("${APP_URL}/${");
   });
 
   it("sends nothing server-side and logs nothing for the phone share", () => {

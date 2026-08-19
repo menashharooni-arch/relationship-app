@@ -18,7 +18,7 @@ const code = (p: string) =>
 describe("the SwiftCard badge is universal", () => {
   const badge = code("src/components/MadeWithSwiftCard.tsx");
   const save = code("src/components/SaveContactButton.tsx");
-  const page = code("src/app/card/[username]/page.tsx");
+  const page = code("src/app/[username]/page.tsx");
 
   it("the blurb is one shared component, not re-inlined per placement", () => {
     expect(badge).toMatch(/Made with/);

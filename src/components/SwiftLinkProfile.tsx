@@ -293,7 +293,7 @@ export default function SwiftLinkProfile({
           {/* Faint link to this person's full SwiftCard (every plan) */}
           <div className="flex justify-center mt-10">
             <a
-              href={`/card/${username}`}
+              href={`/${username}`}
               className={`inline-block px-4 py-2 text-xs rounded-lg transition-colors ${"" /* hover well must be visible on BOTH modes */}${light ? "hover:bg-black/[0.06]" : "hover:bg-white/10"}`}
               style={{ color: textColor, opacity: 0.5 }}
             >

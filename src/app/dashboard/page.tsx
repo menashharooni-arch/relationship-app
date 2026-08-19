@@ -508,7 +508,7 @@ export default async function DashboardPage({
   const tourTier: "free" | "pro" | "office" = isEnterprise ? "office" : isPro ? "pro" : "free";
   const isOfficeMember = isEnterprise && !ownedOffice && !!profile.office_id;
 
-  const cardUrl = `${APP_URL}/card/${activeUsername}`;
+  const cardUrl = `${APP_URL}/${activeUsername}`;
 
   // Bell tags: username → human label, so every notification shows which card
   // it came from ("Work", "Personal", …) instead of a raw slug.

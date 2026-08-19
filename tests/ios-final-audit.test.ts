@@ -60,7 +60,7 @@ describe("1.2 UGC — report mechanism + admin takedown", () => {
     expect(s).toMatch(/\/contact\?topic=report&card=/);
   });
   it("public card page mounts ReportCardLink", () => {
-    expect(read("src/app/card/[username]/page.tsx")).toMatch(/<ReportCardLink username=\{username\} \/>/);
+    expect(read("src/app/[username]/page.tsx")).toMatch(/<ReportCardLink username=\{username\} \/>/);
   });
   it("Swift Links page mounts ReportCardLink", () => {
     expect(read("src/app/links/[username]/page.tsx")).toMatch(/<ReportCardLink username=\{username\} \/>/);

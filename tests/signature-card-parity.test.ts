@@ -67,7 +67,7 @@ function callArgs(src: string, fnName: string): string[][] {
 // USE it, and it must do the right thing. tests/card-data-identity.test.ts
 // covers its behaviour; this file covers the wiring.
 const RENDER_SURFACES: { file: string; label: string }[] = [
-  { file: "src/app/card/[username]/page.tsx", label: "public card (source of truth)" },
+  { file: "src/app/[username]/page.tsx", label: "public card (source of truth)" },
   { file: "src/app/share/page.tsx", label: "Swift Signature / share captures" },
   { file: "src/app/dashboard/page.tsx", label: "dashboard Your Card preview" },
 ];
@@ -109,7 +109,7 @@ describe("Swift Signature renders the same card as the live SwiftCard", () => {
 
   it("signature and public card apply the identical custom-vs-withoutSocials rule", () => {
     const rule = /template(?:Id)?\s*===\s*"custom"\s*\?\s*\w+\s*:\s*withoutSocials\(/;
-    expect(read("src/app/card/[username]/page.tsx")).toMatch(rule);
+    expect(read("src/app/[username]/page.tsx")).toMatch(rule);
     expect(read("src/components/EmailSignatureBox.tsx")).toMatch(rule);
   });
 

@@ -10,12 +10,17 @@ import { getVisitorId } from "@/lib/visitor";
 // those are either private or already tracked by card_views. Fully first-party:
 // one same-origin POST, no third party, no cookies of its own.
 
-// App / private / already-tracked route prefixes to skip. Everything else is
-// "the website" (home, pricing, products, preview, templates, contact, …).
-const SKIP_PREFIXES = [
-  "/dashboard", "/admin", "/contacts", "/share", "/settings", "/cards",
-  "/office", "/onboarding", "/login", "/checkout", "/welcome", "/profile",
-  "/card/", "/links/", "/auth", "/r/", "/join", "/api", "/grow",
+// Marketing routes to TRACK — an allow-list, not a deny-list. It has to be:
+// card pages moved to the ROOT (swiftcard.me/<username>, 2026-08-19), so an
+// unknown single-segment path is somebody's card, and a deny-list would count
+// every card visitor as a website visitor AND double-count them against
+// card_views. Anything not listed here is app, admin, or a shared card/links
+// page — private or already tracked elsewhere.
+const TRACK_PREFIXES = [
+  "/pricing", "/products", "/templates", "/compare", "/company",
+  "/testimonials", "/contact", "/preview", "/terms", "/privacy",
+  "/sms-consent", "/sms-terms", "/unsubscribe", "/upgrade",
+  "/account-deleted",
 ];
 
 const SESSION_KEY = "sc_site_session";
@@ -39,7 +44,7 @@ function currentSessionId(): string {
 }
 
 function tracked(path: string): boolean {
-  return path === "/" || !SKIP_PREFIXES.some((p) => path === p || path.startsWith(p));
+  return path === "/" || TRACK_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
 export default function SiteAnalytics() {
