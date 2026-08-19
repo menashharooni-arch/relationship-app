@@ -189,3 +189,30 @@ describe("faceLayoutFromScan: contrast and bounds rescue", () => {
     expect(out.panels[0]).toMatchObject({ x: 0, y: 0, h: 100 }); // untouched
   });
 });
+
+// ── The leak gate (2026-08-19) ───────────────────────────────────────────────
+// The erase-first prompt alone still let an original owner's email survive in
+// a live test, so the route verifies the OUTPUT: emails/phones that aren't the
+// owner's are leaks, one named retry, then the typeset engine.
+describe("findLeaks", () => {
+  it("flags foreign emails and phones, allows the owner's own", async () => {
+    const { findLeaks } = await import("@/lib/design-transfer");
+    const id = { name: "Sam", email: "Sam@Example.com", phone: "(415) 555-0137" };
+    const leaks = findLeaks(
+      { emails: ["sam@example.com", "nadlanhomesllc@gmail.com"], phones: ["+1 415-555-0137", "(212) 555-9999"] },
+      id,
+    );
+    expect(leaks).toEqual(["nadlanhomesllc@gmail.com", "(212) 555-9999"]);
+  });
+  it("survives junk scans and ignores short digit fragments", async () => {
+    const { findLeaks } = await import("@/lib/design-transfer");
+    expect(findLeaks(null, { name: "S" })).toEqual([]);
+    expect(findLeaks({ emails: "not-an-array", phones: [42, "12345"] }, { name: "S" })).toEqual([]);
+  });
+  it("the retry suffix names the leaked text", async () => {
+    const { leakRetrySuffix } = await import("@/lib/design-transfer");
+    const s = leakRetrySuffix(["a@b.com"]);
+    expect(s).toContain('"a@b.com"');
+    expect(s).toMatch(/must not\s+appear/);
+  });
+});
