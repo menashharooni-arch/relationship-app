@@ -86,6 +86,14 @@ export default function Home() {
             aria-hidden="true"
             style={{ background: "linear-gradient(90deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.76) 50%, rgba(255,255,255,0.32) 78%, rgba(255,255,255,0.22) 100%)" }}
           />
+          {/* Phones only: the text column spans the full width there, so the
+              gradient's nearly-clear right side sits directly under the
+              bullets — one extra even wash keeps them legible on every frame. */}
+          <div
+            className="absolute inset-0 pointer-events-none sm:hidden"
+            aria-hidden="true"
+            style={{ background: "rgba(255,255,255,0.5)" }}
+          />
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-[640px]">
               <h1 className="rd-display text-slate-900 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
@@ -94,7 +102,7 @@ export default function Home() {
               </h1>
               {/* Subheader tagline — scales down cleanly on phones via clamp and
                   wraps within the same max-width as the bullets below. */}
-              <p className="mt-5 text-slate-500 text-[clamp(1.05rem,1.9vw,1.35rem)] leading-snug max-w-[560px]" data-reveal>
+              <p className="mt-5 text-slate-800 text-[clamp(1.05rem,1.9vw,1.35rem)] leading-snug max-w-[560px]" data-reveal>
                 Saves you in one tap — and does the follow-ups for you.
               </p>
               <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
@@ -109,7 +117,7 @@ export default function Home() {
                   "Every share becomes a lead — with automatic email and text follow-up",
                   "Includes Link in Bio and Email Signature",
                 ].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-slate-600 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
+                  <li key={t} className="flex items-start gap-3 text-slate-800 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
                     <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
                       <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
@@ -125,7 +133,7 @@ export default function Home() {
                   steps list. The claim box takes the visitor's first name into
                   the builder pre-filled (?name=…). */}
               <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
-                <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg">
+                <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
                   See how it works
                 </Link>
                 <HeroClaim />
