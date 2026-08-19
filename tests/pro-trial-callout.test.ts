@@ -96,3 +96,41 @@ describe("the offer is never shown to someone who won't get it", () => {
     expect(src.indexOf("if (native) {")).toBeLessThan(src.indexOf("<ProTrialPrice"));
   });
 });
+
+// ── The design is self-enforcing (owner sign-off 2026-08-19) ─────────────────
+// "Make sure this current Pro design is implemented across any Pro pricing
+// plan that comes up." Every Pro plan CARD in the codebase carries the
+// "MOST POPULAR" badge — that marker is the tripwire: a new file that renders
+// a Pro card without the approved price block (ProTrialPrice) or without the
+// black ink trio fails here, so the design can't fork silently.
+import { execSync } from "node:child_process";
+
+describe("any Pro plan card, present or future, uses the approved design", () => {
+  const cardFiles = execSync('grep -rl "MOST POPULAR" src --include="*.tsx"', { cwd: root })
+    .toString().trim().split("\n").filter(Boolean);
+
+  it("the Pro-card marker exists somewhere (tripwire sanity)", () => {
+    expect(cardFiles.length).toBeGreaterThanOrEqual(3);
+  });
+
+  for (const f of cardFiles) {
+    it(`${f}: renders the approved price block`, () => {
+      expect(read(f)).toMatch(/<ProTrialPrice/);
+    });
+    it(`${f}: the plan name "Pro" is black ink`, () => {
+      // The heading line that says exactly Pro must carry text-black.
+      const m = read(f).match(/<p[^>]*>(Pro)<\/p>/);
+      expect(m, "no Pro heading found — re-check this tripwire").not.toBeNull();
+      const line = read(f).split("\n").find((l) => /<p[^>]*>Pro<\/p>/.test(l))!;
+      expect(line).toMatch(/text-black/);
+    });
+  }
+
+  it("the block itself keeps the black ink trio (Free + price)", () => {
+    const src = read("src/components/ProTrialPrice.tsx").replace(/\/\/.*$/gm, "");
+    // "Free" in black…
+    expect(src).toMatch(/text-black[^\n]*>Free</);
+    // …and the price span in black extrabold.
+    expect(src).toMatch(/text-black font-extrabold/);
+  });
+});
