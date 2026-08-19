@@ -88,13 +88,7 @@ export default function Home() {
           />
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-[640px]">
-              <div data-reveal="fade">
-                <span className="rd-green-badge">
-                  <span className="rd-green-dot" />
-                  Free to start — no credit card required
-                </span>
-              </div>
-              <h1 className="rd-display text-slate-900 mt-6 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
+              <h1 className="rd-display text-slate-900 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
               </h1>
