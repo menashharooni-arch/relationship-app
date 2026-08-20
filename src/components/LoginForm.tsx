@@ -59,35 +59,6 @@ export default function LoginForm({
   /** In the app, "Create account" shows a message instead of a signup form. */
   const signupRedirect = signInOnly && mode === "signup";
 
-  /**
-   * Open swiftcard.me in the DEFAULT BROWSER.
-   *
-   * A plain link cannot work here: swiftcard.me IS in capacitor.config's
-   * allowNavigation, so the shell loads it in the app's own webview — where
-   * sc-boot redirects "/" back to /dashboard, i.e. straight back to this login
-   * screen for a signed-out visitor.
-   *
-   * ⚠️ This used to call @capacitor/browser, and THAT IS WHAT GOT 1.0.0 (7)
-   * REJECTED under Guideline 3.1.1 a second time. @capacitor/browser opens an
-   * SFSafariViewController — an in-app sheet that merely looks like Safari.
-   * `detectNativeApp()` is false inside it (no webkit.messageHandlers.bridge),
-   * so the native guards on /pricing and /upgrade switch off and the reviewer
-   * reached the $4.99 plan and Stripe checkout without ever leaving the app.
-   * Apple's screenshot was precisely that sheet.
-   *
-   * Only UIApplication.open — the native ExternalPurchase plugin — reaches the
-   * default browser, which is what the US-storefront allowance in 3.1.1(a)
-   * actually permits. See lib/external-purchase.ts. Never route this through an
-   * in-app browser again.
-   */
-  async function openSite(e: React.MouseEvent<HTMLAnchorElement>) {
-    if (!detectNativeApp()) return; // web: let the browser follow the href
-    e.preventDefault();
-    // No fallback on purpose. If this returns false the app stays put rather
-    // than opening a selling surface inside the webview — and the link is not
-    // rendered as a link at all in that case (see canLeaveApp below).
-    await openInDefaultBrowser("/");
-  }
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -337,25 +308,50 @@ export default function LoginForm({
           forgot-password, the divider and both OAuth buttons — so there is no
           path to an account here, not even an OAuth one. */}
       {signupRedirect ? (
-        <p className="py-6 text-center text-base leading-relaxed text-slate-600">
-          Ready to grow your network? Join us at{" "}
-          {/* FAIL CLOSED. In a shell that cannot reach the default browser this
-              is deliberately not a link: no tap target beats a tap target that
-              opens a selling surface inside the app (Guideline 3.1.1). The
-              address is still readable, so it can be typed into Safari. */}
-          {native && !canLeaveApp ? (
-            <span className="font-semibold text-slate-900">SwiftCard.me</span>
-          ) : (
-            <a
-              href={APP_URL}
-              onClick={openSite}
-              className="font-semibold text-[#1D4ED8] underline underline-offset-2 hover:text-[#1740C4]"
-            >
-              SwiftCard.me
-            </a>
+        <div className="py-6 text-center">
+          {/* The no-account bounce context (?error=no_account) — the generic
+              errorMsg slot lives in the form branch, which this card replaces,
+              so without this line the "why am I here" is silently dropped. */}
+          {errorMsg && (
+            <p className="mb-3 text-sm font-semibold text-slate-900">{errorMsg}</p>
           )}
-          .
-        </p>
+          <p className="text-base leading-relaxed text-slate-600">
+            Ready to grow your network? Accounts are created on{" "}
+            <span className="font-semibold text-slate-900">SwiftCard.me</span> —
+            build your card there, then sign in here.
+          </p>
+          {/* The WORKING action this screen was rejected for lacking (2.1(a)):
+              a primary button that opens the builder in the DEFAULT browser —
+              the same compliant exit every other link-out uses (3.1.1). On web
+              this card never renders (signInOnly is native-only), so this
+              button is native-only by construction.
+
+              FAIL CLOSED: in a shell that cannot reach the default browser we
+              render instructions, not a tap target — no button at all beats a
+              button that would open the site (and its checkout) inside the
+              app. The address stays readable so it can be typed into Safari. */}
+          {native && !canLeaveApp ? (
+            <p className="mt-4 text-sm text-slate-500">
+              Open <span className="font-semibold text-slate-900">SwiftCard.me</span> in
+              Safari to create your account.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!detectNativeApp()) { window.location.href = APP_URL; return; }
+                await openInDefaultBrowser("/cards/new?src=ios_signup");
+              }}
+              className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#1D4ED8] py-3 px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1740C4]"
+            >
+              Create your account on SwiftCard.me
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H18v4.5M17.5 6.5L10 14" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4" />
+              </svg>
+            </button>
+          )}
+        </div>
       ) : (
       <>
 

@@ -99,7 +99,11 @@ export async function startNativeOAuth(
   }
   try {
     const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url: data.url, presentationStyle: "popover" });
+    // "fullscreen", not "popover": popover renders as a small anchored bubble on
+    // iPadOS (App Review tests on iPad Air), which is no way to show an auth
+    // page; fullscreen is the standard SFSafariViewController presentation on
+    // both device classes.
+    await Browser.open({ url: data.url, presentationStyle: "fullscreen" });
     return null;
   } catch {
     // Plugin missing (very old shell build) — last resort: navigate the
