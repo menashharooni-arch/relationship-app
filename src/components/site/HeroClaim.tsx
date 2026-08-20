@@ -32,7 +32,7 @@ export default function HeroClaim() {
   return (
     <form
       onSubmit={go}
-      className="relative overflow-hidden flex items-center gap-2.5 sm:gap-3 rounded-full pl-4 sm:pl-5 pr-2 sm:pr-2.5 py-2 sm:py-2.5 w-full sm:w-auto"
+      className="relative overflow-hidden flex items-center gap-2 sm:gap-3 rounded-full pl-3.5 sm:pl-5 pr-1.5 sm:pr-2.5 py-2 sm:py-2.5 w-full sm:w-auto"
       style={{
         // A whisper of a vertical gradient instead of flat white: it gives the
         // glare sweep something to read against, and the pill a hint of glass.
@@ -40,7 +40,8 @@ export default function HeroClaim() {
         boxShadow: "0 16px 40px -12px rgba(15,23,42,0.28), inset 0 0 0 1px rgba(15,23,42,0.08)",
       }}
     >
-      <SwiftCardIcon size={28} />
+      <span className="sm:hidden shrink-0 flex"><SwiftCardIcon size={26} /></span>
+      <span className="hidden sm:flex shrink-0"><SwiftCardIcon size={28} /></span>
       <label className="flex items-baseline min-w-0 flex-1 cursor-text" htmlFor="hero-claim-name">
         <span className="text-slate-900 font-semibold text-[14px] sm:text-[17px] whitespace-nowrap select-none">SwiftCard.me/</span>
         <input
@@ -52,10 +53,10 @@ export default function HeroClaim() {
           aria-label="Your full name"
           autoComplete="name"
           maxLength={80}
-          className="min-w-[92px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-[14px] sm:text-[17px] font-semibold focus:outline-none"
+          className="min-w-[66px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-[14px] sm:text-[17px] font-semibold focus:outline-none"
         />
       </label>
-      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-4 sm:!py-3 sm:!px-6 text-[13px] sm:text-[15px] whitespace-nowrap">
+      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-3.5 sm:!py-3 sm:!px-6 text-[13px] sm:text-[15px] whitespace-nowrap">
         Start for free
       </button>
       {/* Very light glare, sweeping the whole pill (button included) on a slow
