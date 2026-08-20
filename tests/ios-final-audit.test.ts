@@ -29,10 +29,22 @@ describe("3.1.1 — RemoveMemberButton skips the seat-price step on native", () 
 });
 
 describe("3.1.1 — billing components self-suppress on native (backstop)", () => {
-  it("BillingManager returns null on native", () => {
+  it("BillingManager's native branch is a link-out panel with no selling UI", () => {
     const s = read("src/components/BillingManager.tsx");
     expect(s).toMatch(/useIsNativeApp/);
-    expect(s).toMatch(/if \(native\) return null;/);
+    // The native branch replaced `return null` (App Review 3.1.1: a paying
+    // customer's app must show a purchase/manage path — the US link-out).
+    const start = s.indexOf("if (native) {");
+    expect(start, "native branch missing").toBeGreaterThan(-1);
+    // The branch ends where the web render resumes (the web loading row).
+    const end = s.indexOf("Loading billing…");
+    const branch = s.slice(start, end);
+    expect(branch).toMatch(/ExternalPurchaseButton/);
+    // None of the web manager's machinery may leak into the shell: no prices,
+    // no renewal amounts, no seats, no plan switcher, no Stripe portal.
+    for (const banned of ["formatUsd", "renewalLine", "PLAN_PRICES", "ManageBillingButton", "seat", "$"]) {
+      expect(branch, `native branch contains ${banned}`).not.toContain(banned);
+    }
   });
   it("ManageBillingButton (Stripe portal) returns null on native", () => {
     const s = read("src/components/ManageBillingButton.tsx");

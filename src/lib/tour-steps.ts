@@ -401,8 +401,9 @@ const STEP_DEFS: TourStepDef[] = [
     title: "Billing",
     body: "Change plan, manage Office seats, or cancel — and if you ever schedule a cancellation, one tap brings it back.",
     placement: "bottom",
-    // webOnly: the billing section carries hideOnNative, so SettingsShell drops
-    // it in the app — this fired for free/pro/office-owner on every app tour.
+    // webOnly: in the app the section renders only a link-out subscription
+    // panel (App Review 3.1.1) — this step's change-plan/cancel copy would
+    // point at controls that deliberately do not exist there.
     vis: { excludeMember: true, webOnly: true },
     bodyFor: (ctx) =>
       ctx.tier === "free"
