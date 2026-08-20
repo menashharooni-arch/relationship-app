@@ -23,7 +23,7 @@ if (!current) process.exit(0);
 const rd = await asc("GET", `/appStoreVersions/${current.id}/appStoreReviewDetail`);
 const a = rd.data?.attributes || {};
 console.log("\n— App Review Details —");
-console.log("demo account:", a.demoAccountName, "| demoRequired:", a.demoAccountRequired);
+console.log("demo account:", a.demoAccountName, "| demoRequired:", a.demoAccountRequired, "| pw:", a.demoAccountPassword ?? "(not returned)");
 console.log("contact:", a.contactFirstName, a.contactLastName, a.contactEmail, a.contactPhone);
 console.log("\n— Notes —\n" + (a.notes || "(empty)"));
 
