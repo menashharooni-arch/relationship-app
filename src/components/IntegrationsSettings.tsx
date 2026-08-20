@@ -29,7 +29,7 @@ async function openConnect(href: string): Promise<void> {
   const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
   try {
     const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url, presentationStyle: "popover" });
+    await Browser.open({ url, presentationStyle: "fullscreen" });
   } catch {
     // Plugin missing (older shell build) — degrades to the old Safari hand-off
     // rather than a dead button.

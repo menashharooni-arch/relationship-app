@@ -24,7 +24,7 @@ vi.mock("@/components/GoogleSignInButton", () => ({
   default: () => createElement("div", { "data-testid": "gis" }),
 }));
 
-const MESSAGE = "Ready to grow your network? Join us at";
+const MESSAGE = "Ready to grow your network? Accounts are created on";
 const LINK_TEXT = "SwiftCard.me";
 
 async function render(props: Record<string, unknown>) {
@@ -95,13 +95,27 @@ describe("the app's Create account tab offers a message, not an account", () => 
     expect(html, "signup terms notice still rendered").not.toMatch(/By creating an account/);
   });
 
-  it("makes swiftcard.me a real link to the site", async () => {
+  it("offers a WORKING create-account button that leaves the app", async () => {
+    // App Review 2.1(a): a no-account Apple sign-in bounces here, and the old
+    // card was a dead end — a message whose only affordance was a small inline
+    // link, filed by the reviewer as an unresponsive "Create account" button.
+    // The card must now paint a real primary button.
     const html = await appSignup();
-    const i = html.indexOf(LINK_TEXT);
-    const openTag = html.lastIndexOf("<", i);
-    const tag = html.slice(openTag, i);
-    expect(tag, `expected an anchor around ${LINK_TEXT}, got: ${tag}`).toMatch(/^<a\b/);
-    expect(tag).toMatch(/href="https:\/\/swiftcard\.me"/);
+    expect(html).toContain("Create your account on SwiftCard.me");
+    const i = html.indexOf("Create your account on SwiftCard.me");
+    const openTag = html.lastIndexOf("<button", i);
+    expect(openTag, "the create-account CTA must be a <button>").toBeGreaterThan(-1);
+    expect(html.slice(openTag, i)).not.toContain("</button>");
+  });
+
+  it("never renders an in-webview anchor to the site", async () => {
+    // An <a href="https://swiftcard.me"> would navigate INSIDE the webview
+    // (the host is allow-listed) and expose the pricing nav in-app (3.1.1).
+    // The button leaves through the native plugin instead.
+    const html = await appSignup();
+    expect(html).not.toMatch(/<a[^>]*href="https:\/\/swiftcard\.me/);
+    const src = (await import("node:fs")).readFileSync("src/components/LoginForm.tsx", "utf8");
+    expect(src).toMatch(/openInDefaultBrowser\("\/cards\/new\?src=ios_signup"\)/);
   });
 
   it("keeps the toggle so the user can get back to signing in", async () => {
