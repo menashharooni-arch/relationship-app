@@ -81,7 +81,9 @@ describe("declining actually stops the data leaving", () => {
     expect(aiConsentAllows({ _aiConsent: "accepted" })).toBe(true);
     expect(aiConsentAllows({})).toBe(true);
     // Pre-rejection accounts already agreed; re-asking them would be noise.
-    expect(readAiConsent({ _aiConsentAccepted: true })).toBe("accepted");
+    // The legacy flag was written by the pre-rejection "Got it" notice, which
+    // App Review ruled insufficient — it must NOT count as a decision.
+    expect(readAiConsent({ _aiConsentAccepted: true })).toBe("unset");
   });
 
   it.each([

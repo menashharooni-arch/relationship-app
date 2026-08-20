@@ -27,14 +27,19 @@ export type AiConsent = "accepted" | "declined" | "unset";
 /**
  * Read the stored decision.
  *
- * `_aiConsentAccepted: true` is the pre-rejection shape and still means yes —
- * those users already saw a notice and agreed, so re-asking them would be
- * noise. Everything new writes `_aiConsent`.
+ * `_aiConsentAccepted: true` is the pre-rejection shape and deliberately does
+ * NOT count as a decision. The notice that wrote it is the one App Review
+ * ruled insufficient — no provider named, no data enumerated, and its only
+ * button was "Got it", an acknowledgement rather than permission. Consent that
+ * wasn't informed isn't consent, so those accounts are asked once more with
+ * the real dialog (and the review demo account, which carries the legacy
+ * flag, shows the ask to the reviewer instead of silently skipping it).
+ * Everything new writes `_aiConsent`, which the new dialog is the only
+ * author of.
  */
 export function readAiConsent(customization: unknown): AiConsent {
   const c = (customization ?? {}) as Record<string, unknown>;
   if (c._aiConsent === "accepted" || c._aiConsent === "declined") return c._aiConsent;
-  if (c._aiConsentAccepted === true) return "accepted";
   return "unset";
 }
 
