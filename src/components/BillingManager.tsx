@@ -5,6 +5,7 @@ import { PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ManageBillingButton from "@/components/ManageBillingButton";
 import { useIsNativeApp } from "@/lib/platform";
+import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
 // Native UI over our own /api/stripe/subscription/* endpoints — NOT the Stripe
@@ -143,7 +144,40 @@ export default function BillingManager() {
     }
   }
 
-  if (native) return null;
+  // ── Native app: the compliant subscription panel (App Review 3.1.1) ───────
+  // The section used to be hidden entirely in the shell, which meant a paying
+  // customer's app showed content purchased outside the app with NO purchase
+  // or manage path anywhere — the exact wording of the 3.1.1 rejection. The
+  // US-storefront remedy is a link out to the DEFAULT browser, so the panel
+  // shows the plan by name and one ExternalPurchaseButton. Deliberately no
+  // prices, no renewal amounts, no plan switcher, no seats, no retention
+  // offers, no Stripe portal — those all stay web-only below.
+  if (native) {
+    if (loading) {
+      return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-500">Loading your plan…</div>;
+    }
+    const nPlan = sub?.plan ?? "free";
+    const nPaid = nPlan === "pro" || nPlan === "office";
+    return (
+      <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+        <p className="text-sm font-semibold text-white">
+          Your plan: {nPlan === "office" ? "Office" : nPlan === "pro" ? "Pro" : "Free"}
+        </p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-gray-400">
+          {nPaid
+            ? "Your subscription was purchased on swiftcard.me — you can manage it there anytime."
+            : "SwiftCard Pro is available on swiftcard.me."}
+        </p>
+        {/* Fail-closed: in a shell without the native plugin this renders
+            nothing, and the sentence above still names where to go. */}
+        <ExternalPurchaseButton
+          label={nPaid ? "Manage subscription on swiftcard.me" : "Subscribe on swiftcard.me"}
+          path={nPaid ? "/settings/flows?billing=1" : "/upgrade"}
+          className="mt-3"
+        />
+      </div>
+    );
+  }
   if (loading) {
     return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-500">Loading billing…</div>;
   }

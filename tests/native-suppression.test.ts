@@ -53,8 +53,11 @@ const GUARDS: Guard[] = [
     patterns: [/hideOnNative/, /native && s\.hideOnNative/],
   },
   {
+    // Billing's suppression moved INTO BillingManager (its native branch is a
+    // link-out-only subscription panel, pinned in ios-final-audit.test.ts);
+    // the page keeps NativeHidden for the referral block.
     file: "src/app/settings/flows/page.tsx",
-    patterns: [/hideOnNative: true/, /<NativeHidden>/, /data-tour="settings-refer"/],
+    patterns: [/<NativeHidden>/, /data-tour="settings-refer"/],
   },
   { file: "src/components/ReferAFriend.tsx", patterns: [/if \(native\) return null/] },
   { file: "src/components/FirstLeadNudge.tsx", patterns: [/if \(!show \|\| native\) return null/] },

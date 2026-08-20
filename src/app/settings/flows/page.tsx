@@ -234,10 +234,11 @@ export default async function FlowSettingsPage({
     ...(canSeeBilling ? [{
       id: "billing",
       label: "Plan and billing",
-      desc: "Your plan, seats, invoices and payment method.",
+      desc: "Your plan and billing.",
       icon: I.billing,
-      // Native app: no billing/subscription-management UI at all.
-      hideOnNative: true,
+      // Renders on native too: BillingManager paints a compliant subscription
+      // panel there (plan name + default-browser link-out, App Review 3.1.1) —
+      // never the web billing manager.
       content: (
         <div id="billing" data-tour="settings-billing" className="scroll-mt-24">
           <BillingManager />
