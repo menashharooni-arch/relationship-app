@@ -162,7 +162,12 @@ export default function PrivacyPage() {
             where you met and your notes when AI drafts a follow-up for them; the design photo you upload to rebuild a card; and the
             messages you type to the in-app assistant. Google processes it to return the result and we do not send it anywhere else.
             We ask for your permission in the app before any of this is sent, and you can decline — the rest of SwiftCard keeps working
-            and AI features stay off.
+            and AI features stay off. We use the Gemini API under{" "}
+            <a href="https://ai.google.dev/gemini-api/terms" className="underline" target="_blank" rel="noopener noreferrer">
+              Google&apos;s API terms
+            </a>
+            , which bind Google to protect this data to a standard at least equal to this policy: Google processes it to
+            return the response and may not use it for advertising or sell it.
           </LI>
         </ul>
         <P>
