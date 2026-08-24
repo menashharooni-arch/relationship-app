@@ -5,7 +5,8 @@ import { PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ManageBillingButton from "@/components/ManageBillingButton";
 import { useIsNativeApp } from "@/lib/platform";
-import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
+import IapSubscribeButton from "@/components/NativePaywall";
+import { manageIapSubscription } from "@/lib/iap";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
 // Native UI over our own /api/stripe/subscription/* endpoints — NOT the Stripe
@@ -16,6 +17,7 @@ import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
 
 type Sub = {
   plan: "free" | "pro" | "office";
+  planSource?: "apple" | "stripe" | null;
   interval: "monthly" | "annual" | null;
   status: string | null;
   seats: number | null;
@@ -145,36 +147,51 @@ export default function BillingManager() {
   }
 
   // ── Native app: the compliant subscription panel (App Review 3.1.1) ───────
-  // The section used to be hidden entirely in the shell, which meant a paying
-  // customer's app showed content purchased outside the app with NO purchase
-  // or manage path anywhere — the exact wording of the 3.1.1 rejection. The
-  // US-storefront remedy is a link out to the DEFAULT browser, so the panel
-  // shows the plan by name and one ExternalPurchaseButton. Deliberately no
-  // prices, no renewal amounts, no plan switcher, no seats, no retention
-  // offers, no Stripe portal — those all stay web-only below.
+  // Third iteration. Hidden panel → rejected (paid content, no purchase path).
+  // External link to swiftcard.me → rejected (App Review requires IAP under
+  // 3.1.3(b) regardless of the US link-out allowance). Now:
+  //   • Free            → the In-App Purchase paywall (NativePaywall).
+  //   • Pro via Apple   → "Manage subscription" opening the App Store's own
+  //                       subscription management — Apple-billed subs are
+  //                       canceled there, never in the Stripe portal.
+  //   • Pro/Office via  → a neutral sentence naming where the subscription
+  //     Stripe             lives. Deliberately NO link out and no portal: one
+  //                       purchase story in review, and steering to web
+  //                       checkout from the app is itself a 3.1.1 risk.
+  // Still no prices, renewal amounts, plan switcher, seats, or retention
+  // offers on native — those stay web-only below.
   if (native) {
     if (loading) {
       return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-500">Loading your plan…</div>;
     }
     const nPlan = sub?.plan ?? "free";
     const nPaid = nPlan === "pro" || nPlan === "office";
+    const appleBilled = sub?.planSource === "apple";
     return (
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
         <p className="text-sm font-semibold text-white">
           Your plan: {nPlan === "office" ? "Office" : nPlan === "pro" ? "Pro" : "Free"}
         </p>
         <p className="mt-1.5 text-[13px] leading-relaxed text-gray-400">
-          {nPaid
-            ? "Your subscription was purchased on swiftcard.me — you can manage it there anytime."
-            : "SwiftCard Pro is available on swiftcard.me."}
+          {appleBilled
+            ? "Your subscription is billed through your Apple account."
+            : nPaid
+              ? "Your subscription was purchased on swiftcard.me — you can manage it there anytime."
+              : "Unlock everything in SwiftCard with Pro."}
         </p>
-        {/* Fail-closed: in a shell without the native plugin this renders
-            nothing, and the sentence above still names where to go. */}
-        <ExternalPurchaseButton
-          label={nPaid ? "Manage subscription on swiftcard.me" : "Subscribe on swiftcard.me"}
-          path={nPaid ? "/settings/flows?billing=1" : "/upgrade"}
-          className="mt-3"
-        />
+        {appleBilled ? (
+          <button
+            type="button"
+            onClick={() => manageIapSubscription()}
+            className="mt-3 w-full rounded-full bg-gray-800 border border-gray-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700"
+          >
+            Manage subscription
+          </button>
+        ) : !nPaid ? (
+          // Fail-closed: renders nothing when signed out or without StoreKit
+          // products, leaving a plain informational panel.
+          <IapSubscribeButton className="mt-3" />
+        ) : null}
       </div>
     );
   }

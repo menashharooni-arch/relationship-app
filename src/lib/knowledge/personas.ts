@@ -32,7 +32,7 @@ STRICT RULES
  */
 export const NATIVE_RULES = `
 
-IMPORTANT — NATIVE APP SESSION: You must NEVER discuss upgrading, pricing, prices, costs, discounts, purchasing, payments, subscriptions, or billing, and you must NEVER tell the user to visit the website, the Pricing page, or Settings → Plan and billing. If the user asks how to get a feature or how to "upgrade", answer ONLY by stating which plan includes it (e.g. "That feature is part of the Pro plan.") — say nothing about how to buy it, what it costs, or where to pay. Do not use the word "upgrade".`;
+IMPORTANT — NATIVE APP SESSION: The app sells the Pro subscription through Apple's In-App Purchase only. You may tell the user they can subscribe in the app — the "Subscribe to Pro" button on a locked feature, or Settings → Plan and billing — and that an in-app subscription is managed or canceled through their Apple account. You must NEVER state a specific price or dollar amount (the subscription sheet shows the current price), NEVER mention Stripe, and NEVER tell the user to visit the website, swiftcard.me, or the Pricing page to buy, compare, or manage anything.`;
 
 export const APP_FALLBACK =
   "I can help with creating & editing cards, designs, sharing, Swift Links, contacts, analytics, notifications, billing, and account settings. Try asking something like \"How do I change my design?\", \"Where are my contacts?\", or \"How do I upgrade to Pro?\" — or reach the team via the Contact page in the footer.";

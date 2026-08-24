@@ -152,9 +152,15 @@ describe("no plan facts are hardcoded in doc prose", () => {
 });
 
 // ── The native guardrail, enforced on the corpus rather than per-answer ─────
-describe("native sessions never receive commerce content", () => {
+// Loosened for the IAP era (3.1.1 remedy, 2026-08): the app now sells Pro via
+// In-App Purchase, so subscribe/plan/billing language is legitimate on native.
+// What stays banned in a nativeAnswer is (a) steering to web checkout — the
+// website, swiftcard.me, the Stripe portal — and (b) hardcoded dollar amounts,
+// which must only ever come from StoreKit so the shown price cannot drift from
+// the App Store price.
+describe("native sessions never receive web-checkout steering", () => {
   const LEAK =
-    /\bupgrade\b|\bpricing\b|\bprice\b|\bbilling\b|\bsubscription\b|\$\d|swiftcard\.me|\bwebsite\b|Pricing page|Settings → Billing/i;
+    /\$\d|swiftcard\.me|\bwebsite\b|Pricing page|Settings → Billing|\bStripe\b/i;
 
   it("every commerce doc carries a clean native answer", () => {
     for (const doc of KNOWLEDGE.filter((d) => d.commerce)) {

@@ -1,14 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { localAnswer, buildHelpPrompt, NATIVE_RULES, NATIVE_FALLBACK } from "@/app/api/ai/help/route";
 
-// Area 5 — native AI-help guardrail. A native session must never leak
-// upgrade/pricing/purchase/website language through EITHER the KB fast-path or
-// the LLM-prompt-construction path. A web (flag-absent) session must be
-// completely unchanged from today.
+// Area 5 — native AI-help guardrail, IAP era (3.1.1 remedy, 2026-08). The app
+// now sells Pro via In-App Purchase, so a native session MAY talk about
+// subscribing in the app. What it must never leak is web-checkout steering
+// (the website, swiftcard.me, the Stripe portal, the Pricing page) or a
+// hardcoded dollar amount — prices are StoreKit's to state, on the sheet.
+// A web (flag-absent) session must be completely unchanged from today.
 
-const LEAK = /\bupgrade\b|\bpricing\b|\bprice\b|\bbilling\b|\bsubscription\b|\$\d|swiftcard\.me|\bwebsite\b|Pricing page|Settings → Billing/i;
+const LEAK = /\$\d|swiftcard\.me|\bwebsite\b|Pricing page|Settings → Billing|\bStripe\b/i;
 
-describe("KB fast-path — native answers never leak selling language", () => {
+describe("KB fast-path — native answers never steer to web checkout", () => {
   const nativeLeakyQuestions = [
     "How do I upgrade to Pro?",
     "What's the pricing?",
@@ -19,16 +21,23 @@ describe("KB fast-path — native answers never leak selling language", () => {
   ];
 
   for (const q of nativeLeakyQuestions) {
-    it(`native KB answer for "${q}" contains no selling language`, () => {
+    it(`native KB answer for "${q}" contains no web-checkout steering`, () => {
       const ans = localAnswer(q, true);
       expect(ans).not.toBeNull();
       expect(ans as string).not.toMatch(LEAK);
     });
   }
 
-  it("native 'How do I upgrade to Pro?' states which plan includes the features (Pro), nothing about buying", () => {
+  it("native 'How do I upgrade to Pro?' points at the in-app purchase path", () => {
     const ans = localAnswer("How do I upgrade to Pro?", true) as string;
-    expect(ans).toMatch(/Pro plan/);
+    expect(ans).toMatch(/subscribe/i);
+    expect(ans).toMatch(/in the app/i);
+    expect(ans).not.toMatch(LEAK);
+  });
+
+  it("native cancel answer routes to Apple-account management, not the portal", () => {
+    const ans = localAnswer("How do I cancel my subscription?", true) as string;
+    expect(ans).toMatch(/Apple account/i);
     expect(ans).not.toMatch(LEAK);
   });
 });
@@ -65,11 +74,12 @@ describe("KB fast-path — web (flag-absent) answers are unchanged from today", 
 describe("LLM prompt construction — native guardrail injected, web unchanged", () => {
   const convo = "User: How do I upgrade to Pro?";
 
-  it("native prompt appends the hard no-selling guardrail", () => {
+  it("native prompt appends the IAP-era guardrail (no prices, no web steering)", () => {
     const p = buildHelpPrompt(convo, true);
     expect(p).toContain(NATIVE_RULES);
-    expect(p).toMatch(/NEVER discuss upgrading, pricing/i);
-    expect(p).toMatch(/which plan includes it/i);
+    expect(p).toMatch(/NEVER state a specific price/i);
+    expect(p).toMatch(/In-App Purchase/i);
+    expect(p).toMatch(/NEVER tell the user to visit the website/i);
   });
 
   it("web prompt does NOT contain the native guardrail (byte-for-byte as today)", () => {

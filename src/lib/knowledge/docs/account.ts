@@ -21,7 +21,7 @@ export const accountDocs = defineDocs([
       "Watch out for old names — there is NO section called Billing, Integrations, General, Account, or Danger Zone. In particular: CRM integrations live inside \"Notifications and preferences\", not in a section of their own; account deletion is under \"Advanced account settings\"; the plan lives under \"Plan and billing\". \"Cards and sharing\" is the only place a card can be edited. Section descriptions: Profile — \"Your account details at a glance.\" Cards and sharing — \"Edit, open, or remove a card, and share your links.\" Plan and billing — \"Your plan, seats, invoices and payment method.\" Security — password and sign out. Advanced account settings — \"Account ownership and deletion. Deleting is permanent.\"",
     commerce: true,
     nativeAnswer:
-      "Settings is the gear icon at the top right of the app (or the \"Settings\" tab in the bottom bar). Its sections: Profile, Cards and sharing, Notifications and preferences, Security, Help and referrals, and Advanced account settings. One section opens at a time.",
+      "Settings is the gear icon at the top right of the app (or the \"Settings\" tab in the bottom bar). Its sections: Profile, Cards and sharing, Plan and billing, Notifications and preferences, Security, Help and referrals, and Advanced account settings. One section opens at a time.",
   },
   {
     id: "profile-and-email",
@@ -63,7 +63,7 @@ export const accountDocs = defineDocs([
       "Two buttons carry the same \"Manage subscription & payment\" label — the one on the panel opens SwiftCard's own modal, and the one inside that modal opens the Stripe billing portal. The plan switcher offers Monthly / Annual (annual saves about 10%) and lets a Pro account move to Office or back. You cannot move to Free from the plan rows — that is a cancellation. Downgrades come back as credit on the next invoice, never a cash refund. Office accounts also get a \"Team seats\" block here.",
     commerce: true,
     nativeAnswer:
-      "That isn't something I can help with in the app. I can still help with cards, contacts, sharing, Swift Links, analytics, notifications, and account settings — just ask.",
+      "Settings → Plan and billing shows your current plan. If you subscribed in the app, tap \"Manage subscription\" there — it opens your Apple account's subscription settings, where the payment method and renewal live. If you subscribed on the web, it's managed where you subscribed.",
   },
   {
     id: "upgrade",
@@ -80,7 +80,7 @@ export const accountDocs = defineDocs([
       "Subscribing to Pro starts with a {trial.days}-day free trial if you've never subscribed before — a card is taken at checkout and billing starts when the trial ends. Office never includes a trial. If you already have a subscription, changing plan swaps the price on your existing subscription rather than creating a second one, so you are never double-charged, and the proration you're quoted is the amount you're charged.",
     commerce: true,
     nativeAnswer:
-      "Unlimited cards and contacts, the AI business-card scanner, the custom card designer, automated email and text follow-up sequences, full analytics, and the CRM integrations are all part of the Pro plan. Office adds shared company branding and the admin console for a team.",
+      "You can subscribe to Pro right in the app: tap \"Subscribe to Pro\" on any locked feature, or go to Settings → Plan and billing. The subscription sheet shows the plans and prices before anything is confirmed, and it starts with a {trial.days}-day free trial if you've never subscribed before. Pro takes every Free limit off — unlimited cards and contacts, the AI business-card scanner, the custom card designer, automated follow-up sequences, full analytics, and the CRM integrations.",
   },
   {
     id: "cancel-subscription",
@@ -96,7 +96,7 @@ export const accountDocs = defineDocs([
       "Nothing is deleted when a plan ends. Extra cards go offline (their public pages stop loading, so QR codes and NFC cards pointing at them stop working), follow-up sequences pause, over-cap contacts get hidden rather than removed, and Pro colours and extra Swift Links stay stored. Re-subscribing switches it all back on. The \"Keep Subscription\" button only exists while a cancellation is actually pending — don't promise it to someone who hasn't cancelled.",
     commerce: true,
     nativeAnswer:
-      "That isn't something I can help with in the app. I can still help with cards, contacts, sharing, Swift Links, analytics, notifications, and account settings — just ask.",
+      "If you subscribed in the app: Settings → Plan and billing → \"Manage subscription\" opens your Apple account's subscription settings, where you cancel. You keep everything until the end of the period you've already paid for, and nothing is deleted when a plan ends — extra cards go offline and over-cap contacts are hidden, and re-subscribing switches it all back on. If you subscribed on the web, cancel where you subscribed.",
   },
   {
     id: "failed-payment",

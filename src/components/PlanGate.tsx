@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
-import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
+import IapSubscribeButton from "@/components/NativePaywall";
 
 /**
  * PlanGate — the single component every locked-feature surface renders through.
@@ -14,20 +14,16 @@ import ExternalPurchaseButton from "@/components/ExternalPurchaseButton";
  *
  * NATIVE (isNativeApp === true, only inside the Capacitor iOS shell): renders a
  * neutral descriptive notice with the EXACT `nativeCopy` string — no price and
- * no "upgrade" verb — followed by a subscribe button that opens the DEFAULT
- * BROWSER. A plain PRO / OFFICE text badge is allowed (and is what
+ * no "upgrade" verb — followed by the In-App Purchase subscribe button
+ * (NativePaywall). A plain PRO / OFFICE text badge is allowed (and is what
  * {@link PlanBadge} / the notice use).
  *
- * That button is new in the resubmission after App Review rejected 1.0.0 (3)
- * under Guideline 3.1.1. The notice used to be entirely inert — no button, no
- * link — which was right under the pre-2025 rule and is precisely what got the
- * build rejected: the app unlocked paid content with no way to buy it. Apple's
- * own rejection named the remedy (link out to the default browser on the US
- * storefront), and 3.1.1(a) confirms it needs no entitlement there.
- *
- * ⚠️ THE APP MUST STAY US-STOREFRONT-ONLY while this is the purchase path. In
- * any other storefront a link out is a 3.1.1 violation rather than the fix, and
- * IAP would be required instead.
+ * Purchase-path history, one rejection per posture: 1.0.0 (3) shipped this
+ * notice inert (no button) — rejected under 3.1.1, paid content with no way to
+ * buy it. 1.0.0 (7) added a link out to the default browser per the
+ * US-storefront allowance in 3.1.1(a) — rejected anyway: App Review holds that
+ * a subscription the app unlocks must be purchasable via IAP (3.1.3(b)). So
+ * the button now opens a StoreKit paywall, and the link-out is gone.
  *
  * Because `useIsNativeApp()` returns false on the server and on the first client
  * render, the web branch is what hydrates on both platforms; native only swaps
@@ -71,22 +67,11 @@ export function PlanGate({
   return <PlanNotice tier={tier} copy={nativeCopy} />;
 
   /*
-   * The external-purchase link this comment used to reserve space for is now
-   * implemented, inside <PlanNotice/> below, as <ExternalPurchaseButton/>.
-   *
-   * Two things changed since it was written. Apple's US storefront no longer
-   * requires the StoreKit External Purchase Link Entitlement at all —
-   * guideline 3.1.1(a): "These entitlements are not required for developers to
-   * include buttons, external links, or other calls to action in their United
-   * States storefront apps." And the region signal it planned for is handled by
-   * shipping the app to the US storefront only, which is a far harder guarantee
-   * than anything resolvable at runtime.
-   *
    * A `nativeContent` override bypasses PlanNotice, so those call sites do NOT
-   * get the button. That is intentional — they are inline pills and badges with
-   * no room for one — but it means PlanNotice must stay the primary gate
-   * surface. If the overrides ever become the common case, the purchase path
-   * needs a second home.
+   * get the subscribe button. That is intentional — they are inline pills and
+   * badges with no room for one — but it means PlanNotice must stay the
+   * primary gate surface. If the overrides ever become the common case, the
+   * purchase path needs a second home (the billing panel already is one).
    */
 }
 
@@ -150,14 +135,14 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
           <GateCopy copy={copy} />
         </p>
       </div>
-      {/* The purchase path. Until 1.0.0 (3) this notice was deliberately inert —
-          no button, no link — which was the correct posture under the old rule
-          and is what App Review rejected: the app unlocked paid content with no
-          way to buy it. On the US storefront Apple permits a link out to the
-          default browser instead of IAP, so the notice now ends in one.
-          Renders nothing on web, and nothing in a build without the native
-          plugin (see ExternalPurchaseButton). */}
-      <ExternalPurchaseButton className="mt-3" />
+      {/* The purchase path, third iteration. 1.0.0 (3): inert notice —
+          rejected (no way to buy). 1.0.0 (7): link out to the default browser
+          per the US-storefront allowance — rejected anyway; App Review holds
+          that content the app unlocks must be purchasable via IAP (3.1.3(b)).
+          So: a real In-App Purchase paywall. Renders nothing on web, when
+          signed out, or in a build without StoreKit products (see
+          NativePaywall's fail-closed contract). */}
+      <IapSubscribeButton className="mt-3" />
     </div>
   );
 }

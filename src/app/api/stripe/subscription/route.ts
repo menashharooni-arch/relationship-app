@@ -50,6 +50,11 @@ export async function GET() {
 
   const base = {
     plan: uiPlan as "free" | "pro" | "office",
+    // Which billing source backs the plan ("apple" = bought via IAP in the iOS
+    // shell). The shell's billing panel routes "manage" on this: Apple subs are
+    // managed in the App Store, never the Stripe portal.
+    planSource: (cust._planSource === "apple" ? "apple" : cust._planSource === "stripe" ? "stripe" : null) as
+      | "apple" | "stripe" | null,
     interval: null as "monthly" | "annual" | null,
     status: null as string | null,
     seats: null as number | null,

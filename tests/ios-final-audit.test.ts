@@ -29,17 +29,23 @@ describe("3.1.1 — RemoveMemberButton skips the seat-price step on native", () 
 });
 
 describe("3.1.1 — billing components self-suppress on native (backstop)", () => {
-  it("BillingManager's native branch is a link-out panel with no selling UI", () => {
+  it("BillingManager's native branch sells via IAP only, with no web machinery", () => {
     const s = read("src/components/BillingManager.tsx");
     expect(s).toMatch(/useIsNativeApp/);
-    // The native branch replaced `return null` (App Review 3.1.1: a paying
-    // customer's app must show a purchase/manage path — the US link-out).
+    // Third posture (App Review 3.1.1): `return null` → rejected; external
+    // link-out → rejected (IAP required under 3.1.3(b)); now the branch offers
+    // the In-App Purchase paywall, and Apple-billed subs manage via the App
+    // Store sheet.
     const start = s.indexOf("if (native) {");
     expect(start, "native branch missing").toBeGreaterThan(-1);
     // The branch ends where the web render resumes (the web loading row).
     const end = s.indexOf("Loading billing…");
     const branch = s.slice(start, end);
-    expect(branch).toMatch(/ExternalPurchaseButton/);
+    expect(branch).toMatch(/IapSubscribeButton/);
+    expect(branch).toMatch(/manageIapSubscription/);
+    // The link-out era must not resurface: steering to web checkout from the
+    // shell is a 3.1.1 risk now that IAP exists.
+    expect(branch).not.toContain("ExternalPurchaseButton");
     // None of the web manager's machinery may leak into the shell: no prices,
     // no renewal amounts, no seats, no plan switcher, no Stripe portal.
     for (const banned of ["formatUsd", "renewalLine", "PLAN_PRICES", "ManageBillingButton", "seat", "$"]) {
