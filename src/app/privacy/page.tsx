@@ -167,7 +167,8 @@ export default function PrivacyPage() {
               Google&apos;s API terms
             </a>
             , which bind Google to protect this data to a standard at least equal to this policy: Google processes it to
-            return the response and may not use it for advertising or sell it.
+            return the response, may not use it for advertising or sell it, and — because we use the paid API tier —
+            does not use it to train its models.
           </LI>
         </ul>
         <P>
