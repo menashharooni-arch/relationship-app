@@ -102,47 +102,35 @@ describe("PlanGate native notice is neutral — no selling", () => {
   });
 });
 
-// The extension point this file used to assert was DOCUMENTED-BUT-UNBUILT is
-// now built: App Review rejected 1.0.0 (3) under Guideline 3.1.1 precisely
-// because the app unlocked paid content with no way to buy it. The inert notice
-// was the violation, not the safeguard. What still needs pinning is the part
-// that keeps the remedy compliant.
-describe("the external purchase link is wired and leaves the app", () => {
+// Purchase-path history, each posture pinned by a rejection: 1.0.0 (3) inert
+// notice → rejected (no way to buy). 1.0.0 (7) external link to the default
+// browser → rejected (App Review requires IAP under 3.1.3(b), US link-out
+// allowance notwithstanding). Now the notice sells via In-App Purchase, and
+// what needs pinning is that the paywall is the ONLY purchase surface and the
+// link-out era cannot silently resurface.
+describe("the purchase path is In-App Purchase, wired through PlanNotice", () => {
   const gate = read("src/components/PlanGate.tsx");
-  const button = read("src/components/ExternalPurchaseButton.tsx");
-  const lib = read("src/lib/external-purchase.ts");
+  const paywall = read("src/components/NativePaywall.tsx");
+  const lib = read("src/lib/iap.ts");
 
-  it("PlanNotice renders the purchase button", () => {
-    expect(gate).toMatch(/<ExternalPurchaseButton/);
+  it("PlanNotice renders the IAP subscribe button, not the old link-out", () => {
+    expect(gate).toMatch(/<IapSubscribeButton/);
+    expect(gate).not.toMatch(/<ExternalPurchaseButton/);
   });
 
-  it("the button is a <button>, never an anchor to swiftcard.me", () => {
-    // An <a href="https://swiftcard.me/..."> is caught by allowNavigation in
-    // capacitor.config.ts and navigates INSIDE the webview — which is not
-    // "linking out to the default browser" and would fail review again.
-    expect(button).toMatch(/<button/);
-    expect(button, "an anchor here would stay inside the webview").not.toMatch(
-      /<a\s[^>]*href=["'{]?https?:\/\/swiftcard\.me/,
-    );
+  it("the paywall fails closed at every layer", () => {
+    // No native bridge / no RC key / no StoreKit products → no purchase UI.
+    // A paywall that renders without live products would show stale or
+    // invented prices — 3.1.2 metadata drift by construction.
+    expect(lib).toMatch(/if \(!detectNativeApp\(\)\) return null/);
+    expect(lib).toMatch(/NEXT_PUBLIC_RC_APPLE_API_KEY\) return null/);
+    expect(paywall).toMatch(/if \(!available\) return null/);
   });
 
-  it("the web half fails closed when the native plugin is missing", () => {
-    // No plugin → no button. A fallback to window.open/Browser.open would look
-    // compliant while staying in-app, and would also ship the link to
-    // storefronts where a link-out is not permitted.
-    expect(lib).toMatch(/canOfferExternalPurchase/);
-    expect(lib).toMatch(/if \(!p\) return false/);
-    expect(button).toMatch(/if \(!available\) return null/);
-    // Comments stripped first: this file's header explains at length why
-    // window.open and @capacitor/browser are the WRONG tools here, and an
-    // unstripped match would fire on that explanation.
-    const code = lib.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code, "must not fall back to an in-webview open").not.toMatch(
-      /window\.open|@capacitor\/browser/,
-    );
-  });
-
-  it("the US-storefront-only constraint is recorded where someone will see it", () => {
-    expect(gate).toMatch(/US[- ]STOREFRONT[- ]ONLY|US storefront only/i);
+  it("purchases identify as the Supabase uid before any purchase", () => {
+    // The RevenueCat app_user_id is what maps a purchase to a profile row in
+    // the webhook; an anonymous purchase would grant Pro to nobody.
+    expect(paywall).toMatch(/getUser\(\)/);
+    expect(paywall).toMatch(/ensureIapConfigured\(user\.id\)/);
   });
 });

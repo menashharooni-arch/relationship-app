@@ -12,6 +12,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { isDuplicateStripeEvent, clearStripeEvent } from "@/lib/stripe-idempotency";
 import { reportError } from "@/lib/report-error";
 import { insertNotification } from "@/lib/notify";
+import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -285,6 +286,16 @@ export async function POST(req: NextRequest) {
         ...(paymentFingerprint ? { payment_fingerprint: paymentFingerprint } : {}),
       }).eq("id", userId);
 
+      // Record Stripe as the source backing the plan (see lib/iap-entitlement:
+      // a source may only revoke what it granted, so an Apple-subscription
+      // expiry can never strip a plan Stripe is paying for). Best-effort,
+      // separate write: the upgrade above must never be blocked by this.
+      try {
+        const { data: srcProfile } = await admin.from("profiles").select("customization").eq("id", userId).single();
+        const srcCust = { ...((srcProfile?.customization as Record<string, unknown> | null) ?? {}) };
+        await admin.from("profiles").update({ customization: { ...srcCust, _planSource: "stripe" } }).eq("id", userId);
+      } catch { /* best-effort */ }
+
       // Referral: the friend just became a PAYING customer — grant the referrer
       // their one-time reward (verified Stripe event, never from the browser).
       try {
@@ -485,6 +496,9 @@ export async function POST(req: NextRequest) {
         if (subProfile.plan !== targetDbPlan) {
           await admin.from("profiles").update({ plan: targetDbPlan }).eq("id", subProfile.id);
           subProfile.plan = targetDbPlan;
+          // This live Stripe sub now backs the plan (see lib/iap-entitlement).
+          cust._planSource = "stripe";
+          dirty = true;
 
           // Reconcile the office row for a Pro<->Office swap made ANYWHERE
           // (Stripe portal included) — previously only the in-app change-plan
@@ -584,7 +598,15 @@ export async function POST(req: NextRequest) {
       // guard, since the write would match on id alone. Mirrors the
       // original single atomic UPDATE...WHERE stripe_subscription_id this
       // replaced (code review).
-      await admin2.from("profiles").update({ plan: "free" }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
+      //
+      // Source guard: Stripe may only revoke what Stripe granted. If the
+      // current plan is backed by an Apple subscription (bought in the iOS
+      // shell via IAP — see lib/iap-entitlement.ts), the customer is still
+      // paying and this cancellation must not touch the plan.
+      const src = ((profile.customization as Record<string, unknown> | null) ?? {})._planSource;
+      if (stripeDowngradeAllowed(src as "stripe" | "apple" | undefined)) {
+        await admin2.from("profiles").update({ plan: "free" }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
+      }
     }
     // Best-effort: clear any free-month expiry so the row can't later be mistaken
     // for an active subscriber (which would leak Pro forever), and drop the
