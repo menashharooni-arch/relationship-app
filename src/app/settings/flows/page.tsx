@@ -6,6 +6,7 @@ import IntegrationsSettings from "@/components/IntegrationsSettings";
 import ManageCards from "@/components/ManageCards";
 import GeneralSettings from "@/components/GeneralSettings";
 import BillingManager from "@/components/BillingManager";
+import AiConsentSetting from "@/components/AiConsentSetting";
 import ManageAccount from "@/components/ManageAccount";
 import ReferAFriend from "@/components/ReferAFriend";
 import NativeHidden from "@/components/NativeHidden";
@@ -255,6 +256,10 @@ export default async function FlowSettingsPage({
           {/* Push notifications toggle — the wizard offers opt-in once at card
               creation; this is the permanent on/off switch for this device. */}
           <EnablePushButton label="Turn on push notifications" allowDisable />
+          {/* Native-only: the standing switch for AI features (the consent the
+              in-app dialog asks for — App Review 5.1.2(i)). Renders nothing on
+              the web, which is never asked. */}
+          <AiConsentSetting />
           {/* Which emails we may send: marketing + payment receipts. Lives here
               (not only on the legacy /profile page) so it's actually findable. */}
           <EmailPreferencesForm

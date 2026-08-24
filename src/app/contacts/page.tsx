@@ -15,9 +15,6 @@ import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
 import DownloadLink from "@/components/DownloadLink";
 import { PlanGate, PlanNotice, PlanBadge } from "@/components/PlanGate";
-import AiConsentGate from "@/components/AiConsentGate";
-import { readAiConsent, aiConsentCopy } from "@/lib/ai-consent";
-import { aiProviderName } from "@/lib/ai";
 import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 
 export default async function ContactsPage({
@@ -130,12 +127,6 @@ export default async function ContactsPage({
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNavGate showAdmin={showOfficeAdmin} />
       <HelpWidget floating />
-      {/* Native-only one-time AI-consent notice (shown before first AI use). */}
-      <AiConsentGate
-        consent={readAiConsent(profile.customization)}
-        provider={aiProviderName()}
-        copy={aiConsentCopy(aiProviderName() ?? "our AI provider")}
-      />
       {/* Top accent stripe */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 

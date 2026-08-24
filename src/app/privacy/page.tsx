@@ -144,7 +144,10 @@ export default function PrivacyPage() {
         </P>
 
         <H2>Who we share it with</H2>
-        <P>Only the service providers needed to run SwiftCard, under contracts limiting them to processing on our instructions:</P>
+        <P>
+          Only the service providers needed to run SwiftCard, under contracts limiting them to processing on our
+          instructions. Each is required to protect your data to at least the same standard this policy describes:
+        </P>
         <ul className="mb-3">
           <LI><strong>Supabase</strong> — database, file storage, and authentication.</LI>
           <LI><strong>Vercel</strong> — hosting and content delivery.</LI>

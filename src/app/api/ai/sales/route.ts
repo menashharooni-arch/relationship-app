@@ -2,6 +2,7 @@ import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { isRateLimited } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp } from "@/lib/client-ip";
+import { isShellRequest } from "@/lib/shell-request";
 import { KNOWLEDGE } from "@/lib/knowledge";
 import { buildPrompt, instantAnswer } from "@/lib/knowledge/retrieval";
 import { SALES_PERSONA, SALES_FALLBACK } from "@/lib/knowledge/personas";
@@ -48,7 +49,12 @@ export async function POST(req: NextRequest) {
   if (local) return NextResponse.json({ reply: local });
 
   // 2) LLM fallback when a provider is configured, grounded in the same corpus.
-  if (hasAiProvider()) {
+  //    Never for the iOS shell: this endpoint is unauthenticated, so there is
+  //    no account to hold an AI-consent decision, and the app may not send a
+  //    typed message to the provider without permission (5.1.2(i)). The widget
+  //    is <NativeHidden> anyway — this is the server-side backstop for the day
+  //    that hiding fails — and the corpus answer above still works.
+  if (hasAiProvider() && !isShellRequest(req)) {
     const convo = messages.map((m) => `${m.role === "user" ? "Visitor" : "Assistant"}: ${m.content}`).join("\n");
     const prompt = buildPrompt({
       corpus: KNOWLEDGE,

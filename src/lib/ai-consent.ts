@@ -44,16 +44,40 @@ export function readAiConsent(customization: unknown): AiConsent {
 }
 
 /**
- * Whether an AI request may proceed for this account.
+ * Whether an AI request may proceed for this account — WEB semantics.
  *
- * "unset" passes: the web has never shown a prompt (adding new visible web UI
- * is off-limits) and its users have not refused anything. In the app the notice
- * blocks before any AI screen is usable, so a native user reaches an AI feature
- * only after choosing. What must be honoured everywhere is an explicit NO —
- * a declined account's data is not sent from any platform.
+ * "unset" passes here: the web has never shown a prompt (adding new visible
+ * web UI is off-limits) and its users have not refused anything. What must be
+ * honoured everywhere is an explicit NO — a declined account's data is not
+ * sent from any platform. For requests from the iOS shell, use
+ * aiConsentPermits with isShell=true instead: in the app, "hasn't answered
+ * yet" must BLOCK.
  */
 export function aiConsentAllows(customization: unknown): boolean {
   return readAiConsent(customization) !== "declined";
+}
+
+/**
+ * The full permission rule, platform-aware. This is the sentence App Review
+ * keeps writing back at us, as code:
+ *
+ *   "Obtain the user's permission BEFORE sending data."   (5.1.2(i))
+ *
+ * In the app that means consent is OPT-IN: only an explicit "accepted" lets
+ * data leave. An account that has never answered ("unset") is blocked until
+ * the dialog is answered. The earlier model — block only an explicit decline —
+ * is what produced three straight 5.1.1 rejections: any path that reached an
+ * AI feature before the dialog happened to render (the help bubble on a page
+ * without the gate, the design scanner on /cards/new) shared data with the
+ * provider having asked nothing.
+ *
+ * On the web "unset" still passes (no prompt has ever been shown there, and
+ * nothing was refused); a decline made in the app is honoured everywhere.
+ */
+export function aiConsentPermits(consent: AiConsent, isShell: boolean): boolean {
+  if (consent === "declined") return false;
+  if (consent === "accepted") return true;
+  return !isShell; // unset: web proceeds, the app must ask first
 }
 
 /**

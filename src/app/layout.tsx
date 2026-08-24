@@ -6,6 +6,7 @@ import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import AccountIsolationGuard from "@/components/AccountIsolationGuard";
 import NativeAppBridge from "@/components/NativeAppBridge";
 import GuidedTour from "@/components/GuidedTour";
+import GlobalAiConsent from "@/components/GlobalAiConsent";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import SiteAnalytics from "@/components/SiteAnalytics";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
@@ -217,6 +218,10 @@ export default function RootLayout({
             the visitor straight back to /dashboard the moment they opened Admin,
             which made the console unreachable for a brand-new Office owner. */}
         <GuidedTour pausePathPrefix="/office/admin" />
+        {/* Native-only AI-consent ask, mounted globally so it appears on the
+            FIRST signed-in screen — not just the pages that remembered to
+            mount it. Renders and fetches nothing on the web. */}
+        <GlobalAiConsent />
       </body>
     </html>
   );
