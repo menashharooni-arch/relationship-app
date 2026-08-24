@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import AiConsentGate, { AiDraftTag } from "@/components/AiConsentGate";
-import { aiConsentCopy, aiConsentAllows, readAiConsent } from "@/lib/ai-consent";
+import { aiConsentCopy, aiConsentAllows, aiConsentPermits, readAiConsent } from "@/lib/ai-consent";
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -76,30 +76,71 @@ describe("(c) the AI notice discloses, names, and asks", () => {
 });
 
 describe("declining actually stops the data leaving", () => {
-  it("a declined account is refused, an unset one is not", () => {
+  it("a declined account is refused, an unset one is not (WEB semantics)", () => {
     expect(aiConsentAllows({ _aiConsent: "declined" })).toBe(false);
     expect(aiConsentAllows({ _aiConsent: "accepted" })).toBe(true);
     expect(aiConsentAllows({})).toBe(true);
-    // Pre-rejection accounts already agreed; re-asking them would be noise.
     // The legacy flag was written by the pre-rejection "Got it" notice, which
     // App Review ruled insufficient — it must NOT count as a decision.
     expect(readAiConsent({ _aiConsentAccepted: true })).toBe("unset");
   });
 
+  it("in the app, consent is OPT-IN: unset blocks until the dialog is answered", () => {
+    // The rule App Review wrote three times: obtain permission BEFORE sending.
+    // "Block only an explicit decline" left every pre-dialog path leaking —
+    // that shape must never come back.
+    expect(aiConsentPermits("unset", true)).toBe(false);
+    expect(aiConsentPermits("accepted", true)).toBe(true);
+    expect(aiConsentPermits("declined", true)).toBe(false);
+    // Web: never prompted, nothing refused — unset proceeds, declined holds.
+    expect(aiConsentPermits("unset", false)).toBe(true);
+    expect(aiConsentPermits("declined", false)).toBe(false);
+  });
+
   it.each([
-    "src/app/api/scanner/route.ts",
-    "src/app/api/ai/suggest-messages/route.ts",
-    "src/app/api/leads/[id]/generate-sequence/route.ts",
-    "src/app/api/scan-design/route.ts",
-    "src/app/api/design-transfer/route.ts",
-  ])("%s refuses a declined account before sending anything", (route) => {
-    expect(read(route)).toMatch(/aiConsentBlock\(user\.id\)/);
+    ["src/app/api/scanner/route.ts", "request"],
+    ["src/app/api/ai/suggest-messages/route.ts", "req"],
+    ["src/app/api/leads/[id]/generate-sequence/route.ts", "req"],
+    ["src/app/api/scan-design/route.ts", "request"],
+    ["src/app/api/design-transfer/route.ts", "request"],
+  ])("%s guards with the platform-aware block (passes the request)", (route, param) => {
+    // The request argument is what makes the guard platform-aware — a call
+    // without it can't apply the stricter in-app rule.
+    expect(read(route)).toContain(`aiConsentBlock(user.id, ${param})`);
   });
 
   it("the in-app assistant degrades instead of erroring", () => {
     // It answers from the local corpus with no AI call, so 403-ing there would
     // break a help widget over a preference.
-    expect(read("src/app/api/ai/help/route.ts")).toMatch(/aiConsentAllowsFor\(user\.id\)/);
+    expect(read("src/app/api/ai/help/route.ts")).toContain("aiConsentAllowsFor(user.id, req)");
+  });
+
+  it("the server tells shell requests apart by headers, not by trusting the client", () => {
+    // Client-side native detection failing is exactly the state that leaked
+    // before (the SFSafariViewController login sheet, 3.1.1); the consent rule
+    // must key on what the server can see on every fetch.
+    const lib = read("src/lib/shell-request.ts");
+    expect(lib).toContain("SwiftCardApp");
+    expect(lib).toContain("sc_shell");
+    expect(read("src/lib/ai-consent-server.ts")).toContain("isShellRequest(req)");
+  });
+
+  it("the unauthenticated sales assistant never calls the model for shell requests", () => {
+    // No account → no stored consent → the app may not send the message.
+    expect(read("src/app/api/ai/sales/route.ts")).toMatch(/hasAiProvider\(\) && !isShellRequest\(req\)/);
+  });
+});
+
+describe("the ask is global, not per-page", () => {
+  it("the root layout mounts GlobalAiConsent", () => {
+    // Mounted per-page it covered 2 of the 6+ surfaces AI is reachable from;
+    // the dialog must exist wherever the signed-in app starts.
+    expect(read("src/app/layout.tsx")).toContain("<GlobalAiConsent />");
+  });
+
+  it("Settings carries the standing switch the 403 message points at", () => {
+    expect(read("src/app/settings/flows/page.tsx")).toContain("<AiConsentSetting />");
+    expect(read("src/components/AiConsentSetting.tsx")).toMatch(/role="switch"/);
   });
 });
 

@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   //    configured AND the account hasn't refused AI. A declined account keeps a
   //    working assistant — it just answers from the corpus above and the
   //    fallback below, and its message never leaves for the provider.
-  if (hasAiProvider() && (await aiConsentAllowsFor(user.id))) {
+  if (hasAiProvider() && (await aiConsentAllowsFor(user.id, req))) {
     const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
     const prompt = buildPrompt({
       corpus: KNOWLEDGE,

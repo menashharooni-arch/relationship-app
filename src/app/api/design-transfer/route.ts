@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   // Declining the AI notice has to actually stop the data leaving —
   // see lib/ai-consent-server.ts (App Review 5.1.1(i)/5.1.2(i)).
-  const consentBlocked = await aiConsentBlock(user.id);
+  const consentBlocked = await aiConsentBlock(user.id, request);
   if (consentBlocked) return consentBlocked;
 
   const adminSupabase = getAdminSupabase();
