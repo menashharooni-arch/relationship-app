@@ -17,6 +17,19 @@ console.log("attached build:", build?.data?.attributes?.version ?? "(none)");
 
 if (!process.argv.includes("--go")) process.exit(0);
 
+// SUBMIT LOCK (2026-08-24): the Aug 20 submission went out via this script's
+// --go before Menash decided how to answer the 3.1.1/5.1.1 rejection. Do not
+// remove this guard until he says the app is cleared to resubmit; then run with
+// ASC_SUBMIT_UNLOCKED=menash-said-go in the environment.
+if (process.env.ASC_SUBMIT_UNLOCKED !== "menash-said-go") {
+  console.error(
+    "SUBMIT BLOCKED: resubmission is locked pending Menash's go-ahead " +
+    "(3.1.1 IAP + 5.1.1/5.1.2 AI-disclosure rejection of 2026-08-24 unresolved). " +
+    "Set ASC_SUBMIT_UNLOCKED=menash-said-go only when he has explicitly approved."
+  );
+  process.exit(1);
+}
+
 // An UNRESOLVED_ISSUES submission blocks a new one — cancel it first.
 for (const s of subs.data || []) {
   if (s.attributes.state === "UNRESOLVED_ISSUES") {
