@@ -1,6 +1,5 @@
 import { cookies, headers } from "next/headers";
 import LoginForm from "@/components/LoginForm";
-import IapProbe from "@/components/IapProbe";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import { isNativeRequest } from "@/lib/native-request";
 
@@ -55,11 +54,6 @@ export default async function LoginPage({
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">
           <LoginForm redirectTo={next} initialMode={initialMode} signInOnly={native} />
-          {/* TEMPORARY (remove after IAP verification): native-only, renders
-              nothing — see components/IapProbe.tsx. The app is unreleased, so
-              no real user can reach this; it exists so the StoreKit product
-              fetch can be verified from the simulator without UI driving. */}
-          <IapProbe />
         </div>
       </div>
     </main>
