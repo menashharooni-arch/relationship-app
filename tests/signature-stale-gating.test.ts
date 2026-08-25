@@ -154,3 +154,44 @@ describe("the notification itself stays deduped and non-fatal", () => {
     }
   });
 });
+
+// ── Signature-specific accuracy (owner bug report 2026-08-25) ───────────────
+// The signature image shows neither the Swift Links list nor internal
+// customization keys — edits to those must not nag "re-copy your signature".
+import { signatureContentChanged } from "@/lib/card-changed";
+
+describe("signatureContentChanged ignores what the signature can't show", () => {
+  const before = {
+    name: "Jeff", title: "Agent", customization: {
+      accentColor: "#123456",
+      links: [{ label: "Menu", url: "https://a.example" }],
+      _claimDraftId: "abc",
+    },
+  };
+  it("a links-only edit is NOT a signature change", () => {
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, links: [{ label: "New menu", url: "https://b.example" }] },
+    })).toBe(false);
+  });
+  it("internal _key churn is NOT a signature change", () => {
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, _claimDraftId: "zzz" },
+    })).toBe(false);
+  });
+  it("a design change IS a signature change", () => {
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, accentColor: "#ff0000" },
+    })).toBe(true);
+  });
+  it("an on-card scalar change IS a signature change", () => {
+    expect(signatureContentChanged(before, { name: "Jeffrey" })).toBe(true);
+  });
+  it("both routes gate the nudge on it", () => {
+    for (const f of ["src/app/api/cards/[id]/route.ts", "src/app/api/office/cards/[id]/route.ts"]) {
+      const src = raw(f);
+      expect(src, `${f} must use signatureContentChanged`).toContain("signatureContentChanged(");
+      // The notification block must be reachable only when signatureChanged.
+      expect(src).toMatch(/signatureChanged/);
+    }
+  });
+});

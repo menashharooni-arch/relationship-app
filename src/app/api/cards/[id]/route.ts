@@ -5,7 +5,7 @@ import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/pla
 import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
-import { cardContentChanged } from "@/lib/card-changed";
+import { cardContentChanged, signatureContentChanged } from "@/lib/card-changed";
 
 const ALLOWED = ["name", "title", "company", "phone", "email", "website", "linkedin", "instagram", "twitter", "tiktok", "template", "customization", "logo_url", "label"];
 const SOCIAL_COLUMNS = ["linkedin", "instagram", "twitter", "tiktok"] as const;
@@ -266,6 +266,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (beforeCard) {
       const b = beforeCard as Record<string, unknown>;
       const cardChanged = cardContentChanged(b, updates);
+      // Stricter question for the signature pieces: links edits and internal
+      // customization keys are invisible to the signature image, so they must
+      // not delete it or nudge the owner (see lib/card-changed).
+      const signatureChanged = signatureContentChanged(b, updates);
       if (cardChanged) {
         const username = b.username as string;
 
@@ -303,9 +307,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // returns null when it's gone, and emailSignatureHtml then falls back to
         // the text signature block — so mail keeps sending, with correct details
         // instead of an outdated card image. Best-effort, never blocks the save.
-        admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {});
+        if (signatureChanged) {
+          admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {});
+        }
 
         // One pending (unread) reminder per card is enough — skip if one exists.
+        if (!signatureChanged) {
+          // Nothing the signature shows changed (a links edit, an internal
+          // flag) — the freshness work above still ran where needed, but the
+          // owner gets no "re-copy your signature" nudge for it.
+          return NextResponse.json({ ok: true });
+        }
         const { data: pending } = await admin
           .from("notifications")
           .select("id")

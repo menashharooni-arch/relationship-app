@@ -6,7 +6,7 @@ import { officeOwnsCard, isOwnersCard } from "@/lib/office-cards";
 import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { writeAudit } from "@/lib/audit";
-import { cardContentChanged } from "@/lib/card-changed";
+import { cardContentChanged, signatureContentChanged } from "@/lib/card-changed";
 
 // The office admin edits an employee's PERSONAL details and can take the card
 // offline. Company-controlled fields (logo/company/website/office contact) and
@@ -115,16 +115,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // internal name and is deliberately not an on-card field, so renaming a card
   // no longer nags either.
   const contentChanged = !!beforeCard && cardContentChanged(beforeCard as Record<string, unknown>, updates);
+  // The signature shows neither the links list nor internal customization
+  // keys — those edits keep the share-preview refresh but must not delete the
+  // signature or nag the employee (see lib/card-changed).
+  const signatureChanged = !!beforeCard && signatureContentChanged(beforeCard as Record<string, unknown>, updates);
   if (contentChanged) {
     try {
       const uname = beforeCard?.username as string | undefined;
       const cardOwnerId = beforeCard?.user_id as string | null | undefined;
       if (uname) {
         admin.storage.from("card-shares").remove([`${uname}.png`]).then(() => {}, () => {});
-        admin.storage.from("card-signatures").remove([`${uname}.png`]).then(() => {}, () => {});
+        if (signatureChanged) {
+          admin.storage.from("card-signatures").remove([`${uname}.png`]).then(() => {}, () => {});
+        }
         // The reminder goes to the EMPLOYEE whose signature it is, not the admin
         // who made the edit. One unread reminder per card is enough.
-        if (cardOwnerId) {
+        if (cardOwnerId && signatureChanged) {
           const { data: pending } = await admin
             .from("notifications")
             .select("id")
