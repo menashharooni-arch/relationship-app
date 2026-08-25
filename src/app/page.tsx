@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
+import { APP_STORE_URL } from "@/lib/app-store";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -138,6 +139,29 @@ export default function Home() {
                 </Link>
                 <HeroClaim />
               </div>
+              {/* App Store badge — same self-activating pattern as the footer's:
+                  hidden until NEXT_PUBLIC_APP_STORE_URL is set (the app is still
+                  in review), then appears on its own with no second deploy.
+                  Black Apple-style badge because the hero is a light surface. */}
+              {APP_STORE_URL && (
+                <div className="mt-4" data-reveal>
+                  <a
+                    href={APP_STORE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Download SwiftCard on the App Store"
+                    className="inline-flex items-center gap-2.5 rounded-xl bg-slate-900 px-3.5 py-2 transition-colors hover:bg-slate-800"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-[22px] h-[22px] shrink-0" fill="#fff">
+                      <path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.75.84-1.98 1.49-3.02 1.4-.13-1.09.42-2.24 1.09-2.98.76-.85 2.07-1.47 3.04-1.4zM20.5 17.02c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.01-1.93-1-4.02-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.06-1.78-4.05-3.35-2.77-4.38-3.06-9.52-1.35-12.25 1.21-1.94 3.13-3.08 4.94-3.08 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.19-3.34 7.88.1 9.25z" />
+                    </svg>
+                    <span className="leading-tight">
+                      <span className="block text-white/60 text-[10px]">Download on the</span>
+                      <span className="block text-white font-semibold text-[14px] tracking-tight">App Store</span>
+                    </span>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </section>

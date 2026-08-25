@@ -80,7 +80,7 @@ export const marketingDocs = defineDocs([
     answer:
       "There is an iPhone app for managing your own cards, but it isn't downloadable from the App Store yet — it's in review. Everything works in the browser on any phone in the meantime, and there's no Android app. Nobody needs an app to receive your card either way.",
     detail:
-      "Do not tell anyone to find SwiftCard in the App Store or to look for a download link in the footer — the site deliberately renders no App Store badge while the listing isn't live, so they would be hunting for something that isn't there. If someone asks when: say it's with Apple for review and there's no date to promise.",
+      "Do not tell anyone to find SwiftCard in the App Store or to look for a download link on the site — the site deliberately renders no App Store badge while the listing isn't live (the homepage hero and footer each have one that appears on its own the moment it is), so they would be hunting for something that isn't there. If someone asks when: say it's with Apple for review and there's no date to promise.",
   },
   {
     id: "privacy-and-data",
