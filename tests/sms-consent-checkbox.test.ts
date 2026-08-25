@@ -17,7 +17,6 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 
 const FORMS = [
   "src/components/LeadCaptureForm.tsx",
-  "src/components/SocialLinkIntercept.tsx",
   "src/components/SaveContactButton.tsx",
   "src/components/ConnectButton.tsx",
 ];

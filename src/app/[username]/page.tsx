@@ -467,18 +467,38 @@ export default async function CardPage({
             control on the OWNER's dashboard. */}
         {/* Always-visible viewer CTA (owner request 2026-08-25): a full-size
             button matching "Share this card" directly beneath it, on EVERY
-            card — it replaces the faint Free-only "Create your card" text
-            link that used to sit here. Straight into the builder. */}
+            card. Personalized with the owner's first name and dressed like
+            the signup nudge's hero CTA — gradient, shine sweep, sparkle —
+            because this is the page's one conversion ask and it should look
+            like the product it sells. Straight into the builder. */}
         <a
           href={`${APP_URL}/cards/new?src=card_cta`}
-          className="mt-2 w-full flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-full text-sm transition-colors hover:bg-blue-50"
-          style={{ background: "#fff", border: "1px solid var(--sc-accent, #1D4ED8)", color: "var(--sc-accent, #1D4ED8)" }}
+          className="sc-getcard relative overflow-hidden mt-2 w-full flex items-center justify-center gap-2 font-bold py-3 px-6 rounded-full text-sm text-white transition-all hover:brightness-110 active:scale-[0.98]"
+          style={{
+            background: "linear-gradient(90deg, #1D4ED8 0%, #2563EB 55%, #0EA5E9 100%)",
+            boxShadow: "0 8px 20px -6px rgba(29,78,216,0.45), inset 0 1px 0 rgba(255,255,255,0.25)",
+          }}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <span className="sc-getcard-shine pointer-events-none absolute inset-0" aria-hidden="true" />
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2l2.1 6.5H21l-5.5 4 2.1 6.5L12 15l-5.6 4 2.1-6.5-5.5-4h6.9z" />
           </svg>
-          Get a free card like this
+          <span className="truncate">Get a free card like {firstName}&rsquo;s</span>
         </a>
+        <style>{`
+          @keyframes sc-getcard-shine {
+            0%, 60% { transform: translateX(-130%) skewX(-18deg); }
+            90%, 100% { transform: translateX(260%) skewX(-18deg); }
+          }
+          .sc-getcard-shine {
+            background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%);
+            width: 55%;
+            animation: sc-getcard-shine 3.6s ease-in-out infinite;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .sc-getcard-shine { animation: none; }
+          }
+        `}</style>
       </div>
       </div>
 

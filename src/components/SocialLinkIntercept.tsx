@@ -1,10 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
-import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
-import { hasSharedWith, markSharedWith, getVisitorInfo, getVisitorId } from "@/lib/visitor";
+import { triggerSignupNudge } from "@/lib/nudge";
 import LinkMark from "@/components/LinkMark";
 import { brandBackground, hostLabel } from "@/lib/link-brand";
 // The SHARED icon — it accepts a className. The file-local PlatformIcon below
@@ -92,100 +88,16 @@ export default function SocialLinkIntercept({
    */
   variant?: "bars" | "rail";
 }) {
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [pendingLabel, setPendingLabel] = useState<string>("");
-  const [alreadyShared, setAlreadyShared] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
-  // A2P review requires the box be unchecked by default and optional.
-  const [smsConsent, setSmsConsent] = useState(false);
-  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
-
-  useEffect(() => {
-    // Reflect shared-state on mount, AND update live when the visitor shares via
-    // any surface on the page (Save Contact, "Share your info", the connect form)
-    // — after they've shared once, these links open without asking again.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
-    setAlreadyShared(hasSharedWith(cardOwner));
-    const onShared = (e: Event) => {
-      const owner = (e as CustomEvent).detail?.owner;
-      if (!owner || owner === cardOwner) setAlreadyShared(true);
-    };
-    window.addEventListener("sc:shared", onShared as EventListener);
-    return () => window.removeEventListener("sc:shared", onShared as EventListener);
-  }, [cardOwner]);
-
-  function handleClick(link: SocialLinkData, e: React.MouseEvent) {
-    // Already shared (state OR a live re-check) → let the link open, no intercept.
-    if (alreadyShared || hasSharedWith(cardOwner)) { setAlreadyShared(true); return; }
-    e.preventDefault();
-    setPendingHref(link.href);
-    setPendingLabel(link.label);
-    setStatus("idle");
-    // Pre-fill from what the visitor shared on ANY card before, so they never
-    // retype their details on a different owner's SwiftLink — they just confirm
-    // and go. (Empty for a genuine first-time visitor.)
-    const known = getVisitorInfo();
-    setForm({ name: known?.name ?? "", phone: known?.phone ?? "", email: known?.email ?? "" });
-  }
-
-  function skip() {
-    if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
-    setPendingHref(null);
+  // ── No interception (owner decision 2026-08-25) ───────────────────────────
+  // Links are plain anchors: clicking LinkedIn/Instagram/the website goes
+  // STRAIGHT there, on every device. The "drop your info so X can connect
+  // with you" form that used to intercept the first click is gone — it asked
+  // for personal details at the moment the visitor wanted to leave, and the
+  // owner judged it cost more goodwill than it captured. The click still
+  // fires the incidental signup nudge (once per session, shown when they
+  // come back to this tab), so the moment isn't wasted.
+  function handleClick() {
     triggerSignupNudge("link_button");
-  }
-
-  // Just dismiss the popup without visiting the link.
-  function close() {
-    setPendingHref(null);
-    triggerSignupNudge("link_button");
-  }
-
-  async function shareAndVisit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name.trim() || !form.phone.trim()) return;
-    setStatus("loading");
-
-    try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          email: form.email || null,
-          card_owner: cardOwner,
-          // Joins this contact to their own card_events — see SaveContactButton.
-          visitor_id: getVisitorId(),
-          source: `social_intercept_${pendingLabel.toLowerCase().replace(/\s+/g, "_")}`,
-          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
-        }),
-      });
-      if (!res.ok) throw new Error("lead capture failed");
-    } catch {
-      // Don't mark as shared or advance the UI on a failed capture — the
-      // visitor's info would otherwise be silently lost while every other
-      // share-gate on the site treats them as already captured.
-      setStatus("idle");
-      return;
-    }
-
-    // Record the share the shared way (stores their info for pre-fill + broadcasts
-    // so every other surface stops asking).
-    markSharedWith(cardOwner, form);
-
-    setAlreadyShared(true);
-    setStatus("done");
-
-    setTimeout(() => {
-      if (pendingHref) window.open(pendingHref, "_blank", "noopener,noreferrer");
-      setPendingHref(null);
-    }, 800);
-    // They just shared their info off someone's card — invite them to make
-    // their own (the host shows it once per session, never to logged-in
-    // users). Visibility-aware: the window.open above may background this tab,
-    // so the nudge waits for them to come back rather than firing unseen.
-    triggerSignupNudgeWhenVisible("share_info", 800);
   }
 
   const arrowIcon = (
@@ -202,9 +114,9 @@ export default function SocialLinkIntercept({
         <a
           key={s.label}
           href={s.href}
-          target={alreadyShared ? "_blank" : undefined}
+          target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => handleClick(s, e)}
+          onClick={handleClick}
           className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm hover:opacity-90 active:scale-[0.98]"
           style={{
             background: s.color + "12",
@@ -244,9 +156,9 @@ export default function SocialLinkIntercept({
       {website && (
         <a
           href={website.href}
-          target={alreadyShared ? "_blank" : undefined}
+          target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => handleClick(website, e)}
+          onClick={handleClick}
           className={
             // No accent-filled variant here either: with the action links now
             // uniform (owner call), a saturated website plate would be the only
@@ -282,9 +194,9 @@ export default function SocialLinkIntercept({
       {soloSocialRow ? (
         <a
           href={socials[0].href}
-          target={alreadyShared ? "_blank" : undefined}
+          target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => handleClick(socials[0], e)}
+          onClick={handleClick}
           // Same blue hover as the website row and the link table — this is the
           // same kind of object, and it was the only one of the three with no
           // hover at all.
@@ -318,9 +230,9 @@ export default function SocialLinkIntercept({
               <a
                 key={s.label}
                 href={s.href}
-                target={alreadyShared ? "_blank" : undefined}
+                target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => handleClick(s, e)}
+                onClick={handleClick}
                 aria-label={s.sub ? `${s.label} — ${s.sub}` : s.label}
                 title={s.sub}
                 // after:-inset-1 grows the hit area to 48px without moving the disc.
@@ -349,119 +261,6 @@ export default function SocialLinkIntercept({
     <>
       {variant === "rail" ? railList : barsList}
 
-      {/* PORTALED to <body> like every card-page overlay: transformed
-          scroll-reveal ancestors otherwise cage position:fixed and the sheet
-          rendered at the bottom of the document on desktop. Bottom sheet on
-          phones, centered dialog on md+. */}
-      {pendingHref && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => e.target === e.currentTarget && close()}
-        >
-          <div
-            className="w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6 animate-slide-up md:animate-pop"
-            style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
-          >
-            {status === "done" ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <p className="text-slate-900 font-bold text-base">Info shared! Opening {pendingLabel}…</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-slate-900 font-bold text-base leading-snug">
-                      {/* "Follow you back" only makes sense on a social
-                          platform — for a website or other link it read as
-                          nonsense (owner bug report, 2026-08-25). */}
-                      {["LinkedIn", "Instagram", "X", "Twitter", "TikTok", "Facebook", "YouTube", "Snapchat", "Threads", "Pinterest"].includes(pendingLabel)
-                        ? `Let ${ownerFirstName} follow you back`
-                        : `Leave ${ownerFirstName} your info`}
-                    </p>
-                    <p className="text-slate-500 text-sm mt-1">
-                      {/* No "…on {platform}": they're connecting with the
-                          person, and "connect with you on the website" read
-                          as nonsense (owner bug report, 2026-08-25). */}
-                      Drop your info so {ownerFirstName} can connect with you.
-                    </p>
-                  </div>
-                  <button
-                    onClick={close}
-                    className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none shrink-0 ml-3"
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <form onSubmit={shareAndVisit} className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Your name *"
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Your phone *"
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Your email (optional)"
-                    value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400 transition-colors"
-                  />
-                  {/* SMS consent — separate affirmative opt-in (unchecked by
-                      default, optional); same block as every capture surface. */}
-                  <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
-                  <button
-                    type="submit"
-                    disabled={status === "loading"}
-                    className="w-full font-bold py-3 rounded-full text-white text-sm transition-all disabled:opacity-50"
-                    style={{ background: "#1D4ED8" }}
-                  >
-                    {status === "loading" ? "Saving…" : `Share & visit ${pendingLabel} →`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={skip}
-                    className="w-full text-slate-400 text-sm py-1.5 hover:text-slate-600 transition-colors"
-                  >
-                    Skip, just visit {pendingLabel}
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-        </div>,
-        document.body,
-      )}
-
-      <style>{`
-        @keyframes slide-up {
-          from { transform: translateY(100%); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        .animate-slide-up { animation: slide-up 0.25s ease-out; }
-        @keyframes sc-sheet-pop {
-          from { transform: scale(0.96); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @media (min-width: 768px) {
-          .md\\:animate-pop { animation: sc-sheet-pop 0.2s cubic-bezier(0.25,1,0.5,1); }
-        }
-      `}</style>
     </>
   );
 }
