@@ -1,0 +1,13 @@
+SwiftCard is the iPhone app for SwiftCard (swiftcard.me), a digital business card and lead-capture service. The app manages your own account: your cards, the people who shared their details with you, follow-ups, and analytics.
+
+WHAT CHANGED SINCE THE AUGUST 24 REVIEW — both cited guidelines are addressed.
+
+1) 3.1.1 — In-App Purchase
+The Pro subscription is now offered via In-App Purchase. Two auto-renewable subscriptions (monthly and annual, group "SwiftCard Pro"), each starting with a 14-day free trial, are included in this submission. The paywall is reachable from Settings > Plan and billing ("Subscribe to Pro") and from every gated feature on a Free account. It shows StoreKit pricing, includes Restore Purchases, links to Terms of Use and the Privacy Policy, and states the auto-renewal terms. Per Guideline 3.1.3(b), a purchase on either platform unlocks the same account everywhere: an In-App Purchase unlocks Pro on our website, and a subscription purchased on our website is usable in the app. Subscriptions purchased in the app are managed and canceled through the user's Apple account. The external purchase link from the previous build has been REMOVED — In-App Purchase is the app's only purchase mechanism.
+
+2) 5.1.1(i)/5.1.2(i) — third-party AI
+Before any personal data reaches the AI service, a permission dialog names the recipient (Google), itemises exactly what is sent (the photo taken when scanning a business card; a contact's name, company, where you met and notes when AI drafts a follow-up; messages typed to the assistant), and offers equal Allow / Don't allow choices. The requirement is enforced on our servers: until an account has explicitly allowed, every AI endpoint refuses requests from the app before any data is assembled, and "Don't allow" is honoured the same way. Our privacy policy at swiftcard.me/privacy identifies Google (the Gemini API), lists each category of data sent, its purpose, and that inputs are not used to train models. Both demo accounts have been reset, so the dialog appears immediately after signing in.
+
+DEMO ACCOUNTS — please use the Free one first (in the Sign-In fields).
+Free: applereview-free@swiftcard.me — default state; shows the consent dialog on first sign-in, the plan gates, and the In-App Purchase paywall. Use this account to exercise the purchase flow.
+Pro: applereview@swiftcard.me (same password) — a subscribed account, to see the features Pro unlocks without purchasing.
