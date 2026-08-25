@@ -17,6 +17,24 @@ describe("decideRcEvent — Apple grants", () => {
       ).toEqual({ action: "grant" });
     });
   }
+  it("a grant never overwrites OFFICE — Apple only sells Pro, and office is the higher tier", () => {
+    // Real sequence: Pro bought in the app, then upgraded to Office on the web.
+    // The Apple sub's next RENEWAL must not downgrade the row back to pro.
+    expect(
+      decideRcEvent({ eventType: "RENEWAL", currentPlan: "office", planSource: "stripe", hasStripeSubscription: true }),
+    ).toEqual({ action: "ignore" });
+    expect(
+      decideRcEvent({ eventType: "INITIAL_PURCHASE", currentPlan: "office", planSource: null, hasStripeSubscription: false }),
+    ).toEqual({ action: "ignore" });
+  });
+
+  it("the instant-sync route carries the same office guard", () => {
+    const { readFileSync } = require("node:fs");
+    const src = readFileSync("src/app/api/iap/sync/route.ts", "utf8");
+    expect(src).toMatch(/plan === "office"/);
+    expect(src).toMatch(/select\("plan, customization"\)/);
+  });
+
   it("grant is case-insensitive on event type", () => {
     expect(
       decideRcEvent({ eventType: "initial_purchase", currentPlan: null, planSource: null, hasStripeSubscription: false }),

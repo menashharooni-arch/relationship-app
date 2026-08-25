@@ -47,7 +47,14 @@ export function decideRcEvent(opts: {
   hasStripeSubscription: boolean;
 }): RcDecision {
   const type = opts.eventType.toUpperCase();
-  if (RC_GRANT_EVENTS.has(type)) return { action: "grant" };
+  // Apple only sells Pro. An account on OFFICE (a higher, Stripe-billed tier —
+  // Apple has no per-seat subscriptions) must not be overwritten to "pro" by a
+  // grant: someone who bought Pro in the app and later upgraded to Office on
+  // the web would otherwise be silently downgraded by their Apple sub's next
+  // RENEWAL event. "Upgrade wins" means office stays.
+  if (RC_GRANT_EVENTS.has(type)) {
+    return opts.currentPlan === "office" ? { action: "ignore" } : { action: "grant" };
+  }
   if (!RC_REVOKE_EVENTS.has(type)) return { action: "ignore" };
   if (opts.planSource !== "apple") return { action: "ignore" };
   if (opts.hasStripeSubscription) return { action: "ignore" };

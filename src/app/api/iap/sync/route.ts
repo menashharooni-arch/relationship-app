@@ -41,9 +41,12 @@ export async function POST() {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
-    .select("customization")
+    .select("plan, customization")
     .eq("id", user.id)
     .single();
+  // Same rule as decideRcEvent: Apple only sells Pro, so an OFFICE plan (the
+  // higher, Stripe-billed tier) is never overwritten by this grant.
+  if (profile?.plan === "office") return NextResponse.json({ ok: true, applied: "none" });
   const customization = { ...((profile?.customization as Record<string, unknown> | null) ?? {}) };
   await admin
     .from("profiles")

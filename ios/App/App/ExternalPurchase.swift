@@ -48,11 +48,18 @@ public class ExternalPurchasePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)
     ]
 
-    // Only our own origin may be opened. The URL arrives from web code running
-    // in a remote-origin webview, so it is not inherently trusted input: without
-    // this an injected string could turn a compliance affordance into an
-    // arbitrary-URL opener.
-    private static let allowedHosts: Set<String> = ["swiftcard.me", "www.swiftcard.me"]
+    // Only our own origin — plus Apple's subscription-management page — may be
+    // opened. The URL arrives from web code running in a remote-origin webview,
+    // so it is not inherently trusted input: without this an injected string
+    // could turn a compliance affordance into an arbitrary-URL opener.
+    //
+    // apps.apple.com is here for manageIapSubscription() (lib/iap.ts): Apple-
+    // billed subs are canceled on the App Store's own page, and iOS hands that
+    // URL to the system subscription sheet. Before it was allow-listed, the
+    // "Manage subscription" button resolved a rejection into a swallowed catch
+    // — a silently dead button, in front of exactly the reviewer who just
+    // sandbox-purchased.
+    private static let allowedHosts: Set<String> = ["swiftcard.me", "www.swiftcard.me", "apps.apple.com"]
 
     @objc func open(_ call: CAPPluginCall) {
         guard let raw = call.getString("url"),
