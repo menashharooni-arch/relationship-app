@@ -58,12 +58,15 @@ describe("PlanGate native notice is neutral — no selling", () => {
       .replace(/&amp;/g, "&");
   const out = decode(rawOut);
 
-  it("shows the exact neutral copy", () => {
-    // Compared against the rendered TEXT, not the raw markup: PlanNotice wraps
-    // "on swiftcard.me" in a nowrap span so the domain can't be orphaned onto
-    // a line of its own, which splits the sentence across elements. What must
-    // stay exact is what the user reads.
-    expect(out.replace(/<[^>]+>/g, "")).toContain(NATIVE_COPY);
+  it("shows the neutral copy, with the site phrase stripped (IAP era)", () => {
+    // The gate STRINGS still say "on the Pro plan on swiftcard.me" for the
+    // surfaces without a purchase path, but PlanNotice carries the IAP
+    // subscribe button — naming the website directly above a button that
+    // sells the plan right here is untrue and reads as steering. The notice
+    // strips the phrase at render time.
+    const text = out.replace(/<[^>]+>/g, "");
+    expect(text).toContain("Unlimited leads are only available on the Pro plan");
+    expect(text).not.toContain("swiftcard.me");
   });
 
   it("contains no link, no button, no price, and no 'upgrade' verb", () => {
@@ -76,23 +79,17 @@ describe("PlanGate native notice is neutral — no selling", () => {
     expect(out).not.toMatch(/pricing/i);
   });
 
-  // The domain used to be banned outright here. It is now named on purpose
-  // (owner decision, 2026-08-12): a Free user hitting a locked feature in the
-  // app had no way to learn where the plan lives. What has NOT changed is that
-  // it must stay inert — the notice may say the word, never offer the tap.
-  //
-  // Apple's 3.1.1 anti-steering rules are the reason the shape matters this
-  // much: a static sentence is a far weaker claim than a link or a button, and
-  // this test is what stops the sentence quietly becoming one.
-  it("names the site as plain text — never as a link or a tappable element", () => {
-    expect(out.replace(/<[^>]+>/g, "")).toContain("swiftcard.me");
-    // Not inside an anchor, and not carrying a URL scheme or a path.
+  // History: the domain was banned here, then named on purpose (owner
+  // decision, 2026-08-12) so a Free user could learn where the plan lives,
+  // and is now stripped again — PlanNotice sells via In-App Purchase, so the
+  // purchase path IS this surface and the site mention became steering. The
+  // surfaces without a purchase path (nativeContent overrides) still name it,
+  // inert, via GateCopy.
+  it("carries no link, no URL, and nothing announced as actionable", () => {
     expect(out).not.toMatch(/<a[\s>]/i);
     expect(out).not.toMatch(/href=/i);
     expect(out).not.toMatch(/https?:\/\//i);
-    expect(out).not.toMatch(/swiftcard\.me\//);
     expect(out).not.toMatch(/onclick/i);
-    // No role that would announce it as actionable to assistive tech.
     expect(out).not.toMatch(/role="(link|button)"/i);
   });
 
