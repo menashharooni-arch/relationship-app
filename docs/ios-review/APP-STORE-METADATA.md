@@ -123,8 +123,10 @@ Suggested five:
 5. Swift Links page
 
 ## Version
-- 1.0.0, build 7. "What's New": `Your digital business card, now on iPhone.`
-  (Build 7 is the resubmission after the 1.0.0 (3) rejection: it adds the US
-  external purchase link for Guideline 3.1.1 and the rewritten AI consent
-  notice for 5.1.1(i)/5.1.2(i). Availability is now United States only, which
-  the purchase link depends on.)
+- 1.0.0, build 9. "What's New": `Your digital business card, now on iPhone.`
+  (Build 9 is the IAP-era binary: RevenueCat SDK + the NativePaywall sell Pro
+  in-app per the 4th rejection's 3.1.1/3.1.3(b) demand, and apps.apple.com is
+  allow-listed in the ExternalPurchase plugin so "Manage subscription" opens
+  the App Store's subscription page — in build 8 that button was silently
+  dead. Build 8 was uploaded but never submitted; build 7 was the rejected
+  external-link-only attempt. Availability remains United States only.)

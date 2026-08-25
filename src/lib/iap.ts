@@ -205,5 +205,9 @@ export async function manageIapSubscription(): Promise<void> {
   const ext = (window as unknown as {
     Capacitor?: { Plugins?: { ExternalPurchase?: { open: (o: { url: string }) => Promise<unknown> } } };
   }).Capacitor?.Plugins?.ExternalPurchase;
-  await ext?.open({ url: "https://apps.apple.com/account/subscriptions" }).catch(() => {});
+  // Reported, not swallowed: this exact call was once a silently dead button
+  // (apps.apple.com missing from the plugin's host allow-list — the rejection
+  // vanished into an empty catch).
+  await ext?.open({ url: "https://apps.apple.com/account/subscriptions" })
+    .catch((e) => reportIapFailure("manage", e));
 }
