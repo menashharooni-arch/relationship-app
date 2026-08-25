@@ -112,7 +112,7 @@ describe("a QR save notifies the owner exactly like a button save", () => {
   });
 
   it("Done is the only visible way out — no X (owner preference)", () => {
-    const popup = src.slice(src.indexOf("{showQr && ("), src.indexOf("<style>"));
+    const popup = src.slice(src.indexOf("{showQr && createPortal("), src.indexOf("<style>"));
     expect(popup, "the X came back to the QR popup").not.toMatch(/aria-label="Close"/);
     // But it must still be closable, or the popup is a trap: Done + backdrop.
     // Whitespace-tolerant: the repo checks out CRLF, so a \n literal never matches.
@@ -123,7 +123,7 @@ describe("a QR save notifies the owner exactly like a button save", () => {
   it("the QR popup itself holds no share-back form", () => {
     // While the popup is open the visitor is looking at their PHONE. A form
     // behind the code asks at the one moment nobody is reading the screen.
-    const popup = src.slice(src.indexOf("{showQr && ("), src.indexOf("<style>"));
+    const popup = src.slice(src.indexOf("{showQr && createPortal("), src.indexOf("<style>"));
     expect(popup, "the share-back ask is back inside the QR popup").not.toContain("have yours too");
     expect(popup, "the QR popup grew a form again").not.toMatch(/<form/);
     expect(popup, "the QR popup should contain the code and little else").toContain("<MiniQR");
@@ -276,7 +276,7 @@ describe("the free-card invite closes out every path", () => {
   });
 
   it("all three dismissals route through that one function", () => {
-    const sheet = src.slice(src.indexOf("{showSheet && ("), src.indexOf("{showQr && ("));
+    const sheet = src.slice(src.indexOf("{showSheet && createPortal("), src.indexOf("{showQr && createPortal("));
     // Backdrop, X and "No thanks". If any one wires straight to setShowSheet
     // instead, that exit silently stops inviting.
     expect(sheet, "backdrop no longer closes via closeSheet").toContain("e.target === e.currentTarget && closeSheet()");

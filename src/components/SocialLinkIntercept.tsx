@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
 import { hasSharedWith, markSharedWith, getVisitorInfo, getVisitorId } from "@/lib/visitor";
@@ -348,15 +349,19 @@ export default function SocialLinkIntercept({
     <>
       {variant === "rail" ? railList : barsList}
 
-      {pendingHref && (
+      {/* PORTALED to <body> like every card-page overlay: transformed
+          scroll-reveal ancestors otherwise cage position:fixed and the sheet
+          rendered at the bottom of the document on desktop. Bottom sheet on
+          phones, centered dialog on md+. */}
+      {pendingHref && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
           style={{ background: "rgba(0,0,0,0.5)" }}
           onClick={(e) => e.target === e.currentTarget && close()}
         >
           <div
-            className="w-full max-w-sm rounded-t-3xl p-6 animate-slide-up"
-            style={{ background: "#FAF7F2", borderTop: "1px solid #E4DDD4" }}
+            className="w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6 animate-slide-up md:animate-pop"
+            style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
           >
             {status === "done" ? (
               <div className="text-center py-4">
@@ -372,10 +377,18 @@ export default function SocialLinkIntercept({
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-slate-900 font-bold text-base leading-snug">
-                      Let {ownerFirstName} follow you back
+                      {/* "Follow you back" only makes sense on a social
+                          platform — for a website or other link it read as
+                          nonsense (owner bug report, 2026-08-25). */}
+                      {["LinkedIn", "Instagram", "X", "Twitter", "TikTok", "Facebook", "YouTube", "Snapchat", "Threads", "Pinterest"].includes(pendingLabel)
+                        ? `Let ${ownerFirstName} follow you back`
+                        : `Leave ${ownerFirstName} your info`}
                     </p>
                     <p className="text-slate-500 text-sm mt-1">
-                      Drop your info so {ownerFirstName} can connect with you on {pendingLabel}.
+                      {/* No "…on {platform}": they're connecting with the
+                          person, and "connect with you on the website" read
+                          as nonsense (owner bug report, 2026-08-25). */}
+                      Drop your info so {ownerFirstName} can connect with you.
                     </p>
                   </div>
                   <button
@@ -431,7 +444,8 @@ export default function SocialLinkIntercept({
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <style>{`
@@ -440,6 +454,13 @@ export default function SocialLinkIntercept({
           to { transform: translateY(0); opacity: 1; }
         }
         .animate-slide-up { animation: slide-up 0.25s ease-out; }
+        @keyframes sc-sheet-pop {
+          from { transform: scale(0.96); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @media (min-width: 768px) {
+          .md\\:animate-pop { animation: sc-sheet-pop 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        }
       `}</style>
     </>
   );

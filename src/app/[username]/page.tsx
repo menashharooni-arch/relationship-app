@@ -465,16 +465,20 @@ export default async function CardPage({
             above covers the same job. The QRCodeModal component stays: the
             three marketing mockups still use it, and it is still the right
             control on the OWNER's dashboard. */}
-        {/* Faint viewer CTA — turns people who receive a card into signups.
-            Free only: Pro is sold as "100% your brand", and this line is
-            SwiftCard advertising sitting on a paying customer's card page. It
-            rendered for everyone, which quietly broke that promise alongside
-            the badge below (which was already gated). */}
-        {!isPaidPlan(profile.plan) && (
-          <a href={`${APP_URL}/?src=card`} className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
-            Create your card · swiftcard.me
-          </a>
-        )}
+        {/* Always-visible viewer CTA (owner request 2026-08-25): a full-size
+            button matching "Share this card" directly beneath it, on EVERY
+            card — it replaces the faint Free-only "Create your card" text
+            link that used to sit here. Straight into the builder. */}
+        <a
+          href={`${APP_URL}/cards/new?src=card_cta`}
+          className="mt-2 w-full flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-full text-sm transition-colors hover:bg-blue-50"
+          style={{ background: "#fff", border: "1px solid var(--sc-accent, #1D4ED8)", color: "var(--sc-accent, #1D4ED8)" }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Get a free card like this
+        </a>
       </div>
       </div>
 
