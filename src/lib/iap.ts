@@ -62,7 +62,15 @@ function reportIapFailure(stage: string, e: unknown): void {
   }).catch(() => {});
 }
 
-async function plugin(): Promise<PurchasesPlugin | null> {
+/**
+ * Resolves to a WRAPPER around the plugin, never the plugin itself: resolving
+ * a promise with a Capacitor plugin proxy makes the JS engine probe it for
+ * `.then` (thenable check), which the bridge forwards as a native call named
+ * "then" — and the whole chain dies with `"Purchases.then()" is not
+ * implemented on ios`. That exact error hid the paywall in the first
+ * simulator test.
+ */
+async function plugin(): Promise<{ P: PurchasesPlugin } | null> {
   if (!detectNativeApp()) return null;
   if (!process.env.NEXT_PUBLIC_RC_APPLE_API_KEY) {
     reportIapFailure("env", "NEXT_PUBLIC_RC_APPLE_API_KEY missing from bundle");
@@ -70,7 +78,7 @@ async function plugin(): Promise<PurchasesPlugin | null> {
   }
   try {
     const mod = await import("@revenuecat/purchases-capacitor");
-    return mod.Purchases;
+    return { P: mod.Purchases };
   } catch (e) {
     reportIapFailure("import", e);
     return null;
@@ -83,16 +91,16 @@ async function plugin(): Promise<PurchasesPlugin | null> {
  * see AccountIsolationGuard for why that path is taken seriously).
  */
 export async function ensureIapConfigured(userId: string): Promise<boolean> {
-  const p = await plugin();
-  if (!p) return false;
+  const w = await plugin();
+  if (!w) return false;
   try {
     if (configuredFor === null) {
-      await p.configure({
+      await w.P.configure({
         apiKey: process.env.NEXT_PUBLIC_RC_APPLE_API_KEY as string,
         appUserID: userId,
       });
     } else if (configuredFor !== userId) {
-      await p.logIn({ appUserID: userId });
+      await w.P.logIn({ appUserID: userId });
     }
     configuredFor = userId;
     return true;
@@ -115,10 +123,10 @@ export async function canOfferIap(): Promise<boolean> {
  * purchase UI at all.
  */
 export async function getIapPackages(): Promise<IapPackage[]> {
-  const p = await plugin();
-  if (!p) return [];
+  const w = await plugin();
+  if (!w) return [];
   try {
-    const { current } = await p.getOfferings();
+    const { current } = await w.P.getOfferings();
     const out: IapPackage[] = [];
     for (const pkg of current?.availablePackages ?? []) {
       const period =
@@ -151,13 +159,13 @@ export type PurchaseResult = "purchased" | "cancelled" | "failed";
  * leaves the button" path.
  */
 export async function purchaseIap(identifier: string): Promise<PurchaseResult> {
-  const p = await plugin();
-  if (!p) return "failed";
+  const w = await plugin();
+  if (!w) return "failed";
   try {
-    const { current } = await p.getOfferings();
+    const { current } = await w.P.getOfferings();
     const pkg = (current?.availablePackages ?? []).find((x) => x.identifier === identifier);
     if (!pkg) return "failed";
-    const res = await p.purchasePackage({ aPackage: pkg });
+    const res = await w.P.purchasePackage({ aPackage: pkg });
     const active = !!res.customerInfo?.entitlements?.active?.[IAP_ENTITLEMENT];
     if (!active) return "failed";
     await fetch("/api/iap/sync", { method: "POST" }).catch(() => {});
@@ -173,10 +181,10 @@ export async function purchaseIap(identifier: string): Promise<PurchaseResult> {
 
 /** Restore Purchases — required UI on any paywall (Guideline 3.1.2). */
 export async function restoreIap(): Promise<boolean> {
-  const p = await plugin();
-  if (!p) return false;
+  const w = await plugin();
+  if (!w) return false;
   try {
-    const res = await p.restorePurchases();
+    const res = await w.P.restorePurchases();
     const active = !!res.customerInfo?.entitlements?.active?.[IAP_ENTITLEMENT];
     if (active) await fetch("/api/iap/sync", { method: "POST" }).catch(() => {});
     return active;
