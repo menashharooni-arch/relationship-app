@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { nudgeCopy } from "@/lib/referral";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
@@ -201,11 +202,18 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
     dismissTimer.current = setTimeout(() => setSource(null), 220);
   }
 
-  return (
+  return createPortal(
+    /* PORTALED to <body>: transformed scroll-reveal ancestors on the card
+       pages otherwise cage this fixed overlay to their own box, which parked
+       the popup at the bottom of the DOCUMENT on desktop — visitors had to
+       scroll to even see it (owner bug report, 2026-08-25). Bottom-anchored
+       card on phones; centered dialog with a dimmed backdrop on md+, where a
+       toast at the screen's foot reads as ignorable rather than an invite. */
     <div
-      className="fixed inset-x-0 bottom-0 z-[80] flex justify-center px-4 pb-[max(16px,env(safe-area-inset-bottom))] pointer-events-none"
+      className="fixed inset-x-0 bottom-0 md:inset-0 z-[80] flex items-end md:items-center justify-center px-4 pb-[max(16px,env(safe-area-inset-bottom))] md:pb-4 pointer-events-none md:pointer-events-auto md:bg-black/40"
       role="dialog"
       aria-label="Create your own SwiftCard"
+      onClick={(e) => { if (e.target === e.currentTarget) dismiss(); }}
     >
       <div
         className={`pointer-events-auto w-full max-w-sm rounded-[28px] overflow-hidden bg-white ${closing ? "sc-nudge-out" : "sc-nudge-in"}`}
@@ -297,6 +305,7 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
           .sc-nudge-in, .sc-nudge-out, .sc-float, .sc-shine, .sc-twinkle { animation: none; }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }

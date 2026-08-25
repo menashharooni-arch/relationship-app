@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
@@ -378,16 +379,21 @@ export default function SaveContactButton({
         </div>
       )}
 
-      {/* Conversion bottom sheet */}
-      {showSheet && (
+      {/* Conversion sheet. PORTALED to <body>: the card page's scroll-reveal
+          wrappers carry transforms, which turn position:fixed into
+          "fixed inside that ancestor" — on desktop the sheet rendered at the
+          BOTTOM OF THE DOCUMENT, off-screen until the visitor scrolled (owner
+          bug report, 2026-08-25). Same fix QRCodeModal has carried all along.
+          Bottom sheet on phones; centered dialog on md+. */}
+      {showSheet && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
           style={{ background: "rgba(0,0,0,0.5)" }}
           onClick={(e) => e.target === e.currentTarget && closeSheet()}
         >
           <div
-            className="w-full max-w-sm rounded-t-3xl p-6 animate-slide-up"
-            style={{ background: "#FAF7F2", borderTop: "1px solid #E4DDD4" }}
+            className="w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6 animate-slide-up md:animate-pop"
+            style={{ background: "#FAF7F2", border: "1px solid #E4DDD4" }}
           >
             {status === "done" ? (
               <div className="text-center py-4">
@@ -461,7 +467,8 @@ export default function SaveContactButton({
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Desktop QR popup — JUST the code. The "Let <name> have yours too" ask
@@ -470,7 +477,7 @@ export default function SaveContactButton({
           asking at the one moment nobody is reading. It fires on close instead
           (see closeQr), landing in exactly the same place it does in the Save
           Contact flow. Only reachable from the md+ button, so phones never see it. */}
-      {showQr && (
+      {showQr && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.5)" }}
@@ -514,7 +521,8 @@ export default function SaveContactButton({
               Done
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       <style>{`
@@ -523,6 +531,13 @@ export default function SaveContactButton({
           to { transform: translateY(0); opacity: 1; }
         }
         .animate-slide-up { animation: slide-up 0.25s ease-out; }
+        @keyframes sc-sheet-pop {
+          from { transform: scale(0.96); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        @media (min-width: 768px) {
+          .md\\:animate-pop { animation: sc-sheet-pop 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+        }
       `}</style>
     </>
   );
