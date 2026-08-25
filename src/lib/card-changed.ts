@@ -63,3 +63,47 @@ export function cardContentChanged(
   }
   return false;
 }
+
+/**
+ * The customization blob is a grab bag: card design (colors, font, photo) and
+ * on-card info (bio, phones, address, extra socials) share it with the Swift
+ * Links list (`links`) and internal `_`-prefixed bookkeeping (_claimDraftId…).
+ * The email-signature image renders NONE of the latter — so editing your
+ * links, or an internal flag churning, must not tell the owner "you changed
+ * your card, re-copy your signature" (owner bug report 2026-08-25: the nudge
+ * fired for edits the signature doesn't show).
+ */
+function stripSignatureIrrelevant(cust: unknown): unknown {
+  if (!cust || typeof cust !== "object" || Array.isArray(cust)) return cust;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(cust as Record<string, unknown>)) {
+    if (k === "links" || k.startsWith("_")) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Like cardContentChanged, but answering the SIGNATURE's question: did
+ * anything the signature/card visual actually shows change? Same scalar
+ * comparison; the customization diff ignores `links` and `_`-internal keys.
+ * Use this to gate the signature_stale notification (and the signature PNG
+ * invalidation). Wallet passes and the share-preview capture DO show links,
+ * so they keep the full cardContentChanged.
+ */
+export function signatureContentChanged(
+  before: Record<string, unknown>,
+  updates: Record<string, unknown>,
+  scalars: readonly string[] = ON_CARD_SCALARS,
+): boolean {
+  for (const k of scalars) {
+    if (k in updates && String(updates[k] ?? "") !== String(before[k] ?? "")) return true;
+  }
+  if ("customization" in updates) {
+    return (
+      JSON.stringify(canonicalize(stripSignatureIrrelevant(updates.customization ?? {}))) !==
+      JSON.stringify(canonicalize(stripSignatureIrrelevant(before.customization ?? {})))
+    );
+  }
+  return false;
+}

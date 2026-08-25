@@ -13,7 +13,7 @@
 //   autoplaying embed. Free renders every link compact and videos link out —
 //   featured tiles, the grid and inline video are the advertised premium.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { layoutTiles, type SizedLink } from "@/lib/swiftlink-tiles";
@@ -59,6 +59,55 @@ export default function SwiftLinkButtons({
   const [previews, setPreviews] = useState<Record<number, Preview>>({});
   // Index of the tile currently playing an inline video, if any.
   const [playing, setPlaying] = useState<number | null>(null);
+  // Per-tile tone of the preview image's BOTTOM strip, where the title sits:
+  // "light" flips the label dark-on-light, "dark" keeps white-on-dark (owner
+  // request 2026-08-25 — a white title over a white website screenshot was
+  // unreadable even through the scrim). Measured, not guessed: the image is
+  // re-read through the same-origin /api/img-proxy so canvas sampling isn't
+  // CORS-tainted, and the average luminance of the bottom 35% decides.
+  // Unsampleable images (proxy miss, decode error) stay "dark" — the current
+  // white-text + black-scrim treatment, which is the safer default.
+  const [tileTone, setTileTone] = useState<Record<string, "light" | "dark">>({});
+
+  // Sample every tile image once its URL is known (previews arrive async).
+  // Runs in an effect — sampling flips state, which must never happen during
+  // render.
+  const sampledRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    links.forEach((link) => {
+      if (link.kind === "header") return;
+      const url = videoThumbnail(link.url);
+      if (url && !sampledRef.current.has(url)) { sampledRef.current.add(url); sampleTone(url); }
+    });
+    Object.values(previews).forEach((pv) => {
+      if (pv?.image && !sampledRef.current.has(pv.image)) { sampledRef.current.add(pv.image); sampleTone(pv.image); }
+    });
+  }, [links, previews]);
+
+  function sampleTone(imgUrl: string) {
+    if (typeof window === "undefined") return;
+    const el = new Image();
+    el.crossOrigin = "anonymous";
+    el.onload = () => {
+      try {
+        const w = 24, h = 10;
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        // Draw only the bottom 35% of the image — the strip under the title.
+        ctx.drawImage(el, 0, el.naturalHeight * 0.65, el.naturalWidth, el.naturalHeight * 0.35, 0, 0, w, h);
+        const data = ctx.getImageData(0, 0, w, h).data;
+        let sum = 0;
+        for (let p = 0; p < data.length; p += 4) {
+          sum += 0.2126 * data[p] + 0.7152 * data[p + 1] + 0.0722 * data[p + 2];
+        }
+        const avg = sum / (data.length / 4);
+        if (avg > 150) setTileTone((t) => ({ ...t, [imgUrl]: "light" }));
+      } catch { /* tainted or decode failure — keep the dark default */ }
+    };
+    el.src = `/api/img-proxy?url=${encodeURIComponent(imgUrl)}`;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +194,9 @@ export default function SwiftLinkButtons({
 
         // ── FEATURED / GRID — image tiles ───────────────────────────────────
         const img = videoThumb || pv?.image || null;
+        // Light-bottomed preview → dark title on a light scrim; anything else
+        // (dark image, gradient fallback, unsampleable) → white on dark scrim.
+        const lightTile = img ? tileTone[img] === "light" : false;
         const isPlaying = playing === i;
         const big = size === "featured" || isPlaying;
 
@@ -202,8 +254,16 @@ export default function SwiftLinkButtons({
               </div>
             )}
 
-            {/* Bottom gradient so the title reads over any image */}
-            <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
+            {/* Bottom gradient so the title reads over any image — matched to
+                the measured tone of the strip it covers. */}
+            <div
+              className="absolute inset-x-0 bottom-0 h-[70%]"
+              style={{
+                background: lightTile
+                  ? "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.82) 100%)"
+                  : "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)",
+              }}
+            />
 
             {/* Favicon circle, top-left (link.me's iconbox) */}
             {img && (favicon || link.emoji) && (
@@ -229,11 +289,15 @@ export default function SwiftLinkButtons({
             {/* Centered title at the bottom, 2-line clamp */}
             <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
               <span
-                className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
+                className={`font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
                 // Break BETWEEN words (overflow-wrap), never mid-word — a word
                 // only splits if it alone is wider than the tile, and the
                 // 2-line clamp ends on a complete word with an ellipsis.
-                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "normal", overflowWrap: "break-word", textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}
+                style={{
+                  color: lightTile ? "#0F172A" : "#ffffff",
+                  textShadow: lightTile ? "0 1px 6px rgba(255,255,255,0.7)" : "0 1px 8px rgba(0,0,0,0.6)",
+                  display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "normal", overflowWrap: "break-word",
+                }}
               >
                 {link.label}
               </span>
