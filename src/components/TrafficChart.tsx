@@ -70,11 +70,19 @@ export default function TrafficChart({
                 }}
               />
               {active && b.count > 0 && (
-                <div className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-center shadow-lg ring-1 ring-black/20">
-                  <span className="block text-[11px] font-bold text-white tabular-nums">
+                /* Inline colors, no theme-remapped classes: the light theme
+                   flips .text-white dark and .bg-slate-800 white, which turned
+                   this tooltip into dark-on-pale. A tooltip is a floating chip,
+                   not a surface — it stays dark with light text in BOTH themes,
+                   like ViewsChart's. */
+                <div
+                  className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-center shadow-lg ring-1 ring-black/20"
+                  style={{ backgroundColor: "#1e293b" }}
+                >
+                  <span className="block text-[11px] font-bold tabular-nums" style={{ color: "#ffffff" }}>
                     {b.count} view{b.count !== 1 ? "s" : ""}
                   </span>
-                  <span className="block text-[10px] text-slate-400">{fmtTip(b.ts)}</span>
+                  <span className="block text-[10px]" style={{ color: "#cbd5e1" }}>{fmtTip(b.ts)}</span>
                 </div>
               )}
             </div>
