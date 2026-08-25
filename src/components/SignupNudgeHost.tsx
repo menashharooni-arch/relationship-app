@@ -161,17 +161,24 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
       try {
         const cls = nudgeClassOf(src);
         const key = slotKey(cls, cardUsername);
-        try {
-          // A high-value moment has its own per-card slot that incidental
-          // taps cannot touch; incidental taps share one slot per session.
-          if (sessionStorage.getItem(key)) return;
-        } catch { /* private mode — show anyway */ }
+        // High-value moments (a contact saved, info shared) show EVERY time
+        // they happen — owner decision 2026-08-25: this invite must be
+        // bulletproof at the moment that converts, not rationed. Only
+        // incidental link taps keep the once-per-session slot.
+        if (!isHighValue(cls)) {
+          try {
+            if (sessionStorage.getItem(key)) return;
+          } catch { /* private mode — show anyway */ }
+        }
         // Existing SwiftCard customers are never nudged to create a card —
         // they already have one. Checked BEFORE any slot is spent, so a slow
         // or failed check can no longer eat the session's popup invisibly.
         if (await visitorHasAccount()) return;
-        // The popup is actually going to render — only now spend the slot.
-        try { sessionStorage.setItem(key, "1"); } catch { /* private mode */ }
+        // The popup is actually going to render — spend the incidental slot
+        // (high-value moments are unrationed, nothing to spend).
+        if (!isHighValue(cls)) {
+          try { sessionStorage.setItem(key, "1"); } catch { /* private mode */ }
+        }
         trackNudge(cardUsername, "nudge_impression", src);
         // A newer nudge can arrive while an older one's dismiss-fade is still
         // scheduled — cancel that stale timer so it can't clear the new popup.

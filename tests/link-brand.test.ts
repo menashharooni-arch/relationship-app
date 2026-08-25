@@ -176,16 +176,16 @@ describe("the marketing mockups show the card page's real Swift Links design", (
     expect(code("src/app/[username]/page.tsx")).toMatch(/variant="rail"/);
   });
 
-  it("the intercept mechanic is intact in every rail branch", () => {
+  it("links navigate DIRECTLY — the intercept is gone (owner decision 2026-08-25)", () => {
     const c = code("src/components/SocialLinkIntercept.tsx");
-    // Three anchors in the rail (website, solo social, disc) + one in bars.
-    expect((c.match(/onClick=\{\(e\) => handleClick\(/g) ?? []).length).toBe(4);
-    // Never a <button> — alreadyShared relies on native navigation.
-    expect((c.match(/target=\{alreadyShared \? "_blank" : undefined\}/g) ?? []).length).toBe(4);
-    // The capture path itself is untouched.
-    expect(c).toMatch(/source: `social_intercept_\$\{pendingLabel/);
-    expect(c).toMatch(/sms_consent: smsConsent/);
-    expect(c).toMatch(/markSharedWith\(cardOwner, form\)/);
+    // Three anchors in the rail (website, solo social, disc) + one in bars,
+    // every one a plain new-tab anchor with the incidental nudge on click.
+    expect((c.match(/onClick=\{handleClick\}/g) ?? []).length).toBe(4);
+    expect((c.match(/target="_blank"/g) ?? []).length).toBe(4);
+    // Nothing may re-grow a capture form here: no interception, no lead post.
+    expect(c).not.toMatch(/preventDefault/);
+    expect(c).not.toMatch(/api\/leads/);
+    expect(c).toMatch(/triggerSignupNudge\("link_button"\)/);
   });
 
   it("the signup nudge still fires on every action link", () => {

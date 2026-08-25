@@ -88,7 +88,7 @@ describe("(25) the visitor's action completes FIRST", () => {
   it("delayed nudges wait for the page to be VISIBLE (OS sheets background it)", () => {
     const nudgeLib = read("src/lib/nudge.ts");
     expect(nudgeLib).toMatch(/visibilitychange/);
-    for (const f of ["src/components/SaveContactButton.tsx", "src/components/LeadCaptureForm.tsx", "src/components/SocialLinkIntercept.tsx"]) {
+    for (const f of ["src/components/SaveContactButton.tsx", "src/components/LeadCaptureForm.tsx"]) {
       expect(read(f), f).toMatch(/triggerSignupNudgeWhenVisible\(/);
     }
   });

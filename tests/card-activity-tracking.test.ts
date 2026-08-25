@@ -63,7 +63,8 @@ describe("a contact is always linked to its own activity", () => {
     // /api/leads without it, so the contact row stored null — and the
     // conversation view joins card_events BY visitor_id. The events existed;
     // they had nothing to attach to.
-    for (const f of ["SaveContactButton", "ConnectButton", "SocialLinkIntercept", "LeadCaptureForm"]) {
+    // SocialLinkIntercept dropped 2026-08-25: links no longer capture — they navigate directly (owner decision).
+    for (const f of ["SaveContactButton", "ConnectButton", "LeadCaptureForm"]) {
       const src = await read(`src/components/${f}.tsx`);
       const leadPost = src.slice(src.indexOf('fetch("/api/leads"'));
       expect(leadPost.length, `${f}: no /api/leads call found`).toBeGreaterThan(0);
