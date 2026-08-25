@@ -452,6 +452,12 @@ body {
 [data-sc-theme="light"] .sc-app .text-cyan-300 { color: #0E7490 !important; }
 [data-sc-theme="light"] .sc-app .text-sky-300 { color: #0369A1 !important; }
 
+/* Chart hover tooltip (TrafficChart): bg-slate-800 is the app's only slate
+   surface and was never remapped, so the tooltip stayed dark while its
+   .text-white flipped to near-black — dark-on-dark over a cream chart. */
+[data-sc-theme="light"] .sc-app .bg-slate-800 { background-color: #FFFFFF !important; }
+[data-sc-theme="light"] .sc-app .text-slate-400 { color: #615A54 !important; }
+
 /* Solid dark buttons (e.g. PlanCards' "Start free") stay dark chips — their
    white text must NOT flip dark. Same carve-out as the colored buttons above. */
 [data-sc-theme="light"] .sc-app :is(.bg-slate-900, .bg-slate-800, .bg-purple-500).text-white { color: #FFFFFF !important; }
