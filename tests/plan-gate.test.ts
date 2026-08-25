@@ -123,7 +123,7 @@ describe("the purchase path is In-App Purchase, wired through PlanNotice", () =>
     // A paywall that renders without live products would show stale or
     // invented prices — 3.1.2 metadata drift by construction.
     expect(lib).toMatch(/if \(!detectNativeApp\(\)\) return null/);
-    expect(lib).toMatch(/NEXT_PUBLIC_RC_APPLE_API_KEY\) return null/);
+    expect(lib).toMatch(/if \(!process\.env\.NEXT_PUBLIC_RC_APPLE_API_KEY\)/);
     expect(paywall).toMatch(/if \(!available\) return null/);
   });
 
