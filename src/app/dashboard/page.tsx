@@ -23,6 +23,7 @@ import TrafficChart from "@/components/TrafficChart";
 import TimezoneCookie from "@/components/TimezoneCookie";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
+import IapProbe from "@/components/IapProbe";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
 import TourAutoStart from "@/components/TourAutoStart";
@@ -590,6 +591,10 @@ export default async function DashboardPage({
   return (
     <>
       <AppStorePopup trigger={params.welcome === "1"} />
+      {/* IAP preflight probe — dedicated test account only, renders nothing.
+          See components/IapProbe.tsx for why the purchase chain is verified
+          this way rather than by driving the simulator UI. */}
+      {user.email?.toLowerCase() === "iap-test@swiftcard.me" && <IapProbe />}
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>
