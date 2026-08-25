@@ -25,17 +25,15 @@ canceled through the user's Apple account.
 We have also removed the external purchase link that was present in the
 previous build, so In-App Purchase is the app's only purchase mechanism.
 
-The demo account (applereview@swiftcard.me) is on the Free plan in the app's
-own entitlement system, so the paywall and purchase flow can be exercised
-end-to-end in the sandbox.
+The Free demo account (applereview-free@swiftcard.me, in the App Review
+sign-in fields) shows the paywall and can exercise the purchase flow
+end-to-end; the Pro demo account (applereview@swiftcard.me, same password)
+shows the features a subscription unlocks.
 
 Best regards,
 The SwiftCard team
 
 ---
 
-NOTE TO SELVES before sending: the demo account currently has plan=pro (it was
-made Pro so reviewers could see Pro features). Decide before resubmission:
-either downgrade it to free so the reviewer can exercise the purchase flow
-(sandbox), or keep it Pro and adjust the last paragraph. Do not send as-is
-without resolving this.
+RESOLVED 2026-08-25: demo strategy locked in — Free account for the purchase
+flow, Pro account for feature inspection; ASC review notes match this text.
