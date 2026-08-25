@@ -28,6 +28,7 @@ import { buildCardData } from "@/lib/card-data";
 import { buildConnectLinks } from "@/lib/social-url";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import ReportCardLink from "@/components/ReportCardLink";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
   "classic-pro": ClassicPro,
@@ -480,10 +481,16 @@ export default async function CardPage({
           }}
         >
           <span className="sc-getcard-shine pointer-events-none absolute inset-0" aria-hidden="true" />
-          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2l2.1 6.5H21l-5.5 4 2.1 6.5L12 15l-5.6 4 2.1-6.5-5.5-4h6.9z" />
-          </svg>
-          <span className="truncate">Get a free card like {firstName}&rsquo;s</span>
+          {/* The real brand mark, ringed in white so it reads as the app icon
+              on the gradient instead of dissolving into it. */}
+          <span
+            className="shrink-0 rounded-[5px] overflow-hidden"
+            style={{ boxShadow: "0 0 0 1.5px rgba(255,255,255,0.9), 0 1px 3px rgba(15,23,42,0.35)" }}
+            aria-hidden="true"
+          >
+            <SwiftCardIcon size={18} />
+          </span>
+          <span className="truncate">Create your free SwiftCard</span>
         </a>
         <style>{`
           @keyframes sc-getcard-shine {
