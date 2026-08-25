@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { canOfferIap, getIapPackages } from "@/lib/iap";
+import { canOfferIap, ensureIapConfigured, getIapPackages } from "@/lib/iap";
 import { detectNativeApp } from "@/lib/platform";
 
 /**
@@ -25,6 +25,10 @@ export default function IapProbe() {
       try {
         report.offerable = await canOfferIap();
         if (report.offerable) {
+          // The paywall configures with the signed-in uid; the probe may run
+          // signed-out (login screen), so it configures with its own identity.
+          // A later real sign-in re-identifies via logIn — the documented path.
+          await ensureIapConfigured("iap-probe-sim");
           report.packages = (await getIapPackages()).map((p) => ({
             id: p.productId, period: p.period, price: p.priceString, intro: p.introPriceString,
           }));
