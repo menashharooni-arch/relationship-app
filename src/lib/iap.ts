@@ -46,13 +46,33 @@ type PurchasesPlugin = typeof import("@revenuecat/purchases-capacitor").Purchase
 
 let configuredFor: string | null = null;
 
+/**
+ * A paywall that silently hides is a revenue outage nobody sees. Every
+ * unexpected failure in the native chain reports through /api/client-error
+ * (same pipeline as window.onerror) so it lands in the structured server
+ * logs. Only fired when actually running in the shell — the web returning
+ * "unavailable" is by design, not an error.
+ */
+function reportIapFailure(stage: string, e: unknown): void {
+  const msg = e instanceof Error ? e.message : String(e);
+  fetch("/api/client-error", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: `[iap:${stage}] ${msg}`.slice(0, 480), level: "error" }),
+  }).catch(() => {});
+}
+
 async function plugin(): Promise<PurchasesPlugin | null> {
   if (!detectNativeApp()) return null;
-  if (!process.env.NEXT_PUBLIC_RC_APPLE_API_KEY) return null;
+  if (!process.env.NEXT_PUBLIC_RC_APPLE_API_KEY) {
+    reportIapFailure("env", "NEXT_PUBLIC_RC_APPLE_API_KEY missing from bundle");
+    return null;
+  }
   try {
     const mod = await import("@revenuecat/purchases-capacitor");
     return mod.Purchases;
-  } catch {
+  } catch (e) {
+    reportIapFailure("import", e);
     return null;
   }
 }
@@ -76,7 +96,8 @@ export async function ensureIapConfigured(userId: string): Promise<boolean> {
     }
     configuredFor = userId;
     return true;
-  } catch {
+  } catch (e) {
+    reportIapFailure("configure", e);
     return false;
   }
 }
@@ -115,7 +136,8 @@ export async function getIapPackages(): Promise<IapPackage[]> {
       });
     }
     return out;
-  } catch {
+  } catch (e) {
+    reportIapFailure("offerings", e);
     return [];
   }
 }
