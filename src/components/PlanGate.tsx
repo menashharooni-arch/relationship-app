@@ -120,6 +120,15 @@ export function GateCopy({ copy }: { copy: string }) {
  * Exported so it can be unit-tested in isolation.
  */
 export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: string }) {
+  // IAP-era edit to the 2026-08-12 owner decision above: the gate strings still
+  // name the website, but THIS surface now carries a real In-App Purchase
+  // button, and "only available … on swiftcard.me" directly above a button
+  // that sells it right here is both untrue and exactly the mixed message a
+  // 3.1.1 reviewer reads as steering. So the notice strips the site phrase at
+  // render time. The strings keep it for the surfaces WITHOUT a purchase path
+  // (nativeContent overrides — inline pills, Zapier/notifications copy), where
+  // naming the site is still the only signpost a Free user gets.
+  const iapCopy = copy.replace(new RegExp(`\\s*${SITE_PHRASE.replace(".", "\\.")}`, "g"), "");
   return (
     <div
       role="note"
@@ -132,7 +141,7 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
             break onto a short final line. Same pattern the card page's bio uses.
             Unsupported engines simply ignore it. */}
         <p className="text-sm leading-snug text-gray-300 [text-wrap:pretty]">
-          <GateCopy copy={copy} />
+          <GateCopy copy={iapCopy} />
         </p>
       </div>
       {/* The purchase path, third iteration. 1.0.0 (3): inert notice —
