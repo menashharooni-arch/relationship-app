@@ -29,3 +29,11 @@ export const APP_STORE_URL: string | null =
 export function appStoreReady(): boolean {
   return APP_STORE_URL !== null;
 }
+
+// The numeric App Store id, parsed out of the listing URL (".../app/id6798…").
+// Derived rather than its own env var so the URL stays the single switch: the
+// Smart App Banner (root layout `itunes` metadata) appears and disappears with
+// every other App Store surface. Null when unset or when the URL has no /idNNN
+// segment — consumers hide, same contract as APP_STORE_URL.
+export const APP_STORE_ID: string | null =
+  APP_STORE_URL?.match(/\/id(\d+)/)?.[1] ?? null;
