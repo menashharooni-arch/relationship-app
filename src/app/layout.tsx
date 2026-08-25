@@ -11,6 +11,7 @@ import AnalyticsProvider from "@/components/AnalyticsProvider";
 import SiteAnalytics from "@/components/SiteAnalytics";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import { ORGANIZATION_JSONLD, WEBSITE_JSONLD, jsonLdScript } from "@/lib/brand";
+import { APP_STORE_ID } from "@/lib/app-store";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
@@ -36,6 +37,10 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "SwiftCard",
   },
+  // iOS Smart App Banner (Safari's native "open in the App Store" strip).
+  // Gated on the same switch as every other App Store surface: absent until
+  // NEXT_PUBLIC_APP_STORE_URL is set, live everywhere the moment it is.
+  ...(APP_STORE_ID ? { itunes: { appId: APP_STORE_ID } } : {}),
   // Site-wide link-preview card (the per-card pages override this with their own
   // dynamic opengraph-image). The root src/app/opengraph-image.tsx supplies the
   // image for the homepage and all marketing pages.

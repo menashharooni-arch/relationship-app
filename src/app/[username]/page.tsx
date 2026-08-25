@@ -74,7 +74,7 @@ export async function generateMetadata({
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const p = await resolveCardMeta(username);
-  if (!p) return { title: "SwiftCard" };
+  if (!p) return { title: "SwiftCard", itunes: null };
 
   const name = p.name ?? username;
   const parts = [p.title, p.company].filter(Boolean).join(" at ");
@@ -91,6 +91,10 @@ export async function generateMetadata({
   return {
     title: `${name}${parts ? ` — ${parts}` : ""}`,
     description,
+    // No iOS Smart App Banner on a received card: the promise to recipients is
+    // "nothing to download", and the root layout's site-wide banner (live once
+    // the App Store listing is) would sit right on top of someone's card.
+    itunes: null,
     // The root URL is canonical; legacy /card/<username> 308s here.
     alternates: { canonical: `${APP_URL}/${username}` },
     openGraph: {

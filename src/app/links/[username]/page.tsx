@@ -59,12 +59,14 @@ const resolve = cache(async (username: string) => {
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username } = await params;
   const { cardOrLegacy } = await resolve(username);
-  if (!cardOrLegacy) return { title: "Swift Links" };
+  if (!cardOrLegacy) return { title: "Swift Links", itunes: null };
   const name = cardOrLegacy.name || username;
   const description = `Connect with ${name} — all their links in one place.`;
   return {
     title: `${name} — Swift Links`,
     description,
+    // Recipient surface — no Smart App Banner, same reasoning as the card page.
+    itunes: null,
     // Texted /links/ URLs unfurl with the same picture-of-the-card preview the
     // card link gets (iMessage/WhatsApp/SMS), reusing the card's OG image.
     openGraph: {
