@@ -87,7 +87,7 @@ export default function SiteFooter() {
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               <Link href="/cards/new" className="rd-btn rd-btn-primary text-[13px] px-4 py-2">Get started free</Link>
             </div>
-            {/* The App Store badge, and the site's only link to the iOS app.
+            {/* The App Store badge (the homepage hero carries the other one).
                 It renders ONLY once NEXT_PUBLIC_APP_STORE_URL is set, so it is
                 absent while the app is in review and appears by itself the
                 moment the listing is live — no second deploy to remember. That
