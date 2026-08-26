@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { safeTimeZone, localDayKey, startOfLocalDayUtc } from "@/lib/tz-days";
@@ -225,7 +226,7 @@ export default async function DashboardPage({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
-                    <p className="text-gray-500 text-xs truncate">/{card.username}{card.name ? ` · ${card.name}` : ""}</p>
+                    <p className="text-gray-500 text-xs truncate">/{cardSlug(card.name || "", card.company) === card.username ? prettyCardSlug(card.name || "", card.company) : card.username}{card.name ? ` · ${card.name}` : ""}</p>
                   </div>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-gray-600 shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
