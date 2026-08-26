@@ -345,7 +345,7 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
                   Swift Links page, and the Swift Signature — all themed to the
                   persona this page speaks to. */}
               <div className="hidden md:flex justify-center"><PersonaShowcase personaKey={v.persona} scale={0.82} /></div>
-              <div className="md:hidden flex justify-center"><PersonaShowcase personaKey={v.persona} scale={0.5} /></div>
+              <div className="md:hidden flex justify-center max-w-full overflow-hidden"><PersonaShowcase personaKey={v.persona} scale={0.46} /></div>
             </div>
           </div>
         </section>
