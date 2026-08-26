@@ -175,7 +175,10 @@ export default function Home() {
                 without it the section would still reserve full height. */}
             <div className="hidden xl:flex justify-end shrink-0 xl:-mr-8 2xl:-mr-12" data-reveal>
               <div style={{ width: Math.round(692 * 0.92), height: Math.round(680 * 0.92) }}>
-                <div className="origin-top-left" style={{ transform: "scale(0.92)" }}>
+                {/* Short laptop screens (≤780px tall) shrink the stage a step
+                    further so its bottom panel never falls under the fold. */}
+                <style>{`@media (max-height: 780px) { .sc-heroshow { transform: scale(0.84) !important; } }`}</style>
+                <div className="sc-heroshow origin-top-left" style={{ transform: "scale(0.92)" }}>
                   <HeroShowcase />
                 </div>
               </div>
