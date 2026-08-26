@@ -71,7 +71,10 @@ export async function syncLeadToSalesforce(lead: CrmLead, capturedBy: string): P
   // Existing Lead with this email? Update it instead of duplicating.
   let existingId: string | null = null;
   if (lead.email) {
-    const soql = `SELECT Id FROM Lead WHERE Email = '${lead.email.replace(/'/g, "\\'")}' LIMIT 1`;
+    // SOQL string literal: backslash must be escaped BEFORE the quote, or a
+    // trailing "\\" in the input would neutralize the closing quote's escape.
+    const soqlEmail = lead.email.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const soql = `SELECT Id FROM Lead WHERE Email = '${soqlEmail}' LIMIT 1`;
     const q = await fetch(`${base}${SF_API}/query?q=${encodeURIComponent(soql)}`, { headers });
     if (q.ok) {
       const d = (await q.json()) as { records?: { Id?: string }[] };
