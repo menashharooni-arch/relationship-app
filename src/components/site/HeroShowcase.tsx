@@ -11,7 +11,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import { getLook, hexAlpha, type SwiftLinkLook } from "@/lib/swiftlink-looks";
-import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import PlatformIcon from "@/components/PlatformIcon";
 
 // ── The hero's rotating persona showcase (owner order 2026-08-26, modeled on
 //    link.me's front page) ────────────────────────────────────────────────────
@@ -44,6 +44,9 @@ type Persona = {
   look: SwiftLinkLook;
   handle: string;
   subtitle: string;
+  bio: string;
+  /** Subject line of the email the Swift Signature sits in. */
+  subject: string;
   accent: string;
   socials: BrandSocial[];
   /** The card page's action-link rows AND the Swift Links grid: [emoji, label]. */
@@ -73,6 +76,8 @@ const PERSONAS: Persona[] = [
   {
     key: "realtor", job: "Realtor", Template: PhotoFirst, handle: "mayasellshomes",
     subtitle: "Realtor® · Harbor & Vine Realty", accent: "#7C3AED",
+    bio: "Helping Bay Area families find home for 12 years. 200+ closings and counting.",
+    subject: "Re: 12 Harbor Lane — Saturday showing",
     data: p({
       name: "Maya Castillo", title: "Realtor®", company: "Harbor & Vine Realty",
       phone: "(415) 555-0132", email: "maya@harborvine.com", website: "harborvine.com",
@@ -88,6 +93,8 @@ const PERSONAS: Persona[] = [
   {
     key: "electrician", job: "Electrician", Template: LocalBusiness, handle: "delgadoelectric",
     subtitle: "Licensed & insured · Austin, TX", accent: "#B45309",
+    bio: "Licensed master electrician. Same-week service, upfront pricing, 5-star rated.",
+    subject: "Re: Your panel upgrade quote",
     data: p({
       name: "Ray Delgado", title: "Master Electrician", company: "Delgado Electric",
       phone: "(512) 555-0177", email: "ray@delgadoelectric.com", website: "delgadoelectric.com",
@@ -102,6 +109,8 @@ const PERSONAS: Persona[] = [
   {
     key: "insurance", job: "Insurance agent", Template: ClassicPro, handle: "danawhitfield",
     subtitle: "Insurance Advisor · Beacon Mutual", accent: "#1D4ED8",
+    bio: "Coverage that actually fits your life — home, auto, and everything in between.",
+    subject: "Re: Your coverage review",
     data: p({
       name: "Dana Whitfield", title: "Insurance Advisor", company: "Beacon Mutual",
       phone: "(303) 555-0149", email: "dana@beaconmutual.com", website: "beaconmutual.com",
@@ -116,6 +125,8 @@ const PERSONAS: Persona[] = [
   {
     key: "banker", job: "Private banker", Template: LuxuryMinimal, handle: "prestoncole",
     subtitle: "Private Banker · Meridian Private Bank", accent: "#8C6D3F",
+    bio: "Discreet wealth management for founders, families, and funds.",
+    subject: "Re: Q3 portfolio review",
     data: p({
       name: "Preston Cole", title: "Private Banker", company: "Meridian Private Bank",
       phone: "(212) 555-0186", email: "pcole@meridianpb.com", website: "meridianpb.com",
@@ -130,6 +141,8 @@ const PERSONAS: Persona[] = [
   {
     key: "lawyer", job: "Attorney", Template: ModernBold, handle: "adlergrant",
     subtitle: "Managing Partner · Adler & Grant LLP", accent: "#0F172A",
+    bio: "Trial-tested counsel for businesses and the people who run them.",
+    subject: "Re: Your consultation on Thursday",
     data: p({
       name: "Simone Adler", title: "Managing Partner", company: "Adler & Grant LLP",
       phone: "(646) 555-0121", email: "sadler@adlergrant.law", website: "adlergrant.law",
@@ -144,6 +157,8 @@ const PERSONAS: Persona[] = [
   {
     key: "cars", job: "Car salesperson", Template: LogoFirst, handle: "tonymarchetti",
     subtitle: "Sales Manager · Marchetti Motors", accent: "#DC2626",
+    bio: "Your guy for new & certified pre-owned. No games, just great deals.",
+    subject: "Re: Your test drive this weekend",
     data: p({
       name: "Tony Marchetti", title: "Sales Manager", company: "Marchetti Motors",
       phone: "(702) 555-0166", email: "tony@marchettimotors.com", website: "marchettimotors.com",
@@ -173,7 +188,7 @@ const ROTATE_MS = 5200;
 // this width and scales the whole thing down as one unit, so every proportion
 // (name size, chip size, tile radius) is exactly the live page's.
 const LINKS_NATURAL_W = 430;
-const LINKS_NATURAL_H = 980;
+const LINKS_NATURAL_H = 1030;
 const LINKS_SCALE = 0.46;
 const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 198
 const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 451
@@ -232,6 +247,7 @@ function MiniLinks({ persona }: { persona: Persona }) {
           </div>
           <p className="text-[15px] mt-0.5" style={{ color: text, opacity: 0.5 }}>@{persona.handle}</p>
           <p className="text-[13px] font-medium mt-2" style={{ color: text, opacity: 0.6 }}>{persona.subtitle}</p>
+          <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto" style={{ color: text, opacity: 0.75 }}>{persona.bio}</p>
 
           {/* The REAL brand icon row */}
           <SocialIcons socials={persona.socials} mode={L.mode} accent={L.accent} accentText={L.accentText} />
@@ -279,33 +295,70 @@ function MiniLinks({ persona }: { persona: Persona }) {
   );
 }
 
-/** RIGHT — the Swift Signature as it lands in a received email. */
+/** RIGHT — the Swift Signature exactly where it lives: at the foot of a
+ *  received email, under the sender's reply. */
 function MiniSignature({ persona }: { persona: Persona }) {
   const { Template } = persona;
+  const first = persona.data.name.split(" ")[0];
   return (
-    <div className="w-[200px] rounded-[18px] overflow-hidden bg-white flex flex-col px-3.5 pt-3.5 pb-3">
-      <div className="space-y-1.5" aria-hidden="true">
-        <div className="h-[6px] w-11/12 rounded-full bg-slate-200/80" />
-        <div className="h-[6px] w-8/12 rounded-full bg-slate-200/80" />
+    <div className="w-[200px] rounded-[18px] overflow-hidden bg-white flex flex-col">
+      {/* message header — sender, subject, timestamp */}
+      <div className="px-3.5 pt-3 pb-2 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          {persona.data.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={persona.data.photoUrl} alt="" className="w-[22px] h-[22px] rounded-full object-cover shrink-0" />
+          ) : (
+            <span className="w-[22px] h-[22px] rounded-full grid place-items-center text-[8px] font-black text-white shrink-0" style={{ background: persona.accent }}>
+              {persona.data.initials}
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className="block text-[9.5px] font-bold text-slate-900 leading-tight truncate">{persona.data.name}</span>
+            <span className="block text-[8px] text-slate-400 leading-tight truncate">to me · 9:41 AM</span>
+          </span>
+        </div>
+        <p className="mt-1.5 text-[9px] font-semibold text-slate-700 truncate">{persona.subject}</p>
       </div>
-      <p className="mt-2.5 text-[10px] text-slate-600 leading-snug">{persona.signoff}</p>
-      <p className="text-[11px] font-bold text-slate-900 leading-snug">{persona.data.name.split(" ")[0]}</p>
-      <div className="mt-2 rounded-lg overflow-hidden ring-1 ring-slate-200">
-        <CardScaler>
-          <Template data={persona.data} />
-        </CardScaler>
+      {/* body + sign-off */}
+      <div className="px-3.5 pt-2.5">
+        <div className="space-y-1.5" aria-hidden="true">
+          <div className="h-[5px] w-full rounded-full bg-slate-200/80" />
+          <div className="h-[5px] w-10/12 rounded-full bg-slate-200/80" />
+          <div className="h-[5px] w-6/12 rounded-full bg-slate-200/80" />
+        </div>
+        <p className="mt-2.5 text-[10px] text-slate-600 leading-snug">{persona.signoff}</p>
+        <p className="text-[11px] font-bold text-slate-900 leading-snug">{first}</p>
+        <div className="mt-2 rounded-lg overflow-hidden ring-1 ring-slate-200">
+          <CardScaler>
+            <Template data={persona.data} />
+          </CardScaler>
+        </div>
+        <p className="mt-1.5 pb-3 text-[7.5px] text-slate-400 text-center">Swift Signature · tap to open card</p>
       </div>
-      <p className="mt-1.5 text-[7.5px] text-slate-400 text-center">Swift Signature · tap to open card</p>
     </div>
   );
 }
 
-/** CENTER — the SwiftCard link, as a visitor opens it on their phone. The
- *  live card page top to bottom at mini scale: accent-washed cream, the card,
- *  Save Contact / Share your info, the links table, and the Share-this-card
- *  section with the page's real "Create your free SwiftCard" gradient CTA. */
+// The live card page rendered at its natural phone width and scaled down as
+// one unit — every class below is the real page's own. What fits (owner:
+// "do what you could fit", no scrolling): the card, Save {first}'s contact,
+// the Share-your-info form, and the Swift Links box (bio, website capsule,
+// brand discs). The share-this-card section and CTA don't fit and are the
+// page's least-identifying pieces.
+const PHONE_NATURAL_W = 390;
+const PHONE_NATURAL_H = 918;
+const PHONE_SCALE = 0.63;
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
+}
+
+/** CENTER — the SwiftCard link, as a visitor opens it on their phone. */
 function PhoneCard({ persona }: { persona: Persona }) {
   const { Template } = persona;
+  const first = persona.data.name.split(" ")[0];
+  const domain = persona.data.website || "";
   return (
     <div
       className="w-full h-full rounded-[30px] overflow-hidden flex flex-col"
@@ -318,45 +371,77 @@ function PhoneCard({ persona }: { persona: Persona }) {
           <span className="w-3 h-[7px] rounded-[2px] border border-slate-500/70 relative"><span className="absolute inset-[1px] right-[3px] bg-slate-600 rounded-[1px]" /></span>
         </span>
       </div>
-      <div className="px-2.5 mt-0.5">
-        <CardScaler>
-          <Template data={persona.data} />
-        </CardScaler>
-      </div>
-      <div className="px-4 mt-3 space-y-1.5">
-        <div className="flex items-center justify-center gap-1.5 rounded-full py-2 text-white text-[11px] font-bold shadow-sm" style={{ background: persona.accent }}>
-          <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.1a7.5 7.5 0 0115 0" /></svg>
-          Save Contact
-        </div>
-        <div className="flex items-center justify-center rounded-full py-2 text-[11px] font-semibold" style={{ background: "#fff", border: "1px solid #E4DDD4", color: "#475569" }}>
-          Share your info
-        </div>
-      </div>
 
-      {/* Links — the page's hairline-ruled action-link table, mini */}
-      <div className="mx-4 mt-3 rounded-[12px] overflow-hidden bg-white" style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}>
-        {persona.rows.map(([emoji, label], i) => (
-          <div key={label} className={`flex items-center gap-2 px-2.5 py-2 ${i > 0 ? "border-t border-[#F1EBE3]" : ""}`}>
-            <span className="shrink-0 w-5 h-5 rounded-[6px] bg-[#FAF7F2] grid place-items-center" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
-              <span className="text-[10px] leading-none">{emoji}</span>
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-[#1E293B]">{label}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="#C9BFB2" strokeWidth={2.5} className="w-2.5 h-2.5 shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
+      {/* the page, natural width, scaled as one unit */}
+      <div className="mx-auto overflow-hidden" style={{ width: PHONE_NATURAL_W * PHONE_SCALE, height: PHONE_NATURAL_H * PHONE_SCALE }}>
+        <div className="origin-top-left flex flex-col items-center px-4 pt-3 pb-5 gap-5" style={{ width: PHONE_NATURAL_W, height: PHONE_NATURAL_H, transform: `scale(${PHONE_SCALE})` }}>
+
+          {/* Business card */}
+          <div className="w-full max-w-sm">
+            <CardScaler>
+              <Template data={persona.data} />
+            </CardScaler>
           </div>
-        ))}
-      </div>
 
-      {/* Share this card (the page's CTA button is deliberately left off the demo phone — owner order 2026-08-26) */}
-      <div className="mx-4 mt-3 rounded-[14px] p-2.5" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-        <div className="flex items-center justify-center gap-1.5 rounded-full py-2 text-[10.5px] font-semibold text-slate-700" style={{ border: "1px solid #E4DDD4" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg>
-          Share this card
+          {/* ── Save Contact — the page's primary action ── */}
+          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+            <SectionHeading>Save {first}&apos;s contact</SectionHeading>
+            <p className="text-slate-500 text-xs mt-1 mb-4">One tap adds them to your phone contacts — no app needed.</p>
+            <div className="w-full text-white font-semibold py-3 px-4 rounded-full text-sm flex items-center justify-center gap-2 whitespace-nowrap" style={{ background: persona.accent }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              Save Contact
+            </div>
+          </div>
+
+          {/* ── Share Your Info Back ── */}
+          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+            <SectionHeading>Share your info with {first}</SectionHeading>
+            <div className="mt-4 space-y-3">
+              <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-400 shadow-sm">Your name *</div>
+              <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-400 shadow-sm">Your phone number *</div>
+              <div className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm text-center" style={{ background: persona.accent }}>
+                Share My Info
+              </div>
+            </div>
+          </div>
+
+          {/* ── Swift Links — bio, website capsule, brand discs ── */}
+          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <SectionHeading>Swift Links</SectionHeading>
+              <span className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2]" style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}>
+                View Swift Link page →
+              </span>
+            </div>
+            <p className="text-slate-600 text-[13px] leading-[1.6]">{persona.bio}</p>
+            <div className="h-px bg-[#EFE9E1] my-4" />
+            <div className="flex flex-col gap-2.5">
+              <span className="inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white" style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}>
+                <span className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden text-[11px] font-bold text-slate-500" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
+                  {domain.charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]">{domain}</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {persona.socials.map((so) => (
+                  <span
+                    key={so.label}
+                    className="relative w-10 h-10 rounded-full grid place-items-center text-white"
+                    style={{
+                      background: so.label === "Instagram" ? "radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)" : so.color || "rgba(15,23,42,0.85)",
+                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.14)",
+                    }}
+                  >
+                    <PlatformIcon label={so.label} className="w-[18px] h-[18px] shrink-0" />
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <p className="mt-auto pb-2.5 text-center text-[8px] text-slate-400">{persona.data.cardUrl}</p>
     </div>
   );
 }
