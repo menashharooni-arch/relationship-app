@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useIsNativeApp } from "@/lib/platform";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -22,7 +21,6 @@ type Progress = {
 
 export default function ReferAFriend({ progress }: { progress: Progress | null }) {
   const router = useRouter();
-  const native = useIsNativeApp();
   const [p, setP] = useState<Progress | null>(progress);
   const [claiming, setClaiming] = useState(false);
   const [claimMsg, setClaimMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -75,7 +73,12 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
 
   // Native app: the referral promo is built entirely around earning free months
   // of Pro — a selling incentive — so it's hidden. Web is unchanged.
-  if (native) return null;
+  // Shown in the iOS app again (owner order 2026-08-26). It was hidden during
+  // the no-purchase-path era ("Native area 6" sweep), when any surface naming
+  // Pro was a selling surface. With Pro now sold via In-App Purchase, a
+  // rewards program that GRANTS free months breaks no rule: the copy carries
+  // no price and no web-checkout steering, the claim is a server-side grant,
+  // and the link leaves through the share sheet to a friend, not the user.
 
   return (
     <div id="refer" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 scroll-mt-24">

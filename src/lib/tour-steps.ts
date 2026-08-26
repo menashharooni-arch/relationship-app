@@ -370,9 +370,9 @@ const STEP_DEFS: TourStepDef[] = [
     title: "Refer a friend",
     body: "Share your link: 3 sign-ups = a free month of Pro (up to 3). Your friends get a free month too.",
     placement: "bottom",
-    // webOnly: ReferAFriend is wrapped in <NativeHidden> and returns null in the
-    // shell, so in the app this step spotlighted nothing and stalled 2.9s.
-    vis: { tiers: ["free", "pro"], webOnly: true },
+    // Shown in the app again since 2026-08-26: ReferAFriend renders in the
+    // shell now (IAP era — see the component), so the step has its anchor.
+    vis: { tiers: ["free", "pro"] },
   },
   {
     id: "settings-integrations",

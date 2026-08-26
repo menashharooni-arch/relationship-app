@@ -204,14 +204,18 @@ describe("the tour describes each plan honestly", () => {
     }
   });
 
-  it("hides surfaces the iOS app does not render", () => {
-    // Billing carries hideOnNative (App Review) and ReferAFriend returns null
-    // in the shell. Both steps used to fire in the app and stall, so EVERY app
-    // user paid at least one 2.9s freeze on their tour.
+  it("hides surfaces the iOS app does not render — and shows the ones it now does", () => {
+    // Billing's step stays hidden (its anchor is the web billing manager).
+    // Referrals RETURNED to the app 2026-08-26 (owner order, IAP era): the
+    // box renders in the shell again, so its tour step must fire there too —
+    // an excluded step would silently skip a surface the app really has.
     for (const { name, ctx } of ACCOUNTS) {
       const ids = buildTourSteps({ ...ctx, isNative: true }).map((s) => s.id);
       expect(ids, `${name} on native shows billing`).not.toContain("settings-billing");
-      expect(ids, `${name} on native shows referrals`).not.toContain("settings-refer");
+      const webIds = buildTourSteps({ ...ctx, isNative: false }).map((s) => s.id);
+      if (webIds.includes("settings-refer")) {
+        expect(ids, `${name} on native hides referrals (it renders there now)`).toContain("settings-refer");
+      }
     }
   });
 

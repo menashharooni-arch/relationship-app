@@ -53,13 +53,17 @@ const GUARDS: Guard[] = [
     patterns: [/hideOnNative/, /native && s\.hideOnNative/],
   },
   {
-    // Billing's suppression moved INTO BillingManager (its native branch is a
-    // link-out-only subscription panel, pinned in ios-final-audit.test.ts);
-    // the page keeps NativeHidden for the referral block.
+    // Billing's suppression moved INTO BillingManager (its native branch is an
+    // IAP subscription panel, pinned in ios-final-audit.test.ts). Referrals
+    // RETURNED to the app 2026-08-26 (owner order, IAP era) — the block must
+    // NOT be re-wrapped in NativeHidden, and the component must not re-grow
+    // its `if (native) return null` (both would silently hide a surface the
+    // KB and the tour now promise the app has).
     file: "src/app/settings/flows/page.tsx",
-    patterns: [/<NativeHidden>/, /data-tour="settings-refer"/],
+    patterns: [/data-tour="settings-refer"/],
+    absent: [/<NativeHidden>\s*\n\s*<div data-tour="settings-refer"/],
   },
-  { file: "src/components/ReferAFriend.tsx", patterns: [/if \(native\) return null/] },
+  { file: "src/components/ReferAFriend.tsx", patterns: [], absent: [/if \(native\) return null/] },
   { file: "src/components/FirstLeadNudge.tsx", patterns: [/if \(!show \|\| native\) return null/] },
   { file: "src/components/GrowShare.tsx", patterns: [/native\s*\n?\s*\?/, /help more people discover SwiftCard/] },
   { file: "src/app/grow/page.tsx", patterns: [/<NativeHidden>/] },
@@ -127,6 +131,11 @@ describe("native suppression guards are present at each site", () => {
     for (const p of g.patterns) {
       it(`${g.file} matches ${p}`, () => {
         expect(src).toMatch(p);
+      });
+    }
+    for (const p of (g as { absent?: RegExp[] }).absent ?? []) {
+      it(`${g.file} must NOT match ${p}`, () => {
+        expect(src).not.toMatch(p);
       });
     }
   }
