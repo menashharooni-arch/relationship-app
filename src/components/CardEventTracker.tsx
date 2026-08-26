@@ -41,6 +41,31 @@ export default function CardEventTracker({
         if (cancelled) return;
       }
 
+      // ── Human gate (owner order 2026-08-26: views "cannot have
+      // misinformation"). Three checks, each killing a different bot family
+      // that slips past the server's User-Agent list by presenting a normal
+      // browser UA:
+      //   1. navigator.webdriver — automation frameworks (Playwright,
+      //      Puppeteer, Selenium, and crawler renderers built on them).
+      //   2. The page must actually be VISIBLE — link-preview renderers
+      //      often paint into a hidden surface.
+      //   3. A 2.5s dwell, still visible at the end — preview crawlers
+      //      snapshot and destroy the page in well under that; a person
+      //      reading a card they just opened is always still there.
+      // A real visitor who bounces inside 2.5 seconds loses the view — the
+      // deliberate trade: an owner must never be told someone viewed their
+      // card when no one did.
+      if ((navigator as Navigator & { webdriver?: boolean }).webdriver) return;
+      if (document.visibilityState !== "visible") {
+        await new Promise<void>((resolve) => {
+          const onVis = () => { if (document.visibilityState === "visible") { document.removeEventListener("visibilitychange", onVis); resolve(); } };
+          document.addEventListener("visibilitychange", onVis);
+        });
+        if (cancelled) return;
+      }
+      await new Promise((r) => setTimeout(r, 2500));
+      if (cancelled || document.visibilityState !== "visible") return;
+
       // After an account switch, AccountIsolationGuard wipes the previous
       // person's visitor id + identity blob asynchronously — reading them
       // before that wipe lands is how a view got attributed to the previous
