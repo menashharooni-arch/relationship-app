@@ -386,6 +386,16 @@ export default function HeroShowcase() {
 
   return (
     <div className="relative w-[692px] h-[680px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
+      {/* Every persona's photo/logo, loaded once up front — panels remount on
+          each swap, and without this the hero flashes empty for the first
+          cycle while the next image fetches. */}
+      <div className="hidden" aria-hidden="true">
+        {PERSONAS.flatMap((pp) => [pp.data.photoUrl, pp.data.logoUrl]).filter(Boolean).map((src) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={src} src={src!} alt="" />
+        ))}
+      </div>
+
       {/* job tag */}
       <div className="absolute top-0 left-[350px] -translate-x-1/2 z-40">
         <span
