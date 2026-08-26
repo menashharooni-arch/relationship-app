@@ -65,10 +65,15 @@ export default function NotificationBell({
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setNotifications((prev) => {
-          const prevIds = new Set(prev.map((n) => n.id));
-          const hasNew = fresh.some((n) => !prevIds.has(n.id) && !n.read);
-          if (!hasNew && fresh.length === prev.length) return prev;
-          return fresh;
+          // Server truth wins whenever ANYTHING differs — id set, order, or a
+          // read flag. The old guard only replaced state on NEW ids, so a
+          // "mark all read" done in the per-card panel (or on another device)
+          // left this bell showing stale unread rows until the next genuinely
+          // new notification arrived — reads seemed to "come back". The poll
+          // only runs while the panel is closed, so no local optimistic
+          // update can be clobbered here.
+          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(",");
+          return sig(fresh) === sig(prev) ? prev : fresh;
         });
       } catch { /* ignore */ }
     };

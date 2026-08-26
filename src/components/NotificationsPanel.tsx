@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
 import { GateCopy } from "@/components/PlanGate";
@@ -64,6 +64,39 @@ export default function NotificationsPanel({
     router.push(match ? `${base}${card ? "&" : ""}lead=${match.id}` : (card ? base : "/contacts"));
   }
   const [items, setItems] = useState<Notification[]>(initial);
+  // The panel used to be a snapshot: rendered once from the server and never
+  // updated, so a save that buzzed the phone didn't appear here until a full
+  // reload, and rows marked read from the BELL kept their unread dot — which
+  // read as notifications "coming back". Poll the same endpoint the bell
+  // does, scoped to this card, and let server truth win.
+  const lastOpRef = useRef(0);
+  useEffect(() => {
+    const poll = async () => {
+      // Grace window: an optimistic local change (read/dismiss) may still be
+      // in flight — polling over it would resurrect the old state for a beat.
+      if (Date.now() - lastOpRef.current < 8000) return;
+      try {
+        const res = await fetch(`/api/notifications${card ? `?card=${encodeURIComponent(card)}` : ""}`);
+        if (!res.ok) return;
+        const fresh: Notification[] = await res.json();
+        setItems((prev) => {
+          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(",");
+          return sig(fresh) === sig(prev) ? prev : fresh;
+        });
+      } catch { /* ignore */ }
+    };
+    poll();
+    const onVisible = () => { if (document.visibilityState === "visible") poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    const id = setInterval(poll, 30000);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [card]);
+
   const [claiming, setClaiming] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<Record<string, { ok: boolean; text: string }>>({});
   const unread = items.filter((n) => !n.read).length;
@@ -89,6 +122,7 @@ export default function NotificationsPanel({
   }
 
   async function setRead(id: string, read: boolean) {
+    lastOpRef.current = Date.now();
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
     await fetch("/api/notifications", {
       method: "PATCH",
@@ -98,6 +132,7 @@ export default function NotificationsPanel({
   }
 
   async function markAllRead() {
+    lastOpRef.current = Date.now();
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     // Scoped to THIS card (+ account-level rows) — the panel is per-card, so
     // bulk-reading here must never touch another card's notifications.
@@ -109,6 +144,7 @@ export default function NotificationsPanel({
   }
 
   async function dismiss(id: string) {
+    lastOpRef.current = Date.now();
     setItems((prev) => prev.filter((n) => n.id !== id));
     await fetch("/api/notifications", {
       method: "DELETE",
@@ -118,6 +154,7 @@ export default function NotificationsPanel({
   }
 
   async function clearRead() {
+    lastOpRef.current = Date.now();
     setItems((prev) => prev.filter((n) => !n.read));
     await fetch("/api/notifications", {
       method: "DELETE",
