@@ -10,7 +10,6 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
-import CardPickerList from "@/components/CardPickerList";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
 import { CardCaptureProvider } from "@/components/CardCaptureContext";
@@ -215,16 +214,26 @@ export default async function DashboardPage({
           <div className="w-full max-w-sm">
             <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
             <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>
-            <CardPickerList
-              cards={allCards.map((card) => ({
-                id: card.id as string,
-                username: card.username as string,
-                title: (card.label || card.name || card.username) as string,
-                slugDisplay: cardSlug(card.name || "", card.company) === card.username ? prettyCardSlug(card.name || "", card.company) : (card.username as string),
-                name: (card.name as string) || null,
-              }))}
-            >
-            </CardPickerList>
+            <div className="space-y-2">
+              {allCards.map((card) => (
+                <Link
+                  key={card.id}
+                  href={`/dashboard?card=${card.username}`}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3.5 border border-gray-800 bg-gray-900 hover:border-blue-600/50 hover:bg-gray-900/60 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 bg-gray-700 text-gray-300">
+                    {(card.label || card.name || card.username)[0]?.toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
+                    <p className="text-gray-500 text-xs truncate">/{cardSlug(card.name || "", card.company) === card.username ? prettyCardSlug(card.name || "", card.company) : card.username}{card.name ? ` · ${card.name}` : ""}</p>
+                  </div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-gray-600 shrink-0">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              ))}
+            </div>
           </div>
         </main>
       </>
