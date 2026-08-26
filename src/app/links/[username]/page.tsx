@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -94,7 +94,12 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const sourceParam = Array.isArray(rawSource) ? rawSource[0] : rawSource;
   const source = (sourceParam ?? "swift_links").slice(0, 48);
   const { cardOrLegacy, photoUrl, ownerPlan } = await resolve(username);
-  if (!cardOrLegacy) notFound();
+  if (!cardOrLegacy) {
+    const { findSlugAlias } = await import("@/lib/slug-alias");
+    const alias = await findSlugAlias(username);
+    if (alias) permanentRedirect(`/links/${alias}`);
+    notFound();
+  }
 
   // Don't count the owner viewing their own Swift Links page as a view.
   // getUser() refreshes the Supabase session cookie, which can throw for a

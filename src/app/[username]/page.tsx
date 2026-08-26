@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
@@ -170,7 +170,14 @@ export default async function CardPage({
     ? { ...cardRow, plan: cardOwner?.plan ?? "free" }
     : (legacyCardOk ? profileRow : null);
 
-  if (!profile || ownerDeleted) notFound();
+  if (!profile || ownerDeleted) {
+    // Old-format slug from before the 2026-08-26 rename? Send the visitor to
+    // the card's current URL — printed QRs and old shares must keep working.
+    const { findSlugAlias } = await import("@/lib/slug-alias");
+    const alias = await findSlugAlias(username);
+    if (alias) permanentRedirect(`/${alias}`);
+    notFound();
+  }
 
   // Office admin kill-switch: a card taken offline from /office/admin goes dark
   // (page, QR, links) while keeping its data, history and captured contacts —
