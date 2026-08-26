@@ -305,7 +305,7 @@ function PhoneCard({ persona }: { persona: Persona }) {
   return (
     <div
       className="w-full h-full rounded-[30px] overflow-hidden flex flex-col"
-      style={{ background: `linear-gradient(180deg, ${hexAlpha(persona.accent, 0.14)} 0%, #FAF7F2 46%)` }}
+      style={{ background: `linear-gradient(180deg, ${hexAlpha(persona.accent, 0.14)} 0%, rgba(250,247,242,0) 46%), #FAF7F2` }}
     >
       {/* status strip */}
       <div className="flex items-center justify-between px-5 pt-2.5 pb-1" aria-hidden="true">
