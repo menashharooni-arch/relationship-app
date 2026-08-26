@@ -191,7 +191,29 @@ export async function POST(request: NextRequest) {
   // strip pass left source text behind.
   let hybridUsed = false;
   if (!result) {
-    const art = await aiImageEdit({ imageBase64, mediaType, prompt: STRIP_ARTWORK_PROMPT });
+    // The strip pass disobeys on the first try about as often as the full
+    // rebuild does — same corrective-retry treatment: scan the ARTWORK for
+    // surviving source text, name it, try once more. A clean artwork plus a
+    // deterministic owner-text overlay needs no second gate.
+    let art: { data: Buffer; mediaType: string } | null = null;
+    let artLeaks: string[] = [];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prompt = STRIP_ARTWORK_PROMPT + (attempt === 0 ? "" : leakRetrySuffix(artLeaks));
+      const candidate = await aiImageEdit({ imageBase64, mediaType, prompt });
+      if (!candidate) break;
+      const scan = await aiVision({
+        imageBase64: candidate.data.toString("base64"), mediaType: candidate.mediaType,
+        prompt: LEAK_SCAN_PROMPT, json: true, maxTokens: 400,
+      });
+      let leaks: string[] = [];
+      try {
+        const lm = scan?.match(/\{[\s\S]*\}/);
+        leaks = lm ? findLeaks(JSON.parse(lm[0]), identity) : [];
+      } catch { /* unreadable scan — treat as clean */ }
+      if (leaks.length === 0) { art = candidate; break; }
+      console.error(`[design-transfer] hybrid strip leaked attempt ${attempt + 1} for ${user.id}:`, leaks.join(", "));
+      artLeaks = leaks;
+    }
     if (art) {
       const reading = await aiVision({ imageBase64, mediaType, prompt: PRECISE_SCAN_PROMPT, json: true, maxTokens: 2600 });
       const m = reading?.match(/\{[\s\S]*\}/);
@@ -206,23 +228,8 @@ export async function POST(request: NextRequest) {
           }, { overlayOnly: true });
           const bg = await sharp(art.data).resize(1400, 800, { fit: "cover" }).png().toBuffer();
           const composite = await sharp(bg).composite([{ input: await sharp(overlay).png().toBuffer() }]).png().toBuffer();
-          // Leak-scan the composite — the strip pass occasionally leaves source
-          // lettering in the artwork, and that is still a leak.
-          const scan = await aiVision({
-            imageBase64: composite.toString("base64"), mediaType: "image/png",
-            prompt: LEAK_SCAN_PROMPT, json: true, maxTokens: 400,
-          });
-          let leaks: string[] = [];
-          try {
-            const lm = scan?.match(/\{[\s\S]*\}/);
-            leaks = lm ? findLeaks(JSON.parse(lm[0]), identity) : [];
-          } catch { /* unreadable scan — treat as clean */ }
-          if (leaks.length === 0) {
-            result = { data: composite, mediaType: "image/png" };
-            hybridUsed = true;
-          } else {
-            console.error(`[design-transfer] hybrid leak gate caught for ${user.id}:`, leaks.join(", "));
-          }
+          result = { data: composite, mediaType: "image/png" };
+          hybridUsed = true;
         } catch (e) {
           console.error("[design-transfer] hybrid composite failed:", e);
         }
