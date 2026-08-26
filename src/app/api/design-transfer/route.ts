@@ -7,7 +7,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import {
   transferPrompt, transferChecklist, type TransferIdentity,
   PRECISE_SCAN_PROMPT, faceLayoutFromScan, renderFaceImage,
-  LEAK_SCAN_PROMPT, findLeaks, leakRetrySuffix,
+  LEAK_SCAN_PROMPT, findLeaks, leakRetrySuffix, STRIP_ARTWORK_PROMPT,
 } from "@/lib/design-transfer";
 import { aiConsentBlock } from "@/lib/ai-consent-server";
 
@@ -179,8 +179,59 @@ export async function POST(request: NextRequest) {
     lastLeaks = leaks;
   }
 
-  let png: Buffer;
   const sharp = (await import("sharp")).default;
+
+  // ── Hybrid engine: model-copied ARTWORK + our own typesetting ──────────────
+  // Runs when the full rebuild leaked twice (or the editor produced nothing).
+  // The model reproduces the design with all text/logos/faces stripped — it is
+  // pixel-faithful at artwork, it only fails at lettering — and the owner's
+  // details are typeset over it in real type from the vision measurement of
+  // the original. Text cannot be misspelled or leaked: no letter is
+  // model-drawn. The composite still passes the leak gate below in case the
+  // strip pass left source text behind.
+  let hybridUsed = false;
+  if (!result) {
+    const art = await aiImageEdit({ imageBase64, mediaType, prompt: STRIP_ARTWORK_PROMPT });
+    if (art) {
+      const reading = await aiVision({ imageBase64, mediaType, prompt: PRECISE_SCAN_PROMPT, json: true, maxTokens: 2600 });
+      const m = reading?.match(/\{[\s\S]*\}/);
+      let hybridLayout = null;
+      try { hybridLayout = m ? faceLayoutFromScan(JSON.parse(m[0])) : null; } catch { /* fall through */ }
+      if (hybridLayout) {
+        try {
+          const toDataUri = (r: { imageBase64: string; mediaType: string } | null) =>
+            r ? `data:${r.mediaType};base64,${r.imageBase64}` : null;
+          const overlay = await renderFaceImage(hybridLayout, identity, {
+            headshot: toDataUri(headshot), logo: toDataUri(logo),
+          }, { overlayOnly: true });
+          const bg = await sharp(art.data).resize(1400, 800, { fit: "cover" }).png().toBuffer();
+          const composite = await sharp(bg).composite([{ input: await sharp(overlay).png().toBuffer() }]).png().toBuffer();
+          // Leak-scan the composite — the strip pass occasionally leaves source
+          // lettering in the artwork, and that is still a leak.
+          const scan = await aiVision({
+            imageBase64: composite.toString("base64"), mediaType: "image/png",
+            prompt: LEAK_SCAN_PROMPT, json: true, maxTokens: 400,
+          });
+          let leaks: string[] = [];
+          try {
+            const lm = scan?.match(/\{[\s\S]*\}/);
+            leaks = lm ? findLeaks(JSON.parse(lm[0]), identity) : [];
+          } catch { /* unreadable scan — treat as clean */ }
+          if (leaks.length === 0) {
+            result = { data: composite, mediaType: "image/png" };
+            hybridUsed = true;
+          } else {
+            console.error(`[design-transfer] hybrid leak gate caught for ${user.id}:`, leaks.join(", "));
+          }
+        } catch (e) {
+          console.error("[design-transfer] hybrid composite failed:", e);
+        }
+      }
+    }
+  }
+  void hybridUsed;
+
+  let png: Buffer;
   if (result) {
     try {
       // Normalise to the card's own shape. cover-crop, not pad: the model was

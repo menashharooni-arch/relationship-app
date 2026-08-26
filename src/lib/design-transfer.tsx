@@ -303,7 +303,12 @@ export async function renderFaceImage(
   layout: FaceLayout,
   id: TransferIdentity,
   images: { headshot?: string | null; logo?: string | null },
+  /** Hybrid engine: render ONLY the text + headshot/logo on a transparent
+   *  canvas, for compositing over the model's artwork copy. Default renders
+   *  the full card (background + panels) exactly as before. */
+  opts?: { overlayOnly?: boolean },
 ): Promise<Buffer> {
+  const overlayOnly = opts?.overlayOnly === true;
   const W = 1400, H = 800;
   const value = (k: FaceElementKind): string | null => {
     switch (k) {
@@ -320,8 +325,8 @@ export async function renderFaceImage(
   const serifFonts = layout.serif ? await loadSerifFonts() : null;
   const res = new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: layout.background, fontFamily: serifFonts ? "face-serif" : "sans-serif" }}>
-        {layout.panels.map((p, i) => (
+      <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: overlayOnly ? "transparent" : layout.background, fontFamily: serifFonts ? "face-serif" : "sans-serif" }}>
+        {(overlayOnly ? [] : layout.panels).map((p, i) => (
           <div key={`p${i}`} style={{ position: "absolute", left: `${p.x}%`, top: `${p.y}%`, width: `${p.w}%`, height: `${p.h}%`, background: p.color, display: "flex" }} />
         ))}
         {layout.elements.map((e, i) => {
@@ -384,6 +389,24 @@ export async function renderFaceImage(
 // transcribes every email and phone on the GENERATED card, and anything that
 // isn't the owner's is a leak. Emails and phones are the checkable, dangerous
 // leaks — a stray first name can't misroute anyone's call.
+
+// ── The hybrid engine's artwork pass ─────────────────────────────────────────
+//
+// Full rebuilds fail the leak gate whenever the model redraws TEXT — it copies
+// artwork faithfully but misspells and leaks lettering. So the hybrid engine
+// divides the labor: the model reproduces ONLY the artwork (this prompt), and
+// renderFaceImage overlays the owner's details in real type. No letter is ever
+// model-drawn, so the text can't be wrong; the background is the model's
+// pixel-faithful copy, so the design isn't a flat reconstruction.
+export const STRIP_ARTWORK_PROMPT = [
+  "Reproduce this business card design EXACTLY — same canvas, same background,",
+  "same colors, gradients, panels, shapes, borders, textures and decorative",
+  "artwork, at the same positions.",
+  "REMOVE COMPLETELY: all text and lettering of every kind, all logos and",
+  "wordmarks, all QR codes and barcodes, and all photographs of people.",
+  "Where something was removed, continue the underlying background seamlessly.",
+  "Do NOT add anything new. Output only the cleaned design.",
+].join(" ");
 
 export const LEAK_SCAN_PROMPT = [
   "Transcribe every email address and every phone number printed on this",

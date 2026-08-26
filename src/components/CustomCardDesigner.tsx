@@ -372,7 +372,7 @@ export default function CustomCardDesigner({
   const head = "text-[11px] font-semibold uppercase tracking-wide text-gray-400";
   const row = "text-[10.5px] text-gray-500 w-[52px] shrink-0 pt-1.5";
   const chip = "text-[12px] px-3 py-1.5 rounded-lg border transition-colors";
-  const chipOff = "bg-gray-950 border-gray-700 text-gray-300 hover:text-white hover:border-gray-500";
+  const chipOff = "bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400";
   const chipOn = "bg-blue-600 border-blue-600 text-white";
 
   if (!hasBlocks(layout)) {
@@ -740,7 +740,7 @@ export default function CustomCardDesigner({
                       <span className={`block text-[13px] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
                         {blockLabel(b)}
                       </span>
-                      <span className="block text-[10.5px] text-gray-500 truncate">
+                      <span className={`block text-[10.5px] truncate ${open ? "text-gray-300" : "text-gray-500"}`}>
                         {empty ? "nothing entered yet — it stays hidden"
                                : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
                       </span>
@@ -772,7 +772,7 @@ export default function CustomCardDesigner({
                         />
                       )}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10.5px] text-gray-500 w-12">Size</span>
+                        <span className="text-[11px] font-medium text-gray-300 w-12">Size</span>
                         {EMPHASIS.map((e) => (
                           <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
                             className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
@@ -782,7 +782,7 @@ export default function CustomCardDesigner({
                           the card wide and no size reads well there for text. */}
                       {canChangeZone(b) && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10.5px] text-gray-500 w-12">Where</span>
+                          <span className="text-[11px] font-medium text-gray-300 w-12">Where</span>
                           {(["left", "right"] as CardZone[]).map((z) => (
                             <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
                               className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
