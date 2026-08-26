@@ -44,3 +44,34 @@ export const RESERVED_SLUGS = new Set([
 export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUGS.has(normalizeSlug(slug));
 }
+
+// ── The card slug, owner format 2026-08-26 ──────────────────────────────────
+//
+// "Aaron Lavi" + "Malve Capital" → pretty "AaronLavi-MalveCapital", canonical
+// "aaronlavi-malvecapital": the words of each part FUSE (no hyphen inside the
+// name or inside the company); the single hyphen separates name from company.
+// The canonical (lowercase) form is what's stored and routed — the public
+// card/links routes lowercase the incoming path, so the pretty capitalization
+// can be shared and typed freely and still resolves.
+
+/** One part (a name, a company) with its words fused CamelCase: "Malve Capital" → "MalveCapital". */
+function fuseWords(part: string): string {
+  return String(part ?? "")
+    .trim()
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join("");
+}
+
+/** Display form: "AaronLavi-MalveCapital" (or just "AaronLavi" without a company). */
+export function prettyCardSlug(name: string, company?: string | null): string {
+  const n = fuseWords(name);
+  const c = fuseWords(company ?? "");
+  return c ? `${n}-${c}` : n;
+}
+
+/** Stored/routed form: the pretty slug lowercased through the normalizer. */
+export function cardSlug(name: string, company?: string | null): string {
+  return normalizeSlug(prettyCardSlug(name, company));
+}

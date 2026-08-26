@@ -71,7 +71,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ username: string }>;
 }): Promise<Metadata> {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
   const p = await resolveCardMeta(username);
@@ -122,7 +123,8 @@ export default async function CardPage({
   params: Promise<{ username: string }>;
   searchParams: Promise<{ source?: string | string[]; embed?: string; shared?: string; save?: string }>;
 }) {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
   const { source: rawSource, embed, shared, save } = await searchParams;
   // A repeated query param (?source=a&source=b) arrives as an array — passing
   // that through used to reach the card_views insert as a non-text value and

@@ -96,7 +96,7 @@ export const cardDocs = defineDocs([
       "vanity url", "my link", "rename my link",
     ],
     answer:
-      "On the \"Card info\" tab of the card editor — your card lives at swiftcard.me/<your-url> and the editor there lets you change that ending.",
+      "On the \"Card info\" tab of the card editor — your card lives at swiftcard.me/<your-url> and the editor there lets you change that ending. New cards auto-fill the URL as YourName-YourCompany (for example swiftcard.me/AaronLavi-MalveCapital) \u2014 capitalization doesn't matter when someone types it.",
     detail:
       "Changing it breaks anything already pointing at the old address: printed QR codes, NFC cards already written, and links you've shared. The QR and the NFC tag store the link, so they need re-writing or reprinting after a change. Your Swift Links page uses the same ending, so both move together.",
   },
