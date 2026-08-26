@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill } from "@/lib/swiftlink-looks";
 
@@ -122,8 +123,9 @@ export default function SwiftLinkProfile({
 
   return (
     <main className={embedded ? "" : "min-h-[100dvh]"} style={{ background: embedded ? "transparent" : look.page }}>
+      <style>{`@media (max-width: 767px) { .sc-sl-sheet { zoom: 0.92; } }`}</style>
       <div
-        className={`relative mx-auto w-full max-w-[430px] overflow-hidden ${
+        className={`sc-sl-sheet relative mx-auto w-full max-w-[430px] overflow-hidden ${
           embedded
             ? "rounded-[30px]"
             : "min-h-[100dvh] md:min-h-0 md:my-8 md:rounded-[30px] md:shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
@@ -265,7 +267,9 @@ export default function SwiftLinkProfile({
                 remaining width, otherwise the flex row squeezes the badge. */}
             {verified && <span className="shrink-0 mt-1.5"><VerifiedBadge /></span>}
           </div>
-          <p className="text-[15px] mt-0.5" style={{ color: textColor, opacity: 0.5 }}>@{username}</p>
+          {/* The @username line under the name was removed (owner order
+              2026-08-26) — the slug reads as "first-last-company" noise; the
+              name above and the subtitle below carry the identity. */}
 
           {subtitle && <p className="text-[13px] font-medium mt-2" style={{ color: textColor, opacity: 0.6 }}>{subtitle}</p>}
           {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
@@ -310,12 +314,10 @@ export default function SwiftLinkProfile({
           <div className="flex justify-center mt-5">
             <a
               href={`${appUrl}/?src=badge`}
-              className="flex items-center gap-1.5 text-[11px] transition-opacity opacity-40 hover:opacity-75"
+              className="flex items-center gap-2 text-[13px] transition-opacity opacity-50 hover:opacity-80"
               style={{ color: textColor }}
             >
-              <svg viewBox="0 0 100 100" className="w-3 h-3 shrink-0">
-                <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
-              </svg>
+              <span className="shrink-0 rounded-[4px] overflow-hidden flex"><SwiftCardIcon size={16} /></span>
               <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
             </a>
           </div>

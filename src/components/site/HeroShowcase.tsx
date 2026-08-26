@@ -12,6 +12,7 @@ import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import { getLook, hexAlpha, type SwiftLinkLook } from "@/lib/swiftlink-looks";
 import PlatformIcon from "@/components/PlatformIcon";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 // ── The hero's rotating persona showcase (owner order 2026-08-26, modeled on
 //    link.me's front page) ────────────────────────────────────────────────────
@@ -282,10 +283,8 @@ function MiniLinks({ persona }: { persona: Persona }) {
 
           {/* Made-with footer, every real profile carries it */}
           <div className="flex justify-center mt-6">
-            <span className="flex items-center gap-1.5 text-[11px] opacity-40" style={{ color: text }}>
-              <svg viewBox="0 0 100 100" className="w-3 h-3 shrink-0">
-                <polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" />
-              </svg>
+            <span className="flex items-center gap-2 text-[13px] opacity-50" style={{ color: text }}>
+              <span className="shrink-0 rounded-[4px] overflow-hidden flex"><SwiftCardIcon size={16} /></span>
               <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
             </span>
           </div>
