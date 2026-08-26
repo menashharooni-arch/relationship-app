@@ -38,7 +38,21 @@ export type PassInputs = { card: CardRow; meta: NonNullable<ResolvedCardMeta> | 
  * 404s too, which is the intended end state.
  */
 export async function passInputs(username: string): Promise<PassInputs | null> {
-  if (!(await isCardActive(username))) return null;
+  if (!(await isCardActive(username))) {
+    // A pass serial is FROZEN on the device, but the card's slug can move
+    // (the 2026-08-26 FirstLast-Company migration, and every auto-rename
+    // since). Resolve the old slug to the card's current one and serve the
+    // CURRENT card under the OLD serial: the serial (and the pass URL, which
+    // 308-redirects) stay what the device expects, while the fields show the
+    // live card. Without this, every installed pass went "gone" the moment
+    // its card was renamed — no more updates, and the sweep counted it dead.
+    const { findSlugAlias } = await import("@/lib/slug-alias");
+    const current = await findSlugAlias(username);
+    if (!current || current === username) return null;
+    const inputs = await passInputs(current);
+    if (!inputs) return null;
+    return { ...inputs, card: { ...inputs.card, username } };
+  }
 
   const admin = getAdminSupabase();
   // `label` is on cards and NOT on profiles — asking for it in the profiles

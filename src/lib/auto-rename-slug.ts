@@ -62,6 +62,12 @@ export async function autoRenameCardSlug(opts: {
             }
           } catch { /* best-effort */ }
         }
+        // lead_messages.card_owner is denormalized and OUTSIDE the RPC's
+        // table list — move it here so conversation logs stay scoped to the
+        // card under its new slug.
+        try {
+          await admin.from("lead_messages").update({ card_owner: candidate }).eq("card_owner", before.username);
+        } catch { /* scoping metadata; the thread itself is keyed by lead_id */ }
         // Record the old slug for the 308 redirect. Read fresh — this save may
         // have just written customization, and the RPC moved the row.
         try {
