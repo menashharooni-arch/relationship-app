@@ -262,7 +262,7 @@ export default function HeroShowcase() {
   const persona = PERSONAS[idx];
 
   return (
-    <div className="relative w-[430px] h-[620px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
+    <div className="relative w-[560px] h-[620px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
       {/* job tag */}
       <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-30">
         <span
