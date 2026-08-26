@@ -168,7 +168,7 @@ export default function Home() {
                 hero mechanic): six professions, six templates — the SwiftCard
                 link center, Swift Links left, Swift Signature right. Desktop
                 only: on phones the video hero + claim box stay uncluttered. */}
-            <div className="hidden lg:flex justify-end shrink-0" data-reveal>
+            <div className="hidden xl:flex justify-end shrink-0" data-reveal>
               <HeroShowcase />
             </div>
           </div>
