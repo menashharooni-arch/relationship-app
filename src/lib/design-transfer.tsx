@@ -409,9 +409,9 @@ export const STRIP_ARTWORK_PROMPT = [
 ].join(" ");
 
 export const LEAK_SCAN_PROMPT = [
-  "Transcribe every email address and every phone number printed on this",
-  "business card image. Return ONLY valid JSON:",
-  '{"emails":["..."],"phones":["..."]}',
+  "Transcribe every email address, every phone number, and every street/postal",
+  "address printed on this business card image. Return ONLY valid JSON:",
+  '{"emails":["..."],"phones":["..."],"addresses":["..."]}',
   "Empty arrays if none. Do not include anything else.",
 ].join("\n");
 
@@ -437,6 +437,19 @@ export function findLeaks(
     const d = digits(p);
     // Same last-10 rule the SMS suppression uses; short fragments are noise.
     if (d.length >= 7 && d.slice(-10) !== okPhone.slice(-10)) leaks.push(p.trim());
+  }
+  // A street address that isn't the owner's is the same failure as a foreign
+  // email — the original card's data on the rebuilt card (live case
+  // 2026-08-26: identity had no address, and the source card's survived).
+  // Compared on digits+first-word so OCR punctuation/casing noise can't make
+  // the owner's own address read as a leak.
+  const okAddr = (id.address ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const addrs = (r as { addresses?: unknown }).addresses;
+  for (const a of Array.isArray(addrs) ? addrs : []) {
+    if (typeof a !== "string") continue;
+    const norm = a.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (norm.length < 6) continue; // fragments are noise
+    if (!okAddr || !okAddr.includes(norm.split(" ").slice(0, 2).join(" "))) leaks.push(a.trim());
   }
   return leaks;
 }
