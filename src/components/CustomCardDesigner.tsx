@@ -25,7 +25,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomLayout } from "@/components/card-templates/types";
-import { CustomBlockCard } from "@/components/card-templates/CustomCard";
+import { CustomBlockCard, FaceCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
 import {
   ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
@@ -604,7 +604,14 @@ export default function CustomCardDesigner({
         <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6">
           <div onPointerDown={onCardPointerDown} className="cursor-pointer">
             <CardScaler>
-              <CustomBlockCard data={previewData} placeholder />
+              {/* An approved exact design IS the card — show it. This canvas
+                  rendered CustomBlockCard unconditionally, so pressing "Use
+                  this design" committed the face image and the preview showed
+                  ... the same block layout as before. To the owner the button
+                  did nothing (report 2026-08-26); the design only appeared on
+                  the live card page. The live renderer (CustomCard) makes the
+                  same face-first choice. */}
+              {shown.faceImage ? <FaceCard data={previewData} src={shown.faceImage} /> : <CustomBlockCard data={previewData} placeholder />}
             </CardScaler>
           </div>
         </div>
