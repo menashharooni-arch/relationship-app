@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#DC2626"/><stop offset="1" stop-color="#7F1D1D"/>
+    </linearGradient>
+  </defs>
+  <path d="M130 12 L232 44 V132 C232 190 186 228 130 250 C74 228 28 190 28 132 V44 Z" fill="url(#shield)"/>
+  <path d="M130 24 L220 52 V130 C220 182 179 216 130 236 C81 216 40 182 40 130 V52 Z" fill="none" stroke="#FECACA" stroke-width="4" opacity="0.7"/>
+  <path d="M66 150 L96 84 L130 132 L164 84 L194 150" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="130" y="196" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="24" letter-spacing="3" fill="#FECACA">MOTORS</text>
+</svg>

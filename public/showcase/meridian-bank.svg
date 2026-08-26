@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 240">
+  <circle cx="180" cy="86" r="62" fill="none" stroke="#B08D57" stroke-width="3"/>
+  <circle cx="180" cy="86" r="54" fill="none" stroke="#B08D57" stroke-width="1.2"/>
+  <text x="180" y="110" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="700" fill="#B08D57">M</text>
+  <text x="180" y="188" text-anchor="middle" font-family="Georgia, serif" font-size="30" letter-spacing="10" fill="#8C6D3F">MERIDIAN</text>
+  <text x="180" y="216" text-anchor="middle" font-family="Georgia, serif" font-size="15" letter-spacing="6" fill="#9A8154">PRIVATE BANK</text>
+</svg>
