@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 140">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 160">
   <defs>
     <linearGradient id="bolt" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#F59E0B"/><stop offset="1" stop-color="#B45309"/>
     </linearGradient>
   </defs>
-  <rect x="6" y="14" width="112" height="112" rx="28" fill="url(#bolt)"/>
-  <polygon points="74,30 46,76 64,76 54,110 88,62 68,62" fill="#fff"/>
-  <text x="138" y="66" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="40" letter-spacing="1" fill="#1F2937">DELGADO</text>
-  <text x="139" y="104" font-family="Arial, sans-serif" font-weight="700" font-size="27" letter-spacing="8" fill="#B45309">ELECTRIC</text>
+  <rect x="0" y="0" width="440" height="160" rx="30" fill="#FFFFFF"/>
+  <rect x="16" y="24" width="112" height="112" rx="26" fill="url(#bolt)"/>
+  <polygon points="84,40 56,86 74,86 64,120 98,72 78,72" fill="#fff"/>
+  <text x="148" y="76" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="40" letter-spacing="1" fill="#1F2937">DELGADO</text>
+  <text x="149" y="114" font-family="Arial, sans-serif" font-weight="700" font-size="27" letter-spacing="8" fill="#B45309">ELECTRIC</text>
 </svg>

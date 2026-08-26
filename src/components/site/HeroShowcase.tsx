@@ -59,8 +59,14 @@ const p = (partial: Omit<CardData, "initials"> & { initials?: string }): CardDat
   ...partial,
 });
 
+// The live page stores each social's brand color on the row (SocialIcons
+// falls back to a washed neutral without one) — mirror that here.
+const BRAND: Record<string, string> = {
+  LinkedIn: "#0A66C2", Facebook: "#1877F2", YouTube: "#FF0000",
+  "X / Twitter": "#000000", TikTok: "#010101",
+};
 const soc = (labels: Array<[string, string]>): BrandSocial[] =>
-  labels.map(([label, href]) => ({ label, href }));
+  labels.map(([label, href]) => ({ label, href, color: BRAND[label] }));
 
 const PERSONAS: Persona[] = [
   {
