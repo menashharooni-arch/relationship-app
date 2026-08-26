@@ -11,6 +11,7 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import { getLook, hexAlpha, type SwiftLinkLook } from "@/lib/swiftlink-looks";
+import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 // ── The hero's rotating persona showcase (owner order 2026-08-26, modeled on
 //    link.me's front page) ────────────────────────────────────────────────────
@@ -295,8 +296,10 @@ function MiniSignature({ persona }: { persona: Persona }) {
   );
 }
 
-/** CENTER — the SwiftCard link, as a visitor opens it on their phone: the card
- *  page's cream wash tinted by the card's accent, then its two actions. */
+/** CENTER — the SwiftCard link, as a visitor opens it on their phone. The
+ *  live card page top to bottom at mini scale: accent-washed cream, the card,
+ *  Save Contact / Share your info, the links table, and the Share-this-card
+ *  section with the page's real "Create your free SwiftCard" gradient CTA. */
 function PhoneCard({ persona }: { persona: Persona }) {
   const { Template } = persona;
   return (
@@ -325,6 +328,40 @@ function PhoneCard({ persona }: { persona: Persona }) {
           Share your info
         </div>
       </div>
+
+      {/* Links — the page's hairline-ruled action-link table, mini */}
+      <div className="mx-4 mt-3 rounded-[12px] overflow-hidden bg-white" style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}>
+        {persona.rows.map(([emoji, label], i) => (
+          <div key={label} className={`flex items-center gap-2 px-2.5 py-2 ${i > 0 ? "border-t border-[#F1EBE3]" : ""}`}>
+            <span className="shrink-0 w-5 h-5 rounded-[6px] bg-[#FAF7F2] grid place-items-center" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
+              <span className="text-[10px] leading-none">{emoji}</span>
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-[#1E293B]">{label}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#C9BFB2" strokeWidth={2.5} className="w-2.5 h-2.5 shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+        ))}
+      </div>
+
+      {/* Share this card + the page's real conversion CTA */}
+      <div className="mx-4 mt-3 rounded-[14px] p-2.5" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+        <div className="flex items-center justify-center gap-1.5 rounded-full py-2 text-[10.5px] font-semibold text-slate-700" style={{ border: "1px solid #E4DDD4" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg>
+          Share this card
+        </div>
+        <div
+          className="relative overflow-hidden mt-1.5 flex items-center justify-center gap-1.5 font-bold py-2 rounded-full text-[10.5px] text-white"
+          style={{ background: "linear-gradient(90deg, #1D4ED8 0%, #2563EB 55%, #0EA5E9 100%)", boxShadow: "0 8px 20px -6px rgba(29,78,216,0.45), inset 0 1px 0 rgba(255,255,255,0.25)" }}
+        >
+          <span className="sc-hs-shine" aria-hidden="true" />
+          <span className="shrink-0 rounded-[4px] overflow-hidden" style={{ boxShadow: "0 0 0 1.5px rgba(255,255,255,0.9), 0 1px 3px rgba(15,23,42,0.35)" }} aria-hidden="true">
+            <SwiftCardIcon size={13} />
+          </span>
+          <span className="truncate">Create your free SwiftCard</span>
+        </div>
+      </div>
+
       <p className="mt-auto pb-2.5 text-center text-[8px] text-slate-400">{persona.data.cardUrl}</p>
     </div>
   );
