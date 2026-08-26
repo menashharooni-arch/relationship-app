@@ -61,7 +61,7 @@ export default function Home() {
 
       <main className="overflow-clip">
         {/* ═══════════════ HERO ═══════════════ */}
-        <section className="rd-light relative pt-28 pb-16 sm:pb-20 overflow-hidden">
+        <section className="rd-light relative flex flex-col justify-center min-h-[100svh] pt-24 pb-12 overflow-hidden">
           {/* Ambient video background (owner request 2026-08-19): a bright
               networking scene, sped up ~1.4×, looping muted behind the hero.
               The white gradient overlay is deliberately LIGHT (owner request:
