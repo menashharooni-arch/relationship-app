@@ -51,15 +51,26 @@ export default function OfficeNotificationBell({
         if (!res.ok) return;
         const fresh: OfficeNotification[] = await res.json();
         setNotifications((prev) => {
-          const prevIds = new Set(prev.map((n) => n.id));
-          const hasNew = fresh.some((n) => !prevIds.has(n.id) && !n.read);
-          if (!hasNew && fresh.length === prev.length) return prev;
-          return fresh;
+          // Server truth wins whenever ANYTHING differs — same fix as the
+          // main NotificationBell (2026-08-26): the old new-ids-only guard
+          // left this bell showing stale unread rows after a mark-all-read
+          // made elsewhere. Poll only runs while the panel is closed, so no
+          // optimistic update can be clobbered.
+          const sig = (list: OfficeNotification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(",");
+          return sig(fresh) === sig(prev) ? prev : fresh;
         });
       } catch { /* ignore */ }
     };
+    poll(); // now, not in 30s — opening the console is when admins check
+    const onVisible = () => { if (document.visibilityState === "visible") poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, []);
 
   async function markAllRead() {
