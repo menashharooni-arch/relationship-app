@@ -13,21 +13,13 @@ export const metadata = { title: "Team — Admin — SwiftCard" };
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-function Arrow({ deltaPct }: { deltaPct: number | null }) {
-  if (deltaPct == null || deltaPct === 0) return null;
-  const up = deltaPct > 0;
-  return (
-    <span className={`text-[11px] font-bold ${up ? "text-green-400" : "text-red-400"}`}>
-      {up ? "▲" : "▼"} {Math.abs(deltaPct)}% vs last month
-    </span>
-  );
-}
-
-function BigStat({ label, value, explainer, deltaPct, sub }: {
+// The "▲ X% vs last month" trend line was removed here the same day it was
+// removed from the Pro dashboard (owner request 2026-08-26): the counts stay,
+// the per-tile percentage comparison goes.
+function BigStat({ label, value, explainer, sub }: {
   label: string;
   value: string;
   explainer: string;
-  deltaPct?: number | null;
   sub?: string;
 }) {
   return (
@@ -36,7 +28,6 @@ function BigStat({ label, value, explainer, deltaPct, sub }: {
       <div className="flex items-baseline gap-2 mt-1 flex-wrap">
         <p className="text-[28px] font-bold text-white tabular-nums leading-none">{value}</p>
         {sub && <span className="text-xs text-gray-600 font-medium">{sub}</span>}
-        {deltaPct !== undefined && <Arrow deltaPct={deltaPct} />}
       </div>
       <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
     </div>
@@ -185,13 +176,11 @@ export default async function OfficeTeamPage() {
           <BigStat
             label="Leads captured this month"
             value={overview.stats.leadsThisMonth.current.toLocaleString("en-US")}
-            deltaPct={overview.stats.leadsThisMonth.deltaPct}
             explainer="People who shared their info with your team"
           />
           <BigStat
             label="Card views this month"
             value={overview.stats.viewsThisMonth.current.toLocaleString("en-US")}
-            deltaPct={overview.stats.viewsThisMonth.deltaPct}
             explainer="Times someone opened one of your team's cards"
           />
           <BigStat
