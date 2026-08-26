@@ -4,6 +4,7 @@ import { TRIAL_DAYS } from "@/lib/plan";
 import { APP_STORE_URL } from "@/lib/app-store";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
+import HeroShowcase from "@/components/site/HeroShowcase";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -95,8 +96,8 @@ export default function Home() {
             aria-hidden="true"
             style={{ background: "rgba(255,255,255,0.5)" }}
           />
-          <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
-            <div className="max-w-[640px]">
+          <div className="relative max-w-7xl mx-auto px-5 sm:px-6 lg:flex lg:items-center lg:gap-8">
+            <div className="max-w-[640px] lg:flex-1">
               <h1 className="rd-display text-slate-900 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
@@ -162,6 +163,13 @@ export default function Home() {
                   </a>
                 </div>
               )}
+            </div>
+            {/* Rotating persona showcase (owner order 2026-08-26, link.me's
+                hero mechanic): six professions, six templates — the SwiftCard
+                link center, Swift Links left, Swift Signature right. Desktop
+                only: on phones the video hero + claim box stay uncluttered. */}
+            <div className="hidden lg:flex justify-end shrink-0" data-reveal>
+              <HeroShowcase />
             </div>
           </div>
         </section>
