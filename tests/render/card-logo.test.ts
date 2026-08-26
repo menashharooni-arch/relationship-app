@@ -173,6 +173,47 @@ describe("a logo never escapes the card, covers text, or pushes content off", ()
     }
   }
 
+  // Owner spec: the circle takes the room the card can give — a sparse card
+  // renders a LARGER disc than a packed one (density factor f drives diameter
+  // exactly as it drives the classic logo height), and even the packed disc
+  // stays clearly visible.
+  it("circle grows on sparse cards and shrinks (but stays visible) on packed ones", async () => {
+    const failures: string[] = [];
+    const SPARSE: CardData = { ...BASE, title: "", company: "Acme", email: "", website: "" };
+    const PACKED = FIXTURES.find(([n]) => n === "long everything")![1];
+    for (const [tName, Template] of TEMPLATES) {
+      const dia = async (fixture: CardData) => {
+        const css = await appCss();
+        const data = { ...fixture, logoUrl: svg(200, 200), customization: { logoShape: "circle" as const } };
+        const markup = renderToStaticMarkup(createElement(Template, { data }));
+        const page = await browser.newPage({ viewportSize: { width: 560, height: 900 } });
+        try {
+          await page.setContent(
+            `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>
+             <style>body{margin:0;padding:20px;background:#fff}#holder{width:460px}</style>
+             </head><body class="sc-app"><div id="holder">${markup}</div></body></html>`,
+            { waitUntil: "load" },
+          );
+          return await page.evaluate(() => {
+            const img = document.querySelector('img[alt="logo"]') as HTMLElement | null;
+            if (!img) return 0;
+            let disc: HTMLElement = img;
+            if (getComputedStyle(disc).borderRadius !== "50%" && img.parentElement && getComputedStyle(img.parentElement).borderRadius === "50%") disc = img.parentElement;
+            return disc.getBoundingClientRect().width;
+          });
+        } finally {
+          await page.close();
+        }
+      };
+      const sparse = await dia(SPARSE);
+      const packed = await dia(PACKED);
+      if (!(sparse > 0 && packed > 0)) { failures.push(`${tName}: disc missing (sparse ${sparse}, packed ${packed})`); continue; }
+      if (sparse < packed - 0.5) failures.push(`${tName}: sparse disc ${sparse.toFixed(0)}px is SMALLER than packed ${packed.toFixed(0)}px`);
+      if (packed < 34) failures.push(`${tName}: packed disc ${packed.toFixed(0)}px too small to read`);
+    }
+    expect(failures, failures.join("\n")).toEqual([]);
+  }, 240_000);
+
   // The circle really is a circle, and the mark really is inside it: fixed
   // 1:1 box on the shared-helper templates, and padding that keeps a square
   // mark's corners within the circumference (content-diagonal ≤ diameter).
