@@ -10,6 +10,7 @@ import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationsPanel from "@/components/NotificationsPanel";
+import CardPickerList from "@/components/CardPickerList";
 import MoreShareOptions from "@/components/MoreShareOptions";
 import CardPreviewDownload from "@/components/CardPreviewDownload";
 import { CardCaptureProvider } from "@/components/CardCaptureContext";
@@ -214,26 +215,16 @@ export default async function DashboardPage({
           <div className="w-full max-w-sm">
             <h1 className="text-xl font-bold text-white mb-1 text-center">Select a card</h1>
             <p className="text-gray-500 text-sm mb-6 text-center">Choose a card to open its dashboard and contacts.</p>
-            <div className="space-y-2">
-              {allCards.map((card) => (
-                <Link
-                  key={card.id}
-                  href={`/dashboard?card=${card.username}`}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3.5 border border-gray-800 bg-gray-900 hover:border-blue-600/50 hover:bg-gray-900/60 transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 bg-gray-700 text-gray-300">
-                    {(card.label || card.name || card.username)[0]?.toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-medium truncate">{card.label || card.name || card.username}</p>
-                    <p className="text-gray-500 text-xs truncate">/{cardSlug(card.name || "", card.company) === card.username ? prettyCardSlug(card.name || "", card.company) : card.username}{card.name ? ` · ${card.name}` : ""}</p>
-                  </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-gray-600 shrink-0">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              ))}
-            </div>
+            <CardPickerList
+              cards={allCards.map((card) => ({
+                id: card.id as string,
+                username: card.username as string,
+                title: (card.label || card.name || card.username) as string,
+                slugDisplay: cardSlug(card.name || "", card.company) === card.username ? prettyCardSlug(card.name || "", card.company) : (card.username as string),
+                name: (card.name as string) || null,
+              }))}
+            >
+            </CardPickerList>
           </div>
         </main>
       </>
@@ -274,6 +265,7 @@ export default async function DashboardPage({
     panelNotifRes,
     bellNotifRes,
     ownedOfficeRes,
+    canViewOfficeAdminRes,
   ] = await Promise.all([
     // card_views is written by the PUBLIC view API via the service role and has
     // RLS on with no select policy — reading it with the user's session client
@@ -368,6 +360,10 @@ export default async function DashboardPage({
     isEnterprise
       ? getAdminSupabase().from("offices").select("id, name").eq("owner_id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Office-admin nav visibility — previously a SERIAL await after the batch
+    // (one extra DB round trip on every dashboard load). Runs alongside; the
+    // ownedOffice short-circuit below still wins when it applies.
+    canViewOfficeAdmin(user.id, profile.plan),
   ]);
 
   // If the notifications.card_owner column migration hasn't run yet, BOTH
@@ -498,7 +494,7 @@ export default async function DashboardPage({
   // that page's own access rule so the link never lands on a redirect. This is
   // the OFFICE admin; the site-owner console at /admin is separate and gated by
   // ADMIN_EMAILS (`isAdmin` below).
-  const canSeeOfficeAdmin = ownedOffice ? true : await canViewOfficeAdmin(user.id, profile.plan);
+  const canSeeOfficeAdmin = ownedOffice ? true : canViewOfficeAdminRes;
 
   // Plan/role for the guided tour, derived from data already loaded (no extra
   // queries). Office members are plan="enterprise" WITH an office_id but no
