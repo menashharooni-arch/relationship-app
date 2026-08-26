@@ -256,6 +256,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // The card URL follows the card (owner order 2026-08-26): a name/company
+  // change moves an auto-managed slug to the new FirstLast-Company canonical.
+  // Hand-picked slugs never move; old links 308-redirect via _prevSlugs.
+  let renamedTo: string | null = null;
+  if (beforeCard && ("name" in updates || "company" in updates)) {
+    const b = beforeCard as { username: string; name: string | null; company: string | null };
+    const { autoRenameCardSlug } = await import("@/lib/auto-rename-slug");
+    renamedTo = await autoRenameCardSlug({
+      cardId: id,
+      userId: user.id,
+      before: { username: b.username, name: b.name, company: b.company },
+      afterName: ("name" in updates ? (updates.name as string | null) : b.name),
+      afterCompany: ("company" in updates ? (updates.company as string | null) : b.company),
+    });
+  }
+
   // Swift Signature freshness nudge: if anything shown ON the card actually
   // changed (a scalar on-card field, the template, or the design/customization
   // JSON), drop a bell + quick-contact notification telling the owner to re-copy
@@ -316,7 +332,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           // Nothing the signature shows changed (a links edit, an internal
           // flag) — the freshness work above still ran where needed, but the
           // owner gets no "re-copy your signature" nudge for it.
-          return NextResponse.json({ ok: true });
+          return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}) });
         }
         const { data: pending } = await admin
           .from("notifications")
@@ -330,7 +346,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           const { insertNotification } = await import("@/lib/notify");
           await insertNotification({
             user_id: user.id,
-            card_owner: username,
+            // After an auto-rename the card lives at the NEW slug — a
+            // notification tagged with the old one would never surface in the
+            // card-scoped panel.
+            card_owner: renamedTo ?? username,
             type: "signature_stale",
             title: "Update your email signature",
             body: "You changed your card — re-copy your Swift Signature so the version in your email matches.",
@@ -342,7 +361,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     /* notification is a nicety; a card save must still succeed */
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

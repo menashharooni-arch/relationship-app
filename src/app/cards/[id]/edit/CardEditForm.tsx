@@ -383,9 +383,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       });
       if (res.ok) {
         setStatus("saved");
+        // A name/company change may have auto-renamed the card URL — follow the
+        // slug the server reports, or ?card= selects a card that no longer exists.
+        const okJson = await res.json().catch(() => ({} as { renamedTo?: string }));
+        const slugNow = okJson.renamedTo || card.username;
         // Show the "Saved" confirmation briefly, then return to THIS card's
         // dashboard (not the bare picker).
-        setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(card.username)}`); }, 1000);
+        setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(slugNow)}`); }, 1000);
       } else {
         // Surface the server's plain-English reason when it gives one (e.g. an
         // org-managed field was changed) instead of a bare "Error".
@@ -583,7 +587,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-                <CardUrlEditor cardId={card.id} currentSlug={card.username} suggested={company.trim() ? `${name} ${company}` : name} />
+                <CardUrlEditor cardId={card.id} currentSlug={card.username} />
               </div>
             )}
             <div>
