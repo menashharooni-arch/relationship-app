@@ -247,7 +247,7 @@ const ROTATE_MS = 4600;
 // this width and scales the whole thing down as one unit, so every proportion
 // (name size, chip size, tile radius) is exactly the live page's.
 const LINKS_NATURAL_W = 430;
-const LINKS_NATURAL_H = 1030;
+const LINKS_NATURAL_H = 1008;
 const LINKS_SCALE = 0.46;
 const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 198
 const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 451
@@ -304,7 +304,7 @@ function MiniLinks({ persona }: { persona: Persona }) {
             </h3>
             <span className="shrink-0 mt-1.5"><Verified /></span>
           </div>
-          <p className="text-[15px] mt-0.5" style={{ color: text, opacity: 0.5 }}>@{persona.handle}</p>
+          {/* No @handle line — the live page dropped it (owner order 2026-08-26). */}
           <p className="text-[13px] font-medium mt-2" style={{ color: text, opacity: 0.6 }}>{persona.subtitle}</p>
           <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto" style={{ color: text, opacity: 0.75 }}>{persona.bio}</p>
 
