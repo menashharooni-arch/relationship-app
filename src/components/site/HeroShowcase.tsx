@@ -347,8 +347,8 @@ function MiniSignature({ persona }: { persona: Persona }) {
 // brand discs). The share-this-card section and CTA don't fit and are the
 // page's least-identifying pieces.
 const PHONE_NATURAL_W = 390;
-const PHONE_NATURAL_H = 918;
-const PHONE_SCALE = 0.63;
+const PHONE_NATURAL_H = 963;
+const PHONE_SCALE = 0.6;
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
