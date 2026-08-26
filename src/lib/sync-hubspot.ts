@@ -1,4 +1,4 @@
-import { getCrmConnection, setSyncError, connectionErrorMessage, resolveCrmOwnerId, type CrmLead } from "./crm-connection";
+import { getCrmConnection, setSyncError, connectionErrorMessage, resolveCrmOwnerId, describeCapture, type CrmLead } from "./crm-connection";
 
 const HUBSPOT_TOKEN_URL = "https://api.hubapi.com/oauth/v1/token";
 const HUBSPOT_CONTACTS_URL = "https://api.hubapi.com/crm/v3/objects/contacts";
@@ -39,6 +39,15 @@ export async function syncLeadToHubSpot(lead: CrmLead, capturedBy: string): Prom
   });
 
   if (res.ok) {
+    // Attach the capture context as a Note engagement — where they met, how
+    // the card was tapped, which card (the rep, in an Office), their message,
+    // tags. This was the ONE provider that sent bare name/email/phone (audit
+    // 2026-08-26): standard properties reject unknown fields, but a Note is a
+    // standard object every portal has. Best-effort — the contact is saved.
+    try {
+      const created = (await res.json()) as { id?: string };
+      await attachContextNote(conn.token, created?.id, lead);
+    } catch { /* note is a bonus, never a failure */ }
     // Recovered — drop the banner, but only if one was actually showing.
     if (conn.syncError) await setSyncError("hubspot", userId, null);
     return;
@@ -60,6 +69,10 @@ export async function syncLeadToHubSpot(lead: CrmLead, capturedBy: string): Prom
       await setSyncError("hubspot", userId, connectionErrorMessage(LABEL, updateRes.status));
       return;
     }
+    try {
+      const updated = (await updateRes.json()) as { id?: string };
+      await attachContextNote(conn.token, updated?.id, lead);
+    } catch { /* note is a bonus, never a failure */ }
     if (conn.syncError) await setSyncError("hubspot", userId, null);
     return;
   }
@@ -70,4 +83,19 @@ export async function syncLeadToHubSpot(lead: CrmLead, capturedBy: string): Prom
   const detail = await res.text().catch(() => "");
   console.warn("[sync-hubspot] createContact failed:", res.status, detail);
   await setSyncError("hubspot", userId, connectionErrorMessage(LABEL, res.status));
+}
+
+// The capture context as a HubSpot Note, associated to the contact.
+// Association type 202 is HubSpot's standard note→contact link.
+async function attachContextNote(token: string, contactId: string | undefined, lead: CrmLead): Promise<void> {
+  const note = describeCapture(lead);
+  if (!contactId || !note) return;
+  await fetch("https://api.hubapi.com/crm/v3/objects/notes", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      properties: { hs_note_body: note, hs_timestamp: new Date().toISOString() },
+      associations: [{ to: { id: contactId }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 202 }] }],
+    }),
+  }).catch(() => {});
 }

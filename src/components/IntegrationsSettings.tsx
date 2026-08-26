@@ -40,17 +40,19 @@ async function openConnect(href: string): Promise<void> {
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
 
-type Integration = "google" | "hubspot" | "pipedrive" | "highlevel";
+type Integration = "google" | "hubspot" | "pipedrive" | "highlevel" | "salesforce";
 
 type Props = {
   googleConnected: boolean;
   hubspotConnected: boolean;
   pipedriveConnected: boolean;
   highlevelConnected: boolean;
+  salesforceConnected?: boolean;
   googleSyncError?: string | null;
   hubspotSyncError?: string | null;
   pipedriveSyncError?: string | null;
   highlevelSyncError?: string | null;
+  salesforceSyncError?: string | null;
   /**
    * CRMs the OFFICE OWNER has connected, for a sub-user. Empty for everyone
    * else. Drives the notice explaining that their leads already have a
@@ -180,6 +182,9 @@ function IntegrationCard({
       {unlocked && connected && scopeSlot}
       {flashStatus === "connected" && (
         <p className="text-xs text-green-600 font-medium mt-2">Successfully connected!</p>
+      )}
+      {flashStatus === "unconfigured" && (
+        <p className="text-xs text-amber-600 font-medium mt-2">This integration isn&apos;t switched on yet — check back soon.</p>
       )}
       {flashStatus === "error" && (
         <p className="text-xs text-red-500 mt-2">Connection failed. Check your app credentials and try again.</p>
@@ -417,7 +422,7 @@ function TokenCard({
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, teamCrmNames = [], isPro, cards = [], scopes = {} }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, salesforceConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, salesforceSyncError, teamCrmNames = [], isPro, cards = [], scopes = {} }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -471,6 +476,23 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
           </p>
         </div>
       )}
+
+      <IntegrationCard
+        name="Salesforce"
+        description="New leads are created as Salesforce Leads — source, meeting context and tags included"
+        logo={
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#00A1E0">
+            <path d="M10.01 5.86c.77-.8 1.85-1.3 3.04-1.3 1.58 0 2.96.88 3.69 2.19a5.1 5.1 0 012.09-.45c2.85 0 5.17 2.33 5.17 5.21s-2.32 5.21-5.17 5.21c-.35 0-.69-.03-1.02-.1a3.77 3.77 0 01-3.3 1.94c-.58 0-1.12-.13-1.61-.36a4.3 4.3 0 01-4 2.7 4.31 4.31 0 01-4.06-2.87 4 4 0 01-.83.09A4.01 4.01 0 010 14.11a4.03 4.03 0 012-3.49 4.63 4.63 0 014.35-6.22c1.48 0 2.8.7 3.66 1.46z"/>
+          </svg>
+        }
+        connected={!!salesforceConnected}
+        syncError={salesforceSyncError ?? null}
+        connectUrl="/api/integrations/salesforce/connect"
+        disconnectUrl="/api/integrations/salesforce"
+        isPro={isPro}
+        flashStatus={flashIntegration === "salesforce" ? flashStatus : null}
+        scopeSlot={scopeFor("salesforce", "Salesforce")}
+      />
 
       <TokenCard
         provider="highlevel"

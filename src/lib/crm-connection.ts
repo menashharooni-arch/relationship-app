@@ -17,7 +17,7 @@ import { isCardInScope, parseCardScope } from "./crm-scope";
 // field mapping, and how each API signals a duplicate. That belongs in
 // sync-<provider>.ts, not here.
 
-export type CrmProviderKey = "google" | "hubspot" | "pipedrive" | "highlevel";
+export type CrmProviderKey = "google" | "hubspot" | "pipedrive" | "highlevel" | "salesforce";
 
 // Providers whose token never expires (Pipedrive personal API tokens, HighLevel
 // Private Integration tokens) simply omit this — expires_at is null for them, so
@@ -50,6 +50,8 @@ export type CrmLead = {
   message?: string | null;
   /** Card slug that captured it. In an Office this identifies the rep. */
   capturedByCard?: string | null;
+  /** The contact's tags at sync time — CRM-visible segmentation. */
+  tags?: string[] | null;
   /**
    * cards.id of the capturing card — the key per-card CRM scoping is checked
    * against. Separate from capturedByCard because that one is the SLUG, which
@@ -72,7 +74,8 @@ export function describeCapture(lead: CrmLead): string | null {
   const met = [lead.whereMet, lead.location].filter(Boolean).join(" · ");
   if (met) lines.push(`Met: ${met}`);
   if (lead.source) lines.push(`Captured via: ${lead.source}`);
-  if (lead.capturedByCard) lines.push(`Card: ${lead.capturedByCard}`);
+  if (lead.capturedByCard) lines.push(`Card: ${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/${lead.capturedByCard}`);
+  if (lead.tags?.length) lines.push(`Tags: ${lead.tags.join(", ")}`);
   if (lead.company) lines.push(`Company: ${lead.company}`);
   if (lead.message) lines.push(`They wrote: ${lead.message}`);
   if (lead.notes) lines.push(`Notes: ${lead.notes}`);

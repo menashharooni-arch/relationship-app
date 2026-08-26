@@ -53,6 +53,17 @@ export const INTEGRATIONS: IntegrationBrand[] = [
     ),
   },
   {
+    name: "Salesforce",
+    short: "Lead sync",
+    blurb:
+      "Every contact becomes a Salesforce Lead the moment it's captured — name, company, email, phone, tags, and a note recording where you met, all in the record.",
+    logo: (
+      <svg viewBox="0 0 24 24" className="w-full h-full" fill="#00A1E0" aria-hidden="true">
+        <path d="M10.06 5.48c.77-.8 1.85-1.3 3.04-1.3 1.58 0 2.96.88 3.7 2.19a5.1 5.1 0 012.09-.44 5.18 5.18 0 010 10.36c-.35 0-.7-.04-1.03-.1a3.77 3.77 0 01-4.93 1.55 4.3 4.3 0 01-7.98-.19 3.98 3.98 0 01-.83.09 4.03 4.03 0 01-1.99-7.52 4.63 4.63 0 017.93-4.64z" />
+      </svg>
+    ),
+  },
+  {
     name: "HubSpot",
     short: "New CRM record",
     blurb:

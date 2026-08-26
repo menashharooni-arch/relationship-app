@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { mergeClientTags } from "@/lib/lead-tags";
+import { after } from "next/server";
+import { isPaidPlan } from "@/lib/plan";
+import { getSourceLabel } from "@/lib/source-labels";
+import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
+import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
+import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
 
 async function getOwnerUsernames(userId: string): Promise<string[]> {
   const admin = getAdminSupabase();
@@ -96,6 +102,58 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .in("card_owner", usernames);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // ── CRM stays current with EDITS, not just captures (owner order
+  // 2026-08-27, the Blinq-parity work). Editing a contact's details, notes or
+  // tags re-runs the same sync the capture ran: every provider upserts by
+  // email, so the existing CRM record is UPDATED in place. Only fields a CRM
+  // record shows trigger it — status/follow-up churn stays internal. Same
+  // paid gate and after() semantics as the capture path.
+  const CRM_VISIBLE = ["name", "email", "phone", "company", "notes", "tags", "message"];
+  if (CRM_VISIBLE.some((k) => k in body)) {
+    try {
+      const { data: fresh } = await admin
+        .from("leads")
+        .select("name, email, phone, company, notes, tags, message, location, source, card_owner")
+        .eq("id", id)
+        .in("card_owner", usernames)
+        .maybeSingle();
+      const { data: ownerProfile } = await admin.from("profiles").select("id, plan").eq("id", user.id).maybeSingle();
+      if (fresh?.name && ownerProfile?.id && isPaidPlan(ownerProfile.plan)) {
+        const { data: cardRow } = await admin.from("cards").select("id").eq("username", fresh.card_owner as string).maybeSingle();
+        const leadData = {
+          name: fresh.name as string,
+          email: (fresh.email as string) || null,
+          phone: (fresh.phone as string) || null,
+          company: (fresh.company as string) || null,
+          location: (fresh.location as string) || null,
+          message: (fresh.message as string) || null,
+          notes: (fresh.notes as string) || null,
+          source: fresh.source ? getSourceLabel(fresh.source as string) : null,
+          capturedByCard: fresh.card_owner as string,
+          capturedByCardId: (cardRow?.id as string | undefined) ?? null,
+          tags: Array.isArray(fresh.tags) ? (fresh.tags as string[]) : null,
+        };
+        // ONLY the providers that upsert by email run on edits — HubSpot
+        // (PATCH-by-email on 409), HighLevel (/contacts/upsert), Salesforce
+        // (SOQL find → PATCH). Google and Pipedrive CREATE on every call, so
+        // re-running them here would mint a duplicate contact per edit; they
+        // stay capture-only until they get a find-first path. Email is the
+        // dedup key everywhere, so no email → no edit-sync at all.
+        if (leadData.email) {
+          after(
+            Promise.allSettled([
+              syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] HubSpot sync error:", e)),
+              syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] HighLevel sync error:", e)),
+              syncLeadToSalesforce(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] Salesforce sync error:", e)),
+            ]),
+          );
+        }
+      }
+    } catch (e) {
+      console.error("[lead-edit] CRM update sync skipped:", e);
+    }
+  }
 
   // If dissolving, clear automation tags and follow_up_sequence. Both the read
   // and the write are scoped to the caller's own cards (`.in("card_owner", ...)`)
