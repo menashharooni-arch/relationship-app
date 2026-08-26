@@ -46,9 +46,10 @@ type Persona = {
   subtitle: string;
   accent: string;
   socials: BrandSocial[];
-  /** Compact Swift Links rows: [emoji, label]. */
+  /** The card page's action-link rows AND the Swift Links grid: [emoji, label]. */
   rows: Array<[string, string]>;
-  featured: { emoji: string; label: string; grad: string };
+  /** Four half-width Swift Links grid tiles: [emoji, label]. */
+  grid: Array<[string, string]>;
   signoff: string;
 };
 
@@ -81,7 +82,7 @@ const PERSONAS: Persona[] = [
     look: getLook("nebula"),
     socials: soc([["Instagram", "#"], ["LinkedIn", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
     rows: [["🏡", "Current listings"], ["📅", "Book a private showing"]],
-    featured: { emoji: "🔑", label: "Just listed: 12 Harbor Lane", grad: "linear-gradient(135deg, #7c3aed 0%, #4338ca 60%, #1d4ed8 100%)" },
+    grid: [["🔑", "Just listed"], ["🏡", "Open houses"], ["⭐", "Client reviews"], ["🧮", "Home valuation"]],
     signoff: "Talk soon,",
   },
   {
@@ -95,7 +96,7 @@ const PERSONAS: Persona[] = [
     look: getLook("sand"),
     socials: soc([["Instagram", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
     rows: [["⚡", "Request a free quote"], ["⭐", "Read our 5-star reviews"]],
-    featured: { emoji: "🔌", label: "Panel upgrades & EV chargers", grad: "linear-gradient(135deg, #d97706 0%, #b45309 60%, #92400e 100%)" },
+    grid: [["⚡", "Free quote"], ["🔌", "EV chargers"], ["⭐", "Reviews"], ["🧰", "Our services"]],
     signoff: "Thanks,",
   },
   {
@@ -109,7 +110,7 @@ const PERSONAS: Persona[] = [
     look: getLook("paper"),
     socials: soc([["LinkedIn", "#"], ["Facebook", "#"], ["X / Twitter", "#"]]),
     rows: [["🛡️", "Free coverage review"], ["📄", "Start a claim"]],
-    featured: { emoji: "🏠", label: "Home + auto: bundle & save", grad: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 60%, #172554 100%)" },
+    grid: [["🛡️", "Coverage review"], ["🏠", "Home + auto"], ["👨‍👩‍👧", "Life insurance"], ["📄", "Start a claim"]],
     signoff: "Best regards,",
   },
   {
@@ -123,7 +124,7 @@ const PERSONAS: Persona[] = [
     look: getLook("chrome"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"]]),
     rows: [["🗓️", "Schedule a consultation"], ["📈", "Quarterly market briefing"]],
-    featured: { emoji: "🏛️", label: "The 2026 wealth planning guide", grad: "linear-gradient(135deg, #b08d57 0%, #8c6d3f 60%, #5c4726 100%)" },
+    grid: [["🗓️", "Consultation"], ["📈", "Market briefing"], ["🏛️", "Wealth guide"], ["🔐", "Client portal"]],
     signoff: "Kind regards,",
   },
   {
@@ -137,7 +138,7 @@ const PERSONAS: Persona[] = [
     look: getLook("midnight"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"], ["Instagram", "#"]]),
     rows: [["⚖️", "Free case evaluation"], ["🏛️", "Practice areas"]],
-    featured: { emoji: "📚", label: "Recent client results", grad: "linear-gradient(135deg, #334155 0%, #1e293b 60%, #0f172a 100%)" },
+    grid: [["⚖️", "Case evaluation"], ["🏛️", "Practice areas"], ["📚", "Client results"], ["📰", "In the news"]],
     signoff: "Sincerely,",
   },
   {
@@ -152,9 +153,18 @@ const PERSONAS: Persona[] = [
     look: getLook("onyx"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
     rows: [["🚗", "Browse new inventory"], ["🔑", "Book a test drive"]],
-    featured: { emoji: "🏁", label: "This week's featured deals", grad: "linear-gradient(135deg, #dc2626 0%, #991b1b 60%, #450a0a 100%)" },
+    grid: [["🚗", "New inventory"], ["🔑", "Book a test drive"], ["🏁", "Weekly deals"], ["💰", "Trade-in offer"]],
     signoff: "Drive safe,",
   },
+];
+
+// SwiftLinkButtons' exact fallback gradients — a real page's grid tiles with
+// no preview image look precisely like this, indexed so neighbours differ.
+const FALLBACK_GRADIENTS = [
+  "linear-gradient(135deg, #4338ca 0%, #7c3aed 55%, #db2777 100%)",
+  "linear-gradient(135deg, #0e7490 0%, #2563eb 60%, #4f46e5 100%)",
+  "linear-gradient(135deg, #b45309 0%, #dc2626 60%, #be185d 100%)",
+  "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
 ];
 
 const ROTATE_MS = 5200;
@@ -163,10 +173,10 @@ const ROTATE_MS = 5200;
 // this width and scales the whole thing down as one unit, so every proportion
 // (name size, chip size, tile radius) is exactly the live page's.
 const LINKS_NATURAL_W = 430;
-const LINKS_NATURAL_H = 1092;
-const LINKS_SCALE = 0.51;
-const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 219
-const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 557
+const LINKS_NATURAL_H = 980;
+const LINKS_SCALE = 0.46;
+const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 198
+const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 451
 
 /** The blue scalloped verified seal from the live Swift Links page. */
 function Verified({ size = 22 }: { size?: number }) {
@@ -234,36 +244,24 @@ function MiniLinks({ persona }: { persona: Persona }) {
             Connect with {first}
           </div>
 
-          {/* Links — compact rows + a featured tile, the live tile system's own classes */}
-          <div className="w-full mt-6">
-            {persona.rows.map(([emoji, label]) => (
-              <div
-                key={label}
-                className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 ring-1 ${
-                  light ? "bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]" : "bg-white/[0.07] ring-white/10"
-                }`}
-              >
-                <span className={`w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center ${light ? "bg-black/[0.05]" : "bg-white/10"}`}>
-                  <span className="text-[16px] leading-none">{emoji}</span>
+          {/* Links — the live tile system's GRID: half-width 1.91:1 tiles
+              packing in pairs, gradient fallback, bottom scrim, centered
+              title, shine sweep — SwiftLinkButtons' own classes. */}
+          <div className="w-full mt-6 flex flex-wrap justify-between">
+            {persona.grid.map(([emoji, label], i) => (
+              <div key={label} className="relative overflow-hidden rounded-[14px] mb-2.5 block aspect-[1.91/1] w-[calc(50%-6px)]" style={{ background: L.tile }}>
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length] }}>
+                  <span className="text-4xl drop-shadow">{emoji}</span>
+                </div>
+                <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
+                <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
+                  <span className="font-semibold text-center leading-[1.3] text-[16px]" style={{ color: "#ffffff", textShadow: "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {label}
+                  </span>
                 </span>
-                <span className="flex-1 min-w-0 text-left text-[14px] font-semibold truncate" style={{ color: text }}>{label}</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke={text} strokeOpacity={0.4} strokeWidth={2.2} className="w-4 h-4 shrink-0">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                <span className="sc-hs-shine" aria-hidden="true" />
               </div>
             ))}
-            <div className="relative overflow-hidden rounded-[14px] aspect-[1.91/1] w-full" style={{ background: persona.featured.grad }}>
-              <span className="absolute inset-0 flex items-center justify-center pb-5">
-                <span className="text-4xl drop-shadow">{persona.featured.emoji}</span>
-              </span>
-              <span className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
-              <span className="absolute inset-x-0 bottom-[7px] px-2 flex justify-center">
-                <span className="font-semibold text-center leading-[1.3] text-[18px] text-white" style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>
-                  {persona.featured.label}
-                </span>
-              </span>
-              <span className="sc-hs-shine" aria-hidden="true" />
-            </div>
           </div>
 
           {/* Made-with footer, every real profile carries it */}
@@ -350,21 +348,11 @@ function PhoneCard({ persona }: { persona: Persona }) {
         ))}
       </div>
 
-      {/* Share this card + the page's real conversion CTA */}
+      {/* Share this card (the page's CTA button is deliberately left off the demo phone — owner order 2026-08-26) */}
       <div className="mx-4 mt-3 rounded-[14px] p-2.5" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
         <div className="flex items-center justify-center gap-1.5 rounded-full py-2 text-[10.5px] font-semibold text-slate-700" style={{ border: "1px solid #E4DDD4" }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg>
           Share this card
-        </div>
-        <div
-          className="relative overflow-hidden mt-1.5 flex items-center justify-center gap-1.5 font-bold py-2 rounded-full text-[10.5px] text-white"
-          style={{ background: "linear-gradient(90deg, #1D4ED8 0%, #2563EB 55%, #0EA5E9 100%)", boxShadow: "0 8px 20px -6px rgba(29,78,216,0.45), inset 0 1px 0 rgba(255,255,255,0.25)" }}
-        >
-          <span className="sc-hs-shine" aria-hidden="true" />
-          <span className="shrink-0 rounded-[4px] overflow-hidden" style={{ boxShadow: "0 0 0 1.5px rgba(255,255,255,0.9), 0 1px 3px rgba(15,23,42,0.35)" }} aria-hidden="true">
-            <SwiftCardIcon size={13} />
-          </span>
-          <span className="truncate">Create your free SwiftCard</span>
         </div>
       </div>
 
@@ -397,9 +385,9 @@ export default function HeroShowcase() {
   const persona = PERSONAS[idx];
 
   return (
-    <div className="relative w-[660px] h-[680px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
+    <div className="relative w-[692px] h-[680px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
       {/* job tag */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-40">
+      <div className="absolute top-0 left-[350px] -translate-x-1/2 z-40">
         <span
           key={persona.key + "-tag"}
           className={`sc-hs-fade inline-block rounded-full bg-white/90 backdrop-blur px-3.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm border border-slate-200/70 ${entered ? "" : "sc-hs-hidden"}`}
@@ -409,7 +397,7 @@ export default function HeroShowcase() {
       </div>
 
       {/* CENTER — the phone. Crossfades between personas (link.me's center). */}
-      <div className="absolute left-1/2 top-[34px] -translate-x-1/2 z-20 w-[280px] h-[600px] rounded-[38px] bg-slate-900 p-[7px] shadow-[0_40px_90px_-30px_rgba(8,10,18,0.6)]">
+      <div className="absolute left-[210px] top-[34px] z-20 w-[280px] h-[600px] rounded-[38px] bg-slate-900 p-[7px] shadow-[0_40px_90px_-30px_rgba(8,10,18,0.6)]">
         <div key={persona.key + "-phone"} className={`sc-hs-fade w-full h-full ${entered ? "" : "sc-hs-hidden"}`}>
           <PhoneCard persona={persona} />
         </div>
@@ -418,14 +406,14 @@ export default function HeroShowcase() {
       {/* LEFT flanker — the full Swift Links page. IN FRONT of the phone's
           edge (owner: nothing may hide under the phone), sliding in from the
           left and drifting while visible. */}
-      <div className="absolute left-0 top-[64px] z-30 rounded-[16px] shadow-[0_28px_60px_-20px_rgba(8,10,18,0.55)] ring-1 ring-black/5 sc-hs-drift">
+      <div className="absolute left-0 top-[104px] z-10 rounded-[16px] shadow-[0_28px_60px_-20px_rgba(8,10,18,0.55)] ring-1 ring-black/5 sc-hs-drift">
         <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>
           <MiniLinks persona={persona} />
         </div>
       </div>
 
       {/* RIGHT flanker — Swift Signature, slides in from the right, sits low. */}
-      <div className="absolute right-0 bottom-[56px] z-30 rounded-[18px] shadow-[0_24px_50px_-18px_rgba(8,10,18,0.5)] ring-1 ring-black/5 sc-hs-drift" style={{ animationDelay: "1.4s" }}>
+      <div className="absolute right-0 bottom-[70px] z-10 rounded-[18px] shadow-[0_24px_50px_-18px_rgba(8,10,18,0.5)] ring-1 ring-black/5 sc-hs-drift" style={{ animationDelay: "1.4s" }}>
         <div key={persona.key + "-sig"} className={`sc-hs-slide-r ${entered ? "" : "sc-hs-hidden-r"}`}>
           <MiniSignature persona={persona} />
         </div>
