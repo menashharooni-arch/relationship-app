@@ -136,6 +136,7 @@ export default async function FlowSettingsPage({
     pipedrive: "Pipedrive",
     hubspot: "HubSpot",
     google: "Google Contacts",
+    salesforce: "Salesforce",
   };
   let teamCrmNames: string[] = [];
   if (officeCtx && !officeCtx.isOwner && officeCtx.ownerId) {
@@ -155,6 +156,9 @@ export default async function FlowSettingsPage({
   const pipedriveSyncError = (pipedriveIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const highlevelIntegration = integrations?.find((i) => i.provider === "highlevel");
   const highlevelConnected = !!highlevelIntegration;
+  const salesforceIntegration = integrations?.find((i) => i.provider === "salesforce");
+  const salesforceConnected = !!salesforceIntegration;
+  const salesforceSyncError = (salesforceIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
   const highlevelSyncError = (highlevelIntegration as { sync_error?: string | null } | undefined)?.sync_error ?? null;
 
   // Cards for the per-card scope picker. Same rows already fetched above, just
@@ -281,10 +285,12 @@ export default async function FlowSettingsPage({
               hubspotConnected={hubspotConnected}
               pipedriveConnected={pipedriveConnected}
               highlevelConnected={highlevelConnected}
+              salesforceConnected={salesforceConnected}
               googleSyncError={googleSyncError}
               hubspotSyncError={hubspotSyncError}
               pipedriveSyncError={pipedriveSyncError}
               highlevelSyncError={highlevelSyncError}
+              salesforceSyncError={salesforceSyncError}
               teamCrmNames={teamCrmNames}
               isPro={isPro}
               cards={scopeCards}
@@ -293,6 +299,7 @@ export default async function FlowSettingsPage({
                 hubspot: parseCardScope(hubspotIntegration?.card_ids),
                 pipedrive: parseCardScope(pipedriveIntegration?.card_ids),
                 highlevel: parseCardScope(highlevelIntegration?.card_ids),
+                salesforce: parseCardScope(salesforceIntegration?.card_ids),
               }}
             />
           </Suspense>
@@ -303,7 +310,7 @@ export default async function FlowSettingsPage({
           <ZapierSettings
             initialUrl={profile.zapier_webhook_url ?? null}
             isPro={isPro}
-            crmConnected={googleConnected || hubspotConnected || pipedriveConnected || highlevelConnected}
+            crmConnected={googleConnected || hubspotConnected || pipedriveConnected || highlevelConnected || salesforceConnected}
             cards={scopeCards}
             zapierScope={parseCardScope(profile.zapier_card_ids)}
           />

@@ -32,6 +32,11 @@ const PROOF: Record<string, () => void> = {
     expect(leadsRoute, "Pipedrive is advertised but never synced on lead capture").toContain("syncLeadToPipedrive(");
     expect(settingsUi, "Pipedrive has no card in Settings → Integrations").toContain('title="Pipedrive"');
   },
+  Salesforce: () => {
+    expect(read("src/lib/sync-salesforce.ts")).toBeTruthy();
+    expect(leadsRoute, "Salesforce is advertised but never synced on lead capture").toContain("syncLeadToSalesforce(");
+    expect(settingsUi, "Salesforce has no card in Settings → Integrations").toContain('name="Salesforce"');
+  },
   HubSpot: () => {
     expect(read("src/lib/sync-hubspot.ts")).toBeTruthy();
     expect(leadsRoute, "HubSpot is advertised but never synced on lead capture").toContain("syncLeadToHubSpot(");

@@ -22,7 +22,9 @@ describe("capture note", () => {
     });
     expect(note).toContain("Met: Austin Realtor Expo · Austin, TX");
     expect(note).toContain("Captured via: QR code scan");
-    expect(note).toContain("Card: alex-rivera");
+    // The card line is a clickable URL since 2026-08-26 — anyone reading the
+    // CRM record can jump straight to the rep's card.
+    expect(note).toContain("Card: https://swiftcard.me/alex-rivera");
     expect(note).toContain("They wrote: Looking for office space in Q4");
     expect(note).toContain("— captured with SwiftCard");
   });
@@ -45,6 +47,6 @@ describe("capture note", () => {
 
   it("keeps the capturing card, because in an Office that names the rep", () => {
     const note = describeCapture({ ...base, capturedByCard: "jordan-lee" });
-    expect(note).toContain("Card: jordan-lee");
+    expect(note).toContain("Card: https://swiftcard.me/jordan-lee");
   });
 });

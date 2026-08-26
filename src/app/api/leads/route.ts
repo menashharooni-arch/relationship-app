@@ -4,6 +4,7 @@ import { syncLeadToGoogle } from "@/lib/sync-google";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { syncLeadToPipedrive } from "@/lib/sync-pipedrive";
 import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
+import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
 import { getSourceLabel } from "@/lib/source-labels";
 import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
@@ -251,6 +252,7 @@ export async function POST(req: NextRequest) {
         message: message || null,
         source: source ? getSourceLabel(source) : null,
         capturedByCard: card_owner,
+        tags: Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === "string") : null,
         // The key per-card CRM scoping is checked against, inside
         // getCrmConnection. Undefined for a legacy profile-card with no cards
         // row, which is treated as out-of-scope whenever a scope is set —
@@ -274,6 +276,7 @@ export async function POST(req: NextRequest) {
           syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e)),
           syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e)),
           syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[leads] HighLevel sync error:", e)),
+          syncLeadToSalesforce(leadData, ownerProfile.id).catch((e) => console.error("[leads] Salesforce sync error:", e)),
         ]),
       );
     }

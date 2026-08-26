@@ -139,9 +139,9 @@ export const accountDocs = defineDocs([
       "gohighlevel", "highlevel", "ghl", "crm", "sync", "connect crm", "webhook", "api",
     ],
     answer:
-      "They're in Settings → Notifications and preferences, under \"Send contacts to your CRM\" — not in a section of their own. Connect GoHighLevel, Pipedrive, HubSpot or Google Contacts and new leads sync automatically; a Zapier webhook below them covers everything else. Integrations are a Pro feature.",
+      "They're in Settings → Notifications and preferences, under \"Send contacts to your CRM\" — not in a section of their own. Connect Salesforce, GoHighLevel, Pipedrive, HubSpot or Google Contacts and new leads sync automatically; a Zapier webhook below them covers everything else. Integrations are a Pro feature.",
     detail:
-      "Three of the four are token-paste rather than OAuth: GoHighLevel wants a Private Integration token plus a Location ID, Pipedrive wants a personal API token, HubSpot wants a private-app token. Only Google Contacts uses a Connect button and an OAuth redirect. Tokens are checked against the provider before saving, so a bad one is rejected immediately with a message naming that provider. Once a connection exists, a \"Sending from …\" line with a \"Change\" link lets you pick which cards feed it (that picker doesn't appear on a single-card account). The Zapier box only accepts a real hooks.zapier.com catch-hook URL. There is no public SwiftCard API and no API keys.",
+      "Three of the five are token-paste rather than OAuth: GoHighLevel wants a Private Integration token plus a Location ID, Pipedrive wants a personal API token, HubSpot wants a private-app token. Salesforce and Google Contacts use a Connect button and an OAuth redirect — sign in on the provider's own page, no token to copy. Tokens are checked against the provider before saving, so a bad one is rejected immediately with a message naming that provider. Once a connection exists, a \"Sending from …\" line with a \"Change\" link lets you pick which cards feed it (that picker doesn't appear on a single-card account). The Zapier box only accepts a real hooks.zapier.com catch-hook URL. There is no public SwiftCard API and no API keys.",
   },
   {
     id: "notifications-and-emails",

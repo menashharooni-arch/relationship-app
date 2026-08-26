@@ -77,6 +77,7 @@ export const CRM_PROVIDER_NAMES: Record<CrmProviderKey, string> = {
   hubspot: "HubSpot",
   pipedrive: "Pipedrive",
   highlevel: "GoHighLevel",
+    salesforce: "Salesforce",
 };
 
 /** Every card template that actually exists, straight from the style presets. */

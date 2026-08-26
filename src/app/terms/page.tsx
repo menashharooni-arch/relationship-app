@@ -184,7 +184,7 @@ export default function TermsPage() {
         <P>
           SwiftCard works with third parties to deliver the Service — including Stripe (payments), Supabase (hosting
           and authentication), Resend (email), Twilio (text messaging), and optional integrations you connect such as
-          GoHighLevel, Pipedrive, HubSpot, Google Contacts, and Zapier. Your use of those integrations is also subject to their terms, and
+          Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts, and Zapier. Your use of those integrations is also subject to their terms, and
           we&apos;re not responsible for third-party services we don&apos;t control.
         </P>
 
