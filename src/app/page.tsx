@@ -61,7 +61,7 @@ export default function Home() {
 
       <main className="overflow-clip">
         {/* ═══════════════ HERO ═══════════════ */}
-        <section className="rd-light relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
+        <section className="rd-light relative pt-28 pb-16 sm:pt-32 sm:pb-20 overflow-hidden">
           {/* Ambient video background (owner request 2026-08-19): a bright
               networking scene, sped up ~1.4×, looping muted behind the hero.
               The white gradient overlay is deliberately LIGHT (owner request:
@@ -98,16 +98,16 @@ export default function Home() {
           />
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6 lg:flex lg:items-center lg:gap-8">
             <div className="max-w-[640px] lg:flex-1">
-              <h1 className="rd-display text-slate-900 text-[clamp(2.7rem,6.4vw,5.1rem)]" data-reveal>
+              <h1 className="rd-display text-slate-900 text-[clamp(2.5rem,5.6vw,4.3rem)]" data-reveal>
                 The business card that{" "}
                 <span className="rd-aurora-text rd-aurora-anim">shares everything</span>
               </h1>
               {/* Subheader tagline — scales down cleanly on phones via clamp and
                   wraps within the same max-width as the bullets below. */}
-              <p className="mt-5 text-slate-800 text-[clamp(1.05rem,1.9vw,1.35rem)] leading-snug max-w-[560px]" data-reveal>
+              <p className="mt-4 text-slate-800 text-[clamp(1.02rem,1.7vw,1.25rem)] leading-snug max-w-[560px]" data-reveal>
                 Saves you in one tap — and does the follow-ups for you.
               </p>
-              <ul className="mt-7 space-y-3.5 max-w-[560px]" data-reveal>
+              <ul className="mt-6 space-y-3 max-w-[560px]" data-reveal>
                 {[
                   "Share by link, QR code, or an NFC card",
                   "They save you in one tap — nothing to download",
@@ -119,7 +119,7 @@ export default function Home() {
                   "Every share becomes a lead — with automatic email and text follow-up",
                   "Includes Link in Bio and Email Signature",
                 ].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-slate-800 text-[clamp(1rem,1.4vw,1.15rem)] leading-snug">
+                  <li key={t} className="flex items-start gap-3 text-slate-800 text-[clamp(0.98rem,1.3vw,1.08rem)] leading-snug">
                     <span className="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
                       <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
@@ -134,7 +134,7 @@ export default function Home() {
                   decision, Jul 2026): it should show the card working, not the
                   steps list. The claim box takes the visitor's first name into
                   the builder pre-filled (?name=…). */}
-              <div className="mt-9 flex flex-wrap items-center gap-3" data-reveal>
+              <div className="mt-7 flex flex-wrap items-center gap-3" data-reveal>
                 <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
                   See how it works
                 </Link>
@@ -168,8 +168,17 @@ export default function Home() {
                 hero mechanic): six professions, six templates — the SwiftCard
                 link center, Swift Links left, Swift Signature right. Desktop
                 only: on phones the video hero + claim box stay uncluttered. */}
-            <div className="hidden xl:flex justify-end shrink-0" data-reveal>
-              <HeroShowcase />
+            {/* Nudged right past the container padding (owner request
+                2026-08-26) and drawn at 92% so the whole stage shares one
+                viewport with the headline + claim box. The fixed-size outer
+                box is the SCALED size — transform doesn't shrink layout, so
+                without it the section would still reserve full height. */}
+            <div className="hidden xl:flex justify-end shrink-0 xl:-mr-8 2xl:-mr-12" data-reveal>
+              <div style={{ width: Math.round(692 * 0.92), height: Math.round(680 * 0.92) }}>
+                <div className="origin-top-left" style={{ transform: "scale(0.92)" }}>
+                  <HeroShowcase />
+                </div>
+              </div>
             </div>
           </div>
         </section>

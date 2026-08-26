@@ -182,7 +182,7 @@ const FALLBACK_GRADIENTS = [
   "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
 ];
 
-const ROTATE_MS = 5200;
+const ROTATE_MS = 4600;
 
 // The Swift Links page's natural column width — the mini renders the page at
 // this width and scales the whole thing down as one unit, so every proportion
