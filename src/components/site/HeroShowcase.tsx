@@ -404,8 +404,8 @@ function MiniSignature({ persona }: { persona: Persona }) {
 // brand discs). The share-this-card section and CTA don't fit and are the
 // page's least-identifying pieces.
 const PHONE_NATURAL_W = 390;
-const PHONE_NATURAL_H = 963;
-const PHONE_SCALE = 0.6;
+const PHONE_NATURAL_H = 876;
+const PHONE_SCALE = 0.66;
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
@@ -431,7 +431,7 @@ function PhoneCard({ persona }: { persona: Persona }) {
 
       {/* the page, natural width, scaled as one unit */}
       <div className="mx-auto overflow-hidden" style={{ width: PHONE_NATURAL_W * PHONE_SCALE, height: PHONE_NATURAL_H * PHONE_SCALE }}>
-        <div className="origin-top-left flex flex-col items-center px-4 pt-3 pb-5 gap-5" style={{ width: PHONE_NATURAL_W, height: PHONE_NATURAL_H, transform: `scale(${PHONE_SCALE})` }}>
+        <div className="origin-top-left flex flex-col items-center px-4 pt-2 pb-4 gap-4" style={{ width: PHONE_NATURAL_W, height: PHONE_NATURAL_H, transform: `scale(${PHONE_SCALE})` }}>
 
           {/* Business card */}
           <div className="w-full max-w-sm">
@@ -441,10 +441,9 @@ function PhoneCard({ persona }: { persona: Persona }) {
           </div>
 
           {/* ── Save Contact — the page's primary action ── */}
-          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <div className="w-full max-w-sm rounded-2xl p-4 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
             <SectionHeading>Save {first}&apos;s contact</SectionHeading>
-            <p className="text-slate-500 text-xs mt-1 mb-4">One tap adds them to your phone contacts — no app needed.</p>
-            <div className="w-full text-white font-semibold py-3 px-4 rounded-full text-sm flex items-center justify-center gap-2 whitespace-nowrap" style={{ background: persona.accent }}>
+            <div className="mt-3 w-full text-white font-semibold py-3 px-4 rounded-full text-sm flex items-center justify-center gap-2 whitespace-nowrap" style={{ background: persona.accent }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
@@ -453,9 +452,9 @@ function PhoneCard({ persona }: { persona: Persona }) {
           </div>
 
           {/* ── Share Your Info Back ── */}
-          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <div className="w-full max-w-sm rounded-2xl p-4 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
             <SectionHeading>Share your info with {first}</SectionHeading>
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2.5">
               <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-400 shadow-sm">Your name *</div>
               <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-400 shadow-sm">Your phone number *</div>
               <div className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm text-center" style={{ background: persona.accent }}>
@@ -465,15 +464,15 @@ function PhoneCard({ persona }: { persona: Persona }) {
           </div>
 
           {/* ── Swift Links — bio, website capsule, brand discs ── */}
-          <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-            <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="w-full max-w-sm rounded-2xl p-4 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+            <div className="flex items-center justify-between gap-3 mb-2.5">
               <SectionHeading>Swift Links</SectionHeading>
               <span className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2]" style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}>
                 View Swift Link page →
               </span>
             </div>
             <p className="text-slate-600 text-[13px] leading-[1.6]">{persona.bio}</p>
-            <div className="h-px bg-[#EFE9E1] my-4" />
+            <div className="h-px bg-[#EFE9E1] my-3" />
             <div className="flex flex-col gap-2.5">
               <span className="inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white" style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}>
                 <span className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden text-[11px] font-bold text-slate-500" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
