@@ -8,7 +8,7 @@ import { normalizeSlug } from "@/lib/slug";
 // warning that already-shared links/QR codes/Wallet passes stop working (the
 // server-side rename migrates all views/leads/analytics to the new slug, so
 // data isn't lost — only the old public URL stops resolving).
-export default function CardUrlEditor({ cardId, currentSlug, suggested }: { cardId: string; currentSlug: string; suggested?: string }) {
+export default function CardUrlEditor({ cardId, currentSlug }: { cardId: string; currentSlug: string }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(currentSlug);
   const [status, setStatus] = useState<"idle" | "saving" | "done">("idle");
@@ -18,12 +18,10 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
 
   const normalized = normalizeSlug(value);
   const changed = normalized && normalized !== currentSlug;
-  // Slug that matches the name/company currently typed into the card. When it
-  // differs from the live URL, the URL is still on the old name — offer a
-  // one-tap update (kept deliberate, not automatic, because renaming breaks any
-  // links/QR/Wallet passes already shared at the old URL).
-  const suggestedSlug = suggested ? normalizeSlug(suggested) : "";
-  const outOfDate = !!suggestedSlug && suggestedSlug !== currentSlug;
+  // No "your URL is out of date" prompt here anymore (owner order 2026-08-26):
+  // the URL now updates ITSELF when the card's name or company changes (see
+  // lib/auto-rename-slug — old links keep working via the _prevSlugs redirect).
+  // This editor is only for hand-picking a custom URL.
 
   async function save() {
     if (!changed || status === "saving") return;
@@ -62,18 +60,6 @@ export default function CardUrlEditor({ cardId, currentSlug, suggested }: { card
             Change
           </button>
         </p>
-        {outOfDate && (
-          <p className="text-[11px] text-amber-400/90 leading-snug">
-            Your URL still uses your old name.{" "}
-            <button
-              type="button"
-              onClick={() => { setOpen(true); setValue(suggestedSlug); setError(""); }}
-              className="text-blue-400 hover:text-blue-300 font-semibold"
-            >
-              Update to swiftcard.me/{suggestedSlug} →
-            </button>
-          </p>
-        )}
       </div>
     );
   }
