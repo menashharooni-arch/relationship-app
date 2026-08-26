@@ -183,6 +183,64 @@ const FALLBACK_GRADIENTS = [
   "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
 ];
 
+// Personas that exist for the /for/<industry> landing pages only — the
+// homepage rotation stays the six above.
+const VERTICAL_PERSONAS: Persona[] = [
+  {
+    key: "loan-officer", job: "Loan officer", Template: ClassicPro, handle: "marcuswebbloans",
+    subtitle: "Senior Loan Officer · Summit Home Loans", accent: "#0F766E",
+    bio: "From pre-approval to clear-to-close — I keep buyers, agents, and files moving.",
+    subject: "Re: Your pre-approval letter",
+    data: p({
+      name: "Marcus Webb", title: "Senior Loan Officer", company: "Summit Home Loans",
+      phone: "(214) 555-0198", email: "marcus@summithl.com", website: "summithl.com",
+      cardUrl: "swiftcard.me/MarcusWebb-SummitHomeLoans", photoUrl: "/showcase/marcus.jpg",
+      customization: { accentColor: "#0F766E" },
+    }),
+    look: getLook("forest"),
+    socials: soc([["LinkedIn", "#"], ["Instagram", "#"], ["Facebook", "#"]]),
+    rows: [["🏠", "Start a pre-approval"], ["🧮", "Payment calculator"]],
+    grid: [["🏠", "Get pre-approved"], ["🧮", "Rate calculator"], ["⭐", "Client reviews"], ["🤝", "Agent partners"]],
+    signoff: "Talk soon,",
+  },
+  {
+    key: "photographer", job: "Photographer", Template: PhotoFirst, handle: "lenabrooksphoto",
+    subtitle: "Wedding & Portrait Photographer", accent: "#DB2777",
+    bio: "Weddings, portraits, and brand shoots — natural light, real moments.",
+    subject: "Re: Your gallery is ready 🤍",
+    data: p({
+      name: "Lena Brooks", title: "Photographer", company: "Lena Brooks Photography",
+      phone: "(503) 555-0143", email: "hello@lenabrooks.photo", website: "lenabrooks.photo",
+      cardUrl: "swiftcard.me/LenaBrooks-LenaBrooksPhotography", photoUrl: "/showcase/lena.jpg",
+      customization: { accentColor: "#DB2777" },
+    }),
+    look: getLook("blush"),
+    socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
+    rows: [["📸", "View my portfolio"], ["📅", "Check date availability"]],
+    grid: [["📸", "Portfolio"], ["💍", "Wedding packages"], ["🌅", "Mini sessions"], ["🖼️", "Client galleries"]],
+    signoff: "With love,",
+  },
+  {
+    key: "barber", job: "Barber & stylist", Template: ModernBold, handle: "zoecuts",
+    subtitle: "Master Stylist · Fade District Studio", accent: "#7C3AED",
+    bio: "Cuts, color, and fades by appointment. Walk out sharp, every time.",
+    subject: "Re: Saturday 2:00 confirmed ✂️",
+    data: p({
+      name: "Zoe Okafor", title: "Master Stylist", company: "Fade District Studio",
+      phone: "(404) 555-0169", email: "zoe@fadedistrict.com", website: "fadedistrict.com",
+      cardUrl: "swiftcard.me/ZoeOkafor-FadeDistrictStudio", photoUrl: "/showcase/zoe.jpg",
+      customization: { accentColor: "#7C3AED" },
+    }),
+    look: getLook("orchid"),
+    socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"]]),
+    rows: [["💈", "Book a chair"], ["🗓️", "See open slots"]],
+    grid: [["💈", "Book now"], ["💵", "Price list"], ["✨", "Transformations"], ["🧴", "Products I use"]],
+    signoff: "See you soon,",
+  },
+];
+
+export const ALL_PERSONAS: Persona[] = [...PERSONAS, ...VERTICAL_PERSONAS];
+
 const ROTATE_MS = 4600;
 
 // The Swift Links page's natural column width — the mini renders the page at
@@ -445,36 +503,16 @@ function PhoneCard({ persona }: { persona: Persona }) {
   );
 }
 
-export default function HeroShowcase() {
-  const [idx, setIdx] = useState(0);
-  const [entered, setEntered] = useState(true);
-  const reduced = useRef(false);
-
-  useEffect(() => {
-    try {
-      reduced.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    } catch { /* default: animate */ }
-    if (reduced.current) return;
-    const t = setInterval(() => {
-      setEntered(false);
-      // Brief out-phase (flankers slide back out, center fades) then swap.
-      setTimeout(() => {
-        setIdx((i) => (i + 1) % PERSONAS.length);
-        setEntered(true);
-      }, 380);
-    }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, []);
-
-  const persona = PERSONAS[idx];
-
+/** The three-panel stage for ONE persona — shared by the rotating homepage
+ *  hero and the static per-industry showcase on /for/<industry>. */
+function Stage({ persona, entered, preload }: { persona: Persona; entered: boolean; preload: Persona[] }) {
   return (
     <div className="relative w-[692px] h-[680px] select-none pointer-events-none" aria-label={`Example SwiftCard: ${persona.job}`}>
       {/* Every persona's photo/logo, loaded once up front — panels remount on
           each swap, and without this the hero flashes empty for the first
           cycle while the next image fetches. */}
       <div className="hidden" aria-hidden="true">
-        {PERSONAS.flatMap((pp) => [pp.data.photoUrl, pp.data.logoUrl]).filter(Boolean).map((src) => (
+        {preload.flatMap((pp) => [pp.data.photoUrl, pp.data.logoUrl]).filter(Boolean).map((src) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={src} src={src!} alt="" />
         ))}
@@ -531,6 +569,44 @@ export default function HeroShowcase() {
           .sc-hs-drift, .sc-hs-shine { animation: none; }
         }
       `}</style>
+    </div>
+  );
+}
+
+export default function HeroShowcase() {
+  const [idx, setIdx] = useState(0);
+  const [entered, setEntered] = useState(true);
+  const reduced = useRef(false);
+
+  useEffect(() => {
+    try {
+      reduced.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch { /* default: animate */ }
+    if (reduced.current) return;
+    const t = setInterval(() => {
+      setEntered(false);
+      // Brief out-phase (flankers slide back out, center fades) then swap.
+      setTimeout(() => {
+        setIdx((i) => (i + 1) % PERSONAS.length);
+        setEntered(true);
+      }, 380);
+    }, ROTATE_MS);
+    return () => clearInterval(t);
+  }, []);
+
+  return <Stage persona={PERSONAS[idx]} entered={entered} preload={PERSONAS} />;
+}
+
+/** One persona, standing still — the /for/<industry> hero. `scale` draws the
+ *  692×680 stage smaller while keeping its layout box the scaled size. */
+export function PersonaShowcase({ personaKey, scale = 1 }: { personaKey: string; scale?: number }) {
+  const persona = ALL_PERSONAS.find((pp) => pp.key === personaKey);
+  if (!persona) return null;
+  return (
+    <div style={{ width: Math.round(692 * scale), height: Math.round(680 * scale) }}>
+      <div className="origin-top-left" style={{ transform: `scale(${scale})` }}>
+        <Stage persona={persona} entered preload={[persona]} />
+      </div>
     </div>
   );
 }
