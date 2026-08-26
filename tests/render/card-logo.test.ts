@@ -113,6 +113,9 @@ async function inspect(
         if (el.children.length > 0) continue;
         const text = (el.textContent || "").trim();
         if (!text) continue;
+        // Decorative watermarks (aria-hidden art like luxury-minimal's faded
+        // initials) are DESIGNED to sit under real content — not a collision.
+        if (el.closest('[aria-hidden="true"]')) continue;
         const r = el.getBoundingClientRect();
         const ox = Math.min(ir.right, r.right) - Math.max(ir.left, r.left);
         const oy = Math.min(ir.bottom, r.bottom) - Math.max(ir.top, r.top);
@@ -150,8 +153,71 @@ describe("a logo never escapes the card, covers text, or pushes content off", ()
         }
         expect(failures, failures.join("\n")).toEqual([]);
       }, 180_000);
+
+      // The CIRCLE option (customization.logoShape) runs the identical matrix:
+      // every mark shape, every density, on every template — the circular
+      // plate must obey the same never-escapes / never-covers / never-clips
+      // rules as the classic rendering. object-contain inside the padded disc
+      // is what guarantees "nothing cut off"; this proves the geometry.
+      it(`${tName} holds every logo shape at ${width}px — circle option`, async () => {
+        const failures: string[] = [];
+        for (const [fName, fixture] of FIXTURES) {
+          for (const [sName, uri] of SHAPES) {
+            const data = { ...fixture, logoUrl: uri, customization: { ...(fixture.customization ?? {}), logoShape: "circle" as const } };
+            const problems = await inspect(browser, Template, data, width);
+            for (const p of problems) failures.push(`${tName} @${width}px circle [${fName} / ${sName}] — ${p}`);
+          }
+        }
+        expect(failures, failures.join("\n")).toEqual([]);
+      }, 180_000);
     }
   }
+
+  // The circle really is a circle, and the mark really is inside it: fixed
+  // 1:1 box on the shared-helper templates, and padding that keeps a square
+  // mark's corners within the circumference (content-diagonal ≤ diameter).
+  it("circle plates are 1:1 and the mark stays inside the circumference", async () => {
+    const failures: string[] = [];
+    for (const [tName, Template] of TEMPLATES) {
+      const data = { ...BASE, logoUrl: svg(200, 200), customization: { logoShape: "circle" as const } };
+      const css = await appCss();
+      const markup = renderToStaticMarkup(createElement(Template, { data }));
+      const page = await browser.newPage({ viewportSize: { width: 560, height: 900 } });
+      try {
+        await page.setContent(
+          `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>
+           <style>body{margin:0;padding:20px;background:#fff}#holder{width:460px}</style>
+           </head><body class="sc-app"><div id="holder">${markup}</div></body></html>`,
+          { waitUntil: "load" },
+        );
+        const r = await page.evaluate(() => {
+          // The disc is the logo <img> itself (shared templates) or its
+          // circular wrapper (logo-first tiles the img inside a round box).
+          const img = document.querySelector('img[alt="logo"]') as HTMLElement | null;
+          if (!img) return { err: "no logo" };
+          let disc: HTMLElement = img;
+          if (getComputedStyle(disc).borderRadius !== "50%") {
+            const parent = img.parentElement as HTMLElement;
+            if (parent && getComputedStyle(parent).borderRadius === "50%") disc = parent;
+            else return { err: "no circular element found" };
+          }
+          const cs = getComputedStyle(disc);
+          const b = disc.getBoundingClientRect();
+          const pad = parseFloat(cs.paddingLeft);
+          return { w: b.width, h: b.height, pad };
+        });
+        if ("err" in r) failures.push(`${tName}: ${r.err}`);
+        else {
+          if (Math.abs(r.w - r.h) > 1.5) failures.push(`${tName}: disc is ${r.w.toFixed(1)}x${r.h.toFixed(1)}, not 1:1`);
+          const minPad = (r.w / 2) * (1 - 1 / Math.SQRT2);
+          if (r.pad + 0.5 < minPad) failures.push(`${tName}: padding ${r.pad}px < ${minPad.toFixed(1)}px — square corners breach the circle`);
+        }
+      } finally {
+        await page.close();
+      }
+    }
+    expect(failures, failures.join("\n")).toEqual([]);
+  }, 180_000);
 });
 
 // ── A company name is never split in the middle of a word ───────────────────

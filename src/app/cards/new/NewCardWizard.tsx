@@ -235,6 +235,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
   // Step 3 — media + design
   const [logoUrl, setLogoUrl] = useState<string | null>(orgLogo);
+  const [logoShape, setLogoShape] = useState<"auto" | "circle">("auto");
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
   // ?template=… — set by "Apply this design" on /templates, so the design the
   // visitor picked there is already applied when the builder opens.
@@ -498,6 +499,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         ? [{ number: orgPhone, label: "office" as PhoneLabel, showOnCard: true }, ...cleanPhones]
         : cleanPhones,
       fax: fax.trim(),
+      logoShape,
       ...templateStyleState,
     },
   };
@@ -705,6 +707,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             address,
             phones: cleanPhones,
             fax: fax.trim(),
+            ...(logoShape === "circle" ? { logoShape: "circle" as const } : {}),
             // Preset-template style overrides (Pro; stripped server-side on Free).
             // Only fields the user actually set are present here.
             ...templateStyleState,
@@ -1405,6 +1408,23 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 {/* Suggest an official company logo (Agent 4 contract). Fails safe —
                     renders nothing when the provider isn't configured. */}
                 <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
+                {logoUrl && (
+                  <div className="mt-2">
+                    <p className="text-[11px] text-gray-500 mb-1">Logo shape on the card</p>
+                    <div className="inline-flex items-center bg-gray-800 rounded-lg p-0.5">
+                      {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setLogoShape(id)}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${logoShape === id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

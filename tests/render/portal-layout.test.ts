@@ -119,7 +119,9 @@ describe("the marketing demo card never offers live contact links", () => {
   // targets on the homepage, /templates, /products/analytics and /products/wallet.
   const FILES = [
     "src/components/site/DashboardDemo.tsx",
-    "src/components/site/ShareWaysPhones.tsx",
+    // ShareWaysPhones no longer renders a card template — it shows a
+    // WalletPassFace facsimile (0909aff), which renders no anchors at all,
+    // so there is nothing to neutralise there anymore.
     "src/app/templates/page.tsx",
     "src/components/site/TemplateGallery.tsx",
     "src/components/site/LeadCapturePhone.tsx",

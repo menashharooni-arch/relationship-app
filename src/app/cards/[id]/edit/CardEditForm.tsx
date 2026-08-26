@@ -94,7 +94,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle" };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -196,6 +196,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   // Content — media; Design — template + style
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  // Logo display shape: "auto" keeps the classic square/wide/banner behavior;
+  // "circle" renders the whole mark inside a circular plate (never cropped).
+  const [logoShape, setLogoShape] = useState<"auto" | "circle">(card.customization?.logoShape === "circle" ? "circle" : "auto");
   const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? buildPreset(DEFAULT_PRESET));
@@ -313,6 +316,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         ? [{ number: orgPhone, label: "office" as PhoneLabel, showOnCard: true }, ...cleanPhones]
         : cleanPhones,
       fax: fax.trim(),
+      logoShape,
       ...templateStyleState,
     },
   };
@@ -371,6 +375,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkFontFamily: linkStyleState.linkFontFamily ?? null,
             // Headshot is per-card (explicit key, null when removed).
             photoUrl: photoState ?? null,
+            // Logo display shape — null clears back to the "auto" default.
+            logoShape: logoShape === "circle" ? "circle" : null,
           },
           logo_url: cardLogoUrl,
         }),
@@ -697,6 +703,26 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
                   <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
                   <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
+                  {cardLogoUrl && (
+                    <div className="mt-2">
+                      <p className="text-[11px] text-gray-500 mb-1">Logo shape on the card</p>
+                      <div className="inline-flex items-center bg-gray-800 rounded-lg p-0.5">
+                        {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setLogoShape(id)}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${logoShape === id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-600 mt-1">
+                        {logoShape === "circle" ? "Your full logo inside a clean circle — nothing gets cut off." : "Adapts to your logo — square, wide, or banner."}
+                      </p>
+                    </div>
+                  )}
                   {!isPrimary && <p className="text-[11px] text-gray-600 mt-1">Per-card logo (different from your profile logo)</p>}
                 </div>
               )}

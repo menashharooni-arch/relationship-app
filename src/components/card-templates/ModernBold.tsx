@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -79,7 +79,9 @@ export default function ModernBold({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
+            <img src={data.logoUrl} alt="logo" className="rounded-md" style={cardLogoShape(data) === "circle"
+              ? logoCircleStyle(f, 38)
+              : logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
           )}
           <p
             className="min-w-0 leading-tight"

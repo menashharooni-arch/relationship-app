@@ -5,7 +5,7 @@
 
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -67,7 +67,9 @@ export default function ClassicPro({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-lg"
-              style={logoStyle(f, 46, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? logoMaxPct : "88%" })}
+              style={cardLogoShape(data) === "circle"
+                ? logoCircleStyle(f, 46)
+                : logoStyle(f, 46, { background: "rgba(255,255,255,0.1)", maxWidth: data.company ? logoMaxPct : "88%" })}
             />
           ) : (
             <div

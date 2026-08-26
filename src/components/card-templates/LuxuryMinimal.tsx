@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -60,6 +60,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
       {/* ── Decorative faded initials ──────────────────── */}
       <div
+        aria-hidden="true"
         className="absolute inset-0 flex items-center pointer-events-none select-none"
         style={{ paddingLeft: 22 }}
       >
@@ -86,7 +87,9 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         <div className="flex items-center gap-2 min-w-0">
           {data.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={data.logoUrl} alt="logo" className="rounded" style={logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
+            <img src={data.logoUrl} alt="logo" className="rounded" style={cardLogoShape(data) === "circle"
+            ? logoCircleStyle(f, 38)
+            : logoStyle(f, 38, { maxWidth: data.company ? logoMaxPct : "88%" })} />
           ) : null}
           <p
             className="min-w-0 leading-tight"
