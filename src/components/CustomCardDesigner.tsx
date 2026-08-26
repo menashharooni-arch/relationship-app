@@ -240,9 +240,13 @@ export default function CustomCardDesigner({
     setScanning(true);
     // Nothing downstream is guaranteed to answer: without a deadline the button
     // spins until the platform gives up on the function, which is a long time
-    // to watch a spinner. Image generation runs tens of seconds, hence 55.
+    // to watch a spinner. The pipeline can run several generation+verify
+    // passes (full rebuild retries, then the hybrid artwork engine), so the
+    // deadline tracks the route's own 180s budget — cutting off at 55s was
+    // itself the "it errored" the owner reported (2026-08-26): the server was
+    // still working on a good copy when the client hung up.
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 55_000);
+    const timer = setTimeout(() => abort.abort(), 150_000);
     try {
       const res = await fetch("/api/design-transfer", {
         method: "POST",

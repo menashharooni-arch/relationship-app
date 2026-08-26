@@ -27,7 +27,7 @@ const MAX_BASE64 = 10_000_000;
 const ALLOWED_MEDIA = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 // Image generation is slow — a 10s default would kill most calls mid-flight.
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /** Owner-controlled URLs are only fetched from our own hosts (SSRF guard —
  *  same allowlist reasoning as wallet-strip.tsx's embedImage). */
