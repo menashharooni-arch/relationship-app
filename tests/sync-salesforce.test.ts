@@ -37,6 +37,17 @@ describe("instance URL allowlist", () => {
   });
 });
 
+describe("SOQL escaping", () => {
+  it("neither quotes nor backslashes break out of the email literal", async () => {
+    await syncLeadToSalesforce({ name: "X", email: "a\\' OR Name!='@x.co", phone: null, company: null }, "u1");
+    const q = calls.find((c) => c.url.includes("/query"));
+    const soql = decodeURIComponent(q!.url.split("q=")[1]);
+    // Every backslash and quote in the value arrives escaped: the literal closes
+    // exactly where the template intends, so the payload stays inert data.
+    expect(soql).toContain("Email = 'a\\\\\\' OR Name!=\\'@x.co' LIMIT 1");
+  });
+});
+
 describe("lead writes", () => {
   it("required fields never fail a sparse capture; context rides in Description", async () => {
     await syncLeadToSalesforce({ name: "Maya", email: "m@x.co", phone: null, company: null, whereMet: "Expo hall", source: "QR code", capturedByCard: "maya-card", tags: ["hot"] }, "u1");
