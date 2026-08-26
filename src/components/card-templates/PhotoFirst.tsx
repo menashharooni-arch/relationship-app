@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -127,7 +127,9 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           <div className="flex items-center gap-2 mb-1.5 min-w-0">
             {data.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.logoUrl} alt="logo" className="rounded-md" style={logoStyle(f, 42, { maxWidth: data.company ? logoMaxPct : "88%" })} />
+              <img src={data.logoUrl} alt="logo" className="rounded-md" style={cardLogoShape(data) === "circle"
+                ? logoCircleStyle(f, 42)
+                : logoStyle(f, 42, { maxWidth: data.company ? logoMaxPct : "88%" })} />
             )}
             <p className="font-extrabold min-w-0 leading-tight" style={{ color: companyColor, ...companyFit, overflowWrap: "anywhere" }}>
               {data.company}

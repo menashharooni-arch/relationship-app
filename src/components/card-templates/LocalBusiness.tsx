@@ -6,7 +6,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -74,7 +74,9 @@ export default function LocalBusiness({ data }: { data: CardData }) {
               src={data.logoUrl}
               alt="logo"
               className="rounded-xl"
-              style={logoStyle(f, LOGO_H, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(LOGO_H * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
+              style={cardLogoShape(data) === "circle"
+                ? logoCircleStyle(f, Math.round(LOGO_H / 1.24), { background: "rgba(255,255,255,0.92)" })
+                : logoStyle(f, LOGO_H, { background: "rgba(255,255,255,0.15)", padding: 5, maxWidth: Math.round(LOGO_H * 2.6 * Math.min(Math.max(f, 0.85), 1.3)) })}
             />
           ) : (
             <div

@@ -8,7 +8,7 @@
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import {
+import { cardLogoShape,
   cardAspect, ContactRows, fitFactor, fitName, fitTitle, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
 } from "./shared";
@@ -133,6 +133,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
 
   const f = fitFactor(data);
   const grow = heroGrow(f);
+  const circle = cardLogoShape(data) === "circle";
   const ruleColor = dark ? "rgba(255,255,255,0.20)" : "rgba(20,27,38,0.14)";
 
   // Company sits under the name as a single line and truncates, so a long one is
@@ -211,7 +212,14 @@ export default function LogoFirst({ data }: { data: CardData }) {
         <div
           className="flex items-center justify-center"
           style={{
-            borderRadius: 12,
+            // Circle option: the TILE becomes the disc. A solid plate (not the
+            // ground tint) so the mark always sits on a clean field, and a
+            // fixed 1:1 box so the radius is a true circle. The inner img keeps
+            // object-contain, inset far enough that a square mark's corners
+            // stay inside the circumference (see logoCircleStyle's geometry).
+            ...(circle
+              ? { borderRadius: "50%", width: 118 * (0.94 + 0.06 * grow), height: 118 * (0.94 + 0.06 * grow), padding: 20 * (0.94 + 0.06 * grow), background: "#ffffff" }
+              : { borderRadius: 12 }),
             overflow: "hidden",
             boxShadow: `0 0 0 1px ${tileEdge}`,
             maxWidth: "100%",
@@ -242,8 +250,9 @@ export default function LogoFirst({ data }: { data: CardData }) {
                 // Bigger than it was: the mark is the thing this template is
                 // named for, and it was rendering at about half the height the
                 // panel could give it.
-                maxWidth: 134 * (0.94 + 0.06 * grow),
-                maxHeight: 116 * (0.94 + 0.06 * grow),
+                maxWidth: circle ? "100%" : 134 * (0.94 + 0.06 * grow),
+                maxHeight: circle ? "100%" : 116 * (0.94 + 0.06 * grow),
+                ...(circle ? { width: "100%", height: "100%" } : {}),
                 objectFit: "contain",
                 display: "block",
               }}

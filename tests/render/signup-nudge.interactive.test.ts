@@ -357,7 +357,10 @@ describe("save a contact → the free-card popup actually appears", () => {
     await page.close();
   });
 
-  it("SLOT RULE: the SAME card does not nudge twice in one session", async () => {
+  it("SLOT RULE: a save-class moment fires EVERY time, even on the same card", async () => {
+    // Owner decision 2026-08-25: the post-save invite is unrationed — it must
+    // be bulletproof at the moment that converts, not once-per-card. (Only
+    // incidental link taps keep the once-per-session slot; see the next test.)
     const page = await mount();
     await saveContact(page);
     await page.locator('button:has-text("No thanks")').click();
@@ -366,10 +369,23 @@ describe("save a contact → the free-card popup actually appears", () => {
     await page.locator('[aria-label="Create your own SwiftCard"] button[aria-label="Dismiss"]').click();
     await page.waitForTimeout(400);
 
-    // Re-fire the same moment on the same card — no second popup.
+    // Re-fire the same moment on the same card — the invite shows AGAIN.
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "vcard" } })));
+    await page.waitForTimeout(800);
+    expect(await popupVisible(page), "save-class invites are unrationed (owner decision)").toBe(true);
+    await page.close();
+  });
+
+  it("SLOT RULE: incidental link taps still get only one invite per session", async () => {
+    const page = await mount();
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "link_button" } })));
+    await page.waitForTimeout(800);
+    expect(await popupVisible(page)).toBe(true);
+    await page.locator('[aria-label="Create your own SwiftCard"] button[aria-label="Dismiss"]').click();
+    await page.waitForTimeout(400);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "link_button" } })));
     await page.waitForTimeout(600);
-    expect(await popupVisible(page), "not spammy: one invite per card per session").toBe(false);
+    expect(await popupVisible(page), "incidental taps stay rationed").toBe(false);
     await page.close();
   });
 });

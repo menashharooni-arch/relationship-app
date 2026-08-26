@@ -122,6 +122,47 @@ export function logoStyle(f: number, base: number, extra?: React.CSSProperties):
   };
 }
 
+/** The owner-chosen logo display shape ("circle") vs the classic adaptive
+ *  rendering ("auto" — square/wide/banner all emerge from the mark itself). */
+export function cardLogoShape(data: CardData): "auto" | "circle" {
+  return data.customization?.logoShape === "circle" ? "circle" : "auto";
+}
+
+/**
+ * Circle badge rendering for the logo — the "Circle" option in the editor.
+ *
+ * A straight circular crop would cut the corners off every square or wide
+ * mark, which is exactly what the owner ruled out. So the circle is a PLATE:
+ * a solid disc (white by default, ring so it can't dissolve into a light
+ * card) with the entire mark object-contained inside it.
+ *
+ * Geometry, not taste: with padding p on a disc of diameter d, a contained
+ * square mark's corners sit at radius (d/2 − p)·√2 from center, so they stay
+ * inside the circle only when p ≥ d/2·(1 − 1/√2) ≈ 0.146·d. Padding is 0.17·d
+ * — safely past the bound, and wide marks (which contain to a short strip)
+ * clear it trivially.
+ *
+ * Diameter is base·1.24 (density-clamped like logoStyle) so the inner mark
+ * lands close to the height the "auto" logo would have had; fixed width ==
+ * height means a circle can never squeeze a company name the way a banner
+ * can, so the row math only gets safer.
+ */
+export function logoCircleStyle(f: number, base: number, extra?: React.CSSProperties): React.CSSProperties {
+  const d = Math.round(base * 1.24 * Math.min(Math.max(f, 0.85), 1.3));
+  const pad = Math.round(d * 0.17);
+  return {
+    height: d,
+    width: d,
+    borderRadius: "50%",
+    padding: pad,
+    background: "#ffffff",
+    boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.12)",
+    objectFit: "contain",
+    flexShrink: 0,
+    ...extra,
+  };
+}
+
 // Shrink one long value (a long email, name, or company) to fit its line.
 // Exact-fit curve: beyond the comfy length, font size scales inversely with
 // length, so rendered width stays constant — a 40-char email occupies the same

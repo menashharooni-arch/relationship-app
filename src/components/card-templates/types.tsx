@@ -134,6 +134,11 @@ export type CardCustomization = {
   customLayout?: CustomLayout;
   phones?: CardPhone[];
   fax?: string;
+  // How the company logo renders on the card. "auto" (and absent — every card
+  // saved before this existed) keeps the classic behavior: fixed height, auto
+  // width, so square/wide/banner marks each read naturally. "circle" wraps the
+  // whole mark in a circular plate — nothing is ever cropped (owner spec).
+  logoShape?: "auto" | "circle";
 };
 
 export type CardData = {
