@@ -96,7 +96,7 @@ export default function Home() {
             aria-hidden="true"
             style={{ background: "rgba(255,255,255,0.5)" }}
           />
-          <div className="relative max-w-7xl mx-auto px-5 sm:px-6 lg:flex lg:items-center lg:gap-8">
+          <div className="relative w-full min-w-0 max-w-7xl mx-auto px-5 sm:px-6 lg:flex lg:items-center lg:gap-8">
             <div className="max-w-[640px] lg:flex-1">
               <h1 className="rd-display text-slate-900 text-[clamp(2.5rem,5.6vw,4.3rem)]" data-reveal>
                 The business card that{" "}
