@@ -696,7 +696,7 @@ export function CustomBlockCard({ data, placeholder = false }: { data: CardData;
 // bottom-right where every preset puts it. It is overlaid rather than baked
 // into the image because an image model cannot draw a scannable QR code — the
 // one on the generated picture would LOOK right and scan as garbage.
-function FaceCard({ data, src }: { data: CardData; src: string }) {
+export function FaceCard({ data, src }: { data: CardData; src: string }) {
   return (
     <div className="relative w-full rounded-2xl overflow-hidden" style={{ background: "#0f172a" }}>
       <div aria-hidden style={{ width: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
