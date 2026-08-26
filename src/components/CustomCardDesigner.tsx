@@ -398,6 +398,67 @@ export default function CustomCardDesigner({
           <p className={head}>Looks</p>
           <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
         </div>
+        {/* THE headline feature of the custom designer (owner order 2026-08-26:
+            "the best feature we have — make people notice it"). Moved to the
+            TOP of Looks and dressed as the hero: animated gradient frame, soft
+            glow, shine sweep. Behavior is byte-for-byte the old box — same
+            click, same gating, same copy, same file input below. Reduced
+            motion turns the animation off; the frame still reads as special. */}
+        <style>{`
+          @keyframes sc-magic-border { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+          @keyframes sc-magic-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.75; } }
+          @keyframes sc-magic-shine { 0% { transform: translateX(-160%) skewX(-18deg); } 60%, 100% { transform: translateX(340%) skewX(-18deg); } }
+          .sc-magic-frame { background: linear-gradient(110deg, #2563eb, #7c3aed, #06b6d4, #2563eb); background-size: 300% 300%; animation: sc-magic-border 5s ease-in-out infinite; }
+          .sc-magic-halo { animation: sc-magic-glow 2.8s ease-in-out infinite; }
+          .sc-magic-shine { animation: sc-magic-shine 4.5s ease-in-out infinite; }
+          @media (prefers-reduced-motion: reduce) { .sc-magic-frame, .sc-magic-halo, .sc-magic-shine { animation: none; } }
+        `}</style>
+        <div className="relative">
+          {canScan && !scanning && (
+            <div className="sc-magic-halo absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-600/40 via-violet-600/40 to-cyan-500/40 blur-md pointer-events-none" aria-hidden="true" />
+          )}
+          <div className={`relative rounded-xl p-[1.5px] ${canScan ? "sc-magic-frame" : "bg-gray-800"}`}>
+            <button
+              type="button"
+              onClick={() => { if (canScan) fileRef.current?.click(); }}
+              disabled={scanning || !canScan}
+              className={`relative overflow-hidden w-full rounded-[10.5px] px-3.5 py-3.5 text-left transition-colors ${
+                canScan ? "bg-gray-950 hover:bg-gray-900 disabled:opacity-70" : "bg-gray-950/90 cursor-default"
+              }`}
+            >
+              {canScan && !scanning && (
+                <span className="sc-magic-shine pointer-events-none absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" aria-hidden="true" />
+              )}
+              <span className="flex items-center gap-3">
+                <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${canScan ? "bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-[0_0_14px_rgba(99,102,241,0.45)]" : "bg-gray-800 text-gray-500"}`}>
+                  {scanning ? (
+                    <span className="block w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
+                    </svg>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-[13.5px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
+                    {scanning ? "Rebuilding it with your details…" : "Copy a card or template you like"}
+                    {canScan && !scanning && (
+                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 text-white align-middle tracking-wide">✨ MAGIC</span>
+                    )}
+                    {!canScan && (
+                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+                    )}
+                  </span>
+                  <span className="block text-[11px] text-gray-400 leading-snug mt-0.5">
+                    {canScan
+                      ? "Upload a card design you like. We rebuild it exactly — same colors, fonts and layout — with YOUR details on it. You approve a preview before anything changes."
+                      : "On Pro, upload a card design you like and we'll rebuild it exactly, with your details on it."}
+                  </span>
+                </span>
+              </span>
+            </button>
+          </div>
+        </div>
         {/* Capped. The controls column has no width of its own below lg, so
             on a half-screen desktop window (roughly 936-1023px, where the
             max-w-4xl page has saturated but the two-column layout has not
@@ -424,43 +485,6 @@ export default function CustomCardDesigner({
           ))}
         </div>
 
-        {/* The ninth Look, and the only one that isn't ours — so it is sized to
-            sit alongside the eight rather than look like a footnote under them. */}
-        <button
-          type="button"
-          onClick={() => { if (canScan) fileRef.current?.click(); }}
-          disabled={scanning || !canScan}
-          className={`w-full rounded-xl border border-dashed px-3.5 py-3.5 text-left transition-colors ${
-            canScan
-              ? "border-blue-500/50 bg-blue-950/20 hover:bg-blue-950/40 disabled:opacity-60"
-              : "border-gray-700 bg-gray-950/40 cursor-default"
-          }`}
-        >
-          <span className="flex items-center gap-3">
-            <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${canScan ? "bg-blue-600/20 text-blue-300" : "bg-gray-800 text-gray-500"}`}>
-              {scanning ? (
-                <span className="block w-4 h-4 rounded-full border-2 border-blue-300 border-t-transparent animate-spin" />
-              ) : (
-                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.2V5.6A2.6 2.6 0 015.6 3h2.6M15.8 3h2.6A2.6 2.6 0 0121 5.6v2.6M21 15.8v2.6a2.6 2.6 0 01-2.6 2.6h-2.6M8.2 21H5.6A2.6 2.6 0 013 18.4v-2.6M7 12h10" />
-                </svg>
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className={`block text-[13.5px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
-                {scanning ? "Rebuilding it with your details…" : "Copy a card or template you like"}
-                {!canScan && (
-                  <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
-                )}
-              </span>
-              <span className="block text-[11px] text-gray-400 leading-snug mt-0.5">
-                {canScan
-                  ? "Upload a card design you like. We rebuild it exactly — same colors, fonts and layout — with YOUR details on it. You approve a preview before anything changes."
-                  : "On Pro, upload a card design you like and we'll rebuild it exactly, with your details on it."}
-              </span>
-            </span>
-          </span>
-        </button>
         {/* NO `capture` attribute. With capture="environment" a phone opens
             straight into the camera, which makes the whole "or a template you
             found online" half of this feature unreachable — you cannot
