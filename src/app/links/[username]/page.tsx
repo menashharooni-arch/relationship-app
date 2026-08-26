@@ -57,7 +57,8 @@ const resolve = cache(async (username: string) => {
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
   const { cardOrLegacy } = await resolve(username);
   if (!cardOrLegacy) return { title: "Swift Links", itunes: null };
   const name = cardOrLegacy.name || username;
@@ -81,7 +82,8 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 }
 
 export default async function SwiftLinksPage({ params, searchParams }: { params: Promise<{ username: string }>; searchParams: Promise<{ embed?: string; source?: string | string[] }> }) {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
   const { embed, source: rawSource } = await searchParams;
   const isEmbed = embed === "1"; // rendered inside the /preview demo — don't log a view or nudge
   // Real traffic-source attribution, like the card page: a QR/NFC tag pointing

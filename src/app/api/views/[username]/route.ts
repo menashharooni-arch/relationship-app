@@ -14,7 +14,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
 
   // Public, unauthenticated endpoint — cap per (IP, card) so a caller that
   // omits visitorId (bypassing the reload-dedup below entirely) can't loop

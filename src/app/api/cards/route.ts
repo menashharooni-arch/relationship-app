@@ -6,6 +6,7 @@ import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedB
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
+import { cardSlug } from "@/lib/slug";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 export async function POST(req: NextRequest) {
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
   // erroring. Fall back to the name, then the email local-part, then "card".
   const slugBase =
     normalizeSlug(String(username ?? "")) ||
-    normalizeSlug(String(name ?? "")) ||
+    cardSlug(String(name ?? ""), String(company ?? "")) ||
     normalizeSlug(String(email ?? "").split("@")[0] || "");
   const normalizedUsername = await ensureUniqueUsername(slugBase, admin);
 

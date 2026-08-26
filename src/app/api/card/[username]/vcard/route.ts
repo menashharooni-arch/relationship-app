@@ -56,7 +56,8 @@ async function fetchPhoto(url: string): Promise<VCardPhoto | null> {
 // that isn't publicly live can't be exported here either. buildVCard performs
 // RFC-6350 escaping, so visitor/owner-supplied fields can't inject vCard lines.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ username: string }> }) {
-  const { username } = await params;
+  const { username: rawUsername } = await params;
+  const username = rawUsername.toLowerCase();
   if (!username) return NextResponse.json({ error: "Missing card" }, { status: 400 });
 
   if (!(await isCardActive(username))) {

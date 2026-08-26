@@ -28,7 +28,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl } from "@/lib/social-url";
-import { normalizeSlug } from "@/lib/slug";
+import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
@@ -399,9 +399,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     requireAuth("save", handleCreate, { forceGate: true });
   }
 
-  // Card URL auto-fills from full name + company (e.g. "john-smith-acme-corp"),
-  // or just the full name when there's no company.
-  const username = normalizeSlug(company.trim() ? `${name} ${company}` : name);
+  // Card URL auto-fills from full name + company in the fused format
+  // ("johnsmith-acmecorp") — one hyphen between name and company, none inside
+  // either (owner order 2026-08-26).
+  const username = cardSlug(name, company);
+  // What the visitor-facing link LOOKS like: "AaronLavi-MalveCapital". The
+  // routes are case-insensitive, so this exact string is shareable.
+  const prettyUsername = prettyCardSlug(name, company);
   const cardLabel = nickname.trim() || name.trim();
 
   // Phone management (multiple numbers, each labeled + toggleable on the card).
@@ -479,7 +483,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     initials: (name || "?")[0]?.toUpperCase() ?? "?",
     photoUrl: headshotUrl,
     logoUrl,
-    cardUrl: `swiftcard.me/${username || "your-card"}`,
+    cardUrl: `swiftcard.me/${prettyUsername || "your-card"}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
       address.city,
@@ -1024,7 +1028,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
                 <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
-                <p className="text-gray-600 text-xs mt-1">Card URL: swiftcard.me/{username || "your-name"}</p>
+                <p className="text-gray-600 text-xs mt-1">Card URL: swiftcard.me/{prettyUsername || "your-name"}</p>
               </div>
             )}
             <div>
@@ -1346,7 +1350,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Your card is live!</h1>
-              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/{createdUsername || username}</p>
+              <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/{createdUsername ? (cardSlug(name, company) === createdUsername ? prettyUsername : createdUsername) : prettyUsername}</p>
             </div>
 
             <EnablePushButton />

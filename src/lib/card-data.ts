@@ -1,4 +1,5 @@
 import type { CardData, CardCustomization } from "@/components/card-templates/types";
+import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { cardHeadshot } from "@/lib/card-media";
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
 
@@ -131,7 +132,12 @@ export function buildCardData(
     // have never set a headshot of their own.
     photoUrl: cardHeadshot(card.customization, opts.accountPhotoUrl ?? null),
     logoUrl: card.logo_url || null,
-    cardUrl: `${opts.appUrl.replace(/^https?:\/\//, "")}/${username}`,
+    // Printed pretty ("AaronLavi-MalveCapital") when the stored slug is the
+    // derived one — the public routes are case-insensitive, so the pretty
+    // casing resolves. A custom or deduped slug prints exactly as stored.
+    cardUrl: `${opts.appUrl.replace(/^https?:\/\//, "")}/${
+      cardSlug(card.name || "", card.company) === username ? prettyCardSlug(card.name || "", card.company) : username
+    }`,
     address: formatCardAddress(customization.address),
     customization,
   };
