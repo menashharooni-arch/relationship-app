@@ -5,7 +5,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
-import LeadCapturePhone from "@/components/site/LeadCapturePhone";
+import { PersonaShowcase } from "@/components/site/HeroShowcase";
 import NativeHidden from "@/components/NativeHidden";
 
 // ── Vertical landing pages: /for/<industry> ──────────────────────────────────
@@ -35,6 +35,8 @@ type Vertical = {
   pains: { t: string; d: string }[];
   scenes: { t: string; d: string }[];
   faq: { q: string; a: string }[];
+  /** Which showcase persona plays this profession (ALL_PERSONAS key in HeroShowcase). */
+  persona: string;
 };
 
 function A({ children }: { children: React.ReactNode }) {
@@ -44,6 +46,7 @@ function A({ children }: { children: React.ReactNode }) {
 const FOR_VERTICALS: Record<string, Vertical> = {
   "real-estate-agents": {
     audience: "real estate agents",
+    persona: "realtor",
     label: "Real estate",
     metaTitle: "Digital Business Card for Real Estate Agents & Realtors",
     metaDesc: "The digital business card built for realtors: share it at open houses with a QR or tap, capture every buyer's info, and follow up automatically. Free to start.",
@@ -72,6 +75,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   contractors: {
     audience: "contractors",
+    persona: "electrician",
     label: "Contractors",
     metaTitle: "Digital Business Card for Contractors & Trades",
     metaDesc: "A digital business card for contractors: share your card from the job site, collect homeowner info, show your work, and follow up automatically. No app needed.",
@@ -100,6 +104,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   "insurance-agents": {
     audience: "insurance agents",
+    persona: "insurance",
     label: "Insurance",
     metaTitle: "Digital Business Card for Insurance Agents",
     metaDesc: "The digital business card for insurance agents: capture every prospect's details, stay compliant on follow-up texts, and keep your book growing. Free to start.",
@@ -128,6 +133,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   "loan-officers": {
     audience: "loan officers",
+    persona: "loan-officer",
     label: "Loan officers",
     metaTitle: "Digital Business Card for Loan Officers & Mortgage Pros",
     metaDesc: "A digital business card for loan officers: capture borrower and realtor contacts at every meeting, share your pre-approval link, and follow up automatically.",
@@ -156,6 +162,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   lawyers: {
     audience: "lawyers",
+    persona: "lawyer",
     label: "Legal",
     metaTitle: "Digital Business Card for Lawyers & Law Firms",
     metaDesc: "A professional digital business card for attorneys: share your contact instantly, capture potential clients' details discreetly, and keep every referral warm.",
@@ -184,6 +191,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   photographers: {
     audience: "photographers",
+    persona: "photographer",
     label: "Photographers",
     metaTitle: "Digital Business Card for Photographers",
     metaDesc: "A digital business card for photographers: your portfolio, booking link, and contact in one tap. Capture inquiries at every shoot and event. Free to start.",
@@ -212,6 +220,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   "barbers-and-stylists": {
     audience: "barbers and stylists",
+    persona: "barber",
     label: "Barbers & stylists",
     metaTitle: "Digital Business Card for Barbers, Stylists & Salons",
     metaDesc: "A digital business card for barbers and hair stylists: your booking link, your work, and your chair's schedule in one tap. Grow your book for free.",
@@ -240,6 +249,7 @@ const FOR_VERTICALS: Record<string, Vertical> = {
   },
   "car-salespeople": {
     audience: "car salespeople",
+    persona: "cars",
     label: "Auto sales",
     metaTitle: "Digital Business Card for Car Salespeople",
     metaDesc: "A digital business card for auto sales: every test drive and lot visit becomes a saved contact with automatic follow-up. Beat the follow-up game. Free to start.",
@@ -329,7 +339,14 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
               </div>
               <p className="text-white/40 text-[13px] mt-5" data-reveal>Free to start · No app for them to download · Live in 60 seconds</p>
             </div>
-            <div className="flex justify-center" data-reveal="scale"><LeadCapturePhone /></div>
+            <div data-reveal="scale">
+              {/* This profession's OWN SwiftCard, exactly as the product renders
+                  it (owner order 2026-08-26): the card page in a phone, the
+                  Swift Links page, and the Swift Signature — all themed to the
+                  persona this page speaks to. */}
+              <div className="hidden md:flex justify-center"><PersonaShowcase personaKey={v.persona} scale={0.82} /></div>
+              <div className="md:hidden flex justify-center"><PersonaShowcase personaKey={v.persona} scale={0.5} /></div>
+            </div>
           </div>
         </section>
 
