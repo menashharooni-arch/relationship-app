@@ -40,11 +40,15 @@ export default function PlanCards({
   onPaid,
   busy = null,
   freeLabel = "Get started free →",
+  onIapPurchased,
 }: {
   onFree: () => void;
   onPaid: (plan: PaidPlan, annual: boolean, seats: number) => void;
   busy?: "free" | PaidPlan | null;
   freeLabel?: string;
+  /** Native only: continue the caller's flow after an In-App Purchase
+   *  succeeds (entitlement already synced). Default reloads the page. */
+  onIapPurchased?: () => void;
 }) {
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
@@ -77,7 +81,7 @@ export default function PlanCards({
             <ul className="space-y-2.5 mb-6">
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
             </ul>
-            <IapSubscribeButton className="!bg-white hover:!bg-white/90 !text-[#2450d8] !py-3.5 !text-sm shadow-lg" />
+            <IapSubscribeButton className="!bg-white hover:!bg-white/90 !text-[#2450d8] !py-3.5 !text-sm shadow-lg" label="Start free →" onPurchased={onIapPurchased} />
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />
         </div>

@@ -39,6 +39,8 @@ export default function LoginForm({
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
+  // Signup succeeded but Supabase requires email confirmation (no session yet).
+  const [signupSent, setSignupSent] = useState(false);
   // A failed email/password sign-in: Supabase can't reveal whether the email
   // has no account or the password was wrong (by design), so we surface an
   // honest "create one if you're new" affordance rather than a false claim.
@@ -175,10 +177,15 @@ export default function LoginForm({
       const emailRedirectTo = safeNext
         ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
         : `${APP_URL}/auth/callback`;
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
       if (error) {
         setErrorMsg(error.message);
         setStatus("error");
+      } else if (!data.session) {
+        // Confirmation required: /onboarding would only bounce back to /login
+        // with no explanation. Tell them what happens next instead.
+        setSignupSent(true);
+        setStatus("idle");
       } else {
         // New accounts must pass through /onboarding (profile provisioning +
         // referral). This branch only runs when confirmation is OFF and a
@@ -217,6 +224,31 @@ export default function LoginForm({
       setForgotSent(true);
       setStatus("idle");
     }
+  }
+
+  if (signupSent) {
+    return (
+      <div className="w-full text-center space-y-5">
+        <div className="w-14 h-14 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto">
+          <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-slate-900 font-semibold text-base">Confirm your email</p>
+          <p className="text-slate-500 text-sm mt-1.5">
+            We sent a confirmation link to <span className="font-medium text-slate-700">{email}</span>. Tap it, then come back here and sign in.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { setSignupSent(false); setMode("signin"); setErrorMsg(""); }}
+          className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
   }
 
   if (forgotSent) {

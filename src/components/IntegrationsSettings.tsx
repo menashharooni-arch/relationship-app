@@ -3,7 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
-import { PlanGate, PlanBadge } from "@/components/PlanGate";
+import { PlanGate } from "@/components/PlanGate";
+import { IapProPill } from "@/components/NativePaywall";
 import { detectNativeApp } from "@/lib/platform";
 
 /**
@@ -189,7 +190,7 @@ function IntegrationCard({
           <PlanGate
             feature="integration-google"
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
+            nativeContent={<span className="shrink-0"><IapProPill /></span>}
           >
             <a href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
           </PlanGate>
@@ -404,7 +405,7 @@ function TokenCard({
           <PlanGate
             feature={`integration-${provider}`}
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="shrink-0"><PlanBadge tier="pro" /></span>}
+            nativeContent={<span className="shrink-0"><IapProPill /></span>}
           >
             <a href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</a>
           </PlanGate>
