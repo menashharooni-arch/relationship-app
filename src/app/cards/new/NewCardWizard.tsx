@@ -140,7 +140,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // to the Office admin dashboard when done; pro/absent → dashboard.
   const searchParams = useSearchParams();
   const postCheckout = searchParams.get("postcheckout");
-  const doneHref = postCheckout === "office" ? "/office/admin" : "/dashboard";
+  // First card → the guided tour starts on the dashboard (the empty-state
+  // dashboard deliberately does not run it — nothing to point at yet).
+  const doneHref = postCheckout === "office" ? "/office/admin" : isFirstCard ? "/dashboard?tour=1" : "/dashboard";
   // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
   // visitor still builds their card first, but AFTER account creation goes
   // straight to payment for that plan — no plan chooser again (unified flow).
@@ -1699,6 +1701,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   : handleAuthedFirstCardPaid}
                 busy={null}
                 freeLabel="Start free →"
+                // Native IAP: the entitlement is synced before this fires, so the
+                // server keeps the Pro design; no checkout hop, straight to save.
+                onIapPurchased={() => { setShowPlan(false); handleCreate(); }}
               />
             )}
           </div>

@@ -141,7 +141,7 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
               <h2 className="text-white font-bold text-xl">Choose your plan</h2>
               <p className="text-gray-400 text-sm mt-1">Start free — upgrade anytime as your network grows.</p>
             </div>
-            <PlanCards onFree={goFree} onPaid={checkout} busy={loading} />
+            <PlanCards onFree={goFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} />
           </>
         )}
 

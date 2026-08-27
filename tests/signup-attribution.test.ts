@@ -64,20 +64,20 @@ describe("the nudge's ?src= is finally read", () => {
 });
 
 describe("the guided tour reaches a brand-new account", () => {
-  it("auto-start is mounted in BOTH dashboard branches", () => {
-    // Onboarding sends a new account to /dashboard?welcome=1, and a new
-    // account has no cards — so it always hit the empty-state branch, which
-    // never mounted the component.
+  it("auto-start is mounted ONLY in the has-cards branch; the first card routes to the tour", () => {
+    // Earlier fix mounted it in both branches — but on the card-less branch the
+    // tour has no anchors, so it ran a stub and wrote sc_tour_completed before
+    // the account had a card, and the real tour never appeared. Now the empty
+    // branch does not run it, and the wizard sends a FIRST card to
+    // /dashboard?tour=1 so the tour starts on a dashboard that has something
+    // to point at.
     const c = code("src/app/dashboard/page.tsx");
     const mounts = c.match(/<Suspense><TourAutoStart \/><\/Suspense>/g) ?? [];
-    expect(mounts.length, "only one branch mounts the tour").toBe(2);
-  });
-
-  it("the card-less branch mounts it before its early return", () => {
-    const c = code("src/app/dashboard/page.tsx");
+    expect(mounts.length).toBe(1);
     const emptyBranchAt = c.indexOf("if (!hasCards)");
-    const firstMountAt = c.indexOf("<Suspense><TourAutoStart /></Suspense>");
-    expect(emptyBranchAt).toBeGreaterThan(0);
-    expect(firstMountAt).toBeGreaterThan(emptyBranchAt);
+    const emptyBranchEnd = c.indexOf("</main>", emptyBranchAt);
+    expect(c.slice(emptyBranchAt, emptyBranchEnd)).not.toContain("<TourAutoStart");
+    const wizard = code("src/app/cards/new/NewCardWizard.tsx");
+    expect(wizard).toMatch(/isFirstCard \? "\/dashboard\?tour=1"/);
   });
 });

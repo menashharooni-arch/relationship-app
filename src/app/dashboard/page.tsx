@@ -149,13 +149,10 @@ export default async function DashboardPage({
     return (
       <>
         <AppStorePopup trigger={params.welcome === "1"} />
-        {/* TourAutoStart was mounted ONLY in the has-cards branch below. But
-            onboarding sends a brand-new account here with ?welcome=1 and that
-            account has no cards yet — so it always landed on THIS branch, and
-            no direct signup ever got the guided tour. The component's own
-            comment claims that regression was already fixed; it wasn't, because
-            the fix went to the other branch. */}
-        <Suspense><TourAutoStart /></Suspense>
+        {/* NO TourAutoStart here. Running the tour on this screen used to mark
+            it completed (sc_tour_completed) before the account had a single
+            card, so the real tour — and its banner — never appeared. The card
+            wizard sends a first card to /dashboard?tour=1 instead. */}
         {/* hasCards={false} is the whole point of persisting it HERE too.
             This branch renders none of the tour's anchors — no nav strip, no
             tab bar, no card/traffic/contacts panels — so every spotlighted step

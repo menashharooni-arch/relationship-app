@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PlanGate, PlanBadge } from "@/components/PlanGate";
+import { PlanGate } from "@/components/PlanGate";
+import { IapProPill } from "@/components/NativePaywall";
 
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
@@ -82,7 +83,7 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
           <PlanGate
             feature="integration-crm"
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<PlanBadge tier="pro" />}
+            nativeContent={<IapProPill />}
           >
             <a href="/upgrade" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>
           </PlanGate>

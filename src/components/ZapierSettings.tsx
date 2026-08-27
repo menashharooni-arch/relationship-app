@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PlanGate, PlanBadge, GateCopy } from "@/components/PlanGate";
+import { PlanGate, GateCopy } from "@/components/PlanGate";
+import { IapProPill } from "@/components/NativePaywall";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
@@ -86,7 +87,7 @@ export default function ZapierSettings({
           <PlanGate
             feature="integration-zapier"
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="ml-auto"><PlanBadge tier="pro" /></span>}
+            nativeContent={<span className="ml-auto"><IapProPill /></span>}
           >
             <a href="/upgrade" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
           </PlanGate>

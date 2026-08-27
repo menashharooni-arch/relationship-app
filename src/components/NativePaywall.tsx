@@ -71,10 +71,9 @@ async function resolveReady(): Promise<boolean> {
   return ok;
 }
 
-export default function IapSubscribeButton({ className = "" }: { className?: string }) {
+/** Shared mount logic: resolves once, re-checks after a failed attempt. */
+function useIapAvailable(): boolean {
   const [available, setAvailable] = useState(false);
-  const [open, setOpen] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     if (!readyOnce) readyOnce = resolveReady();
@@ -84,6 +83,22 @@ export default function IapSubscribeButton({ className = "" }: { className?: str
     });
     return () => { cancelled = true; };
   }, []);
+  return available;
+}
+
+export default function IapSubscribeButton({
+  className = "",
+  label = "Subscribe to Pro",
+  onPurchased,
+}: {
+  className?: string;
+  label?: string;
+  /** Called after a successful purchase (entitlement synced). Default: reload
+   *  so every plan-gated surface re-reads the profile. */
+  onPurchased?: () => void;
+}) {
+  const available = useIapAvailable();
+  const [open, setOpen] = useState(false);
 
   if (!available) return null;
 
@@ -94,14 +109,55 @@ export default function IapSubscribeButton({ className = "" }: { className?: str
         onClick={() => setOpen(true)}
         className={`w-full rounded-full bg-blue-600 py-2.5 text-xs font-bold text-white transition-[background-color,transform] duration-150 hover:bg-blue-500 active:scale-[0.98] ${className}`}
       >
-        Subscribe to Pro
+        {label}
+      </button>
+      {open && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
+    </>
+  );
+}
+
+/**
+ * Inline "PRO" pill that opens the paywall — for the row-level gates (an
+ * integration row, the Zapier header) where a full notice has no room. Falls
+ * back to a plain static badge whenever a purchase can't be offered, so it is
+ * never a dead tap target.
+ */
+export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
+  const available = useIapAvailable();
+  const [open, setOpen] = useState(false);
+  const label = tier === "office" ? "OFFICE" : "PRO";
+  if (!available || tier === "office") {
+    return (
+      <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white transition-transform active:scale-95"
+        style={{ background: "var(--rd-aurora)" }}
+      >
+        <Spark className="h-2.5 w-2.5" />
+        Get Pro
       </button>
       {open && <PaywallSheet onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function PaywallSheet({ onClose }: { onClose: () => void }) {
+export function Spark({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M10 2l1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8L10 2z" />
+    </svg>
+  );
+}
+
+function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchased?: () => void }) {
   const [packages, setPackages] = useState<IapPackage[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState<"purchase" | "restore" | null>(null);
@@ -126,9 +182,11 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
     const result = await purchaseIap(selected);
     setBusy(null);
     if (result === "purchased") {
-      // Plan-gated UI across the app re-reads the profile on load; a reload is
-      // the honest way to reflect the new entitlement everywhere at once.
-      window.location.reload();
+      // Entitlement is already synced server-side (purchaseIap awaits
+      // /api/iap/sync). Callers mid-flow (card wizard, /welcome) continue in
+      // place; everywhere else a reload re-reads the profile for every gate.
+      if (onPurchased) onPurchased();
+      else window.location.reload();
       return;
     }
     if (result === "failed") setNotice("The purchase didn't go through. You have not been charged beyond any existing subscription.");

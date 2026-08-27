@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
-import IapSubscribeButton from "@/components/NativePaywall";
+import IapSubscribeButton, { Spark } from "@/components/NativePaywall";
 
 /**
  * PlanGate — the single component every locked-feature surface renders through.
@@ -127,29 +127,41 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
   // kept as a belt-and-braces guard in case the phrase ever creeps back into a
   // copy string.
   const iapCopy = copy.replace(new RegExp(`\\s*${SITE_PHRASE.replace(".", "\\.")}`, "g"), "");
+  // "Pro feature — <what>" → the badge carries "Pro feature", the body gets
+  // the what. Keeps the pinned copy string intact while the card reads as a
+  // headline + reason instead of one long grey sentence.
+  const body = iapCopy.replace(/^(Pro|Office) feature\s+—\s+/, "");
   return (
     <div
       role="note"
-      className="rounded-2xl border border-gray-800/80 bg-gray-900 px-4 py-3"
+      className="relative overflow-hidden rounded-2xl p-[1.5px]"
+      style={{ background: "linear-gradient(135deg, rgba(37,99,235,0.9), rgba(139,92,246,0.7), rgba(37,99,235,0.5))" }}
     >
-      <div className="flex items-start gap-2.5">
-        <PlanBadge tier={tier} />
-        {/* text-wrap:pretty pulls a word down rather than leaving a stubby last
-            line — the copy grew by "on swiftcard.me" and several of these now
-            break onto a short final line. Same pattern the card page's bio uses.
-            Unsupported engines simply ignore it. */}
-        <p className="text-sm leading-snug text-gray-300 [text-wrap:pretty]">
-          <GateCopy copy={iapCopy} />
-        </p>
+      <div className="relative rounded-[15px] bg-gray-900 px-4 py-4">
+        <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-blue-600/20 blur-2xl" aria-hidden />
+        <div className="relative flex items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "var(--rd-aurora)" }}>
+            <Spark className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <PlanBadge tier={tier} />
+              <p className="text-sm font-bold text-white">{tier === "office" ? "Office feature" : "Pro feature"}</p>
+            </div>
+            <p className="mt-1 text-[13px] leading-snug text-gray-300 [text-wrap:pretty]">
+              <GateCopy copy={body} />
+            </p>
+          </div>
+        </div>
+        {/* The purchase path, third iteration. 1.0.0 (3): inert notice —
+            rejected (no way to buy). 1.0.0 (7): link out to the default browser
+            per the US-storefront allowance — rejected anyway; App Review holds
+            that content the app unlocks must be purchasable via IAP (3.1.3(b)).
+            So: a real In-App Purchase paywall. Renders nothing on web, when
+            signed out, or in a build without StoreKit products (see
+            NativePaywall's fail-closed contract). */}
+        {tier === "pro" && <IapSubscribeButton className="mt-3.5 !py-3 !text-[13px]" label="Get Pro — start free" />}
       </div>
-      {/* The purchase path, third iteration. 1.0.0 (3): inert notice —
-          rejected (no way to buy). 1.0.0 (7): link out to the default browser
-          per the US-storefront allowance — rejected anyway; App Review holds
-          that content the app unlocks must be purchasable via IAP (3.1.3(b)).
-          So: a real In-App Purchase paywall. Renders nothing on web, when
-          signed out, or in a build without StoreKit products (see
-          NativePaywall's fail-closed contract). */}
-      <IapSubscribeButton className="mt-3" />
     </div>
   );
 }
