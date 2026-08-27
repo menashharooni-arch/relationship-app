@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         )
       : NextResponse.redirect(`${APP_URL}/settings/flows?integration=salesforce&status=${status}`);
     res.cookies.set("sf_native", "", { maxAge: 0, path: "/" });
+    res.cookies.set("sf_pkce", "", { maxAge: 0, path: "/" });
     return res;
   };
 
@@ -36,6 +37,10 @@ export async function GET(request: NextRequest) {
   const userId = verifyState(state);
   if (!userId) return DONE("error");
 
+  // PKCE verifier set by the connect leg — required by External Client Apps.
+  const codeVerifier = request.cookies.get("sf_pkce")?.value;
+  if (!codeVerifier) return DONE("error");
+
   const tokenRes = await fetch("https://login.salesforce.com/services/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -45,6 +50,7 @@ export async function GET(request: NextRequest) {
       client_secret: process.env.SALESFORCE_CLIENT_SECRET!,
       redirect_uri: `${APP_URL}/api/integrations/salesforce/callback`,
       grant_type: "authorization_code",
+      code_verifier: codeVerifier,
     }),
   });
   if (!tokenRes.ok) {
