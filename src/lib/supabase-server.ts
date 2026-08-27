@@ -8,6 +8,16 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Hard 10s cap on every call this client makes. During the 2026-08-27
+      // Supabase auth brownout, pages awaiting getUser()/queries held their
+      // streams open indefinitely — the app showed skeletons (or black in the
+      // shell) forever. With the cap they throw instead, and the app-level
+      // error boundary shows its "Something went wrong / Try again" screen.
+      // 10s is ~20× the normal round-trip, so healthy traffic never hits it.
+      global: {
+        fetch: (url: RequestInfo | URL, init?: RequestInit) =>
+          fetch(url, { ...init, signal: AbortSignal.timeout(10000) }),
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();

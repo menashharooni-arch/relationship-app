@@ -70,8 +70,16 @@ export default async function DashboardPage({
   const viewsRange: "today" | "week" | "month" | "locations" =
     params.vrange === "week" || params.vrange === "month" || params.vrange === "locations" ? params.vrange : "today";
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // The user id comes from getClaims — a LOCAL ES256 verify against the
+  // cached JWKS, zero network — so the DB queries below can start
+  // immediately. getUser() (the full server-side check that catches a
+  // hard-deleted account whose access token is still live) still runs, but IN
+  // PARALLEL with those queries instead of serially before them: it used to
+  // be a 200-600ms round-trip paid before any data moved, on every dashboard
+  // open AND every card open (?card= re-renders this page).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  if (!claimsData?.claims?.sub) redirect("/login");
+  const authedUserId = claimsData.claims.sub;
 
   // Profile + cards are both keyed only to user.id, so fetch them together — one
   // parallel batch instead of two sequential round-trips (a real TTFB win on
@@ -79,11 +87,13 @@ export default async function DashboardPage({
   // read is final; the rare migration paths below mutate the table and re-read.
   const adminDb = getAdminSupabase();
   const cardsQuery = () =>
-    adminDb.from("cards").select("*").eq("user_id", user.id).order("created_at", { ascending: true });
-  const [{ data: profile }, cardsRes0] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    adminDb.from("cards").select("*").eq("user_id", authedUserId).order("created_at", { ascending: true });
+  const [{ data: { user } }, { data: profile }, cardsRes0] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from("profiles").select("*").eq("id", authedUserId).single(),
     cardsQuery(),
   ]);
+  if (!user) redirect("/login");
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 

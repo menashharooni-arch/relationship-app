@@ -8,6 +8,15 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Every network call this client makes (the session refresh, the
+      // deleted-account lookup) gets a hard 8s cap. Without it, a slow or
+      // down Supabase held the FIRST BYTE of every protected page — the app
+      // sat on a black screen for as long as the outage lasted (2026-08-27,
+      // Supabase auth "partially degraded": cold opens hung 40s+ to forever).
+      global: {
+        fetch: (url: RequestInfo | URL, init?: RequestInit) =>
+          fetch(url, { ...init, signal: AbortSignal.timeout(8000) }),
+      },
       cookies: {
         getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
@@ -48,8 +57,23 @@ export async function proxy(request: NextRequest) {
   // still calls getUser() itself, so a hard-deleted account is caught there.
   // `sub` is a REQUIRED claim on a Supabase access token, so its absence means
   // there is no usable session — same signal `user === null` gave before.
-  const { data: claimsResult } = await supabase.auth.getClaims();
-  const userId = claimsResult?.claims?.sub ?? null;
+  // The refresh leg is additionally raced against 5s: a VALID-looking session
+  // whose refresh cannot complete must not block the page. On timeout we let
+  // the request THROUGH rather than bounce to /login — the token may still be
+  // fine (local verify never got to run), and the page's own auth handles it.
+  // Bouncing here would log every user "out" for the duration of a Supabase
+  // brownout.
+  let userId: string | null = null;
+  let authUnavailable = false;
+  try {
+    const claimsResult = await Promise.race([
+      supabase.auth.getClaims(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("auth-timeout")), 5000)),
+    ]);
+    userId = claimsResult?.data?.claims?.sub ?? null;
+  } catch {
+    authUnavailable = true;
+  }
 
   // Any redirect below must carry the auth cookies just written onto
   // supabaseResponse (e.g. a rotated refresh token from the session refresh
@@ -82,7 +106,12 @@ export async function proxy(request: NextRequest) {
     ((request.headers.get("user-agent") ?? "").includes("SwiftCardApp") ||
       request.cookies.get("sc_shell")?.value === "1")
   ) {
-    return redirectWithAuthCookies(new URL(userId ? "/dashboard" : "/login", request.url));
+    // When auth is unreachable, route by cookie PRESENCE: a device with a
+    // session cookie goes to /dashboard (its page will render or show the
+    // retry screen), one without goes to /login as usual.
+    const looksSignedIn = userId !== null ||
+      (authUnavailable && request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token")));
+    return redirectWithAuthCookies(new URL(looksSignedIn ? "/dashboard" : "/login", request.url));
   }
 
   // NOTE: /templates is deliberately NOT here. The marketing nav and footer
@@ -101,7 +130,7 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/cards/new" ||
     request.nextUrl.pathname.startsWith("/cards/new/");
 
-  if (!userId && isProtected && !isGuestCardBuilder) {
+  if (!userId && !authUnavailable && isProtected && !isGuestCardBuilder) {
     return redirectWithAuthCookies(new URL("/login", request.url));
   }
 
@@ -110,14 +139,18 @@ export async function proxy(request: NextRequest) {
   // that live token could keep loading/editing a "deleted" account's pages for
   // up to an hour after deletion, contradicting the account-deleted messaging.
   if (userId && isProtected) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("customization")
-      .eq("id", userId)
-      .maybeSingle();
-    const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
-    if (deleted) {
-      return redirectWithAuthCookies(new URL("/account-deleted", request.url));
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("customization")
+        .eq("id", userId)
+        .maybeSingle();
+      const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
+      if (deleted) {
+        return redirectWithAuthCookies(new URL("/account-deleted", request.url));
+      }
+    } catch {
+      // DB unreachable — let the page try; blocking here blanks the app.
     }
   }
 
