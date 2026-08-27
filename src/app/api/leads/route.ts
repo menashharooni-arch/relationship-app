@@ -252,7 +252,11 @@ export async function POST(req: NextRequest) {
         message: message || null,
         source: source ? getSourceLabel(source) : null,
         capturedByCard: card_owner,
-        tags: Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === "string") : null,
+        // safeTags, NOT the raw client array: at capture time tags are
+        // visitor-controlled, and they flow into HighLevel's first-class tags
+        // field where a tag can fire the owner's workflows. Owner-chosen tags
+        // reach the CRMs through the lead EDIT route instead.
+        tags: safeTags.length ? safeTags : null,
         // The key per-card CRM scoping is checked against, inside
         // getCrmConnection. Undefined for a legacy profile-card with no cards
         // row, which is treated as out-of-scope whenever a scope is set —
@@ -300,7 +304,7 @@ export async function POST(req: NextRequest) {
         fetch(ownerProfile.zapier_webhook_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, message: message || null, location, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
+          body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, company: company || null, message: message || null, location, source: source ? getSourceLabel(source) : null, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
         }).catch((e) => reportError("leads.zapier", e)),
       );
     }

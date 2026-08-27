@@ -80,7 +80,14 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
   // more than a contact dump: a tag is what fires the workflows the customer has
   // already built — welcome text, pipeline placement, task assignment. We supply
   // the trigger; their existing automation does the work.
-  const tags = ["swiftcard", ...(lead.capturedByCard ? [`swiftcard-${lead.capturedByCard}`] : [])];
+  const tags = [
+    "swiftcard",
+    ...(lead.capturedByCard ? [`swiftcard-${lead.capturedByCard}`] : []),
+    // The lead's own tags ride along as real HighLevel tags — that is what
+    // fires tag-triggered workflows. Capture-time tags are whitelisted in the
+    // leads route; edit-time tags are the owner's own.
+    ...(lead.tags ?? []),
+  ];
 
   const body: Record<string, unknown> = {
     locationId,

@@ -45,10 +45,15 @@ const I = {
 export default async function FlowSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ billing?: string }>;
+  searchParams: Promise<{ billing?: string; integration?: string }>;
 }) {
-  const { billing } = await searchParams;
+  const { billing, integration } = await searchParams;
   const openBilling = billing === "1";
+  // An OAuth callback lands here with ?integration=…&status=… — open the
+  // section the integration cards live in, so the user actually SEES the
+  // "Successfully connected!" flash and the green Connected badge instead of
+  // the default Profile panel.
+  const openIntegrations = typeof integration === "string" && integration.length > 0;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   // Preserve the destination (e.g. the "Manage billing" link in a receipt email)
@@ -453,7 +458,7 @@ export default async function FlowSettingsPage({
           <p className="text-gray-500 text-sm mt-1">{user.email}</p>
         </div>
 
-        <SettingsShell initialSection={openBilling ? "billing" : undefined} sections={sections} />
+        <SettingsShell initialSection={openBilling ? "billing" : openIntegrations ? "notifications" : undefined} sections={sections} />
       </div>
     </main>
   );

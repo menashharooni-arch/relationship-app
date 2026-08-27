@@ -67,6 +67,40 @@ export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string): Pr
   if (lead.email) person.emails = [{ value: lead.email, primary: true, label: "work" }];
   if (lead.phone) person.phones = [{ value: lead.phone, primary: true, label: "mobile" }];
 
+  // Link the company as a real Organization, not just a line in the note —
+  // that is what makes the person filterable by company and lets deals attach
+  // to the org. Find an exact-name match first so ten leads from Acme share
+  // ONE org row; create it if this is the first. Best-effort throughout: a
+  // person without an org link is still a synced lead.
+  if (lead.company?.trim()) {
+    try {
+      const orgName = lead.company.trim();
+      let orgId: number | undefined;
+      const found = await fetch(
+        `${host}/api/v2/organizations/search?term=${encodeURIComponent(orgName)}&exact_match=true&limit=1`,
+        { headers: { "x-api-token": conn.token } },
+      );
+      if (found.ok) {
+        const d = (await found.json()) as { data?: { items?: { item?: { id?: number } }[] } };
+        orgId = d?.data?.items?.[0]?.item?.id;
+      }
+      if (!orgId) {
+        const made = await fetch(`${host}/api/v2/organizations`, {
+          method: "POST",
+          headers: { "x-api-token": conn.token, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: orgName }),
+        });
+        if (made.ok) {
+          const d = (await made.json()) as { data?: { id?: number } };
+          orgId = d?.data?.id;
+        }
+      }
+      if (orgId) person.org_id = orgId;
+    } catch {
+      /* org link is a bonus, never a failure */
+    }
+  }
+
   const res = await fetch(`${host}/api/v2/persons`, {
     method: "POST",
     headers: { "x-api-token": conn.token, "Content-Type": "application/json" },

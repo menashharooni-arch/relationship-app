@@ -5,6 +5,7 @@ import { mergeClientTags } from "@/lib/lead-tags";
 import { after } from "next/server";
 import { isPaidPlan } from "@/lib/plan";
 import { getSourceLabel } from "@/lib/source-labels";
+import { RESERVED_LEAD_TAG } from "@/lib/lead-tags";
 import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
 import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
 import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
@@ -132,7 +133,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           source: fresh.source ? getSourceLabel(fresh.source as string) : null,
           capturedByCard: fresh.card_owner as string,
           capturedByCardId: (cardRow?.id as string | undefined) ?? null,
-          tags: Array.isArray(fresh.tags) ? (fresh.tags as string[]) : null,
+          // Stored tags mix the owner's labels with INTERNAL markers
+          // (sc-locked, sms-paused, flow-* …). Only the owner's own tags may
+          // leave the building — a system marker in HighLevel's tags field
+          // could fire a customer workflow, and in any CRM it reads as junk.
+          tags: Array.isArray(fresh.tags)
+            ? (fresh.tags as string[]).filter((t) => !RESERVED_LEAD_TAG.test(t))
+            : null,
         };
         // ONLY the providers that upsert by email run on edits — HubSpot
         // (PATCH-by-email on 409), HighLevel (/contacts/upsert), Salesforce
