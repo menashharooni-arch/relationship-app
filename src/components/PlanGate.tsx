@@ -158,8 +158,8 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
             signed out, or in a build without StoreKit products (see
             NativePaywall's fail-closed contract). */}
         {tier === "pro" && (
-          <div className="mt-3 flex justify-end">
-            <IapSubscribeButton />
+          <div className="mt-3.5">
+            <IapSubscribeButton className="!w-full !py-2" />
           </div>
         )}
       </div>
