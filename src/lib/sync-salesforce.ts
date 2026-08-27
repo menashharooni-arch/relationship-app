@@ -86,9 +86,14 @@ export async function syncLeadToSalesforce(lead: CrmLead, capturedBy: string): P
     }
   }
 
+  // Orgs ship with fuzzy duplicate rules (similar name + company blocks the
+  // save with a 400 DUPLICATES_DETECTED) — which drops real leads: two people
+  // from the same company scanning the same card LOOK like duplicates. We
+  // already dedup by exact email above, so tell Salesforce to save anyway.
+  const writeHeaders = { ...headers, "Sforce-Duplicate-Rule-Header": "allowSave=true" };
   const res = existingId
-    ? await fetch(`${base}${SF_API}/sobjects/Lead/${existingId}`, { method: "PATCH", headers, body: JSON.stringify(fields) })
-    : await fetch(`${base}${SF_API}/sobjects/Lead`, { method: "POST", headers, body: JSON.stringify(fields) });
+    ? await fetch(`${base}${SF_API}/sobjects/Lead/${existingId}`, { method: "PATCH", headers: writeHeaders, body: JSON.stringify(fields) })
+    : await fetch(`${base}${SF_API}/sobjects/Lead`, { method: "POST", headers: writeHeaders, body: JSON.stringify(fields) });
 
   if (res.ok || res.status === 204) {
     if (conn.syncError) await setSyncError("salesforce", userId, null);

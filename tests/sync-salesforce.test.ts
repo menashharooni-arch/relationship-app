@@ -61,6 +61,8 @@ describe("lead writes", () => {
     expect(body.Description).toContain("Captured via: QR code");
     expect(body.Description).toContain("Card: https://swiftcard.me/maya-card");
     expect(body.Description).toContain("Tags: hot");
+    // Fuzzy org duplicate rules must not eat leads we already email-dedup.
+    expect((write!.init!.headers as Record<string, string>)["Sforce-Duplicate-Rule-Header"]).toBe("allowSave=true");
   });
 
   it("an existing Lead with the email is UPDATED, not duplicated", async () => {
