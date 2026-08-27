@@ -77,19 +77,18 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
       <div className="mx-auto max-w-sm">
         <div className="text-center mb-8">
           <span className="inline-block rounded-full bg-[#1D4ED8] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">SwiftCard Pro</span>
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">Do more with every tap</h1>
-          <p className="mt-2 text-sm text-slate-500">Unlock everything Pro includes — right here in the app.</p>
+          <h1 className="mt-4 text-2xl font-bold text-white">Do more with every tap</h1>
+          <p className="mt-2 text-sm text-gray-400">Unlock everything Pro includes — right here in the app.</p>
         </div>
-        <div className="rounded-2xl border border-warm-card-border bg-warm-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-6">
           <ul className="space-y-3">
             {PLAN_FEATURES.pro.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700">
+              <li key={f} className="flex items-start gap-2.5 text-sm text-gray-200">
                 <Check />
                 <span>{f}</span>
               </li>
             ))}
           </ul>
-          {/* StoreKit-priced paywall; renders nothing while signed out. */}
           <IapSubscribeButton className="mt-6 !w-full !py-3.5 !text-sm" />
         </div>
       </div>
