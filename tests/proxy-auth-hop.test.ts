@@ -35,15 +35,15 @@ describe("the proxy does not make a network call to check auth", () => {
     // make userId permanently null — i.e. sign everyone out — while still
     // compiling and still passing a naive "is getClaims used" check.
     const src = code(proxy());
-    expect(src).toMatch(/claimsResult\?\.claims\?\.sub \?\? null/);
+    expect(src).toMatch(/claimsResult\?\.data\?\.claims\?\.sub \?\? null/);
   });
 
   it("still gates on that id everywhere it used to gate on the user", () => {
     const src = code(proxy());
-    expect(src, "login wall").toMatch(/if \(!userId && isProtected/);
+    expect(src, "login wall").toMatch(/if \(!userId && !authUnavailable && isProtected/);
     expect(src, "soft-delete guard").toMatch(/if \(userId && isProtected\)/);
     expect(src, "soft-delete lookup").toMatch(/\.eq\("id", userId\)/);
-    expect(src, "shell landing branch").toMatch(/userId \? "\/dashboard" : "\/login"/);
+    expect(src, "shell landing branch").toMatch(/looksSignedIn \? "\/dashboard" : "\/login"/);
   });
 
   it("keeps carrying rotated auth cookies onto every redirect", () => {
