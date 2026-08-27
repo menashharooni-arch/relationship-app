@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
-import IapSubscribeButton, { Spark } from "@/components/NativePaywall";
+import IapSubscribeButton from "@/components/NativePaywall";
 
 /**
  * PlanGate — the single component every locked-feature surface renders through.
@@ -140,9 +140,6 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
       <div className="relative rounded-[15px] bg-gray-900 px-4 py-4">
         <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-blue-600/20 blur-2xl" aria-hidden />
         <div className="relative flex items-start gap-3">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: "var(--rd-aurora)" }}>
-            <Spark className="h-4 w-4" />
-          </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <PlanBadge tier={tier} />
@@ -161,8 +158,7 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
             signed out, or in a build without StoreKit products (see
             NativePaywall's fail-closed contract). */}
         {tier === "pro" && (
-          <div className="mt-3 flex items-center justify-end gap-3 pl-11">
-            <span className="text-[11px] text-gray-500">Start free</span>
+          <div className="mt-3 flex justify-end">
             <IapSubscribeButton />
           </div>
         )}

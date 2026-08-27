@@ -89,10 +89,13 @@ function useIapAvailable(): boolean {
 export default function IapSubscribeButton({
   className = "",
   label = "Upgrade to Pro",
+  sublabel = `${TRIAL_DAYS}-day free trial`,
   onPurchased,
 }: {
   className?: string;
   label?: string;
+  /** Small second line under the label; pass "" to hide. */
+  sublabel?: string;
   /** Called after a successful purchase (entitlement synced). Default: reload
    *  so every plan-gated surface re-reads the profile. */
   onPurchased?: () => void;
@@ -111,11 +114,11 @@ export default function IapSubscribeButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-full px-4 py-2 text-[13px] font-bold text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
+        className={`relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[13px] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
         style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
-        <Spark className="h-3.5 w-3.5 text-white/95" />
         <span className="relative z-[4]">{label}</span>
+        {sublabel && <span className="relative z-[4] text-[10px] font-semibold text-white/85">{sublabel}</span>}
         <span className="rd-glisten-sweep" aria-hidden="true" />
       </button>
       {open && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
