@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PlanGate, PlanBadge, GateCopy } from "@/components/PlanGate";
-import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
+import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
   "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
@@ -26,6 +26,12 @@ export default function ZapierSettings({
 }) {
   const [url, setUrl] = useState(initialUrl ?? "");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Pre-connect scope (owner order 2026-08-27): the FIRST save of a webhook on
+  // a multi-card account must actively choose all-cards vs only-these. An
+  // account with a webhook already saved keeps its stored scope (the picker
+  // below handles changes) and isn't re-asked.
+  const askScope = cards.length > 1 && !initialUrl;
+  const [choice, setChoice] = useState<ScopeChoice>({ mode: "unset", ids: [] });
   const [testStatus, setTestStatus] = useState<"idle" | "testing" | "ok" | "error">("idle");
 
   async function save() {
@@ -34,7 +40,10 @@ export default function ZapierSettings({
       const res = await fetch("/api/settings/zapier", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ zapier_webhook_url: url }),
+        body: JSON.stringify({
+          zapier_webhook_url: url,
+          ...(askScope ? { zapier_card_ids: scopeChoiceValue(choice) } : {}),
+        }),
       });
       setSaveStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setSaveStatus("idle"), 2000);
@@ -137,6 +146,18 @@ export default function ZapierSettings({
 }`}</pre>
           </details>
 
+          {askScope && (
+            <div className="pt-1">
+              <ScopeChooser
+                group="preconnect-zapier"
+                targetName="Zapier"
+                cards={cards}
+                value={choice}
+                onChange={setChoice}
+              />
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-2">
             <button
@@ -148,7 +169,7 @@ export default function ZapierSettings({
             </button>
             <button
               onClick={save}
-              disabled={saveStatus === "saving"}
+              disabled={saveStatus === "saving" || (askScope && !!url && !scopeChoiceReady(choice))}
               className="flex-1 bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold py-2.5 rounded-full text-sm transition-colors"
             >
               {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : "Save"}

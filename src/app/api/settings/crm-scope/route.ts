@@ -9,10 +9,10 @@ import { sanitizeCardScope } from "@/lib/crm-scope";
 // `null` means all cards — the default every connection starts on, and what
 // they all behaved like before this existed. A list means only those cards.
 //
-// The four CRMs store it on their own integrations row; Zapier stores it on the
+// The CRMs store it on their own integrations row; Zapier stores it on the
 // profile, because the webhook is a profile column rather than an integration.
 // Same vocabulary either way so the client doesn't have to care.
-const CRM_TARGETS = ["google", "hubspot", "pipedrive", "highlevel"] as const;
+const CRM_TARGETS = ["google", "hubspot", "pipedrive", "highlevel", "salesforce"] as const;
 type CrmTarget = (typeof CRM_TARGETS)[number];
 type Target = CrmTarget | "zapier";
 

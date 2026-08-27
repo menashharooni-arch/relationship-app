@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { encryptToken } from "@/lib/token-crypto";
+import { sanitizeCardScope } from "@/lib/crm-scope";
+import { scopeIsOwned } from "@/lib/crm-scope-server";
 
 // HubSpot's self-serve OAuth ("public app") creation is currently disabled on
 // their end, so this integration connects via a Private App access token
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "HubSpot is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
-  const { token } = await request.json() as { token?: string };
+  const { token, card_ids } = await request.json() as { token?: string; card_ids?: unknown };
   const trimmed = token?.trim();
   if (!trimmed) {
     return NextResponse.json({ error: "no_token", message: "Paste your HubSpot access token." }, { status: 400 });
@@ -41,6 +43,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+
+  // Pre-connect card scope. Sent by the settings form alongside the token;
+  // absent means the caller made no choice (reconnect or older client), and
+  // the row's existing scope must be left alone. An explicit empty list would
+  // be a connection that silently sends nothing — reject like the scope API.
+  let scopeUpdate: { card_ids?: string[] | null } = {};
+  if (card_ids !== undefined) {
+    const scope = card_ids === null ? null : sanitizeCardScope(card_ids);
+    if (scope !== null && scope.length === 0) {
+      return NextResponse.json({ error: "empty_scope", message: "Pick at least one card, or choose All cards." }, { status: 400 });
+    }
+    if (!(await scopeIsOwned(admin, user.id, scope))) {
+      return NextResponse.json({ error: "unknown_card", message: "One of those cards isn't yours." }, { status: 400 });
+    }
+    scopeUpdate = { card_ids: scope };
+  }
+
   const { error } = await admin.from("integrations").upsert({
     user_id: user.id,
     provider: "hubspot",
@@ -48,6 +67,7 @@ export async function POST(request: NextRequest) {
     refresh_token: null,
     expires_at: null,
     updated_at: new Date().toISOString(),
+    ...scopeUpdate,
     sync_error: null, // upsert only touches listed columns — must clear explicitly on reconnect
   }, { onConflict: "user_id,provider" });
 

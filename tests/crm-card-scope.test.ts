@@ -176,3 +176,94 @@ describe("the save API can't be used to create a silent trap", () => {
     expect(src).toMatch(/isPaidPlan/);
   });
 });
+
+// ── The pre-connect choice (owner order 2026-08-27) ──────────────────────────
+//
+// Connecting must not silently default to all-cards: on a multi-card account
+// the user actively chooses BEFORE the connection exists, for every CRM and
+// the Zapier webhook. And the flip side: a RECONNECT (which shows no chooser)
+// must leave the stored scope exactly as it was.
+
+import { parseCardsParam } from "@/lib/crm-scope-server";
+
+describe("parsing the pre-connect choice", () => {
+  it('"all" and absence both mean all cards', () => {
+    expect(parseCardsParam("all")).toBeNull();
+    expect(parseCardsParam(null)).toBeNull();
+    expect(parseCardsParam(undefined)).toBeNull();
+    expect(parseCardsParam("")).toBeNull();
+  });
+
+  it("a csv of uuids means only those", () => {
+    expect(parseCardsParam(`${CARD_A},${CARD_B}`)).toEqual([CARD_A, CARD_B]);
+  });
+
+  it("junk is refused loudly, never silently widened to all", () => {
+    expect(parseCardsParam("not-a-uuid")).toBeUndefined();
+    expect(parseCardsParam("x,y,z")).toBeUndefined();
+  });
+});
+
+describe("every connect path carries the choice", () => {
+  it("both OAuth connect legs read it, validate ownership, and refuse junk", () => {
+    for (const p of ["google", "salesforce"]) {
+      const src = stripComments(read(`src/app/api/integrations/${p}/connect/route.ts`));
+      expect(src, `${p} connect ignores the cards param`).toMatch(/parseCardsParam/);
+      expect(src, `${p} connect skips ownership`).toMatch(/scopeIsOwned/);
+      expect(src, `${p} connect stores no scope cookie`).toMatch(/crm_scope/);
+    }
+  });
+
+  it("both OAuth callbacks store the choice — but ONLY when one was made", () => {
+    for (const p of ["google", "salesforce"]) {
+      const src = stripComments(read(`src/app/api/integrations/${p}/callback/route.ts`));
+      // No cookie -> empty update object -> a reconnect can't wipe a scope.
+      expect(src, `${p} callback would wipe scope on reconnect`).toMatch(/scopeCookie === undefined \? \{\}/);
+      expect(src, `${p} callback never stores the scope`).toMatch(/\.\.\.scopeUpdate/);
+    }
+  });
+
+  it("all three token routes accept the choice and apply the same guards", () => {
+    for (const p of ["hubspot", "pipedrive", "highlevel"]) {
+      const src = stripComments(read(`src/app/api/integrations/${p}/token/route.ts`));
+      expect(src, `${p} token route ignores card_ids`).toMatch(/card_ids/);
+      expect(src, `${p} token route allows an empty scope`).toMatch(/empty_scope/);
+      expect(src, `${p} token route skips ownership`).toMatch(/scopeIsOwned/);
+      // Absent card_ids (older client / reconnect) must not touch stored scope.
+      expect(src, `${p} token route wipes scope when card_ids absent`).toMatch(/card_ids !== undefined/);
+    }
+  });
+
+  it("the Zapier save accepts the choice with the same guards", () => {
+    const src = stripComments(read("src/app/api/settings/zapier/route.ts"));
+    expect(src).toMatch(/zapier_card_ids/);
+    expect(src).toMatch(/empty_scope/);
+    expect(src).toMatch(/scopeIsOwned/);
+    expect(src).toMatch(/zapier_card_ids !== undefined/);
+  });
+
+  it("the scope-save API covers every CRM, Salesforce included", () => {
+    // The original bug: Salesforce shipped without joining this list, so its
+    // "Sending from … Change" Save was rejected as bad_target.
+    const src = stripComments(read("src/app/api/settings/crm-scope/route.ts"));
+    expect(src).toMatch(/"google", "hubspot", "pipedrive", "highlevel", "salesforce"/);
+  });
+});
+
+describe("the UI actually makes the user choose", () => {
+  it("the chooser starts UNSET and gates the action until a real choice", () => {
+    const src = read("src/components/CardScopePicker.tsx");
+    expect(src).toMatch(/"unset" \| "all" \| "some"/);
+    // Ready = all, or some with at least one card — never ready while unset.
+    expect(src).toMatch(/v\.mode === "all" \|\| \(v\.mode === "some" && v\.ids\.length > 0\)/);
+  });
+
+  it("both integration card variants and Zapier run the pre-connect step", () => {
+    const settings = read("src/components/IntegrationsSettings.tsx");
+    expect(settings.match(/scopeChoiceReady/g)!.length).toBeGreaterThanOrEqual(2); // OAuth + token variants
+    expect(settings).toMatch(/cards=\$\{v === null \? "all" : v\.join\(","\)\}/); // OAuth carries it in the URL
+    const zapier = read("src/components/ZapierSettings.tsx");
+    expect(zapier).toMatch(/scopeChoiceReady/);
+    expect(zapier).toMatch(/zapier_card_ids: scopeChoiceValue\(choice\)/);
+  });
+});

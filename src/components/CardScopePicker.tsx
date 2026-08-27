@@ -18,6 +18,99 @@ export type ScopeCard = { id: string; username: string; name?: string | null; la
 /** null = all cards. */
 export type Scope = string[] | null;
 
+/**
+ * The all-cards / only-these choice as a controlled block.
+ *
+ * `mode: "unset"` is the load-bearing state: the pre-connect step must not
+ * default to "all cards" (owner order 2026-08-27 — connecting is not allowed
+ * until the user has actively chosen), so both radios start unchecked and the
+ * caller keeps its Connect/Save button disabled until `scopeChoiceReady`.
+ */
+export type ScopeChoice = { mode: "unset" | "all" | "some"; ids: string[] };
+
+export function scopeChoiceReady(v: ScopeChoice): boolean {
+  return v.mode === "all" || (v.mode === "some" && v.ids.length > 0);
+}
+
+/** The wire value for a ready choice: null = all cards, list = only these. */
+export function scopeChoiceValue(v: ScopeChoice): string[] | null {
+  return v.mode === "all" ? null : v.ids;
+}
+
+export function ScopeChooser({
+  group,
+  targetName,
+  cards,
+  value,
+  onChange,
+}: {
+  /** Unique radio-group name (two open choosers must not steal each other's dots). */
+  group: string;
+  targetName: string;
+  cards: ScopeCard[];
+  value: ScopeChoice;
+  onChange: (next: ScopeChoice) => void;
+}) {
+  const toggle = (id: string) =>
+    onChange({
+      mode: "some",
+      ids: value.ids.includes(id) ? value.ids.filter((x) => x !== id) : [...value.ids, id],
+    });
+
+  return (
+    <div className="space-y-2">
+      <p className="text-slate-500 text-xs">Which cards send contacts to {targetName}?</p>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="radio"
+          name={group}
+          checked={value.mode === "all"}
+          onChange={() => onChange({ mode: "all", ids: value.ids })}
+          className="accent-[#1D4ED8]"
+        />
+        <span className="text-slate-900 text-sm">All cards</span>
+        <span className="text-slate-400 text-[11px]">including any you add later</span>
+      </label>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="radio"
+          name={group}
+          checked={value.mode === "some"}
+          onChange={() => onChange({ mode: "some", ids: value.ids })}
+          className="accent-[#1D4ED8]"
+        />
+        <span className="text-slate-900 text-sm">Only these cards</span>
+      </label>
+
+      {value.mode === "some" && (
+        <div className="pl-6 space-y-1.5">
+          {cards.map((c) => (
+            // items-start + wrapping text, NOT truncate — see the git history of
+            // this file: truncate clipped indistinguishable names at 390px.
+            <label key={c.id} className="flex items-start gap-2 cursor-pointer py-0.5">
+              <input
+                type="checkbox"
+                checked={value.ids.includes(c.id)}
+                onChange={() => toggle(c.id)}
+                className="accent-[#1D4ED8] mt-1 shrink-0"
+              />
+              <span className="text-slate-900 text-sm min-w-0 break-words">
+                {cardTitle(c)}{" "}
+                <span className="text-slate-400 text-[11px]">/{c.username}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-slate-400 text-[11px] leading-snug pt-1">
+            A card you create later won&apos;t send here until you add it.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function cardTitle(c: ScopeCard): string {
   return (c.label || c.name || c.username || "").trim() || c.username;
 }
@@ -67,10 +160,6 @@ export default function CardScopePicker({
     setOpen(true);
   }
 
-  function toggle(id: string) {
-    setDraftIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
   async function save() {
     setError(null);
     const next: Scope = draftAll ? null : draftIds;
@@ -117,63 +206,13 @@ export default function CardScopePicker({
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-slate-500 text-xs">Which cards send contacts to {targetName}?</p>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={`scope-${target}`}
-              checked={draftAll}
-              onChange={() => setDraftAll(true)}
-              className="accent-[#1D4ED8]"
-            />
-            <span className="text-slate-900 text-sm">All cards</span>
-            <span className="text-slate-400 text-[11px]">including any you add later</span>
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={`scope-${target}`}
-              checked={!draftAll}
-              onChange={() => setDraftAll(false)}
-              className="accent-[#1D4ED8]"
-            />
-            <span className="text-slate-900 text-sm">Only these cards</span>
-          </label>
-
-          {!draftAll && (
-            <div className="pl-6 space-y-1.5">
-              {cards.map((c) => (
-                // items-start + wrapping text, NOT truncate. This is the list
-                // you pick between, so a clipped name is the one thing that
-                // can't happen — two cards called "Malve Capital — …" would be
-                // indistinguishable on a phone. Measured: `truncate` clipped
-                // both the name and the handle at 390px and 320px.
-                // min-w-0 is required for the wrap: a flex item defaults to
-                // min-width:auto, so without it the text box grows to fit
-                // instead of wrapping.
-                <label key={c.id} className="flex items-start gap-2 cursor-pointer py-0.5">
-                  <input
-                    type="checkbox"
-                    checked={draftIds.includes(c.id)}
-                    onChange={() => toggle(c.id)}
-                    className="accent-[#1D4ED8] mt-1 shrink-0"
-                  />
-                  <span className="text-slate-900 text-sm min-w-0 break-words">
-                    {cardTitle(c)}{" "}
-                    <span className="text-slate-400 text-[11px]">/{c.username}</span>
-                  </span>
-                </label>
-              ))}
-              {/* The one genuinely surprising consequence, said out loud rather
-                  than discovered weeks later when a new card's leads are
-                  missing from the CRM. */}
-              <p className="text-slate-400 text-[11px] leading-snug pt-1">
-                A card you create later won&apos;t send here until you add it.
-              </p>
-            </div>
-          )}
+          <ScopeChooser
+            group={`scope-${target}`}
+            targetName={targetName}
+            cards={cards}
+            value={{ mode: draftAll ? "all" : "some", ids: draftIds }}
+            onChange={(v) => { setDraftAll(v.mode === "all"); setDraftIds(v.ids); }}
+          />
 
           {error && <p className="text-red-500 text-xs">{error}</p>}
 

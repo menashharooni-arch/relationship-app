@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { encryptToken } from "@/lib/token-crypto";
+import { sanitizeCardScope } from "@/lib/crm-scope";
+import { scopeIsOwned } from "@/lib/crm-scope-server";
 import { verifyHighLevelLocation } from "@/lib/sync-highlevel";
 
 // HighLevel connects with a Private Integration token the user creates in their
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "HighLevel is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
-  const { token, extra } = await request.json() as { token?: string; extra?: string };
+  const { token, extra, card_ids } = await request.json() as { token?: string; extra?: string; card_ids?: unknown };
   const trimmed = token?.trim();
   const locationId = extra?.trim();
   if (!trimmed || !locationId) {
@@ -43,6 +45,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+
+  // Pre-connect card scope. Sent by the settings form alongside the token;
+  // absent means the caller made no choice (reconnect or older client), and
+  // the row's existing scope must be left alone. An explicit empty list would
+  // be a connection that silently sends nothing — reject like the scope API.
+  let scopeUpdate: { card_ids?: string[] | null } = {};
+  if (card_ids !== undefined) {
+    const scope = card_ids === null ? null : sanitizeCardScope(card_ids);
+    if (scope !== null && scope.length === 0) {
+      return NextResponse.json({ error: "empty_scope", message: "Pick at least one card, or choose All cards." }, { status: 400 });
+    }
+    if (!(await scopeIsOwned(admin, user.id, scope))) {
+      return NextResponse.json({ error: "unknown_card", message: "One of those cards isn't yours." }, { status: 400 });
+    }
+    scopeUpdate = { card_ids: scope };
+  }
+
   const { error } = await admin.from("integrations").upsert({
     user_id: user.id,
     provider: "highlevel",
@@ -52,6 +71,7 @@ export async function POST(request: NextRequest) {
     expires_at: null,
     metadata: { location_id: locationId },
     updated_at: new Date().toISOString(),
+    ...scopeUpdate,
     sync_error: null, // upsert only touches listed columns — clear explicitly on reconnect
   }, { onConflict: "user_id,provider" });
 
