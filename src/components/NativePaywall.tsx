@@ -88,7 +88,7 @@ function useIapAvailable(): boolean {
 
 export default function IapSubscribeButton({
   className = "",
-  label = "Subscribe to Pro",
+  label = "Upgrade to Pro",
   onPurchased,
 }: {
   className?: string;
@@ -104,12 +104,19 @@ export default function IapSubscribeButton({
 
   return (
     <>
+      {/* Compact aurora pill: gradient, spark, a slow glisten sweep and a soft
+          blue glow. Inline by default (sits under the gate copy without
+          stretching across the card); callers that want a full-width block
+          pass `!w-full` and their own colors. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`w-full rounded-full bg-blue-600 py-2.5 text-xs font-bold text-white transition-[background-color,transform] duration-150 hover:bg-blue-500 active:scale-[0.98] ${className}`}
+        className={`relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-full px-4 py-2 text-[13px] font-bold text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
+        style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
-        {label}
+        <Spark className="h-3.5 w-3.5 text-white/95" />
+        <span className="relative z-[4]">{label}</span>
+        <span className="rd-glisten-sweep" aria-hidden="true" />
       </button>
       {open && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
     </>

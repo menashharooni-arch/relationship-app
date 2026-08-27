@@ -160,7 +160,12 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
             So: a real In-App Purchase paywall. Renders nothing on web, when
             signed out, or in a build without StoreKit products (see
             NativePaywall's fail-closed contract). */}
-        {tier === "pro" && <IapSubscribeButton className="mt-3.5 !py-3 !text-[13px]" label="Get Pro — start free" />}
+        {tier === "pro" && (
+          <div className="mt-3 flex items-center justify-end gap-3 pl-11">
+            <span className="text-[11px] text-gray-500">Start free</span>
+            <IapSubscribeButton />
+          </div>
+        )}
       </div>
     </div>
   );
