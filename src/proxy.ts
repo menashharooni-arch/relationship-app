@@ -106,9 +106,11 @@ export async function proxy(request: NextRequest) {
     ((request.headers.get("user-agent") ?? "").includes("SwiftCardApp") ||
       request.cookies.get("sc_shell")?.value === "1")
   ) {
-    // When auth is unreachable, route by cookie PRESENCE: a device with a
-    // session cookie goes to /dashboard (its page will render or show the
-    // retry screen), one without goes to /login as usual.
+    // When auth is unreachable, route by cookie PRESENCE — a UX-only choice
+    // of redirect TARGET, never an auth decision: both destinations verify
+    // the session themselves, so a spoofed cookie just lands on a dashboard
+    // that bounces it to /login. Routing cookie-holders to /dashboard keeps a
+    // real user's cold open out of the login screen during a brownout.
     const looksSignedIn = userId !== null ||
       (authUnavailable && request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token")));
     return redirectWithAuthCookies(new URL(looksSignedIn ? "/dashboard" : "/login", request.url));
@@ -130,6 +132,13 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname === "/cards/new" ||
     request.nextUrl.pathname.startsWith("/cards/new/");
 
+  // FAIL-OPEN BY DESIGN when authUnavailable: this wall is a UX pre-filter,
+  // not the security boundary. Every protected page (and the office admin
+  // guard) performs its own server-side session check — pinned exhaustively
+  // in tests/proxy-auth-hop.test.ts — so a request that passes here during an
+  // auth outage still renders nothing without a valid session. Failing CLOSED
+  // instead would hard-bounce every signed-in user to /login for the length
+  // of any Supabase brownout.
   if (!userId && !authUnavailable && isProtected && !isGuestCardBuilder) {
     return redirectWithAuthCookies(new URL("/login", request.url));
   }

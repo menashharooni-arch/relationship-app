@@ -71,11 +71,22 @@ describe("the guarantees that make local verification acceptable", () => {
     // The proxy is a fast pre-filter, not the only gate. Every one of these
     // validates server-side, which is what catches a hard-deleted account
     // inside the access token's remaining lifetime.
+    // EVERY protected surface, not a sample: the proxy deliberately fails
+    // OPEN when the auth service is unreachable (2026-08-27 brownout — an
+    // unbounded proxy meant a black screen for everyone). That is only safe
+    // because each of these performs its own server-side check, so a request
+    // that slips past the proxy still cannot read anything without a valid
+    // session. Removing a page's own check silently converts the fail-open
+    // into a real bypass — which is exactly what this pin exists to stop.
     for (const page of [
       "src/app/dashboard/page.tsx",
       "src/app/contacts/page.tsx",
       "src/app/share/page.tsx",
       "src/app/settings/flows/page.tsx",
+      "src/app/onboarding/page.tsx",
+      "src/app/profile/page.tsx",
+      "src/app/cards/[id]/edit/page.tsx",
+      "src/lib/office-admin-guard.ts", // every /office/admin/* page runs through it
     ]) {
       expect(read(page), `${page} relies on the proxy alone`).toMatch(/auth\.getUser\(\)/);
     }
