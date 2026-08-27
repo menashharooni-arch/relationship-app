@@ -127,7 +127,10 @@ describe("the purchase path is In-App Purchase, wired through PlanNotice", () =>
   it("purchases identify as the Supabase uid before any purchase", () => {
     // The RevenueCat app_user_id is what maps a purchase to a profile row in
     // the webhook; an anonymous purchase would grant Pro to nobody.
-    expect(paywall).toMatch(/getUser\(\)/);
-    expect(paywall).toMatch(/ensureIapConfigured\(user\.id\)/);
+    // Read from the LOCAL session (no network round trip per mount) — the
+    // uid is still the Supabase user id, which is all the webhook needs.
+    expect(paywall).toMatch(/getSession\(\)/);
+    expect(paywall).toMatch(/session\?\.user\?\.id/);
+    expect(paywall).toMatch(/ensureIapConfigured\(uid\)/);
   });
 });

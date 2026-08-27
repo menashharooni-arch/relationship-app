@@ -70,7 +70,17 @@ function reportIapFailure(stage: string, e: unknown): void {
  * implemented on ios`. That exact error hid the paywall in the first
  * simulator test.
  */
+let pluginPromise: Promise<{ P: PurchasesPlugin } | null> | null = null;
 async function plugin(): Promise<{ P: PurchasesPlugin } | null> {
+  // Memoized: the dynamic import + env check run once per page, not once per
+  // button mount — several gates on one screen used to race the same import.
+  if (pluginPromise) return pluginPromise;
+  pluginPromise = loadPlugin();
+  const w = await pluginPromise;
+  if (!w) pluginPromise = null; // let a later mount retry after a transient failure
+  return w;
+}
+async function loadPlugin(): Promise<{ P: PurchasesPlugin } | null> {
   if (!detectNativeApp()) return null;
   if (!process.env.NEXT_PUBLIC_RC_APPLE_API_KEY) {
     reportIapFailure("env", "NEXT_PUBLIC_RC_APPLE_API_KEY missing from bundle");
@@ -122,13 +132,45 @@ export async function canOfferIap(): Promise<boolean> {
  * Returns [] when anything is missing, and the paywall then does not render a
  * purchase UI at all.
  */
+type RawPackage = Awaited<ReturnType<PurchasesPlugin["getOfferings"]>>["current"] extends infer C
+  ? C extends { availablePackages: infer A } ? (A extends (infer R)[] ? R : never) : never
+  : never;
+
+// One StoreKit/RevenueCat round trip per page. The Subscribe button calls
+// prefetchIapPackages() as soon as it knows it can sell, so by the time the
+// sheet opens the prices are already here — no "Loading plans…" beat. A
+// failed or empty fetch is NOT cached, so the next open retries.
+let offeringsPromise: Promise<RawPackage[]> | null = null;
+async function rawPackages(): Promise<RawPackage[]> {
+  if (offeringsPromise) return offeringsPromise;
+  const w = await plugin();
+  if (!w) return [];
+  const p = (async () => {
+    try {
+      const { current } = await w.P.getOfferings();
+      return (current?.availablePackages ?? []) as RawPackage[];
+    } catch (e) {
+      reportIapFailure("offerings", e);
+      return [];
+    }
+  })();
+  offeringsPromise = p;
+  const out = await p;
+  if (out.length === 0) offeringsPromise = null;
+  return out;
+}
+
+/** Warm the offerings cache; safe to call any number of times. */
+export function prefetchIapPackages(): void {
+  void rawPackages().catch(() => {});
+}
+
 export async function getIapPackages(): Promise<IapPackage[]> {
   const w = await plugin();
   if (!w) return [];
   try {
-    const { current } = await w.P.getOfferings();
     const out: IapPackage[] = [];
-    for (const pkg of current?.availablePackages ?? []) {
+    for (const pkg of await rawPackages()) {
       const period =
         pkg.packageType === "ANNUAL" ? "annual" :
         pkg.packageType === "MONTHLY" ? "monthly" : null;
@@ -162,8 +204,8 @@ export async function purchaseIap(identifier: string): Promise<PurchaseResult> {
   const w = await plugin();
   if (!w) return "failed";
   try {
-    const { current } = await w.P.getOfferings();
-    const pkg = (current?.availablePackages ?? []).find((x) => x.identifier === identifier);
+    // Reuses the cached offerings — the sheet already fetched them.
+    const pkg = (await rawPackages()).find((x) => x.identifier === identifier);
     if (!pkg) return "failed";
     const res = await w.P.purchasePackage({ aPackage: pkg });
     const active = !!res.customerInfo?.entitlements?.active?.[IAP_ENTITLEMENT];
