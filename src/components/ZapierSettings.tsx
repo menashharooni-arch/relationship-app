@@ -138,8 +138,10 @@ export default function ZapierSettings({
   "name": "Jane Smith",
   "email": "jane@example.com",
   "phone": "555-0100",
+  "company": "Acme Inc",
   "message": "Loved meeting you!",
   "location": "New York, US",
+  "source": "QR code",
   "card_owner": "your-username",
   "tags": [],
   "created_at": "2026-06-23T..."
