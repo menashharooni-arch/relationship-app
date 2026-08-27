@@ -7,6 +7,7 @@ import {
   canOfferIap,
   ensureIapConfigured,
   getIapPackages,
+  prefetchIapPackages,
   purchaseIap,
   restoreIap,
   type IapPackage,
@@ -48,26 +49,39 @@ const PERKS = [
  * network, ASC products not yet approved) the subscribe button renders
  * nothing. A paywall with no live products would be a lie in a modal.
  */
+// Resolved once per page: after the first button has done the work, every
+// later mount (another gate, a route change) renders instantly instead of
+// re-running the session read + SDK configure.
+let readyOnce: Promise<boolean> | null = null;
+async function resolveReady(): Promise<boolean> {
+  if (!(await canOfferIap())) return false;
+  // The RevenueCat identity must be the Supabase uid BEFORE any purchase —
+  // it is how the webhook maps the sub to a profile. Read from the LOCAL
+  // session (no network) — getUser() cost a server round trip on every
+  // mount, which is why the button used to pop in late.
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const { data: { session } } = await supabase.auth.getSession();
+  const uid = session?.user?.id;
+  if (!uid) return false; // signed-out surfaces never sell
+  const ok = await ensureIapConfigured(uid);
+  if (ok) prefetchIapPackages(); // prices ready before the tap
+  return ok;
+}
+
 export default function IapSubscribeButton({ className = "" }: { className?: string }) {
   const [available, setAvailable] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      if (!(await canOfferIap())) return;
-      // The RevenueCat identity must be the Supabase uid BEFORE any purchase —
-      // it is how the webhook maps the sub to a profile. Resolved here rather
-      // than prop-drilled through every PlanGate call site.
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return; // signed-out surfaces never sell
-      const ok = await ensureIapConfigured(user.id);
+    if (!readyOnce) readyOnce = resolveReady();
+    readyOnce.then((ok) => {
+      if (!ok) readyOnce = null; // retry on the next mount (e.g. after sign-in)
       if (!cancelled) setAvailable(ok);
-    })();
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -78,7 +92,7 @@ export default function IapSubscribeButton({ className = "" }: { className?: str
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`w-full rounded-full bg-blue-600 py-2.5 text-xs font-bold text-white transition-colors hover:bg-blue-500 ${className}`}
+        className={`w-full rounded-full bg-blue-600 py-2.5 text-xs font-bold text-white transition-[background-color,transform] duration-150 hover:bg-blue-500 active:scale-[0.98] ${className}`}
       >
         Subscribe to Pro
       </button>
@@ -224,7 +238,7 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={buy}
                 disabled={busy !== null || !selected}
-                className="mt-4 w-full rounded-full bg-blue-600 py-3.5 text-sm font-bold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+                className="mt-4 w-full rounded-full bg-blue-600 py-3.5 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-blue-500 active:scale-[0.98] disabled:opacity-60"
               >
                 {busy === "purchase" ? "Purchasing…" : hasTrial ? "Start free trial" : "Subscribe"}
               </button>
