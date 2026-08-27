@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isPaidPlan } from "@/lib/plan";
 import { signState } from "@/lib/oauth-state";
+import { parseCardsParam, scopeIsOwned } from "@/lib/crm-scope-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
@@ -17,6 +19,17 @@ export async function GET(request: Request) {
   const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}/pricing`);
 
+  // Pre-connect card scope. The settings UI makes the user choose all-cards
+  // vs only-these BEFORE the OAuth redirect; the choice rides this cookie to
+  // the callback, which stores it on the integrations row it creates. Junk or
+  // a card that isn't theirs bounces back to Settings rather than connecting
+  // with a scope the user didn't pick.
+  const cardsParam = new URL(request.url).searchParams.get("cards");
+  const scope = parseCardsParam(cardsParam);
+  if (scope === undefined || !(await scopeIsOwned(getAdminSupabase(), user.id, scope))) {
+    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=google&status=error`);
+  }
+
   const state = signState(user.id);
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
@@ -29,6 +42,14 @@ export async function GET(request: Request) {
   });
 
   const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  // Cookie only when a choice was SENT. A reconnect link carries no `cards`
+  // param, and the callback must then leave the row's existing scope alone —
+  // an absent cookie is how it knows not to touch it.
+  if (cardsParam !== null) {
+    res.cookies.set("crm_scope", scope === null ? "all" : scope.join(","), { httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/" });
+  } else {
+    res.cookies.set("crm_scope", "", { maxAge: 0, path: "/" });
+  }
 
   // `?native=1` — started from the iOS shell, which runs this in an in-app
   // browser because accounts.google.com is not in capacitor.config's

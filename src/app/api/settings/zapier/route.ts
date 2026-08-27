@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
+import { sanitizeCardScope } from "@/lib/crm-scope";
+import { scopeIsOwned } from "@/lib/crm-scope-server";
 
 // PATCH — save webhook URL
 export async function PATCH(request: NextRequest) {
@@ -18,7 +20,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Zapier is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
   }
 
-  const { zapier_webhook_url } = await request.json() as { zapier_webhook_url?: string };
+  const { zapier_webhook_url, zapier_card_ids } = await request.json() as { zapier_webhook_url?: string; zapier_card_ids?: unknown };
 
   // Only accept a real Zapier catch-hook URL (or clearing it). This stops an
   // arbitrary internal URL from being stored and later POSTed lead PII (SSRF).
@@ -29,9 +31,24 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
+  // Optional pre-connect card scope, same vocabulary as the CRM rows: absent =
+  // don't touch, null = all cards, list = only these. Empty would be a webhook
+  // that looks connected and never fires — reject it like the scope API does.
+  let scopeUpdate: { zapier_card_ids?: string[] | null } = {};
+  if (zapier_card_ids !== undefined) {
+    const scope = zapier_card_ids === null ? null : sanitizeCardScope(zapier_card_ids);
+    if (scope !== null && scope.length === 0) {
+      return NextResponse.json({ error: "empty_scope", message: "Pick at least one card, or choose All cards." }, { status: 400 });
+    }
+    if (!(await scopeIsOwned(admin, user.id, scope))) {
+      return NextResponse.json({ error: "unknown_card", message: "One of those cards isn't yours." }, { status: 400 });
+    }
+    scopeUpdate = { zapier_card_ids: scope };
+  }
+
   const { error } = await admin
     .from("profiles")
-    .update({ zapier_webhook_url: zapier_webhook_url || null })
+    .update({ zapier_webhook_url: zapier_webhook_url || null, ...scopeUpdate })
     .eq("id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

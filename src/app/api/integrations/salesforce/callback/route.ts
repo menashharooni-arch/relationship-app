@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
 import { verifyState } from "@/lib/oauth-state";
+import { parseCardsParam } from "@/lib/crm-scope-server";
 import { isSalesforceInstanceUrl } from "@/lib/sync-salesforce";
 
 export const runtime = "nodejs";
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
       : NextResponse.redirect(`${APP_URL}/settings/flows?integration=salesforce&status=${status}`);
     res.cookies.set("sf_native", "", { maxAge: 0, path: "/" });
     res.cookies.set("sf_pkce", "", { maxAge: 0, path: "/" });
+    res.cookies.set("crm_scope", "", { maxAge: 0, path: "/" });
     return res;
   };
 
@@ -36,6 +38,15 @@ export async function GET(request: NextRequest) {
 
   const userId = verifyState(state);
   if (!userId) return DONE("error");
+
+  // The card scope chosen before the redirect (see the connect leg). Ownership
+  // was validated there; a tampered cookie can only mis-scope the tamperer's
+  // own connection, and an unparseable one falls back to all cards. NO cookie
+  // means a reconnect that never showed the chooser — leave the row's existing
+  // scope untouched (upsert only writes listed columns).
+  const scopeCookie = request.cookies.get("crm_scope")?.value;
+  const scopeUpdate = scopeCookie === undefined ? {} : { card_ids: parseCardsParam(scopeCookie) ?? null };
+
 
   // PKCE verifier set by the connect leg — required by External Client Apps.
   const codeVerifier = request.cookies.get("sf_pkce")?.value;
@@ -80,6 +91,7 @@ export async function GET(request: NextRequest) {
       expires_at: Date.now() + 90 * 60 * 1000,
       metadata: { instance_url: tokens.instance_url },
       updated_at: new Date().toISOString(),
+      ...scopeUpdate,
       sync_error: null,
     }, { onConflict: "user_id,provider" });
     if (dbErr) throw dbErr;

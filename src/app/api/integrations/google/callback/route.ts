@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
 import { verifyState } from "@/lib/oauth-state";
+import { parseCardsParam } from "@/lib/crm-scope-server";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     // Cleared on EVERY exit: a stale g_native would send a later WEB connect
     // into a swiftcard:// redirect the browser cannot follow.
     res.cookies.set("g_native", "", { maxAge: 0, path: "/" });
+    res.cookies.set("crm_scope", "", { maxAge: 0, path: "/" });
     return res;
   };
 
@@ -47,6 +49,15 @@ export async function GET(request: NextRequest) {
   if (!userId) {
     return DONE("error");
   }
+
+  // The card scope chosen before the redirect (see the connect leg). Ownership
+  // was validated there; a tampered cookie can only mis-scope the tamperer's
+  // own connection, and an unparseable one falls back to all cards. NO cookie
+  // means a reconnect that never showed the chooser — leave the row's existing
+  // scope untouched (upsert only writes listed columns).
+  const scopeCookie = request.cookies.get("crm_scope")?.value;
+  const scopeUpdate = scopeCookie === undefined ? {} : { card_ids: parseCardsParam(scopeCookie) ?? null };
+
 
   // Exchange code for tokens
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -80,6 +91,7 @@ export async function GET(request: NextRequest) {
       refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
       expires_at: Date.now() + tokens.expires_in * 1000,
       updated_at: new Date().toISOString(),
+      ...scopeUpdate,
       sync_error: null, // upsert only touches listed columns — must clear explicitly on reconnect
     }, { onConflict: "user_id,provider" });
     if (error) throw error;

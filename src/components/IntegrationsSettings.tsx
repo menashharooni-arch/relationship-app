@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import CardScopePicker, { type ScopeCard, type Scope } from "@/components/CardScopePicker";
+import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 import { PlanGate, PlanBadge } from "@/components/PlanGate";
 import { detectNativeApp } from "@/lib/platform";
 
@@ -83,6 +83,7 @@ function IntegrationCard({
   flashStatus,
   proGated = true,
   scopeSlot,
+  cards,
 }: {
   name: string;
   description: string;
@@ -100,11 +101,28 @@ function IntegrationCard({
       data props so this component stays presentational and both card variants
       share one picker. */
   scopeSlot?: React.ReactNode;
+  /** The account's cards, for the REQUIRED pre-connect scope choice. */
+  cards?: ScopeCard[];
 }) {
   // Treat a non-Pro-gated card as always "unlocked" regardless of plan.
   const unlocked = isPro || !proGated;
   const [connected, setConnected] = useState(initialConnected);
   const [disconnecting, setDisconnecting] = useState(false);
+  // Pre-connect scope. Connecting is NOT allowed until the user has actively
+  // chosen all-cards vs only-these (owner order 2026-08-27) — so Connect first
+  // opens this chooser, and Continue stays disabled while mode is "unset".
+  // Single-card accounts skip it: there is nothing to choose.
+  // Only CRM destinations (the proGated cards) sync leads — LinkedIn photo
+  // import has no scope to choose.
+  const askScope = (cards?.length ?? 0) > 1 && proGated;
+  const [choosing, setChoosing] = useState(false);
+  const [choice, setChoice] = useState<ScopeChoice>({ mode: "unset", ids: [] });
+
+  function connectHref(): string {
+    const v = scopeChoiceValue(choice);
+    const sep = connectUrl.includes("?") ? "&" : "?";
+    return `${connectUrl}${sep}cards=${v === null ? "all" : v.join(",")}`;
+  }
 
   async function disconnect() {
     setDisconnecting(true);
@@ -157,7 +175,11 @@ function IntegrationCard({
           ) : (
             <a
               href={connectUrl}
-              onClick={(e) => { e.preventDefault(); void openConnect(connectUrl); }}
+              onClick={(e) => {
+                e.preventDefault();
+                if (askScope) { setChoosing((v) => !v); return; }
+                void openConnect(connectUrl);
+              }}
               className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-3 py-1.5 rounded-full transition-colors shrink-0"
             >
               Connect
@@ -176,6 +198,32 @@ function IntegrationCard({
 
       {needsReconnect && (
         <p className="text-xs text-amber-700 mt-2">{syncError}</p>
+      )}
+      {unlocked && !connected && choosing && (
+        <div className="mt-3 pt-3 border-t border-[#D4C8B8]/60 space-y-2">
+          <ScopeChooser
+            group={`preconnect-${connectUrl}`}
+            targetName={name}
+            cards={cards ?? []}
+            value={choice}
+            onChange={setChoice}
+          />
+          <div className="flex items-center gap-3 pt-0.5">
+            <button
+              onClick={() => void openConnect(connectHref())}
+              disabled={!scopeChoiceReady(choice)}
+              className="bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold px-4 py-1.5 rounded-full text-xs transition-colors"
+            >
+              Continue to {name}
+            </button>
+            <button
+              onClick={() => setChoosing(false)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
       {/* Only once there's a live connection: choosing which cards feed a
           destination that doesn't exist yet would be configuring nothing. */}
@@ -236,6 +284,7 @@ function TokenCard({
   isPro,
   flashStatus,
   scopeSlot,
+  cards,
 }: {
   provider: string;
   title: string;
@@ -267,6 +316,8 @@ function TokenCard({
   flashStatus?: string | null;
   /** Per-card scope control — see IntegrationCard's copy of this prop. */
   scopeSlot?: React.ReactNode;
+  /** The account's cards, for the REQUIRED pre-connect scope choice. */
+  cards?: ScopeCard[];
 }) {
   const [connected, setConnected] = useState(initialConnected);
   const [showForm, setShowForm] = useState(!initialConnected);
@@ -274,12 +325,18 @@ function TokenCard({
   const [extraValue, setExtraValue] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "disconnecting">("idle");
   const [error, setError] = useState<string | null>(null);
+  // Pre-connect scope (owner order 2026-08-27): a first-time connect on a
+  // multi-card account must actively choose all-cards vs only-these before
+  // Save unlocks. Reconnects (already connected) keep their stored scope and
+  // don't re-ask.
+  const askScope = (cards?.length ?? 0) > 1 && !initialConnected;
+  const [choice, setChoice] = useState<ScopeChoice>({ mode: "unset", ids: [] });
 
   const needsReconnect = connected && !!syncError;
 
   // Both values are required when a provider needs a second one — saving with
   // only the token would store a connection that fails on every lead.
-  const canSave = !!token.trim() && (!extra || !!extraValue.trim());
+  const canSave = !!token.trim() && (!extra || !!extraValue.trim()) && (!askScope || scopeChoiceReady(choice));
 
   async function save() {
     if (!canSave) return;
@@ -289,7 +346,12 @@ function TokenCard({
       const res = await fetch(saveEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, ...(extra ? { extra: extraValue } : {}) }),
+        body: JSON.stringify({
+          token,
+          ...(extra ? { extra: extraValue } : {}),
+          // Only a first-time connect sends a scope — see askScope above.
+          ...(askScope ? { card_ids: scopeChoiceValue(choice) } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -401,6 +463,17 @@ function TokenCard({
               />
             </>
           )}
+          {askScope && !connected && (
+            <div className="pt-2 pb-1">
+              <ScopeChooser
+                group={`preconnect-${provider}`}
+                targetName={title}
+                cards={cards ?? []}
+                value={choice}
+                onChange={setChoice}
+              />
+            </div>
+          )}
           <p className="text-slate-400 text-[11px] leading-relaxed">{help}</p>
           {connected && (
             <button onClick={() => { setShowForm(false); setError(null); }} className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors">
@@ -492,6 +565,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "salesforce" ? flashStatus : null}
         scopeSlot={scopeFor("salesforce", "Salesforce")}
+        cards={cards}
       />
 
       <TokenCard
@@ -517,6 +591,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "highlevel" ? flashStatus : null}
         scopeSlot={scopeFor("highlevel", "GoHighLevel")}
+        cards={cards}
       />
 
       <TokenCard
@@ -540,6 +615,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "pipedrive" ? flashStatus : null}
         scopeSlot={scopeFor("pipedrive", "Pipedrive")}
+        cards={cards}
       />
 
       <TokenCard
@@ -562,6 +638,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "hubspot" ? flashStatus : null}
         scopeSlot={scopeFor("hubspot", "HubSpot")}
+        cards={cards}
       />
 
       <IntegrationCard
@@ -582,6 +659,7 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         isPro={isPro}
         flashStatus={flashIntegration === "google" ? flashStatus : null}
         scopeSlot={scopeFor("google", "Google Contacts")}
+        cards={cards}
       />
     </div>
   );

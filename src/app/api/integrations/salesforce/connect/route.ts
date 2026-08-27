@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isPaidPlan } from "@/lib/plan";
 import { signState } from "@/lib/oauth-state";
+import { parseCardsParam, scopeIsOwned } from "@/lib/crm-scope-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createHash, randomBytes } from "crypto";
 
 export const runtime = "nodejs";
@@ -27,6 +29,17 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${APP_URL}/settings/flows?integration=salesforce&status=unconfigured`);
   }
 
+  // Pre-connect card scope. The settings UI makes the user choose all-cards
+  // vs only-these BEFORE the OAuth redirect; the choice rides this cookie to
+  // the callback, which stores it on the integrations row it creates. Junk or
+  // a card that isn't theirs bounces back to Settings rather than connecting
+  // with a scope the user didn't pick.
+  const cardsParam = new URL(request.url).searchParams.get("cards");
+  const scope = parseCardsParam(cardsParam);
+  if (scope === undefined || !(await scopeIsOwned(getAdminSupabase(), user.id, scope))) {
+    return NextResponse.redirect(`${APP_URL}/settings/flows?integration=salesforce&status=error`);
+  }
+
   const state = signState(user.id);
   // PKCE (S256) — Salesforce External Client Apps require it and won't let
   // orgs turn it off. The verifier rides a short-lived httpOnly cookie to the
@@ -44,6 +57,14 @@ export async function GET(request: Request) {
   });
 
   const res = NextResponse.redirect(`https://login.salesforce.com/services/oauth2/authorize?${params}`);
+  // Cookie only when a choice was SENT. A reconnect link carries no `cards`
+  // param, and the callback must then leave the row's existing scope alone —
+  // an absent cookie is how it knows not to touch it.
+  if (cardsParam !== null) {
+    res.cookies.set("crm_scope", scope === null ? "all" : scope.join(","), { httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/" });
+  } else {
+    res.cookies.set("crm_scope", "", { maxAge: 0, path: "/" });
+  }
   res.cookies.set("sf_pkce", codeVerifier, { httpOnly: true, secure: true, sameSite: "lax", maxAge: 600, path: "/" });
   // Same native-shell return leg as Google — see google/connect.
   if (new URL(request.url).searchParams.get("native") === "1") {
