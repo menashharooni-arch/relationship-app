@@ -30,7 +30,10 @@ const config: CapacitorConfig = {
   appName: "SwiftCard",
   webDir: "capacitor-shell/www",
   server: {
-    url: "https://swiftcard.me",
+    // Open the product directly. "/" cost every cold open a server 307 (+ a
+    // client redirect on older builds) before a single byte of the dashboard
+    // arrived; the proxy still bounces a signed-out session to /login.
+    url: "https://swiftcard.me/dashboard",
     // Attack-surface note: provider hosts (accounts.google.com /
     // appleid.apple.com) are deliberately NOT allowed in-webview — native
     // OAuth runs in the system browser sheet (src/lib/native-auth.ts), and
@@ -69,6 +72,21 @@ const config: CapacitorConfig = {
     backgroundColor: "#030712",
   },
   plugins: {
+    // The cold-open screen. Without this the shell showed the bare webview
+    // canvas (a black rectangle) from launch until the remote dashboard
+    // painted — 1–3s of "is it broken?" on every open. Now the branded
+    // launch image stays up until the web app says it has painted
+    // (NativeAppBridge → SplashScreen.hide()), with a hard 4s auto-hide so a
+    // stalled network can never leave the splash stuck.
+    SplashScreen: {
+      launchShowDuration: 4000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 180,
+      backgroundColor: "#030712",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
     // ⚠️ `group` here is NOT an iOS App Group — the Preferences plugin only
     // uses it as a key prefix on UserDefaults.standard, which a widget
     // extension cannot read. The home-screen QR widget is fed by the
