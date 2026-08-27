@@ -75,3 +75,13 @@ describe("lead writes", () => {
     expect(calls.some((c) => c.init?.method === "POST" && c.url.includes("/sobjects/Lead"))).toBe(false);
   });
 });
+
+describe("refresh without expires_in", () => {
+  it("the shared refresh machinery never persists a NaN expiry", () => {
+    // Salesforce returns no expires_in on refresh. now + undefined*1000 is NaN
+    // -> null in Postgres -> the refresh branch is skipped forever and the
+    // connection dies at the org's session timeout. The fallback must exist.
+    const src = require("node:fs").readFileSync("src/lib/crm-connection.ts", "utf8");
+    expect(src).toMatch(/typeof tokens\.expires_in === "number" \? tokens\.expires_in : 90 \* 60/);
+  });
+});

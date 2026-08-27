@@ -238,13 +238,18 @@ export async function getCrmConnection(
 
     // Some providers rotate the refresh token on every use and some don't —
     // keep the existing one when none comes back, or the NEXT refresh fails.
-    const tokens = (await res.json()) as { access_token: string; refresh_token?: string; expires_in: number };
+    const tokens = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
+    // Salesforce returns NO expires_in on refresh (token life is the org's
+    // session policy). `now + undefined * 1000` is NaN, which Postgres stores
+    // as null — and a null expires_at skips this branch forever, so the token
+    // silently ages until every sync 401s. Fall back to the same conservative
+    // 90 minutes the Salesforce callback uses.
     await admin
       .from("integrations")
       .update({
         access_token: encryptToken(tokens.access_token),
         refresh_token: tokens.refresh_token ? encryptToken(tokens.refresh_token) : data.refresh_token,
-        expires_at: now + tokens.expires_in * 1000,
+        expires_at: now + (typeof tokens.expires_in === "number" ? tokens.expires_in : 90 * 60) * 1000,
         updated_at: new Date().toISOString(),
         sync_error: null,
       })
