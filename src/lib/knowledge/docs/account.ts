@@ -80,7 +80,7 @@ export const accountDocs = defineDocs([
       "Subscribing to Pro starts with a {trial.days}-day free trial if you've never subscribed before — a card is taken at checkout and billing starts when the trial ends. Office never includes a trial. If you already have a subscription, changing plan swaps the price on your existing subscription rather than creating a second one, so you are never double-charged, and the proration you're quoted is the amount you're charged.",
     commerce: true,
     nativeAnswer:
-      "You can subscribe to Pro right in the app: tap \"Subscribe to Pro\" on any locked feature, or go to Settings → Plan and billing. The subscription sheet shows the plans and prices before anything is confirmed, and it starts with a {trial.days}-day free trial if you've never subscribed before. Pro takes every Free limit off — unlimited cards and contacts, the AI business-card scanner, the custom card designer, automated follow-up sequences, full analytics, and the CRM integrations.",
+      "You can subscribe to Pro right in the app: tap \"Upgrade to Pro\" on any locked feature, or go to Settings → Plan and billing. The subscription sheet shows the plans and prices before anything is confirmed, and it starts with a {trial.days}-day free trial if you've never subscribed before. Pro takes every Free limit off — unlimited cards and contacts, the AI business-card scanner, the custom card designer, automated follow-up sequences, full analytics, and the CRM integrations.",
   },
   {
     id: "cancel-subscription",

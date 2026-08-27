@@ -190,7 +190,7 @@ export default function BillingManager() {
         ) : !nPaid ? (
           // Fail-closed: renders nothing when signed out or without StoreKit
           // products, leaving a plain informational panel.
-          <IapSubscribeButton className="mt-3" />
+          <IapSubscribeButton className="mt-3 !w-full !py-3" />
         ) : null}
       </div>
     );

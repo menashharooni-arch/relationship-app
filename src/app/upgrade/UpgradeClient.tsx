@@ -90,7 +90,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
             ))}
           </ul>
           {/* StoreKit-priced paywall; renders nothing while signed out. */}
-          <IapSubscribeButton className="mt-6 !py-3 !text-sm" />
+          <IapSubscribeButton className="mt-6 !w-full !py-3.5 !text-sm" />
         </div>
       </div>
     );
