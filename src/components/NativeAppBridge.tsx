@@ -34,6 +34,15 @@ export default function NativeAppBridge() {
     // on notched iPhones is untouched; inside the shell it lets content run
     // edge-to-edge with env(safe-area-inset-*) padding handling the notch.
     document.documentElement.classList.add("native-app");
+
+    // Drop the native splash the moment this page has painted (two frames in
+    // so the first paint is actually on screen). Any page — login, dashboard,
+    // a deep link — so the splash never outlives the content behind it.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      import("@capacitor/splash-screen")
+        .then(({ SplashScreen }) => SplashScreen.hide({ fadeOutDuration: 180 }))
+        .catch(() => { /* older shell without the plugin: auto-hide covers it */ });
+    }));
     try {
       const meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
       if (meta && !meta.content.includes("viewport-fit")) {
