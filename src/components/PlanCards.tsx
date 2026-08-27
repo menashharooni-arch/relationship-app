@@ -81,7 +81,7 @@ export default function PlanCards({
             <ul className="space-y-2.5 mb-6">
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
             </ul>
-            <IapSubscribeButton className="!w-full !py-3.5 !text-sm" label="Start free →" onPurchased={onIapPurchased} />
+            <IapSubscribeButton className="!w-full !py-3.5 !text-sm" label="Start free →" sublabel="" onPurchased={onIapPurchased} />
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />
         </div>
