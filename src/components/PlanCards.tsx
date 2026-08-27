@@ -7,6 +7,7 @@ import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import ProTrialPrice from "@/components/ProTrialPrice";
+import IapSubscribeButton from "@/components/NativePaywall";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -58,15 +59,44 @@ export default function PlanCards({
   // (/welcome, the card wizard's guest plan step) still has a way forward.
   // Web is byte-identical (native is false on SSR and the first paint).
   if (native) {
+    // IAP era (2026-08-27): the shell now creates accounts AND sells Pro, so
+    // the chooser shows both plans. Pro's price is never written here — the
+    // paywall sheet reads it from StoreKit (3.1.2), and IapSubscribeButton
+    // renders nothing when products are unavailable, leaving Free alone.
     return (
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={onFree}
-          disabled={disabled}
-          className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50"
-        >
-          {busy === "free" ? "Setting up…" : freeLabel}
-        </button>
+      <div className="max-w-md mx-auto flex flex-col gap-4">
+        {/* Pro — same aurora card as the web, black "Pro" heading (owner design) */}
+        <div className="relative rounded-[28px] p-6 overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 30px 70px -30px rgba(37,99,235,0.6)" }}>
+          <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
+          <div className="relative z-[2]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[1.35rem] font-extrabold tracking-tight text-black">Pro</p>
+              <span className="bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">RECOMMENDED</span>
+            </div>
+            <p className="text-white/85 text-sm mb-5">{PLAN_DESCRIPTIONS.pro}</p>
+            <ul className="space-y-2.5 mb-6">
+              {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
+            </ul>
+            <IapSubscribeButton className="!bg-white hover:!bg-white/90 !text-[#2450d8] !py-3.5 !text-sm shadow-lg" />
+          </div>
+          <span className="rd-glisten-sweep" aria-hidden="true" />
+        </div>
+
+        {/* Free */}
+        <div className="rounded-[28px] p-6 bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
+          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-1">Free <span className="text-slate-400">Forever</span></p>
+          <p className="text-slate-500 text-sm mb-4">{PLAN_DESCRIPTIONS.free}</p>
+          <ul className="space-y-2 mb-5">
+            {PLAN_FEATURES.free.slice(0, 4).map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
+          </ul>
+          <button
+            onClick={onFree}
+            disabled={disabled}
+            className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50"
+          >
+            {busy === "free" ? "Setting up…" : freeLabel}
+          </button>
+        </div>
       </div>
     );
   }

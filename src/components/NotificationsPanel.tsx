@@ -9,7 +9,7 @@ import { GateCopy } from "@/components/PlanGate";
 // The stored body is unchanged on web; only the in-app native render is swapped.
 const NATIVE_BODY_REMAP: Record<string, string> = {
   sequence_paused:
-    "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan on swiftcard.me — nothing was deleted.",
+    "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
 };
 
 type Notification = {

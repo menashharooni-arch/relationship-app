@@ -215,10 +215,10 @@ export default async function ContactsPage({
             ) : (
               <PlanGate
                 feature="csv-export"
-                nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan on swiftcard.me"
+                nativeCopy="Pro feature — Exporting contacts is only available on the Pro plan"
                 nativeContent={
                   <span
-                    title="Exporting contacts is only available on the Pro plan on swiftcard.me"
+                    title="Exporting contacts is only available on the Pro plan"
                     className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 border border-gray-700 px-3 py-1.5 rounded-lg shrink-0"
                   >
                     <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
@@ -250,11 +250,11 @@ export default async function ContactsPage({
         <div className="max-w-6xl mx-auto w-full px-6 pt-4">
           <PlanGate
             feature="leads-locked"
-            nativeCopy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan on swiftcard.me`}
+            nativeCopy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan`}
             nativeContent={
               <PlanNotice
                 tier="pro"
-                copy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan on swiftcard.me`}
+                copy={`Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan`}
               />
             }
           >

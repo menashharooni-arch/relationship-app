@@ -176,7 +176,7 @@ export default function BillingManager() {
           {appleBilled
             ? "Your subscription is billed through your Apple account."
             : nPaid
-              ? "Your subscription was purchased on swiftcard.me — you can manage it there anytime."
+              ? "Your subscription is billed by card, outside the App Store. It stays active here."
               : "Unlock everything in SwiftCard with Pro."}
         </p>
         {appleBilled ? (

@@ -784,7 +784,7 @@ export default async function DashboardPage({
                 !isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT ? (
                 <PlanGate
                   feature="second-card"
-                  nativeCopy="Pro feature — Multiple cards are only available on the Pro plan on swiftcard.me"
+                  nativeCopy="Pro feature — Multiple cards are only available on the Pro plan"
                 >
                   <Link
                     href="/upgrade"
@@ -825,8 +825,8 @@ export default async function DashboardPage({
               feature="leads-cap"
               nativeCopy={
                 lockedCount > 0
-                  ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan on swiftcard.me`
-                  : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me"
+                  ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan`
+                  : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan"
               }
               // Native: show only the neutral notice for the cap/locked states
               // (no UpgradeButton, no referral promo — both are selling). When
@@ -839,8 +839,8 @@ export default async function DashboardPage({
                       tier="pro"
                       copy={
                         lockedCount > 0
-                          ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan on swiftcard.me`
-                          : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me"
+                          ? `Pro feature — ${lockedCount} new leads are locked this month. Unlimited leads are only available on the Pro plan`
+                          : "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan"
                       }
                     />
                   </div>
@@ -897,7 +897,7 @@ export default async function DashboardPage({
                 !isPro ? (
                   <PlanGate
                     feature="analytics-locations"
-                    nativeCopy="Pro feature — Detailed analytics are only available on the Pro plan on swiftcard.me"
+                    nativeCopy="Pro feature — Detailed analytics are only available on the Pro plan"
                   >
                     <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
                       <div className="w-10 h-10 rounded-full bg-blue-600/15 border border-blue-500/30 flex items-center justify-center mx-auto mb-3">

@@ -7,6 +7,7 @@ import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import ProTrialPrice from "@/components/ProTrialPrice";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
+import IapSubscribeButton from "@/components/NativePaywall";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { useIsMobile } from "@/lib/use-is-mobile";
@@ -40,12 +41,20 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
   const isMobile = useIsMobile();
   const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
 
-  // Native app: the /upgrade selling screen must not appear. Redirect to the
-  // dashboard on mount, and (below) never paint the page while the redirect
-  // is in flight — prices flashing in the shell is still a 3.1.1 surface.
-  // On web this effect is a no-op. Hydration-safe: false on SSR/first paint.
+  // Native app (IAP live, 2026-08-27): /upgrade now shows a REAL In-App
+  // Purchase screen instead of bouncing to the dashboard. It renders no web
+  // price anywhere — the only prices a shell user ever sees come from
+  // StoreKit inside the paywall sheet (3.1.2). A shell that cannot offer IAP
+  // (older build, products unavailable) still redirects to the dashboard,
+  // because an upgrade page with no way to upgrade is a dead end.
+  const [nativeIap, setNativeIap] = useState(false);
   useEffect(() => {
-    if (detectNativeApp()) router.replace("/dashboard");
+    if (!detectNativeApp()) return;
+    (async () => {
+      const { canOfferIap } = await import("@/lib/iap");
+      if (await canOfferIap()) setNativeIap(true);
+      else router.replace("/dashboard");
+    })();
   }, [router]);
   const native = useIsNativeApp();
 
@@ -62,7 +71,30 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
     : `/checkout?plan=pro&interval=${interval}&trial=0`;
   const officeHref = `/checkout?plan=office&interval=${interval}&seats=${seats}&trial=0`;
 
-  if (native) return null;
+  if (native) {
+    if (!nativeIap) return null; // deciding, or redirecting to /dashboard
+    return (
+      <div className="mx-auto max-w-sm">
+        <div className="text-center mb-8">
+          <span className="inline-block rounded-full bg-[#1D4ED8] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">SwiftCard Pro</span>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">Do more with every tap</h1>
+          <p className="mt-2 text-sm text-slate-500">Unlock everything Pro includes — right here in the app.</p>
+        </div>
+        <div className="rounded-2xl border border-warm-card-border bg-warm-card p-6 shadow-sm">
+          <ul className="space-y-3">
+            {PLAN_FEATURES.pro.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700">
+                <Check />
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+          {/* StoreKit-priced paywall; renders nothing while signed out. */}
+          <IapSubscribeButton className="mt-6 !py-3 !text-sm" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

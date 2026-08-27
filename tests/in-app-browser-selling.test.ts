@@ -88,16 +88,15 @@ describe("in-app browser sheets never open a selling surface", () => {
     ).toEqual([]);
   });
 
-  it("the sign-in screen's site link leaves through the native plugin", () => {
+  it("the sign-in screen no longer links out at all (in-app signup, 2026-08-27)", () => {
+    // The site-link deflection this test used to pin is GONE: with IAP live,
+    // the app creates accounts itself, so LoginForm has no reason to open ANY
+    // browser — in-app or default. The regression to catch now is a link-out
+    // creeping back in.
     const src = readFileSync(join(ROOT, "src/components/LoginForm.tsx"), "utf8");
     const code = stripComments(src);
-
-    // The regression itself: this file must never reach for the in-app browser.
     expect(code).not.toMatch(/@capacitor\/browser/);
-    expect(code).toMatch(/openInDefaultBrowser/);
-
-    // And it must fail closed — no tappable link when the plugin is absent.
-    expect(code).toMatch(/canOpenInDefaultBrowser/);
-    expect(code).toMatch(/canLeaveApp/);
+    expect(code).not.toMatch(/openInDefaultBrowser|canOpenInDefaultBrowser/);
+    expect(code).not.toMatch(/Accounts are created on/);
   });
 });

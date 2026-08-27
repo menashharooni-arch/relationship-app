@@ -22,22 +22,22 @@ const SITES: Site[] = [
   {
     file: "src/components/CustomDesignCard.tsx",
     web: ["Make it unmistakably yours — unlock the custom designer with Pro →"],
-    native: ["Pro feature — The custom card designer is only available on the Pro plan on swiftcard.me"],
+    native: ["Pro feature — The custom card designer is only available on the Pro plan"],
   },
   {
     file: "src/components/ZapierSettings.tsx",
     web: ["Upgrade · Pro", "Upgrade to Pro to connect Zapier and automate your lead workflow."],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me"],
+    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   {
     file: "src/components/CrmEventSettings.tsx",
     web: [">Pro</a>"],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me"],
+    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   {
     file: "src/components/IntegrationsSettings.tsx",
     web: ["Upgrade · Pro"],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me"],
+    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   // LeadCard's entry was removed with the component (no importers left —
   // ContactsClient replaced it). Its AI-drafts cap copy was a hardcoded
@@ -48,7 +48,7 @@ const SITES: Site[] = [
   {
     file: "src/components/ContactsClient.tsx",
     web: ["Upgrade to Pro →"],
-    native: ["Pro feature — Automated follow-up sequences are only available on the Pro plan on swiftcard.me"],
+    native: ["Pro feature — Automated follow-up sequences are only available on the Pro plan"],
   },
   {
     // The "second card" upsell still lives on the page — it is passed into
@@ -59,9 +59,9 @@ const SITES: Site[] = [
       "Upgrade to Pro →",
     ],
     native: [
-      "Pro feature — Multiple cards are only available on the Pro plan on swiftcard.me",
-      "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me",
-      "Pro feature — Detailed analytics are only available on the Pro plan on swiftcard.me",
+      "Pro feature — Multiple cards are only available on the Pro plan",
+      "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan",
+      "Pro feature — Detailed analytics are only available on the Pro plan",
       // CSV export is NOT listed here any more. The dashboard's Quick Contacts
       // header carried a second Export button that hit the same
       // /api/leads/export endpoint as the one on the Contacts page — and the
@@ -79,55 +79,55 @@ const SITES: Site[] = [
       "LINK OFF — PRO ONLY",
       "This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.",
     ],
-    native: ["These links are only active on the Pro plan on swiftcard.me"],
+    native: ["These links are only active on the Pro plan"],
   },
   {
     file: "src/app/contacts/page.tsx",
     web: ["Export CSV", "more contacts are waiting for you"],
     native: [
-      "Pro feature — Exporting contacts is only available on the Pro plan on swiftcard.me",
-      "new leads are locked this month. Unlimited leads are only available on the Pro plan on swiftcard.me",
+      "Pro feature — Exporting contacts is only available on the Pro plan",
+      "new leads are locked this month. Unlimited leads are only available on the Pro plan",
     ],
   },
   {
     file: "src/app/cards/[id]/edit/CardEditForm.tsx",
     web: ["Unlock custom colors &amp; fonts with Pro →", "Upgrade to Pro"],
     native: [
-      "Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me",
-      "Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me",
-      "This card is view-only. Editing multiple cards is only available on the Pro plan on swiftcard.me",
+      "Pro feature — Custom colors and fonts are only available on the Pro plan",
+      "Pro feature — Free includes 2 links. More links are only available on the Pro plan",
+      "This card is view-only. Editing multiple cards is only available on the Pro plan",
     ],
   },
   {
     file: "src/app/cards/new/NewCardWizard.tsx",
     web: ["Unlock custom colors &amp; fonts with Pro →"],
     native: [
-      "Pro feature — Custom colors and fonts are only available on the Pro plan on swiftcard.me",
-      "Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me",
-      "Pro feature — Multiple cards are only available on the Pro plan on swiftcard.me",
+      "Pro feature — Custom colors and fonts are only available on the Pro plan",
+      "Pro feature — Free includes 2 links. More links are only available on the Pro plan",
+      "Pro feature — Multiple cards are only available on the Pro plan",
     ],
   },
   {
     file: "src/components/ProfileForm.tsx",
     web: ["Make it unmistakably yours — unlock the custom designer with Pro.", "Upgrade to Pro →"],
     native: [
-      "Pro feature — Customization is only available on the Pro plan on swiftcard.me",
-      "Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me",
+      "Pro feature — Customization is only available on the Pro plan",
+      "Pro feature — Free includes 2 links. More links are only available on the Pro plan",
     ],
   },
   {
     file: "src/components/AddContactModal.tsx",
     web: ["Upgrade to Pro · keep capturing every lead →"],
     native: [
-      "Pro feature — The card scanner is only available on the Pro plan on swiftcard.me",
-      "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me",
+      "Pro feature — The card scanner is only available on the Pro plan",
+      "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan",
     ],
   },
   {
     file: "src/components/NotificationsPanel.tsx",
     web: [],
     native: [
-      "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan on swiftcard.me — nothing was deleted.",
+      "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
     ],
   },
 ];

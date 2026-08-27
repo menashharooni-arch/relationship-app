@@ -46,7 +46,7 @@ describe("PlanGate web branch renders children byte-for-byte", () => {
 
 describe("PlanGate native notice is neutral — no selling", () => {
   const NATIVE_COPY =
-    "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me";
+    "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan";
   const rawOut = renderToStaticMarkup(h(PlanNotice, { tier: "pro" as const, copy: NATIVE_COPY }));
   // React escapes text nodes for HTML; decode the entities React emits so we can
   // compare against the exact human copy string.

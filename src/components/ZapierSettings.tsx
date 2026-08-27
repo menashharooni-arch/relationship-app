@@ -5,7 +5,7 @@ import { PlanGate, PlanBadge, GateCopy } from "@/components/PlanGate";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
 
 export default function ZapierSettings({
   initialUrl,

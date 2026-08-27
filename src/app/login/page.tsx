@@ -1,7 +1,5 @@
-import { cookies, headers } from "next/headers";
 import LoginForm from "@/components/LoginForm";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
-import { isNativeRequest } from "@/lib/native-request";
 
 export default async function LoginPage({
   searchParams,
@@ -10,18 +8,10 @@ export default async function LoginPage({
 }) {
   const { next, mode, ref } = await searchParams;
 
-  // THE APP IS SIGN-IN ONLY. Accounts are created on the website; the shell
-  // never offers it. Detected on the SERVER (user-agent token / sc_shell
-  // cookie) rather than with useIsNativeApp(), because that hook is false on
-  // the first render — so a client-side gate would paint "Create account" for
-  // one frame and then remove it, which is precisely the glitch this is meant
-  // to avoid. Here the app's first byte already has no signup in it.
-  const [h, c] = await Promise.all([headers(), cookies()]);
-  const native = isNativeRequest(h.get("user-agent"), c.get("sc_shell")?.value ?? null);
-
-  // ?mode=signup is ignored in the app — a deep link, an old push, or a stale
-  // referral URL must not be able to put the shell back into signup.
-  const initialMode = !native && mode === "signup" ? "signup" : "signin";
+  // The app creates accounts too (owner decision 2026-08-27, IAP live): with
+  // Pro purchasable in-app, the old sign-in-only posture — accounts deflected
+  // to the website — is gone. Web and shell now render the same form.
+  const initialMode = mode === "signup" ? "signup" : "signin";
 
   // Arrived through a referral link (/r/CODE → ?ref=1): show the "your first
   // month of Pro is free" copy. The reward itself is applied server-side at
@@ -45,15 +35,11 @@ export default async function LoginPage({
                 ? "A friend invited you — your first month of Pro is free."
                 : initialMode === "signup"
                   ? "Free to start. Ready in 30 seconds."
-                  : native
-                    ? // The web copy here reads "Sign in or create your
-                      // account", which the app cannot honour.
-                      "Sign in to continue."
-                    : "Sign in or create your account."}
+                  : "Sign in or create your account."}
           </p>
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">
-          <LoginForm redirectTo={next} initialMode={initialMode} signInOnly={native} />
+          <LoginForm redirectTo={next} initialMode={initialMode} />
         </div>
       </div>
     </main>
