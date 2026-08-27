@@ -14,10 +14,17 @@ describe("3.1.1 — /pricing and /upgrade never PAINT on native (render guard, n
     expect(s).toMatch(/useIsNativeApp/);
     expect(s).toMatch(/if \(native\) return null;/);
   });
-  it("/upgrade has the hydration-safe render guard", () => {
+  it("/upgrade on native sells via IAP only — StoreKit prices, no web checkout", () => {
+    // Changed 2026-08-27 (IAP live): the native branch now RENDERS an
+    // In-App-Purchase upgrade screen instead of returning null. The 3.1.1
+    // guarantee it must keep: no web price and no /checkout path can paint in
+    // the shell — the only prices come from StoreKit inside the paywall.
     const s = read("src/app/upgrade/UpgradeClient.tsx");
     expect(s).toMatch(/useIsNativeApp/);
-    expect(s).toMatch(/if \(native\) return null;/);
+    expect(s).toMatch(/canOfferIap/);
+    expect(s).toMatch(/IapSubscribeButton/);
+    const nb = s.slice(s.indexOf("if (native) {"), s.indexOf("\n  return (", s.indexOf("if (native) {")));
+    expect(nb, "native branch paints a web price or checkout link").not.toMatch(/PLAN_PRICES|proCents|officeTotal|money\(|\/checkout/);
   });
 });
 

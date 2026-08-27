@@ -30,7 +30,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { deliverToLead } from "@/lib/messaging";
 import { getAccountEmail } from "@/lib/account-email";
 import { expireFreeMonths } from "@/lib/referral-server";
-import { purgeExpiredDeletedAccounts } from "@/lib/account-purge";
+import { purgeExpiredDeletedAccounts, reconcileDeletedSubscriptions } from "@/lib/account-purge";
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
@@ -192,6 +192,17 @@ export async function GET(req: NextRequest) {
     purged = await purgeExpiredDeletedAccounts();
   } catch (e) {
     await reportError("reminders.purge-deleted-accounts", e);
+  }
+
+  // A deleted account must never keep billing. Cancellation happens at delete
+  // time; this retries the ones where Stripe was unreachable, so a transient
+  // failure costs at most a day of wrong charges instead of continuing
+  // indefinitely against a card whose owner can no longer log in to stop it.
+  let subscriptionsStopped = 0;
+  try {
+    subscriptionsStopped = await reconcileDeletedSubscriptions();
+  } catch (e) {
+    await reportError("reminders.reconcile-deleted-subscriptions", e);
   }
 
   // Apply any Office seat reductions whose billing-period end has passed (spec §5).
@@ -641,5 +652,5 @@ export async function GET(req: NextRequest) {
   }
   // === END PRESET-BASED SEQUENCE PROCESSING ===
 
-  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded, purged, seatReductionsApplied });
+  return NextResponse.json({ sent: totalSent, checkedHour: currentUTCHour, downgraded, purged, seatReductionsApplied, subscriptionsStopped });
 }

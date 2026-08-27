@@ -38,7 +38,7 @@ async function openConnect(href: string): Promise<void> {
 }
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan on swiftcard.me";
+  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
 
 type Integration = "google" | "hubspot" | "pipedrive" | "highlevel" | "salesforce";
 

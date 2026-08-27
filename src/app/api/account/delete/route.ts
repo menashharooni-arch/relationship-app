@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getStripe } from "@/lib/stripe";
+import { stopSubscription } from "@/lib/account-purge";
+import { reportError } from "@/lib/report-error";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { revokeAppleTokensOnDelete } from "@/lib/apple-revoke";
 
@@ -37,11 +38,23 @@ export async function POST(req: NextRequest) {
   if (!profile) return NextResponse.json({ error: "No account" }, { status: 404 });
 
   // Cancel any active subscription so the user stops being billed.
+  //
+  // Deletion proceeds either way — blocking it on Stripe would be hostile and
+  // would break Apple's §5.1.1(v) account-deletion requirement. But a failure
+  // here means a real card is still being charged for an account that can no
+  // longer log in to stop it, so it is REPORTED rather than swallowed, the id
+  // is left on the row, and the daily cron retries until the money stops
+  // (reconcileDeletedSubscriptions). The previous `catch { /* ignore */ }`
+  // made that an invisible, indefinite charge.
   if (profile.stripe_subscription_id) {
-    try {
-      await getStripe().subscriptions.cancel(profile.stripe_subscription_id);
-    } catch {
-      /* ignore */
+    const result = await stopSubscription(profile.stripe_subscription_id);
+    if (result === "failed") {
+      await reportError("billing.cancel-on-delete-failed", new Error(
+        `Could not cancel ${profile.stripe_subscription_id} while deleting ${user.id} — retrying daily.`,
+      ));
+    } else {
+      // Money has stopped; nothing for the sweep to pick up.
+      await admin.from("profiles").update({ stripe_subscription_id: null }).eq("id", user.id);
     }
   }
 

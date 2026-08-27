@@ -5,7 +5,6 @@ import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { safeNextPath } from "@/lib/safe-next";
-import { canOpenInDefaultBrowser, openInDefaultBrowser } from "@/lib/external-purchase";
 
 // Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
 // Origin-based redirects break sign-in if the form is ever loaded on a Vercel
@@ -26,38 +25,14 @@ const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1
 export default function LoginForm({
   redirectTo,
   initialMode = "signin",
-  signInOnly = false,
 }: {
   redirectTo?: string;
   initialMode?: "signin" | "signup";
-  /**
-   * This form can sign you in, but never create an account.
-   *
-   * Set by the login page for the iOS shell: accounts are made on the website.
-   * Both toggle options still render — the "Create account" side just swaps the
-   * card for a message pointing at the site, so the answer sits exactly where
-   * someone goes looking for it.
-   *
-   * Passed down from a SERVER-rendered value rather than read from
-   * useIsNativeApp() here, because that hook is false on the first render —
-   * gating on it would paint a real signup form for one frame before replacing
-   * it.
-   */
-  signInOnly?: boolean;
 }) {
-  // No signInOnly override here any more: the app's toggle must be able to
-  // REACH signup mode, because that is what shows the message.
-  //
-  // In the app this always starts at "signin" regardless — the login page
-  // resolves ?mode=signup to "signin" before it ever gets here, so a deep link
-  // opens on the sign-in tab and the message is one tap away. Honouring the
-  // deep link straight to the message would work too, but the page heading is
-  // server-rendered from the same value and would then read "Create your
-  // account" above a card saying accounts are made elsewhere.
+  // One form for web AND the iOS shell (owner decision 2026-08-27, IAP live):
+  // the app creates accounts exactly like the website — the old sign-in-only
+  // deflection to swiftcard.me is gone, because Pro is now sold in-app.
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
-
-  /** In the app, "Create account" shows a message instead of a signup form. */
-  const signupRedirect = signInOnly && mode === "signup";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,16 +49,6 @@ export default function LoginForm({
   // not having filled in a field they were never asked to fill in.
   const emailRef = useRef<HTMLInputElement>(null);
   const native = useIsNativeApp();
-
-  // Can this build actually leave the app? Resolved after mount because the
-  // plugin lives on window.Capacitor, which is absent during SSR. Any shell
-  // older than the one carrying ExternalPurchasePlugin resolves false, and the
-  // "SwiftCard.me" link then renders as PLAIN TEXT rather than something that
-  // would open the marketing site — and its checkout — inside the app.
-  const [canLeaveApp, setCanLeaveApp] = useState(false);
-  useEffect(() => {
-    setCanLeaveApp(canOpenInDefaultBrowser());
-  }, []);
 
   // Surface a failed OAuth round-trip (auth/callback redirects here with
   // ?error=oauth) or a sign-in attempt for an email with no account
@@ -281,11 +246,8 @@ export default function LoginForm({
 
   return (
     <div className="w-full space-y-5">
-      {/* Mode toggle — both options, on web AND in the app. In the app the
-          "Create account" side does not open a signup form: it swaps the whole
-          card for a message pointing at the website (see signupRedirect below).
-          The toggle stays so the answer is discoverable exactly where someone
-          looks for it, instead of the option silently not existing. */}
+      {/* Sign-in / Create-account toggle — both tabs are real on web AND in
+          the app (in-app signup shipped with IAP, 2026-08-27). */}
       <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
         {(["signin", "signup"] as const).map((m) => (
           <button
@@ -303,57 +265,6 @@ export default function LoginForm({
         ))}
       </div>
 
-      {/* THE APP'S "Create account": a message, and nothing else.
-          Returning early replaces the entire rest of the card — form, submit,
-          forgot-password, the divider and both OAuth buttons — so there is no
-          path to an account here, not even an OAuth one. */}
-      {signupRedirect ? (
-        <div className="py-6 text-center">
-          {/* The no-account bounce context (?error=no_account) — the generic
-              errorMsg slot lives in the form branch, which this card replaces,
-              so without this line the "why am I here" is silently dropped. */}
-          {errorMsg && (
-            <p className="mb-3 text-sm font-semibold text-slate-900">{errorMsg}</p>
-          )}
-          <p className="text-base leading-relaxed text-slate-600">
-            Ready to grow your network? Accounts are created on{" "}
-            <span className="font-semibold text-slate-900">SwiftCard.me</span> —
-            build your card there, then sign in here.
-          </p>
-          {/* The WORKING action this screen was rejected for lacking (2.1(a)):
-              a primary button that opens the builder in the DEFAULT browser —
-              the same compliant exit every other link-out uses (3.1.1). On web
-              this card never renders (signInOnly is native-only), so this
-              button is native-only by construction.
-
-              FAIL CLOSED: in a shell that cannot reach the default browser we
-              render instructions, not a tap target — no button at all beats a
-              button that would open the site (and its checkout) inside the
-              app. The address stays readable so it can be typed into Safari. */}
-          {native && !canLeaveApp ? (
-            <p className="mt-4 text-sm text-slate-500">
-              Open <span className="font-semibold text-slate-900">SwiftCard.me</span> in
-              Safari to create your account.
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={async () => {
-                if (!detectNativeApp()) { window.location.href = APP_URL; return; }
-                await openInDefaultBrowser("/cards/new?src=ios_signup");
-              }}
-              className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#1D4ED8] py-3 px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1740C4]"
-            >
-              Create your account on SwiftCard.me
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H18v4.5M17.5 6.5L10 14" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h4" />
-              </svg>
-            </button>
-          )}
-        </div>
-      ) : (
-      <>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Labelled fields with real autofill hints.
@@ -457,7 +368,7 @@ export default function LoginForm({
         {/* After a failed sign-in, a one-tap path to Create-account (keeps the
             email they typed) — the "redirect to create account" affordance for
             the email/password case, where Supabase can't confirm no-account. */}
-        {mode === "signin" && signinFailed && !signInOnly && (
+        {mode === "signin" && signinFailed && (
           <button
             type="button"
             onClick={() => { setMode("signup"); setSigninFailed(false); setErrorMsg(""); setStatus("idle"); }}
@@ -556,8 +467,7 @@ export default function LoginForm({
         </button>
       )}
 
-      </>
-      )}
+
     </div>
   );
 }

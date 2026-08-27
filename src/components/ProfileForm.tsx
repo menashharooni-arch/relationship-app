@@ -390,7 +390,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       ) : atLinkCap ? (
         <PlanGate
           feature="swift-links-cap"
-          nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan on swiftcard.me"
+          nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
         >
           <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
             Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</a> to access unlimited additional links.
@@ -607,7 +607,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       ) : (
         <PlanGate
           feature="customization"
-          nativeCopy="Pro feature — Customization is only available on the Pro plan on swiftcard.me"
+          nativeCopy="Pro feature — Customization is only available on the Pro plan"
         >
           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
             <p className="text-xs text-slate-500 font-medium">Accent color & font</p>

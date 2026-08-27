@@ -169,7 +169,7 @@ export default function AddContactModal({
               {scanState === "pro" && (
                 <PlanGate
                   feature="scanner"
-                  nativeCopy="Pro feature — The card scanner is only available on the Pro plan on swiftcard.me"
+                  nativeCopy="Pro feature — The card scanner is only available on the Pro plan"
                 >
                   <p className="text-[11px] text-center text-blue-300">{scanMsg} <Link href="/upgrade" className="font-semibold underline">Upgrade →</Link></p>
                 </PlanGate>
@@ -249,7 +249,7 @@ export default function AddContactModal({
               {atLimit && (
                 <PlanGate
                   feature="leads-cap"
-                  nativeCopy="Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan on swiftcard.me"
+                  nativeCopy="Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan"
                 >
                   <div className="rounded-xl px-3 py-2.5 bg-blue-950/40 border border-blue-800/40">
                     <p className="text-blue-200 text-xs">{error}</p>

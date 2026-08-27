@@ -1,4 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getStripe } from "@/lib/stripe";
+import { reportError } from "@/lib/report-error";
 
 // ── Hard-delete of soft-deleted accounts past the reopen window ───────────────
 //
@@ -168,4 +170,77 @@ export async function purgeExpiredDeletedAccounts(): Promise<number> {
     purged++;
   }
   return purged;
+}
+
+
+// ── Billing must not outlive the account ────────────────────────────────────
+//
+// Deleting an account cancels its Stripe subscription (api/account/delete). If
+// that call fails — an expired key, a Stripe incident, a rate limit — the
+// account still has to be deleted: blocking deletion on a third party is both
+// hostile and a violation of Apple's §5.1.1(v) account-deletion requirement.
+//
+// But the old code swallowed the failure with a bare `catch { /* ignore */ }`
+// and carried on, which left a real card being charged for a product whose
+// owner can no longer log in, cancel, or even see that it is happening. Nothing
+// logged it, so nobody would ever find out.
+//
+// The rule now: deletion always proceeds, the failure is always reported, and
+// the daily cron keeps retrying until the billing is actually stopped.
+
+/**
+ * Stop billing one subscription, tolerating the states where there is nothing
+ * left to stop.
+ *
+ * "already" covers both a subscription Stripe has already cancelled and one it
+ * no longer has at all — in each case the money has stopped, which is the only
+ * thing this function is responsible for.
+ */
+export async function stopSubscription(subscriptionId: string): Promise<"canceled" | "already" | "failed"> {
+  try {
+    const stripe = getStripe();
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    if (sub.status === "canceled" || sub.status === "incomplete_expired") return "already";
+    await stripe.subscriptions.cancel(subscriptionId);
+    return "canceled";
+  } catch (e) {
+    // The subscription is not in Stripe at all — nothing can bill.
+    if ((e as { code?: string } | null)?.code === "resource_missing") return "already";
+    return "failed";
+  }
+}
+
+/**
+ * Daily sweep: any account that is soft-deleted but still carries a
+ * subscription id gets another cancellation attempt.
+ *
+ * This is what turns a transient Stripe failure during deletion into at most
+ * 24 hours of wrong billing instead of an indefinite charge nobody is watching.
+ * The id is cleared once the money has genuinely stopped, so a healthy account
+ * is never retried and the sweep converges to zero work.
+ */
+export async function reconcileDeletedSubscriptions(): Promise<number> {
+  const admin = getAdminSupabase();
+  const { data: rows } = await admin
+    .from("profiles")
+    .select("id, stripe_subscription_id")
+    .eq("customization->>_deleted", "true")
+    .not("stripe_subscription_id", "is", null);
+
+  let stopped = 0;
+  for (const row of rows ?? []) {
+    const subId = row.stripe_subscription_id as string;
+    const result = await stopSubscription(subId);
+    if (result === "failed") {
+      await reportError("billing.deleted-account-still-billing", new Error(
+        `Subscription ${subId} for deleted account ${row.id} could not be cancelled — the customer may still be charged.`,
+      ));
+      continue;
+    }
+    // Only cleared once the money has actually stopped, so a failure above
+    // leaves the row for tomorrow's run rather than losing the record.
+    await admin.from("profiles").update({ stripe_subscription_id: null }).eq("id", row.id as string);
+    if (result === "canceled") stopped++;
+  }
+  return stopped;
 }
