@@ -108,8 +108,12 @@ Two things worth knowing when touching this:
   nothing else changes.
 - It needs `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OAUTH_SECRET` server
   side (all three already set in prod for the CRM connect). Missing any of them
-  falls the shell back to the old Supabase-brokered flow, which still signs
-  people in — it just says supabase.co again.
+  does NOT fall back — the round-trip exits to `/login?error=oauth` and logs
+  `[native-google-login] … missing`, so check Vercel env first if Google sign-in
+  starts failing in the app while email still works. The only automatic fallback
+  to the old Supabase-brokered flow is client-side: no localStorage (private
+  mode), no WebCrypto, or no `@capacitor/browser` in an old shell build. That
+  path still signs people in — it just says supabase.co again.
 
 **Apple** still uses the Supabase-brokered PKCE flow and needs the §4.4 Redirect
 URL entry. Apple's sheet shows the app, never a Supabase host, so it has nothing
