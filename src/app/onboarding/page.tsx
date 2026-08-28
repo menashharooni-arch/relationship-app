@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -105,7 +106,11 @@ export default async function OnboardingPage({
     // that looked alive. Called here, where the account actually comes into
     // existence. Idempotent and non-throwing: it can never fail a signup, and
     // a double-submitted onboarding sends exactly one.
-    await sendWelcomeEmail(user.id, user.email);
+    // NOT awaited: this posts to Resend, and a slow provider used to hold the
+    // brand-new account on the sign-in screen for seconds before the dashboard
+    // appeared. after() keeps the function alive until it finishes while the
+    // redirect below goes out immediately.
+    after(() => sendWelcomeEmail(user.id, user.email));
 
     // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
     // new signups start on Free. startProTrial() is kept in referral-server for
@@ -116,22 +121,24 @@ export default async function OnboardingPage({
     // actually WON the insert race runs this — a concurrent duplicate must
     // never re-apply it (this used to double-grant a free month/credit).
     if (!isDuplicate) {
+      const c = await cookies();
+      const h = await headers();
       try {
-        const c = await cookies();
-        const h = await headers();
         // The LEFTMOST x-forwarded-for hop is attacker-controlled — anyone can
         // prepend a fake IP and mint a fresh identity, which is exactly what the
         // referral IP-dedup fraud check is trying to catch. Use the shared
         // trusted-IP rule (x-real-ip, else the LAST hop) like every other caller.
         const trustedIp = clientIpFromHeaders(h);
         const ip = trustedIp === "unknown" ? null : trustedIp;
-        await applyReferralOnSignup(user.id, {
+        // Same reasoning as the welcome email: several queries and fraud
+        // checks that the new account should never wait on.
+        after(() => applyReferralOnSignup(user.id, {
           code: c.get(REF_COOKIE)?.value ?? null,
           source: c.get(SRC_COOKIE)?.value ?? null,
           ip,
           email: user.email ?? null,
           device: hashDevice(h.get("user-agent"), h.get("accept-language")),
-        });
+        }).catch((e) => console.error("[onboarding] referral apply failed:", e)));
       } catch (e) {
         console.error("[onboarding] referral apply failed:", e);
       }

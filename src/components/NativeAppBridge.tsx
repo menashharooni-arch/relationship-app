@@ -97,6 +97,12 @@ export default function NativeAppBridge() {
 
             // swiftcard://auth-callback?code=… — the native OAuth return leg.
             if (url.startsWith("swiftcard:")) {
+              // Paint "Signing you in…" BEFORE the code exchange. The webview
+              // behind the browser sheet is still showing the login form, so
+              // without this the user watches Google succeed and then lands
+              // back on "Create account" for the seconds the exchange +
+              // /onboarding take — which reads as a failed sign-in.
+              showAuthOverlay();
               const [{ completeNativeOAuth }, { createBrowserClient }] = await Promise.all([
                 import("@/lib/native-auth"),
                 import("@supabase/ssr"),
@@ -265,4 +271,33 @@ export default function NativeAppBridge() {
   }, []);
 
   return null;
+}
+
+
+/**
+ * Full-screen "Signing you in…" cover for the OAuth return leg.
+ *
+ * Deliberately raw DOM, not React state: this fires from a Capacitor event
+ * listener while an arbitrary page is mounted (usually /login), and it must
+ * appear on the very next frame. It is removed by the navigation that
+ * follows; a 20s failsafe clears it if the exchange never resolves, so a
+ * network failure can never leave the app stuck behind a cover.
+ */
+function showAuthOverlay(): void {
+  try {
+    if (document.getElementById("sc-auth-overlay")) return;
+    const el = document.createElement("div");
+    el.id = "sc-auth-overlay";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.style.cssText =
+      "position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;" +
+      "justify-content:center;gap:14px;background:#030712;color:#e5e7eb;font:600 15px/1.4 system-ui,-apple-system,sans-serif";
+    el.innerHTML =
+      '<div style="width:34px;height:34px;border:3px solid rgba(255,255,255,.18);border-top-color:#3b82f6;' +
+      'border-radius:50%;animation:sc-auth-spin .8s linear infinite"></div><div>Signing you in…</div>' +
+      '<style>@keyframes sc-auth-spin{to{transform:rotate(360deg)}}</style>';
+    document.body.appendChild(el);
+    setTimeout(() => { document.getElementById("sc-auth-overlay")?.remove(); }, 20000);
+  } catch { /* overlay is a nicety — never block the sign-in */ }
 }

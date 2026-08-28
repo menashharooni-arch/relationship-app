@@ -50,3 +50,53 @@ describe("Apple Wallet hardening", () => {
     expect(read(".env.example")).toMatch(/WALLET_AUTH_SECRET=/);
   });
 });
+
+// ── Onboarding-flow regressions reported by the owner, 2026-08-28 ──────────
+describe("in-app signup and first-card flow", () => {
+  const read2 = (p: string) => readFileSync(p, "utf8");
+
+  it("the OAuth return leg covers the login screen instead of appearing to fail", () => {
+    // Google succeeded, the sheet closed, and the webview underneath still
+    // showed "Create account" for the seconds the code exchange + /onboarding
+    // took — which reads as a bounce back to the signup form.
+    const src = read2("src/components/NativeAppBridge.tsx");
+    expect(src).toMatch(/showAuthOverlay\(\);/);
+    expect(src).toMatch(/function showAuthOverlay/);
+    expect(src).toMatch(/Signing you in/);
+    // and it can never strand the app behind the cover
+    expect(src).toMatch(/setTimeout\(\(\) => \{ document\.getElementById\("sc-auth-overlay"\)\?\.remove\(\); \}, 20000\)/);
+  });
+
+  it("onboarding redirects without waiting on the welcome email or referral", () => {
+    const src = read2("src/app/onboarding/page.tsx");
+    expect(src).toMatch(/after\(\(\) => sendWelcomeEmail/);
+    expect(src).toMatch(/after\(\(\) => applyReferralOnSignup/);
+  });
+
+  it("the guided tour is account-scoped, not device-scoped", () => {
+    // A device flag meant anyone who skipped the tour once never saw it again
+    // on any later account — including a brand-new signup on the same phone.
+    const src = read2("src/lib/account-state.ts");
+    const list = src.slice(src.indexOf("PERSON_SCOPED_STORAGE_KEYS"), src.indexOf("GUEST_FLOW_STORAGE_KEYS"));
+    expect(list).toContain('"sc_tour_completed"');
+  });
+
+  it("the native plan chooser mirrors the web cards and never hardcodes a price", () => {
+    const src = read2("src/components/PlanCards.tsx");
+    expect(src).toMatch(/function NativePro/);
+    expect(src).toMatch(/useIapMonthlyPrice\(\)/);
+    expect(src).toMatch(/<ProTrialPrice price=\{price\} period="month" \/>/);
+    expect(src).toMatch(/Free <span className="text-slate-400">Forever<\/span>/);
+    // Office is Stripe-only with no IAP product: no Office CARD and no
+    // checkout hand-off may render natively (comments about it are fine).
+    // The native branch runs from `if (native) {` to where the WEB render
+    // begins (the monthly/annual toggle) — not to the end of the file.
+    const nativeBranch = src
+      .slice(src.indexOf("if (native) {"), src.indexOf("{/* Monthly / annual toggle"))
+      .replace(/\/\/.*$/gm, "");
+    expect(nativeBranch).not.toMatch(/Office/);
+    expect(nativeBranch).not.toMatch(/onPaid\(/);
+    // No price constant may reach the native card.
+    expect(read2("src/lib/use-iap-price.ts")).toMatch(/getIapPackages/);
+  });
+});

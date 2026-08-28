@@ -8,6 +8,7 @@ import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import ProTrialPrice from "@/components/ProTrialPrice";
 import IapSubscribeButton from "@/components/NativePaywall";
+import { useIapMonthlyPrice } from "@/lib/use-iap-price";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -63,41 +64,29 @@ export default function PlanCards({
   // (/welcome, the card wizard's guest plan step) still has a way forward.
   // Web is byte-identical (native is false on SSR and the first paint).
   if (native) {
-    // IAP era (2026-08-27): the shell now creates accounts AND sells Pro, so
-    // the chooser shows both plans. Pro's price is never written here — the
-    // paywall sheet reads it from StoreKit (3.1.2), and IapSubscribeButton
-    // renders nothing when products are unavailable, leaving Free alone.
+    // IAP era. The shell shows the SAME Pro and Free cards as the website —
+    // aurora Pro card with the owner-approved ProTrialPrice block, Free
+    // Forever beneath it. Two deliberate differences, both required by
+    // App Review:
+    //   • Pro's price comes from StoreKit (NativePro reads the live package),
+    //     never from PLAN_PRICES, so the app can never show a number that
+    //     differs from the App Store's (3.1.2).
+    //   • Office is absent: it is per-seat and Stripe-billed, has no IAP
+    //     product, and rendering its price or a checkout hand-off inside the
+    //     app is the 3.1.1 rejection this build exists to answer.
     return (
       <div className="max-w-md mx-auto flex flex-col gap-4">
-        {/* Pro — same aurora card as the web, black "Pro" heading (owner design) */}
-        <div className="relative rounded-[28px] p-6 overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 30px 70px -30px rgba(37,99,235,0.6)" }}>
-          <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
-          <div className="relative z-[2]">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[1.35rem] font-extrabold tracking-tight text-black">Pro</p>
-              <span className="bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">RECOMMENDED</span>
-            </div>
-            <p className="text-white/85 text-sm mb-5">{PLAN_DESCRIPTIONS.pro}</p>
-            <ul className="space-y-2.5 mb-6">
-              {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
-            </ul>
-            <IapSubscribeButton className="!w-full !py-3.5 !text-sm" label="Start free →" sublabel="" onPurchased={onIapPurchased} />
-          </div>
-          <span className="rd-glisten-sweep" aria-hidden="true" />
-        </div>
+        <NativePro features={PLAN_FEATURES.pro} onPurchased={onIapPurchased} />
 
-        {/* Free */}
-        <div className="rounded-[28px] p-6 bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
-          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-1">Free <span className="text-slate-400">Forever</span></p>
-          <p className="text-slate-500 text-sm mb-4">{PLAN_DESCRIPTIONS.free}</p>
-          <ul className="space-y-2 mb-5">
-            {PLAN_FEATURES.free.slice(0, 4).map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
+        {/* Free — identical to the website's card */}
+        <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
+          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-400">Forever</span></p>
+          <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
+          <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
+          <ul className="space-y-2.5 mb-7 flex-1">
+            {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
           </ul>
-          <button
-            onClick={onFree}
-            disabled={disabled}
-            className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50"
-          >
+          <button onClick={onFree} disabled={disabled} className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50">
             {busy === "free" ? "Setting up…" : freeLabel}
           </button>
         </div>
@@ -206,6 +195,37 @@ export default function PlanCards({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * The native Pro card: the website's aurora card, but its price is the LIVE
+ * StoreKit price for the monthly product. While StoreKit is still answering
+ * (or when products are unavailable) the price line is simply absent — the
+ * card never guesses a number, and the subscribe button hides itself, so the
+ * chooser degrades to Free-only exactly as before.
+ */
+function NativePro({ features, onPurchased }: { features: readonly string[]; onPurchased?: () => void }) {
+  const price = useIapMonthlyPrice();
+  return (
+    <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
+      <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
+      <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+      <div className="relative z-[2] flex flex-col flex-1">
+        <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
+        {price ? <ProTrialPrice price={price} period="month" /> : null}
+        <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
+        <ul className="space-y-2.5 mb-7 flex-1">
+          {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
+        </ul>
+        <IapSubscribeButton className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]" label="Start free →" sublabel={`${TRIAL_DAYS} days free, then billed by Apple`} onPurchased={onPurchased} />
+        <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+          {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
+        </p>
+      </div>
+      <span className="rd-glisten-sweep" aria-hidden="true" />
     </div>
   );
 }
