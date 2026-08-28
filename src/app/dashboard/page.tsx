@@ -424,6 +424,10 @@ export default async function DashboardPage({
   // start (local midnight / local hour) so the chart axis reads correctly.
   const bucketCount = viewsRange === "month" ? 30 : viewsRange === "week" ? 7 : 24;
   const trafficBars: number[] = Array.from({ length: bucketCount }, () => 0);
+  // Per-surface split of the same buckets, so a bar can say "1 card · 1 links"
+  // instead of an undifferentiated "2 views".
+  const trafficCard: number[] = Array.from({ length: bucketCount }, () => 0);
+  const trafficLinks: number[] = Array.from({ length: bucketCount }, () => 0);
   // Ordered day keys for the day views, oldest→newest, so a view maps to its bar.
   const dayBarKeys =
     viewsRange === "today"
@@ -436,12 +440,14 @@ export default async function DashboardPage({
     const iso = v.viewed_at as string;
     const t = new Date(iso).getTime();
     if (t < windowStart) continue; // previous-window rows are counted via exact queries
+    const isLinksRow = (v.username as string) === linkUsername;
     if (viewsRange === "today") {
       const idx = Math.min(bucketCount - 1, Math.max(0, Math.floor((t - windowStart) / 36e5)));
       trafficBars[idx]++;
+      if (isLinksRow) trafficLinks[idx]++; else trafficCard[idx]++;
     } else {
       const idx = dayBarIndex.get(localDayKey(iso, ownerTz));
-      if (idx != null) trafficBars[idx]++;
+      if (idx != null) { trafficBars[idx]++; if (isLinksRow) trafficLinks[idx]++; else trafficCard[idx]++; }
     }
   }
   // % vs the previous window; null when there's no baseline to compare against.
@@ -468,6 +474,8 @@ export default async function DashboardPage({
   // midnight) so the axis labels line up with the buckets above.
   const trafficBuckets = trafficBars.map((count, i) => ({
     count,
+    card: trafficCard[i],
+    links: trafficLinks[i],
     ts:
       viewsRange === "today"
         ? windowStart + i * 36e5

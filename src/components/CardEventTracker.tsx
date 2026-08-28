@@ -112,11 +112,9 @@ export default function CardEventTracker({
         }),
       }).catch(() => {});
 
-      fetch(`/api/views/${encodeURIComponent(viewsKey)}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, source }),
-      }).catch(() => {});
+      // No second POST to /api/views: the event route records the card_views
+      // row itself (lib/record-view.ts) so the chart and the notification are
+      // decided by ONE request with ONE dedupe key.
     };
 
     void fire();

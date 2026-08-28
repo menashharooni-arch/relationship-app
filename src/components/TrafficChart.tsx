@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
-export type TrafficBucket = { count: number; ts: number }; // ts = bucket start (epoch ms)
+// ts = bucket start (epoch ms). card/links: the per-surface split of `count`
+// (SwiftCard page vs Swift Links page); when absent the bar is drawn as one.
+export type TrafficBucket = { count: number; ts: number; card?: number; links?: number };
 
 // A small, dependency-free traffic chart with a real time axis. Each bucket is
 // one hour (Today) or one day (Week/Month); the newest bucket is highlighted and
@@ -43,20 +45,40 @@ export default function TrafficChart({
     new Set(Array.from({ length: tickTarget }, (_, k) => Math.round((k * (n - 1)) / (tickTarget - 1)))),
   );
 
+  const split = buckets.some((b) => b.card != null || b.links != null);
+  const CARD = "#3b82f6", LINKS = "#a78bfa";
+
   return (
     <div className="mt-4">
+      {split && (
+        <div className="mb-2 flex items-center gap-4 text-[10px] text-gray-500">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: CARD }} />SwiftCard</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: LINKS }} />Swift Links</span>
+        </div>
+      )}
       <div className="relative flex items-end gap-1 h-20">
         {buckets.map((b, i) => {
           const last = i === n - 1;
           const active = hover === i;
           const h = b.count > 0 ? Math.max(8, Math.round((b.count / max) * 100)) : 3;
+          const card = b.card ?? b.count;
+          const links = b.links ?? 0;
           return (
             <div
               key={i}
               className="relative flex-1 min-w-0 h-full flex items-end justify-center"
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
+              onTouchStart={() => setHover(active ? null : i)}
             >
+              {split && b.count > 0 ? (
+                /* Stacked: card views on the bottom, links views on top — the
+                   same colours as the legend, dimmed unless newest/hovered. */
+                <div className="w-full flex flex-col justify-end overflow-hidden rounded-t-md" style={{ height: `${h}%`, opacity: last || active ? 1 : 0.7 }}>
+                  {links > 0 && <div style={{ flex: links, background: LINKS }} />}
+                  {card > 0 && <div style={{ flex: card, background: CARD }} />}
+                </div>
+              ) : (
               <div
                 className="w-full rounded-t-md transition-colors"
                 style={{
@@ -69,6 +91,7 @@ export default function TrafficChart({
                         : "#3b4a80",
                 }}
               />
+              )}
               {active && b.count > 0 && (
                 /* Inline colors, no theme-remapped classes: the light theme
                    flips .text-white dark and .bg-slate-800 white, which turned
@@ -82,6 +105,11 @@ export default function TrafficChart({
                   <span className="block text-[11px] font-bold tabular-nums" style={{ color: "#ffffff" }}>
                     {b.count} view{b.count !== 1 ? "s" : ""}
                   </span>
+                  {split && (
+                    <span className="block text-[10px] tabular-nums" style={{ color: "#cbd5e1" }}>
+                      <span style={{ color: CARD }}>●</span> {card} SwiftCard · <span style={{ color: LINKS }}>●</span> {links} Swift Links
+                    </span>
+                  )}
                   <span className="block text-[10px]" style={{ color: "#cbd5e1" }}>{fmtTip(b.ts)}</span>
                 </div>
               )}
