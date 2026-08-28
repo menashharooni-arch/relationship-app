@@ -120,7 +120,7 @@ describe("public card page caching and redirect safety", () => {
     const page = read3("src/app/[username]/page.tsx");
     const lib = read3("src/lib/card-page-data.ts");
     // getUser() must still run on the page, per request…
-    expect(page).toMatch(/const viewer = await \(async \(\) => \{[\s\S]{0,300}?auth\.getUser\(\)/);
+    expect(page).toMatch(/const viewer = await \(async \(\) => \{[\s\S]{0,800}?auth\.getUser\(\)/);
     expect(page).toMatch(/const isOwnerView = !!viewer && viewer\.id === ownerId/);
     // …and must never appear inside the cached loader (code, not comments —
     // the file explains WHY the viewer is excluded).

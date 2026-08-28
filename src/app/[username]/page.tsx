@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { getCardPageData } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
@@ -187,6 +188,13 @@ export default async function CardPage({
   // person's session to every visitor.
   const viewer = await (async () => {
     try {
+      // Fast path for the overwhelming majority of card views: a visitor with
+      // no Supabase auth cookie cannot be the owner, so there is nothing to
+      // ask the auth server. This skips a network round trip on every scan of
+      // every QR code; only a signed-in viewer pays for the check.
+      const jar = await cookies();
+      const signedIn = jar.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+      if (!signedIn) return null;
       const { data: { user } } = await (await createClient()).auth.getUser();
       return user;
     } catch {
