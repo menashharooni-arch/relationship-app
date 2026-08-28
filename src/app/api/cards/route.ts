@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         code: "CARD_LIMIT_REACHED",
         error: "limit",
         message: "Ready for a second card? Go unlimited with Pro.",
-        upgrade: "/pricing",
+        upgrade: "/upgrade",
       },
       { status: 402 }
     );

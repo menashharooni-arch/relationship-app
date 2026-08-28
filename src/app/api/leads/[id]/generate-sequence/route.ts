@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Multi-day AI follow-up sequences that auto-send are a Pro/Office feature.
   if (!isPaidPlan(profile?.plan)) {
     return NextResponse.json(
-      { code: "SEQUENCES_PRO_ONLY", error: "upgrade", message: "Automated follow-up sequences are a Pro feature. Upgrade to unlock them.", upgrade: "/pricing" },
+      { code: "SEQUENCES_PRO_ONLY", error: "upgrade", message: "Automated follow-up sequences are a Pro feature. Upgrade to unlock them.", upgrade: "/upgrade" },
       { status: 402 }
     );
   }

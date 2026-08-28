@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isApplePaid } from "@/lib/iap-entitlement";
 import { PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 
 export type OfficeAddress = { street?: string; unit?: string; city?: string; state?: string; zip?: string };
@@ -420,8 +421,8 @@ export async function memberFallbackPlan(userId: string): Promise<"pro" | "free"
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
-    .select("stripe_subscription_id")
+    .select("stripe_subscription_id, customization")
     .eq("id", userId)
     .maybeSingle();
-  return profile?.stripe_subscription_id ? "pro" : "free";
+  return profile?.stripe_subscription_id || isApplePaid(profile?.customization) ? "pro" : "free";
 }

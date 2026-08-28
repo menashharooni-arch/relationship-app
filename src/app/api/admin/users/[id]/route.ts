@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isApplePaid } from "@/lib/iap-entitlement";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
 import { requireAdmin } from "@/lib/admin";
@@ -167,8 +168,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.grantFreeMonth) {
     // A paying subscriber doesn't need a grant — and stacking plan_expires_at
     // onto an active Stripe subscription creates a conflicting billing state.
-    const { data: cur } = await admin.from("profiles").select("stripe_subscription_id").eq("id", id).maybeSingle();
-    if (cur?.stripe_subscription_id) {
+    const { data: cur } = await admin.from("profiles").select("stripe_subscription_id, customization").eq("id", id).maybeSingle();
+    if (cur?.stripe_subscription_id || isApplePaid(cur?.customization)) {
       return NextResponse.json({ error: "This user is on an active paid subscription — no free month needed." }, { status: 409 });
     }
     const expires = new Date(Date.now() + freeMonthDays(REFERRAL.NEW_USER_FREE_MONTHS) * 86_400_000).toISOString();

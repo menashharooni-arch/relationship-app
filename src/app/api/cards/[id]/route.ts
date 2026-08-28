@@ -103,7 +103,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const editable = (owned ?? []).slice(0, PLAN_LIMITS.FREE_CARD_LIMIT).map((c) => c.id);
       if (!editable.includes(id)) {
         return NextResponse.json(
-          { code: "CARD_VIEW_ONLY", error: "view_only", message: "This card is view-only on Free. Upgrade to Pro to edit all your cards.", upgrade: "/pricing" },
+          { code: "CARD_VIEW_ONLY", error: "view_only", message: "This card is view-only on Free. Upgrade to Pro to edit all your cards.", upgrade: "/upgrade" },
           { status: 403 }
         );
       }

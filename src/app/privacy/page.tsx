@@ -159,7 +159,8 @@ export default function PrivacyPage() {
           <LI>
             <strong>Google</strong> (the Gemini API) — our AI provider. Data reaches Google only when you use a feature that needs it,
             and only the data that feature needs: the photograph you take when you scan a business card; a contact&apos;s name, company,
-            where you met and your notes when AI drafts a follow-up for them; the design photo you upload to rebuild a card; and the
+            where you met and your notes, together with your own name, title, company and About text, when AI drafts a follow-up for
+            them; the design photo you upload to rebuild a card, including your photo, logo and contact details shown on it; and the
             messages you type to the in-app assistant. Google processes it to return the result and we do not send it anywhere else.
             We ask for your permission in the app before any of this is sent, and you can decline — the rest of SwiftCard keeps working
             and AI features stay off. We use the Gemini API under{" "}

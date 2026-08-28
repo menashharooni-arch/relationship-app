@@ -27,7 +27,16 @@ async function openConnect(href: string): Promise<void> {
     return;
   }
   const sep = href.includes("?") ? "&" : "?";
-  const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+  let url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+  // The system-browser sheet has no app cookies — carry the session across
+  // as a short-lived signed token (lib/connect-user.ts).
+  try {
+    const r = await fetch("/api/integrations/handoff", { method: "POST" });
+    if (r.ok) {
+      const { h } = (await r.json()) as { h?: string };
+      if (h) url += `&h=${encodeURIComponent(h)}`;
+    }
+  } catch { /* fall through — the sheet will show sign-in instead of a dead tap */ }
   try {
     const { Browser } = await import("@capacitor/browser");
     await Browser.open({ url, presentationStyle: "fullscreen" });

@@ -128,7 +128,7 @@ export const accountDocs = defineDocs([
       "Seats in use = you + active members + pending invitations, and you can't reduce below that — remove members or revoke invitations first. Reductions are scheduled for the end of the billing period rather than applied immediately; increases are invoiced right away. Expired invitations stop holding a seat.",
     commerce: true,
     nativeAnswer:
-      "You can add a seat on the spot when you invite someone past your current seat count — the invite dialog offers it. Office needs at least {limit.seats} seats, and seats in use means you, plus active members, plus pending invitations.",
+      "If you invite someone past your current seat count, the invite dialog lets you know; remove an existing team member to free up a seat. Office needs at least {limit.seats} seats, and seats in use means you, plus active members, plus pending invitations.",
   },
   {
     id: "integrations",

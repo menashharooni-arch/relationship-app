@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { resolveConnectUserId } from "@/lib/connect-user";
 import { isPaidPlan } from "@/lib/plan";
 import { signState } from "@/lib/oauth-state";
 import { parseCardsParam, scopeIsOwned } from "@/lib/crm-scope-server";
@@ -15,13 +15,16 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // + `refresh_token` (offline). Login host is production — sandbox orgs
 // (test.salesforce.com) are deliberately out of scope for v1.
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(`${APP_URL}/login`);
+  const userId = await resolveConnectUserId(request);
+  if (!userId) return NextResponse.redirect(`${APP_URL}/login`);
+  const user = { id: userId };
 
   // Integrations are a Pro/Office feature.
-  const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
-  if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}/pricing`);
+  const { data: profile } = await getAdminSupabase().from("profiles").select("plan").eq("id", user.id).single();
+  // The shell opens this in an SFSafariViewController where the native
+  // guards can't run — never send it to the pricing page (3.1.1).
+  const fromShell = new URL(request.url).searchParams.get("native") === "1";
+  if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}${fromShell ? "/dashboard" : "/pricing"}`);
 
   // Not configured yet (Connected App credentials pending) — land back on
   // Settings with a clear status instead of a broken Salesforce URL.

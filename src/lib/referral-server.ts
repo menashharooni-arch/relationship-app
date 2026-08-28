@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "./supabase-admin";
+import { isApplePaid } from "./iap-entitlement";
 import { getAccountEmail } from "./account-email";
 import { getStripe } from "./stripe";
 import { isPaidPlan, TRIAL_DAYS } from "./plan";
@@ -110,10 +111,13 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
   const admin = getAdminSupabase();
   const { data: p } = await admin
     .from("profiles")
-    .select("plan, stripe_customer_id, stripe_subscription_id, plan_expires_at")
+    .select("plan, stripe_customer_id, stripe_subscription_id, plan_expires_at, customization")
     .eq("id", userId)
     .maybeSingle();
   if (!p) return;
+  // An Apple subscriber is paying too — never hand them an app grant, whose
+  // expiry would later downgrade the subscription they're still paying for.
+  if (isApplePaid(p.customization)) return;
 
   const payingNow = isPaidPlan(p.plan) && !!p.stripe_subscription_id && !p.plan_expires_at;
   if (payingNow && p.stripe_customer_id) {
@@ -498,7 +502,7 @@ export async function expireFreeMonths(): Promise<DowngradedUser[]> {
 
   const downgraded: DowngradedUser[] = [];
   for (const u of expired ?? []) {
-    if (u.stripe_subscription_id) {
+    if (u.stripe_subscription_id || isApplePaid(u.customization)) {
       // A real subscriber whose grant window lapsed — just clear the expiry so
       // the row is never mistaken for an app grant. Never downgrade them.
       await admin.from("profiles").update({ plan_expires_at: null }).eq("id", u.id);

@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest) {
   const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow?.plan)) {
     return NextResponse.json(
-      { code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Integrations are a Pro feature.", upgrade: "/pricing" },
+      { code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "Integrations are a Pro feature.", upgrade: "/upgrade" },
       { status: 402 },
     );
   }

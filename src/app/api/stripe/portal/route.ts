@@ -1,3 +1,5 @@
+import type { NextRequest } from "next/server";
+import { isShellRequest } from "@/lib/shell-request";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
@@ -18,7 +20,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // So the questions and the save-offer both live in the Dashboard now, where
 // they can be tuned without a deploy. Nothing here needs to change to add,
 // remove or re-price a retention coupon.
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Apple-billed subs are managed in the App Store sheet; the Stripe portal
+  // is never opened from the shell (3.1.1).
+  if (isShellRequest(req)) return NextResponse.json({ error: "Not available in the app" }, { status: 403 });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

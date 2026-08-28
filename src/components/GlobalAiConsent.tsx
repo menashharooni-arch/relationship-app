@@ -41,6 +41,10 @@ export default function GlobalAiConsent() {
 
   useEffect(() => {
     if (!native) return;
+    // Signed-out surfaces: no session to ask about. Skipping avoids a 401 in
+    // the console on every sign-in screen (the pathname dependency re-runs
+    // this the moment they land on a signed-in route).
+    if (pathname === "/login" || pathname.startsWith("/auth/") || pathname === "/account-deleted") return;
     if (state && !signedOut) return; // decision (or lack of one) already known
     let cancelled = false;
     (async () => {

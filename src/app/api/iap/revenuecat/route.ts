@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { decideRcEvent, type PlanSource } from "@/lib/iap-entitlement";
+import { decideRcEvent, type PlanSource, appleGrantPatch } from "@/lib/iap-entitlement";
 
 // ── RevenueCat webhook: the durable path from an App Store purchase to the
 //    profiles.plan column ─────────────────────────────────────────────────────
@@ -26,7 +27,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "webhook_not_configured" }, { status: 503 });
   }
   const auth = req.headers.get("authorization") ?? "";
-  if (auth !== `Bearer ${expected}`) {
+  const want = Buffer.from(`Bearer ${expected}`);
+  const got = Buffer.from(auth);
+  if (want.length !== got.length || !timingSafeEqual(want, got)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -43,11 +46,16 @@ export async function POST(req: NextRequest) {
     (v) => typeof v === "string" && v.length > 0 && !v.startsWith("$RCAnonymousID:"),
   );
   if (!uid) return NextResponse.json({ ok: true, skipped: "anonymous" });
+  // Only Supabase uids are ever set as app_user_id; anything else can't map
+  // to a profile, and a 500 here would make RC retry it forever.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
+    return NextResponse.json({ ok: true, skipped: "not_a_uid" });
+  }
 
   const admin = getAdminSupabase();
   const { data: profile, error } = await admin
     .from("profiles")
-    .select("id, plan, customization, stripe_subscription_id")
+    .select("id, plan, customization, stripe_subscription_id, office_id")
     .eq("id", uid)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "lookup_failed" }, { status: 500 });
@@ -59,12 +67,13 @@ export async function POST(req: NextRequest) {
     currentPlan: (profile.plan as string | null) ?? null,
     planSource: customization._planSource as PlanSource | undefined,
     hasStripeSubscription: !!profile.stripe_subscription_id,
+    isOfficeMember: !!profile.office_id,
   });
 
   if (decision.action === "grant") {
     await admin
       .from("profiles")
-      .update({ plan: "pro", customization: { ...customization, _planSource: "apple" } })
+      .update(appleGrantPatch(customization))
       .eq("id", profile.id);
     return NextResponse.json({ ok: true, applied: "grant" });
   }

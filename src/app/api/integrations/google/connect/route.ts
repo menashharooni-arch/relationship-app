@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { resolveConnectUserId } from "@/lib/connect-user";
 import { isPaidPlan } from "@/lib/plan";
 import { signState } from "@/lib/oauth-state";
 import { parseCardsParam, scopeIsOwned } from "@/lib/crm-scope-server";
@@ -11,13 +11,16 @@ const SCOPES = "https://www.googleapis.com/auth/contacts";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(`${APP_URL}/login`);
+  const userId = await resolveConnectUserId(request);
+  if (!userId) return NextResponse.redirect(`${APP_URL}/login`);
+  const user = { id: userId };
 
   // Integrations are a Pro/Office feature.
-  const { data: profile } = await supabase.from("profiles").select("plan").eq("id", user.id).single();
-  if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}/pricing`);
+  const { data: profile } = await getAdminSupabase().from("profiles").select("plan").eq("id", user.id).single();
+  // The shell opens this in an SFSafariViewController where the native
+  // guards can't run — never send it to the pricing page (3.1.1).
+  const fromShell = new URL(request.url).searchParams.get("native") === "1";
+  if (!isPaidPlan(profile?.plan)) return NextResponse.redirect(`${APP_URL}${fromShell ? "/dashboard" : "/pricing"}`);
 
   // Pre-connect card scope. The settings UI makes the user choose all-cards
   // vs only-these BEFORE the OAuth redirect; the choice rides this cookie to

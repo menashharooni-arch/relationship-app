@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
 
   if (!paid && count >= PLAN_LIMITS.FREE_CARD_LIMIT) {
     return NextResponse.json(
-      { error: "limit", message: "Ready for a second card? Go unlimited with Pro.", upgrade: "/pricing" },
+      { error: "limit", message: "Ready for a second card? Go unlimited with Pro.", upgrade: "/upgrade" },
       { status: 402 },
     );
   }

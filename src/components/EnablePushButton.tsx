@@ -233,6 +233,9 @@ export default function EnablePushButton({
           }).catch(() => {});
           try { localStorage.removeItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
         }
+        // Without this the launch-time silent re-register (NativeAppBridge)
+        // saw permission granted + a matching uid and turned push back ON.
+        try { localStorage.removeItem(PUSH_UID_KEY); } catch { /* ignore */ }
         setForcedOff(true);
         setBusyOff(false);
         return;

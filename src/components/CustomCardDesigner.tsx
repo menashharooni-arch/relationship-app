@@ -267,7 +267,7 @@ export default function CustomCardDesigner({
         const j = await res.json().catch(() => ({}));
         setScanError(
           res.status === 401 ? "Sign in first — copying a card design needs an account."
-          : res.status === 403 ? "Copying a card design is a Pro feature."
+          : res.status === 403 ? ((j as { code?: string; message?: string }).code === "AI_CONSENT_REQUIRED" ? ((j as { message?: string }).message ?? "AI features are off. Turn them on in Settings.") : "Copying a card design is a Pro feature.")
           : res.status === 429 ? "Too many copies just now — try again in a minute."
           : (j as { error?: string }).error === "no_ai" ? "Copying a design is unavailable right now."
           : "Couldn't rebuild that design. Try again, or try a cleaner image.",
@@ -312,7 +312,7 @@ export default function CustomCardDesigner({
         const j = await res.json().catch(() => ({}));
         setScanError(
           res.status === 401 ? "Sign in first — copying a card layout needs an account."
-          : res.status === 403 ? "Copying a card layout is a Pro feature."
+          : res.status === 403 ? ((j as { code?: string; message?: string }).code === "AI_CONSENT_REQUIRED" ? ((j as { message?: string }).message ?? "AI features are off. Turn them on in Settings.") : "Copying a card layout is a Pro feature.")
           : res.status === 429 ? "Too many copies just now — try again in a minute."
           : res.status === 422 ? "Couldn't read that image. Try a straight-on shot in good light."
           : (j as { error?: string }).error === "no_ai" ? "Copying a layout is unavailable right now."

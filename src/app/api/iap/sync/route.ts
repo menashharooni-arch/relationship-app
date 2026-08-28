@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { isOfficePlan } from "@/lib/plan";
+import { appleGrantPatch } from "@/lib/iap-entitlement";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { IAP_ENTITLEMENT } from "@/lib/iap-shared";
@@ -41,16 +43,16 @@ export async function POST() {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
-    .select("plan, customization")
+    .select("plan, customization, office_id")
     .eq("id", user.id)
     .single();
   // Same rule as decideRcEvent: Apple only sells Pro, so an OFFICE plan (the
   // higher, Stripe-billed tier) is never overwritten by this grant.
-  if (profile?.plan === "office") return NextResponse.json({ ok: true, applied: "none" });
+  if (isOfficePlan(profile?.plan) || profile?.office_id) return NextResponse.json({ ok: true, applied: "none" });
   const customization = { ...((profile?.customization as Record<string, unknown> | null) ?? {}) };
   await admin
     .from("profiles")
-    .update({ plan: "pro", customization: { ...customization, _planSource: "apple" } })
+    .update(appleGrantPatch(customization))
     .eq("id", user.id);
   return NextResponse.json({ ok: true, applied: "grant" });
 }

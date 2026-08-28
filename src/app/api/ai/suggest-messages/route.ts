@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         code: "AI_DRAFTS_LIMIT_REACHED",
         error: "upgrade",
         message: `You've used your ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} free AI drafts this month. Upgrade to Pro for unlimited AI follow-ups and automated sequences.`,
-        upgrade: "/pricing",
+        upgrade: "/upgrade",
         messages: [],
       },
       { status: 402 }

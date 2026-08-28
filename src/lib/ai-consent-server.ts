@@ -46,26 +46,13 @@ export async function aiConsentBlock(userId: string, req: NextRequest): Promise<
     .eq("id", userId)
     .single();
 
-  if (error) return null;
+  // A lookup error fails OPEN on the web (feature works, the blip passes) but
+  // CLOSED for the shell: the app may never send personal data unasked.
+  if (error) return isShellRequest(req) ? consentRequired("unset") : null;
   const consent = readAiConsent(data?.customization);
   if (aiConsentPermits(consent, isShellRequest(req))) return null;
 
-  return NextResponse.json(
-    consent === "declined"
-      ? {
-          error: "ai_consent_required",
-          code: "AI_CONSENT_REQUIRED",
-          reason: "declined",
-          message: "AI features are turned off for this account. You can turn them back on in Settings.",
-        }
-      : {
-          error: "ai_consent_required",
-          code: "AI_CONSENT_REQUIRED",
-          reason: "unset",
-          message: "SwiftCard needs your permission before using AI features. Allow AI in Settings, or when the notice appears.",
-        },
-    { status: 403 },
-  );
+  return consentRequired(consent === "declined" ? "declined" : "unset");
 }
 
 /**
@@ -85,6 +72,25 @@ export async function aiConsentAllowsFor(userId: string, req: NextRequest): Prom
     .select("customization")
     .eq("id", userId)
     .single();
-  if (error) return true; // fail open, same reasoning as above
+  if (error) return !isShellRequest(req); // web fails open; the shell never sends unasked
   return aiConsentPermits(readAiConsent(data?.customization), isShellRequest(req));
+}
+
+function consentRequired(reason: "declined" | "unset"): NextResponse {
+  return NextResponse.json(
+    reason === "declined"
+      ? {
+          error: "ai_consent_required",
+          code: "AI_CONSENT_REQUIRED",
+          reason,
+          message: "AI features are turned off for this account. You can turn them back on in Settings.",
+        }
+      : {
+          error: "ai_consent_required",
+          code: "AI_CONSENT_REQUIRED",
+          reason,
+          message: "SwiftCard needs your permission before using AI features. Allow AI in Settings, or when the notice appears.",
+        },
+    { status: 403 },
+  );
 }

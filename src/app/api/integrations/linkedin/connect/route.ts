@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { resolveConnectUserId } from "@/lib/connect-user";
 import { signState } from "@/lib/oauth-state";
 import { GUEST_STATE, isLinkedInEnabled, LINKEDIN_AUTH_URL, LINKEDIN_REDIRECT_URI, LINKEDIN_SCOPES } from "@/lib/sync-linkedin";
 
@@ -31,8 +31,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${APP_URL}/settings/flows?integration=linkedin&status=error`);
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await resolveConnectUserId(request);
+  const user = userId ? { id: userId } : null;
   // A session always wins: if the "guest" is actually signed in, do the real
   // connect so the token lands on their account like normal.
   if (!user && !guestRequested) return NextResponse.redirect(`${APP_URL}/login`);
