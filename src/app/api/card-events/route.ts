@@ -12,6 +12,7 @@ import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { requestLocation } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
+import { recordView } from "@/lib/record-view";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -92,6 +93,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, self: true });
     }
 
+    // VIEWS: record the card_views row (chart, counters, locations) HERE,
+    // through the same function /api/views uses, and only carry on to the
+    // notification when it was genuinely recorded. Keyed on the SURFACE
+    // ("<slug>__links" for Swift Links), so a card view and a links view by
+    // the same visitor are two views and two notifications — which is what the
+    // chart shows. Anything not recorded (same-visit reload, self-view) makes
+    // no notification either: the bell can never say something the bars don't.
+    let viewOutcome: "recorded" | null = null;
+    if (event_type === "viewed_card") {
+      const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
+      const { outcome } = await recordView({ req, username: viewsKey, visitorId: visitor_id, source, ip });
+      if (outcome !== "recorded") return NextResponse.json({ ok: true, [outcome]: true });
+      viewOutcome = "recorded";
+    }
+
     // ONE VISIT = ONE EVENT = ONE NOTIFICATION. The same visitor re-touching
     // the same card inside the visit window (reload, double-fire, browser
     // retry) is the same event; past the window a return is a genuine repeat
@@ -101,7 +117,9 @@ export async function POST(req: NextRequest) {
     // /api/views (view-window.ts) so the dashboard, the contact timeline, and
     // the push notification always agree on whether a view happened.
     const windowStart = new Date(Date.now() - VIEW_VISIT_WINDOW_MS).toISOString();
-    if (visitor_id) {
+    if (viewOutcome === "recorded") {
+      // Already deduped against card_views above (surface-aware).
+    } else if (visitor_id) {
       const { data: dup } = await admin
         .from("card_events")
         .select("id")

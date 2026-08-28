@@ -17,7 +17,8 @@ import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-const viewsRoute = read("src/app/api/views/[username]/route.ts");
+// The recording itself lives in lib/record-view.ts (shared with /api/card-events).
+const viewsRoute = read("src/app/api/views/[username]/route.ts") + "\n" + read("src/lib/record-view.ts");
 const eventsRoute = read("src/app/api/card-events/route.ts");
 const tracker = read("src/components/CardEventTracker.tsx");
 const migration = read("supabase/view-visit-window.sql");

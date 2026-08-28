@@ -46,7 +46,8 @@ describe("card views and Swift Link views never mix", () => {
 });
 
 describe("a recorded view is a real visit", () => {
-  const route = read("src/app/api/views/[username]/route.ts");
+  // The recording itself lives in lib/record-view.ts (shared with /api/card-events).
+  const route = read("src/app/api/views/[username]/route.ts") + "\n" + read("src/lib/record-view.ts");
 
   it("drops bot traffic", () => {
     expect(route).toMatch(/isLikelyBot\(req\.headers\.get\("user-agent"\)\)/);
@@ -84,7 +85,9 @@ describe("a recorded view is a real visit", () => {
     const geo = read("src/lib/request-geo.ts");
     expect(geo).toMatch(/x-vercel-ip-city/);
     expect(geo).toMatch(/x-vercel-ip-country/);
-    const body = route.slice(route.indexOf("const body ="), route.indexOf("const baseSlug ="));
+    // Only the ROUTE parses the body; the recorder receives already-validated fields.
+    const routeOnly = read("src/app/api/views/[username]/route.ts");
+    const body = routeOnly.slice(routeOnly.indexOf("const body ="), routeOnly.indexOf("recordView({"));
     expect(body, "location must not be read off the request body").not.toMatch(/location/);
   });
 

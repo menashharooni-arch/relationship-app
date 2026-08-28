@@ -42,12 +42,11 @@ export function cardEventNotice(input: {
     // for different reasons, so the notification says which one was opened.
     // source === "swift_links" kept for events from clients that predate the
     // explicit surface field.
-    const surfaceLabel = input.surface === "links" || source === "swift_links"
-      ? "your Swift Links"
-      : "your card";
+    const isLinks = input.surface === "links" || source === "swift_links";
+    const surfaceLabel = isLinks ? "your Swift Links" : "your card";
     return {
       type: "card_viewed",
-      title: "Card viewed",
+      title: isLinks ? "Swift Links viewed" : "Card viewed",
       // "Someone" when we genuinely don't know. A visitor is only named once
       // they have shared their details, so this never guesses at an identity.
       body: `${name || "Someone"} viewed ${surfaceLabel}${near}.`,
