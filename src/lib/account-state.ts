@@ -21,8 +21,8 @@
 //   • swiftcard_apns_endpoint — the device's push token. The SERVER row that
 //     binds it to an account is what gets severed (see push-device.ts); the
 //     token itself is hardware-scoped and stays.
-//   • sc_theme / tour flags — cosmetic device preferences; no identity
-//     content. (sc_has_acct is gone entirely: persisting it let a signed-out
+//   • sc_theme — a cosmetic device preference; no identity content.
+//     (sc_has_acct is gone entirely: persisting it let a signed-out
 //     device keep reading "existing customer" and suppressed the signup nudge
 //     — SignupNudgeHost now caches that answer in memory with a short TTL.)
 
@@ -46,6 +46,14 @@ export const PERSON_SCOPED_STORAGE_KEYS = [
   // on one device from being merged into a single "visitor" in analytics and
   // conversation matching.
   "kontact_vid",
+  // The guided tour's "already seen it" flag. It was treated as a cosmetic
+  // device preference — but the tour is a per-ACCOUNT onboarding step, and a
+  // device flag meant anyone who had skipped it once (every owner testing
+  // their own app) could never see it again, on any account, ever. That is
+  // exactly the "my first card was created and no tour appeared" report:
+  // brand-new account, previously-used phone.
+  "sc_tour_completed",
+  "sc_admin_tour_completed",
 ] as const;
 
 /**

@@ -1668,7 +1668,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           scroll down to the plan cards. Same split as SignatureDemo's popup. */}
       <div className="fixed inset-0 z-[89] bg-gray-950/97 backdrop-blur-sm" aria-hidden />
       <div className="fixed inset-0 z-[90] overflow-y-auto">
-        <div className="min-h-full flex items-start justify-center py-10 px-5">
+        {/* pt clears the notch/status bar in the shell — "Back to your card"
+            sat directly under the clock on a notched iPhone. */}
+        <div className="min-h-full flex items-start justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+2.5rem))]">
           <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
               <button onClick={() => { setShowPlan(false); setPendingFreeConfirm(false); }} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
