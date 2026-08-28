@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 function isValidTime(t: string) {
   return /^\d{2}:\d{2}$/.test(t);
@@ -24,7 +25,13 @@ export async function PATCH(req: Request) {
     }
   }
 
-  const { error } = await supabase
+  // Service-role, like every other profile write in the app: the
+  // privileged-column guard (supabase/profiles-privileged-column-guard.sql)
+  // REVOKEs UPDATE on profiles from `authenticated`, so this write through the
+  // session client had been failing with a 500 — saving flow settings was
+  // silently broken in production. The row is still pinned to the caller's own
+  // id, and flow_settings is not a privileged column.
+  const { error } = await getAdminSupabase()
     .from("profiles")
     .update({ flow_settings: body })
     .eq("id", user.id);

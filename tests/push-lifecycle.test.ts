@@ -32,7 +32,9 @@ describe("tap routing actually navigates", () => {
 
   it("still refuses foreign origins and protocol-relative tricks", () => {
     const tap = bridge.slice(bridge.indexOf("pushNotificationActionPerformed"));
-    expect(tap).toMatch(/dest\.startsWith\("\/"\) && !dest\.startsWith\("\/\/"\)/);
+    // safeNextPath replaced the inline check: it rejects "//" AND "/\\",
+    // which new URL() would otherwise resolve to a foreign origin.
+    expect(tap).toMatch(/safeNextPath\(dest\)/);
   });
 
   it("registers the tap listener BEFORE the network-bound widget sync — cold-start taps race the boot", () => {

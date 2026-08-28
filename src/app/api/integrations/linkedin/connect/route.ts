@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeNextPath } from "@/lib/safe-next";
 import { resolveConnectUserId } from "@/lib/connect-user";
 import { signState } from "@/lib/oauth-state";
 import { GUEST_STATE, isLinkedInEnabled, LINKEDIN_AUTH_URL, LINKEDIN_REDIRECT_URI, LINKEDIN_SCOPES } from "@/lib/sync-linkedin";
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const nextRaw = url.searchParams.get("next") ?? "";
   // Same-origin relative paths only — anything else falls back to Settings.
-  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "";
+  const next = safeNextPath(nextRaw) ?? "";
   const guestRequested = url.searchParams.get("guest") === "1";
 
   // Fail safe: with no credentials the feature is off — send the user back

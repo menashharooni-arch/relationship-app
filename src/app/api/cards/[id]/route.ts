@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateCardPage } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -256,6 +257,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // The public card page reads through a per-slug cache — drop it now so the
+  // owner's next look at their own card shows the edit, not the old copy.
+  revalidateCardPage(beforeCard ? (beforeCard as { username?: string }).username : null);
+
   // The card URL follows the card (owner order 2026-08-26): a name/company
   // change moves an auto-managed slug to the new FirstLast-Company canonical.
   // Hand-picked slugs never move; old links 308-redirect via _prevSlugs.
@@ -270,6 +275,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       afterName: ("name" in updates ? (updates.name as string | null) : b.name),
       afterCompany: ("company" in updates ? (updates.company as string | null) : b.company),
     });
+    // A rename creates a second live slug (the old one 308-redirects); clear
+    // both so neither serves a stale card.
+    revalidateCardPage(renamedTo, b.username);
   }
 
   // Swift Signature freshness nudge: if anything shown ON the card actually
@@ -387,6 +395,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!cardRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const username = cardRow.username as string;
+  revalidateCardPage(username);
 
   // Lead-child rows are keyed by lead_id, so they must be cleared BEFORE the
   // leads themselves — otherwise deleting the card orphaned every message and
