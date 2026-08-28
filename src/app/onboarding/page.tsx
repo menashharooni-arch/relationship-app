@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { safeNextPath } from "@/lib/safe-next";
 import { after } from "next/server";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase-server";
@@ -29,7 +30,7 @@ export default async function OnboardingPage({
   // Only honour a same-origin relative redirect (no open-redirect). Used to send
   // a brand-new signup back to the guest editor so their pending draft is claimed.
   const { next, intent } = await searchParams;
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const safeNext = safeNextPath(next);
 
   const { data: profile } = await supabase.from("profiles").select("id").eq("id", user.id).single();
 

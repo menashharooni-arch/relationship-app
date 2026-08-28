@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { safeNextPath } from "@/lib/safe-next";
 import { createBrowserClient } from "@supabase/ssr";
 import { loadGoogleIdentity } from "@/lib/google-gis";
 import { detectNativeApp } from "@/lib/platform";
@@ -94,7 +95,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
     );
 
     const safeNext =
-      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+      safeNextPath(redirectTo);
 
     // Raw nonce sent to Supabase; Google gets its SHA-256 hash and embeds the
     // hash in the ID token's nonce claim, which Supabase re-hashes to compare.

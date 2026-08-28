@@ -98,7 +98,7 @@ describe("the app handles the LinkedIn return leg", () => {
       bridge.indexOf("swiftcard://linkedin-callback"),
       bridge.indexOf('url.startsWith("swiftcard:")'),
     );
-    expect(branch).toMatch(/startsWith\(["']\/["']\)/);
-    expect(branch).toMatch(/!.*startsWith\(["']\/\/["']\)/);
+    // One shared guard now, rejecting "//" and "/\\" alike.
+    expect(branch).toMatch(/safeNextPath\(nextRaw\)/);
   });
 });

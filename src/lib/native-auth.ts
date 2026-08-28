@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { safeNextPath } from "@/lib/safe-next";
 
 /**
  * Native-shell OAuth sign-in (Google / Apple) for the Capacitor iOS app.
@@ -59,7 +60,7 @@ const HANDOFF_KEY = "swiftcard_native_google_handoff";
 
 export function stashNativeOAuthNext(next: string | null | undefined, intent?: "signin" | "signup"): void {
   try {
-    if (next && next.startsWith("/") && !next.startsWith("//")) {
+    if (next && safeNextPath(next)) {
       localStorage.setItem(NEXT_KEY, next);
     } else {
       localStorage.removeItem(NEXT_KEY);

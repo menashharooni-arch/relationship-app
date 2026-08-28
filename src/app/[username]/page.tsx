@@ -1,6 +1,6 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getCardPageData } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
@@ -19,7 +19,6 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import { resolveCardMeta } from "@/lib/resolve-card";
-import { cardWithinPlanLimit } from "@/lib/card-active";
 import CardScaler from "@/components/CardScaler";
 import CardTilt from "@/components/CardTilt";
 import { cardPageTheme } from "@/lib/card-page-theme";
@@ -144,15 +143,10 @@ export default async function CardPage({
 
   // Cards table is the source of truth. Fall back to a legacy profile-card for any
   // account not yet migrated. Admin client so row-level security doesn't hide cards.
-  const admin = getAdminSupabase();
-  const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
-  const { data: cardOwner } = cardRow
-    ? await admin.from("profiles").select("plan, photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
-    : { data: null };
-
-  const { data: profileRow } = !cardRow
-    ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
-    : { data: null };
+  // These four reads are the same ones this page always made — they are now
+  // served from a per-slug cache (lib/card-page-data.ts) so a QR scan does not
+  // cost a database round trip. Viewer-dependent work stays below, per request.
+  const { cardRow, cardOwner, profileRow, withinLimit } = await getCardPageData(username);
 
   // Only treat a profile as a card if it's a legacy, not-yet-migrated card (so a
   // deleted/migrated card doesn't keep resolving from the account profile).
@@ -188,18 +182,18 @@ export default async function CardPage({
   // depends on the other's result) — run them together instead of serially
   // (performance audit). A card that turns out to be over-limit still
   // 404s below; the getUser() call in that rare branch just goes unused.
-  const [withinLimit, viewer] = await Promise.all([
-    cardRow ? cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan) : Promise.resolve(true),
-    (async () => {
-      try {
-        const { data: { user } } = await (await createClient()).auth.getUser();
-        return user;
-      } catch {
-        // Cookie refresh may fail for public viewers — safe to ignore.
-        return null;
-      }
-    })(),
-  ]);
+  // Who is looking? Never cached — this is what suppresses a view when the
+  // OWNER opens their own card, and a cached answer would attribute one
+  // person's session to every visitor.
+  const viewer = await (async () => {
+    try {
+      const { data: { user } } = await (await createClient()).auth.getUser();
+      return user;
+    } catch {
+      // Cookie refresh may fail for public viewers — safe to ignore.
+      return null;
+    }
+  })();
 
   // Plan kill-switch: a Free account only serves its first card(s) — extra
   // cards created on Pro go dark (page, QR, links) after a downgrade.

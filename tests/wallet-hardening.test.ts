@@ -100,3 +100,64 @@ describe("in-app signup and first-card flow", () => {
     expect(read2("src/lib/use-iap-price.ts")).toMatch(/getIapPackages/);
   });
 });
+
+// ── Scaling + security hardening, 2026-08-28 ──────────────────────────────
+describe("public card page caching and redirect safety", () => {
+  const read3 = (p: string) => readFileSync(p, "utf8");
+
+  it("the card page reads its data through the per-slug cache, not a query per view", () => {
+    const page = read3("src/app/[username]/page.tsx");
+    expect(page).toMatch(/getCardPageData\(username\)/);
+    // The inline admin reads are gone.
+    expect(page).not.toMatch(/admin\.from\("cards"\)\.select\("\*"\)\.eq\("username", username\)/);
+    const lib = read3("src/lib/card-page-data.ts");
+    expect(lib).toMatch(/unstable_cache/);
+    expect(lib).toMatch(/tags: \[cardPageTag\(slug\)\]/);
+    expect(lib).toMatch(/revalidate: 60/);
+  });
+
+  it("the viewer identity is NEVER cached — owner self-view suppression stays per request", () => {
+    const page = read3("src/app/[username]/page.tsx");
+    const lib = read3("src/lib/card-page-data.ts");
+    // getUser() must still run on the page, per request…
+    expect(page).toMatch(/const viewer = await \(async \(\) => \{[\s\S]{0,300}?auth\.getUser\(\)/);
+    expect(page).toMatch(/const isOwnerView = !!viewer && viewer\.id === ownerId/);
+    // …and must never appear inside the cached loader (code, not comments —
+    // the file explains WHY the viewer is excluded).
+    const libCode = lib.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    expect(libCode).not.toMatch(/getUser|createClient|cookies\(|headers\(/);
+  });
+
+  it("every card write drops the cached copy", () => {
+    const route = read3("src/app/api/cards/[id]/route.ts");
+    expect(route).toMatch(/import \{ revalidateCardPage \}/);
+    // edit, rename (both slugs), delete
+    expect((route.match(/revalidateCardPage\(/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(route).toMatch(/revalidateCardPage\(renamedTo, b\.username\)/);
+  });
+
+  it("no redirect guard still uses the /\\ -blind hand-written check", () => {
+    // new URL("/\\evil.com", origin) resolves to https://evil.com — the guard
+    // that only rejects "//" let a post-sign-in redirect off-origin.
+    for (const f of [
+      "src/components/GoogleSignInButton.tsx",
+      "src/lib/native-auth.ts",
+      "src/app/onboarding/page.tsx",
+      "src/app/api/integrations/linkedin/connect/route.ts",
+      "src/components/NativeAppBridge.tsx",
+    ]) {
+      const src = read3(f);
+      expect(src, `${f} still hand-rolls the guard`).not.toMatch(/startsWith\("\/"\) && !\w+\.startsWith\("\/\/"\)/);
+      expect(src, `${f} does not use safeNextPath`).toMatch(/safeNextPath\(/);
+    }
+    // The helper itself rejects both shapes.
+    const helper = read3("src/lib/safe-next.ts");
+    expect(helper).toMatch(/startsWith\("\/\/"\) \|\| next\.startsWith\("\/\\\\"\)/);
+  });
+
+  it("flow settings are written with the service role (session UPDATE is revoked)", () => {
+    const src = read3("src/app/api/settings/flows/route.ts");
+    expect(src).toMatch(/getAdminSupabase\(\)\s*\n?\s*\.from\("profiles"\)\s*\n?\s*\.update\(\{ flow_settings: body \}\)/);
+    expect(src).toMatch(/\.eq\("id", user\.id\)/);
+  });
+});

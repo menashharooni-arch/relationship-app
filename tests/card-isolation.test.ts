@@ -167,7 +167,10 @@ describe("every card-rendering surface goes through the one builder", () => {
     for (const f of [
       "src/lib/resolve-card.ts",
       "src/app/links/[username]/page.tsx",
-      "src/app/[username]/page.tsx",
+      // The card page's own profile reads moved into the cached loader
+      // (lib/card-page-data.ts) when the page stopped querying per view; the
+      // column list is still what is under test, just one file over.
+      "src/lib/card-page-data.ts",
     ]) {
       const code = src(f);
       // Every `from("profiles").select("...")` that runs alongside a card row.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { safeNextPath } from "@/lib/safe-next";
 import { detectNativeApp } from "@/lib/platform";
 
 /**
@@ -88,7 +89,7 @@ export default function NativeAppBridge() {
               // attacker-reachable (any app can open a swiftcard:// URL), so it
               // must never steer the webview off our own origin.
               const next =
-                nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/settings/flows";
+                safeNextPath(nextRaw) ?? "/settings/flows";
               const sep = next.includes("?") ? "&" : "?";
               window.location.href =
                 `${next}${sep}integration=${provider}&status=${encodeURIComponent(q.get("status") ?? "error")}`;
@@ -143,7 +144,7 @@ export default function NativeAppBridge() {
           // push never navigated. Accept our own origin and strip it to a
           // path; still never let a foreign origin steer the webview.
           let path: string | null = null;
-          if (dest.startsWith("/") && !dest.startsWith("//")) {
+          if (safeNextPath(dest)) {
             path = dest;
           } else {
             try {

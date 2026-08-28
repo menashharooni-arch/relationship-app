@@ -68,7 +68,8 @@ describe("NativeAppBridge is mounted and handles links + push taps", () => {
     expect(bridge).toMatch(/u\.hostname === "swiftcard\.me" \|\| u\.hostname === "www\.swiftcard\.me"/);
   });
   it("push taps only navigate to same-origin paths", () => {
-    expect(bridge).toMatch(/dest\.startsWith\("\/"\) && !dest\.startsWith\("\/\/"\)/);
+    // Now the shared guard (rejects "//" and "/\\" alike).
+    expect(bridge).toMatch(/safeNextPath\(dest\)/);
   });
 });
 
