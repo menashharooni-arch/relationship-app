@@ -165,7 +165,8 @@ describe("every card-rendering surface goes through the one builder", () => {
     // this codebase has had, so the column list is the thing under test.
     const ALLOWED = new Set(["photo_url", "customization", "plan"]);
     for (const f of [
-      "src/lib/resolve-card.ts",
+      // resolve-card.ts delegates its profile read to the cached loader too;
+      // the loader is in this list, so the column contract is still covered.
       "src/app/links/[username]/page.tsx",
       // The card page's own profile reads moved into the cached loader
       // (lib/card-page-data.ts) when the page stopped querying per view; the

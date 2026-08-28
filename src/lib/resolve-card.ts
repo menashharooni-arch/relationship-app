@@ -1,4 +1,4 @@
-import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getCardPageData } from "@/lib/card-page-data";
 import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import { templateStyle, type TemplateStyle } from "@/lib/template-style";
@@ -54,17 +54,12 @@ export type ResolvedCardMeta = {
 // profile. Photo always comes from the owning profile. Deleted accounts → null.
 // Keeps page metadata + OG/signature image in sync with the live card.
 export async function resolveCardMeta(username: string): Promise<ResolvedCardMeta> {
-  const admin = getAdminSupabase();
-
-  const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
-
-  const { data: owner } = cardRow
-    ? await admin.from("profiles").select("photo_url, customization, plan").eq("id", cardRow.user_id).maybeSingle()
-    : { data: null };
-
-  const { data: profileRow } = !cardRow
-    ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
-    : { data: null };
+  // Same rows the page body reads, from the same per-slug cache — Next calls
+  // generateMetadata alongside the page, so querying here again doubled every
+  // card view's database work for identical data. Callers outside a request
+  // (the Wallet pass builder, the OG image) get a cache read too, which is
+  // equally correct: an edit invalidates the tag.
+  const { cardRow, cardOwner: owner, profileRow } = await getCardPageData(username);
 
   const deleted = cardRow
     ? !!(owner?.customization as { _deleted?: boolean } | null)?._deleted
