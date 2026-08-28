@@ -21,18 +21,18 @@ describe("decideRcEvent — Apple grants", () => {
     // Real sequence: Pro bought in the app, then upgraded to Office on the web.
     // The Apple sub's next RENEWAL must not downgrade the row back to pro.
     expect(
-      decideRcEvent({ eventType: "RENEWAL", currentPlan: "office", planSource: "stripe", hasStripeSubscription: true }),
+      decideRcEvent({ eventType: "RENEWAL", currentPlan: "enterprise", planSource: "stripe", hasStripeSubscription: true }),
     ).toEqual({ action: "ignore" });
     expect(
-      decideRcEvent({ eventType: "INITIAL_PURCHASE", currentPlan: "office", planSource: null, hasStripeSubscription: false }),
+      decideRcEvent({ eventType: "INITIAL_PURCHASE", currentPlan: "enterprise", planSource: null, hasStripeSubscription: false }),
     ).toEqual({ action: "ignore" });
   });
 
   it("the instant-sync route carries the same office guard", () => {
     const { readFileSync } = require("node:fs");
     const src = readFileSync("src/app/api/iap/sync/route.ts", "utf8");
-    expect(src).toMatch(/plan === "office"/);
-    expect(src).toMatch(/select\("plan, customization"\)/);
+    expect(src).toMatch(/isOfficePlan\(profile\?\.plan\) \|\| profile\?\.office_id/);
+    expect(src).toMatch(/select\("plan, customization, office_id"\)/);
   });
 
   it("grant is case-insensitive on event type", () => {

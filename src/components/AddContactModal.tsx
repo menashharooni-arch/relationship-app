@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { scanBusinessCard, ProRequiredError } from "@/lib/scan-card";
+import { scanBusinessCard, ProRequiredError, AiConsentRequiredError } from "@/lib/scan-card";
 import { PlanGate } from "@/components/PlanGate";
 
 export default function AddContactModal({
@@ -58,7 +58,8 @@ export default function AddContactModal({
       setScanned(true);
       setScanState("idle");
     } catch (err) {
-      if (err instanceof ProRequiredError) { setScanState("pro"); setScanMsg(err.message); }
+      if (err instanceof AiConsentRequiredError) { setScanState("error"); setScanMsg(err.message); }
+      else if (err instanceof ProRequiredError) { setScanState("pro"); setScanMsg(err.message); }
       else if (err instanceof DOMException && err.name === "AbortError") { setScanState("error"); setScanMsg("That took too long — try a clearer photo."); }
       else { setScanState("error"); setScanMsg("Couldn't read that card. Try a clear, well-lit photo."); }
     }

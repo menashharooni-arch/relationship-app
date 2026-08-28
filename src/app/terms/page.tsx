@@ -162,7 +162,7 @@ export default function TermsPage() {
               on the ." So the app gets equivalent wording with no link. */}
           <LI>SwiftCard offers a Free plan and paid plans (Pro and Office). Current pricing is shown on the{" "}
             <NativeHidden><Link href="/pricing" className="text-brand underline">pricing page</Link></NativeHidden>
-            <NativeOnly>pricing page of our website</NativeOnly>.</LI>
+            <NativeOnly>subscription sheet in the app</NativeOnly>.</LI>
           <LI>Paid plans are billed in advance on a recurring basis (monthly or annually) through our payment processor, Stripe, until you cancel. By subscribing you authorize those recurring charges.</LI>
           <LI>You can cancel anytime from your billing settings; cancellation stops future renewals and takes effect at the end of the current billing period. Except where required by law, payments already made are non-refundable.</LI>
           <LI>If a payment fails, we&apos;ll give you a short grace period to update it; if it stays unresolved, your account moves to the Free plan. Your existing cards and contacts aren&apos;t deleted — some paid features simply lock until you upgrade again.</LI>

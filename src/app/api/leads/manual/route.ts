@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         code: "LEAD_LIMIT_REACHED",
         error: "limit",
         message: `You've captured your ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} free leads this month. Upgrade to Pro to add unlimited contacts.`,
-        upgrade: "/pricing",
+        upgrade: "/upgrade",
       },
       { status: 402 }
     );

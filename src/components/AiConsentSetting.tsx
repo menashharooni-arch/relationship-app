@@ -68,7 +68,7 @@ export default function AiConsentSetting() {
           <p className="text-sm font-semibold text-white">AI features</p>
           <p className="mt-1 text-xs leading-relaxed text-gray-400">
             {on
-              ? `Card scans, follow-up drafts and assistant questions are sent to ${provider} to produce the result, and to no one else.`
+              ? `Card scans, follow-up drafts (with the contact's details and your own profile text), card-design rebuilds and assistant questions are sent to ${provider} to produce the result, and to no one else.`
               : `Off. Nothing is sent to ${provider}; everything else in SwiftCard keeps working.`}
           </p>
         </div>

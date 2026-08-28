@@ -77,18 +77,11 @@ export default function NativeAppBridge() {
             // on Settings so the UI reflects the connection the user just made.
             // Matched BEFORE the auth branch because both are swiftcard: URLs
             // and completeNativeOAuth would reject these (no code to exchange).
-            if (url.startsWith("swiftcard://google-callback")) {
-              const q = new URL(url).searchParams;
-              const nextRaw = q.get("next") ?? "";
-              const next =
-                nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/settings/flows";
-              const sep = next.includes("?") ? "&" : "?";
-              window.location.href =
-                `${next}${sep}integration=google&status=${encodeURIComponent(q.get("status") ?? "error")}`;
-              return;
-            }
-
-            if (url.startsWith("swiftcard://linkedin-callback")) {
+            // One branch for every provider return: swiftcard://<provider>-callback.
+            // Salesforce shipped without its own branch and fell through to the
+            // auth handler below, which sent a signed-in user to /login.
+            const provider = url.match(/^swiftcard:\/\/([a-z]+)-callback/)?.[1];
+            if (provider && provider !== "auth") {
               const q = new URL(url).searchParams;
               const nextRaw = q.get("next") ?? "";
               // Same-origin relative paths only — an appUrlOpen payload is
@@ -98,7 +91,7 @@ export default function NativeAppBridge() {
                 nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/settings/flows";
               const sep = next.includes("?") ? "&" : "?";
               window.location.href =
-                `${next}${sep}integration=linkedin&status=${encodeURIComponent(q.get("status") ?? "error")}`;
+                `${next}${sep}integration=${provider}&status=${encodeURIComponent(q.get("status") ?? "error")}`;
               return;
             }
 

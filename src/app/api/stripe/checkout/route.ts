@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isShellRequest } from "@/lib/shell-request";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
@@ -34,6 +35,9 @@ if (process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID) EXPECTED_CENTS[process.e
 if (process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID) EXPECTED_CENTS[process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID] = PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS;
 
 export async function POST(req: NextRequest) {
+  // The shell sells via In-App Purchase only (3.1.1); the client gates are
+  // belt, this is braces.
+  if (isShellRequest(req)) return NextResponse.json({ error: "Not available in the app" }, { status: 403 });
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

@@ -12,6 +12,11 @@ export type ScannedCard = {
   website?: string;
 };
 
+/** 403 AI_CONSENT_REQUIRED — the user hasn't allowed (or has declined) AI. Not a paywall. */
+export class AiConsentRequiredError extends Error {
+  constructor(message = "AI features are off. Turn them on in Settings to scan cards.") { super(message); this.name = "AiConsentRequiredError"; }
+}
+
 export class ProRequiredError extends Error {
   constructor(message = "Scanning business cards is a Pro feature.") { super(message); this.name = "ProRequiredError"; }
 }
@@ -33,7 +38,8 @@ export async function scanBusinessCard(file: File): Promise<ScannedCard> {
     // 403 = the scanner isn't on this plan (it's Pro-only). 402 is kept for
     // safety in case a metered response ever comes back from an older deploy.
     if (res.status === 402 || res.status === 403) {
-      const data = await res.json().catch(() => ({} as { message?: string }));
+      const data = await res.json().catch(() => ({} as { message?: string; code?: string }));
+      if (data.code === "AI_CONSENT_REQUIRED") throw new AiConsentRequiredError(data.message || undefined);
       throw new ProRequiredError(data.message || undefined);
     }
     if (!res.ok) throw new Error("scan_failed");

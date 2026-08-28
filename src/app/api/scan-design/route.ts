@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         code: "SCAN_DESIGN_PRO_ONLY",
         error: "upgrade",
         message: "Rebuilding your printed card is a Pro feature.",
-        upgrade: "/pricing",
+        upgrade: "/upgrade",
       },
       { status: 403 },
     );

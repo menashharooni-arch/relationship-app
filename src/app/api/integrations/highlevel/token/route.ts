@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   // Pro/Office feature, same as the other CRM integrations.
   const { data: planRow } = await admin.from("profiles").select("plan").eq("id", user.id).single();
   if (!isPaidPlan(planRow?.plan)) {
-    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "HighLevel is a Pro feature.", upgrade: "/pricing" }, { status: 402 });
+    return NextResponse.json({ code: "INTEGRATION_PRO_ONLY", error: "upgrade", message: "HighLevel is a Pro feature.", upgrade: "/upgrade" }, { status: 402 });
   }
 
   const { token, extra, card_ids } = await request.json() as { token?: string; extra?: string; card_ids?: unknown };

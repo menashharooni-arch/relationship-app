@@ -12,6 +12,8 @@
 //
 // Kept free of I/O so tests/iap-entitlement.test.ts can pin every case.
 
+import { isOfficePlan } from "@/lib/plan";
+
 export type PlanSource = "stripe" | "apple";
 
 /** RevenueCat webhook event types that mean "the pro entitlement is active". */
@@ -45,6 +47,8 @@ export function decideRcEvent(opts: {
   currentPlan: string | null;
   planSource: PlanSource | null | undefined;
   hasStripeSubscription: boolean;
+  /** Seat member of an Office — their plan is the org's, never Apple's. */
+  isOfficeMember?: boolean;
 }): RcDecision {
   const type = opts.eventType.toUpperCase();
   // Apple only sells Pro. An account on OFFICE (a higher, Stripe-billed tier —
@@ -52,8 +56,10 @@ export function decideRcEvent(opts: {
   // grant: someone who bought Pro in the app and later upgraded to Office on
   // the web would otherwise be silently downgraded by their Apple sub's next
   // RENEWAL event. "Upgrade wins" means office stays.
+  // NB the DB spells Office "enterprise" (lib/subscription DB_PLAN) — the
+  // original `=== "office"` compared against the UI label and matched nothing.
   if (RC_GRANT_EVENTS.has(type)) {
-    return opts.currentPlan === "office" ? { action: "ignore" } : { action: "grant" };
+    return isOfficePlan(opts.currentPlan) || opts.isOfficeMember ? { action: "ignore" } : { action: "grant" };
   }
   if (!RC_REVOKE_EVENTS.has(type)) return { action: "ignore" };
   if (opts.planSource !== "apple") return { action: "ignore" };
@@ -69,4 +75,26 @@ export function decideRcEvent(opts: {
  */
 export function stripeDowngradeAllowed(planSource: PlanSource | null | undefined): boolean {
   return planSource !== "apple";
+}
+
+/**
+ * The profile patch for an Apple grant. Besides plan + source it clears any
+ * app-level timed grant (plan_expires_at, _trial) — otherwise the daily
+ * expireFreeMonths sweep saw "expiry passed, no Stripe sub" and downgraded a
+ * paying Apple subscriber to Free.
+ */
+export function appleGrantPatch(customization: Record<string, unknown>): {
+  plan: "pro";
+  plan_expires_at: null;
+  customization: Record<string, unknown>;
+} {
+  const next: Record<string, unknown> = { ...customization, _planSource: "apple" };
+  delete next._trial;
+  delete next._proWarnedFor;
+  return { plan: "pro", plan_expires_at: null, customization: next };
+}
+
+/** True when this row's Pro is paid through Apple (used by every timed-grant path). */
+export function isApplePaid(customization: unknown): boolean {
+  return (customization as { _planSource?: string } | null)?._planSource === "apple";
 }

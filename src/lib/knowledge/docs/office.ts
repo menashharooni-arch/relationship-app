@@ -32,7 +32,7 @@ export const officeDocs = defineDocs([
     answer:
       "Team tab → the purple \"+ Add team member\" button at the top right. Enter their email (a name is optional) and press \"Send invite\". They get a passwordless invitation — they sign in with Google or a one-tap email link and their card arrives already branded with your company look.",
     detail:
-      "Invitations expire after 14 days and a pending one holds a seat until it's accepted, retracted, or expires. If you're out of seats the same dialog offers to add one, with the charge shown before you confirm — except in the iOS app, where buying a seat isn't possible at all. The invite only works for the exact address it was sent to.",
+      "Invitations expire after 14 days and a pending one holds a seat until it's accepted, retracted, or expires. If you're out of seats the dialog lets you know and explains your options. The invite only works for the exact address it was sent to.",
   },
   {
     id: "resend-or-cancel-invite",
