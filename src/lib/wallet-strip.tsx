@@ -59,6 +59,10 @@ export type WalletDesign = {
   theme: PassTheme;
   strips: PassStrips;
   palette: PassPalette;
+  /** A remote photo/logo the card has could not be loaded — the strip shows
+   *  initials instead. The pass still builds, but must not be fingerprinted
+   *  as final (see api/wallet/pass). */
+  degraded: boolean;
 };
 
 // ── Canvas ──────────────────────────────────────────────────────────────────
@@ -102,11 +106,23 @@ function allowedImageHost(url: string): boolean {
   }
 }
 
-async function fetchImage(url: string | null): Promise<{ buf: Buffer; type: string } | null> {
+// A remote image we were supposed to draw but couldn't (timeout, 5xx, bad
+// bytes). Tracked per render so the pass route can refuse to fingerprint a
+// pass that came out with initials where a photo belongs — otherwise that
+// degraded pass carried the SAME content hash as the good one and no update
+// ever re-delivered it.
+let imageFailures = 0;
+function isRemote(url: string | null | undefined): boolean {
+  return !!url && /^https?:\/\//.test(url) && allowedImageHost(url);
+}
+
+async function fetchImage(url: string | null, attempt = 1): Promise<{ buf: Buffer; type: string } | null> {
   if (!url || !/^https?:\/\//.test(url) || !allowedImageHost(url)) return null;
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 2500);
+    // First try is quick; the retry gives a slow CDN a real chance before the
+    // pass silently falls back to initials.
+    const t = setTimeout(() => ctrl.abort(), attempt === 1 ? 2500 : 6000);
     // redirect:"error" — storage URLs never redirect, and following one would
     // let an allowlisted URL bounce the request to an arbitrary host.
     const res = await fetch(url, { signal: ctrl.signal, cache: "no-store", redirect: "error" }).finally(() => clearTimeout(t));
@@ -116,7 +132,9 @@ async function fetchImage(url: string | null): Promise<{ buf: Buffer; type: stri
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.byteLength < 100 || buf.byteLength > 6_000_000) return null;
     return { buf, type };
-  } catch {
+  } catch (e) {
+    if (attempt === 1) return fetchImage(url, 2);
+    console.warn("[wallet] image fetch failed after retry:", url.slice(0, 120), String(e).slice(0, 120));
     return null;
   }
 }
@@ -130,6 +148,7 @@ async function loadBuffer(url: string | null): Promise<Buffer | null> {
     return b64 ? Buffer.from(b64, "base64") : null;
   }
   const got = await fetchImage(url);
+  if (!got) imageFailures++;
   return got?.buf ?? null;
 }
 
@@ -337,15 +356,19 @@ export function passThemeFrom(palette: PassPalette): PassTheme {
 }
 
 /** Render the band at @3x, then downscale for @2x/@1x with sharp. */
-export async function renderPassStrips(meta: Meta, palette: PassPalette): Promise<PassStrips> {
+export async function renderPassStrips(meta: Meta, palette: PassPalette): Promise<PassStrips & { degraded: boolean }> {
   const p: Meta = { ...meta };
   if (!(typeof p.name === "string" && p.name.trim())) p.name = "SwiftCard";
   // The mark is contained inside the panel's padded area; the headshot fills
   // its circle. Both are sized here, by sharp, from the real files.
+  const before = imageFailures;
   const [photo, logo] = await Promise.all([
     preparePhoto(p.photoUrl, IMG),
     prepareLogo(p.logoUrl, IMG - 48, IMG - 48),
   ]);
+  // Only a REMOTE image that failed to load counts; a card with no image at
+  // all is drawn with initials by design and is final.
+  const degraded = imageFailures > before && (isRemote(p.photoUrl) || isRemote(p.logoUrl));
 
   const x3 = Buffer.from(
     await new ImageResponse(
@@ -361,7 +384,7 @@ export async function renderPassStrips(meta: Meta, palette: PassPalette): Promis
     sharp(x3).resize(750, 288).png().toBuffer(),
     sharp(x3).resize(375, 144).png().toBuffer(),
   ]);
-  return { x1, x2, x3 };
+  return { x1, x2, x3, degraded };
 }
 
 /**
@@ -382,5 +405,6 @@ export async function buildWalletDesign(meta: Meta): Promise<WalletDesign> {
   }
 
   const palette = passPalette(meta, sampled);
-  return { theme: passThemeFrom(palette), strips: await renderPassStrips(meta, palette), palette };
+  const { degraded, ...strips } = await renderPassStrips(meta, palette);
+  return { theme: passThemeFrom(palette), strips, palette, degraded };
 }

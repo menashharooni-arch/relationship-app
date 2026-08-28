@@ -1,4 +1,5 @@
 import { PKPass } from "passkit-generator";
+import { X509Certificate } from "node:crypto";
 import type { WalletDesign } from "@/lib/wallet-strip";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -38,7 +39,42 @@ async function loadAsset(name: string): Promise<Buffer> {
 // card's own colours and parts, and whose chrome is coloured to continue that
 // band without a seam. Without it: the original fixed navy generic pass, kept
 // as the degrade path so a strip-render failure still ships a pass.
+/**
+ * Days until the Pass Type ID certificate expires (null if unreadable).
+ * Apple issues these for about a year; an expired one turns every "Add to
+ * Apple Wallet" into a 500 with no warning, so the builder logs at 30 days.
+ */
+export function passCertDaysLeft(pem: string | undefined = process.env.APPLE_PASS_CERT_PEM): number | null {
+  if (!pem) return null;
+  try {
+    const cert = new X509Certificate(pem);
+    return Math.floor((new Date(cert.validTo).getTime() - Date.now()) / 86_400_000);
+  } catch {
+    return null;
+  }
+}
+
+let certWarnedAt = 0;
+function warnIfCertExpiring(): void {
+  // Once an hour per instance is plenty — this is a heads-up, not telemetry.
+  if (Date.now() - certWarnedAt < 3_600_000) return;
+  const days = passCertDaysLeft();
+  if (days === null) return;
+  if (days < 0) console.error(`[wallet] Pass Type ID certificate EXPIRED ${-days} days ago — renew it in the Apple Developer portal and update APPLE_PASS_CERT_PEM/KEY_PEM (keep WALLET_AUTH_SECRET set so installed passes keep updating).`);
+  else if (days <= 30) console.warn(`[wallet] Pass Type ID certificate expires in ${days} days — renew it before then.`);
+  certWarnedAt = Date.now();
+}
+
+/**
+ * Apple draws secondary fields on ONE row (~375pt shared). "PHONE" + a long
+ * email on that row gets the email cut to "firstname.lastn…". Past this
+ * length the email takes the row alone and the phone moves to the auxiliary
+ * row beneath it — still on the face, never truncated.
+ */
+export const EMAIL_SHARES_ROW_MAX = 24;
+
 export async function buildPkpass(card: WalletCard, design?: WalletDesign): Promise<Buffer> {
+  warnIfCertExpiring();
   const { passAuthToken } = await import("@/lib/wallet-registry");
   const authToken = passAuthToken(card.username);
   const webServiceUrl = `${APP_URL}/api/wallet`;
@@ -130,8 +166,10 @@ export async function buildPkpass(card: WalletCard, design?: WalletDesign): Prom
     // unfinished. Two rows of real information, on the same surface the band
     // ends on, is what makes the whole face look composed.
     pass.type = "storeCard";
-    if (card.phone) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
+    const longEmail = !!card.email && card.email.length > EMAIL_SHARES_ROW_MAX;
+    if (card.phone && !longEmail) pass.secondaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
     if (card.email) pass.secondaryFields.push({ key: "email", label: "EMAIL", value: card.email });
+    if (card.phone && longEmail) pass.auxiliaryFields.push({ key: "phone", label: "PHONE", value: prettyPhone(card.phone) });
   } else {
     pass.type = "generic";
     pass.primaryFields.push({ key: "name", label: "", value: card.name });

@@ -101,20 +101,34 @@ export function passContentHash(inputs: PassInputs): string {
 
 /** The signed .pkpass for these inputs. */
 export async function buildPass(inputs: PassInputs): Promise<Buffer> {
+  return (await buildPassDetailed(inputs)).buf;
+}
+
+/**
+ * Same, plus whether the pass came out DEGRADED: a photo/logo the card has
+ * could not be fetched (or the styled strip failed entirely and the plain
+ * pass was used). The download route uses this to skip fingerprinting, so
+ * the next sweep re-delivers the real thing instead of treating the
+ * initials version as final.
+ */
+export async function buildPassDetailed(inputs: PassInputs): Promise<{ buf: Buffer; degraded: boolean }> {
   const { card, meta } = inputs;
   const { buildPkpass } = await import("@/lib/wallet");
 
   let design;
+  let degraded = false;
   try {
     if (meta) {
       const { buildWalletDesign } = await import("@/lib/wallet-strip");
       design = await buildWalletDesign(meta);
+      degraded = design.degraded;
     }
   } catch (e) {
     console.error("[wallet] card-styled strip failed, using plain pass:", e);
+    degraded = true;
   }
 
-  return buildPkpass({
+  const buf = await buildPkpass({
     username: card.username,
     name: card.name || "SwiftCard",
     title: card.title,
@@ -125,4 +139,5 @@ export async function buildPass(inputs: PassInputs): Promise<Buffer> {
     label: card.label ?? null,
     cardUrl: `${APP_URL}/${card.username}?source=apple_wallet`,
   }, design);
+  return { buf, degraded };
 }
