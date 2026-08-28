@@ -123,25 +123,39 @@ async function sha256Hex(value: string): Promise<string> {
  * button.
  */
 async function startNativeGoogleLogin(): Promise<{ ok: true; error: string | null } | { ok: false }> {
+  // Tell the server WHY we are about to fall back. A silent fallback looks
+  // exactly like the app running pre-deploy JS — both show the old
+  // *.supabase.co chooser — and that ambiguity cost a round of "is it fixed?".
+  // Fire-and-forget; never let the beacon itself break sign-in.
+  const bail = (reason: string): { ok: false } => {
+    try {
+      void fetch(`/api/auth/google/native/start?fallback=${encodeURIComponent(reason)}`, {
+        method: "GET",
+        keepalive: true,
+      }).catch(() => {});
+    } catch { /* offline — the fallback still signs the user in */ }
+    return { ok: false };
+  };
+
   let handoff: string;
   try {
     handoff = `${crypto.randomUUID()}${crypto.randomUUID()}`;
     localStorage.setItem(HANDOFF_KEY, handoff);
   } catch {
-    return { ok: false };
+    return bail("no-storage-or-randomuuid");
   }
 
   let hs: string;
   try {
     hs = await sha256Hex(handoff);
   } catch {
-    return { ok: false };
+    return bail("no-webcrypto");
   }
 
   // Same origin as the running app (https://swiftcard.me in the shell), so this
   // works unchanged against a preview deployment.
   const url = `${window.location.origin}/api/auth/google/native/start?hs=${hs}`;
-  if (!(await openSystemBrowser(url))) return { ok: false };
+  if (!(await openSystemBrowser(url))) return bail("no-browser-plugin");
   return { ok: true, error: null };
 }
 
