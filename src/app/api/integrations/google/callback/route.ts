@@ -3,6 +3,8 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
 import { verifyState } from "@/lib/oauth-state";
 import { parseCardsParam } from "@/lib/crm-scope-server";
+import { isNativeGoogleLoginState } from "@/lib/native-google-login";
+import { handleNativeGoogleLoginCallback } from "@/lib/native-google-login-server";
 
 export const runtime = "nodejs";
 
@@ -10,6 +12,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+
+  // ── Google SIGN-IN return leg — NOT a CRM connect ──────────────────────────
+  // Authorized redirect URIs are Google Cloud console config, and this path is
+  // the only swiftcard.me URI registered on the OAuth client. So the iOS shell's
+  // Google LOGIN lands here too and is told apart by its state prefix. (Belt and
+  // braces: that state shape fails verifyState() below anyway, so a login state
+  // can never be mistaken for a user binding.) Dispatched before any CRM work —
+  // a login carries no user_id, no g_native cookie and no crm_scope, and must
+  // never touch an integrations row. See src/lib/native-google-login.ts.
+  if (isNativeGoogleLoginState(searchParams.get("state"))) {
+    return handleNativeGoogleLoginCallback(request);
+  }
 
   // NATIVE RETURN LEG (set by /connect?native=1).
   //

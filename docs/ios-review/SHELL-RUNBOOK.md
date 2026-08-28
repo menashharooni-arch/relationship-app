@@ -74,21 +74,47 @@ shipped**. Setup:
    `APPLE_TEAM_ID`, `APPLE_SIGN_IN_CLIENT_ID` (Services ID), `APPLE_SIGN_IN_KEY_ID`,
    `APPLE_SIGN_IN_PRIVATE_KEY` (.p8 contents) → redeploy.
 4. **Supabase → Authentication → URL Configuration → Redirect URLs: add
-   `swiftcard://auth-callback`** — the return leg of BOTH native Google and
-   Apple sign-in (see §5). 30 seconds; without it every native OAuth attempt
-   errors at the redirect step.
+   `swiftcard://auth-callback`** — Apple's return leg. 30 seconds; without it
+   every native Apple attempt errors at the redirect step. (Google reaches the
+   same scheme without this entry — it no longer goes through Supabase's
+   redirect at all; see §5.)
 5. Device-test: tap Continue with Apple → completes into a session.
 
-## 5. Google login inside the shell — ALREADY SOLVED, just test it
+## 5. Google login inside the shell — SOLVED, including the consent screen
 
-Native OAuth no longer runs inside the webview (Google blocks that with
-`403 disallowed_useragent`). The shipped flow: `src/lib/native-auth.ts` opens
-the provider URL in the system browser sheet (`@capacitor/browser` →
-SFSafariViewController), Supabase redirects to `swiftcard://auth-callback`
-(scheme registered in Info.plist), and `NativeAppBridge` completes the PKCE
-exchange inside the webview. Requirements already in place except the §4.4
-Supabase Redirect URL entry. On the first device build simply test Google +
-Apple sign-in end-to-end. Email/password works regardless — never blocked.
+Native OAuth never runs inside the webview (Google blocks that with
+`403 disallowed_useragent`). It runs in the system browser sheet
+(`@capacitor/browser` → SFSafariViewController) and returns over
+`swiftcard://auth-callback` (scheme registered in Info.plist), which
+`NativeAppBridge` hands to `completeNativeOAuth()`.
+
+**Google is brokered by us, not by Supabase** — that is what fixed the account
+chooser. While Supabase brokered it, Google was given Supabase's redirect_uri
+and printed it on the chooser: *"to continue to
+grxmovpmlgmjncnyiyrt.supabase.co"*. Now `/api/auth/google/native/start` sends
+the user to Google with a **swiftcard.me** redirect_uri, so the chooser names
+swiftcard.me; the callback seals the returned Google ID token into a ticket,
+the app redeems it at `/api/auth/google/native/redeem`, and the webview signs in
+with `signInWithIdToken` — the same call the website's Google button makes. Full
+design and threat model: `src/lib/native-google-login.ts`.
+
+Two things worth knowing when touching this:
+- The redirect_uri is `/api/integrations/google/callback` (the CRM path) because
+  that is the only swiftcard.me URI registered on the OAuth client, and
+  authorized redirect URIs are Google Cloud **console** config. That route
+  dispatches login-purpose states straight into the login handler. Registering
+  `https://swiftcard.me/api/auth/google/native/callback` in the console lets you
+  point `NATIVE_GOOGLE_REDIRECT_PATH` at the dedicated route instead — optional,
+  nothing else changes.
+- It needs `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OAUTH_SECRET` server
+  side (all three already set in prod for the CRM connect). Missing any of them
+  falls the shell back to the old Supabase-brokered flow, which still signs
+  people in — it just says supabase.co again.
+
+**Apple** still uses the Supabase-brokered PKCE flow and needs the §4.4 Redirect
+URL entry. Apple's sheet shows the app, never a Supabase host, so it has nothing
+to fix. On the first device build test Google + Apple sign-in end-to-end.
+Email/password works regardless — never blocked.
 
 ## 6. Native capabilities — push is IMPLEMENTED; finish with one APNs key
 
