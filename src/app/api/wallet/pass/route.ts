@@ -23,18 +23,25 @@ export async function GET(req: NextRequest) {
     // out. passInputs() also carries the kill-switches: a deleted account, an
     // offline office card or a card past its plan limit resolves to nothing,
     // and a pass must never be mintable for a card whose links are dead.
-    const { buildPass, passInputs } = await import("@/lib/wallet-pass");
+    const { buildPassDetailed, passInputs } = await import("@/lib/wallet-pass");
     const inputs = await passInputs(username);
     if (!inputs) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-    const buf = await buildPass(inputs);
+    const { buf, degraded } = await buildPassDetailed(inputs);
 
     // Record the fingerprint on the way out. Without this the pass has no
     // baseline, and the first sweep after an add would count it as "changed"
     // and push a pointless update to a device that just downloaded it.
     try {
-      const { touchWalletPass } = await import("@/lib/wallet-registry");
-      await touchWalletPass(username);
+      const { touchWalletPass, markWalletPassStale } = await import("@/lib/wallet-registry");
+      if (degraded) {
+        // Served with initials where an image belongs: don't fingerprint it as
+        // final — flag it so the next sweep re-pushes the real pass.
+        console.warn("[wallet] degraded pass served (image fetch failed):", username);
+        await markWalletPassStale(username);
+      } else {
+        await touchWalletPass(username);
+      }
     } catch (e) {
       console.error("[wallet] fingerprint failed (pass still served):", e);
     }

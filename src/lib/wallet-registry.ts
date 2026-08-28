@@ -180,6 +180,19 @@ export async function touchWalletPass(username: string): Promise<TouchResult> {
   return "updated";
 }
 
+/**
+ * Record that the pass just served was DEGRADED (a photo or logo failed to
+ * load). Stores a sentinel hash that can never equal a real content hash, so
+ * the next touch — the daily sweep, or the card's next edit — sees a change
+ * and pushes every registered device to re-download the correct pass.
+ * Without this the degraded pass carried the real hash and was final.
+ */
+export async function markWalletPassStale(username: string): Promise<void> {
+  await getAdminSupabase()
+    .from("wallet_passes")
+    .upsert({ serial: username, content_hash: `degraded:${Date.now()}`, updated_at: new Date().toISOString() }, { onConflict: "serial" });
+}
+
 /** Wake every device registered for this serial. */
 export async function pushToDevices(serial: string): Promise<number> {
   const admin = getAdminSupabase();
