@@ -25,7 +25,22 @@ export const runtime = "nodejs";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function GET(request: Request) {
-  const hs = new URL(request.url).searchParams.get("hs");
+  const query = new URL(request.url).searchParams;
+
+  // DIAGNOSTIC BEACON, not a sign-in. The webview posts here (fetch, no
+  // navigation) when it could not set the sealed handoff up and is about to
+  // fall back to the Supabase-brokered flow — the one that shows the
+  // *.supabase.co host on Google's chooser. Without this the fallback is
+  // invisible: the only symptom is the old consent screen, which is
+  // indistinguishable from the app simply running pre-deploy JS. One log line
+  // tells the two apart. 204, so nothing about the caller changes.
+  const fallback = query.get("fallback");
+  if (fallback) {
+    console.warn(`[native-google-login] fell back to the Supabase-brokered flow: ${fallback.slice(0, 40)}`);
+    return new Response(null, { status: 204 });
+  }
+
+  const hs = query.get("hs");
   // Bounce back into the app rather than dead-ending in the browser sheet.
   if (!isHandoffHash(hs)) return NextResponse.redirect(`${NATIVE_AUTH_CALLBACK}?error=oauth&reason=handoff`);
   if (!process.env.GOOGLE_CLIENT_ID) {
