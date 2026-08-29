@@ -47,7 +47,20 @@ jobs:
           # Live customer cards, public URLs. Demo data can stay green while a
           # real account's card is broken — this is what closes that gap.
           # Add slugs here as accounts you care about go live.
-          HEALTH_REAL_CARDS: "aaron-lavi-malve-capital,aaron-lavi-nadlan-homes-llc"
+          #
+          # ⚠️ These MUST be real slugs in the CURRENT format — FirstLast-Company,
+          # no hyphens inside either half (aaronlavi-malvecapital). The first pair
+          # here were pre-rename slugs (aaron-lavi-malve-capital); after the slug
+          # format changed they pointed at cards that no longer exist, so this
+          # workflow went red on every run for weeks and kept an incident issue
+          # open against a perfectly healthy production. A watchdog that cries
+          # wolf gets ignored, which costs more than having no watchdog.
+          #
+          # Verify a slug before adding it — the card PAGE soft-404s (200 with a
+          # generic shell) for an unknown slug, so only the vCard endpoint tells
+          # the truth:  curl -s -o /dev/null -w '%{http_code}\n' \
+          #               https://swiftcard.me/api/card/<slug>/vcard   # 200 = real
+          HEALTH_REAL_CARDS: "aaronlavi-malvecapital,aaronlavi-nadlanhomesllc"
         run: |
           set -o pipefail
           node scripts/health-check.mjs > health.json || true
