@@ -115,13 +115,20 @@ describe("the purchase path is In-App Purchase, wired through PlanNotice", () =>
     expect(gate).not.toMatch(/<ExternalPurchaseButton/);
   });
 
-  it("the paywall fails closed at every layer", () => {
-    // No native bridge / no RC key / no StoreKit products → no purchase UI.
-    // A paywall that renders without live products would show stale or
-    // invented prices — 3.1.2 metadata drift by construction.
+  it("the purchase path is visible whenever the shell has a signed-in user", () => {
+    // REWRITTEN after the 2026-08-31 3.1.1 rejection. The library still fails
+    // closed about the ENVIRONMENT (not the shell / no key → nothing), and the
+    // sheet still refuses to invent a price. What changed: a StoreKit hiccup
+    // no longer HIDES the button, because a locked feature with no visible way
+    // to buy is exactly what got the app rejected.
     expect(lib).toMatch(/if \(!detectNativeApp\(\)\) return null/);
     expect(lib).toMatch(/if \(!process\.env\.NEXT_PUBLIC_RC_APPLE_API_KEY\)/);
-    expect(paywall).toMatch(/if \(!available\) return null/);
+    // Only "not native" and "signed out" suppress the button…
+    expect(paywall).toMatch(/if \(!uid\) return false; \/\/ signed-out surfaces never sell/);
+    // …a failed RevenueCat configure does NOT.
+    expect(paywall).toMatch(/const ok = await ensureIapConfigured\(uid\);[\s\S]{0,120}return true;/);
+    // And the sheet still tells the truth when there is nothing to sell.
+    expect(paywall).toMatch(/Plans aren&apos;t available right now/);
   });
 
   it("purchases identify as the Supabase uid before any purchase", () => {
