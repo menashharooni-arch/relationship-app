@@ -5,6 +5,7 @@ import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import AccountIsolationGuard from "@/components/AccountIsolationGuard";
 import NativeAppBridge from "@/components/NativeAppBridge";
+import NativeSplash from "@/components/NativeSplash";
 import GuidedTour from "@/components/GuidedTour";
 import GlobalAiConsent from "@/components/GlobalAiConsent";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
@@ -92,6 +93,10 @@ export default function RootLayout({
     // .sc-js + the saved theme attr) BEFORE React hydrates — expected mismatch.
     <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
+        {/* FIRST child of <body> on purpose: the shell's launch animation has to
+            be in the very first painted frame to hand off from the static iOS
+            launch image without a jump. Renders nothing on the website. */}
+        <NativeSplash />
         {/* Apply the saved app theme before paint (no dark→light flash), and
             mark that JS is running so scroll-reveals only hide when they can be
             un-hidden — with JS off, content stays fully visible. next/script
