@@ -1706,6 +1706,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 // Native IAP: the entitlement is synced before this fires, so the
                 // server keeps the Pro design; no checkout hop, straight to save.
                 onIapPurchased={() => { setShowPlan(false); handleCreate(); }}
+                // Native + guest: the Pro card had a price and a feature list
+                // and no button at all, because a purchase needs an account to
+                // attach to. Now it starts signup; /welcome then shows the real
+                // In-App Purchase. No Stripe hand-off is involved on native —
+                // /welcome drops any stored paid intent inside the shell.
+                onCreateAccountForPro={guest ? () => pickPlanThenSignUp({ plan: "pro" }) : undefined}
               />
             )}
           </div>
