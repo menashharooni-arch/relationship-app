@@ -1,0 +1,389 @@
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SWIFTCARD LAUNCH SPLASH — "VERTICAL FORK"
+     Hands off from the static iOS launch image (#1A2342 + 112px logo, centred)
+     and returns the screen to the app in 1400ms.
+
+     TIMELINE (master clock = 1400ms; every % below is annotated in ms)
+       0-110ms    HOLD      pixel-identical to the launch image. Nothing moves.
+       110-150    CHARGE    a faint charge builds in the air. Something is coming.
+       150-295    FORK      a vertical bolt tears top to centre, throwing 3 branches
+                            that keep splitting down past the logo to the ground.
+       295-300    CONTACT   the trunk lands dead centre, on the logo.
+       300-470    IGNITION  full-screen flash, the logo pops + a white-hot flare
+                            blooms out of it, the fork flickers twice and dies.
+       470-700    SETTLE    bloom decays. The logo sits, lit, at rest.
+       700-1250   APERTURE  the logo's own bolt opens: a bolt-shaped hole grows
+                            out of it, lit from within, until the app is through it.
+       1130-1330  CLEAR     the last navy corners dissolve under the opening.
+       1400       the overlay removes itself from the DOM.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div id="sc-splash-vfork" aria-hidden="true">
+  <!-- navy ground. Flat #1A2342 = the launch image. Later it gets a bolt-shaped hole punched through it. -->
+  <div class="vfk-plane"></div>
+
+  <!-- ignition bloom, behind the logo (the icon's own corners are opaque navy, so all glow must live outside it) -->
+  <div class="vfk-halo"></div>
+
+  <!-- THE REAL APP ICON. Never redrawn, never recoloured, never filtered. Scale + opacity only. -->
+  <img class="vfk-icon" src="data:image/webp;base64,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" alt="">
+
+  <!-- white-hot core, screen-blended over the icon: adds light without touching the artwork's colour -->
+  <div class="vfk-flare"></div>
+
+  <!-- the strike itself. Drawn twice: a wide blurred aurora pass and a thin white
+       core on top. Both carry the same path classes, so one set of draw keyframes
+       moves them in lockstep and the glow can never lag the bolt. -->
+  <svg class="vfk-fork" viewBox="0 0 100 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <g class="vfk-bolt">
+      <g class="vfk-glow">   <!-- pass 1: wide, blurred, aurora -->
+        <!-- trunk: top edge -> dead centre (50,100), where the logo is -->
+        <path class="vfk-t1" pathLength="1" d="M53.5 -14 L50.5 16 L55 34 L48 58 L53.5 78 L47.5 92 L50 100"/>
+        <!-- hairline branch off the upper kink -->
+        <path class="vfk-b3" pathLength="1" d="M55 34 L64 48 L60 60"/>
+        <!-- the fork: splits above the logo, runs down-left and off the bottom edge -->
+        <path class="vfk-b1" pathLength="1" d="M48 58 L37 80 L42 96 L29 128 L34 150 L21 186 L24 214"/>
+        <!-- second branch: right, shorter, dies out low -->
+        <path class="vfk-b2" pathLength="1" d="M53.5 78 L65 100 L59 116 L71 142 L66 158"/>
+        <!-- ground discharge: fires only after contact, centre -> bottom edge -->
+        <path class="vfk-t2" pathLength="1" d="M50 100 L55 124 L46 146 L52 170 L44 192 L47 214"/>
+      </g>
+      <g class="vfk-core">   <!-- pass 2: the same five paths as a thin white core -->
+        <path class="vfk-t1" pathLength="1" d="M53.5 -14 L50.5 16 L55 34 L48 58 L53.5 78 L47.5 92 L50 100"/>
+        <path class="vfk-b3" pathLength="1" d="M55 34 L64 48 L60 60"/>
+        <path class="vfk-b1" pathLength="1" d="M48 58 L37 80 L42 96 L29 128 L34 150 L21 186 L24 214"/>
+        <path class="vfk-b2" pathLength="1" d="M53.5 78 L65 100 L59 116 L71 142 L66 158"/>
+        <path class="vfk-t2" pathLength="1" d="M50 100 L55 124 L46 146 L52 170 L44 192 L47 214"/>
+      </g>
+    </g>
+  </svg>
+
+  <!-- impact flash across the whole display -->
+  <div class="vfk-flash"></div>
+
+  <!-- the light inside the aperture: same bolt mask, kept 6% ahead of the hole so the cut edge never shows -->
+  <div class="vfk-light"></div>
+</div>
+
+<style>
+#sc-splash-vfork{
+  position:fixed; inset:0; z-index:2147483647;
+  overflow:hidden;
+  pointer-events:none;              /* inherited by every child — this overlay can never eat a tap */
+  -webkit-user-select:none; user-select:none;
+  contain:layout paint style;
+  background:transparent;           /* the plane paints the navy; the root must stay clear so the hole shows through */
+  animation:vfk-clear 1400ms linear both;
+}
+#sc-splash-vfork > *{ position:absolute; }
+
+/* ── layer 1: the navy ground ─────────────────────────────────────────────
+   Two mask layers — the bolt, and a full-bleed white one — composited so the
+   bolt is SUBTRACTED, leaving a bolt-shaped hole. Three things are load-bearing:
+
+   1. Alpha masking. The bolt asset is an opaque bolt on a transparent field with no
+      alpha channel; under the default match-source it masks as a solid SQUARE.
+      Luminance is also correct if the asset is ever swapped for a transparent
+      PNG (luminance × alpha), so it is the safe reading either way.
+   2. the second layer is WHITE, not black — under luminance a black layer has
+      zero luminance and would contribute nothing to subtract from.
+   3. `xor` then `exclude`: iOS 15 takes the legacy keyword, modern WebKit and
+      Blink take the standard one. Verified identical in both. If an engine knew
+      neither it would fall back to `add` (a solid plane) and the splash would
+      simply cross-fade instead of opening — degraded, never broken. */
+.vfk-plane{
+  inset:0;
+  background:#1A2342;
+  -webkit-mask-image:url("data:image/webp;base64,UklGRhoEAABXRUJQVlA4WAoAAAAQAAAA/wEA/wEAQUxQSPcBAAABDzD/ERFCcmtbkSSBkIrqkbagcaQlHGsJTMMUTGDJAsVf1FyP2/MQ0f8JcP/9/2fMT3L6t3jv8W7wolrD63pBbeBNPa+28Dbe5eiMrulVtY438GahW3Ib78p0RtcOkMQ63sCbFuEW3j5AELvwjK6Zea2ON/CmmWNbeNsq3IVnByhaDa/jDbPMNvHWCZLWlru++cwsojW8bmZBauBNvHUEL7Xxrm8CJ21qDa+bWUUbeFNumVn5ptty1xGylNE1vH4nkQ28eYaotPA23nUnkNkZvFDD63jjEE544i28facqXd98doYi1OQ63jhEFpp46xBJaONdeHZv5Gp4/b4k97DAeEIFmk8ocllgye0nJKDrMFHAnhh42lM8T3+K4xlPqEDzCUXg4X2IjJeErkNEvCBk9/pvPsfV7qly5Zsvg/V7klzEC0LjEB7PqVWl+W1Q8LLSOkOSi99y+07A83KO7DKzilfwspQdIeFFpXaGgOfJ+h1HV/GK1DhCxkto08yiXPjm81LrCI6uam2zgpfZrhMkuYgX2OwEHs9JN7P6zVfkslY/QcKLbMMs4Hk8pz0PUPEK3LKMl+C2RbyA5+Euc3SVzgpelktw7QBRLuB5sX4AR1fpRsHLdDPhRbygtvQ8nqP7ivcF7zPeR7wbuSgX8Dxdc3T//f+rPABWUDgg/AEAADA6AJ0BKgACAAI+KRSJQ6GhIRAEABgChLS3cLuwjaAE9gHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPfbJyHvtk5D32ych77ZOQ99snIe+2TkPWAAD+//kmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="),linear-gradient(#fff,#fff);
+          mask-image:url("data:image/webp;base64,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"),linear-gradient(#fff,#fff);
+  -webkit-mask-repeat:no-repeat,no-repeat;
+          mask-repeat:no-repeat,no-repeat;
+  -webkit-mask-position:50% 50%,50% 50%;
+          mask-position:50% 50%,50% 50%;
+  -webkit-mask-size:0px 0px,100% 100%;      /* closed. Frame 0 is a flat navy field. */
+          mask-size:0px 0px,100% 100%;
+  /* NO mask-mode. The bolt asset ships as an OPAQUE bolt on a TRANSPARENT
+     field, so the default alpha masking is already correct — and under
+     luminance the black `linear-gradient(#000,#000)` cover layer evaluates to
+     zero, which masked the navy plane away entirely and left frame 0 showing
+     the app instead of the launch image. Alpha also works on iOS 15.0-15.3,
+     where mask-mode does not exist at all. */
+  -webkit-mask-composite:xor;               /* iOS 15 */
+          mask-composite:exclude;           /* modern WebKit/Blink */
+  animation:vfk-aperture 550ms linear 700ms both;
+}
+
+/* ── layer 2: ignition bloom, behind the logo ───────────────────────────── */
+.vfk-halo{
+  left:50%; top:50%; width:440px; height:440px; margin:-220px 0 0 -220px;
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,
+    rgba(120,190,255,.60) 0%, rgba(37,99,235,.34) 30%,
+    rgba(29,63,184,.14) 54%, rgba(26,35,66,0) 74%);
+  opacity:0;
+  will-change:transform,opacity;
+  animation:vfk-halo 1400ms linear both;
+}
+
+/* ── layer 3: THE LOGO ──────────────────────────────────────────────────────
+   112px, dead centre, opaque from the first frame — the launch image, continued.
+   Only transform and opacity are ever touched. */
+.vfk-icon{
+  left:50%; top:50%; width:112px; height:112px; margin:-56px 0 0 -56px;
+  display:block;
+  transform:scale(1);
+  transform-origin:50% 50%;
+  will-change:transform,opacity;
+  backface-visibility:hidden;
+  animation:vfk-icon 1400ms linear both;
+}
+
+/* ── layer 4: white-hot flare over the logo (light, not a recolour) ──────── */
+.vfk-flare{
+  left:50%; top:50%; width:320px; height:320px; margin:-160px 0 0 -160px;
+  border-radius:50%;
+  mix-blend-mode:screen;
+  background:radial-gradient(circle at 50% 50%,
+    rgba(255,255,255,.95) 0%, rgba(219,236,255,.70) 16%,
+    rgba(120,185,255,.34) 40%, rgba(37,99,235,0) 70%);
+  opacity:0;
+  will-change:transform,opacity;
+  animation:vfk-flare 1400ms linear both;
+}
+
+/* ── layer 5: the fork ────────────────────────────────────────────────────
+   `slice` guarantees the artwork covers 320×568 through 430×932 with the fork's
+   contact point pinned to the exact centre of the display on every one of them.
+   Two passes make the bolt: a blurred aurora stroke under a thin white core that
+   carries the drop-shadow halo. Both filters are static, never animated. */
+.vfk-fork{
+  inset:0; width:100%; height:100%;
+  overflow:visible;
+}
+.vfk-bolt{
+  opacity:0;
+  will-change:opacity;
+  animation:vfk-flicker 1400ms linear both;
+}
+/* Stroke widths are in viewBox units on purpose: `slice` scales them 3.2x on a
+   320x568 up to 4.7x on a 430x932, so the bolt gets proportionally heavier on a
+   bigger display, which is what the eye expects. vector-effect:non-scaling-stroke
+   would pin them to CSS px — but WebKit then computes the dash pattern in device
+   space while pathLength normalises in user space, and the strike draws itself as
+   disconnected debris instead of one tear. Do not add it back. */
+.vfk-bolt path{
+  fill:none;
+  stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1 1;            /* pathLength="1" -> resolution-independent dashes */
+  stroke-dashoffset:1;             /* undrawn */
+  will-change:stroke-dashoffset;
+}
+.vfk-glow path{ stroke:#4DA8F5; }
+.vfk-glow{ filter:blur(3px); opacity:.9; }
+.vfk-core path{ stroke:#F4F9FF; }
+.vfk-core{
+  filter:
+    drop-shadow(0 0 2px rgba(255,255,255,.95))
+    drop-shadow(0 0 9px rgba(125,185,255,.85))
+    drop-shadow(0 0 26px rgba(37,99,235,.6));
+}
+/* propagation: out of the gate hard, settling into the impact */
+.vfk-t1{ animation:vfk-draw 145ms cubic-bezier(.16,.72,.32,1) 150ms both; }
+.vfk-b3{ animation:vfk-draw  70ms cubic-bezier(.2,.7,.4,1)    196ms both; }
+.vfk-b1{ animation:vfk-draw 120ms cubic-bezier(.18,.66,.36,1) 205ms both; }
+.vfk-b2{ animation:vfk-draw 115ms cubic-bezier(.18,.66,.36,1) 225ms both; }
+.vfk-t2{ animation:vfk-draw  95ms cubic-bezier(.3,.72,.4,1)   295ms both; }
+.vfk-core .vfk-t1{ stroke-width:.72 } .vfk-glow .vfk-t1{ stroke-width:2.3 }
+.vfk-core .vfk-b3{ stroke-width:.34 } .vfk-glow .vfk-b3{ stroke-width:1.1 }
+.vfk-core .vfk-b1{ stroke-width:.52 } .vfk-glow .vfk-b1{ stroke-width:1.7 }
+.vfk-core .vfk-b2{ stroke-width:.46 } .vfk-glow .vfk-b2{ stroke-width:1.5 }
+.vfk-core .vfk-t2{ stroke-width:.62 } .vfk-glow .vfk-t2{ stroke-width:2.0 }
+
+/* ── layer 6: impact flash, whole display ───────────────────────────────── */
+.vfk-flash{
+  inset:0;
+  background:radial-gradient(125% 92% at 50% 50%,
+    rgba(255,255,255,.94) 0%, rgba(196,225,255,.52) 32%,
+    rgba(37,99,235,.14) 60%, rgba(26,35,66,0) 84%);
+  opacity:0;
+  will-change:opacity;
+  animation:vfk-flash 1400ms linear both;
+}
+
+/* ── layer 7: the light inside the aperture ───────────────────────────────
+   The bolt itself rather than the hole, so it shares the exact same keyframes:
+   a mask-size list longer than the mask-image list simply has its extra values
+   ignored, which is why one @keyframes block can drive both this single-layer
+   mask and the plane's two-layer one. (The obvious alternative — the same two
+   layers composited `intersect`/`source-in` — is silently ignored by WebKit and
+   renders the layer full-bleed across the whole display. Don't.)
+   scale(1.06) keeps this a hair proud of the hole so the cut edge never shows. */
+.vfk-light{
+  inset:0;
+  background:radial-gradient(circle at 50% 50%,
+    #FFFFFF 0%, #E3EEFF 10%, #8FC2FF 28%, #2563EB 56%, #1D3FB8 100%);
+  transform:scale(1.06);
+  filter:blur(1px);   /* veils the mask's cut edge while it is still on-screen */
+  opacity:0;
+  -webkit-mask-image:url("data:image/webp;base64,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");   /* ONE layer: this element IS the bolt, not the hole. */
+          mask-image:url("data:image/webp;base64,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");
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:50% 50%;
+          mask-position:50% 50%;
+  -webkit-mask-size:0px 0px;
+          mask-size:0px 0px;
+  /* Alpha masking, as above. */
+  will-change:opacity;
+  animation:vfk-aperture 550ms linear 700ms both,
+            vfk-light    1400ms linear both;
+}
+
+/* ══ KEYFRAMES ═══════════════════════════════════════════════════════════ */
+
+/* THE STRIKE TRAVELS. One path drawing itself, tip-first. */
+@keyframes vfk-draw{ from{ stroke-dashoffset:1 } to{ stroke-dashoffset:0 } }
+
+/* WHAT THE EYE SEES: nothing → a charge in the air → the bolt, hard →
+   it hangs, flickers twice like real lightning → gone. */
+@keyframes vfk-flicker{
+  0%,7.86%   { opacity:0    }   /* 0–110ms   invisible. The handoff window. */
+  10.71%     { opacity:.34   }  /* 150ms     the air charges */
+  15%        { opacity:1     }  /* 210ms     full brightness mid-descent */
+  17.14%     { opacity:.72   }  /* 240ms     flicker */
+  21.07%     { opacity:1     }  /* 295ms     contact */
+  24.29%     { opacity:1     }  /* 340ms     holds hot through the ignition */
+  25.36%     { opacity:.42   }  /* 355ms     first collapse */
+  26.43%     { opacity:.88   }  /* 370ms     second discharge */
+  27.14%     { opacity:.30   }  /* 380ms */
+  30.71%     { opacity:.12   }  /* 430ms */
+  33.57%,100%{ opacity:0     }  /* 470ms     the sky is empty again */
+}
+
+/* THE LOGO IGNITES. Perfectly still until the bolt lands, then a hard pop that
+   overshoots, undershoots, and settles — the read is "it arrived", not "it grew".
+   It then holds, lit, and only leaves once its own bolt has opened past it. */
+@keyframes vfk-icon{
+  0%,21.43%  { opacity:1; transform:scale(1)      }  /* 0–300ms   FRAME 0. Identical to the launch image. */
+  25.36%     { opacity:1; transform:scale(1.155)  }  /* 355ms     struck */
+  31.43%     { opacity:1; transform:scale(.975)   }  /* 440ms     recoil */
+  37.14%     { opacity:1; transform:scale(1.012)  }  /* 520ms */
+  42.86%     { opacity:1; transform:scale(1)      }  /* 600ms     at rest */
+  55.71%     { opacity:1; transform:scale(1)      }  /* 780ms     the aperture is already opening inside its bolt */
+  62.14%     { opacity:0; transform:scale(1.03)   }  /* 870ms     handed over to the light */
+  100%       { opacity:0; transform:scale(1.03)   }
+}
+
+/* THE BLOOM behind it: a fast punch of aurora light, then a long decay that
+   keeps the logo sitting in its own glow while the aperture starts. */
+@keyframes vfk-halo{
+  0%,21.14%  { opacity:0;   transform:scale(.34) }  /* 0–296ms  */
+  24.29%     { opacity:.95; transform:scale(1.04)}  /* 340ms     bloom */
+  27.14%     { opacity:.72; transform:scale(1.01)}  /* 380ms */
+  33.57%     { opacity:.50; transform:scale(1)   }  /* 470ms */
+  50%        { opacity:.34; transform:scale(1)   }  /* 700ms     settled ambience */
+  61.43%     { opacity:.20; transform:scale(1.18)}  /* 860ms     pushed outward by the opening */
+  67.14%,100%{ opacity:0;   transform:scale(1.3) }  /* 940ms */
+}
+
+/* THE FLARE at the point of impact: a white core that blows out of the mark. */
+@keyframes vfk-flare{
+  0%,21.43%  { opacity:0;   transform:scale(.5)  }  /* 0–300ms  */
+  22.71%     { opacity:1;   transform:scale(.92) }  /* 318ms     white-hot */
+  26.43%     { opacity:.34; transform:scale(1.02)}  /* 370ms */
+  28%        { opacity:.55; transform:scale(1.06)}  /* 392ms     re-strike */
+  37.14%,100%{ opacity:0;   transform:scale(1.16)}  /* 520ms     cooled */
+}
+
+/* THE WHOLE DISPLAY FLASHES. Two beats, 60ms apart — the double-tap of a real strike. */
+@keyframes vfk-flash{
+  0%,21.14%  { opacity:0   }  /* 0–296ms  */
+  22.29%     { opacity:.85 }  /* 312ms     impact */
+  25%        { opacity:.16 }  /* 350ms */
+  26.57%     { opacity:.44 }  /* 372ms     second beat */
+  32.86%,100%{ opacity:0   }  /* 460ms */
+}
+
+/* THE APERTURE. The hole is the logo's own bolt, opening.
+   The easing is baked into the stop VALUES and the animation itself runs linear:
+   it accelerates out of the mark, then decelerates into the display so the last
+   half is a calm opening rather than a whip-pan. Doing it this way also means
+   that if an engine ever refused to interpolate a mask-size list, this degrades
+   to 21 visible steps rather than to a jump-cut.
+   Sizes are the MASK BOX; the bolt inside it is ~71% tall and ~26% wide, so the
+   opening clears the corners of a 430×932 at roughly the 1960px stop — measured,
+   not guessed, on 320×568 / 390×844 / 430×932. */
+@keyframes vfk-aperture{
+  0%   { -webkit-mask-size:0px 0px,100% 100%;       mask-size:0px 0px,100% 100%       } /* 700ms   shut */
+  5%   { -webkit-mask-size:5px 5px,100% 100%;       mask-size:5px 5px,100% 100%       } /* 727ms   a spark inside the mark */
+  10%  { -webkit-mask-size:26px 26px,100% 100%;     mask-size:26px 26px,100% 100%     } /* 755ms */
+  15%  { -webkit-mask-size:62px 62px,100% 100%;     mask-size:62px 62px,100% 100%     } /* 782ms */
+  20%  { -webkit-mask-size:112px 112px,100% 100%;   mask-size:112px 112px,100% 100%   } /* 810ms   exactly the logo's own bolt */
+  25%  { -webkit-mask-size:165px 165px,100% 100%;   mask-size:165px 165px,100% 100%   } /* 837ms */
+  30%  { -webkit-mask-size:225px 225px,100% 100%;   mask-size:225px 225px,100% 100%   } /* 865ms */
+  35%  { -webkit-mask-size:290px 290px,100% 100%;   mask-size:290px 290px,100% 100%   } /* 892ms */
+  40%  { -webkit-mask-size:360px 360px,100% 100%;   mask-size:360px 360px,100% 100%   } /* 920ms   A WINDOW: the app, seen through a bolt */
+  45%  { -webkit-mask-size:440px 440px,100% 100%;   mask-size:440px 440px,100% 100%   } /* 947ms */
+  50%  { -webkit-mask-size:530px 530px,100% 100%;   mask-size:530px 530px,100% 100%   } /* 975ms */
+  55%  { -webkit-mask-size:630px 630px,100% 100%;   mask-size:630px 630px,100% 100%   } /* 1002ms  from here it decelerates: the */
+  60%  { -webkit-mask-size:745px 745px,100% 100%;   mask-size:745px 745px,100% 100%   } /* 1030ms  opening is calm, not a whip-pan */
+  65%  { -webkit-mask-size:875px 875px,100% 100%;   mask-size:875px 875px,100% 100%   } /* 1057ms */
+  70%  { -webkit-mask-size:1020px 1020px,100% 100%; mask-size:1020px 1020px,100% 100% } /* 1085ms */
+  75%  { -webkit-mask-size:1180px 1180px,100% 100%; mask-size:1180px 1180px,100% 100% } /* 1112ms */
+  80%  { -webkit-mask-size:1360px 1360px,100% 100%; mask-size:1360px 1360px,100% 100% } /* 1140ms  the fade starts under it here */
+  85%  { -webkit-mask-size:1550px 1550px,100% 100%; mask-size:1550px 1550px,100% 100% } /* 1167ms */
+  90%  { -webkit-mask-size:1750px 1750px,100% 100%; mask-size:1750px 1750px,100% 100% } /* 1195ms */
+  95%  { -webkit-mask-size:1960px 1960px,100% 100%; mask-size:1960px 1960px,100% 100% } /* 1222ms  corners geometrically gone */
+  100% { -webkit-mask-size:2200px 2200px,100% 100%; mask-size:2200px 2200px,100% 100% } /* 1250ms */
+}
+
+/* THE LIGHT IN THE OPENING. Full while the hole is still small enough that the
+   logo sits inside it — so the bolt reads as igniting, never as a dark notch —
+   then cools away and leaves the app standing there. */
+@keyframes vfk-light{
+  0%,50%     { opacity:0   }  /* 0-700ms   masked to nothing anyway */
+  50.01%     { opacity:1   }  /* 700ms     the mark lights from within */
+  62.5%      { opacity:1   }  /* 875ms     still filling the whole opening */
+  65%        { opacity:.5  }  /* 910ms     cooling from the middle outward, so the */
+  67.86%     { opacity:.15 }  /* 950ms     last thing to go is the rim of the opening */
+  71.43%,100%{ opacity:0   }  /* 1000ms    and the app is what was behind it */
+}
+
+/* THE LAST OF THE NAVY. Starts while the opening is still eating the display,
+   so the two finish together and the corners dissolve instead of snapping shut. */
+@keyframes vfk-clear{
+  0%,80.71%{ opacity:1; visibility:visible } /* 0-1130ms  overlaps the last of the opening on purpose: */
+  95%      { opacity:0; visibility:visible }
+  100%     { opacity:0; visibility:hidden }  /* inert for good: the node stays, but paints and hit-tests nothing */                    /* 1330ms    the corners dissolve rather than being eaten.
+                                                          Nothing but transform/opacity/filter/mask-size/
+                                                          stroke-dashoffset is ever animated - the element
+                                                          is taken out of the DOM below, not hidden. */
+}
+
+/* ── REDUCED MOTION: no strike, no fork, no aperture. The launch image simply
+   fades to the app in 200ms. ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  #sc-splash-vfork, #sc-splash-vfork *{ animation:none !important; }
+  #sc-splash-vfork{ animation:vfk-reduced 200ms linear both !important; }
+  #sc-splash-vfork .vfk-fork,
+  #sc-splash-vfork .vfk-flash,
+  #sc-splash-vfork .vfk-flare,
+  #sc-splash-vfork .vfk-halo,
+  #sc-splash-vfork .vfk-light{ display:none !important; }
+  /* the icon keeps its base scale(1) rather than transform:none, so it rasterises
+     identically to the motion path and the handoff stays pixel-clean here too */
+  #sc-splash-vfork .vfk-icon{ opacity:1 !important; }
+}
+@keyframes vfk-reduced{
+  0%  { opacity:1 }
+  100%{ opacity:0 }
+}
+</style>
+<script>
+/* Mark this launch as splashed. The server skips the whole overlay while this
+   cookie is present, so the animation plays on a cold open and NOT on every
+   full page load inside the app (sign-out, a hard nav, a deep link) — and the
+   ~30KB it inlines is paid once, not on every request. Two minutes: long
+   enough to cover a session's worth of navigations, short enough that coming
+   back to the app later still feels like a launch. */
+try{document.cookie="sc_splash=1;path=/;max-age=120;samesite=lax"}catch(e){}
+</script>
