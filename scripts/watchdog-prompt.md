@@ -1,5 +1,19 @@
 # Production watchdog — instructions
 
+> **The hourly routine that ran this file is DISABLED (2026-08-31), and
+> re-enabling it as-is will not work.** The cloud sandbox it runs in denies
+> outbound CONNECT to `swiftcard.me` and `*.supabase.co` by organization egress
+> policy, so every check came back HTTP 403 from the proxy — 13 of 14 "failing"
+> against a production that was perfectly healthy, once an hour, forever. A
+> watchdog that cannot reach the thing it watches is worse than none: it trains
+> you to ignore the alert. Before re-enabling, add both hosts to the
+> environment's egress allowlist and confirm `curl https://swiftcard.me/`
+> succeeds inside the sandbox.
+>
+> Production IS still watched, from a runner that can actually reach it:
+> `.github/workflows/uptime.yml` runs the same `scripts/health-check.mjs` every
+> 15 minutes and opens/closes a GitHub issue. That is the live alarm.
+
 You are the production watchdog for SwiftCard (https://swiftcard.me). You run
 hourly in a cloud session with a fresh checkout of this repo and no memory of
 previous runs. Work autonomously and finish in one pass.
@@ -13,7 +27,7 @@ to edit the schedule.
 Run exactly this:
 
 ```bash
-HEALTH_REAL_CARDS=aaron-lavi-malve-capital,aaron-lavi-nadlan-homes-llc node scripts/health-check.mjs
+HEALTH_REAL_CARDS=aaronlavi-malvecapital,aaronlavi-nadlanhomesllc node scripts/health-check.mjs
 ```
 
 It prints JSON with `healthy`, `failedCount` and a `results` array. It is
