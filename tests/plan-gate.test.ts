@@ -124,11 +124,35 @@ describe("the purchase path is In-App Purchase, wired through PlanNotice", () =>
     expect(lib).toMatch(/if \(!detectNativeApp\(\)\) return null/);
     expect(lib).toMatch(/if \(!process\.env\.NEXT_PUBLIC_RC_APPLE_API_KEY\)/);
     // Only "not native" and "signed out" suppress the button…
-    expect(paywall).toMatch(/if \(!uid\) return false; \/\/ signed-out surfaces never sell/);
-    // …a failed RevenueCat configure does NOT.
-    expect(paywall).toMatch(/const ok = await ensureIapConfigured\(uid\);[\s\S]{0,120}return true;/);
+    expect(paywall).toMatch(/if \(!detectNativeApp\(\)\) return "unavailable"/);
+    expect(paywall).toMatch(/if \(!uid\) return "needs-account"/);
+    // …and a signed-out surface that CAN start signup still renders a CTA, so
+    // the guest card wizard never shows a Pro card with no way forward.
+    expect(paywall).toMatch(/onNeedsAccount/);
+    // …while neither a missing key nor a failed RevenueCat configure hides it:
+    // canOfferIap/ensureIapConfigured are best-effort, after the decision.
+    expect(paywall).toMatch(/if \(await canOfferIap\(\)\) \{[\s\S]{0,160}\}\s*\n\s*return "ready";/);
     // And the sheet still tells the truth when there is nothing to sell.
     expect(paywall).toMatch(/Plans aren&apos;t available right now/);
+  });
+
+  it("the first-run guest Pro card offers a way forward, not just a price", () => {
+    // A brand-new download builds a card BEFORE it has an account
+    // (/cards/new is deliberately open, and /signup redirects into it). The
+    // native Pro card there rendered a feature list, a "14 days free" line and
+    // NO button, because IapSubscribeButton returns null with no session — a
+    // Pro card you cannot buy, on the very first screen that offers Pro. That
+    // is the shape of the 3.1.1 rejection.
+    const cards = read("src/components/PlanCards.tsx");
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    // The native card takes a signup starter…
+    expect(cards).toMatch(/onNeedsAccount=\{onCreateAccountForPro\}/);
+    // …which the guest wizard supplies, and only for guests.
+    expect(wizard).toMatch(/onCreateAccountForPro=\{guest \? \(\) => pickPlanThenSignUp\(\{ plan: "pro" \}\) : undefined\}/);
+    // It must be its OWN prop: onPaid is the web checkout hand-off and the
+    // native branch may never be able to reach it (tests/wallet-hardening).
+    const nativeBranch = cards.slice(cards.indexOf("if (native) {"), cards.indexOf("</div>\n    );\n  }"));
+    expect(nativeBranch).not.toMatch(/onPaid\(/);
   });
 
   it("purchases identify as the Supabase uid before any purchase", () => {

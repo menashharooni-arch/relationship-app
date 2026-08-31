@@ -42,6 +42,7 @@ export default function PlanCards({
   busy = null,
   freeLabel = "Get started free →",
   onIapPurchased,
+  onCreateAccountForPro,
 }: {
   onFree: () => void;
   onPaid: (plan: PaidPlan, annual: boolean, seats: number) => void;
@@ -50,6 +51,12 @@ export default function PlanCards({
   /** Native only: continue the caller's flow after an In-App Purchase
    *  succeeds (entitlement already synced). Default reloads the page. */
   onIapPurchased?: () => void;
+  /** Native + SIGNED OUT only: begin account creation from the Pro card.
+   *  Deliberately its own prop rather than reusing onPaid — onPaid is the web
+   *  checkout hand-off, and the native branch must never be able to reach it
+   *  (pinned by tests/wallet-hardening.test.ts). This one only ever starts
+   *  signup; the purchase itself happens later, in-app, through StoreKit. */
+  onCreateAccountForPro?: () => void;
 }) {
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
@@ -76,7 +83,11 @@ export default function PlanCards({
     //     app is the 3.1.1 rejection this build exists to answer.
     return (
       <div className="max-w-md mx-auto flex flex-col gap-4">
-        <NativePro features={PLAN_FEATURES.pro} onPurchased={onIapPurchased} />
+        <NativePro
+          features={PLAN_FEATURES.pro}
+          onPurchased={onIapPurchased}
+          onNeedsAccount={onCreateAccountForPro}
+        />
 
         {/* Free — identical to the website's card */}
         <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
@@ -204,10 +215,25 @@ export default function PlanCards({
  * The native Pro card: the website's aurora card, but its price is the LIVE
  * StoreKit price for the monthly product. While StoreKit is still answering
  * (or when products are unavailable) the price line is simply absent — the
- * card never guesses a number, and the subscribe button hides itself, so the
- * chooser degrades to Free-only exactly as before.
+ * card never guesses a number.
+ *
+ * The CTA is always there. Signed in it opens the In-App Purchase sheet;
+ * signed out (the guest card wizard, i.e. the first thing a new download
+ * does) it starts account creation, and /welcome then offers the purchase.
+ * It used to render nothing at all when signed out, leaving a Pro card with a
+ * feature list and no way to buy — which is the shape of the 3.1.1 rejection.
  */
-function NativePro({ features, onPurchased }: { features: readonly string[]; onPurchased?: () => void }) {
+function NativePro({
+  features,
+  onPurchased,
+  onNeedsAccount,
+}: {
+  features: readonly string[];
+  onPurchased?: () => void;
+  /** Guest (signed-out) shell: start account creation instead of a purchase —
+   *  there is no account to attribute a subscription to yet. */
+  onNeedsAccount?: () => void;
+}) {
   const price = useIapMonthlyPrice();
   return (
     <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
@@ -220,7 +246,13 @@ function NativePro({ features, onPurchased }: { features: readonly string[]; onP
         <ul className="space-y-2.5 mb-7 flex-1">
           {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
         </ul>
-        <IapSubscribeButton className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]" label="Start free →" sublabel={`${TRIAL_DAYS} days free, then billed by Apple`} onPurchased={onPurchased} />
+        <IapSubscribeButton
+          className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]"
+          label="Start free →"
+          sublabel={`${TRIAL_DAYS} days free, then billed by Apple`}
+          onPurchased={onPurchased}
+          onNeedsAccount={onNeedsAccount}
+        />
         <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
           {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
         </p>

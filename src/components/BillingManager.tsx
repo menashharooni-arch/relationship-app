@@ -167,6 +167,14 @@ export default function BillingManager() {
     const nPlan = sub?.plan ?? "free";
     const nPaid = nPlan === "pro" || nPlan === "office";
     const appleBilled = sub?.planSource === "apple";
+    // Is there actually a subscription being billed SOMEWHERE else? Not the
+    // same question as "is this account paid". The Pro review account is a
+    // manual grant — planSource null, hasStripeSubscription false, no Stripe
+    // customer — and the panel still told App Review "your subscription is
+    // billed by card, outside the App Store", which was both untrue for that
+    // account and a near-verbatim recital of Guideline 3.1.1. Say only what
+    // is true of the account in front of us.
+    const externallyBilled = sub?.planSource === "stripe" || sub?.hasStripeSubscription === true;
     return (
       <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
         <p className="text-sm font-semibold text-white">
@@ -175,9 +183,20 @@ export default function BillingManager() {
         <p className="mt-1.5 text-[13px] leading-relaxed text-gray-400">
           {appleBilled
             ? "Your subscription is billed through your Apple account."
-            : nPaid
-              ? "Your subscription is billed by card, outside the App Store. It stays active here."
-              : "Unlock everything in SwiftCard with Pro."}
+            : externallyBilled
+              // A real subscription billed elsewhere. 3.1.3(b) permits
+              // honouring it precisely because Pro is also purchasable in the
+              // app; the sentence just should not read as a confession. Same
+              // facts, no framing: it is active, Apple is not the biller, so
+              // the Apple subscription settings are not where to manage it.
+              ? "Your Pro subscription is active on this account. It isn't billed through Apple, so it isn't managed in your Apple account settings."
+              : nPaid
+                // Paid with nothing billing it anywhere: a comp, a grant, or
+                // an org membership. Claiming a purchase here would be a lie.
+                ? nPlan === "office"
+                  ? "Office is enabled on this account."
+                  : "Pro is enabled on this account."
+                : "Unlock everything in SwiftCard with Pro."}
         </p>
         {appleBilled ? (
           <button

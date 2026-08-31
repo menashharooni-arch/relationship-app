@@ -13,6 +13,7 @@ import {
   type IapPackage,
 } from "@/lib/iap";
 import { TRIAL_DAYS } from "@/lib/plan";
+import { detectNativeApp } from "@/lib/platform";
 
 // Short, countable unlocks for the sheet — no prices, no numbers that could
 // drift from StoreKit.
@@ -65,45 +66,64 @@ const PERKS = [
 // Resolved once per page: after the first button has done the work, every
 // later mount (another gate, a route change) renders instantly instead of
 // re-running the session read + SDK configure.
-let readyOnce: Promise<boolean> | null = null;
-async function resolveReady(): Promise<boolean> {
-  // Not the shell (or no bridge at all) → no purchase UI. Web sells through
-  // Stripe elsewhere; this component is native-only.
-  if (!(await canOfferIap())) return false;
-  // The RevenueCat identity must be the Supabase uid BEFORE any purchase —
-  // it is how the webhook maps the sub to a profile. Read from the LOCAL
-  // session (no network) — getUser() cost a server round trip on every
-  // mount, which is why the button used to pop in late.
+//
+//   "ready"         → native, signed in: show the real purchase button.
+//   "needs-account" → native, signed out: there is nothing to attribute a
+//                     purchase to yet. Callers that can start account creation
+//                     pass onNeedsAccount and still render a CTA; the guest
+//                     card wizard used to render the Pro card with NO button
+//                     at all, which is a price and a feature list and no way
+//                     to buy — the 3.1.1 dead end, on the very first run.
+//   "unavailable"   → not the shell. Web sells through Stripe elsewhere.
+export type IapStatus = "ready" | "needs-account" | "unavailable";
+
+let statusOnce: Promise<IapStatus> | null = null;
+
+async function resolveStatus(): Promise<IapStatus> {
+  // Not the shell (or no bridge at all) → no purchase UI here.
+  if (!detectNativeApp()) return "unavailable";
+  // The RevenueCat identity must be the Supabase uid BEFORE any purchase — it
+  // is how the webhook maps the sub to a profile. Read from the LOCAL session
+  // (no network): getUser() cost a server round trip on every mount, which is
+  // why the button used to pop in late.
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
   const { data: { session } } = await supabase.auth.getSession();
   const uid = session?.user?.id;
-  if (!uid) return false; // signed-out surfaces never sell
-  // Configure RevenueCat so a purchase is attributable to this account. If it
-  // FAILS we still show the button: the sheet will say plans are unavailable,
-  // which is a far better answer than a locked feature with no purchase path
-  // (see the rejection note above). Only "not native" and "not signed in"
-  // hide it now.
-  const ok = await ensureIapConfigured(uid);
-  if (ok) prefetchIapPackages(); // prices ready before the tap
-  return true;
+  if (!uid) return "needs-account";
+
+  // Best effort, and DELIBERATELY not part of the visibility decision. The
+  // rule this component documents is "only "not native" and "not signed in"
+  // hide the button", but the code used to bail on canOfferIap() too — so a
+  // missing NEXT_PUBLIC_RC_APPLE_API_KEY, or one failed chunk fetch for the
+  // RevenueCat module, silently removed every purchase path in the app and
+  // left the gates behind. That is indistinguishable from the app App Review
+  // rejected. What fails closed is the SHEET's content, never its existence:
+  // it shows StoreKit's prices when they load and says so plainly when they
+  // do not.
+  if (await canOfferIap()) {
+    if (await ensureIapConfigured(uid)) prefetchIapPackages(); // prices ready before the tap
+  }
+  return "ready";
 }
 
-/** Shared mount logic: resolves once, re-checks after a failed attempt. */
-function useIapAvailable(): boolean {
-  const [available, setAvailable] = useState(false);
+/** Shared mount logic: resolves once, re-checks after a signed-out result. */
+function useIapStatus(): IapStatus {
+  const [status, setStatus] = useState<IapStatus>("unavailable");
   useEffect(() => {
     let cancelled = false;
-    if (!readyOnce) readyOnce = resolveReady();
-    readyOnce.then((ok) => {
-      if (!ok) readyOnce = null; // retry on the next mount (e.g. after sign-in)
-      if (!cancelled) setAvailable(ok);
+    if (!statusOnce) statusOnce = resolveStatus();
+    statusOnce.then((s) => {
+      // Signed out is transient — a sign-in later in the same document must
+      // light the buttons up without a reload.
+      if (s === "needs-account") statusOnce = null;
+      if (!cancelled) setStatus(s);
     });
     return () => { cancelled = true; };
   }, []);
-  return available;
+  return status;
 }
 
 export default function IapSubscribeButton({
@@ -111,6 +131,7 @@ export default function IapSubscribeButton({
   label = "Upgrade to Pro",
   sublabel = `${TRIAL_DAYS}-day free trial`,
   onPurchased,
+  onNeedsAccount,
 }: {
   className?: string;
   label?: string;
@@ -119,11 +140,18 @@ export default function IapSubscribeButton({
   /** Called after a successful purchase (entitlement synced). Default: reload
    *  so every plan-gated surface re-reads the profile. */
   onPurchased?: () => void;
+  /** Signed-out surfaces that CAN start account creation (the guest card
+   *  wizard) pass this: the same button renders and begins signup, after
+   *  which /welcome offers the real purchase. Without it a signed-out surface
+   *  renders nothing, which is right for gates that have nowhere to send
+   *  anyone. */
+  onNeedsAccount?: () => void;
 }) {
-  const available = useIapAvailable();
+  const status = useIapStatus();
   const [open, setOpen] = useState(false);
 
-  if (!available) return null;
+  const needsAccount = status === "needs-account";
+  if (status === "unavailable" || (needsAccount && !onNeedsAccount)) return null;
 
   return (
     <>
@@ -133,7 +161,7 @@ export default function IapSubscribeButton({
           pass `!w-full` and their own colors. */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => (needsAccount ? onNeedsAccount!() : setOpen(true))}
         className={`relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[13px] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
         style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
@@ -141,7 +169,7 @@ export default function IapSubscribeButton({
         {sublabel && <span className="relative z-[4] text-[10px] font-semibold text-white/85">{sublabel}</span>}
         <span className="rd-glisten-sweep" aria-hidden="true" />
       </button>
-      {open && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
+      {open && !needsAccount && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
     </>
   );
 }
@@ -153,7 +181,7 @@ export default function IapSubscribeButton({
  * never a dead tap target.
  */
 export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
-  const available = useIapAvailable();
+  const available = useIapStatus() === "ready";
   const [open, setOpen] = useState(false);
   const label = tier === "office" ? "OFFICE" : "PRO";
   if (!available || tier === "office") {

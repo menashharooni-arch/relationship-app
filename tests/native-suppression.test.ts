@@ -38,7 +38,12 @@ const GUARDS: Guard[] = [
   },
   {
     file: "src/app/upgrade/UpgradeClient.tsx",
-    patterns: [/detectNativeApp\(\)/, /router\.replace\("\/dashboard"\)/],
+    // The page no longer bounces to /dashboard when canOfferIap() is false:
+    // that was false for a missing key or one failed chunk fetch as well as
+    // for an old shell, so a transient failure deleted the upgrade screen.
+    // What must hold is that the native branch is separate and sells nothing
+    // of its own — the price-free assertion lives in ios-final-audit.
+    patterns: [/useIsNativeApp/, /if \(native\) \{/],
   },
   {
     file: "src/components/site/SiteNav.tsx",

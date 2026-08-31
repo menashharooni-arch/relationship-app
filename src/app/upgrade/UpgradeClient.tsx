@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import ProTrialPrice from "@/components/ProTrialPrice";
-import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
+import { useIsNativeApp } from "@/lib/platform";
 import { PLAN_FEATURES } from "@/lib/plan-content";
 import IapSubscribeButton from "@/components/NativePaywall";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
@@ -35,27 +34,23 @@ function Check({ light }: { light?: boolean }) {
 }
 
 export default function UpgradeClient({ trialEligible }: { trialEligible: boolean }) {
-  const router = useRouter();
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
   const isMobile = useIsMobile();
   const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
 
-  // Native app (IAP live, 2026-08-27): /upgrade now shows a REAL In-App
-  // Purchase screen instead of bouncing to the dashboard. It renders no web
-  // price anywhere — the only prices a shell user ever sees come from
-  // StoreKit inside the paywall sheet (3.1.2). A shell that cannot offer IAP
-  // (older build, products unavailable) still redirects to the dashboard,
-  // because an upgrade page with no way to upgrade is a dead end.
-  const [nativeIap, setNativeIap] = useState(false);
-  useEffect(() => {
-    if (!detectNativeApp()) return;
-    (async () => {
-      const { canOfferIap } = await import("@/lib/iap");
-      if (await canOfferIap()) setNativeIap(true);
-      else router.replace("/dashboard");
-    })();
-  }, [router]);
+  // Native app (IAP live, 2026-08-27): /upgrade shows a REAL In-App Purchase
+  // screen instead of bouncing to the dashboard. It renders no web price
+  // anywhere — the only prices a shell user ever sees come from StoreKit
+  // inside the paywall sheet (3.1.2).
+  //
+  // This used to redirect to /dashboard whenever canOfferIap() was false, on
+  // the reasoning that an upgrade page with no way to upgrade is a dead end.
+  // The redirect was the worse dead end: canOfferIap() is false for a missing
+  // API key or a single failed chunk fetch as well as for an old shell, so a
+  // transient failure silently removed the upgrade screen entirely. The
+  // button decides for itself now, and the sheet says plainly when StoreKit
+  // has nothing to sell.
   const native = useIsNativeApp();
 
   const interval = annual ? "annual" : "monthly";
@@ -72,7 +67,6 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
   const officeHref = `/checkout?plan=office&interval=${interval}&seats=${seats}&trial=0`;
 
   if (native) {
-    if (!nativeIap) return null; // deciding, or redirecting to /dashboard
     return (
       <div className="mx-auto max-w-sm">
         <div className="text-center mb-8">
