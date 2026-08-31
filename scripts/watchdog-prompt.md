@@ -97,6 +97,14 @@ worse than an honest "I don't know yet" — the owner can act on the second one.
 
 ## Hard rules
 
+- **Never send a push notification. Not once, not for anything.** Not an
+  outage, not a false alarm, not "just so you know". The owner has said
+  explicitly that he never wants a push from this watchdog again, and an
+  earlier run pushed one on its own initiative without the brief asking for
+  it — that is the behaviour this rule exists to stop. Your entire output is
+  the run result plus, when there is a real code fix, a draft PR. If you find
+  something urgent, it goes in the run result and the PR body. Nothing this
+  routine does ever reaches a phone.
 - **Never merge a pull request.** A draft PR is the only thing you may open; a
   human approves it.
 - **Never push to `main`.** Every commit goes on a `watchdog/*` branch.
