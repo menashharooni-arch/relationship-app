@@ -39,6 +39,14 @@ export default function NativeAppBridge() {
     // Drop the native splash the moment this page has painted (two frames in
     // so the first paint is actually on screen). Any page — login, dashboard,
     // a deep link — so the splash never outlives the content behind it.
+    //
+    // BACKUP PATH ONLY on a cold launch. This effect runs after hydration,
+    // which on a remote-URL shell is 1-3s in, and the launch animation cannot
+    // wait that long to start — so the splash overlay hands off from its own
+    // inline script two frames after it paints (src/lib/splash/markup.html).
+    // This call stays for every path that renders no overlay (an in-app hard
+    // navigation, a shell build whose HTML predates it) and is a no-op when
+    // the splash is already down.
     requestAnimationFrame(() => requestAnimationFrame(() => {
       import("@capacitor/splash-screen")
         .then(({ SplashScreen }) => SplashScreen.hide({ fadeOutDuration: 180 }))
