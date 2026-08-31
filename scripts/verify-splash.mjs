@@ -35,7 +35,17 @@ const DEVICES = [
   ["iPhone 15 Pro Max", 430, 932], ["iPad Air", 820, 1180],
   ["iPad Pro 12.9", 1024, 1366], ["landscape", 844, 390],
 ];
-const markFor = (w, h) => (556 * Math.max(w, h)) / 2732;
+// 560 = the mark's measured span in the shipped 2732x2732 launch asset.
+const markFor = (w, h) => (560 * Math.max(w, h)) / 2732;
+
+// Pointed at production, a burst of contexts trips Vercel's bot challenge and
+// serves a "Security Checkpoint" page instead of the app — which looks exactly
+// like a missing overlay. Pace remote runs, and fail loudly if we are being
+// challenged rather than quietly reporting a splash bug.
+const REMOTE = !/^https?:\/\/(127\.0\.0\.1|localhost)/.test(BASE);
+const PACE = REMOTE ? 1500 : 0;
+const LAUNCHES = REMOTE ? 4 : 10;
+const pace = () => (PACE ? new Promise((r) => setTimeout(r, PACE)) : Promise.resolve());
 
 const failures = [];
 const check = (name, ok, detail) => {
@@ -65,6 +75,15 @@ async function shell({ width = 390, height = 844, hideMs = 150, plugin = true, r
   return context;
 }
 
+async function open(context, path) {
+  const page = await context.newPage();
+  const res = await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
+  if (res && res.status() === 403 && (await page.title()).includes("Security Checkpoint")) {
+    throw new Error(`blocked by Vercel's bot challenge at ${path} — rerun more slowly, this is not a splash failure`);
+  }
+  return page;
+}
+
 const probe = (page) =>
   page.evaluate(() => {
     const el = document.getElementById("sc-splash-vfork");
@@ -90,8 +109,7 @@ console.log(`\nSplash verification against ${BASE}\n`);
 console.log("Geometry — first frame must match the static launch image on every device");
 for (const [name, w, h] of DEVICES) {
   const context = await shell({ width: w, height: h });
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   const want = markFor(w, h);
   let bad = null, first = null, last = 0;
   for (const t of [30, 150, 340, 700]) {
@@ -113,13 +131,13 @@ for (const [name, w, h] of DEVICES) {
       ? `at ${bad.t}ms: mark ${bad.mark}, centre (${bad.cx},${bad.cy}), root ${bad.rootW}x${bad.rootH}, body ${bad.bodyTransform}`
       : `held frame: mark ${first.mark} = launch image ${want.toFixed(1)}, centred (${first.cx},${first.cy}), root ${first.rootW}x${first.rootH}`);
   await context.close();
+  await pace();
 }
 
 console.log("\nHandoff — the sequence starts when the screen is actually ours");
 {
   const context = await shell({ hideMs: 150 });
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   await page.waitForTimeout(60);
   const held = await probe(page);
   check("frozen on frame 0 while the native splash is still up",
@@ -139,6 +157,7 @@ console.log("\nHandoff — the sequence starts when the screen is actually ours"
       return !el || !el.closest("#sc-splash-vfork");
     }));
   await context.close();
+  await pace();
 }
 
 console.log("\nHandoff failure paths — the hold must always release");
@@ -147,8 +166,7 @@ for (const [name, opts, waitMs] of [
   ["plugin missing (older shell)", { plugin: false }, 4400],
 ]) {
   const context = await shell(opts);
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   await page.waitForTimeout(waitMs);
   check(name, !(await probe(page)).held);
   await context.close();
@@ -157,24 +175,26 @@ for (const [name, opts, waitMs] of [
 console.log("\nPlays on every launch, never mid-session");
 {
   const seen = new Set();
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < LAUNCHES; i++) {
     const context = await shell();
-    const page = await context.newPage();
-    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    const page = await open(context, "/login");
     await page.waitForTimeout(100);
     const s = await probe(page);
     seen.add([s.play, s.mark, s.cx, s.cy].join("|"));
     await context.close();
+    await pace();
   }
-  check("ten consecutive launches are byte-identical at t=100ms", seen.size === 1, [...seen].join("   vs   "));
+  check(`${LAUNCHES} consecutive launches are byte-identical at t=100ms`, seen.size === 1, [...seen].join("   vs   "));
 
   const context = await shell({ hideMs: 120 });
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   await page.waitForTimeout(1700);
   await page.evaluate(() => { window.location.href = "/cards/new"; });
-  await page.waitForLoadState("domcontentloaded");
-  await page.waitForTimeout(150);
+  // Let the destination settle before probing: against production this hop can
+  // itself redirect, and evaluating mid-navigation destroys the context.
+  await page.waitForLoadState("load");
+  await page.waitForTimeout(400);
+  await page.waitForLoadState("load");
   check("an in-app navigation ships no overlay at all", (await probe(page)).absent === true);
   check("and keeps its own page-in animation",
     (await page.evaluate(() => getComputedStyle(document.body).animationName)) !== "none");
@@ -184,8 +204,7 @@ console.log("\nPlays on every launch, never mid-session");
 console.log("\nConditions");
 {
   const context = await shell();
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   await page.waitForTimeout(500);
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(150);
@@ -197,8 +216,7 @@ console.log("\nConditions");
 }
 {
   const context = await shell({ reducedMotion: "reduce" });
-  const page = await context.newPage();
-  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  const page = await open(context, "/login");
   await page.waitForTimeout(160);
   const a = await probe(page);
   await page.waitForTimeout(900);
