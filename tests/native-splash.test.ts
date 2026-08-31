@@ -43,10 +43,11 @@ describe("native splash", () => {
   });
 
   it("scales the mark to whatever the launch image renders", () => {
-    // The launch image is 2732x2732 shown scaleAspectFill, so the 556px icon
-    // lands at 556*max(W,H)/2732 = 20.351vmax. A hard-coded px value matched
-    // one device and made the mark visibly jump on every other one.
-    expect(markup).toMatch(/--vfk-mark: 20\.351vmax/);
+    // The launch image is 2732x2732 shown scaleAspectFill, and its mark
+    // measures exactly 560px, so it lands at 560*max(W,H)/2732 = 20.4978vmax.
+    // A hard-coded px value matched one device and made the mark visibly jump
+    // on every other one.
+    expect(markup).toMatch(/--vfk-mark: 20\.4978vmax/);
     expect(markup).not.toMatch(/width:112px/);
   });
 

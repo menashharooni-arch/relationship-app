@@ -80,14 +80,18 @@ try{var d=document.documentElement;if(document.referrer&&document.referrer.index
 #sc-splash-vfork{
   /* THE MARK'S SIZE IS NOT A CONSTANT. The static iOS launch image is a
      2732x2732 square shown with scaleAspectFill, so it is scaled to COVER the
-     screen: scale = max(W,H)/2732. The icon occupies 556px of that canvas, so
-     on screen it is 556 * max(W,H) / 2732 = 20.351vmax — 116px on an SE, 172px
-     on an iPhone 14, 278px on a 12.9" iPad. Hard-coding 112px matched only the
-     smallest phone and made the icon visibly SHRINK the instant this overlay
-     took over on every other device (60px on a 14, 166px on an iPad). Every
-     dimension below is expressed against it so the whole composition scales
-     with the mark it is built around. */
-  --vfk-mark: 20.351vmax;
+     screen: scale = max(W,H)/2732. Measured off the shipped asset
+     (ios/.../Splash.imageset/splash-2732x2732.png), the mark occupies exactly
+     560px of that canvas — a hard edge, identical at every sampling threshold —
+     centred. On screen that is 560 * max(W,H) / 2732 = 20.4978vmax: 116px on an
+     SE, 173px on an iPhone 14, 280px on a 12.9" iPad. Hard-coding 112px matched
+     only the smallest phone and made the icon visibly SHRINK the instant this
+     overlay took over on every other device (61px on a 14, 168px on an iPad).
+     Every dimension below is expressed against it so the whole composition
+     scales with the mark it is built around. If the launch asset is ever
+     regenerated at a different mark size, re-measure and change this one line.
+     scripts/verify-splash.mjs diffs frame 0 against the real asset. */
+  --vfk-mark: 20.4978vmax;
   /* Sized against the viewport EXPLICITLY rather than with inset:0. If any
      ancestor ever carries a transform/filter/contain:paint it becomes the
      containing block for this fixed element, and inset:0 would then stretch
