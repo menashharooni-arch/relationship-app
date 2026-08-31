@@ -45,15 +45,30 @@ const PERKS = [
  *     external-purchase link is deliberately absent from this build to keep
  *     one clean purchase story in review.
  *
- * Fail-closed: if StoreKit products cannot be loaded (no plugin, no key, no
- * network, ASC products not yet approved) the subscribe button renders
- * nothing. A paywall with no live products would be a lie in a modal.
+ * Visibility rule — REWRITTEN after the 2026-08-31 rejection (submission
+ * d6815dee, reviewed on an iPad Air).
+ *
+ * The old rule was "fail closed": if StoreKit returned no products, the
+ * subscribe button rendered NOTHING. The subscriptions had not been attached
+ * to that version's submission, so in the reviewer's sandbox StoreKit had no
+ * products — and the app they saw was one that locks Pro features behind a
+ * gate with no way to buy anything. That is the literal text of 3.1.1, and
+ * our own silence produced it.
+ *
+ * The rule now: inside the shell, a signed-in user ALWAYS sees the purchase
+ * path. What fails closed is the SHEET's content, not its existence — it
+ * shows StoreKit's prices when they load and an explicit "not available
+ * right now" when they don't. No price is ever invented (3.1.2 is about the
+ * numbers being true, not about hiding the button), and a reviewer who taps
+ * always gets an answer instead of a dead end.
  */
 // Resolved once per page: after the first button has done the work, every
 // later mount (another gate, a route change) renders instantly instead of
 // re-running the session read + SDK configure.
 let readyOnce: Promise<boolean> | null = null;
 async function resolveReady(): Promise<boolean> {
+  // Not the shell (or no bridge at all) → no purchase UI. Web sells through
+  // Stripe elsewhere; this component is native-only.
   if (!(await canOfferIap())) return false;
   // The RevenueCat identity must be the Supabase uid BEFORE any purchase —
   // it is how the webhook maps the sub to a profile. Read from the LOCAL
@@ -66,9 +81,14 @@ async function resolveReady(): Promise<boolean> {
   const { data: { session } } = await supabase.auth.getSession();
   const uid = session?.user?.id;
   if (!uid) return false; // signed-out surfaces never sell
+  // Configure RevenueCat so a purchase is attributable to this account. If it
+  // FAILS we still show the button: the sheet will say plans are unavailable,
+  // which is a far better answer than a locked feature with no purchase path
+  // (see the rejection note above). Only "not native" and "not signed in"
+  // hide it now.
   const ok = await ensureIapConfigured(uid);
   if (ok) prefetchIapPackages(); // prices ready before the tap
-  return ok;
+  return true;
 }
 
 /** Shared mount logic: resolves once, re-checks after a failed attempt. */
