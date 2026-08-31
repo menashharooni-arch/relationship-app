@@ -22,10 +22,15 @@ const BASE = process.argv[2] || "https://swiftcard.me";
 const PW = process.env.IAP_REVIEW_PW || "SwiftReview!e6535015";
 const FREE = "applereview-free@swiftcard.me";
 const PRO = "applereview@swiftcard.me";
-// The device App Review used for the 1.0.0 (10) rejection.
-const IPAD = { width: 820, height: 1180 };
-const IPHONE = { width: 390, height: 844 };
-const UA = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) SwiftCardApp";
+// App Review's rejection notice names an "iPad Air 11-inch (M3)", but the
+// target is TARGETED_DEVICE_FAMILY = 1 and the only screenshot set is
+// APP_IPHONE_67 — this is an iPhone-only app, so on that iPad it runs in
+// iPhone compatibility mode and lays out at iPhone size. PHONE is therefore
+// the viewport the reviewer actually saw; the wide one is kept only as a
+// safety net in case iPad support is ever turned on.
+const PHONE = { width: 390, height: 844 };
+const WIDE = { width: 820, height: 1180 };
+const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) SwiftCardApp";
 
 const failures = [];
 const check = (name, ok, detail) => {
@@ -63,16 +68,19 @@ async function signIn(page, email) {
 const billingPanel = async (page) => {
   await page.goto(`${BASE}/settings/flows`, { waitUntil: "networkidle" });
   await page.waitForTimeout(3000);
-  await page.click('button:has-text("Plan and billing")');
-  await page.waitForTimeout(3500);
+  // Wide layouts turn the settings sections into tabs; at phone width they are
+  // stacked sections that are already on the page. Click only if it is a tab.
+  const tab = page.locator('button:has-text("Plan and billing")').first();
+  if (await tab.count()) { await tab.click().catch(() => {}); await page.waitForTimeout(3000); }
+  await page.waitForTimeout(1500);
   return page.evaluate(() => document.body.innerText);
 };
 
 console.log(`\nIn-App Purchase verification against ${BASE}\n`);
 
-console.log("Free account — the purchase path App Review must find (iPad)");
+console.log("Free account — the purchase path App Review must find (iPhone layout)");
 {
-  const context = await shell(IPAD);
+  const context = await shell(PHONE);
   const page = await context.newPage();
   check("demo credentials in App Store Connect still sign in", await signIn(page, FREE));
 
@@ -102,9 +110,9 @@ console.log("Free account — the purchase path App Review must find (iPad)");
   await context.close();
 }
 
-console.log("\nPro account — the screen the rejection quoted (iPad)");
+console.log("\nPro account — the screen the rejection quoted (iPhone layout)");
 {
-  const context = await shell(IPAD);
+  const context = await shell(PHONE);
   const page = await context.newPage();
   await signIn(page, PRO);
   const text = await billingPanel(page);
@@ -116,8 +124,8 @@ console.log("\nPro account — the screen the rejection quoted (iPad)");
   await context.close();
 }
 
-console.log("\nGates and entry points still sell (iPhone + iPad)");
-for (const [label, viewport] of [["iPhone", IPHONE], ["iPad", IPAD]]) {
+console.log("\nGates and entry points still sell (both layouts)");
+for (const [label, viewport] of [["phone", PHONE], ["wide ", WIDE]]) {
   const context = await shell(viewport);
   const page = await context.newPage();
   await signIn(page, FREE);
