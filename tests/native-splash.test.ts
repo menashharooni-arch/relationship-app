@@ -11,12 +11,53 @@ const layout = read("src/app/layout.tsx");
 // opening onto the app. Everything pinned here is something that broke at
 // least once while building it.
 describe("native splash", () => {
-  it("renders only for the shell, and only once per launch", () => {
+  it("renders only for the shell, and only for an actual launch", () => {
     expect(component).toMatch(/isNativeRequest\(/);
-    // Without the cookie gate the strike replays on every full page load
-    // (sign-out, hard nav) and every request carries the inlined artwork.
-    expect(component).toMatch(/c\.get\("sc_splash"\)\?\.value === "1"\) return null/);
-    expect(markup).toMatch(/sc_splash=1;path=\/;max-age=120/);
+    // Launch detection must stay STATELESS. It was a 2-minute `sc_splash`
+    // cookie, which outlives the app and so skipped the animation entirely
+    // when you quit and reopened inside two minutes — the commonest reopen
+    // there is. Sec-Fetch-Site tells us directly: `same-origin` is a
+    // navigation from one of our own pages, anything else is a launch.
+    expect(component).toMatch(/sec-fetch-site"\) === "same-origin"\) return null/);
+    expect(component).not.toMatch(/c\.get\("sc_splash"\)/);
+    expect(markup).not.toMatch(/document\.cookie\s*=\s*"sc_splash/);
+    // The client-side half, which also covers iOS 15 (no Sec-Fetch-Site).
+    expect(markup).toMatch(/document\.referrer\.indexOf\(location\.origin\)===0/);
+    // ~52KB of inlined artwork: read once per process, never per request.
+    expect(component).toMatch(/cachedMarkup \?\?=/);
+  });
+
+  it("holds frame 0 until the native splash is actually gone", () => {
+    // The overlay's clock starts at parse, but iOS keeps the static launch
+    // image over the webview until SplashScreen.hide() runs. That used to wait
+    // on React hydration (1-3s on a remote-URL shell), so the lightning played
+    // underneath an opaque splash and the user saw a different slice of it
+    // every launch. Frame 0 is pixel-identical to the launch image, so holding
+    // there is invisible; the overlay hands off from its own script instead.
+    expect(markup).toMatch(/sc-splash-hold/);
+    expect(markup).toMatch(/animation-play-state:paused !important/);
+    expect(markup).toMatch(/Capacitor\.Plugins\.SplashScreen/);
+    // Every failure path releases: reject, no plugin, promise never settles.
+    expect(markup).toMatch(/r\.then\(release, release\)/);
+    expect(markup).toMatch(/setTimeout\(release, plugin \? \d+ : \d+\)/);
+  });
+
+  it("scales the mark to whatever the launch image renders", () => {
+    // The launch image is 2732x2732 shown scaleAspectFill, so the 556px icon
+    // lands at 556*max(W,H)/2732 = 20.351vmax. A hard-coded px value matched
+    // one device and made the mark visibly jump on every other one.
+    expect(markup).toMatch(/--vfk-mark: 20\.351vmax/);
+    expect(markup).not.toMatch(/width:112px/);
+  });
+
+  it("keeps <body> untransformed while it is up", () => {
+    // A transformed ancestor becomes the containing block for a fixed element:
+    // the native page-in rise made the overlay size to the body box (844x512
+    // instead of 844x390 in landscape) and snap 10px when it ended.
+    expect(markup).toMatch(/html\.native-app:not\(\.sc-nosplash\) body\{ animation:none !important; \}/);
+    // ...and sized against the viewport, not inset:0, so any future transform
+    // can only offset the overlay, never resize it.
+    expect(markup).toMatch(/position:fixed; top:0; left:0; width:100vw; height:100vh/);
   });
 
   it("is the first thing in the body, so it is in the first painted frame", () => {

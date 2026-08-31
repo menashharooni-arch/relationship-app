@@ -12,17 +12,29 @@ import { isNativeRequest } from "@/lib/native-request";
  * -----------------------------------------
  * iOS shows a static launch image and cannot animate it, so this takes over the
  * instant the webview paints and its first frame is pixel-identical to that
- * image (#1A2342 with the icon at 112px, centred). To be identical on the FIRST
- * frame the markup has to be in the initial HTML — a mount effect would paint a
- * blank frame first, which is exactly the flash of nothing this replaces.
+ * image (#1A2342 with the icon at 20.351vmax, centred). To be identical on the
+ * FIRST frame the markup has to be in the initial HTML — a mount effect would
+ * paint a blank frame first, which is exactly the flash of nothing this
+ * replaces. Both images are data URIs for the same reason: a network request
+ * for the icon could not resolve before the first frame.
  *
  * It is emitted only for shell requests (UA token / sc_shell cookie), so the
- * website never downloads the ~16KB of inlined artwork. Both images are data
- * URIs for the same reason the markup is inline: a network request for the icon
- * could not resolve before the first frame.
+ * website never downloads the inlined artwork.
  *
- * It plays once per launch: the markup stamps a short-lived `sc_splash` cookie
- * and this component skips itself while that cookie is present.
+ * PLAYS ON EVERY LAUNCH, NEVER MID-SESSION
+ * ----------------------------------------
+ * This used to be gated on a 2-minute `sc_splash` cookie, which had it exactly
+ * backwards: the cookie outlives the app, so quitting and reopening inside two
+ * minutes — the single most common way anyone reopens an app — got NO launch
+ * animation, while the guarantee it bought (no replay on in-app navigations)
+ * is already provided precisely by the same-origin referrer check in the
+ * markup. Launch detection is now stateless and correct:
+ *
+ *   `Sec-Fetch-Site: same-origin`  =>  a navigation from a page of ours, so
+ *   this is not a launch: skip the payload entirely. A cold launch (or a
+ *   universal link from another app) carries `none`, and iOS 15 — below the
+ *   16.4 that added the header — omits it, in which case we still send the
+ *   markup and the referrer guard suppresses the animation client-side.
  *
  * No cleanup script: React owns this subtree, so rather than removing the node
  * from under it the animation ends on `visibility:hidden`, and the root carries
@@ -34,14 +46,20 @@ import { isNativeRequest } from "@/lib/native-request";
  * splash, which showed as a dark box the moment light passed behind it. Those
  * corner pixels are transparent in the copy used here (scripts/build-splash-assets.mjs).
  */
+
+// Read once per server process, not once per request: this is ~52KB of inlined
+// artwork and a synchronous disk read has no business in the request path.
+let cachedMarkup: string | null = null;
+function splashMarkup(): string {
+  cachedMarkup ??= readFileSync(join(process.cwd(), "src/lib/splash/markup.html"), "utf8");
+  return cachedMarkup;
+}
+
 export default async function NativeSplash() {
   const [h, c] = await Promise.all([headers(), cookies()]);
   if (!isNativeRequest(h.get("user-agent"), c.get("sc_shell")?.value ?? null)) return null;
-  // Already played this launch — see the cookie note in markup.html. Without
-  // this the strike would replay on every full page load inside the app, and
-  // every request would carry the inlined artwork.
-  if (c.get("sc_splash")?.value === "1") return null;
+  // A navigation from one of our own pages is not a launch — see above.
+  if (h.get("sec-fetch-site") === "same-origin") return null;
 
-  const markup = readFileSync(join(process.cwd(), "src/lib/splash/markup.html"), "utf8");
-  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: markup }} />;
+  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup() }} />;
 }
