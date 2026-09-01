@@ -101,7 +101,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           { url: `${APP_URL}/links/${c.username}`, lastModified, changeFrequency: "weekly" as const, priority: 0.4 },
         ];
       });
-    return [...marketing, ...userPages];
+    // Blog posts (agent-published). Separate try: the table may not exist yet.
+    let blogPages: MetadataRoute.Sitemap = [];
+    try {
+      const { data: posts } = await admin
+        .from("agent_blog_posts").select("slug, published_at").eq("status", "published").limit(500);
+      blogPages = (posts ?? []).map((b) => ({
+        url: `${APP_URL}/blog/${b.slug}`,
+        lastModified: b.published_at ? new Date(b.published_at) : new Date(),
+        changeFrequency: "weekly" as const, priority: 0.55,
+      }));
+      if (blogPages.length) blogPages.unshift({ url: `${APP_URL}/blog`, lastModified: new Date(), changeFrequency: "weekly" as const, priority: 0.6 });
+    } catch { /* pre-schema */ }
+    return [...marketing, ...userPages, ...blogPages];
   } catch {
     return marketing;
   }
