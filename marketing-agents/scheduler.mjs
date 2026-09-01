@@ -20,6 +20,8 @@ const nyParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York",
 const nyH = Number(nyParts.find((x) => x.type === "hour").value) % 24;
 const nyM = Number(nyParts.find((x) => x.type === "minute").value);
 const due = (sched) => {
+  const every = sched.trim().match(/^every@(\d{1,2})h$/); // "every@4h" = every 4 hours on the hour (ET)
+  if (every) return nyH % Number(every[1]) === 0 && nyM < 30;
   const daily = sched.trim().match(/^daily@(\d{1,2}):(\d{2})$/); // "daily@07:00" = 7:00am ET
   if (daily) return Number(daily[1]) === nyH && Math.abs(Number(daily[2]) - nyM) < 30;
   const [m, h] = sched.trim().split(/\s+/); // legacy cron "M H * * *" in UTC
