@@ -43,6 +43,13 @@ describe("agent flow: draft-only agents are structurally unable to post", () => 
     expect(src).toMatch(/agent-fix\//);
     // The secret-holding step is SHA-pinned, mirroring sentry-triage.
     expect(src).toMatch(/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b/);
+    // No eslint in the agent allowlist: `npx eslint *` is a wildcard and
+    // eslint can execute arbitrary JS via --rulesdir/config — an escape hatch
+    // in a secret-holding step. CI lints the PR branch instead.
+    expect(src).not.toMatch(/Bash\(npx eslint/);
+    expect(read(".github/workflows/sentry-triage.yml")).not.toMatch(/Bash\(npx eslint/);
+    // finding.md is declared untrusted inside the prompt itself.
+    expect(src).toMatch(/UNTRUSTED DATA/);
   });
 
   it("the loop closes: clean reports self-file, findings dispatch the Fixer", () => {
