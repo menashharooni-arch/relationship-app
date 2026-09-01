@@ -24,7 +24,7 @@ export const BRAND_PROFILES: string[] = [];
 // "SwiftCard" is one word, but people type it as two, and the domain is a third
 // spelling. Listing them lets Google resolve all three to the same entity
 // instead of treating "Swift Card" as a different (or generic) query.
-const ALTERNATE_NAMES = ["Swift Card", "swiftcard.me"];
+const ALTERNATE_NAMES = ["Swift Card", "swiftcard.me", "swift card app", "SwiftCard app"];
 
 const DESCRIPTION =
   "SwiftCard is a digital business card that shares itself — build your card once and share it by tap, QR code, Apple Wallet, or link, with built-in lead capture and automatic follow-up.";
