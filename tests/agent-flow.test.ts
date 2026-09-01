@@ -48,6 +48,31 @@ describe("agent flow: schema and config integrity", () => {
       expect(existsSync(`.github/workflows/${a.workflow}`), `${id} → ${a.workflow}`).toBe(true);
   });
 
+  it("the work-hours auto-stop is enforced everywhere it must be", () => {
+    // Reached auto_pause_at behaves exactly like Pause All: agents refuse to
+    // start, checkpoint out mid-run, and the scheduler dispatches nothing.
+    expect(read("supabase/agent-flow.sql")).toMatch(/auto_pause_at timestamptz/);
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    expect(kit).toMatch(/function autoStopped/);
+    expect(kit).toMatch(/system\.paused \|\| autoStopped\(system\)/);
+    expect(read("marketing-agents/scheduler.mjs")).toMatch(/auto_pause_at/);
+  });
+
+  it("the MONTHLY cap is re-checked mid-run, not just at start", () => {
+    // A parallel agent can cross the cap while another is running — the
+    // pre-start gate alone cannot catch that.
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    const checkpoint = kit.slice(kit.indexOf("async checkpoint()"), kit.indexOf("addUsage"));
+    expect(checkpoint).toMatch(/monthSpendUsd\(\)/);
+    expect(checkpoint).toMatch(/monthly_usage_cap_usd/);
+  });
+
+  it("schedules support the owner's ET times, DST-correct", () => {
+    const sched = read("marketing-agents/scheduler.mjs");
+    expect(sched).toMatch(/daily@\(\\d\{1,2\}\):\(\\d\{2\}\)/);
+    expect(sched).toMatch(/America\/New_York/);
+  });
+
   it("the scheduler is inert by default (no seeded schedules)", () => {
     expect(schema).not.toMatch(/schedule.*default\s+'[^n]/i);
     expect(read("marketing-agents/scheduler.mjs")).toContain("No schedules set");

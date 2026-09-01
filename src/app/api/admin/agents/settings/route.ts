@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await req.json().catch(() => null) as
     | { agent_id?: string; enabled?: boolean; output_cap?: number; usage_cap_usd?: number; schedule?: string | null;
-        system?: { monthly_usage_cap_usd?: number; digest_email?: string } }
+        system?: { monthly_usage_cap_usd?: number; digest_email?: string; auto_pause_at?: string | null } }
     | null;
   if (!body) return NextResponse.json({ error: "bad request" }, { status: 400 });
   const admin = getAdminSupabase();

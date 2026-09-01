@@ -88,6 +88,25 @@ $25/month system-wide.
 5. Prospects: Download CSV for the VA; Mark contacted as worked (2 min).
 6. Video scripts: Copy to Higgsfield the one you'll shoot (1 min).
 
+## The little things, answered
+
+- **Usage runs out while agents are working?** They stop at the next safe
+  checkpoint (finished items kept), the run says why, and you get an email —
+  the monthly cap is re-checked mid-run, so parallel agents can't blow past it.
+- **You press Pause All?** Nothing new starts; in-flight agents stop at their
+  next checkpoint (seconds, worst-case one AI call ≈1–3 min); a session
+  summary of everything done today is written to the queue at that instant.
+- **Acknowledge / Reject?** Status changes, a toast says what happened, and
+  the item lives forever in History — nothing is deleted, nothing is sent.
+- **Refresh?** Instant re-pull, with an "updated Xs ago" stamp; the page also
+  refreshes itself every 30 seconds.
+- **The checkboxes?** Batch mode: tick several (or "Select all shown") and a
+  bar appears to approve/reject them all at once. Approve = "good, mine to
+  use"; it never sends anything.
+- **Auto-stop (work hours):** the ⏰ control arms a clock-out ("at 5 PM ET" /
+  "in 3 hours"). Reached, the whole system holds like Pause All until Resume.
+- **Lost?** The ✦ Take a tour button walks every control, live on the page.
+
 ## Boundaries honored
 
 No product code or user data is touched by any agent: their write surface is

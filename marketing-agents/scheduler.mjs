@@ -10,10 +10,19 @@ const rows = await sb("GET", "agent_settings", { params: "schedule=not.is.null&e
 if (!rows?.length) { console.log("No schedules set — nothing to dispatch."); process.exit(0); }
 const sys = (await sb("GET", "agent_system", { params: "limit=1" }))[0];
 if (sys.paused) { console.log("System paused — dispatching nothing."); process.exit(0); }
+if (sys.auto_pause_at && new Date(sys.auto_pause_at).getTime() <= Date.now()) {
+  console.log("Auto-stop is active — dispatching nothing."); process.exit(0);
+}
 
 const now = new Date();
-const due = (cron) => {
-  const [m, h] = cron.trim().split(/\s+/); // supports "M H * * *" (daily at H:M)
+// New-York wall clock (DST-correct) — the owner sets schedules in ET.
+const nyParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).formatToParts(now);
+const nyH = Number(nyParts.find((x) => x.type === "hour").value) % 24;
+const nyM = Number(nyParts.find((x) => x.type === "minute").value);
+const due = (sched) => {
+  const daily = sched.trim().match(/^daily@(\d{1,2}):(\d{2})$/); // "daily@07:00" = 7:00am ET
+  if (daily) return Number(daily[1]) === nyH && Math.abs(Number(daily[2]) - nyM) < 30;
+  const [m, h] = sched.trim().split(/\s+/); // legacy cron "M H * * *" in UTC
   const hit = (f, v) => f === "*" || Number(f) === v;
   return hit(h, now.getUTCHours()) && (m === "*" || Math.abs(Number(m) - now.getUTCMinutes()) < 30);
 };

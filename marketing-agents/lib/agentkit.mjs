@@ -52,6 +52,10 @@ export async function getSystem() {
   return rows[0];
 }
 
+function autoStopped(system) {
+  return !!system.auto_pause_at && new Date(system.auto_pause_at).getTime() <= Date.now();
+}
+
 async function monthSpendUsd() {
   const monthStart = new Date();
   monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
@@ -93,7 +97,7 @@ export class Run {
     const [settings, system] = await Promise.all([getSettings(agentId), getSystem()]);
     const blocked =
       !settings.enabled ? "skipped_disabled" :
-      (settings.paused || system.paused) ? "paused" : null;
+      (settings.paused || system.paused || autoStopped(system)) ? "paused" : null;
     if (!blocked) {
       const spent = await monthSpendUsd();
       if (spent >= Number(system.monthly_usage_cap_usd)) {
@@ -120,12 +124,22 @@ export class Run {
   /** Pause gate — call between steps. Exits cleanly if paused (no partial writes: items already inserted stay, nothing is half-written). */
   async checkpoint() {
     const [settings, system] = await Promise.all([getSettings(this.agentId), getSystem()]);
-    if (settings.paused || system.paused) {
-      await this.finish("paused", `Paused mid-run after: ${this.notes.at(-1) ?? "startup"}. ${this.outputCount} item(s) were completed and kept.`);
+    if (settings.paused || system.paused || autoStopped(system)) {
+      const why = autoStopped(system) ? "Auto-stop time reached" : "Paused";
+      await this.finish("paused", `${why} mid-run after: ${this.notes.at(-1) ?? "startup"}. ${this.outputCount} item(s) were completed and kept.`);
       process.exit(0);
     }
     if (this.usageUsd >= Number(this.settings.usage_cap_usd)) {
       await this.finish("success", `Stopped at the per-run usage cap ($${this.settings.usage_cap_usd}). ${this.outputCount} item(s) produced.`);
+      process.exit(0);
+    }
+    // The monthly cap can be crossed MID-RUN (by this agent or one running in
+    // parallel) — the pre-start gate alone can't catch that. Stop safely and
+    // say so, instead of silently burning past the ceiling.
+    const spent = await monthSpendUsd();
+    if (spent >= Number(system.monthly_usage_cap_usd)) {
+      await this.finish("paused", `Monthly usage cap ($${system.monthly_usage_cap_usd}) crossed mid-run — stopped safely. ${this.outputCount} item(s) were completed and kept.`);
+      await email(`Agent Flow: monthly cap reached — ${this.agentId} stopped mid-run`, `<p><b>${this.agentId}</b> stopped at a safe checkpoint: total spend hit $${spent.toFixed(2)} of the $${system.monthly_usage_cap_usd} cap. Completed work is in the queue. Raise the cap in Settings to continue.</p>`);
       process.exit(0);
     }
   }
