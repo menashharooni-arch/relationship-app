@@ -55,54 +55,69 @@ export default async function FlowSettingsPage({
   // the default Profile panel.
   const openIntegrations = typeof integration === "string" && integration.length > 0;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // getClaims is a LOCAL ES256 verify (zero network): the user id is available
+  // immediately, so getUser(), the profile AND every id-keyed query below run
+  // as ONE parallel batch instead of a serial auth → profile → data staircase.
+  // Same pattern, same reasoning, as the dashboard.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const authedUserId = (claimsData?.claims?.sub as string | undefined) ?? null;
   // Preserve the destination (e.g. the "Manage billing" link in a receipt email)
   // so the visitor lands back on this page — with billing open — after signing in.
-  if (!user) redirect(`/login?next=${encodeURIComponent(`/settings/flows${openBilling ? "?billing=1" : ""}`)}`);
+  const loginNext = `/login?next=${encodeURIComponent(`/settings/flows${openBilling ? "?billing=1" : ""}`)}`;
+  if (!authedUserId) redirect(loginNext);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("flow_settings, plan, zapier_webhook_url, zapier_card_ids, name, username, customization, stripe_subscription_id")
-    .eq("id", user.id)
-    .single();
-  if (!profile) redirect("/onboarding");
-  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
-
-  const isPro = isPaidPlan(profile.plan);
-
-  // Skip the one-time card migration entirely once it's done (the common case).
-  // Unconditionally calling it re-read the whole profile row inside
-  // ensure-cards on every single load. Same guard the contacts page uses.
-  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
-    await ensureUserCards(user.id);
-  }
-
-  // Everything below keys only on user.id (and the plan we already have), so it
-  // runs together instead of as a 4-deep serial chain after the query batch.
   const admin = getAdminSupabase();
   const [
+    { data: { user } },
+    { data: profile },
     { data: integrations },
-    { data: cards },
+    cardsRes0,
     { data: emailPrefs },
-    officeCtx,
-    isOfficeAdmin,
     referral,
   ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("profiles")
+      .select("flow_settings, plan, zapier_webhook_url, zapier_card_ids, name, username, customization, stripe_subscription_id")
+      .eq("id", authedUserId)
+      .single(),
     // card_ids: which cards feed each connection (null = all). Drives the
     // per-card scope picker on each integration card.
-    admin.from("integrations").select("provider, sync_error, card_ids").eq("user_id", user.id),
+    admin.from("integrations").select("provider, sync_error, card_ids").eq("user_id", authedUserId),
     admin
       .from("cards")
       // is_offline drives the "Offline / Bring online" state in ManageCards —
       // without it an offline card looks live in the dashboard while its public
       // page 404s.
       .select("id, username, name, title, label, is_offline")
-      .eq("user_id", user.id)
+      .eq("user_id", authedUserId)
       .order("created_at", { ascending: true }),
-    admin.from("email_preferences").select("marketing_emails, receipt_emails").eq("user_id", user.id).maybeSingle(),
+    admin.from("email_preferences").select("marketing_emails, receipt_emails").eq("user_id", authedUserId).maybeSingle(),
+    getReferralProgress(authedUserId),
+  ]);
+  if (!user) redirect(loginNext);
+  if (!profile) redirect("/onboarding");
+  if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
+
+  const isPro = isPaidPlan(profile.plan);
+
+  // Skip the one-time card migration entirely once it's done (the common case).
+  // The rare unmigrated account mutates the cards table — only then re-read it.
+  let cardsRes = cardsRes0;
+  if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
+    await ensureUserCards(user.id);
+    cardsRes = await admin
+      .from("cards")
+      .select("id, username, name, title, label, is_offline")
+      .eq("user_id", authedUserId)
+      .order("created_at", { ascending: true });
+  }
+  const { data: cards } = cardsRes;
+
+  // These two need profile.plan, so they follow the batch — together, one trip.
+  const [officeCtx, isOfficeAdmin] = await Promise.all([
     resolveOfficeContext(user.id),
     canViewOfficeAdmin(user.id, profile.plan),
-    getReferralProgress(user.id),
   ]);
 
   // An office SUB-USER is an active member who is NOT the owner — an employee on
