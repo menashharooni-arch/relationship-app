@@ -1,3 +1,4 @@
+import { profilePageJsonLd, jsonLdScript } from "@/lib/brand";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import type { Metadata } from "next";
@@ -68,6 +69,9 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
     description,
     // Recipient surface — no Smart App Banner, same reasoning as the card page.
     itunes: null,
+    // The lowercase /links URL is canonical — mixed case 308s there, and query
+    // variants (?source=, ?embed=) must consolidate onto one indexed URL.
+    alternates: { canonical: `${APP_URL}/links/${username}` },
     // Texted /links/ URLs unfurl with the same picture-of-the-card preview the
     // card link gets (iMessage/WhatsApp/SMS), reusing the card's OG image.
     openGraph: {
@@ -85,6 +89,17 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const { username: rawUsername } = await params;
   const username = rawUsername.toLowerCase();
   const { embed, source: rawSource } = await searchParams;
+
+  // Mixed case 308s to the lowercase canonical, params preserved — ?source=
+  // drives attribution and ?embed=1 is the /preview frame.
+  if (rawUsername !== username) {
+    const firstSource = Array.isArray(rawSource) ? rawSource[0] : rawSource;
+    const qs = new URLSearchParams();
+    if (typeof embed === "string" && embed) qs.set("embed", embed);
+    if (typeof firstSource === "string" && firstSource) qs.set("source", firstSource);
+    const q = qs.toString();
+    permanentRedirect(q ? `/links/${username}?${q}` : `/links/${username}`);
+  }
   const isEmbed = embed === "1"; // rendered inside the /preview demo — don't log a view or nudge
   // Real traffic-source attribution, like the card page: a QR/NFC tag pointing
   // at /links/<slug>?source=qr_code used to be flattened to "swift_links", so
@@ -174,6 +189,26 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
 
   return (
     <>
+      {/* Same profile treatment as the card page — this is the same person's
+          public page in link-in-bio form. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            profilePageJsonLd({
+              name: cardOrLegacy.name || username,
+              title: cardOrLegacy.title || undefined,
+              company: cardOrLegacy.company || undefined,
+              url: `${APP_URL}/links/${username}`,
+              sameAs: [
+                cardOrLegacy.website, cardOrLegacy.linkedin, cardOrLegacy.instagram,
+                cardOrLegacy.twitter, cardOrLegacy.tiktok, customization.facebook,
+                customization.snapchat, customization.youtube,
+              ],
+            })
+          ),
+        }}
+      />
       {/* The RESOLVED slug, not the raw route param — a case/alias divergence
           would otherwise record rows under a key the dashboard never reads. */}
       {!isEmbed && !isOwnerView && <CardEventTracker username={(cardOrLegacy.username as string) || username} source={source} viewSurface="links" />}
