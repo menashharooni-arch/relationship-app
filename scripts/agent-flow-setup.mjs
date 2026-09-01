@@ -61,6 +61,8 @@ for (let i = 0; i < 12; i++) {
 if (!Array.isArray(rows) || rows.length < 10) throw new Error(`agent_settings still not visible after 60s: ${JSON.stringify(rows).slice(0, 200)}`);
 ok(`agent tables live — ${rows.length} agents seeded`);
 
+if (process.argv.includes("--schema-only")) { console.log("\n--schema-only: done."); process.exit(0); }
+
 // ── 3. GitHub Actions secrets ────────────────────────────────────────────────
 step("3/5 Setting GitHub Actions secrets…");
 const relaySecret = crypto.randomBytes(24).toString("hex");

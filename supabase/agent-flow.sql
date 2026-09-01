@@ -31,6 +31,11 @@ create table if not exists agent_system (
 );
 insert into agent_system (id) values (true) on conflict do nothing;
 
+-- Work-hours auto-stop: when set and reached, the whole system behaves as
+-- paused (agents stop at their next checkpoint; nothing new starts) until the
+-- owner clears it from the Agent Flow tab.
+alter table agent_system add column if not exists auto_pause_at timestamptz;
+
 -- Every run of every agent, for the status board and the audit trail.
 create table if not exists agent_runs (
   id           uuid primary key default gen_random_uuid(),
