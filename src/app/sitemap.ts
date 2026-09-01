@@ -53,6 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // disallowed in robots.ts.
   const routes = [
     "", "/pricing", "/compare", "/contact", "/privacy", "/terms", "/company",
+    "/business-card-view-tracking", "/link-in-bio-with-analytics",
     "/sms-terms", "/sms-consent", "/login", "/templates", "/testimonials",
     ...PRODUCT_SLUGS.map((s) => `/products/${s}`),
     ...FOR_SLUGS.map((s) => `/for/${s}`),

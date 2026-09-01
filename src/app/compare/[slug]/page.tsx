@@ -36,6 +36,10 @@ type Competitor = {
   honest: string;
   rows: Row[];
   switchReasons: { t: string; d: string }[];
+  /** "Switching from X" — 3 concrete steps. Claims stay on OUR side of the
+   *  fence (what you do in SwiftCard), never specific about the competitor's
+   *  UI, which we don't control and can't keep verified. */
+  migration: { intro: string; steps: { t: string; d: string }[] };
   faq: { q: string; a: string }[];
 };
 
@@ -67,6 +71,14 @@ const COMPETITORS: Record<string, Competitor> = {
       { t: "You exist in their phone", d: "A Linktree visit ends when they close the tab. A SwiftCard visit can end with your card saved in their contacts." },
       { t: "Follow-up happens without you", d: "New contact → your email and text sequence starts. Linktree has no concept of a contact, let alone following up with one." },
     ],
+    migration: {
+      intro: "No import file needed — a link-in-bio page is rebuilt, not migrated. Most people are done in about ten minutes.",
+      steps: [
+        { t: "Build your free card", d: "Create your SwiftCard at swiftcard.me/cards/new — name, photo, socials. Your Swift Links page is generated with it automatically." },
+        { t: "Add your links as tiles", d: "Copy the links from your current bio page into the Socials step. Featured tiles pull preview images automatically, and headers keep long lists organized." },
+        { t: "Swap the link in your bios", d: "Replace the old URL in Instagram, TikTok, and X with your swiftcard.me/links address. From that moment every visitor can also save your card and share their info back." },
+      ],
+    },
     faq: [
       { q: "Does SwiftCard have a link-in-bio page like Linktree?", a: "Yes — every card includes a Swift Links page: your photo, bio, social icons, video previews, and custom link tiles, with themes ('Looks') you pick in one tap. It's what you put in your Instagram or TikTok bio." },
       { q: "What does SwiftCard have that Linktree doesn't?", a: "A digital business card visitors save to their phone in one tap, a share-back form that captures their name/phone/email into your contacts, a built-in lead CRM, automated email and text follow-up, and NFC/QR/Apple Wallet sharing." },
@@ -96,6 +108,14 @@ const COMPETITORS: Record<string, Competitor> = {
       { t: "No hardware required", d: "SwiftCard writes to any blank NFC tag (a few dollars online) — or skips hardware entirely with QR, link, and Apple Wallet." },
       { t: "One plan, everything in it", d: "Card + links page + CRM + automation + analytics in one subscription, instead of a card app plus the tools to make it useful." },
     ],
+    migration: {
+      intro: "Your card's content is your own details — nothing is locked in. Rebuild takes minutes, and your NFC hardware can come with you.",
+      steps: [
+        { t: "Create your card free", d: "Enter the same details at swiftcard.me/cards/new — name, title, company, socials — and pick a design. No hardware required to start." },
+        { t: "Re-point your NFC tag", d: "SwiftCard writes your new card link to any NFC tag, including hardware you already own. The tag stores a link, so it keeps working every time you edit the card." },
+        { t: "Turn on follow-up", d: "Set your email and text sequence once — every lead your card captures gets it automatically, opt-in and STOP-compliant." },
+      ],
+    },
     faq: [
       { q: "Can I keep using my NFC card or tag?", a: "Yes — SwiftCard writes your card link to any NFC tag, including ones you already own. Tags store the link, so your card keeps working even after you edit it." },
       { q: "What does SwiftCard automate that Popl doesn't?", a: "Follow-up: when a lead shares their info, SwiftCard can send your email and text sequence automatically (opt-in, STOP-compliant). With Popl you'd wire that through third-party tools." },
@@ -125,6 +145,14 @@ const COMPETITORS: Record<string, Competitor> = {
       { t: "Follow-up runs itself", d: "Email and text sequences fire automatically for every new lead, opt-in and STOP-compliant, from your name." },
       { t: "A real link-in-bio, included", d: "Swift Links replaces your Linktree too: themes, video tiles, section headers, and per-page design — one subscription fewer." },
     ],
+    migration: {
+      intro: "A digital card rebuilds from the details you already know by heart — and SwiftCard's AI can even copy a card's design from a photo.",
+      steps: [
+        { t: "Rebuild the card", d: "Enter your details at swiftcard.me/cards/new and pick a template — or, on Pro, upload a picture of any card design and the AI designer rebuilds it with your info." },
+        { t: "Re-share your new link", d: "Update the link anywhere you shared the old one — email signature, QR stickers, NFC tags (SwiftCard writes to any blank tag), and your bios." },
+        { t: "Let the pipeline start", d: "New contacts land in the built-in CRM with notes and statuses, and your automated follow-up sequence takes it from there." },
+      ],
+    },
     faq: [
       { q: "Can I recreate my Blinq card design on SwiftCard?", a: "Yes — pick from designer templates and customize colors, fonts, photo, and logo. Pro users can even upload a picture of any card design (including a physical card) and SwiftCard's AI rebuilds it with your details." },
       { q: "What does SwiftCard do after someone saves my card?", a: "They can share their info back; it lands in your built-in CRM tagged with time and source, and your automated email/text follow-up starts — that whole after-the-tap layer is the difference." },
@@ -154,6 +182,14 @@ const COMPETITORS: Record<string, Competitor> = {
       { t: "Texting, done compliantly", d: "Follow-up texts are built in with opt-in consent capture and automatic STOP handling — not a separate SMS tool to buy and wire up." },
       { t: "The bio link is included", d: "Swift Links gives you the Instagram/TikTok bio page too — themes, video tiles, and analytics under the same roof." },
     ],
+    migration: {
+      intro: "Cards, signature, and bio link all rebuild from your own details — one product instead of several to keep in sync.",
+      steps: [
+        { t: "Create your card", d: "Build it free at swiftcard.me/cards/new. On Pro you can add a separate card per role — each with its own URL, design, and contact book." },
+        { t: "Regenerate your signature", d: "Swift Signature turns the new card into an email signature for Gmail, Outlook, and Apple Mail — a live image that links to your card page." },
+        { t: "Point your bio at Swift Links", d: "Your card comes with a link-in-bio page; put its URL in your social bios and retire the extra tool." },
+      ],
+    },
     faq: [
       { q: "Does SwiftCard do email signatures like HiHello?", a: "Yes — Swift Signature turns your card into an email signature for Gmail, Outlook, and Apple Mail: a live image of your card that links to your card page. It's on every plan." },
       { q: "What's the biggest difference from HiHello?", a: "What happens after the exchange: SwiftCard captures leads into a built-in CRM and runs automated email + text follow-up sequences. HiHello focuses on the card and signature; the pipeline layer is where SwiftCard goes further." },
@@ -271,6 +307,21 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
         </div>
       </section>
 
+      {/* Switching — the migration path the page promises in search results */}
+      <section className="max-w-4xl mx-auto w-full px-6 pb-14">
+        <h2 className="text-2xl font-bold text-slate-900 text-center mb-3">Switching from {c.name}</h2>
+        <p className="text-slate-500 text-sm text-center max-w-xl mx-auto mb-8">{c.migration.intro}</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {c.migration.steps.map((st, i) => (
+            <div key={st.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
+              <p className="text-[11px] font-bold tracking-widest text-brand mb-2">STEP {i + 1}</p>
+              <p className="text-slate-900 font-semibold text-[15px]">{st.t}</p>
+              <p className="text-slate-500 text-[13.5px] mt-1.5 leading-relaxed">{st.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* FAQ — the JSON-LD above is generated from exactly this list */}
       <section className="max-w-2xl mx-auto w-full px-6 pb-14">
         <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Common questions</h2>
@@ -297,6 +348,8 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
         <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-3">More comparisons</p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/compare" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
+          <Link href="/business-card-view-tracking" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
           {ALL_SLUGS.filter((s) => s !== slug).map((s) => (
             <Link key={s} href={`/compare/${s}`} className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
               {COMPETITORS[s].name} alternative
