@@ -5,6 +5,7 @@ import SiteNav from "@/components/site/SiteNav";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { renderBlogMarkdown } from "@/lib/blog-md";
+import { jsonLdScript } from "@/lib/brand";
 
 export const revalidate = 300;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -47,7 +48,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   };
   return (
     <main className="min-h-screen bg-cream flex flex-col">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* jsonLdScript, not raw stringify: the title/description are LLM-authored — "</script>" inside either must stay inert. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <SiteNav />
       <article className="max-w-2xl mx-auto w-full px-6 pt-28 pb-16 flex-1">
         <Link href="/blog" className="text-xs text-slate-400 hover:text-slate-700 transition-colors">← All posts</Link>
