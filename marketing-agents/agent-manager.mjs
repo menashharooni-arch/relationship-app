@@ -3,7 +3,7 @@
 // numbers into ONE report: a queue item (shown in the tab) and an email.
 import { safeMain, sb, email } from "./lib/agentkit.mjs";
 
-const AGENTS = ["outreach", "prospects", "seo", "blog", "social", "mentions", "influencer", "bugwatch", "security"];
+const AGENTS = ["outreach", "prospects", "seo", "blog", "social", "mentions", "influencer", "bugwatch", "security", "perf"];
 
 await safeMain("manager", async (run) => {
   await run.note("Compiling digest…");

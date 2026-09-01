@@ -15,13 +15,13 @@ type Board = { ready: boolean; message?: string; settings: Settings[]; system: {
 const AGENT_NAMES: Record<string, string> = {
   outreach: "Outreach Scout", prospects: "Link-in-bio Prospects", seo: "SEO", blog: "Blog Writer",
   social: "Social Content", mentions: "Mentions Monitor", influencer: "Influencer Scout",
-  bugwatch: "Bug Watch", security: "Security Watch", manager: "Manager / Digest",
+  bugwatch: "Bug Watch", security: "Security Watch", perf: "Performance Watch", manager: "Manager / Digest",
 };
 const DRAFT_ONLY = new Set(["outreach", "prospects", "social", "mentions", "influencer"]);
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
   video_script: "Video script", blog_post: "Blog post", seo_report: "SEO report", security_finding: "Security finding",
-  digest: "Report", generic: "Post draft",
+  perf_report: "Speed report", digest: "Report", generic: "Post draft",
 };
 
 function ago(iso: string | null) {
@@ -376,7 +376,7 @@ export default function AgentFlowClient() {
                       {it.item_type === "prospect" && (
                         <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Mark contacted</button>
                       )}
-                      {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "digest") && (
+                      {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "digest") && (
                         <button onClick={() => act([it.id], "acknowledged")} title="Marks it read and moves it out of the pending list" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Got it ✓</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (
@@ -430,7 +430,7 @@ export default function AgentFlowClient() {
               <div key={s.agent_id} data-aftour={idx === 0 ? "agentrow" : undefined} className={`rounded-xl border p-4 flex flex-wrap items-center gap-3 ${bad ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
                 <div className="min-w-[150px]">
                   <p className="text-white text-sm font-semibold">{AGENT_NAMES[s.agent_id] ?? s.agent_id}</p>
-                  <p className="text-[10px] uppercase tracking-wide text-gray-600">{DRAFT_ONLY.has(s.agent_id) ? "drafts only — can't post" : s.agent_id === "manager" ? "reports only" : "works on our own stuff"}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-600">{DRAFT_ONLY.has(s.agent_id) ? "drafts only — can't post" : s.agent_id === "manager" ? "reports only" : s.agent_id === "perf" ? "speed watchdog" : "works on our own stuff"}</p>
                 </div>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
                 <div className="text-xs text-gray-500 flex-1 min-w-[200px]">

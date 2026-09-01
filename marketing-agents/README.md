@@ -88,6 +88,23 @@ $25/month system-wide.
 5. Prospects: Download CSV for the VA; Mark contacted as worked (2 min).
 6. Video scripts: Copy to Higgsfield the one you'll shoot (1 min).
 
+## The always-watching stack (speed + stability)
+
+| Watcher | Cadence | What it does | Armed? |
+|---|---|---|---|
+| uptime.yml | every 15 min | Site down → one GitHub issue → email; recovery closes it | ✅ always |
+| deploy-watchdog | every prod deploy | Real error spike after a deploy → rolls production back to the last good build | ✅ runs; needs Sentry to detect spikes |
+| **Performance Watch** | **every 4 h** | Times the critical routes vs its own rolling baseline; flags regressions; critical route down/crawling → immediate email | ✅ armed |
+| Security Watch | daily 9 AM ET | npm vulns, committed secrets, live headers; criticals email immediately | ✅ armed |
+| Bug Watch (sentry-triage) | daily 6:15 UTC | New production errors → one draft PR per issue | ⚠ dormant until Sentry is armed |
+
+**The one hole only you can close — Sentry (≈5 min, then errors are watched
+24/7 and bad deploys auto-roll back):** create the project at sentry.io (Next.js,
+name `swiftcard`) → copy the DSN → Vercel env `NEXT_PUBLIC_SENTRY_DSN` (+
+`SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` per MONITORING.md §1) →
+same three as GitHub secrets. Everything downstream is already built, scrubbed
+for PII, and tested.
+
 ## The little things, answered
 
 - **Usage runs out while agents are working?** They stop at the next safe
