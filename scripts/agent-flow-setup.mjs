@@ -43,10 +43,22 @@ ok("schema applied (idempotent — safe on re-runs)");
 
 // ── 2. verify ────────────────────────────────────────────────────────────────
 step("2/5 Verifying tables…");
-const rows = await fetch(`${SUPABASE_URL}/rest/v1/agent_settings?select=agent_id`, {
-  headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
-}).then((r) => r.json());
-if (!Array.isArray(rows) || rows.length < 10) throw new Error(`expected 10 agent_settings rows, got ${JSON.stringify(rows).slice(0, 200)}`);
+// PostgREST caches the schema; brand-new tables 404 (PGRST205) for up to a
+// minute after DDL. Nudge the cache, then retry until the tables answer.
+await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${SBP}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ query: "NOTIFY pgrst, 'reload schema';" }),
+}).catch(() => {});
+let rows = null;
+for (let i = 0; i < 12; i++) {
+  rows = await fetch(`${SUPABASE_URL}/rest/v1/agent_settings?select=agent_id`, {
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+  }).then((r) => r.json()).catch(() => null);
+  if (Array.isArray(rows) && rows.length >= 10) break;
+  await new Promise((r) => setTimeout(r, 5000));
+}
+if (!Array.isArray(rows) || rows.length < 10) throw new Error(`agent_settings still not visible after 60s: ${JSON.stringify(rows).slice(0, 200)}`);
 ok(`agent tables live — ${rows.length} agents seeded`);
 
 // ── 3. GitHub Actions secrets ────────────────────────────────────────────────
