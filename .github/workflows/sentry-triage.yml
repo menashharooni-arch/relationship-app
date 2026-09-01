@@ -149,7 +149,7 @@ jobs:
           # Read/edit/search/test only. No network calls, no git, no gh — the
           # workflow owns every side effect, so a prompt injection in an error
           # message cannot open, merge or deploy anything.
-          claude_args: '--allowedTools "Read,Grep,Glob,Edit,Write,Bash(npx tsc --noEmit),Bash(npx vitest run),Bash(npx eslint *)"'
+          claude_args: '--allowedTools "Read,Grep,Glob,Edit,Write,Bash(npx tsc --noEmit),Bash(npx vitest run)"'
           prompt: |
             A production error was reported by Sentry. Diagnose it against this
             codebase and, ONLY if you are confident, write the minimal fix.
