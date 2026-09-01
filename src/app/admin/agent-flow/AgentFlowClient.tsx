@@ -138,7 +138,7 @@ export default function AgentFlowClient() {
     const t = setTimeout(() => {
       if (!step) { setTourRect(null); return; }
       if (step.view && step.view !== view) { setView(step.view); return; }
-      const el = step.target ? document.querySelector(`[data-tour="${step.target}"]`) : null;
+      const el = step.target ? document.querySelector(`[data-aftour="${step.target}"]`) : null;
       if (el) {
         const r = el.getBoundingClientRect();
         setTourRect({ top: r.top - 6, left: r.left - 6, width: r.width + 12, height: r.height + 12 });
@@ -240,7 +240,7 @@ export default function AgentFlowClient() {
       )}
 
       {/* Health strip */}
-      <div data-tour="kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div data-aftour="kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
           <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Waiting for you</p>
           <p className="text-white text-xl font-bold tabular-nums mt-0.5">{board.pendingTotal}</p>
@@ -265,11 +265,11 @@ export default function AgentFlowClient() {
 
       {/* Run controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <button data-tour="startall" onClick={() => control("start_all")} disabled={busy || board.system.paused || autoStopHit} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">▶ Start All</button>
+        <button data-aftour="startall" onClick={() => control("start_all")} disabled={busy || board.system.paused || autoStopHit} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">▶ Start All</button>
         {board.system.paused || autoStopHit ? null : (
-          <button data-tour="pauseall" onClick={() => control("pause_all")} disabled={busy} className="bg-amber-700 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">⏸ Pause All</button>
+          <button data-aftour="pauseall" onClick={() => control("pause_all")} disabled={busy} className="bg-amber-700 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">⏸ Pause All</button>
         )}
-        <div data-tour="autostop" className="relative">
+        <div data-aftour="autostop" className="relative">
           <button onClick={() => setAutoStopOpen(!autoStopOpen)} className={`text-xs font-semibold px-3.5 py-2.5 rounded-full border transition-colors ${autoStopArmed ? "bg-amber-950/40 border-amber-700/60 text-amber-300" : "bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200"}`}>
             {autoStopArmed ? `⏰ stops in ${untilText(board.system.auto_pause_at!, now)}` : "⏰ Auto-stop: off"}
           </button>
@@ -290,7 +290,7 @@ export default function AgentFlowClient() {
           )}
         </div>
         {!board.dispatchConfigured && <span className="text-amber-400 text-xs">⚠ Run buttons need GITHUB_AGENTS_TOKEN (see README)</span>}
-        <div data-tour="tabs" className="ml-auto flex items-center gap-1">
+        <div data-aftour="tabs" className="ml-auto flex items-center gap-1">
           <button onClick={() => { setTourStep(0); }} className="px-3 py-1.5 rounded-full text-xs font-semibold text-blue-300 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/40 transition-colors">✦ Take a tour</button>
           {([["queue", "Review queue"], ["status", "Agents"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
             <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
@@ -303,7 +303,7 @@ export default function AgentFlowClient() {
       {view === "queue" && (
         <>
           <p className="text-gray-500 text-xs -mt-1">Everything your agents produced, waiting on your call. Approving never sends anything anywhere — you stay the sender.</p>
-          <div data-tour="filters" className="flex flex-wrap gap-2 items-center">
+          <div data-aftour="filters" className="flex flex-wrap gap-2 items-center">
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5">
               {[["pending", "pending — needs you"], ["approved", "approved"], ["rejected", "rejected"], ["contacted", "contacted"], ["replied", "got replies"], ["converted", "converted"], ["published", "published"], ["acknowledged", "read"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
@@ -334,10 +334,10 @@ export default function AgentFlowClient() {
 
           <div className="space-y-2">
             {items.map((it, idx) => (
-              <div key={it.id} data-tour={idx === 0 ? "itemcard" : undefined} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+              <div key={it.id} data-aftour={idx === 0 ? "itemcard" : undefined} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
                 <div className="flex flex-wrap items-start gap-2">
                   {it.status === "pending" && (
-                    <label data-tour={idx === 0 ? "checkbox" : undefined} className="mt-0.5 flex items-center gap-1 cursor-pointer select-none" title="Tick several items, then approve or reject them all at once">
+                    <label data-aftour={idx === 0 ? "checkbox" : undefined} className="mt-0.5 flex items-center gap-1 cursor-pointer select-none" title="Tick several items, then approve or reject them all at once">
                       <input type="checkbox" checked={selected.has(it.id)} onChange={(e) => { const n = new Set(selected); if (e.target.checked) n.add(it.id); else n.delete(it.id); setSelected(n); }} className="accent-blue-600 w-4 h-4" />
                       <span className="text-[9px] text-gray-600 uppercase">select</span>
                     </label>
@@ -427,7 +427,7 @@ export default function AgentFlowClient() {
             const st = stateOf(r, s);
             const bad = st.label === "Problem" || st.label === "Hit the cap";
             return (
-              <div key={s.agent_id} data-tour={idx === 0 ? "agentrow" : undefined} className={`rounded-xl border p-4 flex flex-wrap items-center gap-3 ${bad ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
+              <div key={s.agent_id} data-aftour={idx === 0 ? "agentrow" : undefined} className={`rounded-xl border p-4 flex flex-wrap items-center gap-3 ${bad ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
                 <div className="min-w-[150px]">
                   <p className="text-white text-sm font-semibold">{AGENT_NAMES[s.agent_id] ?? s.agent_id}</p>
                   <p className="text-[10px] uppercase tracking-wide text-gray-600">{DRAFT_ONLY.has(s.agent_id) ? "drafts only — can't post" : s.agent_id === "manager" ? "reports only" : "works on our own stuff"}</p>
@@ -445,7 +445,7 @@ export default function AgentFlowClient() {
                 <div className="flex gap-1.5">
                   <button onClick={() => control("run", s.agent_id)} disabled={busy || s.paused || !s.enabled || board.system.paused || autoStopHit} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full transition-colors">Run now</button>
                   <button onClick={() => control(s.paused ? "resume" : "pause", s.agent_id)} disabled={busy} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full transition-colors">{s.paused ? "Resume" : "Pause"}</button>
-                  <button data-tour={idx === 0 ? "logbtn" : undefined} onClick={() => setExpanded(expanded === s.agent_id ? null : s.agent_id)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 transition-colors">{expanded === s.agent_id ? "▴ close" : "▾ log"}</button>
+                  <button data-aftour={idx === 0 ? "logbtn" : undefined} onClick={() => setExpanded(expanded === s.agent_id ? null : s.agent_id)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 transition-colors">{expanded === s.agent_id ? "▴ close" : "▾ log"}</button>
                 </div>
                 {expanded === s.agent_id && (
                   <div className="w-full mt-2 border-t border-gray-800 pt-2 space-y-1">
@@ -467,7 +467,7 @@ export default function AgentFlowClient() {
       )}
 
       {view === "history" && (
-        <div data-tour="historylist" className="space-y-1.5">
+        <div data-aftour="historylist" className="space-y-1.5">
           <p className="text-gray-500 text-xs -mt-1">Every decision you&apos;ve made, newest first. For outreach you sent, record what came back — that&apos;s how you learn which agents earn their keep.</p>
           {history.length === 0 && <p className="text-gray-500 text-sm">Nothing yet — approve or reject something and it lands here.</p>}
           {history.map((h) => (
@@ -489,7 +489,7 @@ export default function AgentFlowClient() {
       )}
 
       {view === "settings" && (
-        <div data-tour="settingslist" className="space-y-2 max-w-3xl">
+        <div data-aftour="settingslist" className="space-y-2 max-w-3xl">
           <p className="text-gray-500 text-xs -mt-1">The levers. Everything here takes effect on the next run — no code, no deploys.</p>
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
             <div className="flex flex-wrap items-center gap-3">
