@@ -142,6 +142,13 @@ console.log("\nHandoff — the sequence starts when the screen is actually ours"
   const held = await probe(page);
   check("frozen on frame 0 while the native splash is still up",
     held.held && held.play === "paused" && held.clock === 0, `playState=${held.play} clock=${held.clock}ms`);
+  // The held root must paint solid navy itself: the plane needs its mask
+  // images decoded before it shows anything, and until then this background
+  // is the only thing standing between the user and a black frame.
+  const heldBg = await page.evaluate(
+    () => getComputedStyle(document.getElementById("sc-splash-vfork")).backgroundColor);
+  check("held frame paints navy even before any image decodes",
+    heldBg === "rgb(26, 35, 66)", `background=${heldBg}`);
   await page.waitForTimeout(180);
   const go = await probe(page);
   check("hands off from the overlay itself, not from hydration", go.hideCalls === 1, `hide() calls=${go.hideCalls}`);

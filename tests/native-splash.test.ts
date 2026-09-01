@@ -42,6 +42,22 @@ describe("native splash", () => {
     expect(markup).toMatch(/setTimeout\(release, plugin \? \d+ : \d+\)/);
   });
 
+  it("can never show a black frame during the handoff", () => {
+    // The navy field is painted by .vfk-plane THROUGH data-URI mask images,
+    // which WebKit decodes asynchronously. On device there was a window where
+    // the plane painted as nothing and the app's near-black body showed
+    // through — the "logo → black flash → animation" cold-open glitch
+    // (2026-08-31). Two defences, both required:
+    // 1. While held, the root paints solid navy — a plain color, no decode.
+    expect(markup).toMatch(/html\.sc-splash-hold #sc-splash-vfork\{ background:#1A2342; \}/);
+    // 2. hide() waits for every inline image to decode (capped so a decode
+    //    failure can never stall the launch).
+    expect(markup).toMatch(/function decoded\(cb\)/);
+    expect(markup).toMatch(/j\.decode\(\)\.then\(one,one\)/);
+    expect(markup).toMatch(/setTimeout\(fin, \d+\)/);
+    expect(markup).toMatch(/decoded\(function\(\)\{ requestAnimationFrame/);
+  });
+
   it("scales the mark to whatever the launch image renders", () => {
     // The launch image is 2732x2732 shown scaleAspectFill, and its mark
     // measures exactly 560px, so it lands at 560*max(W,H)/2732 = 20.4978vmax.

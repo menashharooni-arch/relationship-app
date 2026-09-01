@@ -443,6 +443,20 @@ html.native-app:not(.sc-nosplash) body{ animation:none !important; }
    animation-play-state does not inherit, hence the descendant selector. */
 html.sc-splash-hold #sc-splash-vfork,
 html.sc-splash-hold #sc-splash-vfork *{ animation-play-state:paused !important; }
+
+/* NO FRAME MAY EVER BE BLACK. The navy field is painted by .vfk-plane, which
+   is only visible THROUGH its two data-URI mask images — and WebKit decodes
+   those asynchronously. On a real device there is a window after this overlay
+   is in the DOM where the plane paints as NOTHING, and the screen shows the
+   app's near-black body instead: that was the "logo → black flash → animation"
+   glitch on cold open (2026-08-31). Desktop Chromium decodes inline images
+   fast enough that no local test ever saw it.
+   While the sequence is held on frame 0 the aperture is closed and the frame
+   is a full navy field anyway, so an opaque root background is pixel-safe —
+   and a plain color needs no decode, so it paints on the very first frame.
+   It leaves with the hold class, which the script below only releases after
+   every image has actually decoded. */
+html.sc-splash-hold #sc-splash-vfork{ background:#1A2342; }
 </style>
 <script>
 /* THE HANDOFF. Two frames after this overlay is in the DOM it has certainly
@@ -472,12 +486,48 @@ html.sc-splash-hold #sc-splash-vfork *{ animation-play-state:paused !important; 
      open cannot plausibly overrun, and the no-plugin one waits out that
      shell's 4000ms native auto-hide. */
   setTimeout(release, plugin ? 2000 : 4100);
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+  /* Painted-in-the-DOM is not painted-on-screen: every image here is an
+     inline data URI, and WebKit decodes them off the main thread — so a
+     double-rAF can fire while the plane's mask images are still undecoded and
+     the overlay is visually blank. Dropping the native splash at that moment
+     is the black flash. So first decode everything the overlay draws with
+     (the icon <img> plus every data-URI mask/background), THEN wait two
+     frames for the composite, THEN hide. A 700ms cap keeps a decode failure
+     from stalling the launch — the root's held navy covers that worst case. */
+  function decoded(cb){
+    var jobs=[], seen={}, done=false;
+    function fin(){ if(!done){ done=true; cb(); } }
+    try{
+      var els=document.querySelectorAll("#sc-splash-vfork, #sc-splash-vfork *");
+      for(var i=0;i<els.length;i++){
+        var el=els[i];
+        if(el.tagName==="IMG"){ jobs.push(el); continue; }
+        var cs=getComputedStyle(el);
+        var blob=(cs.webkitMaskImage||"")+","+(cs.maskImage||"")+","+(cs.backgroundImage||"");
+        var re=/url\("?(data:image[^")]+)"?\)/g, m;
+        while((m=re.exec(blob))){
+          if(seen[m[1]]) continue; seen[m[1]]=1;
+          var im=new Image(); im.src=m[1]; jobs.push(im);
+        }
+      }
+    }catch(e){}
+    if(!jobs.length){ fin(); return; }
+    var left=jobs.length;
+    function one(){ if(!done && --left<=0) fin(); }
+    setTimeout(fin, 700);
+    for(var k=0;k<jobs.length;k++){
+      var j=jobs[k];
+      if(j.decode){ j.decode().then(one,one); }
+      else if(j.complete){ one(); }
+      else { j.onload=j.onerror=one; }
+    }
+  }
+  decoded(function(){ requestAnimationFrame(function(){ requestAnimationFrame(function(){
     if(!plugin||!plugin.hide){ return; }
     try{
       var r=plugin.hide({fadeOutDuration:120});
       if(r&&typeof r.then==="function"){ r.then(release, release); } else { release(); }
     }catch(e){ release(); }
-  }); });
+  }); }); });
 })();
 </script>
