@@ -1,3 +1,4 @@
+import { profilePageJsonLd, jsonLdScript } from "@/lib/brand";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
@@ -130,6 +131,19 @@ export default async function CardPage({
   // that through used to reach the card_views insert as a non-text value and
   // fail the whole row. First value wins; bounded like the API's own cap.
   const sourceParam = Array.isArray(rawSource) ? rawSource[0] : rawSource;
+
+  // Mixed-case URLs rendered as 200 duplicates of the lowercase page (the
+  // canonical tag pointed the right way, but a 308 is definitive and
+  // consolidates every signal onto one URL). Query params ride along —
+  // ?source= drives real attribution and must survive the hop.
+  if (rawUsername !== username) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries({ source: sourceParam, embed, shared, save })) {
+      if (typeof v === "string" && v) qs.set(k, v);
+    }
+    const q = qs.toString();
+    permanentRedirect(q ? `/${username}?${q}` : `/${username}`);
+  }
   const source = (sourceParam ?? "direct_link").slice(0, 48);
   // ?save=1 — arrived by scanning the desktop QR. The card renders normally and
   // ScanSaveContact hands the phone the contact on top of it, so dismissing the
@@ -345,6 +359,29 @@ export default async function CardPage({
         .sc-page-rise { animation: sc-page-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both; }
         @media (prefers-reduced-motion: reduce) { .sc-card-settle, .sc-page-rise { animation: none; } }
       `}</style>
+      {/* Search + accessibility: this page is a person's profile, but the
+          visible name is rendered inside the card ARTWORK (template-pinned
+          pixels) — so the page's one H1 lives here, sr-only, without touching
+          the design. The ProfilePage/Person node is what makes the page
+          eligible for profile treatment in results. */}
+      <h1 className="sr-only">
+        {[profile.name, [profile.title, profile.company].filter(Boolean).join(" at ")].filter(Boolean).join(" — ")}
+      </h1>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            profilePageJsonLd({
+              name: profile.name || profile.username,
+              title: profile.title || undefined,
+              company: profile.company || undefined,
+              image: cardData.photoUrl || undefined,
+              url: publicCardUrl,
+              sameAs: [profile.website, profile.linkedin, profile.instagram, profile.twitter, profile.tiktok],
+            })
+          ),
+        }}
+      />
       {!isEmbed && !isOwnerView && <CardEventTracker username={profile.username} source={source} />}
       {/* Scanned the desktop QR: deliver the contact over this page. */}
       {autoSave && !isEmbed && (

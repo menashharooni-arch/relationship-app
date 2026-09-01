@@ -1,3 +1,4 @@
+import { SOFTWARE_APPLICATION_JSONLD, jsonLdScript } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
@@ -47,6 +48,9 @@ export default function Home() {
   const linkedinEnabled = !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET);
   return (
     <>
+      {/* The product node for search — Organization/WebSite are site-wide in
+          the root layout; SoftwareApplication belongs only on the homepage. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(SOFTWARE_APPLICATION_JSONLD) }} />
       {/* The native shell never shows the marketing homepage — it redirects to
           the product. Normally handled before paint by sc-boot in the root
           layout; this is the fallback. Renders nothing. */}

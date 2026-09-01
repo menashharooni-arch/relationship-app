@@ -68,6 +68,55 @@ export const WEBSITE_JSONLD = {
 // what keeps this safe the day someone interpolates a card or company name into
 // a node: inside <script>, the literal sequence "</script>" in ANY string value
 // closes the tag early and everything after it parses as markup.
+// The homepage's SoftwareApplication node — the product itself, distinct from
+// the Organization that makes it. Only verifiable facts: the Free plan is real
+// (a $0 entry price), and the app runs on iOS and the web. NO aggregateRating —
+// there is no eligible review source, and inventing one is a structured-data
+// violation that can cost every rich result on the domain.
+export const SOFTWARE_APPLICATION_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": `${APP_URL}/#software`,
+  name: "SwiftCard",
+  alternateName: ALTERNATE_NAMES,
+  url: APP_URL,
+  description: DESCRIPTION,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "iOS, Web",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "Free plan; Pro subscription available." },
+  publisher: { "@id": `${APP_URL}/#organization` },
+};
+
+// Person + ProfilePage nodes for a PUBLIC card or Swift Links page — the
+// mainEntity Person is what makes these pages eligible for profile-style
+// treatment in search. `sameAs` keeps only full http(s) URLs the owner put on
+// their own card; handles and empty strings are dropped, nothing is invented.
+export function profilePageJsonLd(p: {
+  name: string;
+  title?: string;
+  company?: string;
+  image?: string;
+  url: string;
+  sameAs?: (string | undefined | null)[];
+}) {
+  const sameAs = (p.sameAs ?? []).filter((u): u is string => !!u && /^https?:\/\//i.test(u));
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "@id": `${p.url}#profile`,
+    url: p.url,
+    mainEntity: {
+      "@type": "Person",
+      name: p.name,
+      ...(p.title ? { jobTitle: p.title } : {}),
+      ...(p.company ? { worksFor: { "@type": "Organization", name: p.company } } : {}),
+      ...(p.image ? { image: p.image } : {}),
+      url: p.url,
+      ...(sameAs.length ? { sameAs } : {}),
+    },
+  };
+}
+
 export function jsonLdScript(node: unknown): string {
   return JSON.stringify(node).replace(/</g, "\\u003c");
 }
