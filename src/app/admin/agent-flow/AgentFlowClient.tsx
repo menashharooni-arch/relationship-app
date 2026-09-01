@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // ── Agent Flow: the review queue + control center for the marketing agents ──
 // Everything here talks to /api/admin/agents/* (admin-gated, service-role
@@ -27,6 +27,12 @@ function ago(iso: string | null) {
   if (s < 172800) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
 }
+function dur(a: string, b: string | null, now?: number): string {
+  const ms = (b ? new Date(b).getTime() : (now ?? Date.now())) - new Date(a).getTime();
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  return sec < 90 ? `${sec}s` : `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`;
+}
+
 function stateOf(r?: RunRow, s?: Settings): { label: string; cls: string } {
   if (s && !s.enabled) return { label: "Disabled", cls: "bg-gray-800 text-gray-500" };
   if (s?.paused) return { label: "Paused", cls: "bg-amber-900/40 text-amber-400" };
@@ -53,6 +59,11 @@ export default function AgentFlowClient() {
   const [toast, setToast] = useState("");
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(""), 3000); };
+  // 1s tick while anything is running, so "Running · 1m 24s" counts live.
+  const [now, setNow] = useState(() => Date.now()); // lazy: impure init runs once, not per render
+  const anyRunning = !!board && Object.values(board.latestRuns ?? {}).some((r) => (r as RunRow).status === "running");
+  useEffect(() => { if (!anyRunning) return; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [anyRunning]);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const b = await fetch("/api/admin/agents").then((r) => r.json()).catch(() => null);
@@ -116,9 +127,39 @@ export default function AgentFlowClient() {
 
   const agents = board.settings ?? [];
   const pendingProspects = items.filter((i) => i.item_type === "prospect" && i.status === "pending");
+  const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
+  const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
+  const failedCount = agents.filter((a) => board.latestRuns[a.agent_id]?.status === "failed").length;
+  const runningCount = agents.filter((a) => board.latestRuns[a.agent_id]?.status === "running").length;
+  const lastDigest = (board.recentRuns ?? []).find((r) => r.agent_id === "manager" && r.status === "success");
+  const runsByAgent: Record<string, RunRow[]> = {};
+  for (const r of board.recentRuns ?? []) (runsByAgent[r.agent_id] ??= []).push(r);
 
   return (
     <div className="space-y-5">
+      {/* Mission control strip — the whole system's health at a glance */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Awaiting review</p>
+          <p className="text-white text-xl font-bold tabular-nums mt-0.5">{board.pendingTotal}</p>
+        </div>
+        <div className={`rounded-xl p-3.5 border ${runningCount ? "bg-blue-950/30 border-blue-800/50" : failedCount ? "bg-red-950/25 border-red-800/60" : "bg-gray-900 border-gray-800"}`}>
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Agents</p>
+          <p className="text-white text-xl font-bold mt-0.5">
+            {runningCount ? <span className="text-blue-300">{runningCount} running</span> : failedCount ? <span className="text-red-400">{failedCount} failed</span> : "all idle"}
+          </p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Month spend</p>
+          <p className="text-white text-xl font-bold tabular-nums mt-0.5">${monthSpend.toFixed(2)}<span className="text-gray-600 text-xs font-normal"> / ${Number(board.system.monthly_usage_cap_usd).toFixed(0)}</span></p>
+          <div className="h-1 bg-gray-800 rounded-full mt-1.5"><div className={`h-1 rounded-full ${capPct > 85 ? "bg-amber-500" : "bg-blue-600"}`} style={{ width: `${capPct}%` }} /></div>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
+          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Last report</p>
+          <p className="text-white text-xl font-bold mt-0.5">{lastDigest ? ago(lastDigest.started_at) : "—"}</p>
+          {lastDigest && <button onClick={() => { setView("queue"); setFilterStatus("pending"); setFilterAgent("manager"); setFilterType("digest"); }} className="text-blue-400 text-[11px] hover:underline">open latest →</button>}
+        </div>
+      </div>
       {toast && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-gray-700 text-white text-sm px-4 py-2 rounded-full shadow-xl">{toast}</div>}
 
       {/* Run controls */}
@@ -154,13 +195,33 @@ export default function AgentFlowClient() {
                 </div>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
                 <div className="text-xs text-gray-500 flex-1 min-w-[200px]">
-                  <span>last run {ago(r?.started_at ?? null)} · {r ? `${r.output_count} item(s) · $${Number(r.usage_usd).toFixed(2)}` : "never run"} · month ${Number(board.spendBy[s.agent_id] ?? 0).toFixed(2)}</span>
+                  <span>{r?.status === "running" ? `running ${dur(r.started_at, null, now)}` : `last run ${ago(r?.started_at ?? null)}`} · {r ? `${r.output_count} item(s) · $${Number(r.usage_usd).toFixed(2)}` : "never run"} · month ${Number(board.spendBy[s.agent_id] ?? 0).toFixed(2)}</span>
                   {r?.summary && <p className={`mt-0.5 truncate ${r.status === "running" ? "text-blue-300" : "text-gray-600"}`}>{r.status === "running" ? "⋯ " : ""}{r.summary}</p>}
+                </div>
+                {/* Last 8 runs as mini bars — a stalling or silent agent shows as a flatline */}
+                <div className="hidden sm:flex items-end gap-0.5 h-6 w-16" title="output of the last runs (newest right)">
+                  {(runsByAgent[s.agent_id] ?? []).slice(0, 8).reverse().map((rr) => (
+                    <div key={rr.id} className={`flex-1 rounded-sm ${rr.status === "failed" ? "bg-red-700" : "bg-blue-800"}`} style={{ height: `${Math.min(100, 15 + rr.output_count * 20)}%` }} />
+                  ))}
                 </div>
                 <div className="flex gap-1.5">
                   <button onClick={() => control("run", s.agent_id)} disabled={busy || s.paused || !s.enabled} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full transition-colors">Run now</button>
                   <button onClick={() => control(s.paused ? "resume" : "pause", s.agent_id)} disabled={busy} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full transition-colors">{s.paused ? "Resume" : "Pause"}</button>
+                  <button onClick={() => setExpanded(expanded === s.agent_id ? null : s.agent_id)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 transition-colors">{expanded === s.agent_id ? "▴" : "▾ log"}</button>
                 </div>
+                {expanded === s.agent_id && (
+                  <div className="w-full mt-2 border-t border-gray-800 pt-2 space-y-1">
+                    {(runsByAgent[s.agent_id] ?? []).length === 0 && <p className="text-gray-600 text-xs">No runs yet.</p>}
+                    {(runsByAgent[s.agent_id] ?? []).slice(0, 10).map((rr) => (
+                      <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px]">
+                        <span className="text-gray-600 tabular-nums shrink-0">{new Date(rr.started_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                        <span className={rr.status === "failed" ? "text-red-400 font-semibold" : rr.status === "success" ? "text-emerald-500" : "text-amber-400"}>{rr.status}</span>
+                        <span className="text-gray-500">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · ${Number(rr.usage_usd).toFixed(2)} · {rr.trigger}</span>
+                        <span className="text-gray-400 basis-full sm:basis-auto sm:flex-1 truncate">{rr.summary}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
