@@ -62,6 +62,17 @@ async function monthSpendUsd() {
 }
 
 export async function email(subject, html) {
+  // No direct Resend key in Actions? Relay through the app: /api/agent-email
+  // holds the key server-side and always mails the configured digest address.
+  if (!RESEND_KEY && process.env.AGENT_RELAY_SECRET) {
+    const res = await fetch("https://swiftcard.me/api/agent-email", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.AGENT_RELAY_SECRET}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, html }),
+    }).catch(() => null);
+    if (!res?.ok) console.error(`email relay failed (${res ? res.status : "network"})`);
+    return !!res?.ok;
+  }
   if (!RESEND_KEY) { console.log(`[email skipped — no RESEND_API_KEY] ${subject}`); return false; }
   const sys = await getSystem();
   const res = await fetch("https://api.resend.com/emails", {

@@ -23,23 +23,29 @@ Draft-only is **structural**: the LLM gets only WebSearch/WebFetch (no Bash, no
 git, no platform APIs), and the runner's sole write is our own `agent_*`
 tables. Pinned by `tests/agent-flow.test.ts`.
 
-## Setup (in order)
+## Setup — one command
 
-1. **Create the tables** — review `supabase/agent-flow.sql`, then run it in the
-   Supabase SQL editor. The tab shows a setup card until this is done.
-2. **GitHub → Settings → Secrets and variables → Actions → New secret:**
-   | Secret | Value |
-   |---|---|
-   | `SUPABASE_URL` | https://grxmovpmlgmjncnyiyrt.supabase.co |
-   | `SUPABASE_SERVICE_ROLE_KEY` | from Supabase → Settings → API |
-   | `RESEND_API_KEY` | same as Vercel (emails: digest, cap alerts, criticals) |
-   | `ANTHROPIC_API_KEY` **or** `CLAUDE_CODE_OAUTH_TOKEN` | see "Claude Max vs API credits" |
-   (Bug Watch reuses the already-documented `SENTRY_*` secrets — MONITORING.md.)
-3. **Vercel → Environment Variables (Production):**
-   | Var | Value |
-   |---|---|
-   | `GITHUB_AGENTS_TOKEN` | fine-grained PAT, this repo only, **Actions: read+write** — powers the Run/Start All buttons |
-4. **External accounts, only when you want that agent:** Sentry (Agent 8 — steps in MONITORING.md) · Higgsfield (paste video prompts) · Buffer or Later (connect IG/TikTok/YT/LinkedIn/X once; paste approved captions — we deliberately did NOT wire their APIs: drafts stay drafts) · Snyk optional (npm audit + Dependabot cover v1) · Google Search Console (already verified, sitemap submitted).
+```
+node scripts/agent-flow-setup.mjs
+```
+
+That's it. The script applies the schema (Supabase Management API), verifies
+the tables, sets the GitHub Actions secrets (`SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, a freshly minted `AGENT_RELAY_SECRET`), adds the
+Vercel env vars the tab needs (`GITHUB_AGENTS_TOKEN` from your gh CLI,
+`AGENT_RELAY_SECRET`), and triggers a redeploy. Idempotent — safe to re-run.
+
+Emails need no key in Actions: agents relay through `/api/agent-email`, which
+holds the app's own Resend key server-side and can only ever mail the digest
+address (Bug Watch still uses the `SENTRY_*` secrets — MONITORING.md).
+
+**One optional secret remains yours:** the LLM key for the research/blog
+agents — `gh secret set CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`,
+runs on your Max plan) **or** `gh secret set ANTHROPIC_API_KEY` (API billing).
+SEO, Security and Manager run with no LLM at all, so the system works today
+without it.
+
+**External accounts, only when you want that agent:** Sentry (Agent 8 — steps in MONITORING.md) · Higgsfield (paste video prompts) · Buffer or Later (connect IG/TikTok/YT/LinkedIn/X once; paste approved captions — we deliberately did NOT wire their APIs: drafts stay drafts) · Snyk optional (npm audit + Dependabot cover v1) · Google Search Console (already verified, sitemap submitted).
 
 ## Claude Max vs API credits
 

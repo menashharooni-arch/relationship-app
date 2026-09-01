@@ -1,0 +1,41 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+
+// ── Email relay for the Agent Flow agents ────────────────────────────────────
+// GitHub Actions can't read the app's RESEND_API_KEY (it's a Vercel-sensitive
+// var), so agents send their digest/cap/critical emails THROUGH the app.
+// Abuse-proof by construction:
+//   • Bearer AGENT_RELAY_SECRET (minted by scripts/agent-flow-setup.mjs; the
+//     route is a 404 until that secret exists in the environment).
+//   • The recipient is ALWAYS agent_system.digest_email from the DB — the
+//     caller cannot choose who it mails, so the relay can't spam anyone.
+//   • Subjects are prefixed so nothing sent here can impersonate product mail.
+export async function POST(req: NextRequest) {
+  const secret = process.env.AGENT_RELAY_SECRET;
+  if (!secret) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) return NextResponse.json({ ok: false, skipped: "no RESEND_API_KEY" });
+
+  const body = (await req.json().catch(() => null)) as { subject?: string; html?: string } | null;
+  if (!body?.subject || !body?.html) return NextResponse.json({ error: "subject and html required" }, { status: 400 });
+
+  let to = "hello@swiftcard.me";
+  try {
+    const { data } = await getAdminSupabase().from("agent_system").select("digest_email").limit(1).single();
+    if (data?.digest_email) to = data.digest_email;
+  } catch { /* pre-schema: fall back to the admin address */ }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "SwiftCard Agents <hello@swiftcard.me>",
+      to: [to],
+      subject: `[Agent Flow] ${body.subject.slice(0, 180)}`,
+      html: body.html.slice(0, 100_000),
+    }),
+  });
+  return NextResponse.json({ ok: res.ok }, { status: res.ok ? 200 : 502 });
+}
