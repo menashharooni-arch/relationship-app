@@ -26,3 +26,5 @@ Rules: real URLs only — verify each one loads before including it. Skip anythi
 where a vendor reply would be unwelcome or against that community's rules and
 note nothing. Skip anyone already angry at spam. Quality bar: you'd be
 comfortable sending every draft from your own personal account.
+
+FINAL PASS (mandatory): run every draft through the HUMAN_VOICE self-check. A message that could be sent to a different person unchanged, recaps their post instead of reacting to it, or contains any listed tell — rewrite it before returning. Drafts with tells get discarded by the pipeline and waste the whole run.

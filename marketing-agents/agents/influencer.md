@@ -19,3 +19,5 @@ For EACH creator:
 
 Skip: giveaway/engagement-pod accounts, anyone who posts spam, anyone outside
 the follower band unless the fit is exceptional (say so in payload.fit).
+
+FINAL PASS (mandatory): every DM must pass the HUMAN_VOICE self-check. 35–80 words, references one specific piece of their content with a real reaction, zero flattery-bombing, no tells.
