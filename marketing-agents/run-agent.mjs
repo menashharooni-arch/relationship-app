@@ -93,10 +93,10 @@ item_type and the field meanings are defined in the instructions above. dedupe_k
       const check = soundsHuman(it.content ?? "");
       if (!check.ok) { robotic++; console.log(`discarded (AI tell "${check.tell}"): ${it.title}`); continue; }
     }
-    const r = await run.addItem(it);
-    if (r === "added") added++;
-    if (r === "duplicate") dup++;
-    if (r === "cap") break;
+    const { result } = await run.addItem(it);
+    if (result === "added") added++;
+    if (result === "duplicate") dup++;
+    if (result === "cap") break;
   }
   await run.finish("success", `${added} new item(s) queued (${dup} duplicate(s) skipped${robotic ? `, ${robotic} DISCARDED for AI-sounding language` : ""}, ${items.length} candidates). Spend $${run.usageUsd.toFixed(2)}.`);
 });

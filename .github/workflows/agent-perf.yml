@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: read
+  actions: write  # dispatches the Fixer when this run has findings
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -22,6 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - name: Run agent
+        id: run
         env:
           AGENT_TRIGGER: ${{ github.event.inputs.trigger || 'manual' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -29,3 +31,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           AGENT_RELAY_SECRET: ${{ secrets.AGENT_RELAY_SECRET }}
         run: node marketing-agents/agent-perf.mjs
+      - name: Hand findings to the Fixer (draft-PR pipeline)
+        if: steps.run.outputs.findings != '' && steps.run.outputs.findings != '0' && steps.run.outputs.item_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run agent-fixer.yml -f item_id="${{ steps.run.outputs.item_id }}" && echo "Fixer dispatched for item ${{ steps.run.outputs.item_id }}"

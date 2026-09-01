@@ -77,7 +77,7 @@ await safeMain("perf", async (run) => {
     else ok.push(`${r.label}: ${ms}ms${vs} ✓`);
   }
 
-  await run.addItem({
+  const item = await run.addItem({
     item_type: "perf_report",
     platform: "site", target: "swiftcard.me",
     title: findings.length ? `Speed check: ${findings.length} issue(s) — ${new Date().toISOString().slice(0, 16).replace("T", " ")}` : `Speed check: all fast ✓ — ${new Date().toISOString().slice(0, 16).replace("T", " ")}`,
@@ -87,6 +87,7 @@ await safeMain("perf", async (run) => {
       "\nAlso watching: uptime (15-min), deploy-watchdog (bad-deploy rollback), Bug Watch (Sentry drafts, needs Sentry armed).",
     ].join("\n"),
     context: "Automated speed + render-sanity sweep of the critical routes, compared to this agent's own rolling baseline.",
+    status: findings.length ? "pending" : "acknowledged",
     payload: { timings },
   });
 
@@ -94,5 +95,12 @@ await safeMain("perf", async (run) => {
     await email(`🔴 SITE HEALTH: ${critical[0]}${critical.length > 1 ? ` (+${critical.length - 1} more)` : ""}`,
       `<h3>Critical route problem</h3><ul>${critical.map((c) => `<li>${c}</li>`).join("")}</ul><p>Details in Agent Flow → Performance Watch. uptime.yml and the deploy watchdog are the other lines of defense; if a deploy caused this, the watchdog may already be rolling back.</p>`);
   }
+  // Closed loop: a clean report files itself (zero owner clicks on quiet
+  // days); a report WITH findings stays pending and hands itself to the Fixer
+  // workflow via GitHub step outputs.
+  try {
+    const { appendFileSync } = await import("node:fs");
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `findings=${findings.length}\nitem_id=${item?.id ?? ""}\n`);
+  } catch { /* not running in Actions */ }
   await run.finish("success", `${findings.length} issue(s), ${ok.length} routes healthy. $0.00 (no LLM).`);
 });

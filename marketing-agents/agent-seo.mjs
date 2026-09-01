@@ -64,7 +64,7 @@ await safeMain("seo", async (run) => {
     "Keyword positions: GSC → Performance → Queries (no API wired yet — this report cannot pull positions itself).",
   ];
 
-  await run.addItem({
+  const item = await run.addItem({
     item_type: "seo_report",
     title: `SEO check: ${findings.length ? findings.length + " finding(s)" : "all clear"} — ${new Date().toISOString().slice(0, 10)}`,
     content: [
@@ -74,8 +74,16 @@ await safeMain("seo", async (run) => {
       "\nNot covered automatically yet: keyword position tracking (needs GSC API), page-speed impact (see Vercel Speed Insights).",
     ].join("\n"),
     context: "Deterministic own-site audit: sitemap, robots, JSON-LD, brand variations, meta/OG, sampled link health.",
+    status: findings.length ? "pending" : "acknowledged",
     platform: "site",
     target: "swiftcard.me",
   });
+  // Closed loop: a clean report files itself (zero owner clicks on quiet
+  // days); a report WITH findings stays pending and hands itself to the Fixer
+  // workflow via GitHub step outputs.
+  try {
+    const { appendFileSync } = await import("node:fs");
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `findings=${findings.length}\nitem_id=${item?.id ?? ""}\n`);
+  } catch { /* not running in Actions */ }
   await run.finish(findings.length ? "success" : "success", `${findings.length} finding(s), ${ok.length} checks healthy. $0.00 spent (no LLM).`);
 });

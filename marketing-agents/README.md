@@ -105,6 +105,26 @@ name `swiftcard`) → copy the DSN → Vercel env `NEXT_PUBLIC_SENTRY_DSN` (+
 same three as GitHub secrets. Everything downstream is already built, scrubbed
 for PII, and tested.
 
+## When something is found, who fixes it?
+
+The loop closes itself to the last safe inch:
+
+1. A watcher finds an issue → its report lands in the queue.
+2. The **Fixer** is dispatched automatically (SEO + Performance findings): it
+   writes the minimal code fix, verifies types + the full test suite, and
+   opens a **draft PR** — linked on the queue item as "View PR".
+3. **Your entire job is one Merge click.** Merging deploys the fix. That click
+   stays human on purpose — auto-deploying unreviewed AI code to production is
+   the one line this system never crosses (your own spec's rule, and the
+   right one).
+
+Clean runs cost you nothing at all: an all-clear report **files itself as
+read** — it never sits in your pending queue. Security/dependency findings
+stay human-first (their fixes touch package.json and policy, exactly what the
+Fixer is forbidden to edit). The Fixer runs on the same LLM key as the
+research agents — until that key is set, findings still queue normally and
+the Fixer stands down.
+
 ## The little things, answered
 
 - **Usage runs out while agents are working?** They stop at the next safe
