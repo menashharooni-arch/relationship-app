@@ -38,6 +38,8 @@ export const SIGNUP_SOURCES = [
   // here too, so its attribution was silently dropped at /cards/new.
   "save_contact_cta",
   "badge",         // "Made with SwiftCard" badge
+  "view_tracking_page",   // /business-card-view-tracking landing page
+  "link_in_bio_page",     // /link-in-bio-with-analytics landing page
   "follow_up",     // "Sent with SwiftCard" link in an automation email/text
   "preview",       // a "Create Your Card for Free" button on the Test It Live page
   "direct",        // organic

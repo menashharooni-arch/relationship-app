@@ -20,6 +20,7 @@ const TRACK_PREFIXES = [
   "/pricing", "/products", "/templates", "/compare", "/company",
   "/testimonials", "/contact", "/preview", "/terms", "/privacy",
   "/sms-consent", "/sms-terms", "/unsubscribe", "/upgrade",
+  "/business-card-view-tracking", "/link-in-bio-with-analytics",
   "/account-deleted",
 ];
 
