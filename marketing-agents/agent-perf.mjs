@@ -24,7 +24,15 @@ const ROUTES = [
   { path: "/sitemap.xml", label: "sitemap", ceilingMs: 2500, critical: false, minLocs: 40 },
 ];
 const SAMPLES = 3;
-const REGRESSION_PCT = 60; // % slower than baseline that counts as a regression
+// Regression rules tuned against false alarms (a watchdog that cries wolf
+// gets ignored): a verdict needs a baseline of ≥3 prior reports, +60% AND
+// +300ms over it, AND an absolute reading past 600ms — deploy-warmup jitter
+// on a 300ms page is not a regression. The absolute ceilings above are the
+// hard guard either way.
+const REGRESSION_PCT = 60;
+const REGRESSION_MIN_DELTA_MS = 300;
+const REGRESSION_MIN_ABS_MS = 600;
+const BASELINE_MIN_REPORTS = 3;
 
 const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
 
@@ -57,7 +65,7 @@ await safeMain("perf", async (run) => {
     await run.note(`Timing ${r.label}…`);
     const { ms, status, body } = await timeRoute(r.path);
     timings[r.label] = ms;
-    const baseMs = base[r.label]?.length ? median(base[r.label]) : null;
+    const baseMs = (base[r.label]?.length ?? 0) >= BASELINE_MIN_REPORTS ? median(base[r.label]) : null;
     const vs = baseMs ? ` (baseline ${baseMs}ms)` : "";
 
     if (status !== 200) { const m = `${r.label} (${r.path}) returned ${status || "TIMEOUT"}`; findings.push(m); if (r.critical) critical.push(m); continue; }
@@ -65,7 +73,7 @@ await safeMain("perf", async (run) => {
     if (r.minLocs && (body.match(/<loc>/g) ?? []).length < r.minLocs) { findings.push(`${r.label}: only ${(body.match(/<loc>/g) ?? []).length} URLs — the dynamic section may be failing`); continue; }
     if (ms > 3000 && r.critical) { const m = `${r.label} is critically slow: ${ms}ms${vs}`; findings.push(m); critical.push(m); }
     else if (ms > r.ceilingMs) findings.push(`${r.label} over its ceiling: ${ms}ms (limit ${r.ceilingMs}ms)${vs}`);
-    else if (baseMs && ms > baseMs * (1 + REGRESSION_PCT / 100) && ms - baseMs > 200) findings.push(`${r.label} REGRESSED: ${ms}ms vs ${baseMs}ms baseline (+${Math.round(((ms - baseMs) / baseMs) * 100)}%)`);
+    else if (baseMs && ms > baseMs * (1 + REGRESSION_PCT / 100) && ms - baseMs > REGRESSION_MIN_DELTA_MS && ms > REGRESSION_MIN_ABS_MS) findings.push(`${r.label} REGRESSED: ${ms}ms vs ${baseMs}ms baseline (+${Math.round(((ms - baseMs) / baseMs) * 100)}%)`);
     else ok.push(`${r.label}: ${ms}ms${vs} ✓`);
   }
 
