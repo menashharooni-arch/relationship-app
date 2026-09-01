@@ -63,6 +63,16 @@ describe("agent flow: blog publishes only reviewed content", () => {
     const config = JSON.parse(read("marketing-agents/config.json"));
     expect(config.blog.publish_mode).toBe("draft");
   });
+  it("a markdown link can never break out of the href attribute", () => {
+    // The post author is an LLM reading the open web — markdown is a
+    // prompt-injection surface even with human review before publish.
+    const src = read("src/lib/blog-md.ts");
+    expect(src).toContain(String.raw`[^)\s"'<>]`);
+  });
+  it("dynamic JSON-LD goes through the escaping serializer", () => {
+    expect(read("src/app/blog/[slug]/page.tsx")).toMatch(/jsonLdScript\(jsonLd\)/);
+    expect(read("src/lib/brand.ts")).toMatch(/u003c/);
+  });
   it("the markdown renderer escapes HTML before anything else", () => {
     const src = read("src/lib/blog-md.ts");
     expect(src).toMatch(/replace\(\/</);

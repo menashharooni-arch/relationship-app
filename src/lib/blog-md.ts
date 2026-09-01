@@ -13,7 +13,11 @@ function inline(s: string): string {
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     // Links: same-site paths and https only.
-    .replace(/\[([^\]]+)\]\((\/[^)\s]*|https:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+    // Quotes and angle brackets are excluded from the URL class so a crafted
+    // link can never break out of the href attribute — the author is an LLM
+    // reading the open web, which makes markdown a prompt-injection surface
+    // even though every post is human-reviewed before publish.
+    .replace(/\[([^\]]+)\]\((\/[^)\s"'<>]*|https:\/\/[^)\s"'<>]+)\)/g, '<a href="$2">$1</a>');
 }
 
 export function renderBlogMarkdown(md: string): string {
