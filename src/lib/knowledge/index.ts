@@ -46,6 +46,7 @@ export const UNDOCUMENTED_ROUTES: Record<string, string> = {
   "/admin/users": "Staff console — internal user list.",
   "/admin/users/[id]": "Staff console — internal user detail.",
   "/admin/website": "Staff console — internal site content tooling.",
+  "/admin/website/agent-flow": "Staff console — the marketing-agent review queue and run controls. Never a customer surface.",
   "/profile": "Legacy settings page, superseded by /settings/flows and linked from nowhere. Pointing customers here would show them a second, stale copy of their settings.",
   "/profile/card": "Legacy primary-card editor, unlinked and superseded by the per-card editor.",
   "/card/[username]": "Redirect only since 2026-08-19 — card pages moved to the root (swiftcard.me/<username>, the documented /[username] route); this keeps every printed QR, NFC tag and old link working.",

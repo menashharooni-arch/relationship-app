@@ -21,6 +21,7 @@ const TRACK_PREFIXES = [
   "/testimonials", "/contact", "/preview", "/terms", "/privacy",
   "/sms-consent", "/sms-terms", "/unsubscribe", "/upgrade",
   "/business-card-view-tracking", "/link-in-bio-with-analytics",
+  "/blog",
   "/account-deleted",
 ];
 

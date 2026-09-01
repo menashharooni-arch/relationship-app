@@ -1,0 +1,28 @@
+{
+  "_comment": "Central agent config. enable/caps/schedules ALSO live in the agent_settings table (editable from the Agent Flow tab without a deploy) — the DB wins at runtime; these are the seed values and the target lists the prompts consume.",
+  "digest_email": "hello@swiftcard.me",
+  "monthly_usage_cap_usd": 25,
+  "agents": {
+    "outreach":   { "name": "Outreach Scout",         "mode": "draft_only",  "workflow": "agent-outreach.yml",   "output_cap": 12 },
+    "prospects":  { "name": "Link-in-bio Prospects",  "mode": "draft_only",  "workflow": "agent-prospects.yml",  "output_cap": 40 },
+    "seo":        { "name": "SEO",                    "mode": "autonomous",  "workflow": "agent-seo.yml",        "output_cap": 5 },
+    "blog":       { "name": "Blog Writer",            "mode": "autonomous",  "workflow": "agent-blog.yml",       "output_cap": 2 },
+    "social":     { "name": "Social Content Factory", "mode": "draft_only",  "workflow": "agent-social.yml",     "output_cap": 5 },
+    "mentions":   { "name": "Mentions Monitor",       "mode": "draft_only",  "workflow": "agent-mentions.yml",   "output_cap": 10 },
+    "influencer": { "name": "Influencer Scout",       "mode": "draft_only",  "workflow": "agent-influencer.yml", "output_cap": 10 },
+    "bugwatch":   { "name": "Bug Watch",              "mode": "autonomous_drafts", "workflow": "sentry-triage.yml", "output_cap": 5 },
+    "security":   { "name": "Security Watch",         "mode": "autonomous_drafts", "workflow": "agent-security.yml", "output_cap": 10 },
+    "manager":    { "name": "Manager / Digest",       "mode": "reporter",    "workflow": "agent-manager.yml",    "output_cap": 1 }
+  },
+  "blog": { "publish_mode": "draft", "_modes": "draft = queue item + Publish button; auto = commit MDX directly. Stays draft until the owner flips it." },
+  "targets": {
+    "niches": ["realtors", "real-estate brokers", "contractors", "HVAC", "plumbers", "consultants", "salespeople", "coaches", "small-business owners", "photographers", "insurance agents", "loan officers"],
+    "subreddits": ["r/realtors", "r/RealEstate", "r/sales", "r/smallbusiness", "r/Entrepreneur", "r/Contractor", "r/HVAC", "r/Plumbing", "r/digitalnomad", "r/consulting"],
+    "competitors": ["Blinq", "HiHello", "Popl", "Linq", "Mobilo", "Wave"],
+    "linkinbio_tools": ["hoo.be", "Linktree", "Beacons", "Stan", "Milkshake", "Later Link in Bio", "Lnk.Bio"],
+    "brand_variations": ["SwiftCard", "Swift Card", "swift card app", "swiftcard.me", "swiftcard", "swift-card", "swfitcard", "swiftcrd"],
+    "keywords": ["best digital business card", "digital business card with lead capture", "business card that tracks who viewed it", "link in bio with analytics", "linktree alternative", "blinq alternative", "popl alternative", "hihello alternative"],
+    "influencer_niches": ["realtor", "real estate", "sales", "contractor", "small business", "entrepreneurship", "networking"],
+    "influencer_followers": { "min": 10000, "max": 100000, "min_engagement_pct": 3 }
+  }
+}
