@@ -146,15 +146,18 @@ export class Run {
 
   addUsage(usd, tokens = 0) { this.usageUsd += Number(usd || 0); this.usageTokens += Number(tokens || 0); }
 
-  /** Queue an item for review. Respects the per-run output cap; dedupes on (agent, dedupe_key). Returns 'added' | 'duplicate' | 'cap'. */
-  async addItem({ item_type, title, content = null, context = null, platform = null, target = null, target_url = null, payload = null, dedupe_key = null }) {
-    if (this.outputCount >= this.settings.output_cap) return "cap";
+  /** Queue an item. Respects the output cap; dedupes on (agent, dedupe_key).
+   *  `status` lets a CLEAN report file itself as already-read ("acknowledged")
+   *  so all-quiet days cost the owner zero clicks. Returns
+   *  { result: 'added'|'duplicate'|'cap', id?: string }. */
+  async addItem({ item_type, title, content = null, context = null, platform = null, target = null, target_url = null, payload = null, dedupe_key = null, status = "pending" }) {
+    if (this.outputCount >= this.settings.output_cap) return { result: "cap" };
     try {
-      await sb("POST", "agent_queue_items", { body: { agent_id: this.agentId, run_id: this.id, item_type, title, content, context, platform, target, target_url, payload, dedupe_key } });
+      const [row] = await sb("POST", "agent_queue_items", { body: { agent_id: this.agentId, run_id: this.id, item_type, title, content, context, platform, target, target_url, payload, dedupe_key, status }, prefer: "return=representation" });
       this.outputCount++;
-      return "added";
+      return { result: "added", id: row?.id };
     } catch (e) {
-      if (String(e).includes("23505") || String(e).includes("duplicate")) return "duplicate";
+      if (String(e).includes("23505") || String(e).includes("duplicate")) return { result: "duplicate" };
       throw e;
     }
   }

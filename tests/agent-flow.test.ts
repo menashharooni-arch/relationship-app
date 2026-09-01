@@ -25,10 +25,32 @@ describe("agent flow: draft-only agents are structurally unable to post", () => 
   it("agent workflows cannot push, merge, or deploy", () => {
     for (const f of readdirSync(".github/workflows").filter((f) => f.startsWith("agent-"))) {
       const src = read(`.github/workflows/${f}`);
-      expect(src, `${f} must not merge PRs`).not.toMatch(/pr merge|git push/);
-      if (f !== "agent-scheduler.yml") expect(src, `${f} should be contents: read`).toMatch(/contents: read/);
+      expect(src, `${f} must never merge a PR`).not.toMatch(/gh pr merge/);
       expect(src, `${f} must be manually triggerable`).toMatch(/workflow_dispatch/);
+      if (f === "agent-fixer.yml") continue; // its own contract is pinned below
+      expect(src, `${f} must not push`).not.toMatch(/git push/);
+      if (f !== "agent-scheduler.yml") expect(src, `${f} should be contents: read`).toMatch(/contents: read/);
     }
+  });
+
+  it("the Fixer drafts on branches and can never touch main", () => {
+    const src = read(".github/workflows/agent-fixer.yml");
+    expect(src).toMatch(/--draft/);
+    expect(src).not.toMatch(/gh pr merge/);
+    // Both the branch-create and the push step refuse to operate on main.
+    expect((src.match(/Refusing to (operate on|push from)/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    // Deterministic branch name → a re-run dedupes instead of duplicating.
+    expect(src).toMatch(/agent-fix\//);
+    // The secret-holding step is SHA-pinned, mirroring sentry-triage.
+    expect(src).toMatch(/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b/);
+  });
+
+  it("the loop closes: clean reports self-file, findings dispatch the Fixer", () => {
+    for (const a of ["marketing-agents/agent-seo.mjs", "marketing-agents/agent-perf.mjs"])
+      expect(read(a), `${a} must self-file clean reports`).toMatch(/status: findings\.length \? "pending" : "acknowledged"/);
+    for (const w of [".github/workflows/agent-seo.yml", ".github/workflows/agent-perf.yml"])
+      expect(read(w), `${w} must hand findings to the Fixer`).toMatch(/agent-fixer\.yml -f item_id/);
+    expect(read("marketing-agents/lib/agentkit.mjs")).toMatch(/return \{ result: "added", id:/);
   });
 });
 
