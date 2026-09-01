@@ -197,14 +197,19 @@ console.log("\nPlays on every launch, never mid-session");
   const page = await open(context, "/login");
   await page.waitForTimeout(1700);
   await page.evaluate(() => { window.location.href = "/cards/new"; });
-  // Let the destination settle before probing: against production this hop can
-  // itself redirect, and evaluating mid-navigation destroys the context.
-  await page.waitForLoadState("load");
-  await page.waitForTimeout(400);
-  await page.waitForLoadState("load");
-  check("an in-app navigation ships no overlay at all", (await probe(page)).absent === true);
+  // A hard navigation destroys the execution context, and load-state waits can
+  // resolve against the OLD document before the hop even starts — so don't
+  // race events at all: just retry the probe until the new document answers.
+  const settled = async (fn, tries = 25) => {
+    for (let i = 0; i < tries; i++) {
+      try { return await fn(); } catch { await page.waitForTimeout(300); }
+    }
+    throw new Error("page never settled after the in-app navigation");
+  };
+  await page.waitForTimeout(800);
+  check("an in-app navigation ships no overlay at all", (await settled(() => probe(page))).absent === true);
   check("and keeps its own page-in animation",
-    (await page.evaluate(() => getComputedStyle(document.body).animationName)) !== "none");
+    (await settled(() => page.evaluate(() => getComputedStyle(document.body).animationName))) !== "none");
   await context.close();
 }
 
