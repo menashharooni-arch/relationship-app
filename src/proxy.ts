@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// See the soft-delete guard below for why this exists and why 60s is safe.
+const deletedCheckCache = new Map<string, { deleted: boolean; at: number }>();
+const DELETED_CHECK_TTL_MS = 60_000;
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -148,18 +152,33 @@ export async function proxy(request: NextRequest) {
   // that live token could keep loading/editing a "deleted" account's pages for
   // up to an hour after deletion, contradicting the account-deleted messaging.
   if (userId && isProtected) {
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("customization")
-        .eq("id", userId)
-        .maybeSingle();
-      const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
-      if (deleted) {
-        return redirectWithAuthCookies(new URL("/account-deleted", request.url));
+    // Cached for 60s per user id: this lookup was a SERIAL DB round trip paid
+    // before every protected page could even start rendering — the single
+    // largest fixed cost on every in-app tap. The guard's job is to end a
+    // soft-deleted account's still-valid access token (≤1h window); catching
+    // that within a minute instead of instantly changes nothing real, and the
+    // deletion flow signs the user out anyway — plus every protected page
+    // re-checks _deleted itself server-side. Per-instance memory, so a cold
+    // function simply pays the one read it always paid.
+    const hit = deletedCheckCache.get(userId);
+    if (hit && Date.now() - hit.at < DELETED_CHECK_TTL_MS) {
+      if (hit.deleted) return redirectWithAuthCookies(new URL("/account-deleted", request.url));
+    } else {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("customization")
+          .eq("id", userId)
+          .maybeSingle();
+        const deleted = (profile?.customization as Record<string, unknown> | null)?._deleted === true;
+        if (deletedCheckCache.size > 5000) deletedCheckCache.clear(); // unbounded-growth guard
+        deletedCheckCache.set(userId, { deleted, at: Date.now() });
+        if (deleted) {
+          return redirectWithAuthCookies(new URL("/account-deleted", request.url));
+        }
+      } catch {
+        // DB unreachable — let the page try; blocking here blanks the app.
       }
-    } catch {
-      // DB unreachable — let the page try; blocking here blanks the app.
     }
   }
 

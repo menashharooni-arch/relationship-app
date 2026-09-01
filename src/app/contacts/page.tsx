@@ -24,10 +24,13 @@ export default async function ContactsPage({
   searchParams: Promise<{ card?: string; lead?: string }>;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { card: cardParam, lead: selectedLeadParam } = await searchParams;
+  // getClaims is a LOCAL ES256 verify (zero network) — it yields the user id
+  // immediately so every query below starts NOW, instead of queueing behind a
+  // serial auth round trip. getUser() (the full server-side check) still runs,
+  // in parallel. Same pattern, same reasoning, as the dashboard.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const authedUserId = (claimsData?.claims?.sub as string | undefined) ?? null;
+  if (!authedUserId) redirect("/login");
 
   // Resolve the active card SERVER-SIDE, the way /share already does.
   //
@@ -42,27 +45,33 @@ export default async function ContactsPage({
   // the value is identical — it just arrives early enough to matter. With
   // initialCardFilter set on the first render, that effect returns immediately
   // and the second navigation never happens.
-  const cookieCard = (await cookies()).get(ACTIVE_CARD_COOKIE)?.value ?? null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, plan, customization")
-    .eq("id", user.id)
-    .single();
+  // ONE parallel batch for everything keyed to the user id — this page was a
+  // five-deep serial chain (auth → params → cookie → profile → cards), i.e.
+  // four extra round trips of pure latency on the app's most-used screen.
+  const admin = getAdminSupabase();
+  const cardsQuery = () =>
+    admin.from("cards").select("id, username, name, label").eq("user_id", authedUserId).order("created_at", { ascending: true });
+  const [{ data: { user } }, params, cookieStore, { data: profile }, cardsRes0] = await Promise.all([
+    supabase.auth.getUser(),
+    searchParams,
+    cookies(),
+    supabase.from("profiles").select("username, plan, customization").eq("id", authedUserId).single(),
+    cardsQuery(),
+  ]);
+  if (!user) redirect("/login");
+  const { card: cardParam, lead: selectedLeadParam } = params;
+  const cookieCard = cookieStore.get(ACTIVE_CARD_COOKIE)?.value ?? null;
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
 
-  // Skip the one-time migration entirely once done (the common case).
+  // Skip the one-time migration entirely once done (the common case). The rare
+  // unmigrated account mutates the cards table, so only then re-read it.
+  let cardsRes = cardsRes0;
   if (!(profile.customization as { _migrated?: boolean } | null)?._migrated) {
     await ensureUserCards(user.id);
+    cardsRes = await cardsQuery();
   }
-
-  const admin = getAdminSupabase();
-  const { data: cards } = await admin
-    .from("cards")
-    .select("id, username, name, label")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  const { data: cards } = cardsRes;
 
   const cardList = cards ?? [];
 
@@ -77,11 +86,16 @@ export default async function ContactsPage({
     cardParam ?? (cookieCard && cardList.some((c) => c.username === cookieCard) ? cookieCard : undefined);
   const allUsernames = cardList.map((c) => c.username);
 
-  const { data: rawLeads } = await admin
-    .from("leads")
-    .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
-    .in("card_owner", allUsernames)
-    .order("name", { ascending: true });
+  // Leads depend on the card list above; the office-admin gate doesn't depend
+  // on leads — so they share one round trip instead of stacking two.
+  const [{ data: rawLeads }, showOfficeAdmin] = await Promise.all([
+    admin
+      .from("leads")
+      .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
+      .in("card_owner", allUsernames)
+      .order("name", { ascending: true }),
+    canViewOfficeAdmin(authedUserId, profile.plan),
+  ]);
 
   // Free plan: leads captured beyond the 5/month cap are locked — hide them here
   // too (same as the dashboard) so they're never revealed until the account is Pro.
@@ -98,9 +112,8 @@ export default async function ContactsPage({
   // already asked to be contacted.
   const lockedCount = paid ? 0 : (rawLeads ?? []).length - (leads ?? []).length;
 
-  // Keep the "Admin" nav item present across the app shell, not just on the
-  // dashboard — the same gate the /office/admin page itself applies.
-  const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
+  // showOfficeAdmin resolved in the batch above — the same gate the
+  // /office/admin page itself applies, kept for the app-shell "Admin" item.
 
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
