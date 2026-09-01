@@ -1,7 +1,7 @@
 # SwiftCard Agent Flow — marketing & monitoring agents
 
 Ten agents, run from GitHub Actions, controlled from **Admin → Website → Agent
-Flow** (swiftcard.me/admin/website/agent-flow, hello@swiftcard.me only).
+Flow** (swiftcard.me/admin/agent-flow, hello@swiftcard.me only).
 Nothing runs on its own; you press the buttons.
 
 ## Autonomous vs draft-only

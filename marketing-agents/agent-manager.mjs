@@ -44,7 +44,7 @@ await safeMain("manager", async (run) => {
     const r = latest[a];
     lines.push(`  ${a.padEnd(11)} ${r ? `${r.status.padEnd(8)} ${r.output_count} item(s), $${Number(r.usage_usd).toFixed(2)} — ${String(r.summary ?? "").slice(0, 90)}` : "did not run"}`);
   }
-  lines.push("", `AWAITING YOUR REVIEW: ${totalPending} item(s) → swiftcard.me/admin/website/agent-flow`);
+  lines.push("", `AWAITING YOUR REVIEW: ${totalPending} item(s) → swiftcard.me/admin/agent-flow`);
   lines.push("", `USAGE this month: $${monthSpend.toFixed(2)} of $${sys.monthly_usage_cap_usd} cap` , ...AGENTS.filter((a) => spendBy[a]).map((a) => `  ${a}: $${spendBy[a].toFixed(2)}`));
   lines.push("", "TRENDS (7d):", `  new signups: ${signups7 ?? "?"}`, `  leads captured: ${leads7 ?? "?"}`, `  security findings (24h): ${errors24 ?? 0}`, "  keyword movement / blog traffic: Google Search Console + Admin → Website");
   if (silent.length) lines.push("", `Not run in 24h (fine if you didn't trigger them): ${silent.join(", ")}`);
