@@ -26,3 +26,5 @@ Produce 3–5 items of item_type "video_script":
 Plus exactly ONE item of item_type "generic": a LinkedIn text post draft
 (title "LinkedIn post — {topic}", content = the post, 80-150 words, brand
 voice, no hashtag walls — 3 max).
+
+Captions and the LinkedIn post are person-facing too: apply HUMAN_VOICE — no tells, no emoji clusters, captions that sound typed by a person, not generated.

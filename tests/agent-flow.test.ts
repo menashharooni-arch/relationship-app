@@ -79,6 +79,35 @@ describe("agent flow: schema and config integrity", () => {
   });
 });
 
+describe("agent flow: person-facing copy is guarded against sounding like AI", () => {
+  const runner = read("marketing-agents/run-agent.mjs");
+
+  it("the human-voice doctrine exists and ends with the self-check", () => {
+    const doc = read("marketing-agents/HUMAN_VOICE.md");
+    expect(doc).toMatch(/Never write these/);
+    expect(doc).toMatch(/Final self-check/);
+    expect(doc).toMatch(/Could this exact text go to anyone else/);
+  });
+
+  it("the runner injects it for every person-facing agent", () => {
+    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "mentions", "influencer", "social"\]\)/);
+    expect(runner).toMatch(/HUMAN_VOICE\.md/);
+  });
+
+  it("drafts with AI tells are DISCARDED, never queued", () => {
+    // The filter is a hard gate the model cannot argue with — sentinel tells:
+    for (const tell of ["finds you well", "came across your", "game.?changer", "delve"])
+      expect(runner, `filter lost the "${tell}" tell`).toContain(tell);
+    expect(runner).toMatch(/robotic\+\+/);
+    expect(runner).toMatch(/DISCARDED for AI-sounding language/);
+  });
+
+  it("each person-facing agent carries the mandatory final pass", () => {
+    for (const a of ["outreach", "mentions", "influencer", "social"])
+      expect(read(`marketing-agents/agents/${a}.md`), `${a}.md missing its final pass`).toMatch(/HUMAN_VOICE/);
+  });
+});
+
 describe("agent flow: blog publishes only reviewed content", () => {
   it("public pages read published rows only", () => {
     expect(read("src/app/blog/page.tsx")).toMatch(/eq\("status", "published"\)/);

@@ -122,6 +122,11 @@ for PII, and tested.
   use"; it never sends anything.
 - **Auto-stop (work hours):** the ⏰ control arms a clock-out ("at 5 PM ET" /
   "in 3 hours"). Reached, the whole system holds like Pause All until Resume.
+- **Will outreach sound like AI?** Three layers say no: every person-facing
+  agent writes under `HUMAN_VOICE.md` (the banned-tells doctrine), runs a
+  mandatory self-check, and the runner HARD-DISCARDS any draft containing an
+  AI-tell phrase before it can reach the queue — the run summary reports every
+  discard.
 - **Lost?** The ✦ Take a tour button walks every control, live on the page.
 
 ## Boundaries honored

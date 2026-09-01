@@ -23,3 +23,5 @@ For EACH item:
 
 These threads get indexed by Google and pulled into AI answers — genuine
 helpful presence compounds. A salesy reply compounds the other way.
+
+FINAL PASS (mandatory): every reply must pass the HUMAN_VOICE self-check — react to the thread, don't recap it; no tells; Reddit register (no greeting, no sign-off). Discarded-by-filter replies waste the run.
