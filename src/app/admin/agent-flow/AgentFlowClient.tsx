@@ -260,7 +260,7 @@ export default function AgentFlowClient() {
   const ACT_TOAST: Record<string, string> = {
     approved: "Approved — nothing is sent automatically; it's yours to use.",
     rejected: "Rejected — filed to History. Nothing was deleted or sent.",
-    acknowledged: "Marked as read — it lives on in History.",
+    acknowledged: "Approved — filed to History. Reports execute nothing; code fixes ship when you merge their PR.",
     published: "Published — live on swiftcard.me/blog right now.",
     contacted: "Marked sent — record 'Got a reply' or 'Converted' when it happens.",
     replied: "Recorded the reply 🎯", converted: "Recorded the conversion 🎉", edited: "Saved your version — still pending with your edit.",
@@ -696,7 +696,7 @@ export default function AgentFlowClient() {
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
                       {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "flow_finding" || it.item_type === "digest") && (
-                        <button onClick={() => act([it.id], "acknowledged")} title="Marks it read; nothing executes" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Got it ✓</button>
+                        <button onClick={() => act([it.id], "acknowledged")} title="Approve = noted and filed. Reports never execute anything — a code fix ships only when you merge its draft PR." className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approved</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (
                         <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-center whitespace-nowrap">View the fix (PR)</a>
