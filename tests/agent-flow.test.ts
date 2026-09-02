@@ -141,6 +141,24 @@ describe("agent flow: the org chart and comms log stay coherent", () => {
     expect(sayFn).not.toMatch(/agent_queue_items|agent_runs|agent_settings/);
   });
 
+  it("LLM agents stand down gracefully at the usage limit; watchers are untouched", () => {
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    expect(kit).toMatch(/export async function standDownIfUsageExhausted/);
+    expect(kit).toMatch(/skipped_usage/);
+    // Only the two LLM runners consult it — no-LLM watchers never should.
+    expect(read("marketing-agents/run-agent.mjs")).toMatch(/standDownIfUsageExhausted\(run\)/);
+    expect(read("marketing-agents/agent-blog.mjs")).toMatch(/standDownIfUsageExhausted\(run\)/);
+    for (const f of ["agent-seo.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-manager.mjs"])
+      expect(read(`marketing-agents/${f}`), `${f} needs no usage gate (no LLM)`).not.toMatch(/standDownIfUsageExhausted/);
+  });
+
+  it("team switches pause exactly the lead's reports and the scheduler honors it", () => {
+    const route = read("src/app/api/admin/agents/control/route.ts");
+    expect(route).toMatch(/op === "pause_team" \|\| op === "resume_team"/);
+    expect(route).toMatch(/kind === "lead"/);
+    expect(read("marketing-agents/scheduler.mjs")).toMatch(/paused=is\.false/);
+  });
+
   it("the Claude-plan usage meter is admin-gated and best-effort", () => {
     const route = read("src/app/api/admin/agents/usage/route.ts");
     expect(route).toMatch(/requireAdmin/);

@@ -50,10 +50,10 @@ const AGENT_ROLE: Record<string, string> = {
   influencer: "scouts creators + drafts pitches", bugwatch: "turns errors into draft fixes",
   security: "vulns, leaks, headers", perf: "keeps everything fast", manager: "runs the company, reports to you",
 };
-const TEAMS: { id: string; label: string; blurb: string; agents: string[] }[] = [
+const TEAMS: { id: string; label: string; blurb: string; agents: string[]; lead?: string }[] = [
   { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
-  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"] },
-  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"] },
+  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"], lead: "maya" },
+  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"], lead: "rex" },
 ];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
@@ -231,6 +231,8 @@ export default function AgentFlowClient() {
     else if (op === "start_all") say("You're OPEN. Every agent runs now, then keeps its own rhythm until you pause.");
     else if (op === "pause_all") say("Paused. In-flight agents stop at their next checkpoint — a session summary was written to your queue.");
     else if (op === "run") say(`${AGENT_NAMES[agent_id!] ?? agent_id} is running now — results land in the queue.`);
+    else if (op === "pause_team") say(`${firstName(agent_id!)}'s team is resting — they skip their shifts until you wake them. Everyone else keeps working.`);
+    else if (op === "resume_team") say(`${firstName(agent_id!)}'s team is back on — normal rhythms resume from the next window.`);
     else say("Done.");
     load();
   };
@@ -311,7 +313,7 @@ export default function AgentFlowClient() {
     const r = board.latestRuns[id];
     const running = r?.status === "running";
     const problem = r?.status === "failed";
-    const next = open && s.enabled ? nextRunText(s.schedule, id, now) : null;
+    const next = open && s.enabled && !s.paused ? nextRunText(s.schedule, id, now) : null;
     return (
       <div data-aftour={isFirst ? "agentrow" : undefined} className={`rounded-xl border p-3.5 min-w-0 overflow-hidden ${problem ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
         {/* line 1 — identity + controls; wraps downward, never clips */}
@@ -320,6 +322,7 @@ export default function AgentFlowClient() {
           {running ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 animate-pulse">Working · {r ? dur(r.started_at, null, now) : ""}</span>
             : problem ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
             : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
+            : s.paused ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
             : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · next {next}</span>
             : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "Manual only" : "Waiting for Start"}</span>}
           <div className="flex items-center gap-1.5 ml-auto">
@@ -334,7 +337,7 @@ export default function AgentFlowClient() {
         <div className="mt-1 text-xs text-gray-500 min-w-0">
           <span className="text-gray-600">{AGENT_ROLE[id]}</span>
           <span className="mx-1.5 text-gray-700">·</span>
-          <span>{r ? `last: ${r.status === "success" ? "done" : r.status} ${ago(r.started_at)}, ${r.output_count} item(s), ${fmtTok(r.usage_tokens)} tok` : "hasn't run yet"}</span>
+          <span>{r ? `last: ${r.status === "success" ? "done" : r.status === "skipped_usage" ? "waited (usage window full)" : r.status} ${ago(r.started_at)}, ${r.output_count} item(s), ${fmtTok(r.usage_tokens)} tok` : "hasn't run yet"}</span>
           {(board.tokensBy?.[id] ?? 0) > 0 && <span className="ml-1.5 text-gray-600">· {fmtTok(board.tokensBy![id])} tok this month</span>}
           {(board.pendingBy[id] ?? 0) > 0 && <button onClick={() => { setView("queue"); setFilterAgent(id); setFilterStatus("pending"); setFilterType(""); }} className="ml-1.5 text-blue-400 hover:underline">{board.pendingBy[id]} waiting for you →</button>}
           {(running || problem) && r?.summary && <p className={`mt-0.5 truncate ${running ? "text-blue-300" : "text-red-400/80"}`}>{running ? "⋯ " : ""}{r.summary}</p>}
@@ -431,37 +434,50 @@ export default function AgentFlowClient() {
 
       {view === "agents" && (
         <div className="space-y-5">
-          {TEAMS.map((team) => (
+          {TEAMS.map((team) => {
+            const teamResting = !!team.lead && team.agents.every((id) => byId[id]?.paused);
+            return (
             <div key={team.id} data-aftour={`team-${team.id}`}>
-              <div className="flex flex-wrap items-baseline gap-2 mb-2">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <p className="text-white text-[15px] font-bold">{team.label}</p>
                 <p className="text-gray-600 text-xs">{team.blurb}</p>
+                {team.lead && (
+                  <button
+                    onClick={() => control(teamResting ? "resume_team" : "pause_team", team.lead)}
+                    disabled={busy}
+                    title={teamResting ? "Everyone on this team resumes their normal rhythms" : "The whole team stops at its next checkpoint and skips shifts until you wake it — other teams keep working"}
+                    className={`ml-auto text-[11px] font-bold px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${teamResting ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/40" : "bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200"}`}
+                  >
+                    {teamResting ? "▶ Wake team" : "⏸ Rest team"}
+                  </button>
+                )}
               </div>
               <div className="grid gap-2">
                 {team.agents.map((id, i) => <AgentRow key={id} id={id} isFirst={team.id === "marketing" && i === 0} />)}
               </div>
             </div>
-          ))}
+          ); })}
           {lastDigest && <p className="text-gray-600 text-xs">Atlas&apos;s last report {ago(lastDigest.started_at)} — <button onClick={() => { setView("queue"); setFilterAgent("manager"); setFilterType("digest"); setFilterStatus("pending"); }} className="text-blue-400 hover:underline">open</button> (also emailed to {board.system.digest_email}).</p>}
         </div>
       )}
 
       {view === "chart" && (() => {
         // Live org chart, derived from org.json so a re-org redraws itself.
-        const statusOf = (agentId?: string): "working" | "problem" | "benched" | "idle" => {
+        const statusOf = (agentId?: string): "working" | "problem" | "benched" | "resting" | "idle" => {
           if (!agentId) return "idle";
           const s = byId[agentId];
           if (s && !s.enabled) return "benched";
           const r = board.latestRuns[agentId];
           if (r?.status === "running") return "working";
           if (r?.status === "failed") return "problem";
+          if (s?.paused) return "resting";
           return "idle";
         };
         const leads = Object.entries(ORG).filter(([, p]) => p.kind === "lead");
         const workersOf = (lead: string) => Object.entries(ORG).filter(([, p]) => p.kind === "worker" && p.reports_to === lead);
         const leadStatus = (lead: string): ReturnType<typeof statusOf> => {
           const ws = workersOf(lead).map(([, p]) => statusOf(p.agent_id));
-          return ws.includes("working") ? "working" : ws.includes("problem") ? "problem" : "idle";
+          return ws.includes("working") ? "working" : ws.includes("problem") ? "problem" : ws.length && ws.every((s) => s === "resting" || s === "benched") ? "resting" : "idle";
         };
         // Layout: each team gets a horizontal territory wide enough for its
         // widest worker row, so nothing can ever overlap or leave the canvas.
@@ -490,7 +506,7 @@ export default function AgentFlowClient() {
         }
         const edge = (a: string, b: string) => { const p = pos[a], c = pos[b]; return `M ${p.x} ${p.y + NH / 2} C ${p.x} ${(p.y + c.y) / 2}, ${c.x} ${(p.y + c.y) / 2}, ${c.x} ${c.y - NH / 2}`; };
         const doneToday = (board.recentRuns ?? []).filter((r) => r.status === "success" && new Date(r.started_at).toDateString() === new Date().toDateString()).length;
-        const STATUS_UI = { working: { dot: "#60a5fa", label: "WORKING" }, problem: { dot: "#f87171", label: "PROBLEM" }, benched: { dot: "#6b7280", label: "BENCHED" }, idle: { dot: "#4b5563", label: open ? "ON DUTY" : "IDLE" } } as const;
+        const STATUS_UI = { working: { dot: "#60a5fa", label: "WORKING" }, problem: { dot: "#f87171", label: "PROBLEM" }, benched: { dot: "#6b7280", label: "BENCHED" }, resting: { dot: "#7dd3fc", label: "RESTING" }, idle: { dot: "#4b5563", label: open ? "ON DUTY" : "IDLE" } } as const;
         const Node = ({ pid }: { pid: string }) => {
           const p = ORG[pid];
           const st = p.kind === "human" ? null : p.kind === "lead" ? leadStatus(pid) : statusOf(p.agent_id);

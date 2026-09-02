@@ -191,6 +191,7 @@ export class Run {
     await sb("PATCH", "agent_runs", { params: `id=eq.${this.id}`, body: { status, summary, finished_at: new Date().toISOString(), output_count: this.outputCount, usage_usd: this.usageUsd.toFixed(4), usage_tokens: this.usageTokens } });
     // Comms: report back up the chain. A failure escalates lead → Atlas so the
     // chief (and the feed) always knows; the chief reports straight to the owner.
+    if (status === "skipped_usage") return; // standDownIfUsageExhausted already said its piece
     const worker = partyOf(this.agentId), lead = leadOf(this.agentId);
     const cost = this.usageTokens > 0 ? `, ${this.usageTokens >= 1e6 ? (this.usageTokens / 1e6).toFixed(2) + "M" : Math.round(this.usageTokens / 100) / 10 + "k"} tokens` : "";
     const report =
@@ -222,6 +223,30 @@ export async function snapshotClaudeUsage() {
       body: { claude_usage: { five_hour: pick(u.five_hour), seven_day: pick(u.seven_day), captured_at: new Date().toISOString() } },
     });
   } catch (e) { console.error(`usage snapshot failed: ${String(e).slice(0, 120)}`); }
+}
+
+/** LLM agents call this BEFORE burning a Claude call: when the owner's plan
+ *  window is exhausted, stand down gracefully (status 'skipped_usage', a calm
+ *  comms note with the reset time) instead of failing red. No-LLM watchers
+ *  never call it — they are immune to usage limits. Best-effort: any error
+ *  checking usage lets the run proceed. */
+export async function standDownIfUsageExhausted(run) {
+  const tok = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  if (!tok) return; // API-key billing (or no token) — nothing to check
+  let u = null;
+  try {
+    const res = await fetch("https://api.anthropic.com/api/oauth/usage", {
+      headers: { Authorization: `Bearer ${tok}`, "anthropic-beta": "oauth-2025-04-20" },
+    });
+    if (res.ok) u = await res.json();
+  } catch { /* fail open */ }
+  const w = u?.five_hour;
+  if (!w || Number(w.utilization) < 99) return;
+  const resets = w.resets_at ? new Date(w.resets_at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) + " ET" : "the next window";
+  const worker = partyOf(run.agentId), lead = leadOf(run.agentId);
+  await say(worker, lead === "owner" ? "owner" : lead, `Standing down — the Claude plan's 5-hour window is used up. I'll be back after ${resets}; the schedule retries me automatically.`, { kind: lead === "owner" ? "owner_out" : "a2a", run_id: run.id });
+  await run.finish("skipped_usage", `Claude plan usage window exhausted (${Math.round(w.utilization)}%). Skipped without spending; resumes after ${resets}.`);
+  process.exit(0);
 }
 
 /** Wrap an agent's main. Guarantees the run row never stays 'running' forever. */

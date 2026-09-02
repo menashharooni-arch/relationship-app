@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import agentConfig from "../../../../../../marketing-agents/config.json";
-import { firstName } from "@/lib/agent-org";
+import { firstName, ORG } from "@/lib/agent-org";
 
 // Run controls. Pause flags live in the DB (agents poll them between steps —
 // that is what makes PAUSE take effect mid-run). Run/Start-All dispatch the
@@ -52,6 +52,20 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ ok: true });
+  }
+  // Whole-team switch: benches/wakes every agent reporting to a lead in one
+  // click, so e.g. Maya's marketing team rests while Rex's watchers keep going.
+  if ((op === "pause_team" || op === "resume_team") && agent_id && ORG[agent_id]?.kind === "lead") {
+    const teamAgents = Object.values(ORG).filter((p) => p.reports_to === agent_id && p.agent_id).map((p) => p.agent_id!);
+    if (!teamAgents.length) return NextResponse.json({ error: "empty team" }, { status: 400 });
+    const pausing = op === "pause_team";
+    await admin.from("agent_settings").update({ paused: pausing, updated_at: new Date().toISOString() }).in("agent_id", teamAgents);
+    const lead = ORG[agent_id];
+    await say(admin, "owner", "atlas", `${pausing ? "Stand down" : "Wake up"} ${lead.name}'s whole team for now.`, "owner_in");
+    await say(admin, "atlas", agent_id, pausing
+      ? "Your team stands down — everyone stops at their next checkpoint and skips their shifts until further notice. Other teams keep working."
+      : "Your team is back on — everyone resumes their normal rhythms from the next window.");
+    return NextResponse.json({ ok: true, count: teamAgents.length });
   }
   if ((op === "pause" || op === "resume") && agent_id) {
     await admin.from("agent_settings").update({ paused: op === "pause", updated_at: new Date().toISOString() }).eq("agent_id", agent_id);
