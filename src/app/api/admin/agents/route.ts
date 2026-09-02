@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { connectorStatus } from "@/lib/agent-execute";
 
 // Agent Flow: status board payload. Degrades to {ready:false} until the owner
 // has run supabase/agent-flow.sql (same pattern as the referrals dashboard).
@@ -31,6 +32,7 @@ export async function GET() {
       latestRuns: latest, recentRuns: runs.data,
       pendingBy, pendingTotal: (pending.data ?? []).length, spendBy,
       dispatchConfigured: !!process.env.GITHUB_AGENTS_TOKEN,
+      connectors: connectorStatus(),
     });
   } catch {
     return NextResponse.json({ ready: false, message: "Run supabase/agent-flow.sql in the Supabase SQL editor to enable Agent Flow." });

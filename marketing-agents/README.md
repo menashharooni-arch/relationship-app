@@ -82,6 +82,25 @@ GitHub Actions can use **either**:
   sentry-triage already uses this name).
 Set one (or both — API key wins for triage, either works for agents).
 
+## Approve-to-execute (Connections)
+
+Approve is the send button. When a platform is connected (Vercel env vars),
+approving a pending item executes it immediately **as the owner**:
+
+| Connector | Fires on | Env vars |
+|---|---|---|
+| LinkedIn | `generic`/`video_script`/`blog_post` items with platform `linkedin` → publishes a public post | `LINKEDIN_ACCESS_TOKEN` (OAuth, `w_member_social`) + `LINKEDIN_AUTHOR_URN` |
+| Higgsfield | `video_script` items → submits the prompt as a generation job (status link saved on the item) | `HIGGSFIELD_API_KEY_ID` + `HIGGSFIELD_API_KEY_SECRET` (+ optional `HIGGSFIELD_ENDPOINT`) |
+| Reddit | `reply_draft`/`outreach_draft` with platform `reddit` + a thread URL → posts the reply | `REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD` (script app) |
+
+Executed items get status `posted` (with the live URL on the card); a failed
+execution falls back to `approved` + the classic Copy flow, never lost. The
+contract (pinned in tests): the posting code lives ONLY in
+`src/lib/agent-execute.ts`, is reachable ONLY from the admin items route
+behind `requireAdmin`, and fires ONLY on the owner's Approve of a pending
+item — agents remain structurally unable to post. IG/FB/X have no personal
+auto-posting API; those stay Approve & Copy.
+
 ## Using the tab
 
 - **Start All** dispatches every enabled agent (manager excluded — run it last).
