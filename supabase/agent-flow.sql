@@ -36,6 +36,11 @@ insert into agent_system (id) values (true) on conflict do nothing;
 -- owner clears it from the Agent Flow tab.
 alter table agent_system add column if not exists auto_pause_at timestamptz;
 
+-- Last Claude-plan usage snapshot ({five_hour, seven_day, captured_at}),
+-- written by the runners after each run (they hold the OAuth token in
+-- Actions). Lets the tab show plan usage even with no token in Vercel.
+alter table agent_system add column if not exists claude_usage jsonb;
+
 -- Every run of every agent, for the status board and the audit trail.
 create table if not exists agent_runs (
   id           uuid primary key default gen_random_uuid(),

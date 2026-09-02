@@ -15,7 +15,7 @@ export async function GET() {
       admin.from("agent_system").select("*").limit(1).single(),
       admin.from("agent_runs").select("*").order("started_at", { ascending: false }).limit(60),
       admin.from("agent_queue_items").select("agent_id, item_type").eq("status", "pending"),
-      admin.from("agent_runs").select("agent_id, usage_usd").gte("started_at", monthStart.toISOString()),
+      admin.from("agent_runs").select("agent_id, usage_usd, usage_tokens").gte("started_at", monthStart.toISOString()),
     ]);
     if (settings.error || system.error) {
       return NextResponse.json({ ready: false, message: "Run supabase/agent-flow.sql in the Supabase SQL editor to enable Agent Flow." });
@@ -25,12 +25,16 @@ export async function GET() {
     const pendingBy: Record<string, number> = {};
     for (const q of pending.data ?? []) pendingBy[q.agent_id] = (pendingBy[q.agent_id] ?? 0) + 1;
     const spendBy: Record<string, number> = {};
-    for (const r of monthRuns.data ?? []) spendBy[r.agent_id] = (spendBy[r.agent_id] ?? 0) + Number(r.usage_usd);
+    const tokensBy: Record<string, number> = {};
+    for (const r of monthRuns.data ?? []) {
+      spendBy[r.agent_id] = (spendBy[r.agent_id] ?? 0) + Number(r.usage_usd);
+      tokensBy[r.agent_id] = (tokensBy[r.agent_id] ?? 0) + Number(r.usage_tokens ?? 0);
+    }
     return NextResponse.json({
       ready: true,
       settings: settings.data, system: system.data,
       latestRuns: latest, recentRuns: runs.data,
-      pendingBy, pendingTotal: (pending.data ?? []).length, spendBy,
+      pendingBy, pendingTotal: (pending.data ?? []).length, spendBy, tokensBy,
       dispatchConfigured: !!process.env.GITHUB_AGENTS_TOKEN,
       connectors: connectorStatus(),
     });

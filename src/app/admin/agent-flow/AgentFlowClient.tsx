@@ -11,9 +11,19 @@ import { ORG, firstName } from "@/lib/agent-org";
 // make on/off unmistakable. Rows wrap downward — nothing ever cuts off.
 
 type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_usd: number; schedule: string | null };
-type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; summary: string | null; trigger: string };
+type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; usage_tokens?: number; summary: string | null; trigger: string };
+type UsageWindow = { utilization: number; resets_at: string | null } | null;
+type PlanUsage = { source: "live" | "snapshot" | "none"; five_hour?: UsageWindow; seven_day?: UsageWindow; captured_at?: string };
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
-type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean> };
+type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number> };
+
+/** 12,345 → "12.3k", 1,234,567 → "1.23M". */
+function fmtTok(n: number | undefined | null): string {
+  const v = Number(n ?? 0);
+  if (v >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1000) return `${(v / 1e3).toFixed(1)}k`;
+  return String(Math.round(v));
+}
 
 // Mirrors src/lib/agent-execute.ts matching rules (armed-ness comes from the
 // board payload — the client never sees tokens). Kept in sync by tests.
@@ -149,9 +159,21 @@ export default function AgentFlowClient() {
   const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [planUsage, setPlanUsage] = useState<PlanUsage | null>(null);
+  const [usageBusy, setUsageBusy] = useState(false);
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(""), 4200); };
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+
+  // Claude-plan usage meter: on load + manual ↻ + every 60s.
+  const loadUsage = useCallback(async () => {
+    setUsageBusy(true);
+    const u = await fetch("/api/admin/agents/usage").then((r) => r.json()).catch(() => null);
+    if (u?.source) setPlanUsage(u);
+    setUsageBusy(false);
+  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch + the 60s auto-refresh, same pattern as the board loader
+  useEffect(() => { loadUsage(); const t = setInterval(loadUsage, 60000); return () => clearInterval(t); }, [loadUsage]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -274,6 +296,7 @@ export default function AgentFlowClient() {
   const pendingItems = items.filter((i) => i.status === "pending");
   const pendingProspects = pendingItems.filter((i) => i.item_type === "prospect");
   const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
+  const monthTokens = Object.values(board.tokensBy ?? {}).reduce((t, n) => t + n, 0);
   const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
   const autoStopArmed = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
   const autoStopHit = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
@@ -311,7 +334,8 @@ export default function AgentFlowClient() {
         <div className="mt-1 text-xs text-gray-500 min-w-0">
           <span className="text-gray-600">{AGENT_ROLE[id]}</span>
           <span className="mx-1.5 text-gray-700">·</span>
-          <span>{r ? `last: ${r.status === "success" ? "done" : r.status} ${ago(r.started_at)}, ${r.output_count} item(s), $${Number(r.usage_usd).toFixed(2)}` : "hasn't run yet"}</span>
+          <span>{r ? `last: ${r.status === "success" ? "done" : r.status} ${ago(r.started_at)}, ${r.output_count} item(s), ${fmtTok(r.usage_tokens)} tok` : "hasn't run yet"}</span>
+          {(board.tokensBy?.[id] ?? 0) > 0 && <span className="ml-1.5 text-gray-600">· {fmtTok(board.tokensBy![id])} tok this month</span>}
           {(board.pendingBy[id] ?? 0) > 0 && <button onClick={() => { setView("queue"); setFilterAgent(id); setFilterStatus("pending"); setFilterType(""); }} className="ml-1.5 text-blue-400 hover:underline">{board.pendingBy[id]} waiting for you →</button>}
           {(running || problem) && r?.summary && <p className={`mt-0.5 truncate ${running ? "text-blue-300" : "text-red-400/80"}`}>{running ? "⋯ " : ""}{r.summary}</p>}
         </div>
@@ -322,7 +346,7 @@ export default function AgentFlowClient() {
               <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] min-w-0">
                 <span className="text-gray-600 tabular-nums shrink-0">{new Date(rr.started_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                 <span className={rr.status === "failed" ? "text-red-400 font-semibold" : rr.status === "success" ? "text-emerald-500" : "text-amber-400"}>{rr.status === "success" ? "done" : rr.status}</span>
-                <span className="text-gray-500 whitespace-nowrap">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · ${Number(rr.usage_usd).toFixed(2)}</span>
+                <span className="text-gray-500 whitespace-nowrap">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · {fmtTok(rr.usage_tokens)} tok</span>
                 <span className="text-gray-400 basis-full truncate">{rr.summary}</span>
               </div>
             ))}
@@ -349,7 +373,29 @@ export default function AgentFlowClient() {
           ) : (
             <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
           )}
-          <p className="text-gray-600 text-[11px] mt-0.5">Stops by itself at the auto-stop time or the ${Number(board.system.monthly_usage_cap_usd).toFixed(0)} monthly cap (${monthSpend.toFixed(2)} used{capPct >= 85 ? " ⚠" : ""}). {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
+          <p className="text-gray-600 text-[11px] mt-0.5">{fmtTok(monthTokens)} tokens used this month{capPct >= 85 ? " ⚠ near the budget cap" : ""} · stops by itself at the auto-stop time or the ${Number(board.system.monthly_usage_cap_usd).toFixed(0)} budget. {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
+        </div>
+        {/* Claude-plan usage meter — the agents run on the owner's Claude account */}
+        <div data-aftour="usage" className="flex flex-col gap-1 min-w-[190px] max-w-[230px]">
+          {!planUsage || planUsage.source === "none" ? (
+            <p className="text-[10px] text-gray-600 leading-snug">🧠 Claude usage meter arms after the next agent run (or set CLAUDE_CODE_OAUTH_TOKEN in Vercel for always-live).</p>
+          ) : (
+            <>
+              {([["5-hr window", planUsage.five_hour], ["7-day", planUsage.seven_day]] as const).map(([label, w]) => w && (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-gray-500 w-14 shrink-0 text-right">{label}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                    <div className={`h-full rounded-full ${w.utilization >= 85 ? "bg-red-500" : w.utilization >= 60 ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, w.utilization)}%` }} />
+                  </div>
+                  <span className={`text-[10px] font-bold tabular-nums w-8 ${w.utilization >= 85 ? "text-red-400" : w.utilization >= 60 ? "text-amber-300" : "text-emerald-400"}`}>{Math.round(w.utilization)}%</span>
+                </div>
+              ))}
+              <p className="text-[9px] text-gray-600 flex items-center gap-1">
+                <span>🧠 Claude plan{planUsage.source === "live" ? " · live" : ` · from last run, ${ago(planUsage.captured_at ?? null)}`}{planUsage.five_hour?.resets_at ? ` · resets in ${untilText(planUsage.five_hour.resets_at, now)}` : ""}</span>
+                <button onClick={loadUsage} disabled={usageBusy} className="text-gray-500 hover:text-white disabled:opacity-40 transition-colors" title="Refresh usage now">{usageBusy ? "…" : "↻"}</button>
+              </p>
+            </>
+          )}
         </div>
         <div data-aftour="autostop" className="relative">
           <button onClick={() => setAutoStopOpen(!autoStopOpen)} className={`text-xs font-semibold px-3.5 py-2.5 rounded-full border whitespace-nowrap transition-colors ${autoStopArmed ? "bg-amber-950/40 border-amber-700/60 text-amber-300" : "bg-gray-950 border-gray-800 text-gray-400 hover:text-gray-200"}`}>
@@ -467,7 +513,7 @@ export default function AgentFlowClient() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[11px] text-gray-500">
               <span className="text-white font-bold text-sm">SwiftCard · the company</span>
               <span>✅ {doneToday} run(s) completed today</span>
-              <span>💵 ${monthSpend.toFixed(2)} this month</span>
+              <span>🧮 {fmtTok(monthTokens)} tokens this month</span>
               <span>{board.pendingTotal} item(s) waiting for you</span>
               <span className="ml-auto text-gray-600 hidden sm:inline">click anyone to read their messages</span>
               <span className="ml-auto text-gray-600 sm:hidden">swipe to pan · tap anyone for their messages</span>
