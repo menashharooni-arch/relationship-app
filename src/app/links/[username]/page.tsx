@@ -245,6 +245,9 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         pageStyle={pageStyle}
         // Owner's Social-design toggle; absent/false = shown (the default).
         showCardLink={customization.hideCardLink !== true}
+        // "Made with swiftcard.me" footer is Free-only (owner order
+        // 2026-09-02) — paid plans rely on the top-left bolt badge instead.
+        brandingFooter={!ownerPaid}
       />
       {/* In-app only (App Review 1.2): report affordance for public Swift
           Links pages. Renders null on web/SSR — the public page is unchanged. */}

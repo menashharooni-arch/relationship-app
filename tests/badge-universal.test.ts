@@ -55,11 +55,30 @@ describe("the SwiftCard badge is universal", () => {
     expect(page).not.toMatch(/src=badge/);
   });
 
-  it("SwiftLinks: the footer attribution is unchanged and not plan-gated", () => {
+  // Owner order 2026-09-02: on SWIFT LINKS pages the footer became Free-only —
+  // paid plans drop it, because the top-left bolt badge (SwiftLinksPromoBadge)
+  // now carries the invite on EVERY plan. The card-page blurb stays universal.
+  it("SwiftLinks: the footer attribution renders only when brandingFooter allows it", () => {
     const c = code("src/components/SwiftLinkProfile.tsx");
     const at = c.indexOf("src=badge");
     expect(at).toBeGreaterThan(-1);
     const before = c.slice(Math.max(0, at - 400), at);
-    expect(before).not.toMatch(/ownerPaid\s*&&|!ownerPaid\s*&&/);
+    expect(before).toMatch(/brandingFooter\s*&&/);
+  });
+
+  it("SwiftLinks page: the footer gate is the owner's PLAN, and the bolt badge is not gated", () => {
+    const page = code("src/app/links/[username]/page.tsx");
+    expect(page).toMatch(/brandingFooter=\{!ownerPaid\}/);
+    // The corner badge invite shows on every plan — only embed/owner-view
+    // context gates exist in the profile, never a plan check.
+    const profile = code("src/components/SwiftLinkProfile.tsx");
+    const badgeAt = profile.indexOf("<SwiftLinksPromoBadge");
+    expect(badgeAt).toBeGreaterThan(-1);
+    expect(profile.slice(Math.max(0, badgeAt - 200), badgeAt)).not.toMatch(/ownerPaid|paidTiles|verified/);
+  });
+
+  it("SwiftLinks preview mirrors the live rule (paid preview shows no footer)", () => {
+    const preview = code("src/components/SwiftLinkLivePreview.tsx");
+    expect(preview).toMatch(/brandingFooter=\{!paid\}/);
   });
 });
