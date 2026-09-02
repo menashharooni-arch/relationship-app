@@ -12,6 +12,7 @@
     "leo": { "name": "Leo", "role": "Prospect Scout", "emoji": "🧭", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "prospects" },
     "zoe": { "name": "Zoe", "role": "Mentions", "emoji": "📡", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "mentions" },
     "ivy": { "name": "Ivy", "role": "Influencer Scout", "emoji": "🌟", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "influencer" },
+    "finn": { "name": "Finn", "role": "Flow Check", "emoji": "🧪", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "flowcheck" },
     "bo": { "name": "Bo", "role": "Bug Watch", "emoji": "🐛", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "bugwatch" },
     "vera": { "name": "Vera", "role": "Security Watch", "emoji": "🛡️", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "security" },
     "dash": { "name": "Dash", "role": "Performance", "emoji": "⚡", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "perf" }

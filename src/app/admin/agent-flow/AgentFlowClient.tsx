@@ -48,17 +48,18 @@ const AGENT_ROLE: Record<string, string> = {
   seo: "keeps the site rankable", blog: "writes posts for your review",
   social: "a few videos & captions a day", mentions: "drafts replies to live threads",
   influencer: "scouts creators + drafts pitches", bugwatch: "turns errors into draft fixes",
-  security: "vulns, leaks, headers", perf: "keeps everything fast", manager: "runs the company, reports to you",
+  security: "vulns, leaks, headers", perf: "keeps everything fast",
+  flowcheck: "walks the user journeys end-to-end", manager: "runs the company, reports to you",
 };
 const TEAMS: { id: string; label: string; blurb: string; agents: string[]; lead?: string }[] = [
   { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
   { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"], lead: "maya" },
-  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"], lead: "rex" },
+  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches, broken flows — watches the product around the clock.", agents: ["perf", "flowcheck", "security", "bugwatch"], lead: "rex" },
 ];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
   video_script: "Video script", blog_post: "Blog post", seo_report: "SEO report", security_finding: "Security finding",
-  perf_report: "Speed report", digest: "Report", generic: "Post draft",
+  perf_report: "Speed report", flow_finding: "Flow finding", digest: "Report", generic: "Post draft",
 };
 
 function ago(iso: string | null) {
@@ -125,7 +126,7 @@ const TOUR: TourStep[] = [
   { title: "Welcome to Agent Flow", body: "Your workforce. One switch runs it: press Start and every agent works on its own rhythm — a few pieces of content a day, watchdogs every few hours — until you press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
   { view: "agents", target: "master", title: "The one switch", body: "This is the whole on/off story. Green Start = open for business, and the button becomes Pause. Press Pause and everything stops at its next safe checkpoint — and the button becomes Start again. The banner beside it always tells you which state you're in." },
   { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
-  { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
+  { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
   { view: "chart", target: "orgchart", title: "The org chart", body: "Your company, live. Blue pulse = working right now (the reporting line animates too), red = a problem, gray = benched. Click anyone to read their messages." },
   { view: "comms", target: "comms", title: "Communications", body: "The company chat log. Your orders (👑), dispatches down the chain (Maya → Jake: GO), report-backs (Jake → Maya: Done — 4 items, $0.40), and escalations to Atlas when something fails. Every row is a real event, written the moment it happened." },
   { view: "agents", target: "agentrow", title: "One worker, one row", body: "Each row: what they do, whether they're working right now (a live timer counts), when their next shift starts, and their last result. 'Run once' fires them immediately regardless of schedule; the Active toggle benches them; ▾ log is their full diary." },
@@ -663,7 +664,7 @@ export default function AgentFlowClient() {
                       {conn && !connReady && <span className="text-[10px] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
-                      {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "digest") && (
+                      {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "flow_finding" || it.item_type === "digest") && (
                         <button onClick={() => act([it.id], "acknowledged")} title="Marks it read; nothing executes" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Got it ✓</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (

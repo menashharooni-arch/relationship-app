@@ -13,8 +13,8 @@ the API routes, and the runners all read:
   reports only to the owner.
 - **📣 Maya — Marketing Lead**: Jake (SEO), Nora (Blog), Milo (Social),
   Ava (Outreach), Leo (Prospects), Zoe (Mentions), Ivy (Influencers).
-- **🛠️ Rex — Engineering Lead**: Dash (Performance), Vera (Security),
-  Bo (Bug Watch).
+- **🛠️ Rex — Engineering Lead**: Dash (Performance), Finn (Flow Check),
+  Vera (Security), Bo (Bug Watch).
 
 Maya and Rex are message parties + chart nodes, not runnable agents — the
 runnable ids in `agent_settings`/`config.json` are unchanged.
@@ -139,6 +139,7 @@ $25/month system-wide.
 | uptime.yml | every 15 min | Site down → one GitHub issue → email; recovery closes it | ✅ always |
 | deploy-watchdog | every prod deploy | Real error spike after a deploy → rolls production back to the last good build | ✅ runs; needs Sentry to detect spikes |
 | **Performance Watch** | **every 4 h** | Times the critical routes vs its own rolling baseline; flags regressions; critical route down/crawling → immediate email | ✅ armed |
+| **Flow Check (Finn)** | owner-set rhythm | Read-only end-to-end user-journey contracts: OAuth legs redirect correctly with the right params, auth walls hold, the builder still offers its controls, sitemap URLs resolve. Catches the no-error dead-end class (the LinkedIn headshot bug). Criticals email immediately; findings dispatch the Fixer | ✅ armed |
 | Security Watch | daily 9 AM ET | npm vulns, committed secrets, live headers; criticals email immediately | ✅ armed |
 | Bug Watch (sentry-triage) | daily 6:15 UTC | New production errors → one draft PR per issue | ⚠ dormant until Sentry is armed |
 
