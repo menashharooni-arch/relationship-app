@@ -2,22 +2,32 @@
 
 // Prominent first-run banner at the top of the dashboard: a big "Take a Tour"
 // invitation with a one-line "here's how to navigate your app" subtitle and a
-// Skip. Shows only until the visitor has taken or skipped the tour once.
+// Skip.
+//
+// Shows ONLY on a first-card / new-account load (?tour=1 or ?welcome=1 — the
+// same params the wizard and onboarding redirect with), and only until the
+// tour has been taken or skipped. It used to gate on localStorage alone, so
+// every sign-in from a fresh browser or computer greeted a YEARS-old account
+// with "New here?" (owner bug report 2026-09-02: the tour invite belongs to
+// the moment the first card is created, not to every login).
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { startTour, tourCompleted, TOUR_END_EVENT } from "@/lib/tour";
 
 export default function TourBanner() {
   const [show, setShow] = useState(false);
+  const params = useSearchParams();
 
   useEffect(() => {
+    const firstRun = params.get("tour") === "1" || params.get("welcome") === "1";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
-    if (!tourCompleted()) setShow(true);
+    if (firstRun && !tourCompleted()) setShow(true);
     // If the tour finishes/skips elsewhere, hide the banner too.
     const onEnd = () => setShow(false);
     window.addEventListener(TOUR_END_EVENT, onEnd);
     return () => window.removeEventListener(TOUR_END_EVENT, onEnd);
-  }, []);
+  }, [params]);
 
   if (!show) return null;
 

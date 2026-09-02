@@ -98,8 +98,21 @@ export default function SocialIcons({
 
   if (!socials.length) return null;
 
+  // ONE line, always (owner order 2026-09-02): the row never wraps — as more
+  // networks are added the chips shrink together so all of them share the
+  // line. Up to 4 chips renders byte-for-byte as before (54px, 12px gaps —
+  // the marketing mocks that reuse this row show ≤4 and are unchanged). Past
+  // that, the gap tightens and each chip's width is the space left divided
+  // evenly, capped at 54px and never below 30px (8 chips — every network we
+  // support — fits a 288px column at 30px). aspect-square keeps chips round;
+  // the icon and the squircle/square radii scale in percentages so a small
+  // chip is the same drawing, only smaller.
+  const n = socials.length;
+  const gap = n <= 4 ? 12 : n <= 6 ? 8 : 6;
+  const chipWidth = `clamp(30px, calc((100% - ${(n - 1) * gap}px) / ${n}), 54px)`;
+
   return (
-    <div className="flex flex-wrap items-center justify-center gap-3 mt-5">
+    <div className="flex flex-nowrap items-center justify-center mt-5" style={{ gap }}>
       {socials.map((s) => (
         <a
           key={s.label}
@@ -108,24 +121,25 @@ export default function SocialIcons({
           rel="noopener noreferrer"
           aria-label={s.label}
           onClick={(e) => handle(e, s)}
-          className={`w-[54px] h-[54px] flex items-center justify-center ring-1 transition-transform active:scale-95 hover:scale-105 ${
-            shape === "circle" ? "rounded-full" : shape === "squircle" ? "rounded-[18px]" : "rounded-[8px]"
+          className={`aspect-square shrink-0 flex items-center justify-center ring-1 transition-transform active:scale-95 hover:scale-105 ${
+            shape === "circle" ? "rounded-full" : shape === "squircle" ? "rounded-[33%]" : "rounded-[15%]"
           } ${
             mode === "light"
               ? "shadow-[0_4px_14px_rgba(15,23,42,0.16)] ring-black/[0.08]"
               : "shadow-[0_4px_14px_rgba(0,0,0,0.35)] ring-white/10"
           }`}
-          style={
-            fill === "accent"
+          style={{
+            width: chipWidth,
+            ...(fill === "accent"
               ? { background: accent, color: accentText }
               : fill === "mono"
                 ? mode === "light"
                   ? { background: "#FFFFFF", color: "#111827" }
                   : { background: "rgba(255,255,255,0.10)", color: "#FFFFFF" }
-                : { background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }
-          }
+                : { background: brandBackground(s.label, s.color), color: s.textColor || "#fff" }),
+          }}
         >
-          <PlatformIcon label={s.label} className="w-6 h-6" />
+          <PlatformIcon label={s.label} className="w-[46%] h-[46%]" />
         </a>
       ))}
     </div>
