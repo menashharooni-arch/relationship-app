@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -134,12 +135,12 @@ export default function ResetPasswordForm() {
               If there&apos;s an account for that address, a new reset link is on its way. Open it on
               <span className="font-semibold"> this device</span> and you&apos;ll be able to set a new password.
             </p>
-            <a
+            <Link
               href="/login"
               className="inline-block w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
             >
               Back to sign in
-            </a>
+            </Link>
           </>
         ) : (
           <>
@@ -167,9 +168,9 @@ export default function ResetPasswordForm() {
             >
               {resendState === "sending" ? "Sending…" : "Send me a new link"}
             </button>
-            <a href="/login" className="inline-block text-sm text-slate-500 hover:text-slate-700 transition-colors">
+            <Link href="/login" className="inline-block text-sm text-slate-500 hover:text-slate-700 transition-colors">
               Back to sign in
-            </a>
+            </Link>
           </>
         )}
       </div>

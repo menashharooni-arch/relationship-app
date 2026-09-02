@@ -29,7 +29,6 @@ describe("decideRcEvent — Apple grants", () => {
   });
 
   it("the instant-sync route carries the same office guard", () => {
-    const { readFileSync } = require("node:fs");
     const src = readFileSync("src/app/api/iap/sync/route.ts", "utf8");
     expect(src).toMatch(/isOfficePlan\(profile\?\.plan\) \|\| profile\?\.office_id/);
     expect(src).toMatch(/select\("plan, customization, office_id"\)/);

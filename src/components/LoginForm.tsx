@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
@@ -423,8 +424,8 @@ export default function LoginForm({
         {mode === "signup" && (
           <p className="text-center text-[11px] leading-relaxed text-slate-400">
             By creating an account you agree to our{" "}
-            <a href="/terms" className="underline hover:text-slate-600">Terms</a> and{" "}
-            <a href="/privacy" className="underline hover:text-slate-600">Privacy Policy</a>.
+            <Link href="/terms" className="underline hover:text-slate-600">Terms</Link> and{" "}
+            <Link href="/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.
           </p>
         )}
       </form>

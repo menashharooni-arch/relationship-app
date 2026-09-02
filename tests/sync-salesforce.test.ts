@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 
 // Salesforce sync contract: org-host allowlist (SSRF), required-field
 // fallbacks (LastName/Company are mandatory on a Lead), find-by-email upsert,
@@ -83,7 +84,7 @@ describe("refresh without expires_in", () => {
     // Salesforce returns no expires_in on refresh. now + undefined*1000 is NaN
     // -> null in Postgres -> the refresh branch is skipped forever and the
     // connection dies at the org's session timeout. The fallback must exist.
-    const src = require("node:fs").readFileSync("src/lib/crm-connection.ts", "utf8");
+    const src = readFileSync("src/lib/crm-connection.ts", "utf8");
     expect(src).toMatch(/typeof tokens\.expires_in === "number" \? tokens\.expires_in : 90 \* 60/);
   });
 });

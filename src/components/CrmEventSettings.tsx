@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { PlanGate } from "@/components/PlanGate";
 import { IapProPill } from "@/components/NativePaywall";
@@ -85,7 +86,7 @@ export default function CrmEventSettings({ initialNotifications, initialViews, z
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<IapProPill />}
           >
-            <a href="/upgrade" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</a>
+            <Link href="/upgrade" className="text-xs font-semibold text-blue-400 hover:text-blue-300">Pro</Link>
           </PlanGate>
         )}
       </div>

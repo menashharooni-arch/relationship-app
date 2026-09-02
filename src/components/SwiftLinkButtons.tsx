@@ -94,16 +94,6 @@ export default function SwiftLinkButtons({
   // Runs in an effect — sampling flips state, which must never happen during
   // render.
   const sampledRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    links.forEach((link) => {
-      if (link.kind === "header") return;
-      const url = videoThumbnail(link.url);
-      if (url && !sampledRef.current.has(url)) { sampledRef.current.add(url); sampleTone(url); }
-    });
-    Object.values(previews).forEach((pv) => {
-      if (pv?.image && !sampledRef.current.has(pv.image)) { sampledRef.current.add(pv.image); sampleTone(pv.image); }
-    });
-  }, [links, previews]);
 
   function sampleTone(imgUrl: string) {
     if (typeof window === "undefined") return;
@@ -129,6 +119,17 @@ export default function SwiftLinkButtons({
     };
     el.src = `/api/img-proxy?url=${encodeURIComponent(imgUrl)}`;
   }
+
+  useEffect(() => {
+    links.forEach((link) => {
+      if (link.kind === "header") return;
+      const url = videoThumbnail(link.url);
+      if (url && !sampledRef.current.has(url)) { sampledRef.current.add(url); sampleTone(url); }
+    });
+    Object.values(previews).forEach((pv) => {
+      if (pv?.image && !sampledRef.current.has(pv.image)) { sampledRef.current.add(pv.image); sampleTone(pv.image); }
+    });
+  }, [links, previews]);
 
   useEffect(() => {
     let cancelled = false;

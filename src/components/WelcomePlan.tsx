@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnablePushButton from "@/components/EnablePushButton";
@@ -113,8 +114,8 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
             <p className="mt-3 text-[11px] leading-relaxed text-gray-500">
               {paidIntent.plan === "pro" ? "14 days free, then auto-renews. Cancel anytime. " : ""}
               By continuing you agree to our{" "}
-              <a href="/terms" className="underline hover:text-gray-300">Terms</a> and{" "}
-              <a href="/privacy" className="underline hover:text-gray-300">Privacy Policy</a>.
+              <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
+              <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>.
             </p>
             <button onClick={goFree} disabled={loading !== null} className="mt-3 text-gray-500 hover:text-gray-300 text-xs transition-colors">
               Actually, start on the free plan instead →

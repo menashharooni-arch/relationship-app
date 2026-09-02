@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { isNativeRequest } from "@/lib/native-request";
@@ -61,13 +62,13 @@ describe("Create account is a real form everywhere", () => {
   });
 
   it("the login page no longer strips signup mode for the shell", () => {
-    const src = require("node:fs").readFileSync("src/app/login/page.tsx", "utf8");
+    const src = readFileSync("src/app/login/page.tsx", "utf8");
     expect(src).not.toMatch(/signInOnly/);
     expect(src).toMatch(/mode === "signup" \? "signup" : "signin"/);
   });
 
   it("LoginForm has no signInOnly deflection path left", () => {
-    const src = require("node:fs").readFileSync("src/components/LoginForm.tsx", "utf8");
+    const src = readFileSync("src/components/LoginForm.tsx", "utf8");
     expect(src).not.toMatch(/signInOnly|signupRedirect/);
     expect(src).not.toContain("Accounts are created on");
   });
@@ -75,7 +76,7 @@ describe("Create account is a real form everywhere", () => {
 
 describe("the native /upgrade screen sells via IAP only", () => {
   it("gates on canOfferIap and shows StoreKit-priced paywall, never web prices", () => {
-    const src = require("node:fs").readFileSync("src/app/upgrade/UpgradeClient.tsx", "utf8");
+    const src = readFileSync("src/app/upgrade/UpgradeClient.tsx", "utf8");
     expect(src).toMatch(/canOfferIap/);
     expect(src).toMatch(/IapSubscribeButton/);
     // The native branch must not interpolate any web price constant.
