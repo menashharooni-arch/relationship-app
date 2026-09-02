@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
 
@@ -72,26 +71,68 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
               boxShadow: "0 30px 70px -12px rgba(15,23,42,0.4), 0 6px 20px rgba(15,23,42,0.1)",
             }}
           >
-            <div className="relative bg-gradient-to-b from-blue-50 via-violet-50/60 to-white px-6 pt-7 pb-1">
+            {/* Hero — the Swift Links identity itself: the pages' indigo
+                gradient with a floating mini links-page mockup, colorful link
+                pills and all. The sheet SHOWS the product (same Blinq loop as
+                the signup nudge's card mockup). Pure CSS, no assets. */}
+            <div
+              className="relative overflow-hidden px-6 pt-7 pb-5"
+              style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 55%, #4338ca 100%)" }}
+            >
+              {/* Color bloom behind the mockup so the dark field feels lit */}
+              <div aria-hidden className="absolute -top-10 left-1/2 -translate-x-1/2 w-64 h-40 rounded-full bg-gradient-to-r from-sky-400/30 via-fuchsia-400/25 to-amber-300/20 blur-3xl" />
               <button
                 onClick={dismiss}
                 aria-label="Dismiss"
-                className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white/70 backdrop-blur text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200/60 transition-colors"
+                className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-white/15 backdrop-blur text-white/80 hover:text-white hover:bg-white/25 transition-colors"
               >
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
               </button>
-              {/* Inside the sheet the brand shows as the full tile — the
-                  bolt-alone treatment is only for the corner chip. */}
-              <div className="flex justify-start">
-                <SwiftCardIcon size={44} />
+
+              {/* Twinkles */}
+              <svg viewBox="0 0 24 24" className="absolute left-[14%] top-8 w-3 h-3 text-sky-300 sc-lbp-twinkle" aria-hidden="true"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+              <svg viewBox="0 0 24 24" className="absolute right-[15%] bottom-8 w-2.5 h-2.5 text-fuchsia-300 sc-lbp-twinkle" style={{ animationDelay: "0.8s" }} aria-hidden="true"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+
+              {/* Mini Swift Links page, floating */}
+              <div className="relative flex justify-center" aria-hidden="true">
+                <div className="sc-lbp-float relative w-[158px] -rotate-3">
+                  <div className="absolute inset-0 rotate-[5deg] rounded-[20px] bg-white/10" />
+                  <div className="relative rounded-[20px] bg-white overflow-hidden shadow-[0_18px_40px_-10px_rgba(8,8,20,0.55)]">
+                    <span className="sc-lbp-shine pointer-events-none absolute inset-0 z-10" />
+                    <div className="px-4 pt-4 pb-4 flex flex-col items-center">
+                      {/* avatar with a colorful ring */}
+                      <div className="w-11 h-11 rounded-full p-[2.5px] bg-gradient-to-tr from-blue-600 via-fuchsia-500 to-amber-400">
+                        <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-900 to-indigo-600 flex items-center justify-center">
+                          <span className="text-[9px] font-black text-white tracking-wide">YOU</span>
+                        </div>
+                      </div>
+                      {/* name + subtitle bars */}
+                      <div className="mt-2 h-[7px] w-16 rounded-full bg-slate-900" />
+                      <div className="mt-1.5 h-[5px] w-11 rounded-full bg-slate-300" />
+                      {/* social dots */}
+                      <div className="mt-2.5 flex gap-1.5">
+                        <span className="w-3 h-3 rounded-full bg-[#0A66C2]" />
+                        <span className="w-3 h-3 rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600" />
+                        <span className="w-3 h-3 rounded-full bg-slate-900" />
+                        <span className="w-3 h-3 rounded-full bg-[#FF0000]" />
+                      </div>
+                      {/* colorful link pills */}
+                      <div className="mt-3 w-full space-y-1.5">
+                        <div className="h-[18px] rounded-full bg-gradient-to-r from-blue-700 to-sky-500" />
+                        <div className="h-[18px] rounded-full bg-gradient-to-r from-fuchsia-500 to-pink-400" />
+                        <div className="h-[18px] rounded-full bg-gradient-to-r from-amber-400 to-orange-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h2 className="mt-4 text-slate-900 text-[26px] font-extrabold leading-[1.15] tracking-tight">
-                Create your own Swift Links
-              </h2>
             </div>
 
-            <div className="px-6 pt-2 pb-6">
-              <p className="text-slate-500 text-[14px] leading-snug">
+            <div className="px-6 pt-5 pb-6 text-center">
+              <h2 className="text-slate-900 text-[23px] font-extrabold leading-tight tracking-tight">
+                Create your own Swift Links
+              </h2>
+              <p className="text-slate-500 text-[13.5px] leading-snug mt-2 max-w-[300px] mx-auto">
                 Comes with a SwiftCard and Swift Signature — used by many business
                 professionals. One link to share everything about you.
               </p>
@@ -101,14 +142,16 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
                 // Start blank: wipe any leftover guest draft so the builder
                 // always opens fresh (same as the signup nudge CTA).
                 onClick={() => { track(username, "links_badge_cta_click"); resetGuestFlow(); }}
-                className="relative overflow-hidden mt-5 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white text-center bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
-                style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
+                className="relative overflow-hidden mt-5 flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-[16px] font-bold text-white bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
+                style={{ boxShadow: "0 12px 28px -6px rgba(37,99,235,0.55)" }}
               >
                 <span className="sc-lbp-shine pointer-events-none absolute inset-0" />
-                See how yours looks and get started for free
+                See how yours looks — free
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0" aria-hidden="true"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
               </Link>
+              <p className="text-slate-400 text-[11.5px] mt-2">No credit card · Live in 60 seconds</p>
 
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center mt-3">
                 <a
                   href={`${appUrl}/?src=links_promo_badge`}
                   onClick={() => track(username, "links_badge_explore_click")}
