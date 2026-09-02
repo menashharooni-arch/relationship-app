@@ -5,7 +5,6 @@ import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import AccountIsolationGuard from "@/components/AccountIsolationGuard";
 import NativeAppBridge from "@/components/NativeAppBridge";
-import NativeSplash from "@/components/NativeSplash";
 import GuidedTour from "@/components/GuidedTour";
 import GlobalAiConsent from "@/components/GlobalAiConsent";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
@@ -93,10 +92,15 @@ export default function RootLayout({
     // .sc-js + the saved theme attr) BEFORE React hydrates — expected mismatch.
     <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
-        {/* FIRST child of <body> on purpose: the shell's launch animation has to
-            be in the very first painted frame to hand off from the static iOS
-            launch image without a jump. Renders nothing on the website. */}
-        <NativeSplash />
+        {/* NativeSplash (the shell's launch animation) deliberately does NOT
+            live here anymore. It reads headers()/cookies(), and a dynamic API
+            in the ROOT layout forced EVERY page in the app — the homepage,
+            /pricing, /privacy, every marketing and SEO page — to server-render
+            in a lambda on every request instead of serving as static HTML from
+            the CDN. The shell never sees those pages (src/proxy.ts redirects
+            "/" away from the shell before any HTML is sent), so the splash now
+            renders from the layouts of the two pages a cold launch can actually
+            land on: /dashboard and /login. */}
         {/* Apply the saved app theme before paint (no dark→light flash), and
             mark that JS is running so scroll-reveals only hide when they can be
             un-hidden — with JS off, content stays fully visible. next/script
