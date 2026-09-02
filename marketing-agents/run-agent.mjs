@@ -11,7 +11,7 @@
 // queue tables. There is no code path that can post, DM, or comment anywhere.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { safeMain, parseClaudeJson, extractJson } from "./lib/agentkit.mjs";
+import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
 
 const agentId = process.argv[2];
 if (!agentId) { console.error("usage: run-agent.mjs <agent_id>"); process.exit(2); }
@@ -56,6 +56,7 @@ function soundsHuman(text) {
 }
 
 await safeMain(agentId, async (run) => {
+  await standDownIfUsageExhausted(run);
   await run.note("Researching…");
   const prompt = [
     voice,

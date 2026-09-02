@@ -4,7 +4,7 @@
 // switches to publish-on-run (only after the owner flips it deliberately).
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { safeMain, sb, parseClaudeJson, extractJson } from "./lib/agentkit.mjs";
+import { safeMain, sb, parseClaudeJson, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const voice = readFileSync(new URL("./BRAND_VOICE.md", import.meta.url), "utf8");
@@ -27,6 +27,7 @@ await safeMain("blog", async (run) => {
   const topic = PRIORITY_TOPICS.find((t) => !doneSet.has(norm(t)));
   if (!topic) { await run.finish("success", "Every priority topic already has a post — nothing to write. Add topics to PRIORITY_TOPICS."); return; }
 
+  await standDownIfUsageExhausted(run);
   await run.note(`Writing: "${topic}" (verifying competitor claims live)…`);
   const prompt = `${voice}\n---\n${instructions}\n---\nTOPIC: ${topic}\nCompetitor list: ${config.targets.competitors.join(", ")}.`;
   const stdout = execFileSync("claude", ["-p", prompt, "--output-format", "json", "--allowedTools", "WebSearch,WebFetch", "--max-turns", "30"],
