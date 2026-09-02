@@ -179,6 +179,43 @@ describe("agent flow: person-facing copy is guarded against sounding like AI", (
   });
 });
 
+describe("agent flow: approve-to-execute stays owner-gated", () => {
+  const exec = read("src/lib/agent-execute.ts");
+  const itemsRoute = read("src/app/api/admin/agents/items/route.ts");
+
+  it("posting hosts live ONLY in agent-execute.ts, nowhere else in src or agents", () => {
+    const hosts = /ugcPosts|api\.higgsfield\.ai|oauth\.reddit\.com/;
+    expect(exec).toMatch(hosts);
+    const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.(ts|tsx|mjs)$/.test(e.name) ? [`${dir}/${e.name}`] : []);
+    for (const f of [...walk("src"), ...walk("marketing-agents")]) {
+      if (f === "src/lib/agent-execute.ts") continue;
+      expect(read(f), `${f} contains a posting host — only agent-execute.ts may`).not.toMatch(hosts);
+    }
+  });
+
+  it("executeItem is called only from the admin items route, only on the owner's Approve of a pending item", () => {
+    const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.(ts|tsx)$/.test(e.name) ? [`${dir}/${e.name}`] : []);
+    for (const f of walk("src")) {
+      if (f.endsWith("agent-execute.ts") || f === "src/app/api/admin/agents/items/route.ts") continue;
+      expect(read(f), `${f} must not import executeItem`).not.toMatch(/executeItem/);
+    }
+    expect(itemsRoute).toMatch(/action === "approved" && item\.status === "pending"/);
+    expect(itemsRoute).toMatch(/requireAdmin/);
+  });
+
+  it("every connector is env-gated and the client mirror lists the same connectors", () => {
+    const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+    for (const id of ["linkedin", "higgsfield", "reddit"]) {
+      expect(exec).toContain(`id: "${id}"`);
+      expect(client).toContain(`id: "${id}"`);
+    }
+    // ready() must consult env, never a hardcoded true.
+    expect(exec).not.toMatch(/ready: \(\) => true/);
+  });
+});
+
 describe("agent flow: blog publishes only reviewed content", () => {
   it("public pages read published rows only", () => {
     expect(read("src/app/blog/page.tsx")).toMatch(/eq\("status", "published"\)/);

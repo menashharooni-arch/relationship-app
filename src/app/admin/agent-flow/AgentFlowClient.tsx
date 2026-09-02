@@ -13,7 +13,20 @@ import { ORG, firstName } from "@/lib/agent-org";
 type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_usd: number; schedule: string | null };
 type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; summary: string | null; trigger: string };
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
-type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean };
+type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean> };
+
+// Mirrors src/lib/agent-execute.ts matching rules (armed-ness comes from the
+// board payload — the client never sees tokens). Kept in sync by tests.
+const CONNECTOR_RULES: Array<{ id: string; label: string; matches: (i: Item) => boolean }> = [
+  { id: "linkedin", label: "Post to LinkedIn", matches: (i) => i.platform === "linkedin" && ["generic", "video_script", "blog_post"].includes(i.item_type) },
+  { id: "higgsfield", label: "Send to Higgsfield", matches: (i) => i.item_type === "video_script" && i.platform !== "linkedin" },
+  { id: "reddit", label: "Reply on Reddit", matches: (i) => i.platform === "reddit" && ["reply_draft", "outreach_draft"].includes(i.item_type) && !!i.target_url },
+];
+const CONNECTOR_ENVS: Record<string, string> = {
+  linkedin: "LINKEDIN_ACCESS_TOKEN + LINKEDIN_AUTHOR_URN",
+  higgsfield: "HIGGSFIELD_API_KEY_ID + HIGGSFIELD_API_KEY_SECRET",
+  reddit: "REDDIT_CLIENT_ID + SECRET + USERNAME + PASSWORD",
+};
 
 // Personas come from marketing-agents/org.json (one source of truth with the
 // runners). AGENT_NAMES keys stay the runnable agent_ids the DB uses.
@@ -211,7 +224,16 @@ export default function AgentFlowClient() {
     if (!ids.length) return;
     const r = await fetch("/api/admin/agents/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action, content }) }).then((x) => x.json()).catch(() => null);
     if (!r?.ok) { say("⚠ That didn't save — try again."); return; }
-    say(ids.length > 1 ? `${ids.length} items ${action}. ${ACT_TOAST[action] ?? ""}` : ACT_TOAST[action] ?? "Done.");
+    const ex: Array<{ detail: string }> = r.executed ?? [];
+    const exFail: Array<{ reason: string }> = r.execFailed ?? [];
+    if (ex.length || exFail.length) {
+      const parts = [];
+      if (ex.length) parts.push(ex.length === 1 ? `✅ ${ex[0].detail}.` : `✅ ${ex.length} item(s) posted automatically.`);
+      if (exFail.length) parts.push(`⚠ ${exFail.length === 1 ? `Couldn't auto-post: ${exFail[0].reason}` : `${exFail.length} couldn't auto-post`} — saved as approved, use Copy.`);
+      say(parts.join(" "));
+    } else {
+      say(ids.length > 1 ? `${ids.length} items ${action}. ${ACT_TOAST[action] ?? ""}` : ACT_TOAST[action] ?? "Done.");
+    }
     setSelected(new Set()); setEditing(null); load();
   };
   const saveSetting = async (patch: Record<string, unknown>, note?: string) => {
@@ -503,7 +525,7 @@ export default function AgentFlowClient() {
         <>
           <div className="flex flex-wrap gap-2 items-center">
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5">
-              {[["pending", "pending — needs you"], ["approved", "approved"], ["rejected", "rejected"], ["contacted", "sent"], ["replied", "got replies"], ["converted", "converted"], ["published", "published"], ["acknowledged", "read"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {[["pending", "pending — needs you"], ["posted", "posted ✓ (auto)"], ["approved", "approved"], ["rejected", "rejected"], ["contacted", "sent"], ["replied", "got replies"], ["converted", "converted"], ["published", "published"], ["acknowledged", "read"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5">
               <option value="">All agents</option>
@@ -529,7 +551,11 @@ export default function AgentFlowClient() {
           )}
 
           <div className="space-y-2">
-            {items.map((it, idx) => (
+            {items.map((it, idx) => {
+              const conn = CONNECTOR_RULES.find((r) => r.matches(it));
+              const connReady = !!(conn && board.connectors?.[conn.id]);
+              const postedUrl = (it.payload?.posted_url ?? it.payload?.higgsfield_status_url) as string | undefined;
+              return (
               <div key={it.id} data-aftour={idx === 0 ? "itemcard" : undefined} className="rounded-xl border border-gray-800 bg-gray-900 p-4">
                 <div className="flex flex-wrap items-start gap-2">
                   {it.status === "pending" && (
@@ -560,10 +586,14 @@ export default function AgentFlowClient() {
                   </div>
                   {it.status === "pending" && editing !== it.id && (
                     <div className="flex flex-col gap-1.5 shrink-0">
-                      {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "generic") && (
+                      {connReady && (
+                        <button onClick={() => act([it.id], "approved")} title="Approve = it happens: this posts/sends immediately, as you." className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approve &amp; {conn!.label}</button>
+                      )}
+                      {!connReady && (it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "generic") && (
                         <button onClick={() => copyApprove(it, "the platform")} title="Copies to your clipboard and marks it approved. YOU paste and send." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Approve &amp; Copy</button>
                       )}
-                      {it.item_type === "video_script" && <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Higgsfield</button>}
+                      {!connReady && it.item_type === "video_script" && <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Higgsfield</button>}
+                      {conn && !connReady && <span className="text-[10px] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
                       {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "digest") && (
@@ -591,8 +621,11 @@ export default function AgentFlowClient() {
                     </div>
                   )}
                 </div>
+                {postedUrl && it.status === "posted" && (
+                  <a href={postedUrl} target="_blank" rel="noreferrer" className="inline-block mt-2 text-xs text-emerald-400 hover:underline break-all">✅ posted{it.payload?.posted_via ? ` via ${String(it.payload.posted_via)}` : ""} — view result →</a>
+                )}
               </div>
-            ))}
+            ); })}
           </div>
 
           {selected.size > 0 && (
@@ -614,8 +647,8 @@ export default function AgentFlowClient() {
           {history.length === 0 && <p className="text-gray-500 text-sm">Nothing yet — approve or reject something and it lands here.</p>}
           {history.map((h) => (
             <div key={h.id} className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs min-w-0">
-              <span className={`font-bold whitespace-nowrap ${h.action === "approved" || h.action === "published" || h.action === "converted" ? "text-emerald-400" : h.action === "rejected" ? "text-red-400" : "text-gray-400"}`}>
-                {{ approved: "You approved", rejected: "You rejected", edited: "You edited", published: "You published", acknowledged: "You read", contacted: "You sent", replied: "They replied to", converted: "CONVERTED", csv_downloaded: "You downloaded" }[h.action] ?? h.action}
+              <span className={`font-bold whitespace-nowrap ${h.action === "approved" || h.action === "posted" || h.action === "published" || h.action === "converted" ? "text-emerald-400" : h.action === "rejected" ? "text-red-400" : "text-gray-400"}`}>
+                {{ approved: "You approved", posted: "AUTO-POSTED", rejected: "You rejected", edited: "You edited", published: "You published", acknowledged: "You read", contacted: "You sent", replied: "They replied to", converted: "CONVERTED", csv_downloaded: "You downloaded" }[h.action] ?? h.action}
               </span>
               <span className="text-gray-300 flex-1 min-w-[180px] truncate">{h.agent_queue_items?.title ?? "(item removed)"}</span>
               <span className="text-gray-600 whitespace-nowrap">{AGENT_NAMES[h.agent_queue_items?.agent_id ?? ""] ?? ""} · {ago(h.created_at)}</span>
@@ -633,6 +666,25 @@ export default function AgentFlowClient() {
       {view === "settings" && (
         <div data-aftour="settingslist" className="space-y-2 max-w-3xl">
           <p className="text-gray-500 text-xs">The levers. Everything takes effect on the next run — no deploys.</p>
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+            <p className="text-white text-sm font-semibold">Connections — Approve becomes the send button</p>
+            <p className="text-gray-500 text-xs mt-0.5 mb-2.5">When a platform is connected, approving an item posts it immediately as you. Not connected = the classic Approve &amp; Copy flow. Tokens live in Vercel env vars — nothing is stored in the browser.</p>
+            <div className="space-y-1.5">
+              {CONNECTOR_RULES.map((c) => {
+                const on = !!board.connectors?.[c.id];
+                return (
+                  <div key={c.id} className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${on ? "bg-emerald-400" : "bg-gray-700"}`} />
+                    <span className="text-gray-200 font-semibold capitalize">{c.id}</span>
+                    <span className="text-gray-500">{c.label} on Approve</span>
+                    {on ? <span className="text-emerald-400 font-semibold ml-auto">Connected ✓</span>
+                      : <span className="text-gray-600 ml-auto">set <code className="text-gray-400">{CONNECTOR_ENVS[c.id]}</code> in Vercel</span>}
+                  </div>
+                );
+              })}
+              <p className="text-gray-600 text-[11px] pt-1">Instagram, Facebook &amp; X don&apos;t allow personal auto-posting through their public APIs — those stay Approve &amp; Copy. Blog posts already publish themselves via the Publish button.</p>
+            </div>
+          </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[220px]">
               <p className="text-white text-sm font-semibold">Monthly budget for the whole system</p>

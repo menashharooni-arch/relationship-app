@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { firstName } from "@/lib/agent-org";
+import { executeItem, type QueueItemLite } from "@/lib/agent-execute";
 
 // Review-queue listing + actions. Item writes also append to
 // agent_action_history — the accountability ledger the History view reads.
@@ -35,19 +36,48 @@ export async function POST(req: NextRequest) {
   const admin = getAdminSupabase();
   const { data: items } = await admin.from("agent_queue_items").select("*").in("id", ids);
   const now = new Date().toISOString();
+  // Approve-to-execute: on Approve, an armed connector posts the item itself
+  // (LinkedIn post, Reddit reply, Higgsfield job). No connector / not armed =
+  // classic approved (copy flow). Only pending items can ever execute.
+  const executed: Array<{ id: string; connector: string; detail: string; url?: string }> = [];
+  const execFailed: Array<{ id: string; reason: string }> = [];
 
   for (const item of items ?? []) {
     let after: string | null = null;
+    let historyAction = action;
     if (action === "edited" && typeof body.content === "string" && ids.length === 1) {
       after = body.content;
       await admin.from("agent_queue_items").update({ content: after, status: "pending", actioned_at: now }).eq("id", item.id);
     } else if (action === "csv_downloaded") {
       // history-only: downloading the list is worth recording, not a status change
+    } else if (action === "approved" && item.status === "pending") {
+      const out = await executeItem(item as QueueItemLite);
+      if (out.executed) {
+        historyAction = "posted";
+        executed.push({ id: item.id, connector: out.connector, detail: out.detail, url: out.url });
+        await admin.from("agent_queue_items").update({
+          status: "posted", actioned_at: now,
+          payload: { ...(item.payload ?? {}), ...(out.payloadPatch ?? {}), posted_via: out.connector },
+        }).eq("id", item.id);
+        await admin.from("agent_messages").insert({
+          from_id: "atlas", to_id: "owner", kind: "owner_out",
+          body: `✅ ${out.detail} — “${String(item.title).slice(0, 70)}” (${firstName(item.agent_id)}'s work).${out.url ? ` ${out.url}` : ""}`,
+        }).then(() => {}, () => {});
+      } else {
+        if (out.connector) execFailed.push({ id: item.id, reason: out.reason });
+        await admin.from("agent_queue_items").update({ status: "approved", actioned_at: now }).eq("id", item.id);
+        if (out.connector && !out.reason.includes("not connected")) {
+          await admin.from("agent_messages").insert({
+            from_id: "atlas", to_id: "owner", kind: "owner_out",
+            body: `⚠ Couldn't auto-post “${String(item.title).slice(0, 70)}” — ${out.reason}. It's saved as approved; use Copy.`,
+          }).then(() => {}, () => {});
+        }
+      }
     } else {
       await admin.from("agent_queue_items").update({ status: action, actioned_at: now }).eq("id", item.id);
     }
     await admin.from("agent_action_history").insert({
-      item_id: item.id, action, actor_email: user.email,
+      item_id: item.id, action: historyAction, actor_email: user.email,
       edit_before: after ? item.content : null, edit_after: after,
     });
     // Blog publish: flip the post live on /blog from the queued payload.
@@ -71,5 +101,5 @@ export async function POST(req: NextRequest) {
       body: `${VERB[action] ?? action} ${items.length === 1 ? `“${String(items[0].title).slice(0, 80)}”` : `${items.length} items`} (${who}'s work).`,
     }).then(() => {}, () => {});
   }
-  return NextResponse.json({ ok: true, count: items?.length ?? 0 });
+  return NextResponse.json({ ok: true, count: items?.length ?? 0, executed, execFailed });
 }
