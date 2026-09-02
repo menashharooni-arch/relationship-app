@@ -40,13 +40,14 @@ export async function POST(req: NextRequest) {
       // Immediate consolidated session summary — everything every agent got
       // through today, written at the moment of the pause (spec §RUN SUMMARIES).
       const dayStart = new Date(); dayStart.setUTCHours(0, 0, 0, 0);
-      const { data: runs } = await admin.from("agent_runs").select("agent_id, status, output_count, usage_usd, summary, started_at").gte("started_at", dayStart.toISOString()).order("started_at", { ascending: true });
+      const { data: runs } = await admin.from("agent_runs").select("agent_id, status, output_count, usage_tokens, summary, started_at").gte("started_at", dayStart.toISOString()).order("started_at", { ascending: true });
       const { count: pendingCount } = await admin.from("agent_queue_items").select("*", { count: "exact", head: true }).eq("status", "pending");
-      const lines = (runs ?? []).map((r) => `${new Date(r.started_at).toISOString().slice(11, 16)}  ${r.agent_id.padEnd(11)} ${r.status.padEnd(9)} ${r.output_count} item(s), $${Number(r.usage_usd).toFixed(2)} — ${String(r.summary ?? "").slice(0, 100)}`);
-      const spend = (runs ?? []).reduce((t, r) => t + Number(r.usage_usd), 0);
+      const fmtTok = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n);
+      const lines = (runs ?? []).map((r) => `${new Date(r.started_at).toISOString().slice(11, 16)}  ${r.agent_id.padEnd(11)} ${r.status.padEnd(9)} ${r.output_count} item(s), ${fmtTok(Number(r.usage_tokens ?? 0))} tok — ${String(r.summary ?? "").slice(0, 100)}`);
+      const spend = (runs ?? []).reduce((t, r) => t + Number(r.usage_tokens ?? 0), 0);
       await admin.from("agent_queue_items").insert({
         agent_id: "manager", item_type: "digest", platform: "site", target: "pause summary",
-        title: `⏸ Session summary at Pause All — ${runs?.length ?? 0} run(s), ${pendingCount ?? 0} pending, $${spend.toFixed(2)}`,
+        title: `⏸ Session summary at Pause All — ${runs?.length ?? 0} run(s), ${pendingCount ?? 0} pending, ${fmtTok(spend)} tokens`,
         content: lines.length ? `Everything accomplished today up to the pause:\n\n${lines.join("\n")}\n\nIn-flight agents stop at their next checkpoint; completed work is kept.` : "No agent had run yet today when the system was paused.",
         context: "Generated automatically the moment PAUSE ALL was pressed.",
       });

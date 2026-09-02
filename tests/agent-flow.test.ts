@@ -104,10 +104,18 @@ describe("agent flow: schema and config integrity", () => {
     // pre-start gate alone cannot catch that.
     const kit = read("marketing-agents/lib/agentkit.mjs");
     const checkpoint = kit.slice(kit.indexOf("async checkpoint()"), kit.indexOf("addUsage"));
-    // The cap unit is migrating from dollars to tokens (owner order
-    // 2026-09-02); the invariant is the mid-run re-check, whichever unit.
-    expect(checkpoint).toMatch(/monthSpendUsd\(\)|monthTokensUsed\(\)/);
-    expect(checkpoint).toMatch(/monthly_usage_cap_(usd|tokens)/);
+    // Caps are TOKENS (owner order 2026-09-02: the system runs on the Claude
+    // plan — usage and tokens, never dollars). No gate may read a $ column.
+    expect(checkpoint).toMatch(/monthTokensUsed\(\)/);
+    expect(checkpoint).toMatch(/monthly_usage_cap_tokens/);
+    expect(checkpoint).toMatch(/usage_cap_tokens/);
+    expect(kit).not.toMatch(/monthly_usage_cap_usd/);
+    // Migration + code fallbacks agree.
+    const mig = read("supabase/agent-flow-tokens.sql");
+    expect(mig).toMatch(/usage_cap_tokens bigint not null default 500000/);
+    expect(mig).toMatch(/monthly_usage_cap_tokens bigint not null default 6000000/);
+    expect(kit).toMatch(/DEFAULT_RUN_CAP_TOKENS = 500_000/);
+    expect(kit).toMatch(/DEFAULT_MONTHLY_CAP_TOKENS = 6_000_000/);
   });
 
   it("schedules support the owner's ET times, DST-correct", () => {
