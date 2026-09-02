@@ -62,15 +62,51 @@ export async function POST(req: NextRequest) {
     await admin.from("agent_settings").update({ paused: pausing, updated_at: new Date().toISOString() }).in("agent_id", teamAgents);
     const lead = ORG[agent_id];
     await say(admin, "owner", "atlas", `${pausing ? "Stand down" : "Wake up"} ${lead.name}'s whole team for now.`, "owner_in");
-    await say(admin, "atlas", agent_id, pausing
-      ? "Your team stands down — everyone stops at their next checkpoint and skips their shifts until further notice. Other teams keep working."
-      : "Your team is back on — everyone resumes their normal rhythms from the next window.");
-    return NextResponse.json({ ok: true, count: teamAgents.length });
+    // WAKE is the go signal (owner order 2026-09-02): the woken team's enabled
+    // agents dispatch immediately — then the scheduler keeps their rhythms.
+    // Only while the office is OPEN: waking while closed just sets the flag
+    // (the runner would refuse anyway — system.paused gates every start), and
+    // Start re-rests all teams when the office next opens, so Atlas says so
+    // instead of quietly dispatching runs that die as "paused" rows.
+    let dispatched = 0;
+    if (!pausing) {
+      const { data: sys } = await admin.from("agent_system").select("paused").limit(1).single();
+      const openNow = sys ? !sys.paused : false;
+      if (openNow && process.env.GITHUB_AGENTS_TOKEN) {
+        const { data: settings } = await admin.from("agent_settings").select("agent_id, enabled").in("agent_id", teamAgents);
+        const enabled = new Set((settings ?? []).filter((s) => s.enabled).map((s) => s.agent_id));
+        for (const id of teamAgents) {
+          if (!enabled.has(id) || !agents[id]) continue;
+          if ((await dispatch(agents[id].workflow, "team_wake")).ok) dispatched++;
+        }
+      }
+      await say(admin, "atlas", agent_id, openNow
+        ? `Your team is AWAKE — ${dispatched} of you dispatched right now, and everyone keeps their normal rhythm from here.`
+        : "Your team is set to wake — but the office is closed. Press Start to open it (note: opening rests all teams again, so wake this team after).");
+    } else {
+      await say(admin, "atlas", agent_id, "Your team stands down — everyone stops at their next checkpoint and skips their shifts until further notice. Other teams keep working.");
+    }
+    return NextResponse.json({ ok: true, count: teamAgents.length, dispatched });
   }
   if ((op === "pause" || op === "resume") && agent_id) {
     await admin.from("agent_settings").update({ paused: op === "pause", updated_at: new Date().toISOString() }).eq("agent_id", agent_id);
     await say(admin, "owner", "atlas", `${op === "pause" ? "Bench" : "Unbench"} ${firstName(agent_id)} for now.`, "owner_in");
     return NextResponse.json({ ok: true });
+  }
+  if (op === "start_all") {
+    // Start = the office is OPEN, and ONLY open (owner order 2026-09-02,
+    // supersedes the immediate-first-round design): master pause off, any
+    // expired auto-stop cleared — and every TEAM put at rest, deterministically,
+    // whatever state it was in. Nothing is dispatched and nothing runs until
+    // the owner wakes a team (the go signal) or presses Run once on an agent.
+    // The manager (Atlas) is the one exception left un-rested: his 5:30 PM
+    // evening report is a summary of the day, not work, and the tour promises
+    // it whenever the office is open.
+    await admin.from("agent_system").update({ paused: false, auto_pause_at: null, updated_at: new Date().toISOString() }).eq("id", true);
+    await admin.from("agent_settings").update({ paused: true, updated_at: new Date().toISOString() }).neq("agent_id", "manager");
+    await say(admin, "owner", "atlas", "We're OPEN — but everyone holds at rest until I wake their team.", "owner_in");
+    await say(admin, "atlas", "all", "Company's open. All teams REST for now — you'll be woken team by team when the owner wants you working. I'll still file the evening report.");
+    return NextResponse.json({ ok: true, resting: true });
   }
   if (!process.env.GITHUB_AGENTS_TOKEN) {
     return NextResponse.json({ error: "GITHUB_AGENTS_TOKEN is not set in Vercel — add a fine-grained PAT (actions: write) to enable Run buttons." }, { status: 503 });
@@ -79,25 +115,6 @@ export async function POST(req: NextRequest) {
     const r = await dispatch(agents[agent_id].workflow, "manual");
     if (r.ok) await say(admin, "owner", "atlas", `Run ${firstName(agent_id)} now.`, "owner_in");
     return NextResponse.json(r.ok ? { ok: true } : { error: `GitHub dispatch → ${r.status}` }, { status: r.ok ? 200 : 502 });
-  }
-  if (op === "start_all") {
-    // Start = the system is OPEN: master pause off, any expired auto-stop
-    // cleared, an immediate first round dispatched — then the scheduler keeps
-    // every agent on its own cadence until Pause.
-    await admin.from("agent_system").update({ paused: false, auto_pause_at: null, updated_at: new Date().toISOString() }).eq("id", true);
-    const { data: settings } = await admin.from("agent_settings").select("agent_id, enabled, paused");
-    const enabled = new Set((settings ?? []).filter((s) => s.enabled && !s.paused).map((s) => s.agent_id));
-    await say(admin, "owner", "atlas", "We're OPEN — start everyone.", "owner_in");
-    await say(admin, "atlas", "maya", "Company's open — dispatch your marketing team on their rhythms.");
-    await say(admin, "atlas", "rex", "Company's open — get the watchers running.");
-    const results: Record<string, boolean> = {};
-    // Manager is excluded from the fan-out and dispatched by the caller later,
-    // or run manually — it should summarize a session, not race it.
-    for (const [id, a] of Object.entries(agents)) {
-      if (id === "manager" || !enabled.has(id)) continue;
-      results[id] = (await dispatch(a.workflow, "start_all")).ok;
-    }
-    return NextResponse.json({ ok: true, results });
   }
   return NextResponse.json({ error: "bad op" }, { status: 400 });
 }

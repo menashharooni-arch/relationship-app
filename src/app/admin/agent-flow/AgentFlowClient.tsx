@@ -123,8 +123,8 @@ type Msg = { id: string; from_id: string; to_id: string; kind: string; body: str
 type View = "agents" | "chart" | "comms" | "queue" | "history" | "settings";
 type TourStep = { view?: View; target?: string; title: string; body: string };
 const TOUR: TourStep[] = [
-  { title: "Welcome to Agent Flow", body: "Your workforce. One switch runs it: press Start and every agent works on its own rhythm — a few pieces of content a day, watchdogs every few hours — until you press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
-  { view: "agents", target: "master", title: "The one switch", body: "This is the whole on/off story. Green Start = open for business, and the button becomes Pause. Press Pause and everything stops at its next safe checkpoint — and the button becomes Start again. The banner beside it always tells you which state you're in." },
+  { title: "Welcome to Agent Flow", body: "Your workforce. Press Start to OPEN the office — nothing runs yet; every team waits at rest. Wake a team and its agents start working on their own rhythms — a few pieces of content a day, watchdogs every few hours — until you Rest the team, press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
+  { view: "agents", target: "master", title: "The one switch", body: "Green Start = the office is OPEN — but every team starts at rest, so nothing runs until you wake a team below. Press Pause and everything stops at its next safe checkpoint. The banner beside it always tells you which state you're in." },
   { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
   { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
   { view: "chart", target: "orgchart", title: "The org chart", body: "Your company, live. Blue pulse = working right now (the reporting line animates too), red = a problem, gray = benched. Click anyone to read their messages." },
@@ -134,7 +134,7 @@ const TOUR: TourStep[] = [
   { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
   { view: "history", target: "historylist", title: "History", body: "Every decision you've made, as sentences. For outreach you sent, record 'Got a reply' or 'Converted' here — that's how you learn which agents earn their keep." },
   { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop and email you rather than pass it." },
-  { title: "That's it", body: "Press Start, live your day, come back to the badge and the Manager's evening report. Replay this anytime with ✦ Take a tour." },
+  { title: "That's it", body: "Press Start, wake the teams you want working, live your day, and come back to the badge and Atlas's evening report. Replay this anytime with ✦ Take a tour." },
 ];
 
 export default function AgentFlowClient() {
@@ -228,16 +228,14 @@ export default function AgentFlowClient() {
     setBusy(true);
     const r = await fetch("/api/admin/agents/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op, agent_id }) }).then((r) => r.json()).catch(() => ({ error: "network" }));
     setBusy(false);
-    const pausedIds = new Set((board?.settings ?? []).filter((s) => s.paused).map((s) => s.agent_id));
-    const restingTeams = TEAMS.filter((t) => t.lead && t.agents.every((a) => pausedIds.has(a))).map((t) => firstName(t.lead!));
     if (r.error) say(`⚠ ${r.error}`);
-    else if (op === "start_all") say(restingTeams.length
-      ? `You're OPEN — but ${restingTeams.join(" and ")}'s team is resting and sat this out. Wake them from their team header when you want them back.`
-      : "You're OPEN. Every agent runs now, then keeps its own rhythm until you pause.");
+    else if (op === "start_all") say("You're OPEN — all teams are at rest, so nothing runs yet. Wake a team from its header when you want them working. Atlas still files the evening report.");
     else if (op === "pause_all") say("Paused. In-flight agents stop at their next checkpoint — a session summary was written to your queue.");
     else if (op === "run") say(`${AGENT_NAMES[agent_id!] ?? agent_id} is running now — results land in the queue.`);
     else if (op === "pause_team") say(`${firstName(agent_id!)}'s team is resting — they skip their shifts until you wake them. Everyone else keeps working.`);
-    else if (op === "resume_team") say(`${firstName(agent_id!)}'s team is back on — normal rhythms resume from the next window.`);
+    else if (op === "resume_team") say(typeof r.dispatched === "number" && r.dispatched > 0
+      ? `${firstName(agent_id!)}'s team is AWAKE — ${r.dispatched} agent(s) dispatched right now, then normal rhythms.`
+      : `${firstName(agent_id!)}'s team is set to wake — they work whenever the office is open.`);
     else say("Done.");
     load();
   };
@@ -305,6 +303,7 @@ export default function AgentFlowClient() {
   const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
   const monthTokens = Object.values(board.tokensBy ?? {}).reduce((t, n) => t + n, 0);
   const restingTeamNames = TEAMS.filter((t) => t.lead && t.agents.every((a) => byId[a]?.paused)).map((t) => firstName(t.lead!));
+  const allTeamsResting = TEAMS.filter((t) => t.lead).every((t) => t.agents.every((a) => byId[a]?.paused));
   const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
   const autoStopArmed = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
   const autoStopHit = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
@@ -374,11 +373,15 @@ export default function AgentFlowClient() {
         {open ? (
           <button data-aftour="master" onClick={() => control("pause_all")} disabled={busy} className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-6 py-3 rounded-full whitespace-nowrap transition-colors">⏸ Pause All</button>
         ) : (
-          <button data-aftour="master" onClick={() => control("start_all")} disabled={busy || !board.dispatchConfigured} className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-3 rounded-full whitespace-nowrap transition-colors">▶ Start All</button>
+          <button data-aftour="master" onClick={() => control("start_all")} disabled={busy} title="Opens the office — every team starts at rest until you wake it" className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-3 rounded-full whitespace-nowrap transition-colors">▶ Start All</button>
         )}
         <div className="min-w-[200px] flex-1">
           {open ? (
-            <p className="text-emerald-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />RUNNING — agents work on their own rhythms until you pause{restingTeamNames.length > 0 && <span className="text-sky-300/80 font-bold text-xs whitespace-nowrap">· {restingTeamNames.join(" & ")}&apos;s team resting</span>}</p>
+            allTeamsResting ? (
+            <p className="text-sky-300 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-sky-300 shrink-0" />OPEN — all teams resting; wake a team to put them to work</p>
+            ) : (
+            <p className="text-emerald-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />RUNNING — awake teams work their own rhythms until you rest them{restingTeamNames.length > 0 && <span className="text-sky-300/80 font-bold text-xs whitespace-nowrap">· {restingTeamNames.join(" & ")}&apos;s team resting</span>}</p>
+            )
           ) : (
             <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
           )}
@@ -566,7 +569,7 @@ export default function AgentFlowClient() {
           {msgs.length === 0 && (
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
               <p className="text-gray-300 font-semibold">No messages{commsParty ? ` involving ${firstName(commsParty)}` : ""} yet.</p>
-              <p className="text-gray-500 text-sm mt-1.5">Press Start All (or Run once on any agent) and the dispatches, report-backs, and escalations appear here as they happen.</p>
+              <p className="text-gray-500 text-sm mt-1.5">Open the office (▶ Start All), wake a team (or Run once on any agent), and the dispatches, report-backs, and escalations appear here as they happen.</p>
             </div>
           )}
           <div className="space-y-1.5">
@@ -614,7 +617,7 @@ export default function AgentFlowClient() {
           {items.length === 0 && !loading && (
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
               <p className="text-gray-300 font-semibold">{filterStatus === "pending" ? "Nothing needs you right now." : `Nothing with status “${filterStatus}”.`}</p>
-              <p className="text-gray-500 text-sm mt-1.5">{open ? "The agents are on duty — new work lands here as they finish." : <>Press <button onClick={() => control("start_all")} className="text-blue-400 underline">Start All</button> and results land here.</>}</p>
+              <p className="text-gray-500 text-sm mt-1.5">{open ? "The agents are on duty — new work lands here as they finish." : <>Press <button onClick={() => control("start_all")} className="text-blue-400 underline">Start All</button>, wake a team, and results land here.</>}</p>
             </div>
           )}
 

@@ -282,3 +282,44 @@ describe("agent flow: blog publishes only reviewed content", () => {
     expect(src.indexOf("esc(")).toBeLessThan(src.indexOf("inline("));
   });
 });
+
+// ── Start opens, Wake runs (owner order 2026-09-02) ──────────────────────────
+// Start All = the office is OPEN and every team is at rest — deterministically,
+// whatever state came before. NOTHING dispatches on Start. Waking a team is the
+// go signal: its enabled agents dispatch immediately (office open only), then
+// keep their rhythms. The runner refuses paused agents regardless, so a stray
+// dispatch can never run a resting team.
+describe("start opens, wake runs", () => {
+  const route = read("src/app/api/admin/agents/control/route.ts");
+  const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+
+  it("start_all rests every team (manager excepted) and dispatches nobody", () => {
+    const block = route.slice(route.indexOf('op === "start_all"'), route.indexOf('if (!process.env.GITHUB_AGENTS_TOKEN)'));
+    expect(block).toMatch(/paused: true/);
+    expect(block).toMatch(/neq\("agent_id", "manager"\)/);
+    expect(block).not.toMatch(/dispatch\(/);
+  });
+
+  it("start_all works without the dispatch PAT — it sits BEFORE the token guard", () => {
+    expect(route.indexOf('op === "start_all"')).toBeLessThan(route.indexOf("GITHUB_AGENTS_TOKEN is not set"));
+  });
+
+  it("waking a team dispatches its enabled agents immediately — only while open", () => {
+    const block = route.slice(route.indexOf('op === "pause_team"'), route.indexOf('op === "pause" ||'));
+    expect(block).toMatch(/team_wake/);
+    expect(block).toMatch(/openNow && process\.env\.GITHUB_AGENTS_TOKEN/);
+    expect(block).toMatch(/enabled\.has\(id\)/);
+  });
+
+  it("the banner distinguishes OPEN (all resting) from RUNNING (some awake)", () => {
+    expect(client).toMatch(/allTeamsResting \? \(/);
+    expect(client).toMatch(/OPEN — all teams resting/);
+    expect(client).toMatch(/RUNNING — awake teams work their own rhythms/);
+  });
+
+  it("the tour and toasts tell the same story — no 'Start runs everyone' copy survives", () => {
+    expect(client).toMatch(/Press Start to OPEN the office/);
+    expect(client).not.toMatch(/Every agent runs now/);
+    expect(client).not.toMatch(/press Start and every agent works/);
+  });
+});
