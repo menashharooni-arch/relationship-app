@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildInviteEmail } from "@/lib/office-invite-email";
 import { senderFrom } from "@/lib/messaging";
 import { htmlToText } from "@/lib/email-text";
@@ -102,14 +104,14 @@ describe("office invite App Store badge", () => {
     expect(html).toContain("Download on the");
     expect(html).toMatch(/SwiftCard iPhone app/);
     // The route passes the module constant, wired for real:
-    const route = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/app/api/office/invite/route.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src/app/api/office/invite/route.ts"), "utf8");
     expect(route).toMatch(/appStoreUrl: APP_STORE_URL/);
   });
 
   it("the welcome email rides the same switch (appStoreEmailBlock)", () => {
-    const tpl = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/lib/email-templates.ts"), "utf8");
+    const tpl = readFileSync(join(process.cwd(), "src/lib/email-templates.ts"), "utf8");
     expect(tpl).toMatch(/\$\{appStoreEmailBlock\(/);
-    const lib = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/lib/app-store.ts"), "utf8");
+    const lib = readFileSync(join(process.cwd(), "src/lib/app-store.ts"), "utf8");
     expect(lib).toMatch(/if \(!APP_STORE_URL\) return "";/);
   });
 });
