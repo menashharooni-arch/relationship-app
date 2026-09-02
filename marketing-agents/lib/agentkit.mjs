@@ -240,12 +240,15 @@ export async function standDownIfUsageExhausted(run) {
     });
     if (res.ok) u = await res.json();
   } catch { /* fail open */ }
-  const w = u?.five_hour;
-  if (!w || Number(w.utilization) < 99) return;
-  const resets = w.resets_at ? new Date(w.resets_at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) + " ET" : "the next window";
+  // Either exhausted window blocks the CLI — the 7-day cap can be hit while
+  // the 5-hour one reads low, so check both and report whichever is binding.
+  const exhausted = [["5-hour", u?.five_hour], ["7-day", u?.seven_day]].find(([, w]) => w && Number(w.utilization) >= 99);
+  if (!exhausted) return;
+  const [windowName, w] = exhausted;
+  const resets = w.resets_at ? new Date(w.resets_at).toLocaleString("en-US", { timeZone: "America/New_York", weekday: windowName === "7-day" ? "short" : undefined, hour: "numeric", minute: "2-digit" }) + " ET" : "the next window";
   const worker = partyOf(run.agentId), lead = leadOf(run.agentId);
-  await say(worker, lead === "owner" ? "owner" : lead, `Standing down — the Claude plan's 5-hour window is used up. I'll be back after ${resets}; the schedule retries me automatically.`, { kind: lead === "owner" ? "owner_out" : "a2a", run_id: run.id });
-  await run.finish("skipped_usage", `Claude plan usage window exhausted (${Math.round(w.utilization)}%). Skipped without spending; resumes after ${resets}.`);
+  await say(worker, lead === "owner" ? "owner" : lead, `Standing down — the Claude plan's ${windowName} window is used up. I'll be back after ${resets}; the schedule retries me automatically.`, { kind: lead === "owner" ? "owner_out" : "a2a", run_id: run.id });
+  await run.finish("skipped_usage", `Claude plan ${windowName} usage window exhausted (${Math.round(w.utilization)}%). Skipped without spending; resumes after ${resets}.`);
   process.exit(0);
 }
 
