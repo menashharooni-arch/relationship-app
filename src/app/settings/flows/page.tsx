@@ -14,6 +14,8 @@ import CrmEventSettings from "@/components/CrmEventSettings";
 import EnablePushButton from "@/components/EnablePushButton";
 import HelpWidget from "@/components/HelpWidget";
 import TakeTourButton from "@/components/TakeTourButton";
+import NativeHidden from "@/components/NativeHidden";
+import { APP_STORE_URL } from "@/lib/app-store";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
@@ -381,6 +383,28 @@ export default async function FlowSettingsPage({
         <div data-tour="settings-help" className="space-y-3">
           <HelpWidget />
           <TakeTourButton />
+          {/* Self-activating with the App Store listing (null while in
+              review), for EVERY plan including office sub-users — a durable
+              home for "get the app" once the popup/banner moments have
+              passed. Web only: inside the shell they already have the app. */}
+          {APP_STORE_URL && (
+            <NativeHidden>
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-semibold">Get the iPhone app</p>
+                  <p className="text-gray-500 text-xs mt-0.5">Your card, QR code and new contacts — right in your pocket.</p>
+                </div>
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors shrink-0"
+                >
+                  App Store
+                </a>
+              </div>
+            </NativeHidden>
+          )}
           {!isOfficeSubUser && (
             // Shown in the app again (owner order 2026-08-26, IAP era): the
             // referral box grants free months — a reward, not a sale — and its

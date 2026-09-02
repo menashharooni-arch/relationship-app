@@ -266,3 +266,20 @@ did nothing. Neither was visible until the project was actually built.
 Still unverified end-to-end (needs a signed-in device — it is already a P0 in
 `TESTFLIGHT_TEST_PLAN.md`): a real card populating the widget, and a real
 APNs token round-trip.
+
+## Day the listing goes live (one switch)
+
+Set `NEXT_PUBLIC_APP_STORE_URL` in Vercel (production) to the real listing —
+`https://apps.apple.com/app/id6798875872` — and redeploy. That single env var
+self-activates EVERY download surface at once; nothing else to edit:
+
+- Homepage hero badge + marketing footer badge
+- Safari Smart App Banner site-wide (root layout `itunes` metadata, derived id)
+- "Continue on the web / Download the app" popup on every new account's first
+  dashboard load (office sub-users included) — the guided tour waits for it
+- Settings → Help: "Get the iPhone app" row (web only, all plans)
+- Welcome email: App Store badge block
+- Office invite email to sub-users: "carry it in the SwiftCard iPhone app" +
+  badge (emails sent before the switch simply don't have it)
+
+Until the var is set, all of the above render nothing — no dead links.

@@ -86,3 +86,30 @@ describe("office invite email", () => {
     expect(invite({ inviteUrl: "not-a-url" }).html).toContain("This link goes to swiftcard.me");
   });
 });
+
+// ── App Store badge (owner order 2026-09-02): the invite carries a download
+// option for the sub-user — but ONLY once the app is actually listed. ─────────
+describe("office invite App Store badge", () => {
+  it("absent while the app is unpublished (no appStoreUrl)", () => {
+    const html = invite().html;
+    expect(html).not.toMatch(/App.Store/);
+    expect(html).not.toMatch(/apps\.apple\.com/);
+  });
+
+  it("present, linked, and escaped once the listing URL exists", () => {
+    const html = invite({ appStoreUrl: "https://apps.apple.com/app/id6798875872" }).html;
+    expect(html).toContain('href="https://apps.apple.com/app/id6798875872"');
+    expect(html).toContain("Download on the");
+    expect(html).toMatch(/SwiftCard iPhone app/);
+    // The route passes the module constant, wired for real:
+    const route = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/app/api/office/invite/route.ts"), "utf8");
+    expect(route).toMatch(/appStoreUrl: APP_STORE_URL/);
+  });
+
+  it("the welcome email rides the same switch (appStoreEmailBlock)", () => {
+    const tpl = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/lib/email-templates.ts"), "utf8");
+    expect(tpl).toMatch(/\$\{appStoreEmailBlock\(/);
+    const lib = require("node:fs").readFileSync(require("node:path").join(process.cwd(), "src/lib/app-store.ts"), "utf8");
+    expect(lib).toMatch(/if \(!APP_STORE_URL\) return "";/);
+  });
+});

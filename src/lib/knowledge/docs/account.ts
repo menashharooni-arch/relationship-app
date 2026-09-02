@@ -195,7 +195,7 @@ export const accountDocs = defineDocs([
       "free month", "earn free", "promo code", "discount code",
     ],
     answer:
-      "Settings → Help and referrals has your \"Refer a friend\" box. Invite 3 friends who sign up and you get a month of Pro free, up to 3 months — and your friends get a free month too. There's more at /grow.",
+      "Settings → Help and referrals has your \"Refer a friend\" box. Invite 3 friends who sign up and you get a month of Pro free, up to 3 months — and your friends get a free month too. There's more at /grow. Once the SwiftCard iPhone app is on the App Store, the same section shows a \"Get the iPhone app\" row with a download link (on the web only — inside the app you already have it).",
     detail:
       "Rewards never switch themselves on: when one is earned you have to press Claim. Only a real referral link earns the month — the other \"create a free account\" prompts scattered around the product (the badge on a card, a follow-up email) are not referral links. Each free month lasts {limit.freeMonthDays} days.",
     commerce: true,
