@@ -167,16 +167,18 @@ function LookPicker({
           >
             {/* The swatch is a MINI PAGE, not an abstract chip — avatar dot,
                 a name line in the look's text, and its accent as the Connect
-                bar, so each card previews the page it produces. */}
+                bar, so each card previews the page it produces. The look's OWN
+                name sits in the name position (owner order 2026-09-02: no more
+                "Sam Okafor" placeholder person) — it labels the template and
+                previews its typography in one line. */}
             <span className="flex items-center gap-1.5">
               <span className="w-4 h-4 rounded-full shrink-0" style={{ background: l.text, opacity: 0.25 }} />
-              <span className="text-[12px] font-extrabold leading-none truncate" style={{ color: l.text }}>Sam Okafor</span>
+              <span className="text-[12px] font-extrabold leading-none truncate" style={{ color: l.text }}>{l.name}</span>
             </span>
             <span className="mt-1.5 block h-1 w-2/3 rounded-full" style={{ background: l.text, opacity: 0.18 }} />
             <span className="mt-2 block h-[14px] w-full rounded-full" style={{ background: l.accent }} />
-            <span className="mt-2 flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold" style={{ color: l.text }}>{l.name}</span>
-              {l.aura && <span className="text-[9px] leading-none" style={{ color: l.text, opacity: 0.55 }}>· your photo, blurred</span>}
+            <span className="mt-2 flex items-center gap-1.5 min-h-[11px]">
+              {l.aura && <span className="text-[9px] leading-none" style={{ color: l.text, opacity: 0.55 }}>your photo, blurred</span>}
               {proLocked && <ProTag />}
             </span>
           </button>
