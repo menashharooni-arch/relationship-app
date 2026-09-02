@@ -75,11 +75,22 @@ const config: CapacitorConfig = {
     // The cold-open screen. Without this the shell showed the bare webview
     // canvas (a black rectangle) from launch until the remote dashboard
     // painted — 1–3s of "is it broken?" on every open. Now the branded
-    // launch image stays up until the web app says it has painted
-    // (NativeAppBridge → SplashScreen.hide()), with a hard 4s auto-hide so a
-    // stalled network can never leave the splash stuck.
+    // launch image stays up until the web app says it has painted — the
+    // splash markup calls SplashScreen.hide() the moment its frame 0 (which
+    // is pixel-identical to the launch image) has decoded, and
+    // NativeAppBridge's hide-on-mount backstops any page without the markup.
+    //
+    // launchShowDuration is the FAILSAFE only, not the normal path. At 4000
+    // it raced real cold opens and LOST: a cold Vercel lambda is 1.7–2.4s of
+    // TTFB before the webview even starts parsing, so first paint regularly
+    // landed past 4s — iOS dropped the launch image on the timer and exposed
+    // the webview canvas (#030712), which is the "logo → black screen →
+    // logo + lightning" cold-open sequence. 15s comfortably covers the
+    // slowest legitimate open (the web side's own error boundary fires at
+    // 10s) while still guaranteeing a dead network can never leave the
+    // splash stuck forever. Takes effect on the NEXT native build.
     SplashScreen: {
-      launchShowDuration: 4000,
+      launchShowDuration: 15000,
       launchAutoHide: true,
       launchFadeOutDuration: 180,
       backgroundColor: "#030712",

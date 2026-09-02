@@ -26,7 +26,7 @@ import GuestFlowReset from "@/components/GuestFlowReset";
 import BadgeCloseButton from "@/components/BadgeCloseButton";
 
 export const metadata: Metadata = {
-  title: "SwiftCard — The digital business card that shares itself",
+  title: "SwiftCard — The digital business card that shares everything",
   description:
     "One tap and you're in their phone — card, links, and everything you do. Digital cards, SwiftLinks, live email signatures, Apple Wallet, analytics, and lead capture.",
 };
