@@ -1,13 +1,14 @@
-// Reads agent_settings.schedule (cron, set from the UI; NULL = manual-only)
-// and dispatches the matching workflow for any agent due in this half-hour
-// window. With all schedules NULL — the shipped default — this exits having
-// done nothing.
+// Reads agent_settings.schedule (cron, set from the UI) and dispatches the
+// matching workflow for any agent due in this half-hour window. NULL means
+// the agent works its default_schedule from config.json (owner order
+// 2026-09-02: an awake, Active agent is ALWAYS working a rhythm — "manual
+// only" is not a state; the Active toggle is the one per-agent switch).
 import { readFileSync } from "node:fs";
 import { sb } from "./lib/agentkit.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
-const rows = await sb("GET", "agent_settings", { params: "schedule=not.is.null&enabled=is.true&paused=is.false" });
-if (!rows?.length) { console.log("No schedules set — nothing to dispatch."); process.exit(0); }
+const rows = await sb("GET", "agent_settings", { params: "enabled=is.true&paused=is.false" });
+if (!rows?.length) { console.log("No awake, active agents — nothing to dispatch."); process.exit(0); }
 const sys = (await sb("GET", "agent_system", { params: "limit=1" }))[0];
 if (sys.paused) { console.log("System paused — dispatching nothing."); process.exit(0); }
 if (sys.auto_pause_at && new Date(sys.auto_pause_at).getTime() <= Date.now()) {
@@ -29,7 +30,8 @@ const due = (sched) => {
   return hit(h, now.getUTCHours()) && (m === "*" || Math.abs(Number(m) - now.getUTCMinutes()) < 30);
 };
 for (const r of rows) {
-  if (!due(r.schedule)) continue;
+  const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
+  if (!schedule || !due(schedule)) continue;
   const wf = config.agents[r.agent_id]?.workflow;
   if (!wf) continue;
   const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app"}/actions/workflows/${wf}/dispatches`, {
@@ -37,5 +39,5 @@ for (const r of rows) {
     headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
     body: JSON.stringify({ ref: "main", inputs: { trigger: "schedule" } }),
   });
-  console.log(`${r.agent_id} (${r.schedule}) → dispatch ${res.status}`);
+  console.log(`${r.agent_id} (${schedule}${r.schedule ? "" : " default"}) → dispatch ${res.status}`);
 }

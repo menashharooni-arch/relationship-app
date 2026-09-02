@@ -323,3 +323,35 @@ describe("start opens, wake runs", () => {
     expect(client).not.toMatch(/press Start and every agent works/);
   });
 });
+
+// ── Every agent always has a rhythm (owner order 2026-09-02) ─────────────────
+// "Manual only" is not a state: an awake, Active agent works its schedule, and
+// an empty schedule means the default_schedule from config.json. The scheduler
+// and the UI read the SAME defaults, pinned against each other here.
+describe("default rhythms — no schedule-less agents", () => {
+  const cfg = JSON.parse(read("marketing-agents/config.json")) as { agents: Record<string, { default_schedule?: string }> };
+
+  it("config carries a default_schedule for every agent except self-scheduled bugwatch", () => {
+    for (const [id, a] of Object.entries(cfg.agents)) {
+      if (id === "bugwatch") { expect(a.default_schedule).toBeUndefined(); continue; }
+      expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2})$/);
+    }
+  });
+
+  it("the scheduler falls back to the config default for empty schedules", () => {
+    const sched = read("marketing-agents/scheduler.mjs");
+    expect(sched).toMatch(/r\.schedule \|\| config\.agents\[r\.agent_id\]\?\.default_schedule/);
+    // And it no longer filters empty schedules out of the query.
+    expect(sched).not.toMatch(/schedule=not\.is\.null/);
+  });
+
+  it("the UI's DEFAULT_SCHEDULES map matches config exactly — no drift", () => {
+    const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+    for (const [id, a] of Object.entries(cfg.agents)) {
+      if (!a.default_schedule) continue;
+      expect(client, `client default for ${id}`).toContain(`${id}: "${a.default_schedule}"`);
+    }
+    expect(client).not.toMatch(/off — only when run by hand/);
+    expect(client).not.toMatch(/"Manual only"/);
+  });
+});
