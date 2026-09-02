@@ -11,6 +11,7 @@ import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
+import SwiftLinksPromoBadge from "@/components/SwiftLinksPromoBadge";
 import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
@@ -172,6 +173,11 @@ export default function SwiftLinkProfile({
             <div className="absolute inset-0" style={{ background: "rgba(8,8,12,0.5)" }} />
           </div>
         )}
+
+        {/* Linktree-style corner badge — invite to create your own Swift
+            Links. Real page only: in a preview it's noise, and it would open
+            a signup sheet inside the owner's own editor. */}
+        {!embedded && <SwiftLinksPromoBadge username={username} appUrl={appUrl} />}
 
         {/* Sticky mini header — zero-height wrapper so it draws over the hero.
             Skipped in a preview (no page scroll to reveal it). */}
