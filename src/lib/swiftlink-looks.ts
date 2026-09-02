@@ -231,21 +231,23 @@ export function normalizeHeroContent(v?: string | null): HeroContent {
   return v === "photo" || v === "logo" || v === "initials" ? v : DEFAULT_HERO_CONTENT;
 }
 
-// ── Link button style (Linktree-informed, 2026-09-01) ───────────────────────
+// ── Link ROW style (Linktree-informed, 2026-09-01) ──────────────────────────
 //
-// "Tile" is the original hoo.be rich-preview system (featured/grid/compact,
-// lib/swiftlink-tiles) — untouched, still the default. "Solid" and "Outline"
-// render every link as a full-width Linktree-style row — small favicon
-// thumbnail, label, chevron — filled with (or outlined in) the button color,
-// which defaults to the Look's accent and can be overridden with
-// linkButtonColor. Pro fine-tuning, same plan line as the icon styling: both
-// keys live in LINK_STYLE_KEYS, so Free stores/renders neither.
+// Styles the COMPACT link rows only — it composes with the per-link sizes the
+// owner picks on the Socials tab (auto/featured/grid/compact): featured and
+// grid always keep their rich image/video previews, and this decides how the
+// plain rows among them look. "tile" (the stored default id, kept for data
+// stability) is the stock translucent row; "solid"/"outline" are Linktree-
+// style rows — filled with (or outlined in) the button color, which defaults
+// to the Look's accent and can be overridden with linkButtonColor. Pro
+// fine-tuning, same plan line as the icon styling: both keys live in
+// LINK_STYLE_KEYS, so Free stores/renders neither.
 
 export type ButtonStyle = "tile" | "solid" | "outline";
 
 export const BUTTON_STYLES: { id: ButtonStyle; name: string; hint: string }[] = [
-  { id: "tile", name: "Tiles", hint: "Rich preview cards with images" },
-  { id: "solid", name: "Buttons", hint: "Solid color rows" },
+  { id: "tile", name: "Standard", hint: "The stock translucent rows" },
+  { id: "solid", name: "Solid", hint: "Solid color rows" },
   { id: "outline", name: "Outline", hint: "Bordered rows" },
 ];
 

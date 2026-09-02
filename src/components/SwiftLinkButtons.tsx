@@ -147,10 +147,11 @@ export default function SwiftLinkButtons({
 
   const tiles = layoutTiles(links, paid);
   const light = mode === "light";
-  // Solid/outline rows replace the tile system wholesale — every link renders
-  // as a row, whatever size it has stored (sizes are kept, not deleted, same
-  // philosophy as the Free rendering).
-  const rowsOnly = buttonStyle === "solid" || buttonStyle === "outline";
+  // Row styling COMPOSES with the per-link sizes from the Socials tab: solid/
+  // outline restyle only the COMPACT rows, while featured/grid keep their
+  // rich image/video previews — the whole point of those sizes. (An earlier
+  // cut forced every link into rows, which fought the owner's per-link picks;
+  // owner order 2026-09-01: they must work together.)
   const btnColor = buttonColor || accent;
   // The Look's accentText is AA-tested against the Look's accent; a CUSTOM
   // color needs its text derived from its own lightness.
@@ -186,12 +187,13 @@ export default function SwiftLinkButtons({
         const pv = previews[i];
         const favicon = pv?.favicon || null;
 
-        // ── COMPACT / SOLID / OUTLINE — slim rows on the sheet itself ───────
+        // ── COMPACT — slim row on the sheet itself ──────────────────────────
         // "compact" is the stock translucent row; buttonStyle solid/outline
         // restyle the SAME row (favicon well, label, chevron) in the button
-        // color — filled, or bordered — and apply it to every link.
-        if (rowsOnly || size === "compact") {
-          const variant = rowsOnly ? buttonStyle : "compact";
+        // color — filled, or bordered. Only compact rows: featured/grid tiles
+        // above keep their previews regardless of the row style.
+        if (size === "compact") {
+          const variant = buttonStyle === "solid" || buttonStyle === "outline" ? buttonStyle : "compact";
           const rowClass =
             variant === "solid"
               ? "shadow-[0_2px_10px_rgba(15,23,42,0.10)]"
