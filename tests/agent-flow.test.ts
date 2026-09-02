@@ -114,9 +114,16 @@ describe("agent flow: schema and config integrity", () => {
     expect(sched).toMatch(/America\/New_York/);
   });
 
-  it("the scheduler is inert by default (no seeded schedules)", () => {
+  it("the system is inert by default — via the master pause, not empty schedules", () => {
+    // Since the default-rhythm order (2026-09-02) every agent HAS a schedule
+    // (config default when the DB's is NULL), so inertness comes from the
+    // ship-state master pause + Start resting every team: the scheduler
+    // hard-exits on a paused system, and the DB seeds no schedule values of
+    // its own for the config defaults to fight with.
     expect(schema).not.toMatch(/schedule.*default\s+'[^n]/i);
-    expect(read("marketing-agents/scheduler.mjs")).toContain("No schedules set");
+    const sched = read("marketing-agents/scheduler.mjs");
+    expect(sched).toMatch(/System paused — dispatching nothing/);
+    expect(sched).toMatch(/No awake, active agents/);
   });
 });
 
