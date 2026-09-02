@@ -141,6 +141,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkFontFamily?: string;
     linkIconShape?: string;
     linkIconFill?: string;
+    /** Social-design toggle: true hides the "View SwiftCard →" link. */
+    hideCardLink?: boolean;
   };
   // The named Look renders for EVERY plan — Free is snapped to the free pair
   // at render time (a Pro Look kept in storage after a downgrade is hidden,
@@ -229,6 +231,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         links={actionLinks}
         appUrl={APP_URL}
         pageStyle={pageStyle}
+        // Owner's Social-design toggle; absent/false = shown (the default).
+        showCardLink={customization.hideCardLink !== true}
       />
       {/* In-app only (App Review 1.2): report affordance for public Swift
           Links pages. Renders null on web/SSR — the public page is unchanged. */}

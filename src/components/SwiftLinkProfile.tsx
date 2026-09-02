@@ -62,6 +62,7 @@ export default function SwiftLinkProfile({
   pageStyle,
   embedded = false,
   paidTiles = false,
+  showCardLink = true,
 }: {
   name: string;
   username: string;
@@ -86,6 +87,9 @@ export default function SwiftLinkProfile({
   /** Paid owner: featured/grid image tiles + inline video. Defaults FALSE —
    *  fails closed to the Free rendering (every link compact). */
   paidTiles?: boolean;
+  /** Owner toggle (Social design step): the faint "View SwiftCard →" link at
+   *  the bottom. ON by default — hiding it is the owner's explicit choice. */
+  showCardLink?: boolean;
 }) {
   // Mini header fades in once the hero photo scrolls out from under it. Not in
   // a preview: there's no page scroll, so it would just sit invisible.
@@ -294,16 +298,19 @@ export default function SwiftLinkProfile({
           {/* Featured links — rich preview cards */}
           <SwiftLinkButtons links={links} tileBg={look.tile} mode={light ? "light" : "dark"} textColor={textColor} paid={paidTiles} />
 
-          {/* Faint link to this person's full SwiftCard (every plan) */}
-          <div className="flex justify-center mt-10">
-            <a
-              href={`/${username}`}
-              className={`inline-block px-4 py-2 text-xs rounded-lg transition-colors ${"" /* hover well must be visible on BOTH modes */}${light ? "hover:bg-black/[0.06]" : "hover:bg-white/10"}`}
-              style={{ color: textColor, opacity: 0.5 }}
-            >
-              View SwiftCard →
-            </a>
-          </div>
+          {/* Faint link to this person's full SwiftCard — owner-toggleable from
+              the Social design step (hideCardLink in customization). */}
+          {showCardLink && (
+            <div className="flex justify-center mt-10">
+              <a
+                href={`/${username}`}
+                className={`inline-block px-4 py-2 text-xs rounded-lg transition-colors ${"" /* hover well must be visible on BOTH modes */}${light ? "hover:bg-black/[0.06]" : "hover:bg-white/10"}`}
+                style={{ color: textColor, opacity: 0.5 }}
+              >
+                View SwiftCard →
+              </a>
+            </div>
+          )}
 
           {/* Footer — "Made with swiftcard.me" attribution on EVERY profile,
               every plan (owner decision 2026-08-11, same call as the card

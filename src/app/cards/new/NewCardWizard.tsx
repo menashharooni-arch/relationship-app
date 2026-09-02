@@ -333,6 +333,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setPendingPrefill(null);
   }
 
+  // Social-design toggle: the faint "View SwiftCard →" link on the Swift
+  // Links page. ON by default — hiding it is the owner's explicit choice.
+  const [showCardLinkBtn, setShowCardLinkBtn] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
   // Native-only: when a Free user hits the card cap we can't send them to the
@@ -658,6 +661,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           links: savableLinks, address, phones: cleanPhones, fax: fax.trim(),
           ...templateStyleState,
           ...linkStyleState,
+          ...(showCardLinkBtn ? {} : { hideCardLink: true }),
           photoUrl: null,
           ...(template === "custom" ? { customLayout } : {}),
         },
@@ -669,7 +673,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     });
   }, [guest, step, username, cardLabel, name, company, title, primaryPhone, email, website,
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
-      linkStyleState, customLayout, logoUrl, headshotUrl]);
+      linkStyleState, customLayout, logoUrl, headshotUrl, showCardLinkBtn]);
 
   async function handleCreate(planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number }) {
     if (!name.trim() || !username) {
@@ -721,6 +725,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             // (Free snapped to the free pair server-side); the custom bg/text/font
             // fine-tune keys are Pro and stripped on Free.
             ...linkStyleState,
+            // "View SwiftCard →" toggle (absent = shown, the default).
+            ...(showCardLinkBtn ? {} : { hideCardLink: true }),
             // Headshot is per-card (explicit key, null when none) — never inherits
             // another card's photo.
             photoUrl: headshotUrl ?? null,
@@ -842,6 +848,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         }}
         links={links}
         paid={designUnlocked}
+        showCardLink={showCardLinkBtn}
       />
       {/* Both Swift Links steps share this preview, so the caption names what
           the step you are on actually changes. */}
@@ -1569,6 +1576,17 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 Style your Swift Links page — the page where your bio, socials and links live.
               </p>
             </div>
+
+            {/* The "View SwiftCard →" link at the bottom of the page — theirs to keep or hide. */}
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
+              <span className="min-w-0">
+                <span className="text-white text-sm font-medium block">Show the &ldquo;View SwiftCard&rdquo; button</span>
+                <span className="text-gray-500 text-xs">The small link at the bottom of your Swift Links page that opens your card.</span>
+              </span>
+              <button type="button" role="switch" aria-checked={showCardLinkBtn} onClick={() => setShowCardLinkBtn((v) => !v)} className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0" style={{ background: showCardLinkBtn ? "#2563EB" : "#475569" }}>
+                <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
+              </button>
+            </label>
 
             {/* Mobile-only inline copy — on desktop the SAME preview replaces
                 the card's Live Preview in the pinned sidebar (see below), so
