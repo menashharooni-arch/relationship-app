@@ -94,7 +94,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle" };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -181,6 +181,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   // Sharing — bio, social links, additional links
   const [bio, setBio] = useState(card.customization?.bio || "");
+  // Social-design toggle: "View SwiftCard →" on the Swift Links page (default shown).
+  const [showCardLinkBtn, setShowCardLinkBtn] = useState(card.customization?.hideCardLink !== true);
   const [website, setWebsite] = useState(orgWebsite ?? (card.website || ""));
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [newLink, setNewLink] = useState({ label: "", url: "" });
@@ -373,6 +375,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkBgColor: linkStyleState.linkBgColor ?? null,
             linkTextColor: linkStyleState.linkTextColor ?? null,
             linkFontFamily: linkStyleState.linkFontFamily ?? null,
+            // "View SwiftCard →" toggle — sent explicitly (null clears back to shown) so the merge can flip it both ways.
+            hideCardLink: showCardLinkBtn ? null : true,
             // Headshot is per-card (explicit key, null when removed).
             photoUrl: photoState ?? null,
             // Logo display shape — null clears back to the "auto" default.
@@ -435,6 +439,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   const linkPreviewInner = (
     <SwiftLinkLivePreview
+      showCardLink={showCardLinkBtn}
       style={linkStyleState}
       name={name || card.username}
       handle={card.username}
@@ -1030,6 +1035,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 mini-phone width. At full column width it scaled to ~0.9 and
                 filled the screen before you could reach a single colour. */}
             {mobileLinkPreview("It updates live as you pick colors and fonts.")}
+            {/* The "View SwiftCard →" link at the bottom of the page — theirs to keep or hide. */}
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
+              <span className="min-w-0">
+                <span className="text-white text-sm font-medium block">Show the &ldquo;View SwiftCard&rdquo; button</span>
+                <span className="text-gray-500 text-xs">The small link at the bottom of your Swift Links page that opens your card.</span>
+              </span>
+              <button type="button" role="switch" aria-checked={showCardLinkBtn} onClick={() => setShowCardLinkBtn((v) => !v)} className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0" style={{ background: showCardLinkBtn ? "#2563EB" : "#475569" }}>
+                <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
+              </button>
+            </label>
             <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!isPro} />
             {!isPro && (
               <PlanGate

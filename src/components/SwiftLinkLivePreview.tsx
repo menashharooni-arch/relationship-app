@@ -41,6 +41,7 @@ export default function SwiftLinkLivePreview({
   links,
   style,
   paid = false,
+  showCardLink = true,
 }: {
   name: string;
   handle: string;
@@ -56,6 +57,8 @@ export default function SwiftLinkLivePreview({
   style?: SwiftLinkStyle;
   /** Paid owner → page theming + verified badge apply, matching the live page. */
   paid?: boolean;
+  /** Mirrors the owner's "View SwiftCard" toggle so the preview is exact. */
+  showCardLink?: boolean;
 }) {
   const brandSocials = buildConnectLinks({
     website: socials.website ?? undefined,
@@ -119,6 +122,7 @@ export default function SwiftLinkLivePreview({
           links={cleanLinks}
           appUrl={APP_URL}
           pageStyle={pageStyle}
+          showCardLink={showCardLink}
         />
       </CardScaler>
     </InertPreview>

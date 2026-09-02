@@ -33,7 +33,7 @@ export const cardDocs = defineDocs([
     answer:
       "Settings → Cards and sharing → \"Edit\" next to the card. That's the only place a card can be edited — the dashboard shows and shares cards but has no Edit link. The editor has four tabs: \"Card info\", \"Card design\", \"Socials\" and \"Social design\".",
     detail:
-      "What lives on each tab, from their own hints: Card info — \"Name & contact details\" (plus your website, address, and the card's URL). Card design — \"Photos, template, colors & fonts\". Socials — \"Bio, socials & additional links\". Social design — \"Style your Swift Links page\". Note the second tab is labelled \"Card design\", not \"Design\". On a team account the company-managed fields show a \"Managed by your organization\" tag and can't be changed from here.",
+      "What lives on each tab, from their own hints: Card info — \"Name & contact details\" (plus your website, address, and the card's URL). Card design — \"Photos, template, colors & fonts\". Socials — \"Bio, socials & additional links\". Social design — \"Style your Swift Links page\". Social design also has a \"Show the 'View SwiftCard' button\" switch — on by default; turning it off removes the small link at the bottom of the Swift Links page that opens the card. Note the second tab is labelled \"Card design\", not \"Design\". On a team account the company-managed fields show a \"Managed by your organization\" tag and can't be changed from here.",
   },
   {
     id: "templates-and-design",
