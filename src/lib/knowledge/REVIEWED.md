@@ -42,3 +42,16 @@ One line per review, newest last.
   the hardcoded template count. Everything else the mockup work touched is
   visual-only and already documented correctly (`product.ts` was current on
   Looks, headers, icon styling, and root URLs).
+
+- **2026-09-02 · up to `e7a2f30`** — Swift Links hero-blend passes (`db8ffcd`,
+  `e7a2f30`) are visual-only: the photo/logo header now washes into the sheet
+  with no visible seam; no behavior, plan line, or user-facing wording
+  changed. Signup-nudge commit `5dfb9b9` restyled the popup and changed its
+  frequency to once ever per moment per browser — a marketing popup the KB
+  deliberately doesn't document (support never needs to explain its cadence;
+  the existing "signed-in users are never shown join-free invites" behavior
+  is unchanged). Agent Flow (`de0769c`) is the owner-only /admin console —
+  never customer-facing, nothing for the assistants to know. Earlier same-day
+  user-facing changes (bolt badge + promo sheet, Free-only footer, Upload
+  photo header option, tour-banner timing, Link buttons note) all landed with
+  their KB updates in their own commits.
