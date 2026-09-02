@@ -73,6 +73,12 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # The Fixer is dispatched BY the watcher workflows, so the initiating
+          # actor is the github-actions bot — without this allowlist the action
+          # refused to start ("non-human actor") and continue-on-error masked
+          # it: every auto-dispatched Fixer run since launch silently produced
+          # no PR (found 2026-09-02 via the owner's Dash finding).
+          allowed_bots: "github-actions"
           claude_args: '--allowedTools "Read,Grep,Glob,Edit,Write,Bash(npx tsc --noEmit),Bash(npx vitest run)"'
           prompt: |
             A site watchdog reported findings about swiftcard.me. They are in
