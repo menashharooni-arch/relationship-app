@@ -66,6 +66,7 @@ export default function SwiftLinkProfile({
   embedded = false,
   paidTiles = false,
   showCardLink = true,
+  brandingFooter = true,
 }: {
   name: string;
   username: string;
@@ -93,6 +94,12 @@ export default function SwiftLinkProfile({
   /** Owner toggle (Social design step): the faint "View SwiftCard →" link at
    *  the bottom. ON by default — hiding it is the owner's explicit choice. */
   showCardLink?: boolean;
+  /** "Made with swiftcard.me" footer — FREE plan only (owner order
+   *  2026-09-02, superseding the 2026-08-11 every-plan rule for THIS surface:
+   *  the top-left bolt badge now carries the invite on every plan, so paid
+   *  pages drop the footer). Defaults true so a caller that doesn't know the
+   *  plan fails toward attribution. */
+  brandingFooter?: boolean;
 }) {
   // Header layout: "cover" (default — the original full-photo hero the sheet
   // slides over), "banner" (the same at a third of the screen), "avatar"
@@ -393,12 +400,13 @@ export default function SwiftLinkProfile({
             </div>
           )}
 
-          {/* Footer — "Made with swiftcard.me" attribution on EVERY profile,
-              every plan (owner decision 2026-08-11, same call as the card
-              page's badge — the two gates had drifted apart once already).
-              Wording changed 2026-08-18 (owner request): the brand word is the
+          {/* Footer — "Made with swiftcard.me" attribution, FREE plan only
+              since 2026-09-02 (owner order): paid plans drop it, and the
+              top-left bolt badge carries the invite on every plan instead.
+              Wording from 2026-08-18 (owner request): the brand word is the
               DOMAIN, underlined, so visitors can tell it's a tappable link —
               plain "SwiftCard" read as a label and nobody knew to tap it. */}
+          {brandingFooter && (
           <div className="flex justify-center mt-5">
             <a
               href={`${appUrl}/?src=badge`}
@@ -409,6 +417,7 @@ export default function SwiftLinkProfile({
               <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
             </a>
           </div>
+          )}
         </div>
       </div>
     </main>

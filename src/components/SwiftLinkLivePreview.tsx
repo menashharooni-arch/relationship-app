@@ -127,6 +127,9 @@ export default function SwiftLinkLivePreview({
           appUrl={APP_URL}
           pageStyle={pageStyle}
           showCardLink={showCardLink}
+          // Mirrors the live page: the "Made with swiftcard.me" footer is
+          // Free-only, so a paid owner's preview must not show it either.
+          brandingFooter={!paid}
         />
       </CardScaler>
     </InertPreview>
