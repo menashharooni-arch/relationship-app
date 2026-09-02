@@ -84,9 +84,19 @@ function nyNow(now: number): { h: number; m: number } {
   const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).formatToParts(new Date(now));
   return { h: Number(p.find((x) => x.type === "hour")!.value) % 24, m: Number(p.find((x) => x.type === "minute")!.value) };
 }
+// Every agent works a rhythm (owner order 2026-09-02): an empty schedule
+// means the agent's default_schedule from marketing-agents/config.json — the
+// scheduler falls back to the same map, so this display never lies. "Manual
+// only" is not a state; the Active toggle is the one per-agent switch.
+const DEFAULT_SCHEDULES: Record<string, string> = {
+  outreach: "every@8h", prospects: "daily@07:30", seo: "every@8h", blog: "daily@09:30",
+  social: "every@8h", mentions: "every@8h", influencer: "daily@12:00",
+  security: "daily@09:30", perf: "every@4h", flowcheck: "every@12h", manager: "daily@17:30",
+};
 /** "in ~2h 10m" until this agent's next scheduled run. */
-function nextRunText(schedule: string | null, agentId: string, now: number): string | null {
+function nextRunText(rawSchedule: string | null, agentId: string, now: number): string | null {
   if (agentId === "bugwatch") return "daily (self-scheduled)";
+  const schedule = rawSchedule || DEFAULT_SCHEDULES[agentId] || null;
   if (!schedule) return null;
   const { h, m } = nyNow(now);
   const minsNow = h * 60 + m;
@@ -109,7 +119,7 @@ function etToday(hour: number, minute = 0): string {
 }
 
 const CADENCES: [string, string][] = [
-  ["", "off — only when run by hand"],
+  ["", "default rhythm"],
   ["every@4h", "every 4 hours"],
   ["every@8h", "every 8 hours"],
   ["every@12h", "twice a day"],
@@ -329,10 +339,10 @@ export default function AgentFlowClient() {
             : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
             : s.paused ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
             : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · next {next}</span>
-            : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "Manual only" : "Waiting for Start"}</span>}
+            : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "On duty" : "Waiting for Start"}</span>}
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={() => control("run", id)} disabled={busy || !s.enabled} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full whitespace-nowrap transition-colors">Run once</button>
-            <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by Start All and the schedule">
+            <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by team wakes and the schedule — the one per-agent switch">
               <input type="checkbox" checked={s.enabled} onChange={(e) => saveSetting({ agent_id: id, enabled: e.target.checked }, e.target.checked ? "Back on the roster." : "Benched — everything else keeps running.")} className="accent-blue-600" /> active
             </label>
             <button data-aftour={isFirst ? "logbtn" : undefined} onClick={() => setExpanded(expanded === id ? null : id)} className="text-xs text-gray-500 hover:text-gray-300 px-1.5 py-1.5 whitespace-nowrap transition-colors">{expanded === id ? "▴" : "▾ log"}</button>
@@ -783,8 +793,8 @@ export default function AgentFlowClient() {
               {id !== "bugwatch" ? (
                 <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Their working rhythm while the system is running">
                   rhythm
-                  <select value={s.schedule ?? ""} onChange={(e) => saveSetting({ agent_id: id, schedule: e.target.value || null }, e.target.value ? "Rhythm saved — they'll keep it whenever the system is running." : "Manual only — runs only when you press Run once.")} className="bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white">
-                    {CADENCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  <select value={s.schedule ?? ""} onChange={(e) => saveSetting({ agent_id: id, schedule: e.target.value || null }, e.target.value ? "Rhythm saved — they'll keep it whenever they're awake." : "Back on their default rhythm.")} className="bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white">
+                    {CADENCES.map(([v, l]) => <option key={v} value={v}>{v === "" && DEFAULT_SCHEDULES[id] ? `default — ${CADENCES.find(([cv]) => cv === DEFAULT_SCHEDULES[id])?.[1] ?? DEFAULT_SCHEDULES[id]}` : l}</option>)}
                     {s.schedule && !CADENCES.some(([v]) => v === s.schedule) && <option value={s.schedule}>{s.schedule}</option>}
                   </select>
                 </label>
