@@ -709,8 +709,10 @@ export default async function DashboardPage({
           {/* Reverse-trial / free-Pro countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
 
-          {/* First-run guided-tour invitation */}
-          <TourBanner />
+          {/* First-run guided-tour invitation — only on the ?tour=1/?welcome=1
+              load right after the first card is created (the banner reads the
+              params, hence the Suspense useSearchParams wants). */}
+          <Suspense><TourBanner /></Suspense>
 
           {/* My Cards — full width, top of dashboard */}
           <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">

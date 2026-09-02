@@ -61,7 +61,7 @@ export const dashboardDocs = defineDocs([
     audience: ["user"],
     triggers: ["tour", "walkthrough", "guided tour", "show me around", "replay tour", "take a tour"],
     answer:
-      "New accounts get a \"Take a quick tour\" banner on the dashboard. To replay it later, go to Settings → Help and referrals → \"Take a Tour\". It spotlights each part of the app across the dashboard, Links, Contacts and Settings, with Back / Next and a Skip option.",
+      "Right after you create your first card, the dashboard shows a \"Take a quick tour\" banner (it doesn't appear on later sign-ins). To replay it later, go to Settings → Help and referrals → \"Take a Tour\". It spotlights each part of the app across the dashboard, Links, Contacts and Settings, with Back / Next and a Skip option.",
     detail:
       "Whether the tour has been taken is remembered per browser, so it can reappear on a new device and won't come back on the same one after a Skip. If a step seems to hang for a couple of seconds it's waiting for an element it can't find, and it will skip that step by itself. The Office admin console has its own separate \"Tour\" button.",
   },
