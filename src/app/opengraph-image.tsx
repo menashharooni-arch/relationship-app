@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 // pages keep their own dynamic card/[username]/opengraph-image. Typographic and
 // self-contained (no asset fetch) so it renders reliably at the edge.
 export const runtime = "edge";
-export const alt = "SwiftCard — The digital business card that shares everything";
+export const alt = "SwiftCard: The digital business card that shares everything";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

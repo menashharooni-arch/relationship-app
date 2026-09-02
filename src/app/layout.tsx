@@ -17,7 +17,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-const SITE_TITLE = "SwiftCard — The digital business card that shares everything";
+const SITE_TITLE = "SwiftCard: The digital business card that shares everything";
 const SITE_DESC =
   "Build your SwiftCard once and share it by tap, QR code, Apple Wallet, or link — with built-in lead capture and automatic follow-up.";
 
