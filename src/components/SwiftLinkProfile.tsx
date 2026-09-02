@@ -208,9 +208,11 @@ export default function SwiftLinkProfile({
         <div className={`relative w-full overflow-hidden rounded-t-[30px] ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}>
           {hero.kind === "photo" ? (
             // A headshot is a photo of a person: fill the frame and crop, which
-            // is what makes the link.me hero look right.
+            // is what makes the link.me hero look right. The BANNER anchors the
+            // crop to the TOP of the photo (faces live in the upper part of a
+            // portrait) — centered cropping cut the head off and kept the torso.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero.url} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+            <img src={hero.url} alt={name} className={`absolute inset-0 w-full h-full object-cover ${heroBanner ? "object-top" : ""}`} />
           ) : hero.kind === "logo" ? (
             // A LOGO is not a headshot and must not be treated like one.
             // object-cover would crop a wide wordmark down to its middle

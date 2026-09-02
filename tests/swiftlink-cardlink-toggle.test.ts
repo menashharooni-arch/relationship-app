@@ -26,6 +26,11 @@ describe("the View SwiftCard button toggle", () => {
     for (const src of [wizard, editor]) {
       expect(src).toContain("Show the &ldquo;View SwiftCard&rdquo; button");
       expect(src).toMatch(/showCardLinkBtn/);
+      // The knob must be anchored: absolute WITHOUT left-0 took its static
+      // (centered) position inside the button, and translateX(22px) then
+      // pushed it out past the track's right edge (owner bug report
+      // 2026-09-01: "the toggle falls out").
+      expect(src).toMatch(/absolute top-0\.5 left-0 w-5 h-5 bg-white rounded-full/);
     }
     // Wizard writes the flag only when hidden (fresh rows stay clean)…
     expect(wizard).toMatch(/showCardLinkBtn \? \{\} : \{ hideCardLink: true \}/);

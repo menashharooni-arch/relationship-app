@@ -1584,7 +1584,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 <span className="text-gray-500 text-xs">The small link at the bottom of your Swift Links page that opens your card.</span>
               </span>
               <button type="button" role="switch" aria-checked={showCardLinkBtn} onClick={() => setShowCardLinkBtn((v) => !v)} className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0" style={{ background: showCardLinkBtn ? "#2563EB" : "#475569" }}>
-                <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
+                {/* left-0 is load-bearing: without an anchor, an absolutely
+                    positioned knob takes its STATIC position inside the button
+                    (which centers content), so translateX(22px) shoved it out
+                    past the track's right edge. */}
+                <span className="absolute top-0.5 left-0 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
               </button>
             </label>
 

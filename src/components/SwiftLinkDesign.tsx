@@ -360,7 +360,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your additional links render — rich preview tiles, or clean rows in one color.</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your plain link rows look. Links set to Featured or Grid (in Socials) always keep their image previews — great for videos.</p>
         <div className="grid grid-cols-3 gap-1.5">
           {BUTTON_STYLES.map((o) => {
             const active = normalizeButtonStyle(value.linkButtonStyle) === o.id;
@@ -375,9 +375,9 @@ export function SwiftLinkStyleControls({
                   active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
                 }`}
               >
-                {/* Mini glyph: tile = image card; solid = filled row; outline = bordered row */}
+                {/* Mini glyph: standard = quiet translucent row; solid = filled row; outline = bordered row */}
                 {o.id === "tile" ? (
-                  <span className="w-8 h-4 rounded-[4px] bg-gray-400 overflow-hidden flex items-end justify-center"><span className="w-5 h-[3px] mb-[2px] rounded bg-gray-700" /></span>
+                  <span className="w-8 h-4 rounded-full bg-gray-700 ring-1 ring-gray-500 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-400" /></span>
                 ) : o.id === "solid" ? (
                   <span className="w-8 h-4 rounded-full bg-gray-300 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-700" /></span>
                 ) : (

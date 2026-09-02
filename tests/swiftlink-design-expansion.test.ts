@@ -82,6 +82,8 @@ describe("rendering", () => {
     expect(src).toMatch(/normalizeHeroStyle\(pageStyle\?\.heroStyle\)/);
     expect(src).toMatch(/\{\(heroStyle === "cover" \|\| heroBanner\) && \(/); // cover survives; banner shares it
     expect(src).toMatch(/heroBanner \? "h-\[260px\]" : "aspect-square max-h-\[520px\]"/); // a third of the screen
+    // The banner crops the BOTTOM of the photo, never the head at the top.
+    expect(src).toMatch(/heroBanner \? "object-top"/);
     expect(src).toMatch(/\{heroAvatar && \(/); // compact circle
     expect(src).toMatch(/flatTop = heroStyle === "avatar" \|\| heroStyle === "none"/); // none = flat page
   });
@@ -95,10 +97,14 @@ describe("rendering", () => {
     expect(src).toMatch(/photoUrl \? \{ kind: "photo" as const, url: photoUrl \} :\s*\n\s*logoUrl \? \{ kind: "logo"/);
   });
 
-  it("buttons: solid/outline force rows; custom color derives its own text", () => {
+  it("buttons: solid/outline restyle ONLY compact rows — per-link sizes always win", () => {
     const src = read("src/components/SwiftLinkButtons.tsx");
-    expect(src).toMatch(/buttonStyle === "solid" \|\| buttonStyle === "outline"/);
-    expect(src).toMatch(/rowsOnly \|\| size === "compact"/);
+    // Owner order 2026-09-01: the row style must COMPOSE with the Socials
+    // tab's auto/featured/grid/compact sizes, never override them (featured/
+    // grid keep their image/video previews). The old force-all-rows behavior
+    // (rowsOnly) must stay gone.
+    expect(src).toMatch(/const variant = buttonStyle === "solid" \|\| buttonStyle === "outline" \? buttonStyle : "compact"/);
+    expect(src).not.toMatch(/rowsOnly/);
     expect(src).toMatch(/buttonColor \? \(isLightHex\(buttonColor\) \? "#111827" : "#FFFFFF"\) : accentText/);
     // Outline/compact labels stay in the page's AA-tested text color.
     expect(src).toMatch(/variant === "solid" \? btnText : textColor/);
