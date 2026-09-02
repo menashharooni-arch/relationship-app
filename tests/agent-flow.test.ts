@@ -66,7 +66,7 @@ describe("agent flow: schema and config integrity", () => {
   const config = JSON.parse(read("marketing-agents/config.json"));
 
   it("every agent table has RLS enabled (service-role only)", () => {
-    for (const t of ["agent_settings", "agent_system", "agent_runs", "agent_queue_items", "agent_action_history", "agent_blog_topics", "agent_blog_posts"]) {
+    for (const t of ["agent_settings", "agent_system", "agent_runs", "agent_queue_items", "agent_action_history", "agent_blog_topics", "agent_blog_posts", "agent_messages"]) {
       expect(schema).toContain(`create table if not exists ${t}`);
       expect(schema, `${t} missing RLS`).toMatch(new RegExp(`alter table ${t}\\s+enable row level security`));
     }
@@ -105,6 +105,48 @@ describe("agent flow: schema and config integrity", () => {
   it("the scheduler is inert by default (no seeded schedules)", () => {
     expect(schema).not.toMatch(/schedule.*default\s+'[^n]/i);
     expect(read("marketing-agents/scheduler.mjs")).toContain("No schedules set");
+  });
+});
+
+describe("agent flow: the org chart and comms log stay coherent", () => {
+  const org = JSON.parse(read("marketing-agents/org.json"));
+  const config = JSON.parse(read("marketing-agents/config.json"));
+
+  it("every runnable agent has exactly one persona, and vice versa", () => {
+    const personaAgents = Object.values(org.parties as Record<string, { agent_id?: string }>).map((p) => p.agent_id).filter(Boolean).sort();
+    expect(personaAgents).toEqual(Object.keys(config.agents).sort());
+    expect(new Set(personaAgents).size).toBe(personaAgents.length);
+  });
+
+  it("every reporting line points at a real party, up to the owner", () => {
+    const parties = org.parties as Record<string, { kind: string; reports_to?: string }>;
+    for (const [pid, p] of Object.entries(parties)) {
+      if (p.kind === "human") continue;
+      expect(p.reports_to, `${pid} has no reports_to`).toBeTruthy();
+      expect(parties[p.reports_to!], `${pid} reports to unknown '${p.reports_to}'`).toBeTruthy();
+    }
+    // Workers report to leads, leads to the chief, the chief to the owner.
+    for (const [pid, p] of Object.entries(parties)) {
+      if (p.kind === "worker") expect(["lead", "chief"], `${pid}'s boss kind`).toContain(parties[p.reports_to!].kind);
+      if (p.kind === "lead") expect(parties[p.reports_to!].kind).toBe("chief");
+      if (p.kind === "chief") expect(parties[p.reports_to!].kind).toBe("human");
+    }
+  });
+
+  it("comms writes are best-effort and only ever touch agent_messages", () => {
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    const sayFn = kit.slice(kit.indexOf("export async function say"), kit.indexOf("export async function getSettings"));
+    expect(sayFn).toMatch(/agent_messages/);
+    expect(sayFn).toMatch(/catch/); // a comms hiccup must never fail a run
+    expect(sayFn).not.toMatch(/agent_queue_items|agent_runs|agent_settings/);
+  });
+
+  it("run lifecycle emits real events: dispatch, ack, report-back, escalation", () => {
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    expect(kit).toMatch(/GO — start your run now/);
+    expect(kit).toMatch(/On it — starting now/);
+    expect(kit).toMatch(/Done — \$\{this\.outputCount\} item\(s\) queued/);
+    expect(kit).toMatch(/Escalating: /);
   });
 });
 

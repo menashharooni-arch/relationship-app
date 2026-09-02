@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { firstName } from "@/lib/agent-org";
 
 // Review-queue listing + actions. Item writes also append to
 // agent_action_history — the accountability ledger the History view reads.
@@ -59,6 +60,16 @@ export async function POST(req: NextRequest) {
       });
       await admin.from("agent_blog_topics").update({ status: "published" }).eq("slug", post.slug);
     }
+  }
+  // Comms log: one line per decision (not per item) so bulk actions read as
+  // one order. Best-effort — a comms hiccup must not fail the action.
+  if (items?.length && action !== "pending") {
+    const VERB: Record<string, string> = { approved: "Approved", rejected: "Rejected", edited: "Edited and kept", contacted: "Marked as sent", replied: "Logged a reply on", converted: "Logged a CONVERSION on", acknowledged: "Read", published: "Published", csv_downloaded: "Downloaded the CSV for" };
+    const who = [...new Set(items.map((i) => firstName(i.agent_id)))].slice(0, 4).join(", ");
+    await admin.from("agent_messages").insert({
+      from_id: "owner", to_id: "atlas", kind: "owner_in",
+      body: `${VERB[action] ?? action} ${items.length === 1 ? `“${String(items[0].title).slice(0, 80)}”` : `${items.length} items`} (${who}'s work).`,
+    }).then(() => {}, () => {});
   }
   return NextResponse.json({ ok: true, count: items?.length ?? 0 });
 }

@@ -113,7 +113,24 @@ create table if not exists agent_blog_posts (
   created_at   timestamptz not null default now()
 );
 
+-- The company chat log: every dispatch, report-back, and escalation between
+-- the owner, Atlas (chief of staff), the team leads, and the workers. Rows are
+-- written ONLY at real lifecycle moments (a dispatch that actually happened, a
+-- run that actually finished) — the feed is an audit trail, not decoration.
+-- Party ids come from marketing-agents/org.json; 'all' = broadcast.
+create table if not exists agent_messages (
+  id         uuid primary key default gen_random_uuid(),
+  from_id    text not null,   -- org.json party id, or 'owner'
+  to_id      text not null,   -- org.json party id, 'owner', or 'all'
+  kind       text not null default 'a2a',  -- a2a | owner_in (owner → company) | owner_out (company → owner)
+  body       text not null,
+  run_id     uuid references agent_runs(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists agent_messages_created_idx on agent_messages (created_at desc);
+
 -- Service-role only: RLS on, no policies.
+alter table agent_messages       enable row level security;
 alter table agent_blog_posts     enable row level security;
 alter table agent_settings       enable row level security;
 alter table agent_system         enable row level security;

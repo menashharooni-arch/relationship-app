@@ -17,9 +17,27 @@
 //     paused, and when this month's total spend has hit the system cap — in
 //     which case it emails the owner instead of silently burning capacity.
 
+import { readFileSync } from "node:fs";
+
 const SB_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_KEY = process.env.RESEND_API_KEY || "";
+
+// ── The org chart (marketing-agents/org.json) ────────────────────────────────
+// Maps a runnable agent_id → its persona (party id) and its lead, so every
+// run can report to the right person in the Comms feed.
+const ORG = JSON.parse(readFileSync(new URL("../org.json", import.meta.url), "utf8")).parties;
+const PARTY_BY_AGENT = Object.fromEntries(Object.entries(ORG).filter(([, p]) => p.agent_id).map(([pid, p]) => [p.agent_id, pid]));
+export function partyOf(agentId) { return PARTY_BY_AGENT[agentId] ?? agentId; }
+export function leadOf(agentId) { return ORG[partyOf(agentId)]?.reports_to ?? "atlas"; }
+function nameOf(partyId) { const p = ORG[partyId]; return p ? `${p.name}` : partyId; }
+
+/** Append one row to the company chat log. NEVER throws — a comms hiccup must
+ *  not fail a run — and never writes anywhere but agent_messages. */
+export async function say(from_id, to_id, body, { kind = "a2a", run_id = null } = {}) {
+  try { await sb("POST", "agent_messages", { body: { from_id, to_id, kind, body: String(body).slice(0, 1000), run_id } }); }
+  catch (e) { console.error(`comms write failed: ${String(e).slice(0, 120)}`); }
+}
 
 function need(name, v) { if (!v) throw new Error(`${name} is not set`); return v; }
 
@@ -103,10 +121,16 @@ export class Run {
       if (spent >= Number(system.monthly_usage_cap_usd)) {
         const [row] = await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: "skipped_cap", finished_at: new Date().toISOString(), summary: `Monthly usage cap hit ($${spent.toFixed(2)} of $${system.monthly_usage_cap_usd}). Agent did not run.` }, prefer: "return=representation" });
         await email(`Agent Flow: usage cap hit — ${agentId} did not run`, `<p>The system has spent $${spent.toFixed(2)} of its $${system.monthly_usage_cap_usd} monthly cap, so <b>${agentId}</b> refused to start. Raise the cap in the Agent Flow tab if this is intentional.</p>`);
+        await say("atlas", "owner", `Budget line held: ${nameOf(partyOf(agentId))} refused to start — $${spent.toFixed(2)} of the $${system.monthly_usage_cap_usd} monthly cap is spent. Raise the cap in Settings if you want more this month.`, { kind: "owner_out", run_id: row?.id ?? null });
         console.log(`::warning::${agentId}: monthly usage cap hit — not running`);
         return null;
       }
       const [row] = await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, gh_run_id: process.env.GITHUB_RUN_ID ?? null }, prefer: "return=representation" });
+      // Comms: the dispatch and the acknowledgment, at the moment they happen.
+      const worker = partyOf(agentId), lead = leadOf(agentId);
+      const why = trigger === "start_all" ? "the owner opened the company" : trigger === "schedule" ? "your scheduled window" : "a manual run order";
+      if (lead === "owner") await say(worker, "owner", `On it — compiling your report now.`, { kind: "owner_out", run_id: row.id });
+      else { await say(lead, worker, `GO — start your run now (${why}).`, { run_id: row.id }); await say(worker, lead, `On it — starting now.`, { run_id: row.id }); }
       return new Run(agentId, row, settings);
     }
     await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: blocked, finished_at: new Date().toISOString(), summary: blocked === "paused" ? "Agent (or the whole system) is paused — did not start." : "Agent is disabled — did not start." } });
@@ -165,6 +189,19 @@ export class Run {
   async finish(status, summary) {
     if (this.finished) return; this.finished = true;
     await sb("PATCH", "agent_runs", { params: `id=eq.${this.id}`, body: { status, summary, finished_at: new Date().toISOString(), output_count: this.outputCount, usage_usd: this.usageUsd.toFixed(4), usage_tokens: this.usageTokens } });
+    // Comms: report back up the chain. A failure escalates lead → Atlas so the
+    // chief (and the feed) always knows; the chief reports straight to the owner.
+    const worker = partyOf(this.agentId), lead = leadOf(this.agentId);
+    const cost = this.usageUsd > 0 ? `, $${this.usageUsd.toFixed(2)}` : "";
+    const report =
+      status === "success" ? `Done — ${this.outputCount} item(s) queued${cost}. ${String(summary ?? "").slice(0, 200)}` :
+      status === "paused" ? `Stopped at a checkpoint — ${String(summary ?? "").slice(0, 200)}` :
+      `⚠ FAILED — ${String(summary ?? "").slice(0, 200)}`;
+    if (lead === "owner") await say(worker, "owner", status === "success" ? `Your report is ready — it's in the queue and your inbox.` : report, { kind: "owner_out", run_id: this.id });
+    else {
+      await say(worker, lead, report, { run_id: this.id });
+      if (status === "failed") await say(lead, "atlas", `Escalating: ${nameOf(worker)} (${ORG[worker]?.role ?? this.agentId}) failed their run — ${String(summary ?? "").slice(0, 160)}`, { run_id: this.id });
+    }
   }
 }
 
