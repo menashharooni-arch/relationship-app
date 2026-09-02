@@ -360,7 +360,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your plain link rows look. Links set to Featured or Grid (in Socials) always keep their image previews — great for videos.</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your plain link rows look. Only has an effect if some of your additional links show as Compact rows — links set to Featured or Grid (in Socials) always keep their image previews.</p>
         <div className="grid grid-cols-3 gap-1.5">
           {BUTTON_STYLES.map((o) => {
             const active = normalizeButtonStyle(value.linkButtonStyle) === o.id;
