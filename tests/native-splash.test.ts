@@ -77,13 +77,29 @@ describe("native splash", () => {
     expect(markup).toMatch(/position:fixed; top:0; left:0; width:100vw; height:100vh/);
   });
 
-  it("is the first thing in the body, so it is in the first painted frame", () => {
-    const body = layout.indexOf("<body");
-    const splash = layout.indexOf("<NativeSplash />");
-    expect(splash).toBeGreaterThan(body);
-    // nothing renders between <body> and the splash except comments
-    const between = layout.slice(layout.indexOf(">", body) + 1, splash);
-    expect(between.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").trim()).toBe("");
+  it("lives in the launch pages' layouts, never the root layout", () => {
+    // It used to be the first child of <body> in the ROOT layout. That put its
+    // headers()/cookies() reads on every route, which forced the ENTIRE site —
+    // homepage, /pricing, /privacy, every marketing/SEO page — to server-render
+    // in a lambda per request instead of serving static HTML from the CDN
+    // (2026-09-01 perf fix). The shell never loads those pages: src/proxy.ts
+    // redirects "/" for shell requests before any HTML is sent, so a cold
+    // launch can only paint /dashboard or /login. The splash renders from
+    // THOSE layouts — still in the initial HTML (a layout flushes before the
+    // page's data fetches), so the first-frame handoff from the static iOS
+    // launch image is preserved. It is a position:fixed max-z overlay, so
+    // where it sits in the DOM does not matter visually.
+    expect(layout).not.toMatch(/import NativeSplash/);
+    expect(layout).not.toMatch(/<NativeSplash/);
+    for (const p of ["src/app/dashboard/layout.tsx", "src/app/login/layout.tsx"]) {
+      const l = read(p);
+      expect(l).toMatch(/<NativeSplash \/>/);
+      // The splash must flush before the page: children come after it.
+      expect(l.indexOf("<NativeSplash />")).toBeLessThan(l.indexOf("{children}"));
+    }
+    // The root layout must stay free of per-request APIs, or every static
+    // marketing page silently goes dynamic again.
+    expect(layout).not.toMatch(/from "next\/headers"/);
   });
 
   it("can never eat a tap, and goes inert rather than lingering", () => {
