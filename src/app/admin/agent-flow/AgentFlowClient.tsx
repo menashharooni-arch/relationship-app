@@ -10,12 +10,12 @@ import { ORG, firstName } from "@/lib/agent-org";
 // or the budget cap closes it. The big banner + per-agent "next run in …"
 // make on/off unmistakable. Rows wrap downward — nothing ever cuts off.
 
-type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_usd: number; schedule: string | null };
+type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_tokens?: number; schedule: string | null };
 type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; usage_tokens?: number; summary: string | null; trigger: string };
 type UsageWindow = { utilization: number; resets_at: string | null } | null;
 type PlanUsage = { source: "live" | "snapshot" | "none"; five_hour?: UsageWindow; seven_day?: UsageWindow; captured_at?: string };
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
-type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number> };
+type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_tokens?: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number> };
 
 /** 12,345 → "12.3k", 1,234,567 → "1.23M". */
 function fmtTok(n: number | undefined | null): string {
@@ -133,7 +133,7 @@ type Msg = { id: string; from_id: string; to_id: string; kind: string; body: str
 type View = "agents" | "chart" | "comms" | "queue" | "history" | "settings";
 type TourStep = { view?: View; target?: string; title: string; body: string };
 const TOUR: TourStep[] = [
-  { title: "Welcome to Agent Flow", body: "Your workforce. Press Start to OPEN the office — nothing runs yet; every team waits at rest. Wake a team and its agents start working on their own rhythms — a few pieces of content a day, watchdogs every few hours — until you Rest the team, press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
+  { title: "Welcome to Agent Flow", body: "Your workforce. Press Start to OPEN the office — nothing runs yet; every team waits at rest. Wake a team and its agents start working on their own rhythms — a few pieces of content a day, watchdogs every few hours — until you Rest the team, press Pause, your auto-stop time hits, or the monthly token budget stops it. Nothing is ever sent to another platform without you." },
   { view: "agents", target: "master", title: "The one switch", body: "Green Start = the office is OPEN — but every team starts at rest, so nothing runs until you wake a team below. Press Pause and everything stops at its next safe checkpoint. The banner beside it always tells you which state you're in." },
   { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
   { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
@@ -143,7 +143,7 @@ const TOUR: TourStep[] = [
   { view: "queue", target: "tabs", title: "The Review queue", body: "Everything your agents produce waits here for your call. The badge on the tab shows how many. Approving never posts anything anywhere — you stay the sender." },
   { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
   { view: "history", target: "historylist", title: "History", body: "Every decision you've made, as sentences. For outreach you sent, record 'Got a reply' or 'Converted' here — that's how you learn which agents earn their keep." },
-  { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop rather than pass it (logged in comms and the evening report; no email)." },
+  { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, token budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop rather than pass it (logged in comms and the evening report; no email)." },
   { title: "That's it", body: "Press Start, wake the teams you want working, live your day, and come back to the badge and Atlas's evening report. Replay this anytime with ✦ Take a tour." },
 ];
 
@@ -286,6 +286,17 @@ export default function AgentFlowClient() {
     say(r?.ok ? (note ?? "Saved — live from the next run.") : "⚠ Couldn't save that.");
     load();
   };
+  // "✓ Approve & Ship fix" — merges the Fixer's tested draft PR (guardrails
+  // live server-side in /ship-fix: agent-fix/* → main only, checks green).
+  const shipFix = async (it: Item) => {
+    setBusy(true);
+    const r = await fetch("/api/admin/agents/ship-fix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ item_id: it.id }) }).then((x) => x.json()).catch(() => null);
+    setBusy(false);
+    if (r?.merged) say("🚀 Fix approved & shipped — the PR merged and is deploying now. The deploy watchdog stands guard.");
+    else if (r?.already) say("That fix already shipped.");
+    else say(`⚠ ${r?.error ?? "Couldn't ship the fix — try again."}`);
+    load();
+  };
   const copyApprove = async (it: Item, label: string) => {
     try { await navigator.clipboard.writeText(it.content ?? ""); say(`Copied — paste it into ${label}. Marked approved.`); } catch { say("Copy failed — select the text by hand."); }
     act([it.id], "approved");
@@ -318,11 +329,11 @@ export default function AgentFlowClient() {
   const byId = Object.fromEntries(agents.map((s) => [s.agent_id, s]));
   const pendingItems = items.filter((i) => i.status === "pending");
   const pendingProspects = pendingItems.filter((i) => i.item_type === "prospect");
-  const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
   const monthTokens = Object.values(board.tokensBy ?? {}).reduce((t, n) => t + n, 0);
   const restingTeamNames = TEAMS.filter((t) => t.lead && t.agents.every((a) => byId[a]?.paused)).map((t) => firstName(t.lead!));
   const allTeamsResting = TEAMS.filter((t) => t.lead).every((t) => t.agents.every((a) => byId[a]?.paused));
-  const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
+  const monthlyCapTokens = Number(board.system.monthly_usage_cap_tokens ?? 6_000_000);
+  const capPct = Math.min(100, Math.round((monthTokens / (monthlyCapTokens || 1)) * 100));
   const autoStopArmed = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
   const autoStopHit = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
   const open = !board.system.paused && !autoStopHit;
@@ -409,7 +420,7 @@ export default function AgentFlowClient() {
           ) : (
             <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
           )}
-          <p className="text-gray-600 text-[11px] mt-0.5">{fmtTok(monthTokens)} tokens used this month{capPct >= 85 ? " ⚠ near the budget cap" : ""} · stops by itself at the auto-stop time or the ${Number(board.system.monthly_usage_cap_usd).toFixed(0)} budget. {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
+          <p className="text-gray-600 text-[11px] mt-0.5">{fmtTok(monthTokens)} tokens used this month{capPct >= 85 ? " ⚠ near the budget cap" : ""} · stops by itself at the auto-stop time or the {fmtTok(monthlyCapTokens)}-token monthly budget. {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
         </div>
         {/* Claude-plan usage meter — the agents run on the owner's Claude account */}
         <div data-aftour="usage" className="flex flex-col gap-1 min-w-[190px] max-w-[230px]">
@@ -699,7 +710,12 @@ export default function AgentFlowClient() {
                         <button onClick={() => act([it.id], "acknowledged")} title="Approve = noted and filed. Reports never execute anything — a code fix ships only when you merge its draft PR." className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approved</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (
-                        <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-center whitespace-nowrap">View the fix (PR)</a>
+                        <>
+                          {!(it.payload as Record<string, unknown>).fix_shipped && (
+                            <button onClick={() => shipFix(it)} disabled={busy} title="Merges the Fixer's tested draft PR (agent-fix/* → main, checks green) and auto-deploys. Your click IS the ship decision." className="text-xs bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approve &amp; Ship fix</button>
+                          )}
+                          <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-center whitespace-nowrap">{(it.payload as Record<string, unknown>).fix_shipped ? "Shipped ✓ — view PR" : "View the fix (PR)"}</a>
+                        </>
                       )}
                       {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "video_script" || it.item_type === "blog_post" || it.item_type === "generic") && (
                         <button onClick={() => { setEditing(it.id); setEditText(it.content ?? ""); }} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap">Edit</button>
@@ -786,11 +802,11 @@ export default function AgentFlowClient() {
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[220px]">
-              <p className="text-white text-sm font-semibold">Monthly budget for the whole system</p>
-              <p className="text-gray-500 text-xs mt-0.5">The hard ceiling — agents stop and email you instead of passing it. ${monthSpend.toFixed(2)} used this month.</p>
+              <p className="text-white text-sm font-semibold">Monthly token budget for the whole system</p>
+              <p className="text-gray-500 text-xs mt-0.5">The hard ceiling — agents stop rather than pass it (comms + evening report; no email). {fmtTok(monthTokens)} tokens used this month.</p>
             </div>
             <label className="flex items-center gap-1 text-sm text-white">$
-              <input type="number" step="1" defaultValue={board.system.monthly_usage_cap_usd} onBlur={(e) => saveSetting({ system: { monthly_usage_cap_usd: Number(e.target.value) } })} className="w-20 bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-sm" />
+              <input type="number" step={500000} defaultValue={monthlyCapTokens} onBlur={(e) => saveSetting({ system: { monthly_usage_cap_tokens: Number(e.target.value) } })} className="w-20 bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-sm" />
             </label>
           </div>
           {TEAMS.flatMap((t) => t.agents).map((id) => { const s = byId[id]; if (!s) return null; return (
@@ -806,7 +822,7 @@ export default function AgentFlowClient() {
                 max <input type="number" defaultValue={s.output_cap} onBlur={(e) => saveSetting({ agent_id: id, output_cap: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" /> /run
               </label>
               <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Budget per run">
-                $<input type="number" step="0.5" defaultValue={s.usage_cap_usd} onBlur={(e) => saveSetting({ agent_id: id, usage_cap_usd: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" />/run
+                <input type="number" step={50000} defaultValue={s.usage_cap_tokens ?? 500000} onBlur={(e) => saveSetting({ agent_id: id, usage_cap_tokens: Number(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" /> tok/run
               </label>
               {id !== "bugwatch" ? (
                 <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Their working rhythm while the system is running">
