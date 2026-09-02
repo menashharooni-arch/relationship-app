@@ -192,7 +192,7 @@ export class Run {
     // Comms: report back up the chain. A failure escalates lead → Atlas so the
     // chief (and the feed) always knows; the chief reports straight to the owner.
     const worker = partyOf(this.agentId), lead = leadOf(this.agentId);
-    const cost = this.usageUsd > 0 ? `, $${this.usageUsd.toFixed(2)}` : "";
+    const cost = this.usageTokens > 0 ? `, ${this.usageTokens >= 1e6 ? (this.usageTokens / 1e6).toFixed(2) + "M" : Math.round(this.usageTokens / 100) / 10 + "k"} tokens` : "";
     const report =
       status === "success" ? `Done — ${this.outputCount} item(s) queued${cost}. ${String(summary ?? "").slice(0, 200)}` :
       status === "paused" ? `Stopped at a checkpoint — ${String(summary ?? "").slice(0, 200)}` :
@@ -203,6 +203,25 @@ export class Run {
       if (status === "failed") await say(lead, "atlas", `Escalating: ${nameOf(worker)} (${ORG[worker]?.role ?? this.agentId}) failed their run — ${String(summary ?? "").slice(0, 160)}`, { run_id: this.id });
     }
   }
+}
+
+/** Snapshot the owner's Claude-plan usage into agent_system so the tab can
+ *  show it even with no token in Vercel. Best-effort — never fails a run. */
+export async function snapshotClaudeUsage() {
+  const tok = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+  if (!tok) return;
+  try {
+    const res = await fetch("https://api.anthropic.com/api/oauth/usage", {
+      headers: { Authorization: `Bearer ${tok}`, "anthropic-beta": "oauth-2025-04-20" },
+    });
+    if (!res.ok) return;
+    const u = await res.json();
+    const pick = (w) => (w ? { utilization: w.utilization, resets_at: w.resets_at } : null);
+    await sb("PATCH", "agent_system", {
+      params: "id=eq.true",
+      body: { claude_usage: { five_hour: pick(u.five_hour), seven_day: pick(u.seven_day), captured_at: new Date().toISOString() } },
+    });
+  } catch (e) { console.error(`usage snapshot failed: ${String(e).slice(0, 120)}`); }
 }
 
 /** Wrap an agent's main. Guarantees the run row never stays 'running' forever. */
@@ -218,6 +237,7 @@ export async function safeMain(agentId, fn) {
     await run.finish("failed", `Failed: ${String(e).slice(0, 400)}`).catch(() => {});
     process.exitCode = 1;
   }
+  await snapshotClaudeUsage();
 }
 
 /** Parse `claude -p --output-format json` output: returns {text, costUsd, tokens}. */

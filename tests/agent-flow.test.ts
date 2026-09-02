@@ -141,6 +141,17 @@ describe("agent flow: the org chart and comms log stay coherent", () => {
     expect(sayFn).not.toMatch(/agent_queue_items|agent_runs|agent_settings/);
   });
 
+  it("the Claude-plan usage meter is admin-gated and best-effort", () => {
+    const route = read("src/app/api/admin/agents/usage/route.ts");
+    expect(route).toMatch(/requireAdmin/);
+    expect(route).toMatch(/api\.anthropic\.com\/api\/oauth\/usage/);
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    const snap = kit.slice(kit.indexOf("export async function snapshotClaudeUsage"), kit.indexOf("export async function safeMain"));
+    expect(snap).toMatch(/catch/); // a usage hiccup must never fail a run
+    expect(snap).toMatch(/agent_system/);
+    expect(snap).not.toMatch(/agent_queue_items|agent_runs/);
+  });
+
   it("run lifecycle emits real events: dispatch, ack, report-back, escalation", () => {
     const kit = read("marketing-agents/lib/agentkit.mjs");
     expect(kit).toMatch(/GO — start your run now/);
