@@ -55,6 +55,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(r.ok ? { ok: true } : { error: `GitHub dispatch → ${r.status}` }, { status: r.ok ? 200 : 502 });
   }
   if (op === "start_all") {
+    // Start = the system is OPEN: master pause off, any expired auto-stop
+    // cleared, an immediate first round dispatched — then the scheduler keeps
+    // every agent on its own cadence until Pause.
+    await admin.from("agent_system").update({ paused: false, auto_pause_at: null, updated_at: new Date().toISOString() }).eq("id", true);
     const { data: settings } = await admin.from("agent_settings").select("agent_id, enabled, paused");
     const enabled = new Set((settings ?? []).filter((s) => s.enabled && !s.paused).map((s) => s.agent_id));
     const results: Record<string, boolean> = {};

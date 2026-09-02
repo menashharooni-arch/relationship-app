@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-// ── Agent Flow: mission control for the marketing agents ────────────────────
-// Written to be read the way the owner talks: every button says what it does,
-// every action confirms what just happened, and nothing is jargon. The guided
-// tour (Take a tour, left of the view tabs) walks every piece.
+// ── Agent Flow v3: one switch, three teams, zero ambiguity ──────────────────
+// The owner's mental model, implemented literally: press ▶ Start All and the
+// company is OPEN — every agent works on its own cadence (watchdogs every few
+// hours, content a few pieces a day) until ⏸ Pause All, the auto-stop timer,
+// or the budget cap closes it. The big banner + per-agent "next run in …"
+// make on/off unmistakable. Rows wrap downward — nothing ever cuts off.
 
 type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_usd: number; schedule: string | null };
 type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; summary: string | null; trigger: string };
@@ -15,9 +17,20 @@ type Board = { ready: boolean; message?: string; settings: Settings[]; system: {
 const AGENT_NAMES: Record<string, string> = {
   outreach: "Outreach Scout", prospects: "Link-in-bio Prospects", seo: "SEO", blog: "Blog Writer",
   social: "Social Content", mentions: "Mentions Monitor", influencer: "Influencer Scout",
-  bugwatch: "Bug Watch", security: "Security Watch", perf: "Performance Watch", manager: "Manager / Digest",
+  bugwatch: "Bug Watch", security: "Security Watch", perf: "Performance Watch", manager: "The Manager",
 };
-const DRAFT_ONLY = new Set(["outreach", "prospects", "social", "mentions", "influencer"]);
+const AGENT_ROLE: Record<string, string> = {
+  outreach: "finds people + drafts your messages", prospects: "builds your prospect CSVs",
+  seo: "keeps the site rankable", blog: "writes posts for your review",
+  social: "a few videos & captions a day", mentions: "drafts replies to live threads",
+  influencer: "scouts creators + drafts pitches", bugwatch: "turns errors into draft fixes",
+  security: "vulns, leaks, headers", perf: "keeps everything fast", manager: "compiles your daily report",
+};
+const TEAMS: { id: string; label: string; blurb: string; agents: string[] }[] = [
+  { id: "manager", label: "The Manager", blurb: "Reads everything, reports to you.", agents: ["manager"] },
+  { id: "marketing", label: "Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"] },
+  { id: "protection", label: "Protection team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"] },
+];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
   video_script: "Video script", blog_post: "Blog post", seo_report: "SEO report", security_finding: "Security finding",
@@ -37,56 +50,68 @@ function dur(a: string, b: string | null, now?: number): string {
   return sec < 90 ? `${sec}s` : `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`;
 }
 function untilText(iso: string, now: number): string {
-  const ms = new Date(iso).getTime() - now;
-  if (ms <= 0) return "now";
-  const m = Math.ceil(ms / 60000);
+  const m = Math.ceil((new Date(iso).getTime() - now) / 60000);
+  if (m <= 0) return "now";
   return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 }
-function stateOf(r?: RunRow, s?: Settings): { label: string; cls: string } {
-  if (s && !s.enabled) return { label: "Off", cls: "bg-gray-800 text-gray-500" };
-  if (s?.paused) return { label: "Paused", cls: "bg-amber-900/40 text-amber-400" };
-  if (!r) return { label: "Never run", cls: "bg-gray-800 text-gray-400" };
-  if (r.status === "running") return { label: "Working…", cls: "bg-blue-900/50 text-blue-300 animate-pulse" };
-  if (r.status === "failed") return { label: "Problem", cls: "bg-red-900/50 text-red-400" };
-  if (r.status === "paused") return { label: "Stopped mid-run", cls: "bg-amber-900/40 text-amber-400" };
-  if (r.status === "skipped_cap") return { label: "Hit the cap", cls: "bg-amber-900/40 text-amber-400" };
-  if (r.status.startsWith("skipped")) return { label: "Skipped", cls: "bg-gray-800 text-gray-400" };
-  return { label: "Done ✓", cls: "bg-emerald-900/40 text-emerald-400" };
+/** New-York wall clock (the cadences are set in ET). */
+function nyNow(now: number): { h: number; m: number } {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).formatToParts(new Date(now));
+  return { h: Number(p.find((x) => x.type === "hour")!.value) % 24, m: Number(p.find((x) => x.type === "minute")!.value) };
 }
-// ET time helper for the auto-stop quick options.
+/** "in ~2h 10m" until this agent's next scheduled run. */
+function nextRunText(schedule: string | null, agentId: string, now: number): string | null {
+  if (agentId === "bugwatch") return "daily (self-scheduled)";
+  if (!schedule) return null;
+  const { h, m } = nyNow(now);
+  const minsNow = h * 60 + m;
+  let target: number | null = null;
+  const every = schedule.match(/^every@(\d{1,2})h$/);
+  if (every) { const n = Number(every[1]); const nextH = (Math.floor(h / n) + 1) * n; target = (nextH % 24) * 60; if (nextH >= 24) target += 24 * 60; if (h % n === 0 && m < 30) return "running window now"; }
+  const daily = schedule.match(/^daily@(\d{1,2}):(\d{2})$/);
+  if (daily) { target = Number(daily[1]) * 60 + Number(daily[2]); if (target <= minsNow) target += 24 * 60; }
+  if (target === null) return null;
+  const diff = target - minsNow;
+  if (diff <= 0) return "running window now";
+  return diff < 60 ? `in ~${diff}m` : `in ~${Math.floor(diff / 60)}h ${String(diff % 60).padStart(2, "0")}m`;
+}
 function etToday(hour: number, minute = 0): string {
   const now = new Date();
-  const et = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-  const p = Object.fromEntries(et.formatToParts(now).map((x) => [x.type, x.value]));
-  // Build the ET wall-clock target, then find the UTC instant with that ET time.
-  const guess = new Date(`${p.year}-${p.month}-${p.day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`);
-  const offsetMin = (Number(p.hour) * 60 + Number(p.minute)) - (now.getUTCHours() * 60 + now.getUTCMinutes());
-  return new Date(guess.getTime() - offsetMin * 60000).toISOString();
+  const { h, m } = nyNow(now.getTime());
+  const offsetMin = (h * 60 + m) - (now.getUTCHours() * 60 + now.getUTCMinutes());
+  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, minute));
+  return new Date(target.getTime() - offsetMin * 60000).toISOString();
 }
 
-// ── The guided tour ──────────────────────────────────────────────────────────
-type TourStep = { view?: "queue" | "status" | "history" | "settings"; target?: string; title: string; body: string };
+const CADENCES: [string, string][] = [
+  ["", "off — only when run by hand"],
+  ["every@4h", "every 4 hours"],
+  ["every@8h", "every 8 hours"],
+  ["every@12h", "twice a day"],
+  ["daily@07:30", "daily · 7:30 AM ET"],
+  ["daily@09:30", "daily · 9:30 AM ET"],
+  ["daily@12:00", "daily · noon ET"],
+  ["daily@17:30", "daily · 5:30 PM ET"],
+];
+
+type TourStep = { view?: "agents" | "queue" | "history" | "settings"; target?: string; title: string; body: string };
 const TOUR: TourStep[] = [
-  { title: "Welcome to Agent Flow", body: "This is the control room for your ten marketing and monitoring agents — think of them as your workers. They only move when you press a button, everything they produce waits here for your approval, and nothing is ever sent to another platform automatically. This tour walks every piece — Next to continue." },
-  { target: "kpis", title: "The health strip", body: "Four numbers that tell you if anything needs you: items waiting for review, whether agents are working or hit a problem, this month's spend against your cap, and when the last Manager report landed." },
-  { target: "startall", title: "Start All", body: "Runs every enabled agent right now, in the cloud. Your laptop can be closed. Each agent stops on its own when it hits its item cap or its per-run budget." },
-  { target: "pauseall", title: "Pause All", body: "The stop button. Nothing new starts, and any agent mid-run stops at its next safe checkpoint — usually within seconds, at worst a couple of minutes. Whatever it finished is kept, and a session summary of everything done today is written to your queue the moment you press it." },
-  { target: "autostop", title: "Auto-stop (your work-hours timer)", body: "Tell the system when to clock out: 'stop at 5 PM' or 'stop in 3 hours'. When the time hits, everything behaves exactly like Pause All — agents stop safely, nothing new starts — until you press Resume." },
-  { view: "queue", target: "tabs", title: "The four views", body: "Review queue = what's waiting for you. Agents = who's doing what, with full logs. History = everything you've decided. Settings = each agent's on/off switch, caps, and schedule." },
-  { view: "queue", target: "filters", title: "Filters and refresh", body: "Narrow the queue by agent, by type, or by status — 'pending' means waiting on you, 'rejected' and 'approved' show what you already decided (nothing is ever deleted). The page also refreshes itself every 30 seconds; the ↻ button does it instantly." },
-  { view: "queue", target: "itemcard", title: "One item, anatomy", body: "Each card: which agent made it, what kind of thing it is, who or what it's about (with the real link), why it was surfaced, and the full draft. The buttons on the right are specific to the type — drafts get Approve & Copy, prospects get Mark contacted, blog posts get Publish, findings get Acknowledge." },
-  { view: "queue", target: "checkbox", title: "Those checkboxes", body: "For handling MANY items at once. Tick a few (or 'Select all shown') and a bar appears with Approve selected / Reject selected. Approve = 'good, I'll use this' (it moves to Approved — nothing is sent anywhere). Reject = 'not useful' (it moves to Rejected, kept forever in History). One tap per item is fine too — the checkboxes are just the shortcut for a big batch." },
-  { view: "status", target: "agentrow", title: "An agent's row", body: "Live state (Working… counts up in real time with what it's doing), its last result, month spend, and a tiny bar chart of its recent runs — a flatline means it's producing nothing and worth a look. Run now / Pause control just this one agent." },
-  { view: "status", target: "logbtn", title: "Every agent keeps a diary", body: "▾ log opens that agent's full run history — every run's time, how long it took, what it produced, what it cost, and its own summary of what it did. This is where you check on a worker." },
-  { view: "history", target: "historylist", title: "History — your decisions", body: "Everything you approved, rejected, edited, or published, newest first. For outreach you approved, come back here to record what happened — Got a reply / Converted — so you learn which agents actually make you money." },
-  { view: "settings", target: "settingslist", title: "Settings — the levers", body: "Per agent: on/off, how many items per run, budget per run, and an optional daily schedule (off by default — agents never run on their own unless you set one). The monthly cap at the top is the hard ceiling for everything; agents stop and email you instead of passing it." },
-  { title: "That's the whole machine", body: "Daily rhythm: press Start All (or let a schedule you set do it), come back to the badge, work the queue in a few minutes, and check the Manager report. Replay this tour anytime with Take a tour." },
+  { title: "Welcome to Agent Flow", body: "Your workforce. One switch runs it: press Start and every agent works on its own rhythm — a few pieces of content a day, watchdogs every few hours — until you press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
+  { view: "agents", target: "master", title: "The one switch", body: "This is the whole on/off story. Green Start = open for business, and the button becomes Pause. Press Pause and everything stops at its next safe checkpoint — and the button becomes Start again. The banner beside it always tells you which state you're in." },
+  { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
+  { view: "agents", target: "team-marketing", title: "Your teams", body: "The Manager reports to you. The Marketing team fills your queue with drafts to approve. The Protection team watches speed, bugs, and breaches — and its findings arrive with fixes already drafted." },
+  { view: "agents", target: "agentrow", title: "One worker, one row", body: "Each row: what they do, whether they're working right now (a live timer counts), when their next shift starts, and their last result. 'Run once' fires them immediately regardless of schedule; the Active toggle benches them; ▾ log is their full diary." },
+  { view: "queue", target: "tabs", title: "The Review queue", body: "Everything your agents produce waits here for your call. The badge on the tab shows how many. Approving never posts anything anywhere — you stay the sender." },
+  { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
+  { view: "history", target: "historylist", title: "History", body: "Every decision you've made, as sentences. For outreach you sent, record 'Got a reply' or 'Converted' here — that's how you learn which agents earn their keep." },
+  { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop and email you rather than pass it." },
+  { title: "That's it", body: "Press Start, live your day, come back to the badge and the Manager's evening report. Replay this anytime with ✦ Take a tour." },
 ];
 
 export default function AgentFlowClient() {
   const [board, setBoard] = useState<Board | null>(null);
   const [items, setItems] = useState<Item[]>([]);
-  const [view, setView] = useState<"queue" | "status" | "history" | "settings">("queue");
+  const [view, setView] = useState<"agents" | "queue" | "history" | "settings">("agents");
   const [filterAgent, setFilterAgent] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("pending");
@@ -101,14 +126,11 @@ export default function AgentFlowClient() {
   const [autoStopOpen, setAutoStopOpen] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(""), 4200); };
-  const [now, setNow] = useState(() => Date.now());
-  const anyRunning = !!board && Object.values(board.latestRuns ?? {}).some((r) => (r as RunRow).status === "running");
-  const autoStopArmed = !!board?.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
-  const autoStopHit = !!board?.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
-  useEffect(() => { if (!anyRunning && !autoStopArmed && tourStep === null) return; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [anyRunning, autoStopArmed, tourStep]);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,11 +150,7 @@ export default function AgentFlowClient() {
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
   useEffect(() => { if (view === "history") fetch("/api/admin/agents/history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {}); }, [view, items]);
 
-  // Tour: position the spotlight on the current step's target. All state
-  // updates happen inside the timeout callback (never synchronously in the
-  // effect body): the DOM is measured after the step's view has rendered, and
-  // when the view itself must switch, doing it here re-triggers this effect
-  // (view is a dep) so the measurement lands on the freshly rendered target.
+  // Tour spotlight: all state updates happen inside the timeout (DOM sync).
   useEffect(() => {
     const step = tourStep === null ? null : TOUR[tourStep];
     const t = setTimeout(() => {
@@ -153,36 +171,34 @@ export default function AgentFlowClient() {
     const r = await fetch("/api/admin/agents/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op, agent_id }) }).then((r) => r.json()).catch(() => ({ error: "network" }));
     setBusy(false);
     if (r.error) say(`⚠ ${r.error}`);
-    else if (op === "pause_all") say("Paused. In-flight agents stop at their next checkpoint — a session summary was just written to your queue.");
-    else if (op === "resume_all") say("Resumed. Agents can start again (auto-stop cleared).");
-    else if (op === "start_all") say("Started every enabled agent in the cloud. Watch them under Agents.");
-    else if (op === "run") say(`${AGENT_NAMES[agent_id!] ?? agent_id} is starting in the cloud — results land in the queue.`);
-    else if (op === "pause") say(`${AGENT_NAMES[agent_id!] ?? agent_id} paused. If it was mid-run it stops at its next checkpoint.`);
+    else if (op === "start_all") say("You're OPEN. Every agent runs now, then keeps its own rhythm until you pause.");
+    else if (op === "pause_all") say("Paused. In-flight agents stop at their next checkpoint — a session summary was written to your queue.");
+    else if (op === "run") say(`${AGENT_NAMES[agent_id!] ?? agent_id} is running now — results land in the queue.`);
     else say("Done.");
     load();
   };
   const ACT_TOAST: Record<string, string> = {
-    approved: "Approved — nothing is sent automatically; it's yours to use. Find it anytime under status: approved.",
-    rejected: "Rejected — moved out of your way, kept forever in History. Nothing was deleted.",
-    acknowledged: "Marked as read — it lives on under status: acknowledged.",
-    published: "Published — it's live on swiftcard.me/blog right now.",
-    contacted: "Marked contacted — when they answer, record it in History (Got a reply / Converted).",
-    replied: "Recorded the reply 🎯", converted: "Recorded the conversion 🎉", edited: "Saved your edit — the item stays pending with your version.",
+    approved: "Approved — nothing is sent automatically; it's yours to use.",
+    rejected: "Rejected — filed to History. Nothing was deleted or sent.",
+    acknowledged: "Marked as read — it lives on in History.",
+    published: "Published — live on swiftcard.me/blog right now.",
+    contacted: "Marked sent — record 'Got a reply' or 'Converted' when it happens.",
+    replied: "Recorded the reply 🎯", converted: "Recorded the conversion 🎉", edited: "Saved your version — still pending with your edit.",
   };
   const act = async (ids: string[], action: string, content?: string) => {
     if (!ids.length) return;
     const r = await fetch("/api/admin/agents/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action, content }) }).then((x) => x.json()).catch(() => null);
-    if (!r?.ok) { say("⚠ That didn't save — check your connection and try again."); return; }
+    if (!r?.ok) { say("⚠ That didn't save — try again."); return; }
     say(ids.length > 1 ? `${ids.length} items ${action}. ${ACT_TOAST[action] ?? ""}` : ACT_TOAST[action] ?? "Done.");
     setSelected(new Set()); setEditing(null); load();
   };
   const saveSetting = async (patch: Record<string, unknown>, note?: string) => {
     const r = await fetch("/api/admin/agents/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).then((x) => x.json()).catch(() => null);
-    say(r?.ok ? (note ?? "Saved — takes effect on the next run, no deploy needed.") : "⚠ Couldn't save that.");
+    say(r?.ok ? (note ?? "Saved — live from the next run.") : "⚠ Couldn't save that.");
     load();
   };
   const copyApprove = async (it: Item, label: string) => {
-    try { await navigator.clipboard.writeText(it.content ?? ""); say(`Copied to your clipboard — paste it into ${label}. Marked approved.`); } catch { say("Copy failed — select the text by hand."); }
+    try { await navigator.clipboard.writeText(it.content ?? ""); say(`Copied — paste it into ${label}. Marked approved.`); } catch { say("Copy failed — select the text by hand."); }
     act([it.id], "approved");
   };
   const downloadCsv = (rows: Item[]) => {
@@ -195,7 +211,7 @@ export default function AgentFlowClient() {
     a.download = `swiftcard-prospects-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     act(rows.map((r) => r.id), "csv_downloaded");
-    say(`Downloaded ${rows.length} prospects as a CSV — work it top to bottom, then Mark contacted as you go.`);
+    say(`Downloaded ${rows.length} prospects — work the CSV, then Mark contacted.`);
   };
 
   if (board && !board.ready) {
@@ -210,102 +226,141 @@ export default function AgentFlowClient() {
   if (!board) return <div className="text-gray-500 text-sm">Loading…</div>;
 
   const agents = board.settings ?? [];
+  const byId = Object.fromEntries(agents.map((s) => [s.agent_id, s]));
   const pendingItems = items.filter((i) => i.status === "pending");
   const pendingProspects = pendingItems.filter((i) => i.item_type === "prospect");
   const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
   const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
-  const failedCount = agents.filter((a) => board.latestRuns[a.agent_id]?.status === "failed").length;
-  const runningCount = agents.filter((a) => board.latestRuns[a.agent_id]?.status === "running").length;
-  const lastDigest = (board.recentRuns ?? []).find((r) => r.agent_id === "manager" && r.status === "success");
+  const autoStopArmed = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
+  const autoStopHit = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
+  const open = !board.system.paused && !autoStopHit;
   const runsByAgent: Record<string, RunRow[]> = {};
   for (const r of board.recentRuns ?? []) (runsByAgent[r.agent_id] ??= []).push(r);
+  const lastDigest = (board.recentRuns ?? []).find((r) => r.agent_id === "manager" && r.status === "success");
   const step = tourStep !== null ? TOUR[tourStep] : null;
+
+  const AgentRow = ({ id, isFirst }: { id: string; isFirst: boolean }) => {
+    const s = byId[id]; if (!s) return null;
+    const r = board.latestRuns[id];
+    const running = r?.status === "running";
+    const problem = r?.status === "failed";
+    const next = open && s.enabled ? nextRunText(s.schedule, id, now) : null;
+    return (
+      <div data-aftour={isFirst ? "agentrow" : undefined} className={`rounded-xl border p-3.5 ${problem ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
+        {/* line 1 — identity + controls; wraps downward, never clips */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
+          <p className="text-white text-sm font-semibold">{AGENT_NAMES[id]}</p>
+          {running ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 animate-pulse">Working · {r ? dur(r.started_at, null, now) : ""}</span>
+            : problem ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
+            : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
+            : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · next {next}</span>
+            : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "Manual only" : "Waiting for Start"}</span>}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button onClick={() => control("run", id)} disabled={busy || !s.enabled} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full whitespace-nowrap transition-colors">Run once</button>
+            <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by Start All and the schedule">
+              <input type="checkbox" checked={s.enabled} onChange={(e) => saveSetting({ agent_id: id, enabled: e.target.checked }, e.target.checked ? "Back on the roster." : "Benched — everything else keeps running.")} className="accent-blue-600" /> active
+            </label>
+            <button data-aftour={isFirst ? "logbtn" : undefined} onClick={() => setExpanded(expanded === id ? null : id)} className="text-xs text-gray-500 hover:text-gray-300 px-1.5 py-1.5 whitespace-nowrap transition-colors">{expanded === id ? "▴" : "▾ log"}</button>
+          </div>
+        </div>
+        {/* line 2 — role + last result; truncates gracefully */}
+        <div className="mt-1 text-xs text-gray-500 min-w-0">
+          <span className="text-gray-600">{AGENT_ROLE[id]}</span>
+          <span className="mx-1.5 text-gray-700">·</span>
+          <span>{r ? `last: ${r.status === "success" ? "done" : r.status} ${ago(r.started_at)}, ${r.output_count} item(s), $${Number(r.usage_usd).toFixed(2)}` : "hasn't run yet"}</span>
+          {(board.pendingBy[id] ?? 0) > 0 && <button onClick={() => { setView("queue"); setFilterAgent(id); setFilterStatus("pending"); setFilterType(""); }} className="ml-1.5 text-blue-400 hover:underline">{board.pendingBy[id]} waiting for you →</button>}
+          {(running || problem) && r?.summary && <p className={`mt-0.5 truncate ${running ? "text-blue-300" : "text-red-400/80"}`}>{running ? "⋯ " : ""}{r.summary}</p>}
+        </div>
+        {expanded === id && (
+          <div className="mt-2 border-t border-gray-800 pt-2 space-y-1">
+            {(runsByAgent[id] ?? []).length === 0 && <p className="text-gray-600 text-xs">No runs yet.</p>}
+            {(runsByAgent[id] ?? []).slice(0, 10).map((rr) => (
+              <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] min-w-0">
+                <span className="text-gray-600 tabular-nums shrink-0">{new Date(rr.started_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                <span className={rr.status === "failed" ? "text-red-400 font-semibold" : rr.status === "success" ? "text-emerald-500" : "text-amber-400"}>{rr.status === "success" ? "done" : rr.status}</span>
+                <span className="text-gray-500 whitespace-nowrap">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · ${Number(rr.usage_usd).toFixed(2)}</span>
+                <span className="text-gray-400 basis-full truncate">{rr.summary}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5 pb-24">
       {toast && <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[70] max-w-[92vw] bg-gray-800 border border-gray-700 text-white text-sm px-4 py-2.5 rounded-2xl shadow-xl text-center">{toast}</div>}
 
-      {/* Auto-stop banners */}
-      {autoStopHit && (
-        <div className="rounded-xl border border-amber-700/60 bg-amber-950/30 px-4 py-3 flex flex-wrap items-center gap-3">
-          <p className="text-amber-300 text-sm font-semibold flex-1">⏰ Auto-stop time reached — everything is holding, exactly like Pause All.</p>
-          <button onClick={() => control("resume_all")} className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-full">Resume work</button>
-        </div>
-      )}
-      {board.system.paused && !autoStopHit && (
-        <div className="rounded-xl border border-amber-700/60 bg-amber-950/30 px-4 py-3 flex flex-wrap items-center gap-3">
-          <p className="text-amber-300 text-sm font-semibold flex-1">⏸ System paused — nothing starts; in-flight agents stop at their next checkpoint.</p>
-          <button onClick={() => control("resume_all")} className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-full">Resume</button>
-        </div>
-      )}
-
-      {/* Health strip */}
-      <div data-aftour="kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Waiting for you</p>
-          <p className="text-white text-xl font-bold tabular-nums mt-0.5">{board.pendingTotal}</p>
-        </div>
-        <div className={`rounded-xl p-3.5 border ${runningCount ? "bg-blue-950/30 border-blue-800/50" : failedCount ? "bg-red-950/25 border-red-800/60" : "bg-gray-900 border-gray-800"}`}>
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Agents</p>
-          <p className="text-white text-xl font-bold mt-0.5">
-            {runningCount ? <span className="text-blue-300">{runningCount} working</span> : failedCount ? <span className="text-red-400">{failedCount} need a look</span> : "all quiet"}
-          </p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Month spend</p>
-          <p className="text-white text-xl font-bold tabular-nums mt-0.5">${monthSpend.toFixed(2)}<span className="text-gray-600 text-xs font-normal"> / ${Number(board.system.monthly_usage_cap_usd).toFixed(0)} cap</span></p>
-          <div className="h-1 bg-gray-800 rounded-full mt-1.5"><div className={`h-1 rounded-full ${capPct > 85 ? "bg-amber-500" : "bg-blue-600"}`} style={{ width: `${capPct}%` }} /></div>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5">
-          <p className="text-gray-500 text-[10px] font-semibold uppercase tracking-wide">Last report</p>
-          <p className="text-white text-xl font-bold mt-0.5">{lastDigest ? ago(lastDigest.started_at) : "—"}</p>
-          {lastDigest && <button onClick={() => { setView("queue"); setFilterStatus("pending"); setFilterAgent("manager"); setFilterType("digest"); }} className="text-blue-400 text-[11px] hover:underline">open latest →</button>}
-        </div>
-      </div>
-
-      {/* Run controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button data-aftour="startall" onClick={() => control("start_all")} disabled={busy || board.system.paused || autoStopHit} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">▶ Start All</button>
-        {board.system.paused || autoStopHit ? null : (
-          <button data-aftour="pauseall" onClick={() => control("pause_all")} disabled={busy} className="bg-amber-700 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 rounded-full transition-colors">⏸ Pause All</button>
+      {/* ── The one switch + unmistakable state ── */}
+      <div className="rounded-2xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-3">
+        {open ? (
+          <button data-aftour="master" onClick={() => control("pause_all")} disabled={busy} className="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-6 py-3 rounded-full whitespace-nowrap transition-colors">⏸ Pause All</button>
+        ) : (
+          <button data-aftour="master" onClick={() => control("start_all")} disabled={busy || !board.dispatchConfigured} className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-6 py-3 rounded-full whitespace-nowrap transition-colors">▶ Start All</button>
         )}
+        <div className="min-w-[200px] flex-1">
+          {open ? (
+            <p className="text-emerald-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />RUNNING — agents work on their own rhythms until you pause</p>
+          ) : (
+            <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
+          )}
+          <p className="text-gray-600 text-[11px] mt-0.5">Stops by itself at the auto-stop time or the ${Number(board.system.monthly_usage_cap_usd).toFixed(0)} monthly cap (${monthSpend.toFixed(2)} used{capPct >= 85 ? " ⚠" : ""}). {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
+        </div>
         <div data-aftour="autostop" className="relative">
-          <button onClick={() => setAutoStopOpen(!autoStopOpen)} className={`text-xs font-semibold px-3.5 py-2.5 rounded-full border transition-colors ${autoStopArmed ? "bg-amber-950/40 border-amber-700/60 text-amber-300" : "bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200"}`}>
-            {autoStopArmed ? `⏰ stops in ${untilText(board.system.auto_pause_at!, now)}` : "⏰ Auto-stop: off"}
+          <button onClick={() => setAutoStopOpen(!autoStopOpen)} className={`text-xs font-semibold px-3.5 py-2.5 rounded-full border whitespace-nowrap transition-colors ${autoStopArmed ? "bg-amber-950/40 border-amber-700/60 text-amber-300" : "bg-gray-950 border-gray-800 text-gray-400 hover:text-gray-200"}`}>
+            {autoStopArmed ? `⏰ stops in ${untilText(board.system.auto_pause_at!, now)}` : "⏰ auto-stop"}
           </button>
           {autoStopOpen && (
-            <div className="absolute z-40 mt-2 w-64 rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-3 space-y-1.5">
-              <p className="text-gray-400 text-[11px] leading-snug mb-2">Clock-out timer: when it hits, everything stops safely — exactly like Pause All — until you Resume.</p>
+            <div className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-3 space-y-1.5">
+              <p className="text-gray-400 text-[11px] leading-snug mb-2">Closing time: when it hits, everything pauses safely until you press Start again.</p>
               {([["Stop in 1 hour", "in1"], ["Stop in 3 hours", "in3"], ["Stop at 5:00 PM ET", "at17"], ["Stop at 8:00 PM ET", "at20"]] as const).map(([label, kind]) => (
                 <button key={kind} onClick={() => {
-                  const iso = kind === "in1" ? new Date(Date.now() + 3600e3).toISOString()
-                    : kind === "in3" ? new Date(Date.now() + 3 * 3600e3).toISOString()
-                    : etToday(kind === "at17" ? 17 : 20);
-                  saveSetting({ system: { auto_pause_at: iso } }, `Auto-stop armed — work halts ${label.toLowerCase().replace("stop ", "")}.`);
+                  const iso = kind === "in1" ? new Date(Date.now() + 3600e3).toISOString() : kind === "in3" ? new Date(Date.now() + 3 * 3600e3).toISOString() : etToday(kind === "at17" ? 17 : 20);
+                  saveSetting({ system: { auto_pause_at: iso } }, `Auto-stop armed — ${label.toLowerCase()}.`);
                   setAutoStopOpen(false);
                 }} className="w-full text-left text-xs text-gray-200 hover:bg-gray-800 rounded-lg px-3 py-2">{label}</button>
               ))}
-              {autoStopArmed && <button onClick={() => { saveSetting({ system: { auto_pause_at: null } }, "Auto-stop cleared — no clock-out set."); setAutoStopOpen(false); }} className="w-full text-left text-xs text-red-400 hover:bg-gray-800 rounded-lg px-3 py-2">Turn off auto-stop</button>}
+              {(autoStopArmed || autoStopHit) && <button onClick={() => { saveSetting({ system: { auto_pause_at: null } }, "Auto-stop cleared."); setAutoStopOpen(false); }} className="w-full text-left text-xs text-red-400 hover:bg-gray-800 rounded-lg px-3 py-2">Turn off auto-stop</button>}
             </div>
           )}
         </div>
-        {!board.dispatchConfigured && <span className="text-amber-400 text-xs">⚠ Run buttons need GITHUB_AGENTS_TOKEN (see README)</span>}
-        <div data-aftour="tabs" className="ml-auto flex items-center gap-1">
-          <button onClick={() => { setTourStep(0); }} className="px-3 py-1.5 rounded-full text-xs font-semibold text-blue-300 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/40 transition-colors">✦ Take a tour</button>
-          {([["queue", "Review queue"], ["status", "Agents"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
-            <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
-              {label}{v === "queue" && board.pendingTotal > 0 ? ` (${board.pendingTotal})` : ""}
-            </button>
-          ))}
-        </div>
       </div>
+      {!board.dispatchConfigured && <p className="text-amber-400 text-xs">⚠ Run buttons need GITHUB_AGENTS_TOKEN (see marketing-agents/README.md)</p>}
+
+      {/* ── View tabs ── */}
+      <div data-aftour="tabs" className="flex flex-wrap items-center gap-1">
+        <button onClick={() => setTourStep(0)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-blue-300 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/40 whitespace-nowrap transition-colors">✦ Take a tour</button>
+        {([["agents", "Agents"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
+          <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
+            {label}{v === "queue" && board.pendingTotal > 0 ? ` (${board.pendingTotal})` : ""}
+          </button>
+        ))}
+        {view === "queue" && <><button onClick={load} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 transition-colors">{loading ? "↻ updating…" : "↻ Refresh"}</button>{updatedAt && <span className="text-gray-600 text-[10px]">updated {ago(new Date(updatedAt).toISOString())} · auto every 30s</span>}</>}
+      </div>
+
+      {view === "agents" && (
+        <div className="space-y-5">
+          {TEAMS.map((team) => (
+            <div key={team.id} data-aftour={`team-${team.id}`}>
+              <div className="flex flex-wrap items-baseline gap-2 mb-2">
+                <p className="text-white text-[15px] font-bold">{team.label}</p>
+                <p className="text-gray-600 text-xs">{team.blurb}</p>
+              </div>
+              <div className="grid gap-2">
+                {team.agents.map((id, i) => <AgentRow key={id} id={id} isFirst={team.id === "marketing" && i === 0} />)}
+              </div>
+            </div>
+          ))}
+          {lastDigest && <p className="text-gray-600 text-xs">Last Manager report {ago(lastDigest.started_at)} — <button onClick={() => { setView("queue"); setFilterAgent("manager"); setFilterType("digest"); setFilterStatus("pending"); }} className="text-blue-400 hover:underline">open</button> (also emailed to {board.system.digest_email}).</p>}
+        </div>
+      )}
 
       {view === "queue" && (
         <>
-          <p className="text-gray-500 text-xs -mt-1">Everything your agents produced, waiting on your call. Approving never sends anything anywhere — you stay the sender.</p>
-          <div data-aftour="filters" className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5">
-              {[["pending", "pending — needs you"], ["approved", "approved"], ["rejected", "rejected"], ["contacted", "contacted"], ["replied", "got replies"], ["converted", "converted"], ["published", "published"], ["acknowledged", "read"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {[["pending", "pending — needs you"], ["approved", "approved"], ["rejected", "rejected"], ["contacted", "sent"], ["replied", "got replies"], ["converted", "converted"], ["published", "published"], ["acknowledged", "read"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5">
               <option value="">All agents</option>
@@ -315,20 +370,18 @@ export default function AgentFlowClient() {
               <option value="">All types</option>
               {Object.entries(TYPE_LABEL).map(([t, l]) => <option key={t} value={t}>{l}</option>)}
             </select>
-            <button onClick={load} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 transition-colors">{loading ? "↻ updating…" : "↻ Refresh"}</button>
-            {updatedAt && <span className="text-gray-600 text-[10px]">updated {ago(new Date(updatedAt).toISOString())} · auto-refreshes every 30s</span>}
             {filterStatus === "pending" && pendingItems.length > 1 && (
               <button onClick={() => setSelected(selected.size === pendingItems.length ? new Set() : new Set(pendingItems.map((i) => i.id)))} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 underline underline-offset-2">
                 {selected.size === pendingItems.length ? "Clear selection" : `Select all shown (${pendingItems.length})`}
               </button>
             )}
-            {pendingProspects.length > 0 && <button onClick={() => downloadCsv(pendingProspects)} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full ml-auto">⬇ Prospects CSV ({pendingProspects.length})</button>}
+            {pendingProspects.length > 0 && <button onClick={() => downloadCsv(pendingProspects)} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full ml-auto whitespace-nowrap">⬇ Prospects CSV ({pendingProspects.length})</button>}
           </div>
 
           {items.length === 0 && !loading && (
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
               <p className="text-gray-300 font-semibold">{filterStatus === "pending" ? "Nothing needs you right now." : `Nothing with status “${filterStatus}”.`}</p>
-              <p className="text-gray-500 text-sm mt-1.5">Agents only work when told to — press <button onClick={() => control("start_all")} className="text-blue-400 underline">Start All</button> or run one from <button onClick={() => setView("status")} className="text-blue-400 underline">Agents</button>, and results land here.</p>
+              <p className="text-gray-500 text-sm mt-1.5">{open ? "The agents are on duty — new work lands here as they finish." : <>Press <button onClick={() => control("start_all")} className="text-blue-400 underline">Start All</button> and results land here.</>}</p>
             </div>
           )}
 
@@ -365,37 +418,31 @@ export default function AgentFlowClient() {
                   {it.status === "pending" && editing !== it.id && (
                     <div className="flex flex-col gap-1.5 shrink-0">
                       {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "generic") && (
-                        <button onClick={() => copyApprove(it, "the platform")} title="Copies the message to your clipboard and marks it approved. YOU paste and send it." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full">Approve &amp; Copy</button>
+                        <button onClick={() => copyApprove(it, "the platform")} title="Copies to your clipboard and marks it approved. YOU paste and send." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Approve &amp; Copy</button>
                       )}
-                      {it.item_type === "video_script" && (
-                        <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full">Copy to Higgsfield</button>
-                      )}
-                      {it.item_type === "blog_post" && (
-                        <button onClick={() => act([it.id], "published")} title="Puts this post live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full">Publish</button>
-                      )}
-                      {it.item_type === "prospect" && (
-                        <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Mark contacted</button>
-                      )}
+                      {it.item_type === "video_script" && <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Higgsfield</button>}
+                      {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
+                      {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
                       {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "digest") && (
-                        <button onClick={() => act([it.id], "acknowledged")} title="Marks it read and moves it out of the pending list" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Got it ✓</button>
+                        <button onClick={() => act([it.id], "acknowledged")} title="Marks it read; nothing executes" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Got it ✓</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (
-                        <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full text-center">View PR</a>
+                        <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-center whitespace-nowrap">View the fix (PR)</a>
                       )}
                       {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "video_script" || it.item_type === "blog_post" || it.item_type === "generic") && (
-                        <button onClick={() => { setEditing(it.id); setEditText(it.content ?? ""); }} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full">Edit</button>
+                        <button onClick={() => { setEditing(it.id); setEditText(it.content ?? ""); }} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap">Edit</button>
                       )}
-                      <button onClick={() => act([it.id], "rejected")} title="Not useful — moves to History. Nothing is deleted or sent." className="text-xs text-red-400 hover:text-red-300 px-3 py-1">Reject</button>
+                      <button onClick={() => act([it.id], "rejected")} title="Not useful — filed to History; nothing deleted or sent" className="text-xs text-red-400 hover:text-red-300 px-3 py-1">Reject</button>
                     </div>
                   )}
                   {it.status === "approved" && (
                     <div className="flex flex-col gap-1.5 shrink-0">
-                      {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full">Publish</button>}
+                      {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer") && (
                         <>
-                          <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Mark sent</button>
-                          <button onClick={() => act([it.id], "replied")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full">Got a reply</button>
-                          <button onClick={() => act([it.id], "converted")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full">Converted 🎉</button>
+                          <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark sent</button>
+                          <button onClick={() => act([it.id], "replied")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Got a reply</button>
+                          <button onClick={() => act([it.id], "converted")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Converted 🎉</button>
                         </>
                       )}
                     </div>
@@ -405,13 +452,12 @@ export default function AgentFlowClient() {
             ))}
           </div>
 
-          {/* Bulk action bar — appears when items are ticked */}
           {selected.size > 0 && (
             <div className="fixed bottom-0 left-0 right-0 z-[60] bg-gray-900/95 backdrop-blur border-t border-gray-700 px-4 py-3">
               <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-2">
-                <p className="text-white text-sm font-semibold flex-1 min-w-[180px]">{selected.size} selected <span className="text-gray-500 font-normal text-xs">— approve keeps them for you to use; reject files them away. Nothing gets sent either way.</span></p>
-                <button onClick={() => act([...selected], "approved")} className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-full">✓ Approve selected</button>
-                <button onClick={() => act([...selected], "rejected")} className="text-xs bg-red-900 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-full">✗ Reject selected</button>
+                <p className="text-white text-sm font-semibold flex-1 min-w-[180px]">{selected.size} selected <span className="text-gray-500 font-normal text-xs">— approve keeps them for you; reject files them away. Nothing gets sent either way.</span></p>
+                <button onClick={() => act([...selected], "approved")} className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-full whitespace-nowrap">✓ Approve selected</button>
+                <button onClick={() => act([...selected], "rejected")} className="text-xs bg-red-900 hover:bg-red-800 text-white font-bold px-4 py-2 rounded-full whitespace-nowrap">✗ Reject selected</button>
                 <button onClick={() => setSelected(new Set())} className="text-xs text-gray-400 hover:text-white px-2 py-2">Cancel</button>
               </div>
             </div>
@@ -419,68 +465,21 @@ export default function AgentFlowClient() {
         </>
       )}
 
-      {view === "status" && (
-        <div className="grid gap-2">
-          <p className="text-gray-500 text-xs -mt-1">Your workers. Run one, pause one, or open its ▾ log to read its diary.</p>
-          {agents.map((s, idx) => {
-            const r = board.latestRuns[s.agent_id];
-            const st = stateOf(r, s);
-            const bad = st.label === "Problem" || st.label === "Hit the cap";
-            return (
-              <div key={s.agent_id} data-aftour={idx === 0 ? "agentrow" : undefined} className={`rounded-xl border p-4 flex flex-wrap items-center gap-3 ${bad ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
-                <div className="min-w-[150px]">
-                  <p className="text-white text-sm font-semibold">{AGENT_NAMES[s.agent_id] ?? s.agent_id}</p>
-                  <p className="text-[10px] uppercase tracking-wide text-gray-600">{DRAFT_ONLY.has(s.agent_id) ? "drafts only — can't post" : s.agent_id === "manager" ? "reports only" : s.agent_id === "perf" ? "speed watchdog" : "works on our own stuff"}</p>
-                </div>
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
-                <div className="text-xs text-gray-500 flex-1 min-w-[200px]">
-                  <span>{r?.status === "running" ? `working for ${dur(r.started_at, null, now)}` : `last ran ${ago(r?.started_at ?? null)}`} · {r ? `made ${r.output_count} item(s) · $${Number(r.usage_usd).toFixed(2)}` : "never run"} · ${Number(board.spendBy[s.agent_id] ?? 0).toFixed(2)} this month</span>
-                  {r?.summary && <p className={`mt-0.5 truncate ${r.status === "running" ? "text-blue-300" : bad ? "text-red-400/80" : "text-gray-600"}`}>{r.status === "running" ? "⋯ " : ""}{r.summary}</p>}
-                </div>
-                <div className="hidden sm:flex items-end gap-0.5 h-6 w-16" title="last runs, newest right — a flatline means it's producing nothing">
-                  {(runsByAgent[s.agent_id] ?? []).slice(0, 8).reverse().map((rr) => (
-                    <div key={rr.id} className={`flex-1 rounded-sm ${rr.status === "failed" ? "bg-red-700" : "bg-blue-800"}`} style={{ height: `${Math.min(100, 15 + rr.output_count * 20)}%` }} />
-                  ))}
-                </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => control("run", s.agent_id)} disabled={busy || s.paused || !s.enabled || board.system.paused || autoStopHit} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full transition-colors">Run now</button>
-                  <button onClick={() => control(s.paused ? "resume" : "pause", s.agent_id)} disabled={busy} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full transition-colors">{s.paused ? "Resume" : "Pause"}</button>
-                  <button data-aftour={idx === 0 ? "logbtn" : undefined} onClick={() => setExpanded(expanded === s.agent_id ? null : s.agent_id)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5 transition-colors">{expanded === s.agent_id ? "▴ close" : "▾ log"}</button>
-                </div>
-                {expanded === s.agent_id && (
-                  <div className="w-full mt-2 border-t border-gray-800 pt-2 space-y-1">
-                    {(runsByAgent[s.agent_id] ?? []).length === 0 && <p className="text-gray-600 text-xs">This agent hasn&apos;t run yet.</p>}
-                    {(runsByAgent[s.agent_id] ?? []).slice(0, 10).map((rr) => (
-                      <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px]">
-                        <span className="text-gray-600 tabular-nums shrink-0">{new Date(rr.started_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-                        <span className={rr.status === "failed" ? "text-red-400 font-semibold" : rr.status === "success" ? "text-emerald-500" : "text-amber-400"}>{rr.status === "success" ? "done" : rr.status}</span>
-                        <span className="text-gray-500">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · ${Number(rr.usage_usd).toFixed(2)} · {rr.trigger === "start_all" ? "via Start All" : rr.trigger}</span>
-                        <span className="text-gray-400 basis-full sm:basis-auto sm:flex-1 truncate">{rr.summary}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {view === "history" && (
         <div data-aftour="historylist" className="space-y-1.5">
-          <p className="text-gray-500 text-xs -mt-1">Every decision you&apos;ve made, newest first. For outreach you sent, record what came back — that&apos;s how you learn which agents earn their keep.</p>
+          <p className="text-gray-500 text-xs">Every decision you&apos;ve made, newest first. Record outcomes on sent outreach — that&apos;s how you learn which agents earn their keep.</p>
           {history.length === 0 && <p className="text-gray-500 text-sm">Nothing yet — approve or reject something and it lands here.</p>}
           {history.map((h) => (
-            <div key={h.id} className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs">
-              <span className={`font-bold ${h.action === "approved" || h.action === "published" || h.action === "converted" ? "text-emerald-400" : h.action === "rejected" ? "text-red-400" : "text-gray-400"}`}>
+            <div key={h.id} className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2.5 flex flex-wrap items-center gap-2 text-xs min-w-0">
+              <span className={`font-bold whitespace-nowrap ${h.action === "approved" || h.action === "published" || h.action === "converted" ? "text-emerald-400" : h.action === "rejected" ? "text-red-400" : "text-gray-400"}`}>
                 {{ approved: "You approved", rejected: "You rejected", edited: "You edited", published: "You published", acknowledged: "You read", contacted: "You sent", replied: "They replied to", converted: "CONVERTED", csv_downloaded: "You downloaded" }[h.action] ?? h.action}
               </span>
-              <span className="text-gray-300 flex-1 min-w-[200px]">{h.agent_queue_items?.title ?? "(item removed)"}</span>
-              <span className="text-gray-600">{AGENT_NAMES[h.agent_queue_items?.agent_id ?? ""] ?? h.agent_queue_items?.agent_id} · {ago(h.created_at)}</span>
+              <span className="text-gray-300 flex-1 min-w-[180px] truncate">{h.agent_queue_items?.title ?? "(item removed)"}</span>
+              <span className="text-gray-600 whitespace-nowrap">{AGENT_NAMES[h.agent_queue_items?.agent_id ?? ""] ?? ""} · {ago(h.created_at)}</span>
               {h.item_id && (h.action === "approved" || h.action === "contacted") && (h.agent_queue_items?.item_type === "outreach_draft" || h.agent_queue_items?.item_type === "reply_draft" || h.agent_queue_items?.item_type === "influencer") && h.agent_queue_items?.status !== "converted" && (
                 <span className="flex gap-1">
-                  <button onClick={() => act([h.item_id!], "replied")} className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded-full">got a reply</button>
-                  <button onClick={() => act([h.item_id!], "converted")} className="text-[10px] bg-emerald-900 hover:bg-emerald-800 text-emerald-300 px-2 py-1 rounded-full">converted 🎉</button>
+                  <button onClick={() => act([h.item_id!], "replied")} className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded-full whitespace-nowrap">got a reply</button>
+                  <button onClick={() => act([h.item_id!], "converted")} className="text-[10px] bg-emerald-900 hover:bg-emerald-800 text-emerald-300 px-2 py-1 rounded-full whitespace-nowrap">converted 🎉</button>
                 </span>
               )}
             </div>
@@ -490,48 +489,45 @@ export default function AgentFlowClient() {
 
       {view === "settings" && (
         <div data-aftour="settingslist" className="space-y-2 max-w-3xl">
-          <p className="text-gray-500 text-xs -mt-1">The levers. Everything here takes effect on the next run — no code, no deploys.</p>
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex-1 min-w-[220px]">
-                <p className="text-white text-sm font-semibold">Monthly budget for the whole system</p>
-                <p className="text-gray-500 text-xs mt-0.5">The hard ceiling. Agents refuse to start past it — and stop mid-run if it&apos;s crossed — then email you instead of spending more.</p>
-              </div>
-              <label className="flex items-center gap-1 text-sm text-white">$
-                <input type="number" step="1" defaultValue={board.system.monthly_usage_cap_usd} onBlur={(e) => saveSetting({ system: { monthly_usage_cap_usd: Number(e.target.value) } })} className="w-20 bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-sm" />
-              </label>
+          <p className="text-gray-500 text-xs">The levers. Everything takes effect on the next run — no deploys.</p>
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[220px]">
+              <p className="text-white text-sm font-semibold">Monthly budget for the whole system</p>
+              <p className="text-gray-500 text-xs mt-0.5">The hard ceiling — agents stop and email you instead of passing it. ${monthSpend.toFixed(2)} used this month.</p>
             </div>
+            <label className="flex items-center gap-1 text-sm text-white">$
+              <input type="number" step="1" defaultValue={board.system.monthly_usage_cap_usd} onBlur={(e) => saveSetting({ system: { monthly_usage_cap_usd: Number(e.target.value) } })} className="w-20 bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-sm" />
+            </label>
           </div>
-          {agents.map((s) => (
-            <div key={s.agent_id} className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {TEAMS.flatMap((t) => t.agents).map((id) => { const s = byId[id]; if (!s) return null; return (
+            <div key={id} className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
               <div className="min-w-[150px]">
-                <p className="text-white text-sm font-semibold">{AGENT_NAMES[s.agent_id] ?? s.agent_id}</p>
-                <p className="text-[10px] text-gray-600">{DRAFT_ONLY.has(s.agent_id) ? "drafts only" : "autonomous"}</p>
+                <p className="text-white text-sm font-semibold">{AGENT_NAMES[id]}</p>
+                <p className="text-[10px] text-gray-600">{AGENT_ROLE[id]}</p>
               </div>
-              <label className="flex items-center gap-1.5 text-xs text-gray-400" title="Off = this agent never runs, even in Start All">
-                <input type="checkbox" defaultChecked={s.enabled} onChange={(e) => saveSetting({ agent_id: s.agent_id, enabled: e.target.checked }, e.target.checked ? "Agent switched on." : "Agent switched off — Start All will skip it.")} className="accent-blue-600" /> on
+              <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Off = benched everywhere">
+                <input type="checkbox" checked={s.enabled} onChange={(e) => saveSetting({ agent_id: id, enabled: e.target.checked })} className="accent-blue-600" /> active
               </label>
-              <label className="flex items-center gap-1.5 text-xs text-gray-400" title="Most items it may produce in one run — keeps your queue reviewable">
-                max <input type="number" defaultValue={s.output_cap} onBlur={(e) => saveSetting({ agent_id: s.agent_id, output_cap: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" /> items/run
+              <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Most items per run — keeps the queue reviewable">
+                max <input type="number" defaultValue={s.output_cap} onBlur={(e) => saveSetting({ agent_id: id, output_cap: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" /> /run
               </label>
-              <label className="flex items-center gap-1.5 text-xs text-gray-400" title="Its spending budget for one run">
-                $<input type="number" step="0.5" defaultValue={s.usage_cap_usd} onBlur={(e) => saveSetting({ agent_id: s.agent_id, usage_cap_usd: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" />/run
+              <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Budget per run">
+                $<input type="number" step="0.5" defaultValue={s.usage_cap_usd} onBlur={(e) => saveSetting({ agent_id: id, usage_cap_usd: Number(e.target.value) })} className="w-14 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" />/run
               </label>
-              <label className="flex items-center gap-1.5 text-xs text-gray-400" title="Optional — off means it ONLY runs when you press a button">
-                schedule
-                <select defaultValue={s.schedule ?? ""} onChange={(e) => saveSetting({ agent_id: s.agent_id, schedule: e.target.value || null }, e.target.value ? "Scheduled — it will run itself at that time every day (ET)." : "Schedule off — manual only.")} className="bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white">
-                  <option value="">off — manual only</option>
-                  <option value="daily@07:00">every day, 7:00 AM ET</option>
-                  <option value="daily@12:00">every day, noon ET</option>
-                  <option value="daily@18:00">every day, 6:00 PM ET</option>
-                </select>
-              </label>
+              {id !== "bugwatch" ? (
+                <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Their working rhythm while the system is running">
+                  rhythm
+                  <select value={s.schedule ?? ""} onChange={(e) => saveSetting({ agent_id: id, schedule: e.target.value || null }, e.target.value ? "Rhythm saved — they'll keep it whenever the system is running." : "Manual only — runs only when you press Run once.")} className="bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white">
+                    {CADENCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {s.schedule && !CADENCES.some(([v]) => v === s.schedule) && <option value={s.schedule}>{s.schedule}</option>}
+                  </select>
+                </label>
+              ) : <span className="text-[11px] text-gray-600">rhythm: daily (self-scheduled)</span>}
             </div>
-          ))}
+          ); })}
         </div>
       )}
 
-      {/* ── Tour overlay ── */}
       {step && (
         <div className="fixed inset-0 z-[80]">
           <div className="absolute inset-0 bg-black/70" onClick={() => setTourStep(null)} />
