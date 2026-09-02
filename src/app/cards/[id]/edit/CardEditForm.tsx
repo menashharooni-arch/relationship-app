@@ -94,7 +94,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkButtonStyle?: string; linkButtonColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -225,6 +225,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     linkBgColor: card.customization?.linkBgColor ?? undefined,
     linkTextColor: card.customization?.linkTextColor ?? undefined,
     linkFontFamily: card.customization?.linkFontFamily ?? undefined,
+    linkHeroStyle: card.customization?.linkHeroStyle ?? undefined,
+    linkButtonStyle: card.customization?.linkButtonStyle ?? undefined,
+    linkButtonColor: card.customization?.linkButtonColor ?? undefined,
   });
   function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
     setLinkStyleState((prev) => ({ ...prev, ...patch }));
@@ -375,6 +378,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkBgColor: linkStyleState.linkBgColor ?? null,
             linkTextColor: linkStyleState.linkTextColor ?? null,
             linkFontFamily: linkStyleState.linkFontFamily ?? null,
+            linkHeroStyle: linkStyleState.linkHeroStyle ?? null,
+            linkButtonStyle: linkStyleState.linkButtonStyle ?? null,
+            linkButtonColor: linkStyleState.linkButtonColor ?? null,
             // "View SwiftCard →" toggle — sent explicitly (null clears back to shown) so the merge can flip it both ways.
             hideCardLink: showCardLinkBtn ? null : true,
             // Headshot is per-card (explicit key, null when removed).

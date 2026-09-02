@@ -20,6 +20,7 @@ import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
 import {
   SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
+  HERO_STYLES, BUTTON_STYLES, normalizeHeroStyle, normalizeButtonStyle,
 } from "@/lib/swiftlink-looks";
 
 export type SwiftLinkStyle = {
@@ -29,6 +30,13 @@ export type SwiftLinkStyle = {
   linkFontFamily?: string;
   linkIconShape?: string;
   linkIconFill?: string;
+  /** Page header: "cover" (full-bleed hero, default) or "avatar" (compact
+   *  circle). Structural — every plan, like the Look picker. */
+  linkHeroStyle?: string;
+  /** Link rows: "tile" (rich preview tiles, default), "solid", "outline". */
+  linkButtonStyle?: string;
+  /** Solid/outline row color — defaults to the Look's accent. */
+  linkButtonColor?: string;
 };
 
 export const LINK_DEFAULT_BG = "#191a1a"; // the page's stock dark sheet
@@ -266,10 +274,42 @@ export function SwiftLinkStyleControls({
         {/* Picking a Look also clears the fine-tune background/text overrides:
             they'd win over the Look at render time, so a stale custom color
             would make every Look "not work" until the user found and reset it. */}
-        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined })} locked={locked} />
+        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined })} locked={locked} />
         {locked && (
           <p className="text-[10px] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        {/* Every plan — structural, like the Look picker, so never disabled. */}
+        <p className={`${rowLabel} mb-0.5`}>Page header</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {HERO_STYLES.map((o) => {
+            const active = normalizeHeroStyle(value.linkHeroStyle) === o.id;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                title={o.hint}
+                onClick={() => onChange({ linkHeroStyle: o.id === "cover" ? undefined : o.id })}
+                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[11px] font-semibold text-left transition-colors ${
+                  active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+                }`}
+              >
+                {/* Mini page sketch: cover = photo band up top; avatar = small circle */}
+                <span className="w-7 h-9 rounded-[5px] bg-gray-900 border border-gray-600 overflow-hidden flex flex-col items-center shrink-0">
+                  {o.id === "cover" ? (
+                    <><span className="w-full h-4 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
+                  ) : (
+                    <><span className="mt-1.5 w-3 h-3 rounded-full bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
+                  )}
+                </span>
+                {o.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="border-t border-gray-800 pt-4">
@@ -282,6 +322,50 @@ export function SwiftLinkStyleControls({
           onChange={onChange}
           locked={locked}
         />
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your additional links render — rich preview tiles, or clean rows in one color.</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {BUTTON_STYLES.map((o) => {
+            const active = normalizeButtonStyle(value.linkButtonStyle) === o.id;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                disabled={locked}
+                title={o.hint}
+                onClick={() => onChange({ linkButtonStyle: o.id === "tile" ? undefined : o.id })}
+                className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                  active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+                }`}
+              >
+                {/* Mini glyph: tile = image card; solid = filled row; outline = bordered row */}
+                {o.id === "tile" ? (
+                  <span className="w-8 h-4 rounded-[4px] bg-gray-400 overflow-hidden flex items-end justify-center"><span className="w-5 h-[3px] mb-[2px] rounded bg-gray-700" /></span>
+                ) : o.id === "solid" ? (
+                  <span className="w-8 h-4 rounded-full bg-gray-300 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-700" /></span>
+                ) : (
+                  <span className="w-8 h-4 rounded-full border-[1.5px] border-gray-300 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-400" /></span>
+                )}
+                {o.name}
+              </button>
+            );
+          })}
+        </div>
+        {normalizeButtonStyle(value.linkButtonStyle) !== "tile" && (
+          <div className="mt-2.5">
+            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Button color — leave Default to use your Look&apos;s accent.</p>
+            <SwatchRow
+              presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
+              value={value.linkButtonColor}
+              fallbackHex={getLook(value.linkLook).accent}
+              onPick={(v) => onChange({ linkButtonColor: v })}
+              customLocked={locked}
+            />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-gray-800 pt-4">

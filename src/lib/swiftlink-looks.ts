@@ -186,3 +186,48 @@ export function normalizeIconShape(v?: string | null): IconShape {
 export function normalizeIconFill(v?: string | null): IconFill {
   return v === "accent" || v === "mono" ? v : DEFAULT_ICON_FILL;
 }
+
+// ── Page header style (Linktree-informed, 2026-09-01) ───────────────────────
+//
+// "Cover" is the original link.me-style full-bleed hero — the photo IS the top
+// of the page. "Avatar" is the compact professional register (the Linktree
+// norm): a small circular headshot sitting on the sheet, so the page leads
+// with the name and links instead of a viewport-tall image. Structural, like
+// the Look picker and hideCardLink, so it's EVERY plan — not a Pro key.
+
+export type HeroStyle = "cover" | "avatar";
+
+export const HERO_STYLES: { id: HeroStyle; name: string; hint: string }[] = [
+  { id: "cover", name: "Cover photo", hint: "Your photo fills the top of the page" },
+  { id: "avatar", name: "Compact circle", hint: "A small round photo — more room for your links" },
+];
+
+export const DEFAULT_HERO_STYLE: HeroStyle = "cover";
+
+export function normalizeHeroStyle(v?: string | null): HeroStyle {
+  return v === "avatar" ? v : DEFAULT_HERO_STYLE;
+}
+
+// ── Link button style (Linktree-informed, 2026-09-01) ───────────────────────
+//
+// "Tile" is the original hoo.be rich-preview system (featured/grid/compact,
+// lib/swiftlink-tiles) — untouched, still the default. "Solid" and "Outline"
+// render every link as a full-width Linktree-style row — small favicon
+// thumbnail, label, chevron — filled with (or outlined in) the button color,
+// which defaults to the Look's accent and can be overridden with
+// linkButtonColor. Pro fine-tuning, same plan line as the icon styling: both
+// keys live in LINK_STYLE_KEYS, so Free stores/renders neither.
+
+export type ButtonStyle = "tile" | "solid" | "outline";
+
+export const BUTTON_STYLES: { id: ButtonStyle; name: string; hint: string }[] = [
+  { id: "tile", name: "Tiles", hint: "Rich preview cards with images" },
+  { id: "solid", name: "Buttons", hint: "Solid color rows" },
+  { id: "outline", name: "Outline", hint: "Bordered rows" },
+];
+
+export const DEFAULT_BUTTON_STYLE: ButtonStyle = "tile";
+
+export function normalizeButtonStyle(v?: string | null): ButtonStyle {
+  return v === "solid" || v === "outline" ? v : DEFAULT_BUTTON_STYLE;
+}
