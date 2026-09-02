@@ -148,6 +148,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
      *  the paid spread below. */
     linkHeroStyle?: string;
     linkHeroContent?: string;
+    /** Uploaded header photo for linkHeroContent "custom". Every plan. */
+    linkHeroImage?: string;
     /** Link rows: "solid"/"outline" replace the rich tiles (Pro). */
     linkButtonStyle?: string;
     linkButtonColor?: string;
@@ -158,6 +160,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   // fine-tune keys stay paid-only, matching sanitizeCustomizationForPlan.
   const pageStyle = {
     look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
+    // Every-plan structural keys, like the two hero keys below.
+    heroImage: customization.linkHeroImage,
     heroStyle: customization.linkHeroStyle,
     heroContent: customization.linkHeroContent,
     ...(ownerPaid

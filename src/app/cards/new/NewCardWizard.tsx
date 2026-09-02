@@ -37,7 +37,7 @@ import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYL
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
-import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
+import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import LinkSizeControl from "@/components/LinkSizeControl";
@@ -594,9 +594,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         const style: Record<string, unknown> = {};
         for (const k of PRO_CUSTOMIZATION_KEYS) if (cust[k] !== undefined) style[k] = cust[k];
         if (Object.keys(style).length) setTemplateStyleState(style as TemplateStyle);
-        // Swift Links page design keys ride alongside the card's, on their own list.
+        // Swift Links page design keys ride alongside the card's, on their own
+        // list — the Pro keys AND the every-plan structural ones (Look, header
+        // style/content, uploaded header photo), which this restore used to
+        // silently drop.
         const ls: Record<string, unknown> = {};
-        for (const k of LINK_STYLE_KEYS) if (cust[k] !== undefined) ls[k] = cust[k];
+        for (const k of [...LINK_STYLE_KEYS, ...LINK_STRUCTURAL_KEYS]) if (cust[k] !== undefined) ls[k] = cust[k];
         if (Object.keys(ls).length) setLinkStyleState(ls as SwiftLinkStyle);
 
         // Images ride as base64 data URLs (a guest can't reach the upload route).

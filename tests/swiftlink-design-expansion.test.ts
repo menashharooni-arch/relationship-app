@@ -29,14 +29,16 @@ describe("normalizers fail closed to today's rendering", () => {
     expect(HERO_STYLES.map((o) => o.id)).toEqual(["cover", "banner", "avatar", "none"]);
   });
 
-  it("hero content: only photo/logo/initials change anything", () => {
+  it("hero content: only photo/logo/initials/custom change anything", () => {
     expect(DEFAULT_HERO_CONTENT).toBe("auto");
     expect(normalizeHeroContent(undefined)).toBe("auto");
     expect(normalizeHeroContent("junk")).toBe("auto");
     expect(normalizeHeroContent("photo")).toBe("photo");
     expect(normalizeHeroContent("logo")).toBe("logo");
     expect(normalizeHeroContent("initials")).toBe("initials");
-    expect(HERO_CONTENTS.map((o) => o.id)).toEqual(["auto", "photo", "logo", "initials"]);
+    expect(normalizeHeroContent("custom")).toBe("custom");
+    // "Upload photo" sits to the RIGHT of Initials (owner order 2026-09-02).
+    expect(HERO_CONTENTS.map((o) => o.id)).toEqual(["auto", "photo", "logo", "initials", "custom"]);
   });
 
   it("buttons: only 'solid'/'outline' change anything", () => {
@@ -58,12 +60,19 @@ describe("plan line", () => {
   it("the header keys are EVERY plan — the sanitizer never touches them", () => {
     expect(LINK_STYLE_KEYS).not.toContain("linkHeroStyle");
     expect(LINK_STYLE_KEYS).not.toContain("linkHeroContent");
-    expect(read("src/lib/plan.ts")).not.toMatch(/["']linkHero(Style|Content)["']/);
+    expect(LINK_STYLE_KEYS).not.toContain("linkHeroImage");
+    // They live on the STRUCTURAL list instead (used by the wizard's draft
+    // restore), which the sanitizer never iterates.
+    const plan = read("src/lib/plan.ts");
+    expect(plan).toMatch(/LINK_STRUCTURAL_KEYS = \["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage"\]/);
+    expect(plan).not.toMatch(/LINK_STRUCTURAL_KEYS[\s\S]{0,800}delete cust/);
   });
 
   it("the public page gates matching the sanitizer: header outside the paid spread, buttons inside", () => {
     const src = read("src/app/links/[username]/page.tsx");
     expect(src).toMatch(/heroStyle: customization\.linkHeroStyle,\s*\n\s*heroContent: customization\.linkHeroContent,\s*\n\s*\.\.\.\(ownerPaid/);
+    // The uploaded header photo is every-plan too — outside the paid spread.
+    expect(src).toMatch(/heroImage: customization\.linkHeroImage,[\s\S]{0,200}\.\.\.\(ownerPaid/);
     expect(src).toMatch(/buttonStyle: customization\.linkButtonStyle/);
     expect(src).toMatch(/buttonColor: customization\.linkButtonColor/);
   });
@@ -72,6 +81,7 @@ describe("plan line", () => {
     const src = read("src/components/SwiftLinkLivePreview.tsx");
     expect(src).toMatch(/heroStyle: style\?\.linkHeroStyle/);
     expect(src).toMatch(/heroContent: style\?\.linkHeroContent/);
+    expect(src).toMatch(/heroImage: style\?\.linkHeroImage/);
     expect(src).toMatch(/\.\.\.\(paid \? \{[^}]*buttonStyle: style\?\.linkButtonStyle/);
   });
 });
@@ -90,6 +100,10 @@ describe("rendering", () => {
 
   it("the header content pick falls down the auto chain when the asset is missing", () => {
     const src = read("src/components/SwiftLinkProfile.tsx");
+    // "Upload photo": renders as a cover photo, HTTPS-only (the URL rides in
+    // client-writable customization), and with no image falls down the chain.
+    expect(src).toMatch(/heroContent === "custom" && pageStyle\?\.heroImage && \/\^https:/);
+    expect(src).toMatch(/customHero \? \{ kind: "photo" as const, url: customHero \}/);
     expect(src).toMatch(/heroContent === "initials" \? \{ kind: "initials"/);
     expect(src).toMatch(/heroContent === "photo" && photoUrl \? \{ kind: "photo"/);
     expect(src).toMatch(/heroContent === "logo" && logoUrl \? \{ kind: "logo"/);
