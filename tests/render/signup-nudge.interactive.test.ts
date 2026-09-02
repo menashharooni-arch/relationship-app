@@ -336,47 +336,54 @@ describe("save a contact → the free-card popup actually appears", () => {
     await page.close();
   });
 
-  it("SLOT RULE: a second card in the same session earns its own invite", async () => {
-    // Saving Alex's contact and later saving Sam's are two different people
-    // experiencing the product. A session-wide slot swallowed the second one.
+  it("ONCE EVER: a save-class moment invites only the FIRST time — never again", async () => {
+    // Owner order 2026-09-02 (supersedes the 2026-08-25 unrationed rule): the
+    // first save/scan gets the invite; after that it never comes back — not
+    // on a re-save, and not on a DIFFERENT card either (the flag is per
+    // browser, not per card or session).
     const page = await mount();
     await saveContact(page);
     await page.locator('button:has-text("No thanks")').click();
     await page.waitForTimeout(800);
-    expect(await popupVisible(page), "card 1 invite").toBe(true);
+    expect(await popupVisible(page), "first save invites").toBe(true);
     await page.locator('[aria-label="Create your own SwiftCard"] button[aria-label="Dismiss"]').click();
     await page.waitForTimeout(400);
 
-    // Same tab, same sessionStorage — a different card.
+    // Re-fire the same moment — nothing.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "vcard" } })));
+    await page.waitForTimeout(800);
+    expect(await popupVisible(page), "a second save never re-invites").toBe(false);
+
+    // A different card in the same browser — still nothing.
     await page.evaluate(() => (window as never as { mount: (c?: string) => void }).mount("sam-rivera"));
     await page.waitForTimeout(300);
     await saveContact(page);
     await page.locator('button:has-text("No thanks")').click();
     await page.waitForTimeout(800);
-    expect(await popupVisible(page), "card 2 must earn its own invite").toBe(true);
+    expect(await popupVisible(page), "the invite is once per BROWSER, not per card").toBe(false);
     await page.close();
   });
 
-  it("SLOT RULE: a save-class moment fires EVERY time, even on the same card", async () => {
-    // Owner decision 2026-08-25: the post-save invite is unrationed — it must
-    // be bulletproof at the moment that converts, not once-per-card. (Only
-    // incidental link taps keep the once-per-session slot; see the next test.)
+  it("ONCE EVER: the flag survives a reload (localStorage, not session)", async () => {
     const page = await mount();
     await saveContact(page);
     await page.locator('button:has-text("No thanks")').click();
     await page.waitForTimeout(800);
     expect(await popupVisible(page)).toBe(true);
     await page.locator('[aria-label="Create your own SwiftCard"] button[aria-label="Dismiss"]').click();
-    await page.waitForTimeout(400);
 
-    // Re-fire the same moment on the same card — the invite shows AGAIN.
+    await page.reload();
+    await page.evaluate(() => (window as never as { mount: (c?: string) => void }).mount());
+    await page.waitForSelector("button");
+    // The earlier save also persisted its own saved/shared state, so drive
+    // the MOMENT directly rather than re-clicking through the sheet.
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "vcard" } })));
     await page.waitForTimeout(800);
-    expect(await popupVisible(page), "save-class invites are unrationed (owner decision)").toBe(true);
+    expect(await popupVisible(page), "a new visit must not re-invite").toBe(false);
     await page.close();
   });
 
-  it("SLOT RULE: incidental link taps still get only one invite per session", async () => {
+  it("ONCE EVER: incidental link taps spend only their own flag, once", async () => {
     const page = await mount();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "link_button" } })));
     await page.waitForTimeout(800);
@@ -385,7 +392,7 @@ describe("save a contact → the free-card popup actually appears", () => {
     await page.waitForTimeout(400);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("sc:nudge", { detail: { source: "link_button" } })));
     await page.waitForTimeout(600);
-    expect(await popupVisible(page), "incidental taps stay rationed").toBe(false);
+    expect(await popupVisible(page), "incidental taps invite once, ever").toBe(false);
     await page.close();
   });
 });

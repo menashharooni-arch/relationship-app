@@ -26,27 +26,28 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 const host = read("src/components/SignupNudgeHost.tsx");
 const share = read("src/components/ShareButton.tsx");
 
-describe("slots are per class, spent only when a popup renders", () => {
-  it("a HIGH-VALUE moment gets its own slot PER CARD; incidental taps share one per session", () => {
-    // The starvation bug: one flat per-class slot plus a global 2-popup cap
-    // meant a visitor who tapped a couple of links before saving a contact
-    // had the budget spent and saw nothing at the moment that converts.
-    expect(host).toMatch(/isHighValue = \(cls: string\) => cls === "save" \|\| cls === "share"/);
-    expect(host).toMatch(/sc_nudged:\$\{cls\}:\$\{card \|\| "any"\}/);
-    expect(host).toMatch(/"sc_nudged:incidental"/);
-    // Saving is a high-value moment however it was triggered.
+describe("each moment invites once EVER, spent only when a popup renders", () => {
+  it("one lifetime flag PER CLASS in localStorage (owner order 2026-09-02)", () => {
+    // Each class spends only its own flag, so an incidental tap can never
+    // starve the save moment — but no moment ever invites twice, on any
+    // card, in any session.
+    expect(host).toMatch(/sc_nudged_ever:\$\{cls\}/);
+    expect(host).toMatch(/localStorage\.getItem\(key\)/);
+    // Saving is a save-class moment however it was triggered.
     expect(host).toMatch(/vcard: "save"/);
     expect(host).toMatch(/save_contact: "save"/);
-    // The old flat slot and the global cap that starved it are gone.
+    // The old session-scoped slots, per-card keys, and global cap are gone.
+    // (The word survives only in the account-cache comment explaining why
+    // it is NOT used — pin the calls, not the prose.)
+    expect(host).not.toMatch(/sessionStorage\.(get|set)Item/);
     expect(host).not.toMatch(/NUDGE_SESSION_CAP/);
     expect(host).not.toMatch(/sc_nudge_count/);
-    expect(host).not.toMatch(/sessionStorage\.setItem\("sc_nudged", "1"\)/);
   });
 
-  it("the account check runs BEFORE any slot is written", () => {
+  it("the account check runs BEFORE the lifetime flag is written", () => {
     const handler = host.slice(host.indexOf("async function onNudge"));
     const acctCheck = handler.indexOf("await visitorHasAccount()");
-    const slotWrite = handler.indexOf("sessionStorage.setItem(key,");
+    const slotWrite = handler.indexOf("localStorage.setItem(key,");
     expect(acctCheck).toBeGreaterThan(-1);
     expect(slotWrite).toBeGreaterThan(acctCheck);
   });
