@@ -120,7 +120,8 @@ export class Run {
       const spent = await monthSpendUsd();
       if (spent >= Number(system.monthly_usage_cap_usd)) {
         const [row] = await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: "skipped_cap", finished_at: new Date().toISOString(), summary: `Monthly usage cap hit ($${spent.toFixed(2)} of $${system.monthly_usage_cap_usd}). Agent did not run.` }, prefer: "return=representation" });
-        await email(`Agent Flow: usage cap hit — ${agentId} did not run`, `<p>The system has spent $${spent.toFixed(2)} of its $${system.monthly_usage_cap_usd} monthly cap, so <b>${agentId}</b> refused to start. Raise the cap in the Agent Flow tab if this is intentional.</p>`);
+        // No email (owner policy 2026-09-02: reports + 🔴 criticals only) —
+        // the comms line below and Atlas's digest carry the cap state.
         await say("atlas", "owner", `Budget line held: ${nameOf(partyOf(agentId))} refused to start — $${spent.toFixed(2)} of the $${system.monthly_usage_cap_usd} monthly cap is spent. Raise the cap in Settings if you want more this month.`, { kind: "owner_out", run_id: row?.id ?? null });
         console.log(`::warning::${agentId}: monthly usage cap hit — not running`);
         return null;
@@ -163,7 +164,8 @@ export class Run {
     const spent = await monthSpendUsd();
     if (spent >= Number(system.monthly_usage_cap_usd)) {
       await this.finish("paused", `Monthly usage cap ($${system.monthly_usage_cap_usd}) crossed mid-run — stopped safely. ${this.outputCount} item(s) were completed and kept.`);
-      await email(`Agent Flow: monthly cap reached — ${this.agentId} stopped mid-run`, `<p><b>${this.agentId}</b> stopped at a safe checkpoint: total spend hit $${spent.toFixed(2)} of the $${system.monthly_usage_cap_usd} cap. Completed work is in the queue. Raise the cap in Settings to continue.</p>`);
+      // No email (owner policy 2026-09-02: reports + 🔴 criticals only) — the
+      // run row above and Atlas's digest carry it.
       process.exit(0);
     }
   }

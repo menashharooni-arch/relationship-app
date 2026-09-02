@@ -367,3 +367,25 @@ describe("default rhythms — no schedule-less agents", () => {
     expect(client).toMatch(/if \(on && open && !s\.paused\) control\("run", id\);/);
   });
 });
+
+// ── Email policy (owner order 2026-09-02): reports + 🔴 criticals ONLY ───────
+// hello@swiftcard.me gets Atlas's daily digest and the three critical alarms
+// (site health, broken user journey, security). Nothing else — cap events and
+// other little things live in the comms log, run history, and the digest.
+describe("agent emails: digest and criticals only", () => {
+  it("exactly these four files may email, and agentkit itself sends none", () => {
+    expect(read("marketing-agents/lib/agentkit.mjs")).not.toMatch(/await email\(/);
+    for (const f of ["agent-manager.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"])
+      expect((read(`marketing-agents/${f}`).match(/await email\(/g) ?? []).length, f).toBe(1);
+    for (const f of readdirSync("marketing-agents").filter((x) => x.endsWith(".mjs") && !["agent-manager.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"].includes(x)))
+      expect(read(`marketing-agents/${f}`), `${f} must not email`).not.toMatch(/await email\(/);
+  });
+
+  it("the three non-digest emails fire only on CRITICAL findings", () => {
+    for (const f of ["agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"]) {
+      const src = read(`marketing-agents/${f}`);
+      const at = src.indexOf("await email(");
+      expect(src.slice(Math.max(0, at - 400), at), `${f} email must be critical-gated`).toMatch(/critical/i);
+    }
+  });
+});

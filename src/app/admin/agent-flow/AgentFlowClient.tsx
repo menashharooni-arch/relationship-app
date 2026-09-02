@@ -143,7 +143,7 @@ const TOUR: TourStep[] = [
   { view: "queue", target: "tabs", title: "The Review queue", body: "Everything your agents produce waits here for your call. The badge on the tab shows how many. Approving never posts anything anywhere — you stay the sender." },
   { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
   { view: "history", target: "historylist", title: "History", body: "Every decision you've made, as sentences. For outreach you sent, record 'Got a reply' or 'Converted' here — that's how you learn which agents earn their keep." },
-  { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop and email you rather than pass it." },
+  { view: "settings", target: "settingslist", title: "Settings", body: "Per agent: on/off, items per run, budget per run, and their working rhythm. The monthly cap at the top is the hard ceiling — agents stop rather than pass it (logged in comms and the evening report; no email)." },
   { title: "That's it", body: "Press Start, wake the teams you want working, live your day, and come back to the badge and Atlas's evening report. Replay this anytime with ✦ Take a tour." },
 ];
 
