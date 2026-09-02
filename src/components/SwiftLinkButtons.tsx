@@ -36,12 +36,25 @@ function fullHref(url: string) {
   return `https://${v.replace(/^\/+/, "")}`;
 }
 
+// Perceived lightness of the button color — a custom light button needs dark
+// text (the Look's accentText only vouches for the Look's own accent).
+function isLightHex(hex: string): boolean {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 > 0.5;
+}
+
 export default function SwiftLinkButtons({
   links,
   tileBg = "#242526",
   mode = "dark",
   textColor = "#ffffff",
   paid = false,
+  buttonStyle = "tile",
+  buttonColor,
+  accent = "#1D4ED8",
+  accentText = "#FFFFFF",
 }: {
   links: SizedLink[];
   /** The Look's tile surface — behind a tile while its preview image loads. */
@@ -53,6 +66,14 @@ export default function SwiftLinkButtons({
   /** Paid owner: featured/grid tiles + inline video. Free (and the default,
    *  which fails CLOSED to the free rendering): every link compact. */
   paid?: boolean;
+  /** "tile" (default) = the original tile system. "solid"/"outline" render
+   *  EVERY link as a Linktree-style full-width row in the button color. */
+  buttonStyle?: "tile" | "solid" | "outline";
+  /** Custom row color (Pro fine-tune) — defaults to the Look's accent. */
+  buttonColor?: string;
+  /** The Look's accent + its AA-tested text — the row color's default. */
+  accent?: string;
+  accentText?: string;
 }) {
   // Fetched preview (og:image + favicon fallback) by index. Compact rows use
   // the favicon; image tiles use both — one fetch serves every size.
@@ -126,6 +147,14 @@ export default function SwiftLinkButtons({
 
   const tiles = layoutTiles(links, paid);
   const light = mode === "light";
+  // Solid/outline rows replace the tile system wholesale — every link renders
+  // as a row, whatever size it has stored (sizes are kept, not deleted, same
+  // philosophy as the Free rendering).
+  const rowsOnly = buttonStyle === "solid" || buttonStyle === "outline";
+  const btnColor = buttonColor || accent;
+  // The Look's accentText is AA-tested against the Look's accent; a CUSTOM
+  // color needs its text derived from its own lightness.
+  const btnText = buttonColor ? (isLightHex(buttonColor) ? "#111827" : "#FFFFFF") : accentText;
 
   return (
     <div className="w-full mt-6 flex flex-wrap justify-between">
@@ -157,8 +186,33 @@ export default function SwiftLinkButtons({
         const pv = previews[i];
         const favicon = pv?.favicon || null;
 
-        // ── COMPACT — slim row on the sheet itself ──────────────────────────
-        if (size === "compact") {
+        // ── COMPACT / SOLID / OUTLINE — slim rows on the sheet itself ───────
+        // "compact" is the stock translucent row; buttonStyle solid/outline
+        // restyle the SAME row (favicon well, label, chevron) in the button
+        // color — filled, or bordered — and apply it to every link.
+        if (rowsOnly || size === "compact") {
+          const variant = rowsOnly ? buttonStyle : "compact";
+          const rowClass =
+            variant === "solid"
+              ? "shadow-[0_2px_10px_rgba(15,23,42,0.10)]"
+              : variant === "outline"
+                ? ""
+                : light
+                  ? "ring-1 bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
+                  : "ring-1 bg-white/[0.07] ring-white/10";
+          const rowStyle =
+            variant === "solid"
+              ? { background: btnColor }
+              : variant === "outline"
+                ? { boxShadow: `inset 0 0 0 1.5px ${btnColor}` }
+                : undefined;
+          // Solid rows carry their own text; outline/compact labels sit on the
+          // sheet, so they keep the page's (AA-tested) text color.
+          const labelColor = variant === "solid" ? btnText : textColor;
+          const iconWell =
+            variant === "solid"
+              ? { background: isLightHex(btnColor) ? "rgba(15,23,42,0.06)" : "rgba(255,255,255,0.16)" }
+              : undefined;
           return (
             <a
               key={i}
@@ -166,26 +220,28 @@ export default function SwiftLinkButtons({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => triggerSignupNudge("link_button")}
-              className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-transform active:scale-[0.98] ring-1 ${
-                light ? "bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]" : "bg-white/[0.07] ring-white/10"
-              }`}
+              className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-transform active:scale-[0.98] ${rowClass}`}
+              style={rowStyle}
             >
-              <span className={`w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center ${light ? "bg-black/[0.05]" : "bg-white/10"}`}>
+              <span
+                className={`w-[34px] h-[34px] rounded-full shrink-0 flex items-center justify-center ${variant !== "solid" ? (light ? "bg-black/[0.05]" : "bg-white/10") : ""}`}
+                style={iconWell}
+              >
                 {favicon ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />
                 ) : link.emoji ? (
                   <span className="text-[16px] leading-none">{link.emoji}</span>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke={textColor} strokeOpacity={0.7} strokeWidth={2} className="w-4 h-4">
+                  <svg viewBox="0 0 24 24" fill="none" stroke={labelColor} strokeOpacity={0.7} strokeWidth={2} className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                   </svg>
                 )}
               </span>
-              <span className="flex-1 min-w-0 text-left text-[14px] font-semibold truncate" style={{ color: textColor }}>
+              <span className="flex-1 min-w-0 text-left text-[14px] font-semibold truncate" style={{ color: labelColor }}>
                 {link.label}
               </span>
-              <svg viewBox="0 0 24 24" fill="none" stroke={textColor} strokeOpacity={0.4} strokeWidth={2.2} className="w-4 h-4 shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke={labelColor} strokeOpacity={0.4} strokeWidth={2.2} className="w-4 h-4 shrink-0">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </a>

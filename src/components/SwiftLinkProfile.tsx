@@ -11,12 +11,14 @@ import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeButtonStyle } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
 // layered on top of it. No style at all → the default Look ("Paper", light).
-export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string };
+// heroStyle ("cover"/"avatar") and buttonStyle/buttonColor are the 2026-09-01
+// Linktree-informed additions — see lib/swiftlink-looks for the vocabulary.
+export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; buttonStyle?: string; buttonColor?: string };
 
 type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
 
@@ -91,16 +93,23 @@ export default function SwiftLinkProfile({
    *  the bottom. ON by default — hiding it is the owner's explicit choice. */
   showCardLink?: boolean;
 }) {
+  // "avatar" swaps the full-bleed hero for a compact circle ON the sheet —
+  // the professional register: the page leads with name + links, not a
+  // viewport-tall photo. "cover" (the default) is the original layout.
+  const heroAvatar = normalizeHeroStyle(pageStyle?.heroStyle) === "avatar";
+
   // Mini header fades in once the hero photo scrolls out from under it. Not in
-  // a preview: there's no page scroll, so it would just sit invisible.
+  // a preview: there's no page scroll, so it would just sit invisible. The
+  // compact-avatar header is far shorter, so its threshold is too.
+  const scrollThreshold = heroAvatar ? 96 : 230;
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     if (embedded) return;
-    const onScroll = () => setScrolled(window.scrollY > 230);
+    const onScroll = () => setScrolled(window.scrollY > scrollThreshold);
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, [embedded]);
+  }, [embedded, scrollThreshold]);
 
   const firstName = name.split(" ")[0] || username;
   const initials = initialsOf(name || username);
@@ -172,10 +181,12 @@ export default function SwiftLinkProfile({
           </div>
         )}
 
-        {/* Hero — full-bleed photo the sheet scrolls over.
+        {/* Hero — full-bleed photo the sheet scrolls over ("cover" style only;
+            "avatar" renders a compact circle inside the sheet instead).
             Fallback order: the card's headshot, then the card's LOGO, then the
             initials. A business card without a face is usually a company card,
             and its logo is the right identity to lead with. */}
+        {!heroAvatar && (
         <div className="relative w-full aspect-square max-h-[520px] overflow-hidden rounded-t-[30px]">
           {photoUrl ? (
             // A headshot is a photo of a person: fill the square and crop, which
@@ -231,10 +242,12 @@ export default function SwiftLinkProfile({
             style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetMeet} 100%)` }}
           />
         </div>
+        )}
 
-        {/* Sheet */}
+        {/* Sheet — with the avatar header there's no hero above it, so it
+            starts at the very top: no -mt overlap, a touch more top padding. */}
         <div
-          className="relative -mt-10 rounded-t-[30px] px-4 pt-7 pb-9 text-center"
+          className={`relative rounded-t-[30px] px-4 pb-9 text-center ${heroAvatar ? "pt-10" : "-mt-10 pt-7"}`}
           style={{
             background: auraOn
               ? sheetMeet
@@ -244,6 +257,30 @@ export default function SwiftLinkProfile({
             ...(auraOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
           }}
         >
+          {/* Compact circular avatar — the "avatar" header style. Same
+              identity fallback order as the cover hero: headshot (cropped),
+              then logo (contained, on a white plate so any mark reads), then
+              initials on the same indigo gradient. */}
+          {heroAvatar && (
+            <div className="flex justify-center mb-4">
+              <div className={`w-28 h-28 rounded-full overflow-hidden shrink-0 ring-4 ${light ? "ring-black/[0.06]" : "ring-white/15"}`}>
+                {photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoUrl} alt={name} className="w-full h-full object-cover" />
+                ) : logoUrl ? (
+                  <div className="w-full h-full bg-white flex items-center justify-center p-3.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt={name} className="max-w-full max-h-full w-auto h-auto object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center" style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}>
+                    <span className="text-white/90 font-extrabold text-4xl tracking-wide">{initials}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Name + verified badge */}
           {/* items-start so the badge sits with the FIRST line once the name
               wraps, rather than drifting to the vertical middle of a two-line
@@ -296,7 +333,17 @@ export default function SwiftLinkProfile({
           </div>
 
           {/* Featured links — rich preview cards */}
-          <SwiftLinkButtons links={links} tileBg={look.tile} mode={light ? "light" : "dark"} textColor={textColor} paid={paidTiles} />
+          <SwiftLinkButtons
+            links={links}
+            tileBg={look.tile}
+            mode={light ? "light" : "dark"}
+            textColor={textColor}
+            paid={paidTiles}
+            buttonStyle={normalizeButtonStyle(pageStyle?.buttonStyle)}
+            buttonColor={pageStyle?.buttonColor}
+            accent={look.accent}
+            accentText={look.accentText}
+          />
 
           {/* Faint link to this person's full SwiftCard — owner-toggleable from
               the Social design step (hideCardLink in customization). */}

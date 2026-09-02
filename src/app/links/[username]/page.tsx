@@ -143,6 +143,12 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkIconFill?: string;
     /** Social-design toggle: true hides the "View SwiftCard →" link. */
     hideCardLink?: boolean;
+    /** Page header: "avatar" = compact circle instead of the full-bleed hero.
+     *  Structural, every plan — passed outside the paid spread below. */
+    linkHeroStyle?: string;
+    /** Link rows: "solid"/"outline" replace the rich tiles (Pro). */
+    linkButtonStyle?: string;
+    linkButtonColor?: string;
   };
   // The named Look renders for EVERY plan — Free is snapped to the free pair
   // at render time (a Pro Look kept in storage after a downgrade is hidden,
@@ -150,6 +156,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   // fine-tune keys stay paid-only, matching sanitizeCustomizationForPlan.
   const pageStyle = {
     look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
+    heroStyle: customization.linkHeroStyle,
     ...(ownerPaid
       ? {
           bg: customization.linkBgColor,
@@ -157,6 +164,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
           font: customization.linkFontFamily,
           iconShape: customization.linkIconShape,
           iconFill: customization.linkIconFill,
+          buttonStyle: customization.linkButtonStyle,
+          buttonColor: customization.linkButtonColor,
         }
       : {}),
   };

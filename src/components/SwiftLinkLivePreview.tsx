@@ -79,7 +79,9 @@ export default function SwiftLinkLivePreview({
   // keys preview only when paid, matching the server.
   const pageStyle = {
     look: paid ? style?.linkLook : freeSafeLook(style?.linkLook),
-    ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill } : {}),
+    // Header style is every-plan (structural), so it previews for Free too.
+    heroStyle: style?.linkHeroStyle,
+    ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill, buttonStyle: style?.linkButtonStyle, buttonColor: style?.linkButtonColor } : {}),
   };
 
   // Only real, filled links carry to the page (same filter the live page uses),

@@ -116,9 +116,9 @@ describe("social icon shape & fill", () => {
 // component; the invariant is the shape of the patch it emits).
 import { readFileSync } from "node:fs";
 describe("Look press resets fine-tune overrides", () => {
-  it("LookPicker's onPick clears linkBgColor and linkTextColor", () => {
+  it("LookPicker's onPick clears linkBgColor, linkTextColor and linkButtonColor", () => {
     const src = readFileSync("src/components/SwiftLinkDesign.tsx", "utf8");
-    expect(src).toMatch(/onPick=\{\(v\) => onChange\(\{ linkLook: v, linkBgColor: undefined, linkTextColor: undefined \}\)\}/);
+    expect(src).toMatch(/onPick=\{\(v\) => onChange\(\{ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined \}\)\}/);
   });
 });
 
