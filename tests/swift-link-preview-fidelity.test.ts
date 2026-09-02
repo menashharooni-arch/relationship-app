@@ -74,9 +74,15 @@ describe("the Swift Links preview shows what the live page will show", () => {
         new RegExp(`${field}\\??:\\s*string \\| null`),
       );
     }
-    // The order IS the behavior: headshot, then logo, then initials.
+    // The order IS the behavior: headshot, then logo, then initials. Since
+    // the 2026-09-01 header expansion the chain lives in the `hero` resolver
+    // (the owner's explicit pick falls down this same auto chain), and the
+    // JSX branches on hero.kind.
     expect(profile, "the hero's headshot → logo → initials chain is gone").toMatch(
-      /photoUrl \?[\s\S]{0,600}?\) : logoUrl \?/,
+      /photoUrl \? \{ kind: "photo"[\s\S]{0,120}?logoUrl \? \{ kind: "logo"[\s\S]{0,120}?\{ kind: "initials"/,
+    );
+    expect(profile, "the hero JSX no longer branches on the resolved identity").toMatch(
+      /hero\.kind === "photo" \?[\s\S]{0,600}?\) : hero\.kind === "logo" \?/,
     );
   });
 
