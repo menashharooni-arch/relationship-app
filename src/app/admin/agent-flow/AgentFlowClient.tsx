@@ -268,7 +268,7 @@ export default function AgentFlowClient() {
     const problem = r?.status === "failed";
     const next = open && s.enabled ? nextRunText(s.schedule, id, now) : null;
     return (
-      <div data-aftour={isFirst ? "agentrow" : undefined} className={`rounded-xl border p-3.5 ${problem ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
+      <div data-aftour={isFirst ? "agentrow" : undefined} className={`rounded-xl border p-3.5 min-w-0 overflow-hidden ${problem ? "border-red-800/60 bg-red-950/20" : "border-gray-800 bg-gray-900"}`}>
         {/* line 1 — identity + controls; wraps downward, never clips */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
           <p className="text-white text-sm font-semibold">{AGENT_NAMES[id]}</p>
@@ -395,17 +395,29 @@ export default function AgentFlowClient() {
           const ws = workersOf(lead).map(([, p]) => statusOf(p.agent_id));
           return ws.includes("working") ? "working" : ws.includes("problem") ? "problem" : "idle";
         };
-        const W = 1000, NW = 156, NH = 60;
-        const pos: Record<string, { x: number; y: number }> = { owner: { x: W / 2, y: 46 }, atlas: { x: W / 2, y: 168 } };
-        leads.forEach(([pid], i) => { pos[pid] = { x: ((i + 0.5) * W) / leads.length, y: 300 }; });
-        let H = 470;
+        // Layout: each team gets a horizontal territory wide enough for its
+        // widest worker row, so nothing can ever overlap or leave the canvas.
+        const NW = 156, NH = 68, GAP = 24, TEAMGAP = 64, M = 28;
+        const perRowOf = (n: number) => (n > 4 ? Math.ceil(n / Math.ceil(n / 4)) : n);
+        const spanOf = (n: number) => { const per = Math.min(perRowOf(n), n); return per * NW + (per - 1) * GAP; };
+        const pos: Record<string, { x: number; y: number }> = {};
+        let cursor = M;
+        for (const [pid] of leads) {
+          const span = Math.max(NW, spanOf(workersOf(pid).length));
+          pos[pid] = { x: cursor + span / 2, y: 306 };
+          cursor += span + TEAMGAP;
+        }
+        const W = cursor - TEAMGAP + M;
+        pos.owner = { x: W / 2, y: 48 };
+        pos.atlas = { x: W / 2, y: 176 };
+        let H = 480;
         for (const [pid] of leads) {
           const ws = workersOf(pid);
-          const perRow = ws.length > 4 ? Math.ceil(ws.length / 2) : ws.length;
+          const perRow = perRowOf(ws.length);
           ws.forEach(([wid], i) => {
             const row = Math.floor(i / perRow), inRow = Math.min(perRow, ws.length - row * perRow), col = i % perRow;
-            pos[wid] = { x: pos[pid].x + (col - (inRow - 1) / 2) * (NW + 22), y: 432 + row * 96 };
-            H = Math.max(H, 432 + row * 96 + 80);
+            pos[wid] = { x: pos[pid].x + (col - (inRow - 1) / 2) * (NW + GAP), y: 444 + row * 104 };
+            H = Math.max(H, 444 + row * 104 + NH / 2 + 24);
           });
         }
         const edge = (a: string, b: string) => { const p = pos[a], c = pos[b]; return `M ${p.x} ${p.y + NH / 2} C ${p.x} ${(p.y + c.y) / 2}, ${c.x} ${(p.y + c.y) / 2}, ${c.x} ${c.y - NH / 2}`; };
@@ -419,24 +431,26 @@ export default function AgentFlowClient() {
           return (
             <g transform={`translate(${x - NW / 2}, ${y - NH / 2})`} onClick={() => { if (p.kind === "human") return; setCommsParty(pid); setCommsKind(""); setView("comms"); }} className={p.kind === "human" ? undefined : "cursor-pointer"}>
               <rect width={NW} height={NH} rx={14} fill={st === "working" ? "rgba(30,58,138,0.45)" : "rgba(17,24,39,0.92)"} stroke={st === "problem" ? "#b91c1c" : p.color} strokeOpacity={st === "problem" ? 0.9 : 0.45} strokeWidth={1.4} />
-              <text x={14} y={26} fontSize={17}>{p.emoji}</text>
-              <text x={42} y={24} fontSize={13.5} fontWeight={700} fill="#f9fafb">{p.name}</text>
-              <text x={42} y={41} fontSize={10} fill="#9ca3af">{p.role}</text>
-              {ui && (<><circle cx={14 + 3} cy={44} r={3} fill={ui.dot}>{st === "working" && <animate attributeName="opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite" />}</circle>
-                <text x={24} y={47.5} fontSize={8} fontWeight={700} letterSpacing={0.6} fill={ui.dot}>{ui.label}</text></>)}
+              <text x={13} y={30} fontSize={18}>{p.emoji}</text>
+              <text x={44} y={26} fontSize={13.5} fontWeight={700} fill="#f9fafb">{p.name}</text>
+              <text x={44} y={42} fontSize={9.5} fill="#9ca3af">{p.role}</text>
+              {ui && (<><circle cx={19} cy={55} r={3} fill={ui.dot}>{st === "working" && <animate attributeName="opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite" />}</circle>
+                <text x={28} y={58.5} fontSize={8} fontWeight={700} letterSpacing={0.6} fill={ui.dot}>{ui.label}</text></>)}
             </g>
           );
         };
         return (
-          <div className="rounded-2xl border border-gray-800 bg-gray-950 overflow-x-auto" data-aftour="orgchart">
+          <div className="rounded-2xl border border-gray-800 bg-gray-950 overflow-x-auto" data-aftour="orgchart"
+            ref={(el) => { if (el && !el.dataset.centered) { el.dataset.centered = "1"; el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; } }}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[11px] text-gray-500">
               <span className="text-white font-bold text-sm">SwiftCard · the company</span>
               <span>✅ {doneToday} run(s) completed today</span>
               <span>💵 ${monthSpend.toFixed(2)} this month</span>
               <span>{board.pendingTotal} item(s) waiting for you</span>
-              <span className="ml-auto text-gray-600">click anyone to read their messages</span>
+              <span className="ml-auto text-gray-600 hidden sm:inline">click anyone to read their messages</span>
+              <span className="ml-auto text-gray-600 sm:hidden">swipe to pan · tap anyone for their messages</span>
             </div>
-            <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[760px]" role="img" aria-label="Live org chart of the agent company">
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[900px]" role="img" aria-label="Live org chart of the agent company">
               <style>{`.af-edge{fill:none;stroke-width:1.6;opacity:.35}.af-live{stroke-width:2.6;opacity:.95;stroke-dasharray:7 9;animation:afdash 1.1s linear infinite}@keyframes afdash{to{stroke-dashoffset:-16}}`}</style>
               <path d={edge("owner", "atlas")} className={`af-edge ${statusOf("manager") === "working" ? "af-live" : ""}`} stroke="#38bdf8" />
               {leads.map(([pid, p]) => <path key={pid} d={edge("atlas", pid)} className={`af-edge ${leadStatus(pid) === "working" ? "af-live" : ""}`} stroke={p.color} />)}
