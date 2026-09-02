@@ -361,4 +361,9 @@ describe("default rhythms — no schedule-less agents", () => {
     expect(client).not.toMatch(/off — only when run by hand/);
     expect(client).not.toMatch(/"Manual only"/);
   });
+
+  it("ticking Active ON starts the agent immediately (office open, team awake)", () => {
+    const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+    expect(client).toMatch(/if \(on && open && !s\.paused\) control\("run", id\);/);
+  });
 });
