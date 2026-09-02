@@ -227,8 +227,12 @@ export default function AgentFlowClient() {
     setBusy(true);
     const r = await fetch("/api/admin/agents/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op, agent_id }) }).then((r) => r.json()).catch(() => ({ error: "network" }));
     setBusy(false);
+    const pausedIds = new Set((board?.settings ?? []).filter((s) => s.paused).map((s) => s.agent_id));
+    const restingTeams = TEAMS.filter((t) => t.lead && t.agents.every((a) => pausedIds.has(a))).map((t) => firstName(t.lead!));
     if (r.error) say(`⚠ ${r.error}`);
-    else if (op === "start_all") say("You're OPEN. Every agent runs now, then keeps its own rhythm until you pause.");
+    else if (op === "start_all") say(restingTeams.length
+      ? `You're OPEN — but ${restingTeams.join(" and ")}'s team is resting and sat this out. Wake them from their team header when you want them back.`
+      : "You're OPEN. Every agent runs now, then keeps its own rhythm until you pause.");
     else if (op === "pause_all") say("Paused. In-flight agents stop at their next checkpoint — a session summary was written to your queue.");
     else if (op === "run") say(`${AGENT_NAMES[agent_id!] ?? agent_id} is running now — results land in the queue.`);
     else if (op === "pause_team") say(`${firstName(agent_id!)}'s team is resting — they skip their shifts until you wake them. Everyone else keeps working.`);
@@ -299,6 +303,7 @@ export default function AgentFlowClient() {
   const pendingProspects = pendingItems.filter((i) => i.item_type === "prospect");
   const monthSpend = Object.values(board.spendBy ?? {}).reduce((t, n) => t + n, 0);
   const monthTokens = Object.values(board.tokensBy ?? {}).reduce((t, n) => t + n, 0);
+  const restingTeamNames = TEAMS.filter((t) => t.lead && t.agents.every((a) => byId[a]?.paused)).map((t) => firstName(t.lead!));
   const capPct = Math.min(100, Math.round((monthSpend / Number(board.system.monthly_usage_cap_usd || 1)) * 100));
   const autoStopArmed = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() > now;
   const autoStopHit = !!board.system.auto_pause_at && new Date(board.system.auto_pause_at).getTime() <= now;
@@ -372,7 +377,7 @@ export default function AgentFlowClient() {
         )}
         <div className="min-w-[200px] flex-1">
           {open ? (
-            <p className="text-emerald-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />RUNNING — agents work on their own rhythms until you pause</p>
+            <p className="text-emerald-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />RUNNING — agents work on their own rhythms until you pause{restingTeamNames.length > 0 && <span className="text-sky-300/80 font-bold text-xs whitespace-nowrap">· {restingTeamNames.join(" & ")}&apos;s team resting</span>}</p>
           ) : (
             <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
           )}
