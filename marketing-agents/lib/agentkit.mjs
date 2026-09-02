@@ -74,14 +74,21 @@ function autoStopped(system) {
   return !!system.auto_pause_at && new Date(system.auto_pause_at).getTime() <= Date.now();
 }
 
-async function monthSpendUsd() {
+async function monthTokensUsed() {
   const monthStart = new Date();
   monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
   const rows = await sb("GET", "agent_runs", {
-    params: `select=usage_usd&started_at=gte.${monthStart.toISOString()}`,
+    params: `select=usage_tokens&started_at=gte.${monthStart.toISOString()}`,
   });
-  return (rows ?? []).reduce((s, r) => s + Number(r.usage_usd || 0), 0);
+  return (rows ?? []).reduce((s, r) => s + Number(r.usage_tokens || 0), 0);
 }
+
+// Caps are TOKENS (owner order 2026-09-02) — the system runs on the Claude
+// plan, so usage is measured in tokens, never dollars. Fallbacks below apply
+// until supabase/agent-flow-tokens.sql has been run.
+export const DEFAULT_RUN_CAP_TOKENS = 500_000;
+export const DEFAULT_MONTHLY_CAP_TOKENS = 6_000_000;
+export const fmtTok = (n) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n);
 
 export async function email(subject, html) {
   // No direct Resend key in Actions? Relay through the app: /api/agent-email
@@ -117,12 +124,13 @@ export class Run {
       !settings.enabled ? "skipped_disabled" :
       (settings.paused || system.paused || autoStopped(system)) ? "paused" : null;
     if (!blocked) {
-      const spent = await monthSpendUsd();
-      if (spent >= Number(system.monthly_usage_cap_usd)) {
-        const [row] = await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: "skipped_cap", finished_at: new Date().toISOString(), summary: `Monthly usage cap hit ($${spent.toFixed(2)} of $${system.monthly_usage_cap_usd}). Agent did not run.` }, prefer: "return=representation" });
+      const spent = await monthTokensUsed();
+      const monthlyCap = Number(system.monthly_usage_cap_tokens ?? DEFAULT_MONTHLY_CAP_TOKENS);
+      if (spent >= monthlyCap) {
+        const [row] = await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: "skipped_cap", finished_at: new Date().toISOString(), summary: `Monthly token cap hit (${fmtTok(spent)} of ${fmtTok(monthlyCap)} tokens). Agent did not run.` }, prefer: "return=representation" });
         // No email (owner policy 2026-09-02: reports + 🔴 criticals only) —
         // the comms line below and Atlas's digest carry the cap state.
-        await say("atlas", "owner", `Budget line held: ${nameOf(partyOf(agentId))} refused to start — $${spent.toFixed(2)} of the $${system.monthly_usage_cap_usd} monthly cap is spent. Raise the cap in Settings if you want more this month.`, { kind: "owner_out", run_id: row?.id ?? null });
+        await say("atlas", "owner", `Budget line held: ${nameOf(partyOf(agentId))} refused to start — ${fmtTok(spent)} of the ${fmtTok(monthlyCap)}-token monthly cap is used. Raise the cap in Settings if you want more this month.`, { kind: "owner_out", run_id: row?.id ?? null });
         console.log(`::warning::${agentId}: monthly usage cap hit — not running`);
         return null;
       }
@@ -154,16 +162,18 @@ export class Run {
       await this.finish("paused", `${why} mid-run after: ${this.notes.at(-1) ?? "startup"}. ${this.outputCount} item(s) were completed and kept.`);
       process.exit(0);
     }
-    if (this.usageUsd >= Number(this.settings.usage_cap_usd)) {
-      await this.finish("success", `Stopped at the per-run usage cap ($${this.settings.usage_cap_usd}). ${this.outputCount} item(s) produced.`);
+    const runCap = Number(this.settings.usage_cap_tokens ?? DEFAULT_RUN_CAP_TOKENS);
+    if (this.usageTokens >= runCap) {
+      await this.finish("success", `Stopped at the per-run token cap (${fmtTok(runCap)}). ${this.outputCount} item(s) produced.`);
       process.exit(0);
     }
     // The monthly cap can be crossed MID-RUN (by this agent or one running in
     // parallel) — the pre-start gate alone can't catch that. Stop safely and
     // say so, instead of silently burning past the ceiling.
-    const spent = await monthSpendUsd();
-    if (spent >= Number(system.monthly_usage_cap_usd)) {
-      await this.finish("paused", `Monthly usage cap ($${system.monthly_usage_cap_usd}) crossed mid-run — stopped safely. ${this.outputCount} item(s) were completed and kept.`);
+    const spent = await monthTokensUsed();
+    const monthlyCap = Number(system.monthly_usage_cap_tokens ?? DEFAULT_MONTHLY_CAP_TOKENS);
+    if (spent >= monthlyCap) {
+      await this.finish("paused", `Monthly token cap (${fmtTok(monthlyCap)}) crossed mid-run — stopped safely. ${this.outputCount} item(s) were completed and kept.`);
       // No email (owner policy 2026-09-02: reports + 🔴 criticals only) — the
       // run row above and Atlas's digest carry it.
       process.exit(0);
