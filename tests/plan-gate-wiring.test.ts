@@ -31,7 +31,7 @@ const SITES: Site[] = [
   },
   {
     file: "src/components/CrmEventSettings.tsx",
-    web: [">Pro</a>"],
+    web: [">Pro</Link>"],
     native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   {

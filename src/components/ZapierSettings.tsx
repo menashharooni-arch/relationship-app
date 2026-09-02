@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { PlanGate, GateCopy } from "@/components/PlanGate";
 import { IapProPill } from "@/components/NativePaywall";
@@ -89,7 +90,7 @@ export default function ZapierSettings({
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
             nativeContent={<span className="ml-auto"><IapProPill /></span>}
           >
-            <a href="/upgrade" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</a>
+            <Link href="/upgrade" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</Link>
           </PlanGate>
         )}
       </div>

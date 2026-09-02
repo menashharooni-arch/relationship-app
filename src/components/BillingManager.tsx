@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents } from "@/lib/currency";
@@ -315,9 +316,9 @@ export default function BillingManager() {
             Free column to re-pick and no trial offer, since they're already a
             user. Just Pro or Office, start and pay. */}
         {!isPaid && (
-          <a href="/upgrade" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
+          <Link href="/upgrade" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
             Upgrade →
-          </a>
+          </Link>
         )}
 
         {isPaid && (

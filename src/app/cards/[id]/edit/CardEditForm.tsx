@@ -986,7 +986,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
                 >
                   <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                    Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <a href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</a> to access unlimited additional links.
+                    Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <Link href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300">Upgrade to Pro</Link> to access unlimited additional links.
                   </p>
                 </PlanGate>
               ) : (
@@ -1084,7 +1084,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               nativeCopy="This card is view-only. Editing multiple cards is only available on the Pro plan"
             >
               <p className="text-red-400 text-sm mt-4">
-                {error} <a href="/upgrade" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</a>
+                {error} <Link href="/upgrade" className="underline font-semibold text-blue-400 hover:text-blue-300">Upgrade to Pro</Link>
               </p>
             </PlanGate>
           ) : (

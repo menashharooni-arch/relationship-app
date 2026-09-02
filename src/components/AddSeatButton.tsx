@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import { formatUsd } from "@/lib/currency";
@@ -79,9 +80,9 @@ export default function AddSeatButton({ onAdded }: { onAdded?: () => void }) {
   // dangle a buy button that can't complete. Billing settings still explains.
   if (!info || !info.billable || info.perSeatCents == null) {
     return (
-      <a href="/settings/flows?billing=1#billing" className="underline font-semibold hover:text-amber-500">
+      <Link href="/settings/flows?billing=1#billing" className="underline font-semibold hover:text-amber-500">
         Add a seat in billing →
-      </a>
+      </Link>
     );
   }
 

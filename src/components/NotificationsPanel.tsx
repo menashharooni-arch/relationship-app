@@ -39,6 +39,13 @@ function timeAgo(iso: string) {
 // row opens the contacts list, which is still the right place to look.
 const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed"]);
 
+// Stamp the optimistic-op grace window. Lives at module scope so the React
+// compiler doesn't treat the Date.now() call as render-time impurity — it only
+// ever runs from event handlers.
+function stampOp(ref: { current: number }) {
+  ref.current = Date.now();
+}
+
 export default function NotificationsPanel({
   initial,
   card,
@@ -122,7 +129,7 @@ export default function NotificationsPanel({
   }
 
   async function setRead(id: string, read: boolean) {
-    lastOpRef.current = Date.now();
+    stampOp(lastOpRef);
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read } : n)));
     await fetch("/api/notifications", {
       method: "PATCH",

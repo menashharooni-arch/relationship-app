@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { GUEST_GATE_EVENT, markClaimConsent } from "@/lib/guest-draft";
 
@@ -99,8 +100,8 @@ export default function GuestGateModal() {
 
         <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
           By creating an account you agree to our{" "}
-          <a href="/terms" className="underline hover:text-gray-300">Terms</a> and{" "}
-          <a href="/privacy" className="underline hover:text-gray-300">Privacy Policy</a>.
+          <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
+          <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>.
         </p>
 
         <button
