@@ -104,8 +104,10 @@ describe("agent flow: schema and config integrity", () => {
     // pre-start gate alone cannot catch that.
     const kit = read("marketing-agents/lib/agentkit.mjs");
     const checkpoint = kit.slice(kit.indexOf("async checkpoint()"), kit.indexOf("addUsage"));
-    expect(checkpoint).toMatch(/monthSpendUsd\(\)/);
-    expect(checkpoint).toMatch(/monthly_usage_cap_usd/);
+    // The cap unit is migrating from dollars to tokens (owner order
+    // 2026-09-02); the invariant is the mid-run re-check, whichever unit.
+    expect(checkpoint).toMatch(/monthSpendUsd\(\)|monthTokensUsed\(\)/);
+    expect(checkpoint).toMatch(/monthly_usage_cap_(usd|tokens)/);
   });
 
   it("schedules support the owner's ET times, DST-correct", () => {
@@ -387,5 +389,29 @@ describe("agent emails: digest and criticals only", () => {
       const at = src.indexOf("await email(");
       expect(src.slice(Math.max(0, at - 400), at), `${f} email must be critical-gated`).toMatch(/critical/i);
     }
+  });
+});
+
+describe("agent flow: Approve & Ship fix merges only the Fixer's tested work", () => {
+  const route = read("src/app/api/admin/agents/ship-fix/route.ts");
+
+  it("is admin-gated and merges nothing outside agent-fix/* → main in our repo", () => {
+    expect(route).toMatch(/requireAdmin/);
+    expect(route).toMatch(/head\.ref\.startsWith\("agent-fix\/"\)/);
+    expect(route).toMatch(/base\.ref !== "main"/);
+    expect(route).toMatch(/m\[1\] !== REPO/);
+  });
+
+  it("never ships red or unfinished tests", () => {
+    expect(route).toMatch(/status !== "completed"/);
+    expect(route).toMatch(/"success", "neutral", "skipped"/);
+    expect(route).toMatch(/red tests never ships/);
+  });
+
+  it("the PR must come from a real queue item's payload, not caller input", () => {
+    // The caller sends only item_id; the PR URL is read from the DB row the
+    // Fixer stamped — an attacker-supplied URL has no path in.
+    expect(route).toMatch(/payload as Record<string, unknown> \| null\)\?\.pr_url/);
+    expect(route).not.toMatch(/body\.pr_url|pr_url.*req\.json/);
   });
 });
