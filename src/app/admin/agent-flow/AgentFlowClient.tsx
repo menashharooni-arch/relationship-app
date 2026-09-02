@@ -95,7 +95,7 @@ const DEFAULT_SCHEDULES: Record<string, string> = {
 };
 /** "in ~2h 10m" until this agent's next scheduled run. */
 function nextRunText(rawSchedule: string | null, agentId: string, now: number): string | null {
-  if (agentId === "bugwatch") return "daily (self-scheduled)";
+  if (agentId === "bugwatch") return "daily — reads Sentry crash reports on his own clock";
   const schedule = rawSchedule || DEFAULT_SCHEDULES[agentId] || null;
   if (!schedule) return null;
   const { h, m } = nyNow(now);
@@ -832,7 +832,7 @@ export default function AgentFlowClient() {
                     {s.schedule && !CADENCES.some(([v]) => v === s.schedule) && <option value={s.schedule}>{s.schedule}</option>}
                   </select>
                 </label>
-              ) : <span className="text-[11px] text-gray-600">rhythm: daily (self-scheduled)</span>}
+              ) : <span className="text-[11px] text-gray-600">rhythm: daily on his own clock — triages Sentry crash reports (idle until Sentry is connected)</span>}
             </div>
           ); })}
         </div>
