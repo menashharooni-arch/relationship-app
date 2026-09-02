@@ -204,6 +204,14 @@ export default function AgentFlowClient() {
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
   useEffect(() => { if (view === "history") fetch("/api/admin/agents/history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {}); }, [view, items]);
 
+  // Org chart open = watching live: poll the board every 10s instead of 30 so
+  // short watcher runs (9-21s) actually get a WORKING frame on screen.
+  useEffect(() => {
+    if (view !== "chart") return;
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, [view, load]);
+
   // Comms feed: fetch on open + every 15s while watching (it's a live log).
   useEffect(() => {
     if (view !== "comms") return;
@@ -488,7 +496,7 @@ export default function AgentFlowClient() {
 
       {view === "chart" && (() => {
         // Live org chart, derived from org.json so a re-org redraws itself.
-        const statusOf = (agentId?: string): "working" | "problem" | "benched" | "resting" | "idle" => {
+        const statusOf = (agentId?: string): "working" | "problem" | "benched" | "resting" | "fresh" | "idle" => {
           if (!agentId) return "idle";
           const s = byId[agentId];
           if (s && !s.enabled) return "benched";
@@ -496,6 +504,10 @@ export default function AgentFlowClient() {
           if (r?.status === "running") return "working";
           if (r?.status === "failed") return "problem";
           if (s?.paused) return "resting";
+          // Watcher runs finish in seconds — faster than any poll. A recent
+          // success leaves a visible green trace so the chart reflects work
+          // that happened between refreshes instead of looking frozen.
+          if (r?.status === "success" && r.finished_at && now - new Date(r.finished_at).getTime() < 15 * 60e3) return "fresh";
           return "idle";
         };
         const leads = Object.entries(ORG).filter(([, p]) => p.kind === "lead");
@@ -531,7 +543,7 @@ export default function AgentFlowClient() {
         }
         const edge = (a: string, b: string) => { const p = pos[a], c = pos[b]; return `M ${p.x} ${p.y + NH / 2} C ${p.x} ${(p.y + c.y) / 2}, ${c.x} ${(p.y + c.y) / 2}, ${c.x} ${c.y - NH / 2}`; };
         const doneToday = (board.recentRuns ?? []).filter((r) => r.status === "success" && new Date(r.started_at).toDateString() === new Date().toDateString()).length;
-        const STATUS_UI = { working: { dot: "#60a5fa", label: "WORKING" }, problem: { dot: "#f87171", label: "PROBLEM" }, benched: { dot: "#6b7280", label: "BENCHED" }, resting: { dot: "#7dd3fc", label: "RESTING" }, idle: { dot: "#4b5563", label: open ? "ON DUTY" : "IDLE" } } as const;
+        const STATUS_UI = { working: { dot: "#60a5fa", label: "WORKING" }, problem: { dot: "#f87171", label: "PROBLEM" }, benched: { dot: "#6b7280", label: "BENCHED" }, resting: { dot: "#7dd3fc", label: "RESTING" }, fresh: { dot: "#34d399", label: "JUST RAN ✓" }, idle: { dot: "#4b5563", label: open ? "ON DUTY" : "IDLE" } } as const;
         const Node = ({ pid }: { pid: string }) => {
           const p = ORG[pid];
           const st = p.kind === "human" ? null : p.kind === "lead" ? leadStatus(pid) : statusOf(p.agent_id);
