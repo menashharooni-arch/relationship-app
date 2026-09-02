@@ -210,8 +210,12 @@ export default function SwiftLinkProfile({
             headshot, then the card's LOGO, then the initials. A business card
             without a face is usually a company card, and its logo is the
             right identity to lead with. */}
+        {/* No rounding of its own (owner order 2026-09-02: the page's top
+            corners must not curve in) — on desktop/embedded the OUTER card's
+            overflow-hidden clips these corners, and on the phone the page is
+            full-bleed square. */}
         {(heroStyle === "cover" || heroBanner) && (
-        <div className={`relative w-full overflow-hidden rounded-t-[30px] ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}>
+        <div className={`relative w-full overflow-hidden ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}>
           {hero.kind === "photo" ? (
             // A headshot is a photo of a person: fill the frame and crop, which
             // is what makes the link.me hero look right. The BANNER anchors the
@@ -273,7 +277,11 @@ export default function SwiftLinkProfile({
         {/* Sheet — with the avatar/none headers there's no hero above it, so
             it starts at the very top: no -mt overlap, a touch more padding. */}
         <div
-          className={`relative rounded-t-[30px] px-4 pb-9 text-center ${flatTop ? "pt-10" : "-mt-10 pt-7"}`}
+          // The sheet's rounded top is the mid-page curve where it slides over
+          // the hero photo — kept there, but with the avatar/none headers the
+          // sheet IS the top of the page and must be square (owner order:
+          // page-top corners never curve in).
+          className={`relative px-4 pb-9 text-center ${flatTop ? "pt-10" : "rounded-t-[30px] -mt-10 pt-7"}`}
           style={{
             background: auraOn
               ? sheetMeet
