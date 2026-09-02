@@ -338,12 +338,18 @@ export default function AgentFlowClient() {
             : problem ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
             : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
             : s.paused ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
-            : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · next {next}</span>
+            : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · next check {next}</span>
             : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "On duty" : "Waiting for Start"}</span>}
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={() => control("run", id)} disabled={busy || !s.enabled} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full whitespace-nowrap transition-colors">Run once</button>
             <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by team wakes and the schedule — the one per-agent switch">
-              <input type="checkbox" checked={s.enabled} onChange={(e) => saveSetting({ agent_id: id, enabled: e.target.checked }, e.target.checked ? "Back on the roster." : "Benched — everything else keeps running.")} className="accent-blue-600" /> active
+              <input type="checkbox" checked={s.enabled} onChange={async (e) => {
+                const on = e.target.checked;
+                await saveSetting({ agent_id: id, enabled: on }, on ? (open && !s.paused ? "Back on the roster — starting a run now." : "Back on the roster.") : "Benched — everything else keeps running.");
+                // Turning an agent ON is a go signal (owner order 2026-09-02):
+                // if the office is open and their team awake, they start NOW.
+                if (on && open && !s.paused) control("run", id);
+              }} className="accent-blue-600" /> active
             </label>
             <button data-aftour={isFirst ? "logbtn" : undefined} onClick={() => setExpanded(expanded === id ? null : id)} className="text-xs text-gray-500 hover:text-gray-300 px-1.5 py-1.5 whitespace-nowrap transition-colors">{expanded === id ? "▴" : "▾ log"}</button>
           </div>
