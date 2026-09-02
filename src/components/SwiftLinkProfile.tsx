@@ -173,9 +173,17 @@ export default function SwiftLinkProfile({
   // Same start (transparent sheet hex) and same end (sheetMeet — the exact
   // surface the sheet opens with, 0.42 alpha on Aura), so no color anywhere
   // changes; only the ramp between them is smooth instead of linear.
+  // The ramp reaches FULL opacity at 72% and HOLDS it to the end — buried
+  // edges everywhere a discontinuity could show (owner report 2026-09-02,
+  // second pass: "a very visible line"). Two edges matter: the image's own
+  // hard bottom cut-off, and the SHEET's top edge, which overlaps the hero's
+  // last 40px (-mt-10). The sheet top sits at (fadeH-40)/fadeH — ~83% of the
+  // fade on a cover, ~72% on the short banner — so a ramp still translucent
+  // there made the sheet's edge itself read as a line. Full opacity by 72%
+  // covers the worst case; everything below it is one solid sheet color.
   const fadeMax = auraOn ? 0.42 : 1;
   const heroFade = `linear-gradient(180deg, ${[
-    [0, 0], [15, 0.03], [30, 0.1], [45, 0.22], [58, 0.38], [70, 0.55], [80, 0.72], [88, 0.85], [94, 0.94], [100, 1],
+    [0, 0], [10, 0.04], [20, 0.12], [30, 0.25], [40, 0.4], [50, 0.56], [58, 0.7], [65, 0.83], [69, 0.94], [72, 1], [100, 1],
   ].map(([stop, a]) => `${hexAlpha(sheetBg, a * fadeMax)} ${stop}%`).join(", ")})`;
 
   return (
@@ -266,17 +274,15 @@ export default function SwiftLinkProfile({
               // width (the old pb-[36%] let a square logo's bottom ~13px wash
               // out at 320px). Padding-top stays a percentage — it clears the
               // top corners, which DO scale with width.
-              // Measured 2026-09-02 for the long EASED wash (h-[55%] of the
-              // hero): the ramp stays ≤~0.3 alpha through most of its height,
-              // so the logo only needs to clear the fade's OPAQUE lower band
-              // (~94px at the widest cover, ~57px on the banner) — 112px
-              // (cover) / 80px (banner) keeps the logo's bottom edge where
-              // the wash is imperceptible at every width, and the logo
-              // renders LARGER than the old clear-the-whole-fade rule.
+              // Measured 2026-09-02 for the hold-opaque wash (h-[55%] of the
+              // hero, fully opaque from 72% of the fade): the logo's bottom
+              // edge must sit where the ramp is ≤~0.3 alpha (≤35% into the
+              // fade), which is ≥65% up from the hero's bottom — 160px at
+              // the widest cover, 100px on the banner, at every width.
               // Banner: fixed 56px top clearance keeps the plate out from
               // under the corner bolt badge, which floats over the short
               // banner's top-left.
-              className={`absolute inset-0 flex items-center justify-center ${heroBanner ? "px-[8%] pt-[56px] pb-[80px]" : "p-[16%] pb-[112px]"}`}
+              className={`absolute inset-0 flex items-center justify-center ${heroBanner ? "px-[8%] pt-[56px] pb-[100px]" : "p-[16%] pb-[160px]"}`}
               style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
