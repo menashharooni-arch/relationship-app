@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ORG, firstName } from "@/lib/agent-org";
 
 // ── Agent Flow v3: one switch, three teams, zero ambiguity ──────────────────
 // The owner's mental model, implemented literally: press ▶ Start All and the
@@ -14,22 +15,22 @@ type RunRow = { id: string; agent_id: string; status: string; started_at: string
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
 type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_usd: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean };
 
-const AGENT_NAMES: Record<string, string> = {
-  outreach: "Outreach Scout", prospects: "Link-in-bio Prospects", seo: "SEO", blog: "Blog Writer",
-  social: "Social Content", mentions: "Mentions Monitor", influencer: "Influencer Scout",
-  bugwatch: "Bug Watch", security: "Security Watch", perf: "Performance Watch", manager: "The Manager",
-};
+// Personas come from marketing-agents/org.json (one source of truth with the
+// runners). AGENT_NAMES keys stay the runnable agent_ids the DB uses.
+const AGENT_NAMES: Record<string, string> = Object.fromEntries(
+  Object.values(ORG).filter((p) => p.agent_id).map((p) => [p.agent_id!, `${p.emoji} ${p.name} · ${p.role}`]),
+);
 const AGENT_ROLE: Record<string, string> = {
   outreach: "finds people + drafts your messages", prospects: "builds your prospect CSVs",
   seo: "keeps the site rankable", blog: "writes posts for your review",
   social: "a few videos & captions a day", mentions: "drafts replies to live threads",
   influencer: "scouts creators + drafts pitches", bugwatch: "turns errors into draft fixes",
-  security: "vulns, leaks, headers", perf: "keeps everything fast", manager: "compiles your daily report",
+  security: "vulns, leaks, headers", perf: "keeps everything fast", manager: "runs the company, reports to you",
 };
 const TEAMS: { id: string; label: string; blurb: string; agents: string[] }[] = [
-  { id: "manager", label: "The Manager", blurb: "Reads everything, reports to you.", agents: ["manager"] },
-  { id: "marketing", label: "Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"] },
-  { id: "protection", label: "Protection team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"] },
+  { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
+  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"] },
+  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches — watches the product around the clock.", agents: ["perf", "security", "bugwatch"] },
 ];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
@@ -94,12 +95,16 @@ const CADENCES: [string, string][] = [
   ["daily@17:30", "daily · 5:30 PM ET"],
 ];
 
-type TourStep = { view?: "agents" | "queue" | "history" | "settings"; target?: string; title: string; body: string };
+type Msg = { id: string; from_id: string; to_id: string; kind: string; body: string; run_id: string | null; created_at: string };
+type View = "agents" | "chart" | "comms" | "queue" | "history" | "settings";
+type TourStep = { view?: View; target?: string; title: string; body: string };
 const TOUR: TourStep[] = [
   { title: "Welcome to Agent Flow", body: "Your workforce. One switch runs it: press Start and every agent works on its own rhythm — a few pieces of content a day, watchdogs every few hours — until you press Pause, your auto-stop time hits, or the monthly budget cap stops it. Nothing is ever sent to another platform without you." },
   { view: "agents", target: "master", title: "The one switch", body: "This is the whole on/off story. Green Start = open for business, and the button becomes Pause. Press Pause and everything stops at its next safe checkpoint — and the button becomes Start again. The banner beside it always tells you which state you're in." },
   { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
-  { view: "agents", target: "team-marketing", title: "Your teams", body: "The Manager reports to you. The Marketing team fills your queue with drafts to approve. The Protection team watches speed, bugs, and breaches — and its findings arrive with fixes already drafted." },
+  { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
+  { view: "chart", target: "orgchart", title: "The org chart", body: "Your company, live. Blue pulse = working right now (the reporting line animates too), red = a problem, gray = benched. Click anyone to read their messages." },
+  { view: "comms", target: "comms", title: "Communications", body: "The company chat log. Your orders (👑), dispatches down the chain (Maya → Jake: GO), report-backs (Jake → Maya: Done — 4 items, $0.40), and escalations to Atlas when something fails. Every row is a real event, written the moment it happened." },
   { view: "agents", target: "agentrow", title: "One worker, one row", body: "Each row: what they do, whether they're working right now (a live timer counts), when their next shift starts, and their last result. 'Run once' fires them immediately regardless of schedule; the Active toggle benches them; ▾ log is their full diary." },
   { view: "queue", target: "tabs", title: "The Review queue", body: "Everything your agents produce waits here for your call. The badge on the tab shows how many. Approving never posts anything anywhere — you stay the sender." },
   { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
@@ -111,7 +116,10 @@ const TOUR: TourStep[] = [
 export default function AgentFlowClient() {
   const [board, setBoard] = useState<Board | null>(null);
   const [items, setItems] = useState<Item[]>([]);
-  const [view, setView] = useState<"agents" | "queue" | "history" | "settings">("agents");
+  const [view, setView] = useState<View>("agents");
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [commsKind, setCommsKind] = useState("");
+  const [commsParty, setCommsParty] = useState("");
   const [filterAgent, setFilterAgent] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("pending");
@@ -149,6 +157,20 @@ export default function AgentFlowClient() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch + the 30s auto-refresh the spec asks for
   useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, [load]);
   useEffect(() => { if (view === "history") fetch("/api/admin/agents/history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {}); }, [view, items]);
+
+  // Comms feed: fetch on open + every 15s while watching (it's a live log).
+  useEffect(() => {
+    if (view !== "comms") return;
+    const pull = () => {
+      const q = new URLSearchParams();
+      if (commsKind) q.set("kind", commsKind);
+      if (commsParty) q.set("party", commsParty);
+      fetch(`/api/admin/agents/comms?${q}`).then((r) => r.json()).then((d) => setMsgs(d.messages ?? [])).catch(() => {});
+    };
+    pull();
+    const t = setInterval(pull, 15000);
+    return () => clearInterval(t);
+  }, [view, commsKind, commsParty]);
 
   // Tour spotlight: all state updates happen inside the timeout (DOM sync).
   useEffect(() => {
@@ -331,7 +353,7 @@ export default function AgentFlowClient() {
       {/* ── View tabs ── */}
       <div data-aftour="tabs" className="flex flex-wrap items-center gap-1">
         <button onClick={() => setTourStep(0)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-blue-300 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/40 whitespace-nowrap transition-colors">✦ Take a tour</button>
-        {([["agents", "Agents"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
+        {([["agents", "Agents"], ["chart", "Org chart"], ["comms", "Comms"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
             {label}{v === "queue" && board.pendingTotal > 0 ? ` (${board.pendingTotal})` : ""}
           </button>
@@ -352,7 +374,114 @@ export default function AgentFlowClient() {
               </div>
             </div>
           ))}
-          {lastDigest && <p className="text-gray-600 text-xs">Last Manager report {ago(lastDigest.started_at)} — <button onClick={() => { setView("queue"); setFilterAgent("manager"); setFilterType("digest"); setFilterStatus("pending"); }} className="text-blue-400 hover:underline">open</button> (also emailed to {board.system.digest_email}).</p>}
+          {lastDigest && <p className="text-gray-600 text-xs">Atlas&apos;s last report {ago(lastDigest.started_at)} — <button onClick={() => { setView("queue"); setFilterAgent("manager"); setFilterType("digest"); setFilterStatus("pending"); }} className="text-blue-400 hover:underline">open</button> (also emailed to {board.system.digest_email}).</p>}
+        </div>
+      )}
+
+      {view === "chart" && (() => {
+        // Live org chart, derived from org.json so a re-org redraws itself.
+        const statusOf = (agentId?: string): "working" | "problem" | "benched" | "idle" => {
+          if (!agentId) return "idle";
+          const s = byId[agentId];
+          if (s && !s.enabled) return "benched";
+          const r = board.latestRuns[agentId];
+          if (r?.status === "running") return "working";
+          if (r?.status === "failed") return "problem";
+          return "idle";
+        };
+        const leads = Object.entries(ORG).filter(([, p]) => p.kind === "lead");
+        const workersOf = (lead: string) => Object.entries(ORG).filter(([, p]) => p.kind === "worker" && p.reports_to === lead);
+        const leadStatus = (lead: string): ReturnType<typeof statusOf> => {
+          const ws = workersOf(lead).map(([, p]) => statusOf(p.agent_id));
+          return ws.includes("working") ? "working" : ws.includes("problem") ? "problem" : "idle";
+        };
+        const W = 1000, NW = 156, NH = 60;
+        const pos: Record<string, { x: number; y: number }> = { owner: { x: W / 2, y: 46 }, atlas: { x: W / 2, y: 168 } };
+        leads.forEach(([pid], i) => { pos[pid] = { x: ((i + 0.5) * W) / leads.length, y: 300 }; });
+        let H = 470;
+        for (const [pid] of leads) {
+          const ws = workersOf(pid);
+          const perRow = ws.length > 4 ? Math.ceil(ws.length / 2) : ws.length;
+          ws.forEach(([wid], i) => {
+            const row = Math.floor(i / perRow), inRow = Math.min(perRow, ws.length - row * perRow), col = i % perRow;
+            pos[wid] = { x: pos[pid].x + (col - (inRow - 1) / 2) * (NW + 22), y: 432 + row * 96 };
+            H = Math.max(H, 432 + row * 96 + 80);
+          });
+        }
+        const edge = (a: string, b: string) => { const p = pos[a], c = pos[b]; return `M ${p.x} ${p.y + NH / 2} C ${p.x} ${(p.y + c.y) / 2}, ${c.x} ${(p.y + c.y) / 2}, ${c.x} ${c.y - NH / 2}`; };
+        const doneToday = (board.recentRuns ?? []).filter((r) => r.status === "success" && new Date(r.started_at).toDateString() === new Date().toDateString()).length;
+        const STATUS_UI = { working: { dot: "#60a5fa", label: "WORKING" }, problem: { dot: "#f87171", label: "PROBLEM" }, benched: { dot: "#6b7280", label: "BENCHED" }, idle: { dot: "#4b5563", label: open ? "ON DUTY" : "IDLE" } } as const;
+        const Node = ({ pid }: { pid: string }) => {
+          const p = ORG[pid];
+          const st = p.kind === "human" ? null : p.kind === "lead" ? leadStatus(pid) : statusOf(p.agent_id);
+          const ui = st ? STATUS_UI[st] : null;
+          const { x, y } = pos[pid];
+          return (
+            <g transform={`translate(${x - NW / 2}, ${y - NH / 2})`} onClick={() => { if (p.kind === "human") return; setCommsParty(pid); setCommsKind(""); setView("comms"); }} className={p.kind === "human" ? undefined : "cursor-pointer"}>
+              <rect width={NW} height={NH} rx={14} fill={st === "working" ? "rgba(30,58,138,0.45)" : "rgba(17,24,39,0.92)"} stroke={st === "problem" ? "#b91c1c" : p.color} strokeOpacity={st === "problem" ? 0.9 : 0.45} strokeWidth={1.4} />
+              <text x={14} y={26} fontSize={17}>{p.emoji}</text>
+              <text x={42} y={24} fontSize={13.5} fontWeight={700} fill="#f9fafb">{p.name}</text>
+              <text x={42} y={41} fontSize={10} fill="#9ca3af">{p.role}</text>
+              {ui && (<><circle cx={14 + 3} cy={44} r={3} fill={ui.dot}>{st === "working" && <animate attributeName="opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite" />}</circle>
+                <text x={24} y={47.5} fontSize={8} fontWeight={700} letterSpacing={0.6} fill={ui.dot}>{ui.label}</text></>)}
+            </g>
+          );
+        };
+        return (
+          <div className="rounded-2xl border border-gray-800 bg-gray-950 overflow-x-auto" data-aftour="orgchart">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[11px] text-gray-500">
+              <span className="text-white font-bold text-sm">SwiftCard · the company</span>
+              <span>✅ {doneToday} run(s) completed today</span>
+              <span>💵 ${monthSpend.toFixed(2)} this month</span>
+              <span>{board.pendingTotal} item(s) waiting for you</span>
+              <span className="ml-auto text-gray-600">click anyone to read their messages</span>
+            </div>
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[760px]" role="img" aria-label="Live org chart of the agent company">
+              <style>{`.af-edge{fill:none;stroke-width:1.6;opacity:.35}.af-live{stroke-width:2.6;opacity:.95;stroke-dasharray:7 9;animation:afdash 1.1s linear infinite}@keyframes afdash{to{stroke-dashoffset:-16}}`}</style>
+              <path d={edge("owner", "atlas")} className={`af-edge ${statusOf("manager") === "working" ? "af-live" : ""}`} stroke="#38bdf8" />
+              {leads.map(([pid, p]) => <path key={pid} d={edge("atlas", pid)} className={`af-edge ${leadStatus(pid) === "working" ? "af-live" : ""}`} stroke={p.color} />)}
+              {leads.flatMap(([pid, p]) => workersOf(pid).map(([wid, w]) => <path key={wid} d={edge(pid, wid)} className={`af-edge ${statusOf(w.agent_id) === "working" ? "af-live" : ""}`} stroke={p.color} />))}
+              {Object.keys(pos).map((pid) => <Node key={pid} pid={pid} />)}
+            </svg>
+          </div>
+        );
+      })()}
+
+      {view === "comms" && (
+        <div className="space-y-3" data-aftour="comms">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {([["", "All"], ["a2a", "🤖 Agent ↔ agent"], ["owner_in", "👑 From you"], ["owner_out", "📬 To you"]] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setCommsKind(k)} className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${commsKind === k ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300 bg-gray-900 border border-gray-800"}`}>{label}</button>
+            ))}
+            <select value={commsParty} onChange={(e) => setCommsParty(e.target.value)} className="bg-gray-900 border border-gray-800 text-gray-300 text-xs rounded-lg px-2 py-1.5 ml-1">
+              <option value="">Everyone</option>
+              {Object.entries(ORG).filter(([pid]) => pid !== "owner").map(([pid, p]) => <option key={pid} value={pid}>{p.emoji} {p.name} · {p.role}</option>)}
+            </select>
+            <span className="text-gray-600 text-[10px] ml-auto">the company chat log — every order, report, and escalation · refreshes every 15s</span>
+          </div>
+          {msgs.length === 0 && (
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
+              <p className="text-gray-300 font-semibold">No messages{commsParty ? ` involving ${firstName(commsParty)}` : ""} yet.</p>
+              <p className="text-gray-500 text-sm mt-1.5">Press Start All (or Run once on any agent) and the dispatches, report-backs, and escalations appear here as they happen.</p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {msgs.map((m) => {
+              const from = ORG[m.from_id]; const to = m.to_id === "all" ? null : ORG[m.to_id];
+              return (
+                <div key={m.id} className={`rounded-xl border px-4 py-2.5 ${m.kind === "owner_in" ? "border-amber-900/50 bg-amber-950/15" : m.kind === "owner_out" ? "border-sky-900/50 bg-sky-950/15" : "border-gray-800 bg-gray-900"}`}>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                    <span className="font-bold text-white whitespace-nowrap">{from?.emoji} {from?.name ?? m.from_id}</span>
+                    <span className="text-gray-600">→</span>
+                    <span className="font-bold text-gray-300 whitespace-nowrap">{m.to_id === "all" ? "📢 everyone" : `${to?.emoji} ${to?.name ?? m.to_id}`}</span>
+                    <span className="text-gray-600 text-[10px]">{from?.role ?? ""}{to ? ` → ${to.role}` : ""}</span>
+                    <span className="text-gray-600 text-[10px] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
+                  </div>
+                  <p className="text-gray-300 text-[13px] mt-1 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

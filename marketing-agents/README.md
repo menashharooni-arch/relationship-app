@@ -4,6 +4,31 @@ Ten agents, run from GitHub Actions, controlled from **Admin → Website → Age
 Flow** (swiftcard.me/admin/agent-flow, hello@swiftcard.me only).
 Nothing runs on its own; you press the buttons.
 
+## The company (org.json)
+
+Every agent is a named employee; `org.json` is the single org chart the tab,
+the API routes, and the runners all read:
+
+- **🧠 Atlas — Chief of Staff** (the `manager` agent) — runs the company,
+  reports only to the owner.
+- **📣 Maya — Marketing Lead**: Jake (SEO), Nora (Blog), Milo (Social),
+  Ava (Outreach), Leo (Prospects), Zoe (Mentions), Ivy (Influencers).
+- **🛠️ Rex — Engineering Lead**: Dash (Performance), Vera (Security),
+  Bo (Bug Watch).
+
+Maya and Rex are message parties + chart nodes, not runnable agents — the
+runnable ids in `agent_settings`/`config.json` are unchanged.
+
+**Comms** (`agent_messages`, service-role only): the company chat log. Rows
+are written only at real lifecycle moments — the owner's orders (Start/Pause/
+Run/queue decisions), the dispatch (`Maya → Jake: GO`), the acknowledgment
+(`Jake → Maya: On it`), the report-back (`Done — 4 item(s) queued, $0.40`),
+failure escalations (`Maya → Atlas`), and cap alerts (`Atlas → owner`). A
+comms write failure never fails a run (best-effort `say()`), and `say()`'s
+only write surface is `agent_messages`. The **Org chart** tab renders
+org.json live: blue pulse = working, red = problem, gray = benched; the
+reporting line animates while a worker runs.
+
 ## Autonomous vs draft-only
 
 | Agent | Acts on | Mode |

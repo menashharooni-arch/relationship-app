@@ -1,0 +1,19 @@
+{
+  "_comment": "The company org chart. Every party that can appear in agent_messages lives here: the owner, the chief, the two team leads, and each runnable agent (keyed by its agent_settings agent_id). 'reports_to' draws the org chart and routes escalations — a worker's messages go to its lead, a lead escalates to atlas, atlas talks to the owner. Leads are message parties + chart nodes, not runnable agents.",
+  "parties": {
+    "owner": { "name": "Menash", "role": "Owner", "emoji": "👑", "color": "#f59e0b", "kind": "human" },
+    "atlas": { "name": "Atlas", "role": "Chief of Staff", "emoji": "🧠", "color": "#38bdf8", "kind": "chief", "reports_to": "owner", "agent_id": "manager" },
+    "maya": { "name": "Maya", "role": "Marketing Lead", "emoji": "📣", "color": "#a78bfa", "kind": "lead", "reports_to": "atlas" },
+    "rex": { "name": "Rex", "role": "Engineering Lead", "emoji": "🛠️", "color": "#34d399", "kind": "lead", "reports_to": "atlas" },
+    "jake": { "name": "Jake", "role": "SEO", "emoji": "🔎", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "seo" },
+    "nora": { "name": "Nora", "role": "Blog Writer", "emoji": "✍️", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "blog" },
+    "milo": { "name": "Milo", "role": "Social Content", "emoji": "🎬", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "social" },
+    "ava": { "name": "Ava", "role": "Outreach", "emoji": "🤝", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "outreach" },
+    "leo": { "name": "Leo", "role": "Prospect Scout", "emoji": "🧭", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "prospects" },
+    "zoe": { "name": "Zoe", "role": "Mentions", "emoji": "📡", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "mentions" },
+    "ivy": { "name": "Ivy", "role": "Influencer Scout", "emoji": "🌟", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "influencer" },
+    "bo": { "name": "Bo", "role": "Bug Watch", "emoji": "🐛", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "bugwatch" },
+    "vera": { "name": "Vera", "role": "Security Watch", "emoji": "🛡️", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "security" },
+    "dash": { "name": "Dash", "role": "Performance", "emoji": "⚡", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "perf" }
+  }
+}
