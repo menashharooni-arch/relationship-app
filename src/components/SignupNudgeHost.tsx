@@ -39,26 +39,22 @@ async function visitorHasAccount(): Promise<boolean> {
   }
 }
 
-// ── Nudge slots ──────────────────────────────────────────────────────────────
+// ── Nudge frequency: each moment invites ONCE, ever ─────────────────────────
 //
-// Two kinds of moment, and they must never compete for the same budget:
+// Owner order 2026-09-02 (supersedes the 2026-08-25 "bulletproof, every time"
+// rule): the first time a visitor ever hits a moment — pressing Connect
+// (share), saving a contact / arriving by QR and saving (save), or tapping a
+// link (incidental) — the invite shows. After that it never comes back, on
+// any card, in any session: the flags live in localStorage, per browser.
 //
-//   HIGH-VALUE — the visitor just got something ("save" = they saved this
-//   person's contact, "share" = they handed over their own details). This is
-//   the moment the whole organic loop hangs on. It gets ONE slot PER CARD, and
-//   nothing else can consume it. Per card, not per session, because saving
-//   Alex's contact and later saving Sam's are two separate people experiencing
-//   the product — a session-wide slot silently swallowed the second one.
+// One flag PER CLASS, not one global flag, deliberately: a visitor who tapped
+// a link yesterday (and spent the incidental invite) must still get the
+// invite at the save moment — the one that actually converts. Each class
+// spends only its own.
 //
-//   INCIDENTAL — they tapped a link or hit share. Worth one gentle invite per
-//   session, total, and never more.
-//
-// The bug this replaces: one flat per-class slot plus a global 2-popup cap, so
-// a visitor who tapped a couple of links before saving a contact had the cap
-// spent and got NOTHING at the moment that actually converts.
-//
-// Slots are written only when a popup actually RENDERS — writing them up front
-// meant a slow account-check or a navigation ate the slot with nothing shown.
+// Flags are written only when a popup actually RENDERS — writing them up
+// front meant a slow account-check or a navigation ate the invite with
+// nothing shown.
 const NUDGE_CLASS: Record<string, string> = {
   vcard: "save",
   save_contact: "save",
@@ -66,10 +62,7 @@ const NUDGE_CLASS: Record<string, string> = {
   share_info: "share",
 };
 const nudgeClassOf = (src: string) => NUDGE_CLASS[src] ?? "link";
-const isHighValue = (cls: string) => cls === "save" || cls === "share";
-/** High-value slots are per card; incidental is one for the whole session. */
-const slotKey = (cls: string, card?: string) =>
-  isHighValue(cls) ? `sc_nudged:${cls}:${card || "any"}` : "sc_nudged:incidental";
+const slotKey = (cls: string) => `sc_nudged_ever:${cls}`;
 
 // The conversion funnel's denominator: without impression/click events the
 // popup's absence was invisible in data — there was literally no number that
@@ -84,30 +77,38 @@ function trackNudge(cardUsername: string | undefined, eventType: string, source:
   }).catch(() => {});
 }
 
-// The hero: a tilted, floating "your card" mockup with a shine sweep — the
-// popup SHOWS the product (the Blinq loop: you just used a card this smooth,
-// here's yours). Pure CSS/SVG, no assets.
+// The hero: a tilted, floating "your card" mockup with a shine sweep on the
+// Swift Links indigo gradient (same visual family as the links promo sheet) —
+// the popup SHOWS the product (the Blinq loop: you just used a card this
+// smooth, here's yours). Pure CSS/SVG, no assets.
 function HeroCardMockup() {
   return (
-    <div className="relative flex justify-center pt-6 pb-4" aria-hidden="true">
-      {/* Soft glow the card floats on */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-28 rounded-full bg-gradient-to-r from-blue-600/25 via-blue-500/25 to-sky-400/20 blur-2xl" />
+    <div className="relative flex justify-center pt-7 pb-5" aria-hidden="true">
+      {/* Color bloom the card floats on */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-32 rounded-full bg-gradient-to-r from-sky-400/30 via-fuchsia-400/25 to-amber-300/20 blur-3xl" />
 
       {/* Sparkles */}
-      <svg viewBox="0 0 24 24" className="absolute left-[18%] top-3 w-3.5 h-3.5 text-blue-400 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
-      <svg viewBox="0 0 24 24" className="absolute right-[16%] top-10 w-2.5 h-2.5 text-blue-400 sc-twinkle" style={{ animationDelay: "0.7s" }}><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+      <svg viewBox="0 0 24 24" className="absolute left-[15%] top-5 w-3.5 h-3.5 text-sky-300 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+      <svg viewBox="0 0 24 24" className="absolute right-[14%] bottom-6 w-2.5 h-2.5 text-fuchsia-300 sc-twinkle" style={{ animationDelay: "0.7s" }}><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
 
       {/* The card */}
-      <div className="sc-float relative w-[168px] -rotate-3">
+      <div className="sc-float relative w-[172px] -rotate-3">
         {/* back card for depth */}
-        <div className="absolute inset-0 rotate-[5deg] rounded-2xl bg-slate-900/[0.08]" />
-        <div className="relative rounded-2xl bg-white border border-slate-200/90 shadow-[0_18px_40px_-10px_rgba(30,41,99,0.35)] overflow-hidden">
+        <div className="absolute inset-0 rotate-[5deg] rounded-2xl bg-white/10" />
+        <div className="relative rounded-2xl bg-white shadow-[0_18px_40px_-10px_rgba(8,8,20,0.6)] overflow-hidden">
           {/* shine sweep */}
           <div className="sc-shine pointer-events-none absolute inset-0 z-10" />
-          <div className="h-11 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500" />
+          <div className="relative h-11 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500">
+            {/* the brand bolt, quietly in the band's corner */}
+            <svg viewBox="0 0 24 24" className="absolute right-2 top-2 w-3.5 h-3.5 text-white/80"><path fill="currentColor" d="M13 2.5L4.5 13.5h6l-1.5 8 8.5-11h-6l1.5-8z"/></svg>
+          </div>
           <div className="px-3.5 pb-3.5">
-            <div className="w-11 h-11 -mt-5 rounded-full bg-gradient-to-br from-white to-slate-100 border-[3px] border-white shadow-md flex items-center justify-center">
-              <span className="text-[10px] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
+            {/* relative: the banner above is positioned (for its bolt), so
+                without this the avatar's overlap paints UNDER the band. */}
+            <div className="relative w-11 h-11 -mt-5 rounded-full p-[2px] bg-gradient-to-tr from-blue-600 via-fuchsia-500 to-amber-400 shadow-md">
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                <span className="text-[10px] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
+              </div>
             </div>
             <p className="mt-1.5 text-[11px] font-extrabold text-slate-900 leading-tight tracking-tight">Your Name</p>
             <p className="text-[8.5px] text-slate-400 font-medium">Your Business</p>
@@ -160,25 +161,20 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
       deciding.current = true;
       try {
         const cls = nudgeClassOf(src);
-        const key = slotKey(cls, cardUsername);
-        // High-value moments (a contact saved, info shared) show EVERY time
-        // they happen — owner decision 2026-08-25: this invite must be
-        // bulletproof at the moment that converts, not rationed. Only
-        // incidental link taps keep the once-per-session slot.
-        if (!isHighValue(cls)) {
-          try {
-            if (sessionStorage.getItem(key)) return;
-          } catch { /* private mode — show anyway */ }
-        }
+        const key = slotKey(cls);
+        // Once EVER per class per browser (owner order 2026-09-02). Fails
+        // open on blocked storage — a private-mode visitor still gets the
+        // invite, it just can't be remembered.
+        try {
+          if (localStorage.getItem(key)) return;
+        } catch { /* private mode — show anyway */ }
         // Existing SwiftCard customers are never nudged to create a card —
-        // they already have one. Checked BEFORE any slot is spent, so a slow
-        // or failed check can no longer eat the session's popup invisibly.
+        // they already have one. Checked BEFORE the flag is spent, so a slow
+        // or failed check can no longer eat the invite invisibly.
         if (await visitorHasAccount()) return;
-        // The popup is actually going to render — spend the incidental slot
-        // (high-value moments are unrationed, nothing to spend).
-        if (!isHighValue(cls)) {
-          try { sessionStorage.setItem(key, "1"); } catch { /* private mode */ }
-        }
+        // The popup is actually going to render — spend this class's
+        // lifetime invite.
+        try { localStorage.setItem(key, "1"); } catch { /* private mode */ }
         trackNudge(cardUsername, "nudge_impression", src);
         // A newer nudge can arrive while an older one's dismiss-fade is still
         // scheduled — cancel that stale timer so it can't clear the new popup.
@@ -229,21 +225,26 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
           boxShadow: "0 30px 70px -12px rgba(15,23,42,0.4), 0 6px 20px rgba(15,23,42,0.1)",
         }}
       >
-        {/* Gradient wash behind the hero */}
-        <div className="relative bg-gradient-to-b from-blue-50 via-violet-50/60 to-white">
+        {/* The Swift Links indigo gradient behind the hero — the same family
+            as the links promo sheet, so the product's invites read as one
+            brand. */}
+        <div
+          className="relative overflow-hidden"
+          style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 55%, #4338ca 100%)" }}
+        >
           <button
             onClick={dismiss}
             aria-label="Dismiss"
-            className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-white/70 backdrop-blur text-slate-400 hover:text-slate-700 shadow-sm border border-slate-200/60 transition-colors"
+            className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-white/15 backdrop-blur text-white/80 hover:text-white hover:bg-white/25 transition-colors"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
           </button>
           <HeroCardMockup />
         </div>
 
-        <div className="px-6 pt-1 pb-5 text-center">
-          <p className="text-slate-900 text-[19px] font-extrabold leading-tight tracking-tight">{copy.title}</p>
-          <p className="text-slate-500 text-[13px] mt-1.5 leading-snug">{copy.sub}</p>
+        <div className="px-6 pt-4 pb-5 text-center">
+          <p className="text-slate-900 text-[21px] font-extrabold leading-tight tracking-tight">{copy.title}</p>
+          <p className="text-slate-500 text-[13.5px] mt-1.5 leading-snug max-w-[300px] mx-auto">{copy.sub}</p>
 
           <a
             href={`/cards/new?src=${encodeURIComponent(source)}`}
