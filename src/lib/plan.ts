@@ -63,6 +63,12 @@ export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textCo
 // structural and every-plan, the same rule as linkLook and the card-link toggle.
 export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkButtonStyle", "linkButtonColor"] as const;
 
+// Swift Links keys that are STRUCTURAL and every-plan — never stripped by the
+// sanitizer (the named Look has its own free-snap rule above). One list so the
+// wizard's guest-draft restore and any future copier can carry them without
+// re-deriving which keys are plan-gated.
+export const LINK_STRUCTURAL_KEYS = ["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage"] as const;
+
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
 export function isPaidPlan(plan?: string | null): boolean {
   return plan === "pro" || plan === "enterprise";

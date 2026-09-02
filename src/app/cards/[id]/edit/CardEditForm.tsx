@@ -94,7 +94,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkButtonStyle?: string; linkButtonColor?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -227,6 +227,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     linkFontFamily: card.customization?.linkFontFamily ?? undefined,
     linkHeroStyle: card.customization?.linkHeroStyle ?? undefined,
     linkHeroContent: card.customization?.linkHeroContent ?? undefined,
+    linkHeroImage: card.customization?.linkHeroImage ?? undefined,
     linkButtonStyle: card.customization?.linkButtonStyle ?? undefined,
     linkButtonColor: card.customization?.linkButtonColor ?? undefined,
   });
@@ -381,6 +382,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkFontFamily: linkStyleState.linkFontFamily ?? null,
             linkHeroStyle: linkStyleState.linkHeroStyle ?? null,
             linkHeroContent: linkStyleState.linkHeroContent ?? null,
+            linkHeroImage: linkStyleState.linkHeroImage ?? null,
             linkButtonStyle: linkStyleState.linkButtonStyle ?? null,
             linkButtonColor: linkStyleState.linkButtonColor ?? null,
             // "View SwiftCard →" toggle — sent explicitly (null clears back to shown) so the merge can flip it both ways.

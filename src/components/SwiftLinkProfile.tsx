@@ -19,7 +19,7 @@ import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHero
 // layered on top of it. No style at all → the default Look ("Paper", light).
 // heroStyle ("cover"/"avatar") and buttonStyle/buttonColor are the 2026-09-01
 // Linktree-informed additions — see lib/swiftlink-looks for the vocabulary.
-export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; heroContent?: string; buttonStyle?: string; buttonColor?: string };
+export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; heroContent?: string; heroImage?: string; buttonStyle?: string; buttonColor?: string };
 
 type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
 
@@ -114,7 +114,16 @@ export default function SwiftLinkProfile({
   // chain (headshot → logo → initials) whenever the picked asset doesn't
   // exist, so the header can never render empty.
   const heroContent = normalizeHeroContent(pageStyle?.heroContent);
+  // "custom" is an owner-uploaded header photo (https-only — the URL comes
+  // through client-writable customization, so anything else falls through to
+  // the auto chain rather than rendering an arbitrary scheme on a public
+  // page). It renders exactly like a headshot: cover-cropped in the hero,
+  // circle-cropped in the compact avatar.
+  const customHero = heroContent === "custom" && pageStyle?.heroImage && /^https:\/\//.test(pageStyle.heroImage)
+    ? pageStyle.heroImage
+    : null;
   const hero =
+    customHero ? { kind: "photo" as const, url: customHero } :
     heroContent === "initials" ? { kind: "initials" as const, url: null } :
     heroContent === "photo" && photoUrl ? { kind: "photo" as const, url: photoUrl } :
     heroContent === "logo" && logoUrl ? { kind: "logo" as const, url: logoUrl } :
@@ -157,6 +166,17 @@ export default function SwiftLinkProfile({
   // Look, and the neutral chrome (rings, hovers, hero fade edge) must follow
   // the SURFACE, not the label — judge the sheet actually in use.
   const light = pageStyle?.bg ? isLightHex(pageStyle.bg) : look.mode === "light";
+
+  // Hero → sheet fade: an EASED multi-stop ramp of the same sheet color the
+  // old two-stop linear fade used (owner order 2026-09-02: the hard band
+  // where the header met the information below read as "a very clear line").
+  // Same start (transparent sheet hex) and same end (sheetMeet — the exact
+  // surface the sheet opens with, 0.42 alpha on Aura), so no color anywhere
+  // changes; only the ramp between them is smooth instead of linear.
+  const fadeMax = auraOn ? 0.42 : 1;
+  const heroFade = `linear-gradient(180deg, ${[
+    [0, 0], [20, 0.04], [38, 0.13], [55, 0.3], [70, 0.52], [82, 0.74], [92, 0.9], [100, 1],
+  ].map(([stop, a]) => `${hexAlpha(sheetBg, a * fadeMax)} ${stop}%`).join(", ")})`;
 
   return (
     <main className={embedded ? "" : "min-h-[100dvh]"} style={{ background: embedded ? "transparent" : look.page }}>
@@ -242,18 +262,20 @@ export default function SwiftLinkProfile({
             <div
               // pb is a FIXED length, not a percentage, and that is the whole
               // point: the thing it clears — the fade below — is itself a fixed
-              // h-32 (128px) at every width, so 128 + an 8px gap clears it
-              // exactly, while any percentage only clears it at one width. It
-              // was pb-[36%], which cleared the fade at 390px but let the bottom
-              // ~13px of a square or tall logo sit inside it at 320px. Centred
-              // uniformly (no extra bottom pad at all) a logo sank much further
-              // in and its lower half washed out, reading as cut off.
-              // Padding-top stays a percentage — it clears the rounded top
-              // corners, which DO scale with width.
-              // Measured at 320/390/430 (the hero is capped at max-w-[430px]):
-              // wide 5:1, square 1:1 and tall 1:2 logos all sit fully clear of
-              // the fade, uncropped, and the logo is bigger at 430 than 36% gave.
-              className={`absolute inset-0 flex items-center justify-center ${heroBanner ? "p-[8%] pb-[104px]" : "p-[18%] pb-[136px]"}`}
+              // height at every width, while a percentage only clears it at one
+              // width (the old pb-[36%] let a square logo's bottom ~13px wash
+              // out at 320px). Padding-top stays a percentage — it clears the
+              // top corners, which DO scale with width.
+              // Measured 2026-09-02 for the taller EASED fade (h-40/h-28):
+              // the ramp is ≤0.09 alpha through its top 30%, so the logo only
+              // needs to clear the OPAQUE part of the fade, not all of it —
+              // 112px (cover) / 80px (banner) puts the logo's bottom edge
+              // where the wash is imperceptible, and the logo renders LARGER
+              // than the old clear-the-whole-fade rule allowed.
+              // Banner: fixed 56px top clearance keeps the plate out from
+              // under the corner bolt badge, which floats over the short
+              // banner's top-left.
+              className={`absolute inset-0 flex items-center justify-center ${heroBanner ? "px-[8%] pt-[56px] pb-[80px]" : "p-[16%] pb-[112px]"}`}
               style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -273,10 +295,12 @@ export default function SwiftLinkProfile({
           )}
           {/* Soft fade into the sheet — ends at exactly the surface the sheet
               opens with: the solid sheet hex normally, the same hex's glass
-              tint on Aura, and a gradient look's 0% stop IS the sheet hex. */}
+              tint on Aura, and a gradient look's 0% stop IS the sheet hex.
+              Taller + EASED (see heroFade above) so the hero melts into the
+              sheet instead of meeting it at a visible band. */}
           <div
-            className={`absolute inset-x-0 bottom-0 pointer-events-none ${heroBanner ? "h-24" : "h-32"}`}
-            style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetMeet} 100%)` }}
+            className={`absolute inset-x-0 bottom-0 pointer-events-none ${heroBanner ? "h-28" : "h-40"}`}
+            style={{ background: heroFade }}
           />
         </div>
         )}

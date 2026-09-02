@@ -64,9 +64,12 @@ export async function POST(req: Request) {
   // `field` and the filename extension both flow into the storage object key, so
   // they must be strictly allow-listed — otherwise field="../<otherUserId>/photo"
   // (with upsert) could traverse out of this user's folder and overwrite another
-  // user's file. Only these two fields exist, and the extension is derived from
+  // user's file. Only these fields exist, and the extension is derived from
   // the re-encoded content-type below, never from the attacker's filename.
-  if (field !== "photo" && field !== "logo") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
+  // "hero" is the Swift Links header image (customization.linkHeroImage) — it
+  // is ALWAYS deferred (the URL lives in customization, there is no column),
+  // so the DB-write branches below never see it.
+  if (field !== "photo" && field !== "logo" && field !== "hero") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
@@ -97,7 +100,9 @@ export async function POST(req: Request) {
   if (file.type !== "image/gif") {
     try {
       const sharp = (await import("sharp")).default;
-      const MAXDIM = field === "photo" ? 1000 : 800;
+      // hero fills the 430px-wide cover at up to 2x — 1200 keeps it sharp
+      // without storing phone-camera originals.
+      const MAXDIM = field === "photo" ? 1000 : field === "hero" ? 1200 : 800;
       const img = sharp(Buffer.from(arrayBuffer)).rotate().resize(MAXDIM, MAXDIM, { fit: "inside", withoutEnlargement: true });
       if (field === "logo") {
         body = await img.png({ compressionLevel: 9 }).toBuffer();
@@ -139,6 +144,13 @@ export async function POST(req: Request) {
   // Deferred upload (e.g. while creating a card that doesn't exist yet): just return
   // the URL so the caller can persist it when the row is created.
   if (defer === "true") {
+    return NextResponse.json({ url: publicUrl });
+  }
+
+  // Hero images have no DB column — the URL is persisted by the caller inside
+  // customization.linkHeroImage. Returned here unconditionally so a caller
+  // that forgets defer=true can never fall through and clobber logo_url.
+  if (field === "hero") {
     return NextResponse.json({ url: publicUrl });
   }
 

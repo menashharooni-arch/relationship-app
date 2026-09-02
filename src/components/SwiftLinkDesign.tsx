@@ -16,6 +16,7 @@
 // the dark "Onyx" stock); the rest of the Look library and every custom picker
 // carry PRO gating, enforced server-side in sanitizeCustomizationForPlan.
 
+import { useRef, useState } from "react";
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
 import {
   SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
@@ -36,8 +37,12 @@ export type SwiftLinkStyle = {
    *  Structural — every plan, like the Look picker. */
   linkHeroStyle?: string;
   /** What the header shows: "auto" (headshot → logo → initials, default),
-   *  "photo", "logo" or "initials". Every plan. */
+   *  "photo", "logo", "initials" or "custom" (an uploaded header photo).
+   *  Every plan. */
   linkHeroContent?: string;
+  /** The uploaded header photo for linkHeroContent "custom" — a public URL
+   *  from /api/upload (field "hero"). Every plan. */
+  linkHeroImage?: string;
   /** Link rows: "tile" (rich preview tiles, default), "solid", "outline". */
   linkButtonStyle?: string;
   /** Solid/outline row color — defaults to the Look's accent. */
@@ -262,6 +267,98 @@ function IconStyleControls({
   );
 }
 
+// Upload row for the "Upload photo" header option: choose/replace/remove the
+// header image. Uploads deferred (field "hero", defer=true) — the URL is
+// persisted through the editor's normal customization save, never here. With
+// no image yet the page falls down the auto chain, so the header can never
+// render empty while the owner decides.
+function HeroImageUpload({
+  url,
+  onChange,
+}: {
+  url?: string;
+  onChange: (patch: Partial<SwiftLinkStyle>) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pick(file: File) {
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("field", "hero");
+      fd.append("defer", "true");
+      const r = await fetch("/api/upload", { method: "POST", body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d?.url) {
+        // A guest in the wizard can't reach the upload route (401) — say what
+        // to do instead of parroting "Unauthorized".
+        setError(r.status === 401
+          ? "Sign in to upload — finish creating your card first, then add it here."
+          : (typeof d?.error === "string" ? d.error : "Upload failed — please try again."));
+        return;
+      }
+      onChange({ linkHeroImage: d.url });
+    } catch {
+      setError("Upload failed — please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) pick(f);
+          e.target.value = ""; // re-picking the same file must fire again
+        }}
+      />
+      <div className="flex items-center gap-2.5">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="Header" className="w-12 h-12 rounded-lg object-cover border border-gray-700 shrink-0" />
+        ) : (
+          <span className="w-12 h-12 rounded-lg border border-dashed border-gray-600 bg-gray-800/40 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="w-5 h-5 text-gray-500">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z" />
+            </svg>
+          </span>
+        )}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[11px] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50"
+          >
+            {busy ? "Uploading…" : url ? "Replace photo" : "Choose photo"}
+          </button>
+          {url && !busy && (
+            <button
+              type="button"
+              onClick={() => onChange({ linkHeroImage: undefined })}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+      {error && <p className="text-[10px] text-red-400 mt-1.5 leading-snug">{error}</p>}
+      {!url && !error && <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">Until you upload one, the header uses Auto.</p>}
+    </div>
+  );
+}
+
 export function SwiftLinkStyleControls({
   value,
   onChange,
@@ -323,8 +420,8 @@ export function SwiftLinkStyleControls({
         {/* What the header shows — hidden for "No header" (nothing to show). */}
         {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
           <div className="mt-2.5">
-            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials.</p>
-            <div className="grid grid-cols-4 gap-1.5">
+            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
+            <div className="grid grid-cols-3 gap-1.5">
               {HERO_CONTENTS.map((o) => {
                 const active = normalizeHeroContent(value.linkHeroContent) === o.id;
                 return (
@@ -342,6 +439,9 @@ export function SwiftLinkStyleControls({
                 );
               })}
             </div>
+            {normalizeHeroContent(value.linkHeroContent) === "custom" && (
+              <HeroImageUpload url={value.linkHeroImage} onChange={onChange} />
+            )}
           </div>
         )}
       </div>

@@ -79,8 +79,9 @@ export default function SwiftLinkLivePreview({
   // keys preview only when paid, matching the server.
   const pageStyle = {
     look: paid ? style?.linkLook : freeSafeLook(style?.linkLook),
-    // Header style + content are every-plan (structural), so they preview
-    // for Free too.
+    // Header style + content + uploaded header photo are every-plan
+    // (structural), so they preview for Free too.
+    heroImage: style?.linkHeroImage,
     heroStyle: style?.linkHeroStyle,
     heroContent: style?.linkHeroContent,
     ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill, buttonStyle: style?.linkButtonStyle, buttonColor: style?.linkButtonColor } : {}),

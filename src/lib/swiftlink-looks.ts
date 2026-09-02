@@ -214,21 +214,26 @@ export function normalizeHeroStyle(v?: string | null): HeroStyle {
 // What the header SHOWS. "auto" is the original fallback chain — headshot,
 // then logo, then initials — and the explicit picks fall back down the same
 // chain when the chosen asset doesn't exist (a card with no logo must never
-// render an empty header). Every plan, same rule as the style above.
+// render an empty header). "custom" (owner request 2026-09-02) is a photo
+// uploaded just for this header (customization.linkHeroImage) — a background
+// of the owner's choice; with no image uploaded yet it falls down the auto
+// chain like every other missing asset. Every plan, same rule as the style
+// above.
 
-export type HeroContent = "auto" | "photo" | "logo" | "initials";
+export type HeroContent = "auto" | "photo" | "logo" | "initials" | "custom";
 
 export const HERO_CONTENTS: { id: HeroContent; name: string; hint: string }[] = [
   { id: "auto", name: "Auto", hint: "Headshot, else logo, else initials" },
   { id: "photo", name: "Headshot", hint: "Always your photo" },
   { id: "logo", name: "Logo", hint: "Always your company logo" },
   { id: "initials", name: "Initials", hint: "Just your initials" },
+  { id: "custom", name: "Upload photo", hint: "A photo you upload just for this header" },
 ];
 
 export const DEFAULT_HERO_CONTENT: HeroContent = "auto";
 
 export function normalizeHeroContent(v?: string | null): HeroContent {
-  return v === "photo" || v === "logo" || v === "initials" ? v : DEFAULT_HERO_CONTENT;
+  return v === "photo" || v === "logo" || v === "initials" || v === "custom" ? v : DEFAULT_HERO_CONTENT;
 }
 
 // ── Link ROW style (Linktree-informed, 2026-09-01) ──────────────────────────
