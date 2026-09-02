@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 // pages keep their own dynamic card/[username]/opengraph-image. Typographic and
 // self-contained (no asset fetch) so it renders reliably at the edge.
 export const runtime = "edge";
-export const alt = "SwiftCard — The digital business card that shares itself";
+export const alt = "SwiftCard — The digital business card that shares everything";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -44,7 +44,7 @@ export default function OG() {
           <div style={{ fontSize: 52, fontWeight: 800, letterSpacing: -1 }}>SwiftCard</div>
         </div>
         <div style={{ fontSize: 68, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, maxWidth: 940 }}>
-          The digital business card that shares itself.
+          The digital business card that shares everything.
         </div>
         <div style={{ fontSize: 30, color: "#94a3b8", marginTop: 32, maxWidth: 900 }}>
           Tap, QR, Apple Wallet, or link — with built-in lead capture and automatic follow-up.
