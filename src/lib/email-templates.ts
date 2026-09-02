@@ -1,5 +1,6 @@
 import { escapeHtml, safeUrlAttr } from "./escape";
 import { htmlToText } from "./email-text";
+import { appStoreEmailBlock } from "./app-store";
 // The downgrade card quotes real limits rather than remembered ones.
 import { PLAN_LIMITS } from "./plan";
 
@@ -164,6 +165,7 @@ export function welcomeEmail(opts: {
       ${step(2, "Show your QR code", `Download it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and put it on a slide, a flyer, or your phone\u2019s lock screen for people to scan.`)}
       ${step(3, "Add your Swift Signature", `Copy it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and paste it into your email signature settings, so every message you send ends with your card.`, true)}
     `)}
+    ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}
   `;
   return built(FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
 }

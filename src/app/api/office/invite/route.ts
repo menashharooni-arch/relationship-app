@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getMarketingFrom } from "@/lib/resend-domain";
 import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
 import { buildInviteEmail } from "@/lib/office-invite-email";
+import { APP_STORE_URL } from "@/lib/app-store";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
@@ -212,6 +213,9 @@ export async function POST(req: Request) {
     inviteUrl,
     brandLogoUrl,
     unsubscribeUrl: inviteUnsubUrl,
+    // Self-activating: null while the iOS app is in review, the App Store
+    // badge the moment the listing is live (same switch as the whole site).
+    appStoreUrl: APP_STORE_URL,
   });
 
   // Through the shared layer rather than a second resend.emails.send() call.

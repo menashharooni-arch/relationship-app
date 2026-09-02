@@ -37,3 +37,26 @@ export function appStoreReady(): boolean {
 // segment — consumers hide, same contract as APP_STORE_URL.
 export const APP_STORE_ID: string | null =
   APP_STORE_URL?.match(/\/id(\d+)/)?.[1] ?? null;
+
+/**
+ * Email-safe "Download on the App Store" block — the badge for TRANSACTIONAL
+ * emails (welcome, office invite). Same self-activating contract as every
+ * other consumer: empty string until NEXT_PUBLIC_APP_STORE_URL is set, so
+ * emails sent while the app is in review carry nothing, and the ones sent
+ * after the listing goes live carry the badge with no second deploy.
+ *
+ * Inline styles and no SVG, because email clients; a black Apple-style pill
+ * with the classic two-line label, preceded by one short line of context.
+ * `lead` lets each email say why the app matters to ITS reader.
+ */
+export function appStoreEmailBlock(lead: string): string {
+  if (!APP_STORE_URL) return "";
+  return `
+    <div style="margin:28px 0 0;padding:20px 0 0;border-top:1px solid #e5e7eb;">
+      <p style="margin:0 0 12px;color:#475569;font-size:13px;line-height:1.5;">${lead}</p>
+      <a href="${APP_STORE_URL}" style="display:inline-block;background:#0f172a;border-radius:12px;padding:9px 18px;text-decoration:none;">
+        <span style="display:block;color:#cbd5e1;font-size:10px;line-height:1.2;">Download on the</span>
+        <span style="display:block;color:#ffffff;font-size:17px;font-weight:700;line-height:1.25;">App&nbsp;Store</span>
+      </a>
+    </div>`;
+}

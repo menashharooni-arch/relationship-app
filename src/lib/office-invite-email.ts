@@ -22,6 +22,10 @@ export function buildInviteEmail(opts: {
   brandLogoUrl?: string | null;
   /** contactUnsubUrl(recipient), or null when the signing secret is unavailable. */
   unsubscribeUrl?: string | null;
+  /** APP_STORE_URL from lib/app-store, passed explicitly so this stays a pure
+   *  builder — null/undefined while the iOS app is unpublished, and the email
+   *  then carries no app section at all. */
+  appStoreUrl?: string | null;
 }): InviteEmail {
   const owner = escapeHtml(opts.ownerFirst);
   const office = escapeHtml(opts.officeName);
@@ -49,6 +53,12 @@ export function buildInviteEmail(opts: {
         </p>
         <a href="${opts.inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:100px;font-size:15px;">Create my card →</a>
         <p style="color:#999;font-size:12px;margin-top:14px;">This link goes to ${escapeHtml(host)}. The invite expires in 14 days.</p>
+        ${opts.appStoreUrl ? `
+        <p style="color:#666;font-size:13px;line-height:1.5;margin:24px 0 10px;">Once your card is set up, you can also carry it in the SwiftCard iPhone app.</p>
+        <a href="${escapeHtml(opts.appStoreUrl)}" style="display:inline-block;background:#0f172a;border-radius:12px;padding:8px 16px;text-decoration:none;">
+          <span style="display:block;color:#cbd5e1;font-size:10px;line-height:1.2;">Download on the</span>
+          <span style="display:block;color:#ffffff;font-size:16px;font-weight:700;line-height:1.25;">App&nbsp;Store</span>
+        </a>` : ""}
         <p style="color:#999;font-size:12px;margin-top:24px;">You received this because ${owner} entered your email address when adding you to ${office}. If you didn't expect it, you can ignore this email${opts.unsubscribeUrl ? " or unsubscribe below" : ""}.</p>
         <p style="color:#b6bcc6;font-size:11px;margin:0;line-height:1.6;">
           Sent by SwiftCard on behalf of ${office} · New York, NY${
