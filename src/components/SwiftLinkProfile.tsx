@@ -175,7 +175,7 @@ export default function SwiftLinkProfile({
   // changes; only the ramp between them is smooth instead of linear.
   const fadeMax = auraOn ? 0.42 : 1;
   const heroFade = `linear-gradient(180deg, ${[
-    [0, 0], [20, 0.04], [38, 0.13], [55, 0.3], [70, 0.52], [82, 0.74], [92, 0.9], [100, 1],
+    [0, 0], [15, 0.03], [30, 0.1], [45, 0.22], [58, 0.38], [70, 0.55], [80, 0.72], [88, 0.85], [94, 0.94], [100, 1],
   ].map(([stop, a]) => `${hexAlpha(sheetBg, a * fadeMax)} ${stop}%`).join(", ")})`;
 
   return (
@@ -266,12 +266,13 @@ export default function SwiftLinkProfile({
               // width (the old pb-[36%] let a square logo's bottom ~13px wash
               // out at 320px). Padding-top stays a percentage — it clears the
               // top corners, which DO scale with width.
-              // Measured 2026-09-02 for the taller EASED fade (h-40/h-28):
-              // the ramp is ≤0.09 alpha through its top 30%, so the logo only
-              // needs to clear the OPAQUE part of the fade, not all of it —
-              // 112px (cover) / 80px (banner) puts the logo's bottom edge
-              // where the wash is imperceptible, and the logo renders LARGER
-              // than the old clear-the-whole-fade rule allowed.
+              // Measured 2026-09-02 for the long EASED wash (h-[55%] of the
+              // hero): the ramp stays ≤~0.3 alpha through most of its height,
+              // so the logo only needs to clear the fade's OPAQUE lower band
+              // (~94px at the widest cover, ~57px on the banner) — 112px
+              // (cover) / 80px (banner) keeps the logo's bottom edge where
+              // the wash is imperceptible at every width, and the logo
+              // renders LARGER than the old clear-the-whole-fade rule.
               // Banner: fixed 56px top clearance keeps the plate out from
               // under the corner bolt badge, which floats over the short
               // banner's top-left.
@@ -296,10 +297,12 @@ export default function SwiftLinkProfile({
           {/* Soft fade into the sheet — ends at exactly the surface the sheet
               opens with: the solid sheet hex normally, the same hex's glass
               tint on Aura, and a gradient look's 0% stop IS the sheet hex.
-              Taller + EASED (see heroFade above) so the hero melts into the
-              sheet instead of meeting it at a visible band. */}
+              A LONG eased wash over the hero's lower half (owner reference
+              2026-09-02: link.me's Daps page) — the page color gradually
+              takes the image over, and the squared sheet below continues it
+              invisibly, so the content just emerges out of the photo. */}
           <div
-            className={`absolute inset-x-0 bottom-0 pointer-events-none ${heroBanner ? "h-28" : "h-40"}`}
+            className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none"
             style={{ background: heroFade }}
           />
         </div>
@@ -308,11 +311,12 @@ export default function SwiftLinkProfile({
         {/* Sheet — with the avatar/none headers there's no hero above it, so
             it starts at the very top: no -mt overlap, a touch more padding. */}
         <div
-          // The sheet's rounded top is the mid-page curve where it slides over
-          // the hero photo — kept there, but with the avatar/none headers the
-          // sheet IS the top of the page and must be square (owner order:
-          // page-top corners never curve in).
-          className={`relative px-4 pb-9 text-center ${flatTop ? "pt-10" : "rounded-t-[30px] -mt-10 pt-7"}`}
+          // No rounded top anywhere any more (owner reference 2026-09-02, the
+          // link.me blend): the sheet's squared top edge is the exact color
+          // the fade ends on, so the seam is invisible and the content reads
+          // as emerging from the photo — a curve here drew a visible line
+          // through the blend. flatTop (avatar/none) was already square.
+          className={`relative px-4 pb-9 text-center ${flatTop ? "pt-10" : "-mt-10 pt-7"}`}
           style={{
             background: auraOn
               ? sheetMeet
