@@ -189,23 +189,46 @@ export function normalizeIconFill(v?: string | null): IconFill {
 
 // ── Page header style (Linktree-informed, 2026-09-01) ───────────────────────
 //
-// "Cover" is the original link.me-style full-bleed hero — the photo IS the top
-// of the page. "Avatar" is the compact professional register (the Linktree
-// norm): a small circular headshot sitting on the sheet, so the page leads
-// with the name and links instead of a viewport-tall image. Structural, like
-// the Look picker and hideCardLink, so it's EVERY plan — not a Pro key.
+// "Cover" is the original link.me-style hero — a full square photo the sheet
+// slides up over. "Banner" is the same treatment at a third of the screen.
+// "Avatar" is the compact professional register (the Linktree norm): a small
+// circle sitting on the sheet. "None" drops the header entirely — the whole
+// page is one flat surface leading with the name. Structural, like the Look
+// picker and the card-link toggle, so it's EVERY plan — not a Pro key.
 
-export type HeroStyle = "cover" | "avatar";
+export type HeroStyle = "cover" | "banner" | "avatar" | "none";
 
 export const HERO_STYLES: { id: HeroStyle; name: string; hint: string }[] = [
-  { id: "cover", name: "Cover photo", hint: "Your photo fills the top of the page" },
+  { id: "cover", name: "Cover photo", hint: "Your photo fills the top of the page — the classic" },
+  { id: "banner", name: "Short banner", hint: "The cover at a third of the screen" },
   { id: "avatar", name: "Compact circle", hint: "A small round photo — more room for your links" },
+  { id: "none", name: "No header", hint: "One flat page that leads with your name" },
 ];
 
 export const DEFAULT_HERO_STYLE: HeroStyle = "cover";
 
 export function normalizeHeroStyle(v?: string | null): HeroStyle {
-  return v === "avatar" ? v : DEFAULT_HERO_STYLE;
+  return v === "banner" || v === "avatar" || v === "none" ? v : DEFAULT_HERO_STYLE;
+}
+
+// What the header SHOWS. "auto" is the original fallback chain — headshot,
+// then logo, then initials — and the explicit picks fall back down the same
+// chain when the chosen asset doesn't exist (a card with no logo must never
+// render an empty header). Every plan, same rule as the style above.
+
+export type HeroContent = "auto" | "photo" | "logo" | "initials";
+
+export const HERO_CONTENTS: { id: HeroContent; name: string; hint: string }[] = [
+  { id: "auto", name: "Auto", hint: "Headshot, else logo, else initials" },
+  { id: "photo", name: "Headshot", hint: "Always your photo" },
+  { id: "logo", name: "Logo", hint: "Always your company logo" },
+  { id: "initials", name: "Initials", hint: "Just your initials" },
+];
+
+export const DEFAULT_HERO_CONTENT: HeroContent = "auto";
+
+export function normalizeHeroContent(v?: string | null): HeroContent {
+  return v === "photo" || v === "logo" || v === "initials" ? v : DEFAULT_HERO_CONTENT;
 }
 
 // ── Link button style (Linktree-informed, 2026-09-01) ───────────────────────

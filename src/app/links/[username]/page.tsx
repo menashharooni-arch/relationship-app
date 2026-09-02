@@ -143,9 +143,11 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkIconFill?: string;
     /** Social-design toggle: true hides the "View SwiftCard →" link. */
     hideCardLink?: boolean;
-    /** Page header: "avatar" = compact circle instead of the full-bleed hero.
-     *  Structural, every plan — passed outside the paid spread below. */
+    /** Page header layout (cover/banner/avatar/none) and what it shows
+     *  (auto/photo/logo/initials). Structural, every plan — passed outside
+     *  the paid spread below. */
     linkHeroStyle?: string;
+    linkHeroContent?: string;
     /** Link rows: "solid"/"outline" replace the rich tiles (Pro). */
     linkButtonStyle?: string;
     linkButtonColor?: string;
@@ -157,6 +159,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   const pageStyle = {
     look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
     heroStyle: customization.linkHeroStyle,
+    heroContent: customization.linkHeroContent,
     ...(ownerPaid
       ? {
           bg: customization.linkBgColor,

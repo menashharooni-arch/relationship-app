@@ -21,6 +21,7 @@ import {
   SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
   HERO_STYLES, BUTTON_STYLES, normalizeHeroStyle, normalizeButtonStyle,
+  HERO_CONTENTS, normalizeHeroContent,
 } from "@/lib/swiftlink-looks";
 
 export type SwiftLinkStyle = {
@@ -30,9 +31,13 @@ export type SwiftLinkStyle = {
   linkFontFamily?: string;
   linkIconShape?: string;
   linkIconFill?: string;
-  /** Page header: "cover" (full-bleed hero, default) or "avatar" (compact
-   *  circle). Structural — every plan, like the Look picker. */
+  /** Page header layout: "cover" (full hero, default), "banner" (a third of
+   *  the screen), "avatar" (compact circle) or "none" (flat page).
+   *  Structural — every plan, like the Look picker. */
   linkHeroStyle?: string;
+  /** What the header shows: "auto" (headshot → logo → initials, default),
+   *  "photo", "logo" or "initials". Every plan. */
+  linkHeroContent?: string;
   /** Link rows: "tile" (rich preview tiles, default), "solid", "outline". */
   linkButtonStyle?: string;
   /** Solid/outline row color — defaults to the Look's accent. */
@@ -297,12 +302,17 @@ export function SwiftLinkStyleControls({
                   active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
                 }`}
               >
-                {/* Mini page sketch: cover = photo band up top; avatar = small circle */}
+                {/* Mini page sketch: cover = tall photo band; banner = short
+                    band; avatar = small circle; none = just content lines */}
                 <span className="w-7 h-9 rounded-[5px] bg-gray-900 border border-gray-600 overflow-hidden flex flex-col items-center shrink-0">
                   {o.id === "cover" ? (
                     <><span className="w-full h-4 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
-                  ) : (
+                  ) : o.id === "banner" ? (
+                    <><span className="w-full h-2.5 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-0.5 h-[3px] w-4 rounded bg-gray-600" /></>
+                  ) : o.id === "avatar" ? (
                     <><span className="mt-1.5 w-3 h-3 rounded-full bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
+                  ) : (
+                    <><span className="mt-1.5 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /></>
                   )}
                 </span>
                 {o.name}
@@ -310,6 +320,30 @@ export function SwiftLinkStyleControls({
             );
           })}
         </div>
+        {/* What the header shows — hidden for "No header" (nothing to show). */}
+        {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
+          <div className="mt-2.5">
+            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials.</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {HERO_CONTENTS.map((o) => {
+                const active = normalizeHeroContent(value.linkHeroContent) === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    title={o.hint}
+                    onClick={() => onChange({ linkHeroContent: o.id === "auto" ? undefined : o.id })}
+                    className={`px-1 py-2 rounded-lg border text-[11px] font-semibold transition-colors ${
+                      active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+                    }`}
+                  >
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-gray-800 pt-4">

@@ -11,14 +11,14 @@ import ConnectButton from "@/components/ConnectButton";
 import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeButtonStyle } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
 // layered on top of it. No style at all → the default Look ("Paper", light).
 // heroStyle ("cover"/"avatar") and buttonStyle/buttonColor are the 2026-09-01
 // Linktree-informed additions — see lib/swiftlink-looks for the vocabulary.
-export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; buttonStyle?: string; buttonColor?: string };
+export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; heroContent?: string; buttonStyle?: string; buttonColor?: string };
 
 type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
 
@@ -93,15 +93,31 @@ export default function SwiftLinkProfile({
    *  the bottom. ON by default — hiding it is the owner's explicit choice. */
   showCardLink?: boolean;
 }) {
-  // "avatar" swaps the full-bleed hero for a compact circle ON the sheet —
-  // the professional register: the page leads with name + links, not a
-  // viewport-tall photo. "cover" (the default) is the original layout.
-  const heroAvatar = normalizeHeroStyle(pageStyle?.heroStyle) === "avatar";
+  // Header layout: "cover" (default — the original full-photo hero the sheet
+  // slides over), "banner" (the same at a third of the screen), "avatar"
+  // (compact circle on the sheet) or "none" (one flat page, no header).
+  const heroStyle = normalizeHeroStyle(pageStyle?.heroStyle);
+  const heroBanner = heroStyle === "banner";
+  const heroAvatar = heroStyle === "avatar";
+  // Avatar and none both start the sheet at the very top of the page.
+  const flatTop = heroStyle === "avatar" || heroStyle === "none";
 
-  // Mini header fades in once the hero photo scrolls out from under it. Not in
-  // a preview: there's no page scroll, so it would just sit invisible. The
-  // compact-avatar header is far shorter, so its threshold is too.
-  const scrollThreshold = heroAvatar ? 96 : 230;
+  // What the header SHOWS — the owner's explicit pick, falling down the auto
+  // chain (headshot → logo → initials) whenever the picked asset doesn't
+  // exist, so the header can never render empty.
+  const heroContent = normalizeHeroContent(pageStyle?.heroContent);
+  const hero =
+    heroContent === "initials" ? { kind: "initials" as const, url: null } :
+    heroContent === "photo" && photoUrl ? { kind: "photo" as const, url: photoUrl } :
+    heroContent === "logo" && logoUrl ? { kind: "logo" as const, url: logoUrl } :
+    photoUrl ? { kind: "photo" as const, url: photoUrl } :
+    logoUrl ? { kind: "logo" as const, url: logoUrl } :
+    { kind: "initials" as const, url: null };
+
+  // Mini header fades in once the hero scrolls out from under it. Not in a
+  // preview: there's no page scroll, so it would just sit invisible. Shorter
+  // headers get proportionally earlier thresholds.
+  const scrollThreshold = heroStyle === "cover" ? 230 : heroBanner ? 150 : heroAvatar ? 96 : 60;
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     if (embedded) return;
@@ -181,19 +197,21 @@ export default function SwiftLinkProfile({
           </div>
         )}
 
-        {/* Hero — full-bleed photo the sheet scrolls over ("cover" style only;
-            "avatar" renders a compact circle inside the sheet instead).
-            Fallback order: the card's headshot, then the card's LOGO, then the
-            initials. A business card without a face is usually a company card,
-            and its logo is the right identity to lead with. */}
-        {!heroAvatar && (
-        <div className="relative w-full aspect-square max-h-[520px] overflow-hidden rounded-t-[30px]">
-          {photoUrl ? (
-            // A headshot is a photo of a person: fill the square and crop, which
+        {/* Hero — the photo the sheet scrolls over ("cover", or "banner" at a
+            third of the screen; "avatar" renders a compact circle inside the
+            sheet instead, "none" renders nothing). What it shows is the
+            resolved `hero` above — the owner's pick, or the auto chain:
+            headshot, then the card's LOGO, then the initials. A business card
+            without a face is usually a company card, and its logo is the
+            right identity to lead with. */}
+        {(heroStyle === "cover" || heroBanner) && (
+        <div className={`relative w-full overflow-hidden rounded-t-[30px] ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}>
+          {hero.kind === "photo" ? (
+            // A headshot is a photo of a person: fill the frame and crop, which
             // is what makes the link.me hero look right.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" />
-          ) : logoUrl ? (
+            <img src={hero.url} alt={name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : hero.kind === "logo" ? (
             // A LOGO is not a headshot and must not be treated like one.
             // object-cover would crop a wide wordmark down to its middle
             // letters, so it is object-CONTAIN, centred, on the same gradient
@@ -216,12 +234,12 @@ export default function SwiftLinkProfile({
               // Measured at 320/390/430 (the hero is capped at max-w-[430px]):
               // wide 5:1, square 1:1 and tall 1:2 logos all sit fully clear of
               // the fade, uncropped, and the logo is bigger at 430 than 36% gave.
-              className="absolute inset-0 flex items-center justify-center p-[18%] pb-[136px]"
+              className={`absolute inset-0 flex items-center justify-center ${heroBanner ? "p-[8%] pb-[104px]" : "p-[18%] pb-[136px]"}`}
               style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={logoUrl}
+                src={hero.url}
                 alt={name}
                 className="max-w-full max-h-full w-auto h-auto object-contain"
               />
@@ -231,23 +249,23 @@ export default function SwiftLinkProfile({
               className="absolute inset-0 flex items-center justify-center"
               style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
             >
-              <span className="text-white/90 font-extrabold text-7xl tracking-wide">{initials}</span>
+              <span className={`text-white/90 font-extrabold tracking-wide ${heroBanner ? "text-5xl" : "text-7xl"}`}>{initials}</span>
             </div>
           )}
           {/* Soft fade into the sheet — ends at exactly the surface the sheet
               opens with: the solid sheet hex normally, the same hex's glass
               tint on Aura, and a gradient look's 0% stop IS the sheet hex. */}
           <div
-            className="absolute inset-x-0 bottom-0 h-32 pointer-events-none"
+            className={`absolute inset-x-0 bottom-0 pointer-events-none ${heroBanner ? "h-24" : "h-32"}`}
             style={{ background: `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0%, ${sheetMeet} 100%)` }}
           />
         </div>
         )}
 
-        {/* Sheet — with the avatar header there's no hero above it, so it
-            starts at the very top: no -mt overlap, a touch more top padding. */}
+        {/* Sheet — with the avatar/none headers there's no hero above it, so
+            it starts at the very top: no -mt overlap, a touch more padding. */}
         <div
-          className={`relative rounded-t-[30px] px-4 pb-9 text-center ${heroAvatar ? "pt-10" : "-mt-10 pt-7"}`}
+          className={`relative rounded-t-[30px] px-4 pb-9 text-center ${flatTop ? "pt-10" : "-mt-10 pt-7"}`}
           style={{
             background: auraOn
               ? sheetMeet
@@ -257,20 +275,20 @@ export default function SwiftLinkProfile({
             ...(auraOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
           }}
         >
-          {/* Compact circular avatar — the "avatar" header style. Same
-              identity fallback order as the cover hero: headshot (cropped),
-              then logo (contained, on a white plate so any mark reads), then
-              initials on the same indigo gradient. */}
+          {/* Compact circular avatar — the "avatar" header style. Shows the
+              same resolved `hero`: headshot (cropped), or logo (contained, on
+              a white plate so any mark reads), or initials on the indigo
+              gradient. */}
           {heroAvatar && (
             <div className="flex justify-center mb-4">
               <div className={`w-28 h-28 rounded-full overflow-hidden shrink-0 ring-4 ${light ? "ring-black/[0.06]" : "ring-white/15"}`}>
-                {photoUrl ? (
+                {hero.kind === "photo" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrl} alt={name} className="w-full h-full object-cover" />
-                ) : logoUrl ? (
+                  <img src={hero.url} alt={name} className="w-full h-full object-cover" />
+                ) : hero.kind === "logo" ? (
                   <div className="w-full h-full bg-white flex items-center justify-center p-3.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoUrl} alt={name} className="max-w-full max-h-full w-auto h-auto object-contain" />
+                    <img src={hero.url} alt={name} className="max-w-full max-h-full w-auto h-auto object-contain" />
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}>
