@@ -70,7 +70,7 @@ export const cardDocs = defineDocs([
       "company logo", "picture", "avatar", "crop", "change my photo",
     ],
     answer:
-      "Both are on the \"Card design\" tab (step 2 of the builder): \"Upload your company logo\" and \"Upload your headshot\". No photo handy? \"Suggest my profile picture\" pulls one from your connected accounts for you to preview, and there's a matching suggestion for your company logo.",
+      "Both are on the \"Card design\" tab (step 2 of the builder): \"Upload your company logo\" and \"Upload your headshot\". No photo handy? \"Suggest my profile picture\" pulls one from your connected accounts for you to preview, and there's a matching suggestion for your company logo. If it offers \"Connect LinkedIn\", connecting brings you straight back and applies your LinkedIn photo automatically — you'll see \"Headshot added\", and you can still upload your own to replace it.",
     detail:
       "The headshot note says it plainly: \"Recommended. This will also be used for your SwiftLink.\" Each card has its OWN headshot — a card without one will not borrow another card's. The logo adapts to its own shape (square, wide, or banner), and a \"Logo shape\" toggle under the upload adds a Circle option — your full logo inside a clean circular badge, nothing cropped. On a team account the company logo is set by the admin on the Branding tab and can't be uploaded by a member.",
   },

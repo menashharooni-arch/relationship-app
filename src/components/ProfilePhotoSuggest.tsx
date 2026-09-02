@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
 
 /**
@@ -85,6 +85,47 @@ type State =
 export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, returnTo, guest = false, email }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [applied, setApplied] = useState(false);
+
+  // ── The return leg from "Connect LinkedIn" ────────────────────────────────
+  // The OAuth round trip lands the signed-in user back on this editor with
+  // ?integration=linkedin&status=… (web and native shell both). Connecting FROM
+  // the headshot section is the user's explicit ask to pull their photo, so on
+  // status=connected we import and apply it immediately — no second click on
+  // "Suggest" required (the owner-reported bug: connect finished, nothing
+  // happened). Guests return via ?li_photo=, handled by the builder itself.
+  useEffect(() => {
+    if (guest) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("integration") !== "linkedin") return;
+    const status = sp.get("status");
+    // Strip the params first so a refresh (or a second mount) can't re-run this.
+    sp.delete("integration"); sp.delete("status");
+    window.history.replaceState(null, "", `${window.location.pathname}${sp.size ? `?${sp}` : ""}${window.location.hash}`);
+    void (async () => {
+      if (status === "error") {
+        setState({ kind: "error", message: "LinkedIn connection didn't finish — try again." });
+        return;
+      }
+      if (status === "connected") {
+        setState({ kind: "applying", source: "linkedin" });
+        try {
+          const res = await fetch("/api/integrations/linkedin", { method: "POST" });
+          const data = await res.json().catch(() => ({} as { url?: string }));
+          if (res.ok && data.url) {
+            onConfirm(data.url);
+            setApplied(true);
+            setState({ kind: "idle" });
+            return;
+          }
+        } catch { /* fall through to the picker */ }
+        // Photo missing/revoked or import failed — fall back to the normal
+        // suggestion flow so the user sees exactly what's wrong (reconnect /
+        // no-photo states) instead of silence.
+        void suggest();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for the OAuth return leg
+  }, []);
 
   const connectUrl = `/api/integrations/linkedin/connect?next=${encodeURIComponent(returnTo)}`;
   // A guest has no session to attach a LinkedIn token to, so their Connect

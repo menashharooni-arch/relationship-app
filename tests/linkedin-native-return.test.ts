@@ -102,3 +102,36 @@ describe("the app handles the LinkedIn return leg", () => {
     expect(branch).toMatch(/safeNextPath\(nextRaw\)/);
   });
 });
+
+describe("connecting from the headshot section auto-applies the photo", () => {
+  const suggest = read("src/components/ProfilePhotoSuggest.tsx");
+
+  it("the OAuth return leg (?integration=linkedin&status=connected) imports without a second click", () => {
+    // Owner bug report 2026-09-02: connect finished, nothing happened — the
+    // user had to press "Suggest my profile picture" again to see the photo.
+    const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
+    expect(effect).toMatch(/integration.*linkedin/);
+    expect(effect).toMatch(/status === "connected"/);
+    expect(effect).toMatch(/\/api\/integrations\/linkedin.*method: "POST"|method: "POST"/);
+    expect(effect).toMatch(/onConfirm\(data\.url\)/);
+  });
+
+  it("strips the params before importing so a refresh can't re-run the leg", () => {
+    const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
+    expect(effect).toMatch(/replaceState/);
+    // The strip happens before the import call.
+    expect(effect.indexOf("replaceState")).toBeLessThan(effect.indexOf('status === "connected"'));
+  });
+
+  it("falls back to the visible suggestion flow when the import can't complete", () => {
+    // Revoked token / photo-less profile must surface the reconnect UI, not silence.
+    const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
+    expect(effect).toMatch(/void suggest\(\)/);
+  });
+
+  it("guests are excluded — their photo returns via ?li_photo= to the builder", () => {
+    const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
+    expect(effect).toMatch(/if \(guest\) return/);
+    expect(read("src/app/cards/new/NewCardWizard.tsx")).toMatch(/li_photo/);
+  });
+});
