@@ -53,11 +53,23 @@ describe("agent flow: draft-only agents are structurally unable to post", () => 
   });
 
   it("the loop closes: clean reports self-file, findings dispatch the Fixer", () => {
-    for (const a of ["marketing-agents/agent-seo.mjs", "marketing-agents/agent-perf.mjs"])
+    for (const a of ["marketing-agents/agent-seo.mjs", "marketing-agents/agent-perf.mjs", "marketing-agents/agent-flowcheck.mjs"])
       expect(read(a), `${a} must self-file clean reports`).toMatch(/status: findings\.length \? "pending" : "acknowledged"/);
-    for (const w of [".github/workflows/agent-seo.yml", ".github/workflows/agent-perf.yml"])
+    for (const w of [".github/workflows/agent-seo.yml", ".github/workflows/agent-perf.yml", ".github/workflows/agent-flowcheck.yml"])
       expect(read(w), `${w} must hand findings to the Fixer`).toMatch(/agent-fixer\.yml -f item_id/);
     expect(read("marketing-agents/lib/agentkit.mjs")).toMatch(/return \{ result: "added", id:/);
+  });
+
+  it("Flow Check is strictly read-only against the live site", () => {
+    const src = read("marketing-agents/agent-flowcheck.mjs");
+    // Every probe is a GET; the agent never signs up, posts, or mutates.
+    expect(src).not.toMatch(/method:\s*["'](POST|PUT|PATCH|DELETE)/i);
+    expect(src).toMatch(/READ-ONLY/);
+    // It watches the exact leg of the 2026-09-02 LinkedIn headshot bug.
+    expect(src).toMatch(/integrations\/linkedin\/connect\?guest=1/);
+    expect(src).toMatch(/redirect_uri/);
+    // No LLM: immune to Claude usage limits by construction.
+    expect(src).not.toMatch(/standDownIfUsageExhausted|execFileSync/);
   });
 });
 

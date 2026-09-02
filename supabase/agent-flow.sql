@@ -156,5 +156,6 @@ insert into agent_settings (agent_id, output_cap, usage_cap_usd) values
   ('bugwatch',    5, 3.00),
   ('security',   10, 2.00),
   ('perf',        3, 0.50),
+  ('flowcheck',   3, 0.50),
   ('manager',     1, 1.00)
 on conflict (agent_id) do nothing;

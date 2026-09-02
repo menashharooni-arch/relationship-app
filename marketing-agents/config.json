@@ -13,6 +13,7 @@
     "bugwatch":   { "name": "Bug Watch",              "mode": "autonomous_drafts", "workflow": "sentry-triage.yml", "output_cap": 5 },
     "security":   { "name": "Security Watch",         "mode": "autonomous_drafts", "workflow": "agent-security.yml", "output_cap": 10 },
     "perf":       { "name": "Performance Watch",      "mode": "autonomous_drafts", "workflow": "agent-perf.yml",     "output_cap": 3 },
+    "flowcheck":  { "name": "Flow Check",             "mode": "autonomous_drafts", "workflow": "agent-flowcheck.yml", "output_cap": 3 },
     "manager":    { "name": "Manager / Digest",       "mode": "reporter",    "workflow": "agent-manager.yml",    "output_cap": 1 }
   },
   "blog": { "publish_mode": "draft", "_modes": "draft = queue item + Publish button; auto = commit MDX directly. Stays draft until the owner flips it." },
