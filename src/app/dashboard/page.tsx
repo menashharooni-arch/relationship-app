@@ -30,6 +30,7 @@ import TourBanner from "@/components/TourBanner";
 import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
+import NativePushNudge from "@/components/NativePushNudge";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import TrackEvent from "@/components/TrackEvent";
 import AddContactModal from "@/components/AddContactModal";
@@ -705,6 +706,11 @@ export default async function DashboardPage({
           space on phones only; no element changes size or position. */}
       <main className="sc-app min-h-screen bg-gray-950 pt-20 pb-36 md:pb-12">
         <div className="max-w-5xl mx-auto px-5">
+
+          {/* iPhone app, first open on an existing account: the one place the
+              notifications switch is offered without going looking for it.
+              Renders nothing on the web, or once push is on / declined. */}
+          <NativePushNudge />
 
           {/* Reverse-trial / free-Pro countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}

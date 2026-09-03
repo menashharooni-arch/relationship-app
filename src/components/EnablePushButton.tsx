@@ -90,8 +90,15 @@ function detectEnv() {
   return { supported: hasApis, iosNeedsInstall: isIOS && !standalone && !hasApis, native: false };
 }
 
-export function usePushState(): [State, () => Promise<boolean>] {
+// Why the last enable failed, when the honest message is not "try again".
+// "old-build": the binary itself can't register (no aps-environment
+// entitlement) — the App Store 1.0.0 build shipped that way, and no amount of
+// re-tapping fixes it; only an update does.
+type FailReason = "old-build" | null;
+
+export function usePushState(): [State, () => Promise<boolean>, FailReason] {
   const [state, setState] = useState<State>("loading");
+  const [reason, setReason] = useState<FailReason>(null);
 
   useEffect(() => {
     const { supported, iosNeedsInstall, native } = detectEnv();
@@ -135,6 +142,7 @@ export function usePushState(): [State, () => Promise<boolean>] {
 
   async function enable(): Promise<boolean> {
     setState("working");
+    setReason(null);
 
     // Native APNs path (Capacitor shell with the PushNotifications plugin).
     if (detectNativeApp() && nativePushAvailable()) {
@@ -171,6 +179,7 @@ export function usePushState(): [State, () => Promise<boolean>] {
           // BUILD defect, not a connection problem, and it looked identical to
           // being offline for as long as this was swallowed.
           reportPushFailure(`native registration failed: ${result.error ?? "unknown"}`);
+          if (/aps-environment/.test(result.error ?? "")) setReason("old-build");
           setState("error");
           return false;
         }
@@ -236,7 +245,7 @@ export function usePushState(): [State, () => Promise<boolean>] {
     }
   }
 
-  return [state, enable];
+  return [state, enable, reason];
 }
 
 // The on/off switch itself.
@@ -265,7 +274,7 @@ export default function EnablePushButton({
   label?: string;
   allowDisable?: boolean;
 }) {
-  const [state, enable] = usePushState();
+  const [state, enable, reason] = usePushState();
   const [busyOff, setBusyOff] = useState(false);
   const [forcedOff, setForcedOff] = useState(false);
 
@@ -393,7 +402,12 @@ export default function EnablePushButton({
         </div>
         <Switch on={isOn} busy={busy} onClick={toggle} />
       </div>
-      {state === "error" && (
+      {state === "error" && reason === "old-build" && (
+        <p className="text-amber-400 text-xs text-center leading-relaxed">
+          This version of SwiftCard can&apos;t receive notifications yet. Update the app from the App Store, then come back and tap the switch again.
+        </p>
+      )}
+      {state === "error" && reason !== "old-build" && (
         <p className="text-amber-400 text-xs text-center">Couldn&apos;t turn notifications on — check your connection and tap the switch again.</p>
       )}
     </div>
