@@ -1,0 +1,159 @@
+// ── The watchdog loop: Finn, Bo, Vera and Dash, always on ───────────────────
+//
+// OWNER ORDER (2026-09-03): these four have NO schedules. They watch
+// continuously while the office is open and their Active box is ticked. Menash
+// decides when they stop; nothing in this file may decide it for him. There is
+// no cadence here, no "next check-in", and nothing to configure — the Active
+// toggle is the whole control surface.
+//
+// The loop this replaces was a half-hourly GitHub cron that woke agents inside
+// a ±30-minute due window. GitHub's scheduler is best-effort and was actually
+// firing every 2.5–5 hours, so narrow windows were missed outright: Vera did
+// not run at all on 2026-09-03. Worse, the UI still said "on duty", so it
+// looked like something was watching when nothing was.
+//
+// HOW IT STAYS FREE: each tick runs lib/detectors.mjs — plain HTTP probes, no
+// model, no tokens. The expensive LLM agent is dispatched only when a detector
+// reports a problem that isn't already open. Quiet weeks cost nothing.
+//
+// HOW IT STAYS ALIVE: a GitHub Actions job caps at 6 hours, so this runs for
+// TICK_BUDGET_MIN and then exits 0; agent-watchdog.yml re-dispatches itself
+// immediately, so coverage is continuous across job boundaries. Exiting is not
+// stopping — only the owner's switches stop it, and then the loop exits on
+// purpose and the workflow does NOT re-arm.
+
+import { readFileSync } from "node:fs";
+import { sb, say } from "./lib/agentkit.mjs";
+import { DETECTORS } from "./lib/detectors.mjs";
+
+const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
+const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
+const BUDGET_MIN = Number(process.env.WATCHDOG_BUDGET_MIN || 330); // 5h30m; job cap is 6h
+const REPO = process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app";
+const WATCHDOGS = Object.keys(DETECTORS).filter((id) => config.agents[id]?.continuous);
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const stamp = () => new Date().toISOString().slice(11, 19);
+
+/** Wake an agent's LLM workflow to investigate a finding it just detected. */
+async function dispatchAgent(agentId, reason) {
+  const wf = config.agents[agentId]?.workflow;
+  if (!wf) return false;
+  if (!process.env.GH_TOKEN) { console.log(`  ! GH_TOKEN missing — cannot wake ${agentId}`); return false; }
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${wf}/dispatches`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
+    body: JSON.stringify({ ref: "main", inputs: { trigger: "watchdog" } }),
+  });
+  console.log(`  → woke ${agentId} (${wf}) status ${res.status}: ${reason}`);
+  return res.status === 204;
+}
+
+/**
+ * Findings currently open for this agent, keyed by dedupe_key.
+ * The queue IS the state store — no new table, so this needs no SQL from the
+ * owner before it works.
+ */
+async function openFindings(agentId) {
+  const rows = await sb("GET", "agent_queue_items", {
+    params: `agent_id=eq.${agentId}&status=eq.pending&select=id,dedupe_key,title&limit=200`,
+  });
+  return new Map((rows ?? []).filter((r) => r.dedupe_key?.startsWith("watchdog:")).map((r) => [r.dedupe_key, r]));
+}
+
+async function recordFinding(agentId, f) {
+  const itemType = agentId === "security" ? "security_finding" : agentId === "perf" ? "perf_finding" : "generic";
+  await sb("POST", "agent_queue_items", {
+    body: [{
+      agent_id: agentId,
+      item_type: itemType,
+      platform: "site",
+      target: f.key,
+      title: `${f.severity === "critical" ? "🔴" : "🟠"} ${f.title}`,
+      content: f.detail,
+      context: "Detected by the continuous watchdog loop (code-only probe, no tokens spent detecting it).",
+      dedupe_key: `watchdog:${f.key}`,
+      status: "pending",
+    }],
+  });
+}
+
+async function resolveFinding(item) {
+  await sb("PATCH", "agent_queue_items", {
+    params: `id=eq.${item.id}`,
+    body: { status: "acknowledged" },
+  });
+}
+
+async function tick() {
+  // The owner's switches, read fresh every tick — so Pause All or unticking
+  // Active takes effect within one tick, not at some next scheduled boundary.
+  const sys = (await sb("GET", "agent_system", { params: "limit=1" }))[0];
+  if (!sys) { console.log("agent_system row missing — standing down."); return "stop"; }
+  if (sys.paused) { console.log(`${stamp()} office closed (Pause All) — watchdogs standing down.`); return "stop"; }
+  if (sys.auto_pause_at && new Date(sys.auto_pause_at).getTime() <= Date.now()) {
+    console.log(`${stamp()} auto-stop reached — watchdogs standing down.`); return "stop";
+  }
+
+  const rows = await sb("GET", "agent_settings", {
+    params: `agent_id=in.(${WATCHDOGS.join(",")})&select=agent_id,enabled,paused`,
+  });
+  const onDuty = (rows ?? []).filter((r) => r.enabled && !r.paused).map((r) => r.agent_id);
+  if (!onDuty.length) { console.log(`${stamp()} no watchdog is Active — standing down.`); return "stop"; }
+
+  for (const agentId of onDuty) {
+    let findings;
+    try {
+      findings = await DETECTORS[agentId]();
+    } catch (e) {
+      console.log(`${stamp()} ${agentId} probe threw: ${String(e?.message ?? e).slice(0, 200)}`);
+      continue;
+    }
+    const open = await openFindings(agentId);
+    const seen = new Set();
+
+    for (const f of findings) {
+      const key = `watchdog:${f.key}`;
+      seen.add(key);
+      if (open.has(key)) continue; // already reported and still open — say nothing
+      console.log(`${stamp()} ${agentId} NEW ${f.severity}: ${f.title}`);
+      await recordFinding(agentId, f);
+      // Tell the owner's comms log immediately, then wake the agent to dig in.
+      await say(agentId, "owner", `${f.severity === "critical" ? "🔴" : "🟠"} ${f.title} — ${f.detail.slice(0, 300)}`, { kind: "owner_out" }).catch(() => {});
+      await dispatchAgent(agentId, f.title);
+    }
+
+    // Anything previously open that no longer trips is fixed. Close it so the
+    // queue stays an accurate picture of what is wrong RIGHT NOW.
+    for (const [key, item] of open) {
+      if (seen.has(key)) continue;
+      console.log(`${stamp()} ${agentId} recovered: ${item.title}`);
+      await resolveFinding(item);
+      await say(agentId, "owner", `✅ Recovered — ${item.title.replace(/^[🔴🟠]\s*/, "")} is back to normal.`, { kind: "owner_out" }).catch(() => {});
+    }
+  }
+  return "continue";
+}
+
+// ── main ─────────────────────────────────────────────────────────────────────
+if (!WATCHDOGS.length) { console.log("No continuous watchdogs configured."); process.exit(0); }
+console.log(`Watchdog loop up: ${WATCHDOGS.join(", ")} — probing every ${TICK_SEC}s for up to ${BUDGET_MIN}m.`);
+
+const until = Date.now() + BUDGET_MIN * 60 * 1000;
+let ticks = 0;
+let verdict = "continue";
+while (Date.now() < until) {
+  try {
+    verdict = await tick();
+  } catch (e) {
+    // A Supabase hiccup must not kill the watch. Log, wait, keep going.
+    console.log(`${stamp()} tick error: ${String(e?.message ?? e).slice(0, 200)}`);
+  }
+  if (verdict === "stop") break;
+  ticks++;
+  await sleep(TICK_SEC * 1000);
+}
+console.log(`Loop ending after ${ticks} tick(s): ${verdict === "stop" ? "owner stood the watch down — NOT re-arming." : "time budget reached — re-arming."}`);
+// The workflow reads this to decide whether to re-dispatch itself.
+console.log(`WATCHDOG_REARM=${verdict === "stop" ? "no" : "yes"}`);
+process.exit(0);

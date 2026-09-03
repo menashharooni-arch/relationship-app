@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { armWatchdogLoop, isContinuous } from "@/lib/agent-watchdog";
 
 // Per-agent + system settings, editable from the UI without a deploy.
 export async function POST(req: NextRequest) {
@@ -20,7 +21,12 @@ export async function POST(req: NextRequest) {
   if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
   if (Number.isFinite(body.output_cap)) patch.output_cap = Math.max(1, Math.min(200, Number(body.output_cap)));
   if (Number.isFinite(body.usage_cap_tokens)) patch.usage_cap_tokens = Math.max(50_000, Math.min(10_000_000, Math.round(Number(body.usage_cap_tokens))));
-  if (body.schedule !== undefined) patch.schedule = body.schedule || null;
+  // A watchdog has no cadence to set — ignore any schedule aimed at one rather
+  // than writing a value that nothing reads (owner order 2026-09-03).
+  if (body.schedule !== undefined && !isContinuous(body.agent_id)) patch.schedule = body.schedule || null;
   await admin.from("agent_settings").update(patch).eq("agent_id", body.agent_id);
+  // Ticking a watchdog Active is the go signal: start watching NOW, not at the
+  // next backstop tick.
+  if (body.enabled === true && isContinuous(body.agent_id)) await armWatchdogLoop("active_toggle");
   return NextResponse.json({ ok: true });
 }
