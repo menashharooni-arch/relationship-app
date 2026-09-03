@@ -91,11 +91,20 @@ function nyNow(now: number): { h: number; m: number } {
 const DEFAULT_SCHEDULES: Record<string, string> = {
   outreach: "every@8h", prospects: "daily@07:30", seo: "every@8h", blog: "daily@09:30",
   social: "every@8h", mentions: "every@8h", influencer: "daily@12:00",
-  security: "daily@09:30", perf: "every@4h", flowcheck: "every@12h", manager: "daily@17:30",
+  manager: "daily@17:30",
 };
+// The watch. Owner order 2026-09-03: these four have NO schedule and no "next
+// check" — they watch continuously while the office is open and their Active
+// box is ticked, and only the owner stops them. Showing a countdown here was
+// actively misleading: it read as "something is watching" during hours when
+// nothing was. Keep this in step with `continuous: true` in
+// marketing-agents/config.json (tests/agent-flow.test.ts pins the pair).
+const CONTINUOUS = new Set(["flowcheck", "bugwatch", "security", "perf"]);
 /** "in ~2h 10m" until this agent's next scheduled run. */
 function nextRunText(rawSchedule: string | null, agentId: string, now: number): string | null {
-  if (agentId === "bugwatch") return "daily — reads Sentry crash reports on his own clock";
+  // Watchdogs never have a "next run" — they are already running. Returning a
+  // countdown for one is how the board came to claim a watch that wasn't there.
+  if (CONTINUOUS.has(agentId)) return null;
   const schedule = rawSchedule || DEFAULT_SCHEDULES[agentId] || null;
   if (!schedule) return null;
   const { h, m } = nyNow(now);
@@ -357,6 +366,7 @@ export default function AgentFlowClient() {
             : problem ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
             : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
             : s.paused ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
+            : open && CONTINUOUS.has(id) ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300">🟢 Watching · live</span>
             : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · {id === "manager" ? "evening report" : "next check"} {next}</span>
             : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "On duty" : "Waiting for Start"}</span>}
           <div className="flex items-center gap-1.5 ml-auto">
@@ -824,7 +834,12 @@ export default function AgentFlowClient() {
               <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Budget per run">
                 <input type="number" step={50000} defaultValue={s.usage_cap_tokens ?? 500000} onBlur={(e) => saveSetting({ agent_id: id, usage_cap_tokens: Number(e.target.value) })} className="w-24 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white" /> tok/run
               </label>
-              {id !== "bugwatch" ? (
+              {/* A watchdog has no rhythm to pick — offering one would imply
+                  gaps in the watch. Owner order 2026-09-03: they run for as
+                  long as the office is open and Active is ticked. */}
+              {CONTINUOUS.has(id) ? (
+                <span className="text-[11px] text-emerald-400/90">on watch continuously — no rhythm; the <strong className="font-semibold">active</strong> box is the only switch</span>
+              ) : (
                 <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Their working rhythm while the system is running">
                   rhythm
                   <select value={s.schedule ?? ""} onChange={(e) => saveSetting({ agent_id: id, schedule: e.target.value || null }, e.target.value ? "Rhythm saved — they'll keep it whenever they're awake." : "Back on their default rhythm.")} className="bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-white">
@@ -832,7 +847,7 @@ export default function AgentFlowClient() {
                     {s.schedule && !CADENCES.some(([v]) => v === s.schedule) && <option value={s.schedule}>{s.schedule}</option>}
                   </select>
                 </label>
-              ) : <span className="text-[11px] text-gray-600">rhythm: daily on his own clock — triages Sentry crash reports (idle until Sentry is connected)</span>}
+              )}
             </div>
           ); })}
         </div>

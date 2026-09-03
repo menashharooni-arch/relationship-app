@@ -30,6 +30,11 @@ const due = (sched) => {
   return hit(h, now.getUTCHours()) && (m === "*" || Math.abs(Number(m) - now.getUTCMinutes()) < 30);
 };
 for (const r of rows) {
+  // Continuous watchdogs (Finn, Bo, Vera, Dash) are NOT schedule-driven — owner
+  // order 2026-09-03. They are watched over by agent-watchdog.yml, which probes
+  // every minute and wakes them only on a real finding. Dispatching them from
+  // here too would double-run them, so the clock skips them entirely.
+  if (config.agents[r.agent_id]?.continuous) continue;
   const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
   if (!schedule || !due(schedule)) continue;
   const wf = config.agents[r.agent_id]?.workflow;

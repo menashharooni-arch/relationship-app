@@ -310,11 +310,16 @@ describe("start opens, wake runs", () => {
   const route = read("src/app/api/admin/agents/control/route.ts");
   const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
 
-  it("start_all rests every team (manager excepted) and dispatches nobody", () => {
+  it("start_all rests every worker team (manager + the watch excepted) and dispatches no worker", () => {
     const block = route.slice(route.indexOf('op === "start_all"'), route.indexOf('if (!process.env.GITHUB_AGENTS_TOKEN)'));
     expect(block).toMatch(/paused: true/);
-    expect(block).toMatch(/neq\("agent_id", "manager"\)/);
-    expect(block).not.toMatch(/dispatch\(/);
+    // The rest-on-open exception list is manager + every continuous watchdog:
+    // opening the office is the watch's go signal (owner order 2026-09-03).
+    expect(block).toMatch(/\["manager", \.\.\.CONTINUOUS_AGENTS\]/);
+    expect(block).toMatch(/not\("agent_id", "in"/);
+    expect(block).toMatch(/armWatchdogLoop\("start_all"\)/);
+    // Still no one-shot fan-out of worker agents (owner order 2026-09-02).
+    expect(block).not.toMatch(/\bdispatch\(agents\[/);
   });
 
   it("start_all works without the dispatch PAT — it sits BEFORE the token guard", () => {
@@ -348,9 +353,11 @@ describe("start opens, wake runs", () => {
 describe("default rhythms — no schedule-less agents", () => {
   const cfg = JSON.parse(read("marketing-agents/config.json")) as { agents: Record<string, { default_schedule?: string }> };
 
-  it("config carries a default_schedule for every agent except self-scheduled bugwatch", () => {
-    for (const [id, a] of Object.entries(cfg.agents)) {
-      if (id === "bugwatch") { expect(a.default_schedule).toBeUndefined(); continue; }
+  it("config carries a default_schedule for every scheduled agent — the watch excepted", () => {
+    for (const [id, a] of Object.entries(cfg.agents as Record<string, { default_schedule?: string; continuous?: boolean }>)) {
+      // The four watchdogs have no rhythm by owner order (2026-09-03) — they
+      // watch continuously. Everyone else must carry one.
+      if (a.continuous) { expect(a.default_schedule, `${id} is a watchdog — no cadence`).toBeUndefined(); continue; }
       expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2})$/);
     }
   });
@@ -421,5 +428,84 @@ describe("agent flow: Approve & Ship fix merges only the Fixer's tested work", (
     // Fixer stamped — an attacker-supplied URL has no path in.
     expect(route).toMatch(/payload as Record<string, unknown> \| null\)\?\.pr_url/);
     expect(route).not.toMatch(/body\.pr_url|pr_url.*req\.json/);
+  });
+});
+
+// ── The watch: Finn, Bo, Vera, Dash ─────────────────────────────────────────
+// Owner order 2026-09-03, and he has given it more than once: these four are
+// WATCHDOGS. No schedules, no "next check-in" — they watch continuously while
+// the office is open and their Active box is ticked, and only he stops them.
+// Every pin below exists so no future change can quietly put them back on a
+// cadence.
+describe("continuous watchdogs have no schedule", () => {
+  const config = JSON.parse(read("marketing-agents/config.json"));
+  const route = read("src/app/api/admin/agents/control/route.ts");
+  const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+  const WATCH = ["flowcheck", "bugwatch", "security", "perf"];
+
+  it("all four are marked continuous and carry NO default_schedule", () => {
+    for (const id of WATCH) {
+      expect(config.agents[id].continuous, `${id} must be continuous`).toBe(true);
+      expect(config.agents[id].default_schedule, `${id} must have no cadence`).toBeUndefined();
+    }
+  });
+
+  it("no other agent is marked continuous — Maya's team and Atlas keep their rhythms", () => {
+    for (const [id, a] of Object.entries(config.agents as Record<string, { continuous?: boolean }>))
+      if (!WATCH.includes(id)) expect(a.continuous, `${id} must not be continuous`).toBeFalsy();
+  });
+
+  it("the clock skips them — the scheduler must never dispatch a watchdog", () => {
+    const s = read("marketing-agents/scheduler.mjs");
+    expect(s).toMatch(/if \(config\.agents\[r\.agent_id\]\?\.continuous\) continue;/);
+    // and the skip must come BEFORE the dispatch call itself
+    expect(s.indexOf("continuous) continue")).toBeLessThan(s.indexOf("await fetch("));
+  });
+
+  it("the loop stands down ONLY on the owner's switches, and does not re-arm when it does", () => {
+    const w = read("marketing-agents/watchdog.mjs");
+    expect(w).toMatch(/sys\.paused/);           // Pause All
+    expect(w).toMatch(/auto_pause_at/);          // auto-stop
+    expect(w).toMatch(/r\.enabled && !r\.paused/); // Active box
+    expect(w).toMatch(/WATCHDOG_REARM=/);
+    // No cadence logic anywhere in the loop.
+    expect(w).not.toMatch(/every@|daily@/);
+  });
+
+  it("detection is code-only — the loop spends no tokens to watch", () => {
+    const d = read("marketing-agents/lib/detectors.mjs");
+    for (const forbidden of ["claude", "anthropic", "openai", "gemini"])
+      expect(d.toLowerCase(), `detectors must not call an LLM (${forbidden})`).not.toContain(forbidden);
+  });
+
+  it("findings dedupe, so a long outage reports once rather than every tick", () => {
+    const w = read("marketing-agents/watchdog.mjs");
+    expect(w).toMatch(/dedupe_key/);
+    expect(w).toMatch(/if \(open\.has\(key\)\) continue;/);
+  });
+
+  it("the board says 'Watching · live' and offers no rhythm picker for them", () => {
+    expect(client).toMatch(/CONTINUOUS\.has\(id\).*Watching · live/s);
+    expect(client).toMatch(/if \(CONTINUOUS\.has\(agentId\)\) return null;/);
+    expect(client).toMatch(/on watch continuously/);
+  });
+
+  it("the UI's watchdog set matches config.json exactly", () => {
+    const inClient = client.match(/const CONTINUOUS = new Set\(\[([^\]]+)\]\)/)?.[1] ?? "";
+    const ids = [...inClient.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    expect(ids.sort()).toEqual([...WATCH].sort());
+  });
+
+  it("the watch is armed the moment the owner turns it on", () => {
+    const settings = read("src/app/api/admin/agents/settings/route.ts");
+    expect(settings).toMatch(/enabled === true && isContinuous/);
+    // …and a cadence aimed at a watchdog is ignored rather than stored.
+    expect(settings).toMatch(/!isContinuous\(body\.agent_id\)\) patch\.schedule/);
+    expect(route).toMatch(/armWatchdogLoop\("unbench"\)/);
+    expect(route).toMatch(/armWatchdogLoop\("team_wake"\)/);
+  });
+
+  it("waking a team never one-shot-dispatches a watchdog", () => {
+    expect(route).toMatch(/if \(isContinuous\(id\)\) continue;/);
   });
 });

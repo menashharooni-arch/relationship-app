@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import agentConfig from "../../../../../../marketing-agents/config.json";
 import { firstName, ORG } from "@/lib/agent-org";
+import { armWatchdogLoop, isContinuous, CONTINUOUS_AGENTS } from "@/lib/agent-watchdog";
 
 // Run controls. Pause flags live in the DB (agents poll them between steps —
 // that is what makes PAUSE take effect mid-run). Run/Start-All dispatch the
@@ -78,8 +79,13 @@ export async function POST(req: NextRequest) {
         const enabled = new Set((settings ?? []).filter((s) => s.enabled).map((s) => s.agent_id));
         for (const id of teamAgents) {
           if (!enabled.has(id) || !agents[id]) continue;
+          // Watchdogs are not dispatched one-shot — the always-on loop is their
+          // shift, and it wakes them only on a real finding (owner order
+          // 2026-09-03). Arming it once covers every watchdog on the team.
+          if (isContinuous(id)) continue;
           if ((await dispatch(agents[id].workflow, "team_wake")).ok) dispatched++;
         }
+        if (teamAgents.some((id) => isContinuous(id) && enabled.has(id))) await armWatchdogLoop("team_wake");
       }
       await say(admin, "atlas", agent_id, openNow
         ? `Your team is AWAKE — ${dispatched} of you dispatched right now, and everyone keeps their normal rhythm from here.`
@@ -92,6 +98,8 @@ export async function POST(req: NextRequest) {
   if ((op === "pause" || op === "resume") && agent_id) {
     await admin.from("agent_settings").update({ paused: op === "pause", updated_at: new Date().toISOString() }).eq("agent_id", agent_id);
     await say(admin, "owner", "atlas", `${op === "pause" ? "Bench" : "Unbench"} ${firstName(agent_id)} for now.`, "owner_in");
+    // Unbenching a watchdog puts it back on watch immediately.
+    if (op === "resume" && isContinuous(agent_id)) await armWatchdogLoop("unbench");
     return NextResponse.json({ ok: true });
   }
   if (op === "start_all") {
@@ -104,10 +112,21 @@ export async function POST(req: NextRequest) {
     // evening report is a summary of the day, not work, and the tour promises
     // it whenever the office is open.
     await admin.from("agent_system").update({ paused: false, auto_pause_at: null, updated_at: new Date().toISOString() }).eq("id", true);
-    await admin.from("agent_settings").update({ paused: true, updated_at: new Date().toISOString() }).neq("agent_id", "manager");
+    // Rested on open: every WORKER. Two standing exceptions —
+    //   • manager (Atlas): his 5:30 PM report is a summary, not work.
+    //   • the watchdogs (Finn, Bo, Vera, Dash): owner order 2026-09-03 — they
+    //     are always on while the office is open, because a watchdog that only
+    //     starts watching once you separately wake its team is not a watchdog.
+    //     Resting them here is what left the site unwatched on launch day.
+    const alwaysOn = ["manager", ...CONTINUOUS_AGENTS];
+    await admin.from("agent_settings")
+      .update({ paused: true, updated_at: new Date().toISOString() })
+      .not("agent_id", "in", `(${alwaysOn.join(",")})`);
     await say(admin, "owner", "atlas", "We're OPEN — but everyone holds at rest until I wake their team.", "owner_in");
-    await say(admin, "atlas", "all", "Company's open. All teams REST for now — you'll be woken team by team when the owner wants you working. I'll still file the evening report.");
-    return NextResponse.json({ ok: true, resting: true });
+    await say(admin, "atlas", "all", "Company's open. Worker teams REST for now — you'll be woken team by team when the owner wants you working. The watch (Finn, Bo, Vera, Dash) is ON, as always while we're open, and I'll still file the evening report.");
+    // The office being open is the watch's go signal.
+    await armWatchdogLoop("start_all");
+    return NextResponse.json({ ok: true, resting: true, watching: CONTINUOUS_AGENTS });
   }
   if (!process.env.GITHUB_AGENTS_TOKEN) {
     return NextResponse.json({ error: "GITHUB_AGENTS_TOKEN is not set in Vercel — add a fine-grained PAT (actions: write) to enable Run buttons." }, { status: 503 });
