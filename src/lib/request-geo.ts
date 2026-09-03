@@ -113,6 +113,37 @@ export function formatLocation(g: Pick<GeoGuess, "city" | "regionCode" | "countr
   return city || country || null;
 }
 
+/**
+ * Old rows say "Great Neck, US"; rows written from 2026-09-03 say
+ * "Great Neck, NY". They are the same place, and the Locations tab is
+ * all-time — without this it would list both forever, side by side, as if
+ * they were two towns. Returns label → the label it should be counted under
+ * (the more specific one), for the labels that have a specific twin.
+ *
+ * A STATE-level label is never folded into the city of the same name:
+ * "New York, US" means somewhere in New York State (the two databases
+ * disagreed on the town) and must not be counted as New York City.
+ */
+export function locationAliases(labels: Iterable<string>): Map<string, string> {
+  const all = [...labels];
+  const norm = (s: string) => s.trim().toLowerCase();
+  const stateNames = new Set(Object.values(US_STATES).map(norm));
+  // city → the "City, ST" label seen for it
+  const specific = new Map<string, string>();
+  for (const label of all) {
+    const m = /^(.+), ([A-Z]{2})$/.exec(label);
+    if (m && (US_STATES[m[2]] || CA_REGIONS.has(m[2]))) specific.set(norm(m[1]), label);
+  }
+  const alias = new Map<string, string>();
+  for (const label of all) {
+    const m = /^(.+), (US|CA)$/.exec(label);
+    if (!m || stateNames.has(norm(m[1]))) continue;
+    const target = specific.get(norm(m[1]));
+    if (target && target !== label) alias.set(label, target);
+  }
+  return alias;
+}
+
 // ── Second opinion ───────────────────────────────────────────────────────────
 
 const LOOKUP_TIMEOUT_MS = 600;
@@ -213,3 +244,7 @@ const US_STATES: Record<string, string> = {
   TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
   WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", PR: "Puerto Rico",
 };
+
+// Canadian provinces/territories — codes only; used to tell a province tail
+// ("Toronto, ON") from a country tail ("Toronto, CA") when merging labels.
+const CA_REGIONS = new Set(["AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT"]);
