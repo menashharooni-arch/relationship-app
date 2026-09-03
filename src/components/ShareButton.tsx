@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
+import { warmSharePreview } from "@/lib/share-preview";
 import { triggerSignupNudge } from "@/lib/nudge";
 
 type Props = {
@@ -22,7 +23,14 @@ export default function ShareButton({
 }: Props) {
   const [status, setStatus] = useState<"idle" | "copied" | "menu">("idle");
 
+  // Heat the link preview before anyone asks for it — once when the button
+  // appears, again on tap. See lib/share-preview.ts for the headshot bug this
+  // prevents; the tap is the last moment we can act before the messenger
+  // fetches the image on its own clock.
+  useEffect(() => { warmSharePreview(url); }, [url]);
+
   async function handleShare() {
+    warmSharePreview(url);
     // Native shell: WKWebView often lacks navigator.share — use the native
     // share sheet via the Capacitor plugin. Falls through to the web paths on
     // any failure (plugin missing in an old shell build, user cancel throws).

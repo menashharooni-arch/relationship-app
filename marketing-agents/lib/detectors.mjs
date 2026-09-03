@@ -64,6 +64,91 @@ const FLOWS = [
   { key: "vcard", path: "/api/card/aaronlavi-malvecapital/vcard", must: "BEGIN:VCARD" },
 ];
 
+// The share-link preview: the picture a messenger shows when someone texts or
+// emails their card link. It is the product's first impression and it has
+// broken quietly more than once — the owner's standing order (2026-09-03) is
+// that it must show the CARD, every time, everywhere. So it is probed like a
+// messenger would: read the page, take og:image, fetch it, and demand a real,
+// card-sized image back quickly enough that iMessage won't give up and fall
+// back to the headshot.
+const PREVIEW_CARD = process.env.WATCHDOG_PREVIEW_CARD || "aaronlavi-malvecapital";
+const PREVIEW_BUDGET_MS = Number(process.env.WATCHDOG_PREVIEW_BUDGET_MS || 5000);
+const PREVIEW_MIN_BYTES = 20000; // a real card render is 40–150KB; a blank tile or error page is not
+
+function imageWidth(buf) {
+  if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50) return buf.readUInt32BE(16); // PNG
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) { // JPEG: walk to SOF
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const m = buf[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return buf.readUInt16BE(i + 7);
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+  }
+  return 0;
+}
+
+export async function sharePreviewCheck() {
+  const path = `/${PREVIEW_CARD}`;
+  const page = await stable(() => probe(path, { wantBody: true }));
+  if (!page.ok) return []; // the flow probe above already reports a down card page
+  const m = page.body.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/);
+  if (!m) {
+    return [{
+      key: "flow:share-preview:no-tag",
+      title: `Card link previews are broken — ${path} has no og:image tag`,
+      detail: `The page rendered (HTTP ${page.status}) but carries no og:image, so iMessage/WhatsApp/LinkedIn will show no card picture, or the biggest image on the page instead of the card.`,
+      severity: "critical",
+    }];
+  }
+  const imgUrl = m[1].replace(/&amp;/g, "&");
+  const fetchImage = async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    const t0 = Date.now();
+    try {
+      const res = await fetch(imgUrl, { signal: ctrl.signal, headers: { "User-Agent": "facebookexternalhit/1.1 Facebot Twitterbot/1.0" }, cache: "no-store" });
+      const buf = Buffer.from(await res.arrayBuffer());
+      const type = res.headers.get("content-type") ?? "";
+      return { ok: res.ok && type.startsWith("image/"), status: res.status, ms: Date.now() - t0, type, buf };
+    } catch (e) {
+      return { ok: false, status: 0, ms: Date.now() - t0, type: "", buf: Buffer.alloc(0), err: String(e?.message ?? e) };
+    } finally { clearTimeout(timer); }
+  };
+  const img = await stable(fetchImage);
+  if (!img.ok) {
+    return [{
+      key: "flow:share-preview:image-down",
+      title: `Card link previews are broken — the preview image fails (HTTP ${img.status || "no response"})`,
+      detail: `${imgUrl} returned ${img.status || "nothing"}${img.type ? ` (${img.type})` : ""}${img.err ? `, error: ${img.err}` : ""} on three tries. Messengers will show a headshot or nothing instead of the card.`,
+      severity: "critical",
+    }];
+  }
+  const width = imageWidth(img.buf);
+  if (img.buf.length < PREVIEW_MIN_BYTES || width < 1000) {
+    return [{
+      key: "flow:share-preview:degraded",
+      title: `Card link preview is degraded — ${img.buf.length} bytes, ${width}px wide`,
+      detail: `${imgUrl} answered ${img.status} ${img.type} but the image is too small to be the card (expect 1200px wide, 40KB+). The fallback tier is serving, not the real card.`,
+      severity: "critical",
+    }];
+  }
+  // Timing: a cold render is allowed once; two slow fetches in a row is a problem.
+  if (img.ms > PREVIEW_BUDGET_MS) {
+    const again = await fetchImage();
+    if (again.ms > PREVIEW_BUDGET_MS) {
+      return [{
+        key: "flow:share-preview:slow",
+        title: `Card link preview is too slow (${img.ms}ms, then ${again.ms}ms)`,
+        detail: `${imgUrl} took over ${PREVIEW_BUDGET_MS}ms twice. iMessage gives up on a slow og:image and shows the page's biggest picture — the headshot — instead of the card.`,
+        severity: "warn",
+      }];
+    }
+  }
+  return [];
+}
+
 export async function finnFlowCheck() {
   const findings = [];
   for (const f of FLOWS) {
@@ -86,6 +171,7 @@ export async function finnFlowCheck() {
       });
     }
   }
+  findings.push(...await sharePreviewCheck());
   return findings;
 }
 

@@ -26,6 +26,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
+import { warmSharePreview } from "@/lib/share-preview";
 
 // Pinned to the SwiftCard domain, NOT window.location.origin — same reason
 // LoginForm pins it. On a Vercel preview host, origin would hand the recipient
@@ -107,6 +108,7 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
     setOpen(false);
     if (!cardOwner) return;
     const url = `${APP_URL}/${cardOwner}?shared=1`;
+    warmSharePreview(url);
 
     // Native shell: WKWebView often lacks navigator.share.
     if (detectNativeApp()) {
