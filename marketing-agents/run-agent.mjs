@@ -11,7 +11,7 @@
 // queue tables. There is no code path that can post, DM, or comment anywhere.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
+import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage } from "./lib/agentkit.mjs";
 
 const agentId = process.argv[2];
 if (!agentId) { console.error("usage: run-agent.mjs <agent_id>"); process.exit(2); }
@@ -71,12 +71,30 @@ item_type and the field meanings are defined in the instructions above. dedupe_k
 
   await run.checkpoint();
   const t0 = Date.now();
-  const stdout = execFileSync("claude", [
-    "-p", prompt,
-    "--output-format", "json",
-    "--allowedTools", "WebSearch,WebFetch",
-    "--max-turns", "40",
-  ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, timeout: 25 * 60 * 1000 });
+  // The CLI exits non-zero when the shared Claude-plan session window is used
+  // up, and execFileSync turns that into a throw — which safeMain recorded as
+  // FAILED. So a routine "come back after the window resets" showed up as a red
+  // Problem badge, indistinguishable from a real breakage: on 2026-09-01/02 six
+  // of Maya's seven agents were red for exactly this reason and nothing was
+  // actually wrong with them. standDownIfUsageExhausted only checks BEFORE the
+  // call, and the window can close mid-flight (or read under 99% while the
+  // session is already blocked), so the honest signal is the CLI's own reply.
+  let stdout;
+  try {
+    stdout = execFileSync("claude", [
+      "-p", prompt,
+      "--output-format", "json",
+      "--allowedTools", "WebSearch,WebFetch",
+      "--max-turns", "40",
+    ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, timeout: 25 * 60 * 1000 });
+  } catch (e) {
+    const out = String(e?.stdout ?? "");
+    const limit = out.match(/(You've hit your (?:session|usage) limit[^"\\]*)/i)?.[1]
+      ?? (/(session|usage) limit|rate.?limit|429/i.test(out) ? "the Claude plan's session window is used up" : null);
+    if (!limit) throw e;
+    await standDownForUsage(run, limit);
+  }
+  if (stdout === undefined) return; // stood down above
 
   const { text, costUsd, tokens } = parseClaudeJson(stdout);
   run.addUsage(costUsd, tokens);

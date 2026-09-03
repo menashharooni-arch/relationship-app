@@ -169,6 +169,11 @@ export async function boBugCheck() {
   const token = process.env.VERCEL_TOKEN;
   const projectId = process.env.VERCEL_PROJECT_ID;
   const teamId = process.env.VERCEL_TEAM_ID;
+  // A blind watchdog must SAY it is blind. Returning [] here read as "all
+  // clear" for Bo's entire existence — he has never once run — and the board
+  // showed him on watch the whole time. Never let a missing credential look
+  // like good news; see BLINDNESS_CHECKS below, which turns this into a
+  // standing report instead of silence.
   if (!token || !projectId) return [];
 
   const since = Date.now() - 15 * 60 * 1000;
@@ -208,3 +213,44 @@ export const DETECTORS = {
   security: veraSecurityCheck,
   bugwatch: boBugCheck,
 };
+
+// ── "Can this watchdog actually see?" ────────────────────────────────────────
+//
+// The bug this exists to prevent, stated plainly: Bo was configured, Active,
+// and shown as on watch — while missing the credential his eyes need, so he
+// silently reported nothing forever and looked identical to a healthy watchdog
+// with nothing to report. Anyone reading the board would conclude the app was
+// being watched for crashes. It wasn't.
+//
+// So blindness is now a FINDING, reported to the owner like any other problem,
+// with the exact fix in the text. A watchdog that cannot see says so, once,
+// and keeps saying so until it can. Add an entry here for every future
+// credential any watchdog depends on — that is the guard against repeating it.
+const BLINDNESS_CHECKS = {
+  bugwatch: () => {
+    const missing = ["VERCEL_TOKEN", "VERCEL_PROJECT_ID"].filter((v) => !process.env[v]);
+    if (!missing.length) return null;
+    return {
+      key: `blind:bugwatch:${missing.join("+")}`,
+      title: `Bo cannot see crashes — missing ${missing.join(" and ")}`,
+      detail:
+        `Bo watches real user-facing errors through Vercel's runtime-error API, and ${missing.join(" and ")} ` +
+        `${missing.length > 1 ? "are" : "is"} not set as a repo secret, so he has nothing to read and reports nothing. ` +
+        `This is a CONFIGURATION gap, not a healthy silence — until it is fixed, nobody is watching for crashes. ` +
+        `Fix: create a Vercel token at vercel.com/account/tokens, then ` +
+        `gh secret set VERCEL_TOKEN. VERCEL_PROJECT_ID and VERCEL_TEAM_ID come from .vercel/project.json.`,
+      severity: "warn",
+    };
+  },
+};
+
+/**
+ * Findings that describe the WATCH ITSELF being broken, per agent.
+ * Runs alongside the real probes on every tick; deduped like any finding, so it
+ * reports once and closes itself the moment the credential appears.
+ */
+export function blindnessFindings(agentId) {
+  const check = BLINDNESS_CHECKS[agentId];
+  const f = check?.();
+  return f ? [f] : [];
+}
