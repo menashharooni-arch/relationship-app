@@ -548,6 +548,17 @@ body {
   animation: rd-glisten-sweep 4.2s ease-in-out infinite; }
 @keyframes rd-glisten-sweep { 0% { left: -70%; } 55%, 100% { left: 130%; } }
 
+/* App Store badge shine — one specular band sweeping across the pill.
+   Narrower and brighter than rd-ll-shine because the badge is small and dark:
+   the same 25% white that reads as a soft gloss on a big tile is invisible at
+   this size. The long rest (the sweep finishes at 40% and the rest of the cycle
+   is still) keeps a persistent nav badge from strobing in the corner of the
+   eye — it should catch the light every few seconds, not pulse. */
+.rd-appstore-shine { position: absolute; top: -30%; bottom: -30%; left: 0; width: 38%; pointer-events: none; z-index: 2;
+  background: linear-gradient(105deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.42) 50%, rgba(255,255,255,0) 100%);
+  animation: rd-appstore-shine 4.6s ease-in-out infinite; }
+@keyframes rd-appstore-shine { 0% { transform: translateX(-180%) skewX(-18deg); } 40%,100% { transform: translateX(360%) skewX(-18deg); } }
+
 /* SwiftLink featured-tile shine — mirrors the live SwiftLinkButtons sweep */
 .rd-ll-shine { position: absolute; top: -10%; bottom: -10%; left: 0; width: 45%; pointer-events: none; z-index: 5;
   background: linear-gradient(105deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.25) 50%, rgba(255,255,255,0) 100%);
@@ -723,6 +734,7 @@ body {
   .rd-aurora-anim, .rd-btn-aurora:hover, .rd-drift-a, .rd-drift-b, .rd-marquee-track { animation: none !important; }
   .rd-steps-line::after { animation: none !important; opacity: 0 !important; }
   .rd-ll-shine, .rd-claim-glare { animation: none !important; opacity: 0 !important; }
+  .rd-appstore-shine { animation: none !important; opacity: 0 !important; }
   .rd-glisten-sweep { animation: none !important; opacity: 0 !important; }
 }
 

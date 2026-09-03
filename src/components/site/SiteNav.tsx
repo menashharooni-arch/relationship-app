@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import AppStoreBadge, { AppStoreBadgeCompact } from "@/components/AppStoreBadge";
 import { trackCta } from "@/lib/events";
 import { useIsNativeApp } from "@/lib/platform";
 import { resetGuestFlow } from "@/lib/guest-reset";
@@ -154,7 +155,10 @@ export default function SiteNav() {
         {/* px-4 on the smallest phones (320px): the logo + Get started + menu
             trigger together need every pixel, and px-5 pushed the trigger off
             the right edge. */}
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        {/* gap-2 below sm: with the App Store square now in the mobile cluster,
+            the 16px minimum gap was the last few pixels between a 375px phone
+            fitting and the menu trigger clipping. Desktop keeps gap-4. */}
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <SwiftCardIcon size={30} />
             <span className="text-white font-bold text-[15px] sm:text-[17px] tracking-tight">SwiftCard</span>
@@ -182,6 +186,13 @@ export default function SiteNav() {
           </div>
 
           <div className="hidden lg:flex items-center gap-2.5 shrink-0">
+            {/* Download badge leads the right-hand cluster (owner request
+                2026-09-03). Ahead of Log in, behind Get started free: the app
+                is a real destination for someone who already knows what
+                SwiftCard is, but signing up is still the primary action and
+                keeps the last, strongest slot. Glass tone because the bar is
+                dark; `sm` so it sits inside the 64px bar without crowding. */}
+            <AppStoreBadge tone="glass" size="sm" />
             <Link href="/login" className="px-3.5 py-2 text-[14px] font-medium text-white/75 hover:text-white transition-colors">Log in</Link>
             <Link href="/cards/new" className="rd-btn rd-btn-primary text-[14px] px-4 py-2">Get started free</Link>
           </div>
@@ -190,6 +201,15 @@ export default function SiteNav() {
               the old sticky bottom bar — the action stays reachable on every
               scroll position without covering the page content. */}
           <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden">
+            {/* Icon-only, from 390px up. All three numbers below are measured,
+                not estimated: a badge carrying words is 85px wide and overflows
+                the bar at every phone width up to 430px, so it is a 32px square.
+                Even so, 375px (iPhone SE / mini) leaves 2px of slack — that is
+                a clipped menu trigger one font-metric away, not a clean fit — so
+                the cutoff is 390px, where there are 13px to spare. Below that
+                the square drops out and the full badge in the sheet, plus the
+                one in the hero, carry it. */}
+            <AppStoreBadgeCompact className="hidden min-[390px]:inline-flex" />
             <Link
               href="/cards/new"
               onClick={() => trackCta("create_your_card", "mobile_nav")}
@@ -298,7 +318,15 @@ export default function SiteNav() {
               <Link href="/privacy" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Privacy</Link>
               <Link href="/contact" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-[15px] font-medium text-white/85 hover:bg-white/[0.06]">Contact</Link>
             </div>
-            <div className="mt-5 grid shrink-0 grid-cols-2 gap-2.5">
+            {/* Full badge, above the two buttons: the bar's compact version is
+                deliberately terse, so this is where the real wording lives on a
+                phone. Inside the scrolling region would bury it under the
+                Explore accordion — it sits with the buttons, which never
+                scroll. */}
+            <div className="mt-5 shrink-0">
+              <AppStoreBadge tone="glass" size="md" className="w-full justify-center" />
+            </div>
+            <div className="mt-2.5 grid shrink-0 grid-cols-2 gap-2.5">
               <Link href="/login" onClick={() => setOpen(false)} className="rd-btn rd-btn-ghost-d w-full">Log in</Link>
               <Link href="/cards/new" onClick={() => setOpen(false)} className="rd-btn rd-btn-primary w-full">Get started</Link>
             </div>
