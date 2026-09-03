@@ -79,9 +79,10 @@ describe("a recorded view is a real visit", () => {
 
   it("takes location from the edge headers, never from the client", () => {
     // A client-supplied location would let anyone write any city into someone
-    // else's analytics. requestLocation reads ONLY this request's own Vercel
-    // geo headers (see lib/request-geo.ts, which has its own tests).
-    expect(route).toMatch(/requestLocation\(req\)/);
+    // else's analytics. resolveLocation reads ONLY this request's own Vercel
+    // geo headers plus a lookup of ITS OWN IP (see lib/request-geo.ts, which
+    // has its own tests).
+    expect(route).toMatch(/resolveLocation\(req, ip\)/);
     const geo = read("src/lib/request-geo.ts");
     expect(geo).toMatch(/x-vercel-ip-city/);
     expect(geo).toMatch(/x-vercel-ip-country/);

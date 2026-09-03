@@ -74,7 +74,7 @@ describe("one visit → one event → one notification", () => {
 
 describe("the notification carries the right context", () => {
   it("stores this request's own location on the event (with a column-missing fallback)", () => {
-    expect(route).toMatch(/requestLocation\(req\)/);
+    expect(route).toMatch(/resolveLocation\(req, ip\)/);
     expect(route).toMatch(/withoutLocation/);
   });
 

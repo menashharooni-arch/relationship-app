@@ -10,7 +10,7 @@ import { isSelfTraffic, resolveOwnerId } from "@/lib/self-traffic";
 import { authoritativeEventIdentity, resolveSessionViewer } from "@/lib/viewer-identity";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
-import { requestLocation } from "@/lib/request-geo";
+import { resolveLocation } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
 
@@ -149,11 +149,12 @@ export async function POST(req: NextRequest) {
       visitor_phone,
     });
 
-    // WHERE from: this request's own edge geo headers — never cached, never
-    // client-supplied (request-geo.ts). Stored on the event so the
-    // notification, the contact timeline, and the dashboard all read the same
-    // value; missing data stays null, never a placeholder.
-    const location = requestLocation(req);
+    // WHERE from: this request's own edge geo headers, cross-checked against a
+    // second IP database — never client-supplied (request-geo.ts). Stored on
+    // the event so the notification, the contact timeline, and the dashboard
+    // all read the same value; missing data stays null, never a placeholder.
+    // Same IP as the recordView call above, so this is a cache hit.
+    const location = await resolveLocation(req, ip);
 
     const row = {
       card_owner_username,

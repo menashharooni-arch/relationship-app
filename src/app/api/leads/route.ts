@@ -22,7 +22,7 @@ import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
-import { requestLocation } from "@/lib/request-geo";
+import { resolveLocation } from "@/lib/request-geo";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -86,8 +86,10 @@ export async function POST(req: NextRequest) {
     // This request's own edge geo headers — shared helper (request-geo.ts):
     // guarded decode (a malformed x-vercel-ip-city used to throw here, and the
     // outer catch turned one bad header into a 500 that LOST THE LEAD), keeps
-    // a city even when the country header is missing, honest null otherwise.
-    const location = requestLocation(req);
+    // a city even when the country header is missing, honest null otherwise —
+    // and cross-checked against a second IP database, so two sources that
+    // disagree on the town report the state they share instead.
+    const location = await resolveLocation(req, ip);
 
     const admin = getAdminSupabase();
 

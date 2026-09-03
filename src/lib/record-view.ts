@@ -5,7 +5,7 @@ import { checkViewMilestone } from "@/lib/milestones";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
-import { requestLocation } from "@/lib/request-geo";
+import { resolveLocation } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 
 export type RecordViewOutcome = "recorded" | "deduped" | "self" | "inactive" | "error";
@@ -44,7 +44,12 @@ export async function recordView(opts: {
   // never IP-based (see self-traffic.ts).
   if (await isOwnerRequest(getAdminSupabase(), username)) return { outcome: "self", location: null };
 
-  const location = requestLocation(req);
+  // Edge geo cross-checked against a second IP database (request-geo.ts):
+  // two sources that name the same town are believed, two that disagree are
+  // reported at the state they share. Looked up on every attempt (a deduped
+  // reload hits the per-IP cache) so the value returned is always the one a
+  // recorded row would carry.
+  const location = await resolveLocation(req, ip);
   const supabase = getAdminSupabase();
 
   // Dedupe within ONE VISIT (see view-window.ts): a reload, double-fire, or
