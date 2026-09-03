@@ -35,6 +35,26 @@ export type RcDecision =
   | { action: "revoke" }
   | { action: "ignore" };
 
+// ── Sandbox purchases must not grant production Pro ─────────────────────────
+//
+// A sandbox Apple ID can "buy" the subscription for $0 on the production build
+// (that's exactly how App Review tests it), and RevenueCat forwards those
+// events to the same webhook with environment=SANDBOX. Left unchecked, anyone
+// with a sandbox tester account gets real Pro for free. So sandbox events are
+// honoured ONLY for the accounts App Review and our own purchase testing sign
+// in with — the reviewer's purchase still unlocks Pro in front of them, and
+// nobody else's does.
+const SANDBOX_GRANT_EMAILS = new Set([
+  "applereview@swiftcard.me",
+  "applereview-free@swiftcard.me",
+  "iap-test@swiftcard.me",
+]);
+
+/** Whether a SANDBOX-environment event may affect this account's plan. */
+export function sandboxEventAllowed(email: string | null | undefined): boolean {
+  return !!email && SANDBOX_GRANT_EMAILS.has(email.trim().toLowerCase());
+}
+
 /**
  * What a RevenueCat webhook event should do to the profile.
  *

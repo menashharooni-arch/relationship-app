@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRcEvent, stripeDowngradeAllowed } from "@/lib/iap-entitlement";
+import { decideRcEvent, sandboxEventAllowed, stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -133,5 +133,30 @@ describe("paywall compliance pins (App Review 3.1.2)", () => {
   });
   it("does not steer to the website from the paywall", () => {
     expect(s).not.toMatch(/swiftcard\.me/);
+  });
+});
+
+describe("sandbox purchases never grant production Pro (except review/test accounts)", () => {
+  it("allows only the designated review/test accounts, case-insensitively", () => {
+    expect(sandboxEventAllowed("applereview@swiftcard.me")).toBe(true);
+    expect(sandboxEventAllowed("applereview-free@swiftcard.me")).toBe(true);
+    expect(sandboxEventAllowed("iap-test@swiftcard.me")).toBe(true);
+    expect(sandboxEventAllowed(" AppleReview@SwiftCard.me ")).toBe(true);
+    expect(sandboxEventAllowed("anyone@example.com")).toBe(false);
+    expect(sandboxEventAllowed("")).toBe(false);
+    expect(sandboxEventAllowed(null)).toBe(false);
+    expect(sandboxEventAllowed(undefined)).toBe(false);
+  });
+  it("the webhook gates SANDBOX events through sandboxEventAllowed before any plan change", () => {
+    const s = read("src/app/api/iap/revenuecat/route.ts");
+    expect(s).toContain('"SANDBOX"');
+    expect(s).toContain("sandboxEventAllowed");
+    expect(s.indexOf("sandboxEventAllowed(") ).toBeLessThan(s.indexOf("decideRcEvent("));
+  });
+  it("the instant-sync route checks is_sandbox on the backing subscription", () => {
+    const s = read("src/app/api/iap/sync/route.ts");
+    expect(s).toContain("is_sandbox");
+    expect(s).toContain("sandboxEventAllowed");
+    expect(s.indexOf("is_sandbox")).toBeLessThan(s.indexOf("appleGrantPatch(customization)"));
   });
 });

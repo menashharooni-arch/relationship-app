@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isOfficePlan } from "@/lib/plan";
-import { appleGrantPatch } from "@/lib/iap-entitlement";
+import { appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { IAP_ENTITLEMENT } from "@/lib/iap-shared";
@@ -34,6 +34,12 @@ export async function POST() {
     const d = await r.json();
     const ent = d?.subscriber?.entitlements?.[IAP_ENTITLEMENT];
     active = !!ent && (!ent.expires_date || new Date(ent.expires_date).getTime() > Date.now());
+    // Same sandbox rule as the webhook: a $0 sandbox purchase (sandbox Apple ID
+    // on the production build) unlocks Pro only for the review/test accounts.
+    const backing = ent && d?.subscriber?.subscriptions?.[ent.product_identifier];
+    if (active && backing?.is_sandbox && !sandboxEventAllowed(user.email)) {
+      return NextResponse.json({ ok: true, skipped: "sandbox_not_allowed" });
+    }
   } catch {
     return NextResponse.json({ ok: true, skipped: "rc_unreachable" });
   }
