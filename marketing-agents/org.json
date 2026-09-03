@@ -1,20 +1,145 @@
 {
-  "_comment": "The company org chart. Every party that can appear in agent_messages lives here: the owner, the chief, the two team leads, and each runnable agent (keyed by its agent_settings agent_id). 'reports_to' draws the org chart and routes escalations — a worker's messages go to its lead, a lead escalates to atlas, atlas talks to the owner. Leads are message parties + chart nodes, not runnable agents.",
-  "parties": {
-    "owner": { "name": "Menash", "role": "Owner", "emoji": "👑", "color": "#f59e0b", "kind": "human" },
-    "atlas": { "name": "Atlas", "role": "Chief of Staff", "emoji": "🧠", "color": "#38bdf8", "kind": "chief", "reports_to": "owner", "agent_id": "manager" },
-    "maya": { "name": "Maya", "role": "Marketing Lead", "emoji": "📣", "color": "#a78bfa", "kind": "lead", "reports_to": "atlas" },
-    "rex": { "name": "Rex", "role": "Engineering Lead", "emoji": "🛠️", "color": "#34d399", "kind": "lead", "reports_to": "atlas" },
-    "jake": { "name": "Jake", "role": "SEO", "emoji": "🔎", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "seo" },
-    "nora": { "name": "Nora", "role": "Blog Writer", "emoji": "✍️", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "blog" },
-    "milo": { "name": "Milo", "role": "Social Content", "emoji": "🎬", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "social" },
-    "ava": { "name": "Ava", "role": "Outreach", "emoji": "🤝", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "outreach" },
-    "leo": { "name": "Leo", "role": "Prospect Scout", "emoji": "🧭", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "prospects" },
-    "zoe": { "name": "Zoe", "role": "Mentions", "emoji": "📡", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "mentions" },
-    "ivy": { "name": "Ivy", "role": "Influencer Scout", "emoji": "🌟", "color": "#a78bfa", "kind": "worker", "reports_to": "maya", "agent_id": "influencer" },
-    "finn": { "name": "Finn", "role": "Flow Check", "emoji": "🧪", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "flowcheck" },
-    "bo": { "name": "Bo", "role": "Bug Watch", "emoji": "🐛", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "bugwatch" },
-    "vera": { "name": "Vera", "role": "Security Watch", "emoji": "🛡️", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "security" },
-    "dash": { "name": "Dash", "role": "Performance", "emoji": "⚡", "color": "#34d399", "kind": "worker", "reports_to": "rex", "agent_id": "perf" }
+ "_comment": "The company org chart. Every party that can appear in agent_messages lives here: the owner, the chief, the two team leads, and each runnable agent (keyed by its agent_settings agent_id). 'reports_to' draws the org chart and routes escalations \u2014 a worker's messages go to its lead, a lead escalates to atlas, atlas talks to the owner. Leads are message parties + chart nodes, not runnable agents.",
+ "parties": {
+  "owner": {
+   "name": "Menash",
+   "role": "Owner",
+   "emoji": "\ud83d\udc51",
+   "color": "#f59e0b",
+   "kind": "human"
+  },
+  "atlas": {
+   "name": "Atlas",
+   "role": "Chief of Staff",
+   "emoji": "\ud83e\udde0",
+   "color": "#38bdf8",
+   "kind": "chief",
+   "reports_to": "owner",
+   "agent_id": "manager"
+  },
+  "maya": {
+   "name": "Maya",
+   "role": "Marketing Lead",
+   "emoji": "\ud83d\udce3",
+   "color": "#a78bfa",
+   "kind": "lead",
+   "reports_to": "atlas"
+  },
+  "rex": {
+   "name": "Rex",
+   "role": "Engineering Lead",
+   "emoji": "\ud83d\udee0\ufe0f",
+   "color": "#34d399",
+   "kind": "lead",
+   "reports_to": "atlas"
+  },
+  "jake": {
+   "name": "Jake",
+   "role": "SEO",
+   "emoji": "\ud83d\udd0e",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "seo"
+  },
+  "nora": {
+   "name": "Nora",
+   "role": "Blog Writer",
+   "emoji": "\u270d\ufe0f",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "blog"
+  },
+  "milo": {
+   "name": "Milo",
+   "role": "Social Content",
+   "emoji": "\ud83c\udfac",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "social"
+  },
+  "ava": {
+   "name": "Ava",
+   "role": "Outreach",
+   "emoji": "\ud83e\udd1d",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "outreach"
+  },
+  "leo": {
+   "name": "Leo",
+   "role": "Prospect Scout",
+   "emoji": "\ud83e\udded",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "prospects"
+  },
+  "zoe": {
+   "name": "Zoe",
+   "role": "Mentions",
+   "emoji": "\ud83d\udce1",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "mentions"
+  },
+  "ivy": {
+   "name": "Ivy",
+   "role": "Influencer Scout",
+   "emoji": "\ud83c\udf1f",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "influencer"
+  },
+  "finn": {
+   "name": "Finn",
+   "role": "Flow Check",
+   "emoji": "\ud83e\uddea",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "flowcheck"
+  },
+  "bo": {
+   "name": "Bo",
+   "role": "Bug Watch",
+   "emoji": "\ud83d\udc1b",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "bugwatch"
+  },
+  "vera": {
+   "name": "Vera",
+   "role": "Security Watch",
+   "emoji": "\ud83d\udee1\ufe0f",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "security"
+  },
+  "dash": {
+   "name": "Dash",
+   "role": "Performance",
+   "emoji": "\u26a1",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "perf"
+  },
+  "addy": {
+   "name": "Addy",
+   "role": "Paid Ads",
+   "emoji": "\ud83d\udcc8",
+   "color": "#a78bfa",
+   "kind": "worker",
+   "reports_to": "maya",
+   "agent_id": "ads"
   }
+ }
 }

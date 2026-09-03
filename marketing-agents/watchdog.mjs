@@ -26,6 +26,7 @@ import { readFileSync } from "node:fs";
 import { sb, say } from "./lib/agentkit.mjs";
 import { DETECTORS, blindnessFindings } from "./lib/detectors.mjs";
 import { isDue } from "./lib/schedule.mjs";
+import { pollMediaPool } from "./lib/media-pool.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
@@ -137,6 +138,14 @@ async function tick() {
   }
 
   await dispatchScheduled();
+
+  // Resolve submitted creative jobs into the shared pool. Nothing else in the
+  // system has a reliable clock, and a generation job that is never polled is
+  // an asset that never exists — that is why Milo's videos went nowhere.
+  const media = await pollMediaPool().catch(() => null);
+  if (media && (media.ready || media.failed)) {
+    console.log(`${stamp()} media pool: ${media.ready} ready, ${media.failed} failed, ${media.stillPending} pending`);
+  }
   return "continue";
 }
 

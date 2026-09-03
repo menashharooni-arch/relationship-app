@@ -10,6 +10,8 @@
 //   • One item executes at most once: the caller only passes status=pending
 //     items, and marks them 'posted' the moment execution succeeds.
 
+import { getAdminSupabase } from "@/lib/supabase-admin";
+
 export type QueueItemLite = {
   id: string;
   agent_id: string;
@@ -79,7 +81,10 @@ const higgsfield: Connector = {
   id: "higgsfield",
   label: "Send to Higgsfield",
   ready: () => !!(process.env.HIGGSFIELD_API_KEY_ID && process.env.HIGGSFIELD_API_KEY_SECRET),
-  matches: (it) => it.item_type === "video_script" && it.platform !== "linkedin",
+  // Video AND image. Milo's scripts carry a HIGGSFIELD PROMPT for motion;
+  // "image_brief" items are the still-image path (ad creative, post graphics),
+  // which the owner asked for alongside video.
+  matches: (it) => (it.item_type === "video_script" || it.item_type === "image_brief") && it.platform !== "linkedin",
   run: async (it) => {
     const prompt = (it.content ?? "").trim();
     if (!prompt) return { executed: false, connector: "higgsfield", reason: "empty script" };
@@ -94,11 +99,36 @@ const higgsfield: Connector = {
     });
     if (!res.ok) return { executed: false, connector: "higgsfield", reason: `Higgsfield API ${res.status}: ${(await res.text()).slice(0, 180)}` };
     const j = (await res.json().catch(() => ({}))) as { request_id?: string; status_url?: string };
+
+    // Record it in the SHARED POOL, not just this item's payload. Before this,
+    // the job id went into the payload and nothing ever polled it — the finished
+    // media URL was never captured anywhere, so Milo's videos were generated
+    // into the void and paid ads had no asset to attach. The watchdog loop polls
+    // media_assets every 60s and fills in the URL; both Milo (organic) and Addy
+    // (paid) then draw from the same rendered asset instead of each paying to
+    // render the same concept twice.
+    const kind = it.item_type === "image_brief" ? "image" : "video";
+    try {
+      await getAdminSupabase().from("media_assets").insert({
+        kind,
+        prompt: prompt.slice(0, 4000),
+        provider: "higgsfield",
+        provider_job: j.request_id ?? null,
+        status_url: j.status_url ?? null,
+        source_item: it.id,
+        source_agent: it.agent_id,
+        concept: it.title?.slice(0, 200) ?? null,
+      });
+    } catch {
+      /* pool insert is best-effort — the generation was still submitted, and a
+         missing row must not report the submission as failed */
+    }
+
     return {
       executed: true, connector: "higgsfield",
-      detail: `Generation job submitted${j.request_id ? ` (${j.request_id})` : ""}`,
+      detail: `${kind === "image" ? "Image" : "Video"} generation submitted${j.request_id ? ` (${j.request_id})` : ""} — it lands in the shared creative pool when it finishes`,
       url: j.status_url,
-      payloadPatch: { higgsfield_request_id: j.request_id ?? null, higgsfield_status_url: j.status_url ?? null },
+      payloadPatch: { higgsfield_request_id: j.request_id ?? null, higgsfield_status_url: j.status_url ?? null, media_kind: kind },
     };
   },
 };

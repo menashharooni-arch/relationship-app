@@ -33,6 +33,22 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: node marketing-agents/agent-seo.mjs
+      # Jake has TWO jobs. The audit above is deterministic and free (no LLM), so
+      # it must keep running even when the Claude plan's window is used up —
+      # that is why page-writing is a separate step through the LLM runner
+      # rather than folded into agent-seo.mjs. `continue-on-error` keeps a
+      # stood-down writer from failing the audit that already succeeded.
+      - name: Write one SEO landing page
+        continue-on-error: true
+        env:
+          AGENT_TRIGGER: ${{ github.event.inputs.trigger || 'manual' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          AGENT_RELAY_SECRET: ${{ secrets.AGENT_RELAY_SECRET }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: node marketing-agents/run-agent.mjs seo
+
       - name: Hand findings to the Fixer (draft-PR pipeline)
         if: steps.run.outputs.findings != '' && steps.run.outputs.findings != '0' && steps.run.outputs.item_id != ''
         env:
