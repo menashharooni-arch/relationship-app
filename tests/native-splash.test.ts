@@ -34,8 +34,10 @@ describe("native splash", () => {
     // markup WITHOUT executing its inline scripts, so the guard never ran and
     // the lightning replayed mid-session (2026-09-03). The shell's fetch()
     // did not carry Sec-Fetch-Site, so that check alone was not enough.
-    // 1. Server: the router's own headers mark the request, browser aside.
-    expect(component).toMatch(/h\.get\("rsc"\) === "1" \|\| h\.get\("next-router-prefetch"\) === "1"\) return null/);
+    // 1. The server CANNOT gate this: Next strips `rsc`, `next-router-prefetch`
+    //    and `next-url` before headers() sees them (verified 2026-09-03 —
+    //    a gate on them was dead code). Don't reintroduce one.
+    expect(component).not.toMatch(/h\.get\("rsc"\)|h\.get\("next-router-prefetch"\)|h\.get\("next-url"\)/);
     // 2. Client: hidden unless the parse-time guard armed it, so no delivery
     //    path that skips the script can ever show the overlay.
     expect(markup).toMatch(/d\.classList\.add\("sc-splash-armed"\);d\.classList\.add\("sc-splash-hold"\)/);
