@@ -119,9 +119,13 @@ describe("agent flow: schema and config integrity", () => {
   });
 
   it("schedules support the owner's ET times, DST-correct", () => {
-    const sched = read("marketing-agents/scheduler.mjs");
-    expect(sched).toMatch(/daily@\(\\d\{1,2\}\):\(\\d\{2\}\)/);
+    // Parsing moved to lib/schedule.mjs when Atlas gained a second daily slot —
+    // it is now shared by BOTH dispatchers so they cannot disagree.
+    const sched = read("marketing-agents/lib/schedule.mjs");
+    expect(sched).toMatch(/daily@/);
     expect(sched).toMatch(/America\/New_York/);
+    // Multi-time support is what makes "noon and 5pm" expressible at all.
+    expect(sched).toMatch(/split\(","\)/);
   });
 
   it("the system is inert by default — via the master pause, not empty schedules", () => {
@@ -358,7 +362,8 @@ describe("default rhythms — no schedule-less agents", () => {
       // The four watchdogs have no rhythm by owner order (2026-09-03) — they
       // watch continuously. Everyone else must carry one.
       if (a.continuous) { expect(a.default_schedule, `${id} is a watchdog — no cadence`).toBeUndefined(); continue; }
-      expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2})$/);
+      // daily@ accepts a comma-separated list of times (Atlas: noon + 5pm ET).
+      expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/);
     }
   });
 
@@ -546,5 +551,69 @@ describe("watchdogs report their own blindness", () => {
     expect(kit).toMatch(/export async function standDownForUsage/);
     // Recorded as capacity, never as a breakage.
     expect(kit).toMatch(/run\.finish\("skipped_usage"/);
+  });
+});
+
+// ── Atlas files exactly two reports a day ────────────────────────────────────
+// Owner order 2026-09-03: midday at 12:00 ET and end-of-day at 17:00 ET, to
+// hello@swiftcard.me, and NO other times. He previously had a single 17:30
+// digest riding the GitHub cron that fires every 2.5-5h — so the report could
+// be skipped outright. These pin both the times and the catch-up dispatch that
+// makes them actually arrive.
+describe("Atlas: midday + end-of-day reports, reliably", () => {
+  const cfg = JSON.parse(read("marketing-agents/config.json"));
+  const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+
+  it("his cadence is exactly 12:00 and 17:00 ET — no third time, no 17:30", () => {
+    expect(cfg.agents.manager.default_schedule).toBe("daily@12:00,17:00");
+    expect(client).toContain('manager: "daily@12:00,17:00"');
+  });
+
+  it("the schedule parser yields precisely those two slots", async () => {
+    const s = await import("../marketing-agents/lib/schedule.mjs");
+    expect(s.dueTimesToday("daily@12:00,17:00")).toEqual([720, 1020]);
+    // Single times and every@Nh still parse — other agents depend on them.
+    expect(s.dueTimesToday("daily@07:30")).toEqual([450]);
+    expect(s.dueTimesToday("every@8h")).toEqual([0, 480, 960]);
+    expect(s.dueTimesToday("")).toEqual([]);
+    expect(s.dueTimesToday("nonsense")).toEqual([]);
+  });
+
+  it("dispatch is CATCH-UP, not a fragile window: late runs, never skips", async () => {
+    const s = await import("../marketing-agents/lib/schedule.mjs");
+    const S = "daily@12:00,17:00";
+    // ET is UTC-4 in September, so ET hour h == UTC hour h+4.
+    const et = (h: number, m: number) => new Date(Date.UTC(2026, 8, 3, h + 4, m));
+    expect(s.isDue(S, null, et(11, 59))).toBe(false);        // not due yet
+    expect(s.isDue(S, null, et(12, 1))).toBe(true);          // due
+    expect(s.isDue(S, null, et(12, 40))).toBe(true);         // dispatcher was late → still runs
+    expect(s.isDue(S, et(12, 2).toISOString(), et(12, 5))).toBe(false);  // already ran
+    expect(s.isDue(S, et(12, 2).toISOString(), et(16, 0))).toBe(false);  // between slots
+    expect(s.isDue(S, et(12, 2).toISOString(), et(17, 3))).toBe(true);   // 2nd report owed
+    expect(s.isDue(S, et(17, 5).toISOString(), et(17, 30))).toBe(false); // both done
+    // A whole day of missed dispatch does not deliver a stale midday report at night.
+    expect(s.isDue(S, null, et(21, 0))).toBe(false);
+  });
+
+  it("the always-on loop is the clock, and the old cron shares its logic", () => {
+    const w = read("marketing-agents/watchdog.mjs");
+    expect(w).toMatch(/async function dispatchScheduled/);
+    expect(w).toMatch(/isDue\(schedule, lastRunAt/);
+    expect(w).toMatch(/continuous\) continue/); // watchdogs excluded from the clock
+    // Both dispatchers ask the same question, so neither double-fires.
+    const sched = read("marketing-agents/scheduler.mjs");
+    expect(sched).toMatch(/import \{ isDue \} from "\.\/lib\/schedule\.mjs"/);
+    expect(sched).toMatch(/isDue\(schedule,/);
+    // The old ±30-minute window logic is gone for good.
+    expect(sched).not.toMatch(/Math\.abs\(Number/);
+  });
+
+  it("each report says which one it is, and still emails the owner", () => {
+    const m = read("marketing-agents/agent-manager.mjs");
+    expect(m).toMatch(/Midday/);
+    expect(m).toMatch(/End of day/);
+    expect(m).toMatch(/await email\(`\$\{slot\} report/);
+    // Exactly one email per run — the digest — unchanged from the email policy.
+    expect((m.match(/await email\(/g) ?? []).length).toBe(1);
   });
 });

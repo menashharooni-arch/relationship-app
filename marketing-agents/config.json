@@ -85,7 +85,7 @@
       "mode": "reporter",
       "workflow": "agent-manager.yml",
       "output_cap": 1,
-      "default_schedule": "daily@17:30"
+      "default_schedule": "daily@12:00,17:00"
     }
   },
   "blog": {

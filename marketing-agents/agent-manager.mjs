@@ -2,6 +2,7 @@
 // Compiles the latest run of every agent + queue counts + month usage + trend
 // numbers into ONE report: a queue item (shown in the tab) and an email.
 import { safeMain, sb, email, fmtTok, DEFAULT_MONTHLY_CAP_TOKENS } from "./lib/agentkit.mjs";
+import { nyHourMinute, etDayStamp } from "./lib/schedule.mjs";
 
 const AGENTS = ["outreach", "prospects", "seo", "blog", "social", "mentions", "influencer", "bugwatch", "security", "perf"];
 
@@ -50,7 +51,14 @@ await safeMain("manager", async (run) => {
   if (silent.length) lines.push("", `Not run in 24h (fine if you didn't trigger them): ${silent.join(", ")}`);
 
   const report = lines.join("\n");
-  await run.addItem({ item_type: "digest", platform: "site", target: "daily digest", title: `Digest ${new Date().toISOString().slice(0, 10)} — ${totalPending} pending, ${fmtTok(monthSpend)} tokens used`, content: report, context: "Compiled from agent_runs + queue + product counts (read-only)." });
-  await email(`Agent Flow digest — ${totalPending} pending${criticalItems?.length ? " · 🔴 CRITICAL" : ""}`, `<pre style="font:13px/1.5 ui-monospace,monospace">${report.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>`);
+  // Atlas files TWO reports a day (owner order 2026-09-03): midday at 12:00 ET
+  // and end-of-day at 17:00 ET. Same compilation, but each says which one it is
+  // — an inbox with two identically-titled "digest" mails is a worse inbox, and
+  // "what changed since lunch" is the actual question the 5pm one answers.
+  const { h } = nyHourMinute();
+  const slot = h < 15 ? "Midday" : "End of day";
+  const stampEt = etDayStamp();
+  await run.addItem({ item_type: "digest", platform: "site", target: `${slot.toLowerCase()} report`, title: `${slot} report ${stampEt} — ${totalPending} pending, ${fmtTok(monthSpend)} tokens used`, content: report, context: "Compiled from agent_runs + queue + product counts (read-only)." });
+  await email(`${slot} report — ${totalPending} pending${criticalItems?.length ? " · 🔴 CRITICAL" : ""}`, `<pre style="font:13px/1.5 ui-monospace,monospace">${report.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>`);
   await run.finish("success", `Digest compiled: ${totalPending} pending, ${fmtTok(monthSpend)} tokens used this month.`);
 });
