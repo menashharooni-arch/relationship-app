@@ -264,6 +264,24 @@ export async function standDownIfUsageExhausted(run) {
   process.exit(0);
 }
 
+/**
+ * Stand down because the Claude plan's window is used up, using the CLI's OWN
+ * message as the reason. The pre-flight check above cannot catch a window that
+ * closes mid-run, and without this the throw became a red "failed" run — which
+ * hid a routine wait behind the same badge a real breakage gets.
+ *
+ * Recorded as `skipped_usage`, exactly like the pre-flight path, so the board
+ * and the digest can tell "waiting for capacity" from "broken".
+ */
+export async function standDownForUsage(run, message) {
+  const worker = partyOf(run.agentId), lead = leadOf(run.agentId);
+  await say(worker, lead === "owner" ? "owner" : lead,
+    `Standing down — ${message}. Nothing is wrong with me; I'll pick this up on my next turn once the plan's window resets.`,
+    { kind: lead === "owner" ? "owner_out" : "a2a", run_id: run.id });
+  await run.finish("skipped_usage", `Stood down without spending: ${message}.`);
+  process.exit(0);
+}
+
 /** Wrap an agent's main. Guarantees the run row never stays 'running' forever. */
 export async function safeMain(agentId, fn) {
   const trigger = process.env.AGENT_TRIGGER || "manual";

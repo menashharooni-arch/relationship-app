@@ -24,7 +24,7 @@
 
 import { readFileSync } from "node:fs";
 import { sb, say } from "./lib/agentkit.mjs";
-import { DETECTORS } from "./lib/detectors.mjs";
+import { DETECTORS, blindnessFindings } from "./lib/detectors.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
@@ -104,7 +104,9 @@ async function tick() {
   for (const agentId of onDuty) {
     let findings;
     try {
-      findings = await DETECTORS[agentId]();
+      // Blindness first: a watchdog missing the credential its eyes need must
+      // report THAT, rather than an all-clear it cannot actually vouch for.
+      findings = [...blindnessFindings(agentId), ...(await DETECTORS[agentId]())];
     } catch (e) {
       console.log(`${stamp()} ${agentId} probe threw: ${String(e?.message ?? e).slice(0, 200)}`);
       continue;

@@ -509,3 +509,42 @@ describe("continuous watchdogs have no schedule", () => {
     expect(route).toMatch(/if \(isContinuous\(id\)\) continue;/);
   });
 });
+
+// ── A blind watchdog must say so ─────────────────────────────────────────────
+// Bo was Active, shown "on watch", and had NEVER run — his detector returned
+// [] because VERCEL_TOKEN was absent, which is indistinguishable from "nothing
+// is wrong". These pins make a missing credential a REPORTED finding, so the
+// board can never again imply a watch that isn't happening.
+describe("watchdogs report their own blindness", () => {
+  it("a missing credential is a finding, not a silent all-clear", async () => {
+    const d = await import("../marketing-agents/lib/detectors.mjs");
+    const before = { ...process.env };
+    delete process.env.VERCEL_TOKEN; delete process.env.VERCEL_PROJECT_ID;
+    const blind = d.blindnessFindings("bugwatch");
+    expect(blind).toHaveLength(1);
+    expect(blind[0].title).toMatch(/cannot see/i);
+    // The fix must be IN the report — a finding you can't act on wastes the alert.
+    expect(blind[0].detail).toMatch(/VERCEL_TOKEN/);
+    expect(blind[0].detail).toMatch(/CONFIGURATION gap/);
+    process.env.VERCEL_TOKEN = "x"; process.env.VERCEL_PROJECT_ID = "y";
+    expect(d.blindnessFindings("bugwatch")).toHaveLength(0);
+    Object.assign(process.env, before);
+  });
+
+  it("the loop checks blindness BEFORE trusting a detector's all-clear", () => {
+    const w = read("marketing-agents/watchdog.mjs");
+    expect(w).toMatch(/blindnessFindings\(agentId\), \.\.\.\(await DETECTORS\[agentId\]\(\)\)/);
+  });
+
+  it("a used-up Claude window stands the agent down instead of failing it red", () => {
+    const r = read("marketing-agents/run-agent.mjs");
+    // The CLI call must be guarded, and a limit reply must not throw.
+    expect(r).toMatch(/catch \(e\)/);
+    expect(r).toMatch(/hit your \(\?:session\|usage\) limit/);
+    expect(r).toMatch(/standDownForUsage\(run, limit\)/);
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    expect(kit).toMatch(/export async function standDownForUsage/);
+    // Recorded as capacity, never as a breakage.
+    expect(kit).toMatch(/run\.finish\("skipped_usage"/);
+  });
+});
