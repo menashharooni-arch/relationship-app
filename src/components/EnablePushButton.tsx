@@ -343,6 +343,25 @@ export default function EnablePushButton({
   }
 
   if (state === "denied") {
+    // iOS remembers a "Don't Allow" forever and the app cannot re-prompt, so
+    // this message is the ONLY way back. Sending an iPhone owner to "browser
+    // settings" — which is what this said, because the whole component was
+    // written for the web first — is a dead end inside the app: there is no
+    // browser UI to open. Name the real path instead.
+    //
+    // Safe to branch on detectNativeApp() at render: "denied" is only reachable
+    // after usePushState's effect has run, so this never renders on the server
+    // or on the hydrating first paint.
+    if (detectNativeApp()) {
+      return (
+        <p className="text-amber-400 text-xs text-center leading-relaxed">
+          Notifications are turned off for SwiftCard. Open the iPhone{" "}
+          <strong>Settings</strong> app → <strong>SwiftCard</strong> →{" "}
+          <strong>Notifications</strong>, switch <strong>Allow Notifications</strong> on,
+          then come back here.
+        </p>
+      );
+    }
     return (
       <p className="text-amber-400 text-xs text-center">
         Notifications are blocked for this site — enable them in your browser settings, then reload.
