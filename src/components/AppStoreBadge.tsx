@@ -17,13 +17,21 @@ import NativeHidden from "@/components/NativeHidden";
 // (homepage, footer) keep shipping zero JS for it. The shine is pure CSS.
 
 type Tone = "black" | "glass";
-type Size = "sm" | "md";
+type Size = "md" | "lg";
 
 const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: string; gap: string; radius: string }> = {
-  // Nav bar: has to sit inside a 64px-tall bar next to a primary CTA without
-  // crowding it, so it is one step down from the hero's.
-  sm: { pad: "px-3 py-1.5", glyph: "w-[17px] h-[17px]", top: "text-[9px]", main: "text-[12.5px]", gap: "gap-2", radius: "rounded-[10px]" },
   md: { pad: "px-3.5 py-2", glyph: "w-[22px] h-[22px]", top: "text-[10px]", main: "text-[14px]", gap: "gap-2.5", radius: "rounded-xl" },
+  // Hero: sits directly beside "See how it works" (.rd-btn + .rd-btn-lg), and
+  // the height is not a guess — that button is padding 1rem + font-size 1rem at
+  // line-height 1 + a 1px border = exactly 50px. This lands on 50 too:
+  // py-2.5 (20) + the two label lines at leading-tight (10×1.25 + 14×1.25 = 30).
+  // Anything else and the two sit a pixel or two off from each other, which is
+  // the kind of thing you cannot unsee once you notice it.
+  // px-3 on phones, px-4 from sm up: this badge sits beside a 186px button in a
+  // hero column that is only 343px wide on a 375px phone, and the wider padding
+  // put the pair 3px from the edge. py-2.5 is untouched by the breakpoint, so
+  // the 50px height — the whole point of this size — holds at every width.
+  lg: { pad: "px-3 sm:px-4 py-2.5", glyph: "w-[22px] h-[22px]", top: "text-[10px]", main: "text-[14px]", gap: "gap-2.5", radius: "rounded-xl" },
 };
 
 // Black on light surfaces, glass on dark ones — matching what the hero and the
@@ -109,35 +117,3 @@ export function GetTheAppCard({ className = "" }: { className?: string }) {
   );
 }
 
-/**
- * Icon-only variant for the mobile nav bar.
- *
- * Measured, not guessed: at 390px the bar has ~222px to the right of the logo,
- * and the primary CTA plus the menu trigger plus their gaps already take 174 of
- * it. A badge carrying any words needs ~85px and blows the row apart — it was
- * built that way first and overflowed at every phone width up to 430px. So this
- * is a 32px square, which is what actually fits.
- *
- * A bare Apple mark can read as "Sign in with Apple", but that ambiguity lives
- * in auth contexts; in a marketing nav beside "Get started" it reads as the iOS
- * app, and an arrow or a second glyph inside 32px only makes it muddy. The
- * disambiguation is the title/aria-label, plus the full "Download on the App
- * Store" wording in the menu sheet one tap away and again in the hero — so the
- * words are never actually lost, only deferred where they cannot fit.
- */
-export function AppStoreBadgeCompact({ className = "" }: { className?: string }) {
-  if (!APP_STORE_URL) return null;
-  return (
-    <a
-      href={APP_STORE_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Download SwiftCard on the App Store"
-      title="Download SwiftCard on the App Store"
-      className={`relative overflow-hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-white/15 bg-white/[0.06] transition-colors hover:bg-white/10 ${className}`}
-    >
-      <AppleGlyph className="w-[15px] h-[15px]" />
-      <span className="rd-appstore-shine" aria-hidden="true" />
-    </a>
-  );
-}
