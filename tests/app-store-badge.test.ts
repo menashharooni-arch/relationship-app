@@ -15,6 +15,7 @@ const BADGE = "src/components/AppStoreBadge.tsx";
 
 // Every consumer, and what each one is for.
 const CONSUMERS: [string, string][] = [
+  ["src/components/site/SiteNav.tsx", "desktop header, left of Log in"],
   ["src/app/page.tsx", "homepage hero, beside \"See how it works\""],
   ["src/components/site/SiteFooter.tsx", "footer"],
   ["src/components/WelcomePlan.tsx", "/welcome — card is live (new signup)"],
@@ -105,9 +106,29 @@ describe("placement", () => {
     expect(read("src/app/page.tsx")).toMatch(/<div className="flex flex-wrap items-center gap-2 sm:gap-3">/);
   });
 
-  // The nav was never asked for and is deliberately left alone.
-  it("the marketing nav carries no App Store badge", () => {
-    expect(read("src/components/site/SiteNav.tsx")).not.toContain("AppStoreBadge");
+  // Owner kept the header badge on desktop (2026-09-03) — but ONLY there. The
+  // mobile bar carries the logo, Get started and the menu trigger inside 375px;
+  // a badge with words needs 85px it does not have, and the icon-only version
+  // that does fit was a compromise nobody asked for. Phones get the hero badge.
+  it("nav: the badge is in the desktop cluster and nowhere else", () => {
+    const nav = read("src/components/site/SiteNav.tsx");
+    const uses = [...nav.matchAll(/<AppStoreBadge/g)];
+    expect(uses).toHaveLength(1);
+
+    // It must live inside the `hidden lg:flex` cluster, which is what keeps it
+    // off phones. Bound the slice at the mobile cluster that follows.
+    const desktopStart = nav.indexOf('className="hidden lg:flex items-center gap-2.5');
+    const mobileStart = nav.indexOf('className="flex items-center gap-1.5 sm:gap-2 lg:hidden"');
+    expect(desktopStart).toBeGreaterThan(-1);
+    expect(mobileStart).toBeGreaterThan(desktopStart);
+    const desktopCluster = nav.slice(desktopStart, mobileStart);
+    expect(desktopCluster).toContain("<AppStoreBadge");
+    // Ahead of Log in, behind Get started free.
+    expect(desktopCluster.indexOf("<AppStoreBadge")).toBeLessThan(desktopCluster.indexOf('href="/login"'));
+    expect(desktopCluster.indexOf('href="/cards/new"')).toBeGreaterThan(desktopCluster.indexOf("<AppStoreBadge"));
+
+    // Nothing in the mobile bar or the menu sheet.
+    expect(nav.slice(mobileStart)).not.toContain("<AppStoreBadge");
   });
 
   // Owner request: the moment a card is created is where the app gets offered.

@@ -17,9 +17,15 @@ import NativeHidden from "@/components/NativeHidden";
 // (homepage, footer) keep shipping zero JS for it. The shine is pure CSS.
 
 type Tone = "black" | "glass";
-type Size = "md" | "lg";
+type Size = "sm" | "md" | "lg";
 
 const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: string; gap: string; radius: string }> = {
+  // Desktop nav bar: renders 120×40, which fits the 64px bar beside Log in and
+  // Get started free without crowding either. Desktop only — the mobile bar has
+  // no room for it at any size (the logo, the primary CTA and the menu trigger
+  // already fill a 375px row), which is why the nav badge is inside a
+  // `hidden lg:flex` cluster and there is no phone equivalent.
+  sm: { pad: "px-3 py-1.5", glyph: "w-[17px] h-[17px]", top: "text-[9px]", main: "text-[12.5px]", gap: "gap-2", radius: "rounded-xl" },
   md: { pad: "px-3.5 py-2", glyph: "w-[22px] h-[22px]", top: "text-[10px]", main: "text-[14px]", gap: "gap-2.5", radius: "rounded-xl" },
   // Hero: sits directly beside "See how it works" (.rd-btn + .rd-btn-lg), and
   // the height is not a guess — that button is padding 1rem + font-size 1rem at

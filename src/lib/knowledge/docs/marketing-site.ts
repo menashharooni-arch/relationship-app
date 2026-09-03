@@ -78,9 +78,9 @@ export const marketingDocs = defineDocs([
       "is there an app", "mobile app", "play store",
     ],
     answer:
-      "Yes — the iPhone app is live on the App Store. On the homepage there's a Download on the App Store button right next to \"See how it works\", and there's another in the site footer. It's free to download, and everything also still works in the browser on any phone. There's no Android app yet — Android users just use the browser, and nobody needs an app to receive your card either way.",
+      "Yes — the iPhone app is live on the App Store. On the homepage there's a Download on the App Store button right next to \"See how it works\", there's one in the site footer, and on a computer there's one in the header next to Log in. It's free to download, and everything also still works in the browser on any phone. There's no Android app yet — Android users just use the browser, and nobody needs an app to receive your card either way.",
     detail:
-      "The listing is https://apps.apple.com/app/id6798875872, published by Swift Card Inc. Point people at a badge rather than reading the URL aloud: the homepage hero has one beside \"See how it works\" on both desktop and phones, the footer has one, and you're offered the app again on the \"Your card is live!\" screen right after you create a card. The app needs iOS 15 or later. If an Android user asks: no Play Store app and no date to promise — the browser is the answer there.",
+      "The listing is https://apps.apple.com/app/id6798875872, published by Swift Card Inc. Point people at a badge rather than reading the URL aloud: the homepage hero has one beside \"See how it works\" on both desktop and phones, the site header carries one on a computer (just left of Log in — it isn't in the phone header, where there's no room), the footer has one, and you're offered the app again on the \"Your card is live!\" screen right after you create a card. The app needs iOS 15 or later. If an Android user asks: no Play Store app and no date to promise — the browser is the answer there.",
   },
   {
     id: "privacy-and-data",

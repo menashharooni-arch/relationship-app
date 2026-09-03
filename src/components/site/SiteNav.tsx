@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import AppStoreBadge from "@/components/AppStoreBadge";
 import { trackCta } from "@/lib/events";
 import { useIsNativeApp } from "@/lib/platform";
 import { resetGuestFlow } from "@/lib/guest-reset";
@@ -182,6 +183,15 @@ export default function SiteNav() {
           </div>
 
           <div className="hidden lg:flex items-center gap-2.5 shrink-0">
+            {/* Desktop only, and deliberately so: this cluster is `hidden
+                lg:flex`, so the badge never reaches the mobile bar, where the
+                logo + Get started + menu trigger already fill a 375px row and
+                anything else either clips the trigger or forces the badge down
+                to a bare icon. Phones get the hero badge beside "See how it
+                works" instead. Glass tone for the dark bar; `sm` (120×40) to sit
+                inside 64px. Ahead of Log in, behind Get started free — signing
+                up keeps the last and strongest slot. */}
+            <AppStoreBadge tone="glass" size="sm" />
             <Link href="/login" className="px-3.5 py-2 text-[14px] font-medium text-white/75 hover:text-white transition-colors">Log in</Link>
             <Link href="/cards/new" className="rd-btn rd-btn-primary text-[14px] px-4 py-2">Get started free</Link>
           </div>
