@@ -157,6 +157,40 @@ describe("iOS shell project wiring", () => {
     expect(btn).toMatch(/reportPushFailure/);
     expect(btn).toMatch(/api\/client-error/);
   });
+
+  // 2026-09-03: the App Store 1.0.0 build shipped without the aps-environment
+  // entitlement, and every tap on the switch said "check your connection".
+  // That build stays on phones until people update, so the copy has to name
+  // the update — a connection message on a build defect is a dead end.
+  it("an old build without the push entitlement is told to update, not to retry", () => {
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/\/aps-environment\/\.test\(result\.error/);
+    expect(btn).toMatch(/setReason\("old-build"\)/);
+    expect(btn).toContain("Update the app from the App Store");
+    // The generic message must NOT show for the old-build case.
+    expect(btn).toMatch(/reason !== "old-build" && \(\s*<p[^>]*>Couldn&apos;t turn notifications on/);
+  });
+
+  // Owner order 2026-09-03: turning on notifications is one of the first things
+  // the app should offer. New accounts get it on "Your card is live!"; existing
+  // accounts signing in on the iPhone app got nothing — so a first-open banner
+  // at the top of the dashboard, native only, gone once push is on or declined.
+  it("the dashboard offers the push switch on first open in the native app", () => {
+    const nudge = read("src/components/NativePushNudge.tsx");
+    expect(nudge).toMatch(/useIsNativeApp\(\)/);
+    expect(nudge).toMatch(/if \(!native \|\| dismissed \|\| state !== "idle"\) return null/);
+    expect(nudge).toContain("<EnablePushButton onDone={dismiss} />");
+    expect(nudge).toContain("Not now");
+
+    const dash = read("src/app/dashboard/page.tsx");
+    const nudgeAt = dash.indexOf("<NativePushNudge />");
+    const trialAt = dash.indexOf("<TrialBanner");
+    const cardsAt = dash.indexOf('data-tour="my-cards"');
+    expect(nudgeAt).toBeGreaterThan(-1);
+    // Top of the page: above the trial banner and the My Cards box.
+    expect(nudgeAt).toBeLessThan(trialAt);
+    expect(nudgeAt).toBeLessThan(cardsAt);
+  });
   it("official Capacitor plugins are dependencies", () => {
     const pkg = JSON.parse(read("package.json"));
     for (const p of ["@capacitor/browser", "@capacitor/app", "@capacitor/push-notifications", "@capacitor/share"]) {
