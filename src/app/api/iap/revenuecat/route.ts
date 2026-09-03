@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { decideRcEvent, type PlanSource, appleGrantPatch } from "@/lib/iap-entitlement";
+import { decideRcEvent, type PlanSource, appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 
 // ── RevenueCat webhook: the durable path from an App Store purchase to the
 //    profiles.plan column ─────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const event = body?.event as
-    | { type?: string; app_user_id?: string; original_app_user_id?: string }
+    | { type?: string; app_user_id?: string; original_app_user_id?: string; environment?: string }
     | undefined;
   if (!event?.type) return NextResponse.json({ error: "no_event" }, { status: 400 });
 
@@ -53,6 +53,18 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
+
+  // Sandbox events (a $0 purchase by a sandbox Apple ID — how App Review tests,
+  // and how anyone with a sandbox tester account could farm free Pro) only
+  // count for the designated review/test accounts. The auth lookup runs on the
+  // rare sandbox path only.
+  if (event.environment?.toUpperCase() === "SANDBOX") {
+    const { data: authUser } = await admin.auth.admin.getUserById(uid);
+    if (!sandboxEventAllowed(authUser?.user?.email)) {
+      return NextResponse.json({ ok: true, skipped: "sandbox_not_allowed" });
+    }
+  }
+
   const { data: profile, error } = await admin
     .from("profiles")
     .select("id, plan, customization, stripe_subscription_id, office_id")
