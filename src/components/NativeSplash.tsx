@@ -60,17 +60,18 @@ export default async function NativeSplash() {
   if (!isNativeRequest(h.get("user-agent"), c.get("sc_shell")?.value ?? null)) return null;
   // A navigation from one of our own pages is not a launch — see above.
   if (h.get("sec-fetch-site") === "same-origin") return null;
-  // A router fetch is never a launch either. Tapping the Home tab from
-  // Contacts or Links is a client-side navigation: the App Router fetches
-  // this layout's payload with `RSC: 1` (and prefetches it with
-  // `Next-Router-Prefetch: 1`) and mounts it into the running page. If the
-  // markup rides along, React inserts it WITHOUT running its inline guard
-  // script — browsers never execute scripts inserted that way — so nothing
-  // marks it as a navigation and the lightning replays mid-session. That was
-  // the "splash comes back when I press Home" bug (2026-09-03): the shell's
-  // fetch() did not carry Sec-Fetch-Site, so the check above let it through.
-  // The RSC header is set by the router itself, independent of the browser.
-  if (h.get("rsc") === "1" || h.get("next-router-prefetch") === "1") return null;
+  // That header is the ONLY server-side launch signal there is, and it is not
+  // reliable: tapping the Home tab from Contacts or Links is a client-side
+  // navigation whose router fetch reached here without it, so the markup rode
+  // along in the RSC payload and React mounted it — WITHOUT running its inline
+  // guard script (browsers never execute scripts inserted that way) — and the
+  // lightning replayed mid-session ("splash comes back when I press Home",
+  // 2026-09-03). Do not try to detect the router fetch here instead: Next
+  // deliberately strips `rsc`, `next-router-prefetch` (request-store.ts) and
+  // `next-url` (base-server.ts) before headers() sees them. The fix lives in
+  // the markup: the overlay is display:none unless its own parse-time guard
+  // armed it, so markup delivered any other way can never show. The cost of a
+  // miss here is bandwidth (~52KB), never a replay.
 
   return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup() }} />;
 }
