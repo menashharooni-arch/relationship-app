@@ -5,6 +5,7 @@
 // only" is not a state; the Active toggle is the one per-agent switch).
 import { readFileSync } from "node:fs";
 import { sb } from "./lib/agentkit.mjs";
+import { isDue } from "./lib/schedule.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const rows = await sb("GET", "agent_settings", { params: "enabled=is.true&paused=is.false" });
@@ -15,20 +16,12 @@ if (sys.auto_pause_at && new Date(sys.auto_pause_at).getTime() <= Date.now()) {
   console.log("Auto-stop is active — dispatching nothing."); process.exit(0);
 }
 
-const now = new Date();
-// New-York wall clock (DST-correct) — the owner sets schedules in ET.
-const nyParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).formatToParts(now);
-const nyH = Number(nyParts.find((x) => x.type === "hour").value) % 24;
-const nyM = Number(nyParts.find((x) => x.type === "minute").value);
-const due = (sched) => {
-  const every = sched.trim().match(/^every@(\d{1,2})h$/); // "every@4h" = every 4 hours on the hour (ET)
-  if (every) return nyH % Number(every[1]) === 0 && nyM < 30;
-  const daily = sched.trim().match(/^daily@(\d{1,2}):(\d{2})$/); // "daily@07:00" = 7:00am ET
-  if (daily) return Number(daily[1]) === nyH && Math.abs(Number(daily[2]) - nyM) < 30;
-  const [m, h] = sched.trim().split(/\s+/); // legacy cron "M H * * *" in UTC
-  const hit = (f, v) => f === "*" || Number(f) === v;
-  return hit(h, now.getUTCHours()) && (m === "*" || Math.abs(Number(m) - now.getUTCMinutes()) < 30);
-};
+// Dispatch decisions live in lib/schedule.mjs, shared with watchdog.mjs — the
+// always-on loop is now the PRIMARY clock (it ticks every 60s; this cron fires
+// every 2.5-5h despite saying */30). Both ask the same catch-up question, "is it
+// past due and has this agent not run since?", so whichever gets there first
+// does the work and the other sees the run and skips. No double-dispatch, and a
+// late tick produces a late run instead of a silently missed one.
 for (const r of rows) {
   // Continuous watchdogs (Finn, Bo, Vera, Dash) are NOT schedule-driven — owner
   // order 2026-09-03. They are watched over by agent-watchdog.yml, which probes
@@ -36,7 +29,11 @@ for (const r of rows) {
   // here too would double-run them, so the clock skips them entirely.
   if (config.agents[r.agent_id]?.continuous) continue;
   const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
-  if (!schedule || !due(schedule)) continue;
+  if (!schedule) continue;
+  const prior = await sb("GET", "agent_runs", {
+    params: `agent_id=eq.${r.agent_id}&select=started_at&order=started_at.desc&limit=1`,
+  });
+  if (!isDue(schedule, prior?.[0]?.started_at ?? null, new Date())) continue;
   const wf = config.agents[r.agent_id]?.workflow;
   if (!wf) continue;
   const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app"}/actions/workflows/${wf}/dispatches`, {

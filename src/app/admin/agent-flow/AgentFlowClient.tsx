@@ -91,7 +91,7 @@ function nyNow(now: number): { h: number; m: number } {
 const DEFAULT_SCHEDULES: Record<string, string> = {
   outreach: "every@8h", prospects: "daily@07:30", seo: "every@8h", blog: "daily@09:30",
   social: "every@8h", mentions: "every@8h", influencer: "daily@12:00",
-  manager: "daily@17:30",
+  manager: "daily@12:00,17:00",
 };
 // The watch. Owner order 2026-09-03: these four have NO schedule and no "next
 // check" — they watch continuously while the office is open and their Active
@@ -136,6 +136,7 @@ const CADENCES: [string, string][] = [
   ["daily@09:30", "daily · 9:30 AM ET"],
   ["daily@12:00", "daily · noon ET"],
   ["daily@17:30", "daily · 5:30 PM ET"],
+  ["daily@12:00,17:00", "twice daily · noon + 5 PM ET"],
 ];
 
 type Msg = { id: string; from_id: string; to_id: string; kind: string; body: string; run_id: string | null; created_at: string };

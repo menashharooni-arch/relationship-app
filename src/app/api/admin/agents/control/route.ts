@@ -108,12 +108,12 @@ export async function POST(req: NextRequest) {
     // expired auto-stop cleared — and every TEAM put at rest, deterministically,
     // whatever state it was in. Nothing is dispatched and nothing runs until
     // the owner wakes a team (the go signal) or presses Run once on an agent.
-    // The manager (Atlas) is the one exception left un-rested: his 5:30 PM
-    // evening report is a summary of the day, not work, and the tour promises
-    // it whenever the office is open.
+    // The manager (Atlas) is the one exception left un-rested: his midday and
+    // end-of-day reports (12:00 and 17:00 ET) are summaries of the day, not
+    // work, and the tour promises them whenever the office is open.
     await admin.from("agent_system").update({ paused: false, auto_pause_at: null, updated_at: new Date().toISOString() }).eq("id", true);
     // Rested on open: every WORKER. Two standing exceptions —
-    //   • manager (Atlas): his 5:30 PM report is a summary, not work.
+    //   • manager (Atlas): his 12:00 + 17:00 ET reports are summaries, not work.
     //   • the watchdogs (Finn, Bo, Vera, Dash): owner order 2026-09-03 — they
     //     are always on while the office is open, because a watchdog that only
     //     starts watching once you separately wake its team is not a watchdog.

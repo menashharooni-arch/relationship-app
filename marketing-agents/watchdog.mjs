@@ -25,6 +25,7 @@
 import { readFileSync } from "node:fs";
 import { sb, say } from "./lib/agentkit.mjs";
 import { DETECTORS, blindnessFindings } from "./lib/detectors.mjs";
+import { isDue } from "./lib/schedule.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
@@ -134,7 +135,42 @@ async function tick() {
       await say(agentId, "owner", `✅ Recovered — ${item.title.replace(/^[🔴🟠]\s*/, "")} is back to normal.`, { kind: "owner_out" }).catch(() => {});
     }
   }
+
+  await dispatchScheduled();
   return "continue";
+}
+
+/**
+ * The reliable clock for everyone who ISN'T a watchdog.
+ *
+ * agent-scheduler.yml is a GitHub cron set to every 30 minutes that actually
+ * fires every 2.5–5 hours, and its ±30-minute due windows meant a late tick
+ * skipped the run entirely rather than running it late. That is how Vera lost a
+ * whole day, and it would have eaten Atlas's reports too.
+ *
+ * This loop is already awake every 60 seconds, so it is a far better clock. It
+ * asks "is it past due and has this agent not run since?", which turns a late
+ * dispatcher into a late run instead of a missing one. The old cron stays as a
+ * backstop and shares this same logic, so the two can never double-fire.
+ */
+async function dispatchScheduled() {
+  const rows = await sb("GET", "agent_settings", {
+    params: "enabled=is.true&paused=is.false&select=agent_id,schedule",
+  });
+  for (const r of rows ?? []) {
+    if (config.agents[r.agent_id]?.continuous) continue; // watchdogs have no clock
+    const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
+    if (!schedule) continue;
+
+    const runs = await sb("GET", "agent_runs", {
+      params: `agent_id=eq.${r.agent_id}&select=started_at&order=started_at.desc&limit=1`,
+    });
+    const lastRunAt = runs?.[0]?.started_at ?? null;
+    if (!isDue(schedule, lastRunAt, new Date())) continue;
+
+    console.log(`${stamp()} ${r.agent_id} is due (${schedule}, last run ${lastRunAt ?? "never"})`);
+    await dispatchAgent(r.agent_id, `scheduled: ${schedule}`);
+  }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
