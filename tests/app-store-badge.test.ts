@@ -15,8 +15,7 @@ const BADGE = "src/components/AppStoreBadge.tsx";
 
 // Every consumer, and what each one is for.
 const CONSUMERS: [string, string][] = [
-  ["src/components/site/SiteNav.tsx", "nav, desktop right + mobile bar + menu sheet"],
-  ["src/app/page.tsx", "homepage hero"],
+  ["src/app/page.tsx", "homepage hero, beside \"See how it works\""],
   ["src/components/site/SiteFooter.tsx", "footer"],
   ["src/components/WelcomePlan.tsx", "/welcome — card is live (new signup)"],
   ["src/app/cards/new/NewCardWizard.tsx", "wizard step 5 — card is live (signed in)"],
@@ -42,9 +41,9 @@ describe("the shine", () => {
   // sweep. All three variants, or it is not "everywhere".
   it("every badge variant renders the shine element", () => {
     const src = read(BADGE);
-    const shines = src.match(/rd-appstore-shine/g) ?? [];
-    // AppStoreBadge, AppStoreBadgeCompact — GetTheAppCard reuses AppStoreBadge.
-    expect(shines.length).toBeGreaterThanOrEqual(2);
+    // One definition, and GetTheAppCard reuses AppStoreBadge, so every rendered
+    // badge on the site carries it.
+    expect(src).toContain("rd-appstore-shine");
   });
 
   it("the sweep is defined once, with a keyframe, and clipped to the pill", () => {
@@ -64,31 +63,51 @@ describe("the shine", () => {
 });
 
 describe("placement", () => {
-  it("desktop nav: badge leads the right-hand cluster, ahead of Log in", () => {
-    const nav = read("src/components/site/SiteNav.tsx");
-    const desktopCluster = nav.slice(nav.indexOf('className="hidden lg:flex items-center gap-2.5'));
-    const badge = desktopCluster.indexOf("<AppStoreBadge");
-    const login = desktopCluster.indexOf('href="/login"');
-    const signup = desktopCluster.indexOf('href="/cards/new"');
-    expect(badge).toBeGreaterThan(-1);
-    expect(badge).toBeLessThan(login);
-    // Signing up stays the primary action and keeps the last, strongest slot.
-    expect(signup).toBeGreaterThan(badge);
+  // Owner request 2026-09-03, restated: the badge belongs directly to the RIGHT
+  // of "See how it works", on desktop AND on mobile. It was briefly put in the
+  // nav and under the claim box instead; these pin the real thing.
+  it("hero: the badge is paired with 'See how it works' in a nowrap group", () => {
+    const src = read("src/app/page.tsx");
+    const cta = src.indexOf('id="hero-cta"');
+    const badge = src.indexOf("<AppStoreBadge", cta);
+    const claim = src.indexOf("<HeroClaim", cta);
+    expect(cta).toBeGreaterThan(-1);
+    // Right of the button...
+    expect(badge).toBeGreaterThan(cta);
+    // ...and ahead of the claim box, which wraps below the pair.
+    expect(claim).toBeGreaterThan(badge);
+    // The pair shares its own flex group, so the badge stays welded to the
+    // button instead of being a loose third child of the wrapping row (where it
+    // would drop to its own line the moment the column narrowed).
+    const groupOpen = src.lastIndexOf("<div className=\"flex flex-wrap items-center", cta);
+    expect(groupOpen).toBeGreaterThan(-1);
+    const group = src.slice(groupOpen, claim);
+    expect(group).toContain('id="hero-cta"');
+    expect(group).toContain("<AppStoreBadge");
   });
 
-  // Measured, not guessed: a badge carrying words is 85px and overflows the
-  // mobile bar at every phone width up to 430px, and even the 32px square
-  // leaves only 2px of slack at 375. 390 is the first width with real room.
-  it("mobile nav: the compact square is gated to widths where it fits", () => {
-    const nav = read("src/components/site/SiteNav.tsx");
-    expect(nav).toMatch(/AppStoreBadgeCompact[^/]*min-\[390px\]:inline-flex/);
-    expect(read(BADGE)).toMatch(/h-8 w-8/);
+  it("hero: the badge is sized to the button's exact height", () => {
+    // .rd-btn-lg is padding 1rem + font-size 1rem at line-height 1 + 1px border
+    // = 50px. The lg badge is py-2.5 + 30px of label = 50px. If either moves,
+    // the two stop lining up.
+    expect(read("src/app/page.tsx")).toMatch(/<AppStoreBadge[^>]*size="lg"/);
+    const badge = read(BADGE);
+    // py-2.5 is what makes the 50px; the horizontal padding is allowed to shrink
+    // on phones, the vertical is NOT.
+    expect(badge).toMatch(/lg: \{ pad: "px-3 sm:px-4 py-2\.5"/);
+    const css = read("src/app/globals.css");
+    expect(css).toContain(".rd-btn-lg { padding: 1rem 1.7rem; font-size: 1rem; }");
   });
 
-  it("mobile sheet carries the full wording the bar cannot fit", () => {
-    const nav = read("src/components/site/SiteNav.tsx");
-    const sheet = nav.slice(nav.indexOf("{/* Mobile sheet */}"));
-    expect(sheet).toMatch(/<AppStoreBadge[^>]*size="md"/);
+  // The pair is 327px on a phone. Without wrapping it would push past a 360px
+  // Android viewport and give the whole page a horizontal scrollbar.
+  it("hero: the pair wraps rather than overflowing a narrow phone", () => {
+    expect(read("src/app/page.tsx")).toMatch(/<div className="flex flex-wrap items-center gap-2 sm:gap-3">/);
+  });
+
+  // The nav was never asked for and is deliberately left alone.
+  it("the marketing nav carries no App Store badge", () => {
+    expect(read("src/components/site/SiteNav.tsx")).not.toContain("AppStoreBadge");
   });
 
   // Owner request: the moment a card is created is where the app gets offered.
@@ -126,7 +145,6 @@ describe("self-activating contract", () => {
     const { createElement: h } = await import("react");
     const mod = await import("@/components/AppStoreBadge");
     expect(renderToStaticMarkup(h(mod.default))).toBe("");
-    expect(renderToStaticMarkup(h(mod.AppStoreBadgeCompact))).toBe("");
     expect(renderToStaticMarkup(h(mod.GetTheAppCard))).toBe("");
   });
 

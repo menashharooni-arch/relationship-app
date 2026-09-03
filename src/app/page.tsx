@@ -2,7 +2,6 @@ import { SOFTWARE_APPLICATION_JSONLD, jsonLdScript } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
-import { APP_STORE_URL } from "@/lib/app-store";
 import AppStoreBadge from "@/components/AppStoreBadge";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
@@ -140,20 +139,28 @@ export default function Home() {
                   steps list. The claim box takes the visitor's first name into
                   the builder pre-filled (?name=…). */}
               <div className="mt-7 flex flex-wrap items-center gap-3" data-reveal>
-                <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
-                  See how it works
-                </Link>
+                {/* "See how it works" and the App Store badge are one pair, on
+                    one line, at every width (owner request 2026-09-03) — so they
+                    share a nowrap group rather than being three loose children
+                    of the wrapping row, where the badge would fall to its own
+                    line the moment the column narrowed. The claim box, being the
+                    signup CTA and much wider, wraps below them.
+                    Black badge because the hero is a light surface; `lg` because
+                    it is sized to the button's exact 50px height. */}
+                {/* flex-wrap is a guard, not a layout: the pair is 327px wide
+                    and every phone from 375px up has room for it, but a 360px
+                    Android has 328 and a 320px screen has 288. Without wrapping
+                    the group would push past the viewport and give the whole
+                    page a horizontal scrollbar; with it, the badge drops under
+                    the button on those two sizes instead. */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
+                    See how it works
+                  </Link>
+                  <AppStoreBadge tone="black" size="lg" />
+                </div>
                 <HeroClaim />
               </div>
-              {/* App Store badge — same self-activating pattern as the footer's:
-                  hidden until NEXT_PUBLIC_APP_STORE_URL is set (the app is still
-                  in review), then appears on its own with no second deploy.
-                  Black Apple-style badge because the hero is a light surface. */}
-              {APP_STORE_URL && (
-                <div className="mt-4" data-reveal>
-                  <AppStoreBadge tone="black" size="md" />
-                </div>
-              )}
             </div>
             {/* Rotating persona showcase (owner order 2026-08-26, link.me's
                 hero mechanic): six professions, six templates — the SwiftCard
