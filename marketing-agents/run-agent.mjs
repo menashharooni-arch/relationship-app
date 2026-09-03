@@ -11,7 +11,7 @@
 // queue tables. There is no code path that can post, DM, or comment anywhere.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage } from "./lib/agentkit.mjs";
+import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage, sb } from "./lib/agentkit.mjs";
 
 const agentId = process.argv[2];
 if (!agentId) { console.error("usage: run-agent.mjs <agent_id>"); process.exit(2); }
@@ -22,7 +22,7 @@ const instructions = readFileSync(new URL(`./agents/${agentId}.md`, import.meta.
 
 // Agents that write TO real people also get the human-voice doctrine, and
 // their output passes the tell-filter below before anything reaches the queue.
-const PERSON_FACING = new Set(["outreach", "mentions", "influencer", "social"]);
+const PERSON_FACING = new Set(["outreach", "mentions", "influencer", "social", "ads"]);
 const humanVoice = PERSON_FACING.has(agentId)
   ? "\n---\n" + readFileSync(new URL("./HUMAN_VOICE.md", import.meta.url), "utf8")
   : "";
@@ -55,6 +55,48 @@ function soundsHuman(text) {
   return { ok: true };
 }
 
+/**
+ * What the site already publishes, for agents whose job is to fill gaps rather
+ * than repeat. Empty string for everyone else, and on any error — a failed
+ * lookup must not stop the run, it just means Jake sees no exclusions and the
+ * dedupe_key catches an accidental repeat downstream.
+ */
+async function creativePoolBlock(id) {
+  if (id !== "ads" && id !== "social") return "";
+  try {
+    const { readyAssets } = await import("./lib/media-pool.mjs");
+    const assets = await readyAssets({ limit: 25 });
+    if (!assets.length) {
+      return id === "ads"
+        ? "\n---\nREADY CREATIVE POOL: EMPTY. Nothing has been rendered yet. Either build an angle around a NEW creative request to Milo, or return []."
+        : "";
+    }
+    const lines = assets.map((a) => `- id ${a.id} · ${a.kind} · "${a.concept ?? "untitled"}" · ${a.url}`);
+    return `\n---\nREADY CREATIVE POOL (already rendered and paid for — reuse these before requesting anything new):\n${lines.join("\n")}`;
+  } catch {
+    return "";
+  }
+}
+
+async function existingPagesBlock(id) {
+  if (id !== "seo") return "";
+  try {
+    const [posts, topics] = await Promise.all([
+      sb("GET", "agent_blog_posts", { params: "select=slug,keyword,title&limit=200" }),
+      sb("GET", "agent_blog_topics", { params: "select=slug,topic&limit=200" }),
+    ]);
+    const lines = [
+      ...(posts ?? []).map((p) => `- /blog/${p.slug} — "${p.title}"${p.keyword ? ` (keyword: ${p.keyword})` : ""}`),
+      ...(topics ?? []).filter((t) => t.slug && !(posts ?? []).some((p) => p.slug === t.slug)).map((t) => `- /blog/${t.slug} — drafted: "${t.topic}"`),
+    ];
+    return "\n---\nPAGES THAT ALREADY EXIST — do NOT write another page for any of these keywords or slugs:\n" +
+      (lines.length ? lines.join("\n") : "(none yet — the site has no agent-written pages)") +
+      "\nAlso already covered by hand-built pages, do not duplicate: /compare/blinq, /compare/hihello, /compare/popl, /compare/linq, /pricing, /templates, /preview, and the /for/* industry pages.";
+  } catch {
+    return "";
+  }
+}
+
 await safeMain(agentId, async (run) => {
   await standDownIfUsageExhausted(run);
   await run.note("Researching…");
@@ -62,6 +104,15 @@ await safeMain(agentId, async (run) => {
     voice,
     humanVoice,
     "\n---\nCENTRAL CONFIG (target lists):\n" + JSON.stringify(config.targets, null, 1),
+    // Jake must not write a second page for a keyword the site already covers —
+    // two thin pages competing for one query is worse than one good page
+    // (Google picks one and dilutes both). Handing him the live slug list is
+    // what makes "return [] if everything is covered" an instruction he can
+    // actually follow.
+    await existingPagesBlock(agentId),
+    // Paid and organic draw from ONE rendered pool, so a concept is paid for
+    // once and the two channels stay visually identical.
+    await creativePoolBlock(agentId),
     `\n---\nOUTPUT CAP for this run: at most ${run.settings.output_cap} items. Quality over volume — fewer, better items always win.`,
     "\n---\n" + instructions,
     `\n---\nReturn ONLY a JSON array of items (no prose before or after), each:

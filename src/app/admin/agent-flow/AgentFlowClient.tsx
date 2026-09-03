@@ -90,7 +90,7 @@ function nyNow(now: number): { h: number; m: number } {
 // only" is not a state; the Active toggle is the one per-agent switch.
 const DEFAULT_SCHEDULES: Record<string, string> = {
   outreach: "every@8h", prospects: "daily@07:30", seo: "every@8h", blog: "daily@09:30",
-  social: "every@8h", mentions: "every@8h", influencer: "daily@12:00",
+  social: "every@8h", mentions: "every@8h", influencer: "daily@12:00", ads: "daily@10:00",
   manager: "daily@12:00,17:00",
 };
 // The watch. Owner order 2026-09-03: these four have NO schedule and no "next

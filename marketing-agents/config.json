@@ -86,6 +86,13 @@
       "workflow": "agent-manager.yml",
       "output_cap": 1,
       "default_schedule": "daily@12:00,17:00"
+    },
+    "ads": {
+      "name": "Paid Ads",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-ads.yml",
+      "output_cap": 4,
+      "default_schedule": "daily@10:00"
     }
   },
   "blog": {

@@ -223,7 +223,9 @@ describe("agent flow: person-facing copy is guarded against sounding like AI", (
   });
 
   it("the runner injects it for every person-facing agent", () => {
-    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "mentions", "influencer", "social"\]\)/);
+    // Addy writes ad copy that real people read, so he carries the doctrine and
+    // the tell-filter too (added 2026-09-03 with the paid-ads agent).
+    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "mentions", "influencer", "social", "ads"\]\)/);
     expect(runner).toMatch(/HUMAN_VOICE\.md/);
   });
 
@@ -615,5 +617,106 @@ describe("Atlas: midday + end-of-day reports, reliably", () => {
     expect(m).toMatch(/await email\(`\$\{slot\} report/);
     // Exactly one email per run — the digest — unchanged from the email policy.
     expect((m.match(/await email\(/g) ?? []).length).toBe(1);
+  });
+});
+
+// ── Maya's team: specific outputs, specific destinations ────────────────────
+// Owner order 2026-09-03: every agent needs a concrete thing it makes and a
+// concrete place that thing goes, and Milo + Addy must share creative rather
+// than each commissioning their own.
+describe("Jake writes SEO pages that actually publish", () => {
+  it("has writing instructions, and they target the blog publish pipeline", () => {
+    const md = read("marketing-agents/agents/seo.md");
+    // item_type blog_post + payload.slug is what the approve handler publishes.
+    expect(md).toMatch(/item_type "blog_post"/);
+    expect(md).toMatch(/payload/);
+    expect(md).toMatch(/content_md/);
+    // He must not duplicate Nora or the hand-built comparison pages.
+    expect(md).toMatch(/do not duplicate|already covered|no existing page/i);
+  });
+
+  it("the audit stays LLM-free — writing is a SEPARATE step", () => {
+    // Pinned elsewhere: agent-seo.mjs must have no usage gate. The audit is
+    // deterministic and free, so it must keep working when the plan window is
+    // used up; only the writer stands down.
+    expect(read("marketing-agents/agent-seo.mjs")).not.toMatch(/standDownIfUsageExhausted|execFileSync/);
+    const wf = read(".github/workflows/agent-seo.yml");
+    expect(wf).toMatch(/run-agent\.mjs seo/);
+    expect(wf).toMatch(/continue-on-error: true/);
+    // Audit runs before the writer, so a stood-down writer never costs the audit.
+    expect(wf.indexOf("agent-seo.mjs")).toBeLessThan(wf.indexOf("run-agent.mjs seo"));
+  });
+
+  it("he is handed the live slug list so he cannot write a duplicate page", () => {
+    const runner = read("marketing-agents/run-agent.mjs");
+    expect(runner).toMatch(/existingPagesBlock/);
+    expect(runner).toMatch(/agent_blog_posts/);
+  });
+
+  it("the publish path for a blog_post payload is unchanged and still owner-gated", () => {
+    const route = read("src/app/api/admin/agents/items/route.ts");
+    expect(route).toMatch(/action === "published" && item\.item_type === "blog_post"/);
+    expect(route).toMatch(/agent_blog_posts/);
+  });
+});
+
+describe("Addy plans paid ads and can never spend", () => {
+  const cfg = JSON.parse(read("marketing-agents/config.json"));
+  const org = JSON.parse(read("marketing-agents/org.json"));
+
+  it("exists on Maya's team with his own workflow", () => {
+    expect(org.parties.addy.reports_to).toBe("maya");
+    expect(org.parties.addy.agent_id).toBe("ads");
+    expect(cfg.agents.ads.workflow).toBe("agent-ads.yml");
+    expect(existsSync(".github/workflows/agent-ads.yml")).toBe(true);
+  });
+
+  it("his instructions forbid spending in the strongest terms", () => {
+    const md = read("marketing-agents/agents/ads.md");
+    expect(md).toMatch(/NEVER SPENDS|cannot launch|do not run them/i);
+    expect(md).toMatch(/PAUSED/);
+    // He must not invent proof, same rule as every other person-facing agent.
+    expect(md).toMatch(/16 CFR Part 465|NEVER invent a statistic/i);
+  });
+
+  it("his runner is structurally incapable of reaching Meta", () => {
+    // Same draft-only guarantee as every LLM agent: research tools only, and
+    // the only write is our own queue. Approving is what touches Meta, later.
+    const runner = read("marketing-agents/run-agent.mjs");
+    expect(runner).toMatch(/"--allowedTools", "WebSearch,WebFetch"/);
+    const wf = read(".github/workflows/agent-ads.yml");
+    expect(wf).not.toMatch(/git push|gh pr merge/);
+    expect(wf).toMatch(/contents: read/);
+    expect(wf).toMatch(/NEVER spends|CANNOT SPEND/i);
+  });
+});
+
+describe("Milo and Addy share one rendered creative pool", () => {
+  it("generation results are captured into media_assets, not dropped", () => {
+    // The old connector stored a job id and nothing ever polled it, so the
+    // finished media URL was never recorded and no one could reuse it.
+    const exec = read("src/lib/agent-execute.ts");
+    expect(exec).toMatch(/media_assets/);
+    expect(exec).toMatch(/image_brief/); // images, not only video
+    const pool = read("marketing-agents/lib/media-pool.mjs");
+    expect(pool).toMatch(/export async function pollMediaPool/);
+    expect(pool).toMatch(/export async function readyAssets/);
+  });
+
+  it("the always-on loop polls the pool — the only reliable clock we have", () => {
+    const w = read("marketing-agents/watchdog.mjs");
+    expect(w).toMatch(/pollMediaPool/);
+  });
+
+  it("both agents are handed the same ready pool", () => {
+    const runner = read("marketing-agents/run-agent.mjs");
+    expect(runner).toMatch(/creativePoolBlock/);
+    expect(runner).toMatch(/id !== "ads" && id !== "social"/);
+    expect(read("marketing-agents/agents/ads.md")).toMatch(/READY CREATIVE POOL/);
+    expect(read("marketing-agents/agents/social.md")).toMatch(/shared creative pool|READY CREATIVE POOL/i);
+  });
+
+  it("a stuck generation job cannot be polled forever", () => {
+    expect(read("marketing-agents/lib/media-pool.mjs")).toMatch(/6 \* 60 \* 60 \* 1000/);
   });
 });

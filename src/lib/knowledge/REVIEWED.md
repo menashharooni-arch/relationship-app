@@ -55,3 +55,15 @@ One line per review, newest last.
   user-facing changes (bolt badge + promo sheet, Free-only footer, Upload
   photo header option, tour-banner timing, Link buttons note) all landed with
   their KB updates in their own commits.
+
+- **2026-09-03 · up to `eb1f7d4`** — Nothing customer-facing. `c6653a9` (push
+  "notifications are off" copy naming the iPhone path) landed with its own KB
+  update. Everything else this day is the owner-only /admin Agent Flow console
+  and its plumbing: the always-on watchdog loop (Finn/Bo/Vera/Dash lose their
+  schedules), catch-up dispatch, Atlas's two daily reports, the durable
+  `error_events` sink, the shared `media_assets` creative pool, Jake gaining a
+  page-writing step, and the new paid-ads agent (Addy) — all draft-only and
+  never customer-facing. The one thing that WILL become user-visible is the
+  pages Jake drafts, but those publish as ordinary /blog content through the
+  existing owner-approval gate; the assistants already know how to talk about
+  the blog, and no feature, price, plan, label or flow changed.
