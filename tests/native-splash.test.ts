@@ -27,6 +27,29 @@ describe("native splash", () => {
     expect(component).toMatch(/cachedMarkup \?\?=/);
   });
 
+  it("never replays on a tab tap: a router fetch is not a launch", () => {
+    // Home tab from Contacts/Links is a client-side navigation. The App
+    // Router fetches the dashboard layout with `RSC: 1` and mounts the
+    // payload into the running page; React inserts dangerouslySetInnerHTML
+    // markup WITHOUT executing its inline scripts, so the guard never ran and
+    // the lightning replayed mid-session (2026-09-03). The shell's fetch()
+    // did not carry Sec-Fetch-Site, so that check alone was not enough.
+    // 1. Server: the router's own headers mark the request, browser aside.
+    expect(component).toMatch(/h\.get\("rsc"\) === "1" \|\| h\.get\("next-router-prefetch"\) === "1"\) return null/);
+    // 2. Client: hidden unless the parse-time guard armed it, so no delivery
+    //    path that skips the script can ever show the overlay.
+    expect(markup).toMatch(/d\.classList\.add\("sc-splash-armed"\);d\.classList\.add\("sc-splash-hold"\)/);
+    expect(markup).toMatch(/html:not\(\.sc-splash-armed\) #sc-splash-vfork\{display:none!important\}/);
+    // 3. The arming is dropped once the sequence ends, so a re-mount later in
+    //    the same session cannot borrow the launch's class.
+    expect(markup).toMatch(/d\.classList\.remove\("sc-splash-armed"\)/);
+    expect(markup).toMatch(/addEventListener\("animationend"/);
+    expect(markup).toMatch(/setTimeout\(disarm, \d+\)/);
+    // The armed default must never be undone by the animation running anyway:
+    // the root still animates by default, but display:none wins.
+    expect(markup).toMatch(/animation:vfk-clear 1400ms linear both;/);
+  });
+
   it("holds frame 0 until the native splash is actually gone", () => {
     // The overlay's clock starts at parse, but iOS keeps the static launch
     // image over the webview until SplashScreen.hide() runs. That used to wait

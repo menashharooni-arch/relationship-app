@@ -7,8 +7,13 @@
    and it is checked BEFORE the overlay is parsed, so the suppressed case never
    paints a frame. A real launch (and a universal link from another app) has no
    same-origin referrer and still plays. A pull-to-refresh reads as a
-   navigation, which is right — a reload should not replay a launch animation. */
-try{var d=document.documentElement;if(document.referrer&&document.referrer.indexOf(location.origin)===0){d.classList.add("sc-nosplash")}else{d.classList.add("sc-splash-hold")}}catch(e){}
+   navigation, which is right — a reload should not replay a launch animation.
+   ARMED, OR NOT SHOWN AT ALL: the overlay is display:none unless this script
+   adds `sc-splash-armed`. When React inserts this markup during a client-side
+   navigation (a tab tap) the browser never runs this script, so there was
+   nothing to say "not a launch" and the default was to play. The default is
+   now to stay hidden; only a parse-time run of this script can show it. */
+try{var d=document.documentElement;if(document.referrer&&document.referrer.indexOf(location.origin)===0){d.classList.add("sc-nosplash")}else{d.classList.add("sc-splash-armed");d.classList.add("sc-splash-hold")}}catch(e){}
 </script>
 <!-- ══════════════════════════════════════════════════════════════════════════
      SWIFTCARD LAUNCH SPLASH — "VERTICAL FORK"
@@ -417,6 +422,17 @@ try{var d=document.documentElement;if(document.referrer&&document.referrer.index
 }
 html.sc-nosplash #sc-splash-vfork{display:none!important}
 
+/* HIDDEN UNLESS THE GUARD SCRIPT ARMED IT. The guard above runs at parse time
+   on a document load and adds `sc-splash-armed` for a launch. Markup that
+   arrives any other way — mounted by React during a client-side navigation,
+   where inline scripts never execute — has no guard run, no class, and stays
+   display:none. Before this the default was to PLAY, so tapping the Home tab
+   from Contacts or Links replayed the lightning (2026-09-03). The handoff
+   script removes the class once the sequence has ended (the root is already
+   visibility:hidden by then, so the switch to display:none is invisible), so
+   a later re-mount inside the same session cannot reuse the launch's arming. */
+html:not(.sc-splash-armed) #sc-splash-vfork{display:none!important}
+
 /* THE BODY MUST NOT BE TRANSFORMED WHILE THE OVERLAY IS UP.
    `html.native-app body` carries a 340ms `sc-native-page-in` rise (opacity +
    translateY(10px)) on every document load. A transformed <body> becomes the
@@ -472,8 +488,17 @@ html.sc-splash-hold #sc-splash-vfork{ background:#1A2342; }
    promise never settling. The overlay can stall on a frame that looks exactly
    like the launch image; it can never stall the app. */
 (function(){
-  var d=document.documentElement, released=false;
-  function release(){ if(released)return; released=true; d.classList.remove("sc-splash-hold"); }
+  var d=document.documentElement, released=false, disarmed=false;
+  /* Once the sequence has ended, drop the arming so the overlay is display:none
+     for the rest of the session — even if React mounts this markup again on a
+     later navigation. animationend on the root marks the end; the timeout is
+     the backstop (the sequence is 1400ms, 200ms under reduced motion). */
+  function disarm(){ if(disarmed)return; disarmed=true; d.classList.remove("sc-splash-armed"); }
+  function release(){
+    if(released)return; released=true; d.classList.remove("sc-splash-hold");
+    try{ var r=document.getElementById("sc-splash-vfork"); if(r) r.addEventListener("animationend", function(e){ if(e.target===r) disarm(); }); }catch(e){}
+    setTimeout(disarm, 3000);
+  }
   if(!d.classList.contains("sc-splash-hold")) return;   /* in-app navigation: nothing to hand off */
   var plugin=null;
   try{ plugin=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SplashScreen; }catch(e){}

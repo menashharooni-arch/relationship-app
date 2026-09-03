@@ -60,6 +60,17 @@ export default async function NativeSplash() {
   if (!isNativeRequest(h.get("user-agent"), c.get("sc_shell")?.value ?? null)) return null;
   // A navigation from one of our own pages is not a launch — see above.
   if (h.get("sec-fetch-site") === "same-origin") return null;
+  // A router fetch is never a launch either. Tapping the Home tab from
+  // Contacts or Links is a client-side navigation: the App Router fetches
+  // this layout's payload with `RSC: 1` (and prefetches it with
+  // `Next-Router-Prefetch: 1`) and mounts it into the running page. If the
+  // markup rides along, React inserts it WITHOUT running its inline guard
+  // script — browsers never execute scripts inserted that way — so nothing
+  // marks it as a navigation and the lightning replays mid-session. That was
+  // the "splash comes back when I press Home" bug (2026-09-03): the shell's
+  // fetch() did not carry Sec-Fetch-Site, so the check above let it through.
+  // The RSC header is set by the router itself, independent of the browser.
+  if (h.get("rsc") === "1" || h.get("next-router-prefetch") === "1") return null;
 
   return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup() }} />;
 }
