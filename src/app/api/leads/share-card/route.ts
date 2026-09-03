@@ -4,6 +4,8 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
+import { resolveCardMeta } from "@/lib/resolve-card";
+import { shareImageUrl, warmSharePreviewServer } from "@/lib/share-preview";
 import {
   sendSms,
   sendRawEmail,
@@ -95,6 +97,14 @@ export async function POST(req: NextRequest) {
 
   const contactFirst = ((lead.name as string) || "").split(" ")[0];
   const cardUrl = `${APP_URL}/${lead.card_owner}?shared=1`;
+
+  // Heat the link preview BEFORE the message leaves, so the recipient's
+  // messenger finds the card image already rendered instead of racing a cold
+  // function and falling back to the headshot (lib/share-preview.ts).
+  try {
+    const meta = await resolveCardMeta(lead.card_owner as string);
+    if (meta) await warmSharePreviewServer(shareImageUrl(APP_URL, lead.card_owner as string, meta));
+  } catch { /* best effort */ }
 
   const results: { sms?: SendResult | "opted_out"; email?: SendResult | "opted_out" } = {};
 

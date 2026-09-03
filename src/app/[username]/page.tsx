@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { getCardPageData } from "@/lib/card-page-data";
+import { shareImageUrl } from "@/lib/share-preview";
 import { createClient } from "@/lib/supabase-server";
 import SaveContactButton from "@/components/SaveContactButton";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
@@ -53,20 +54,6 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
 }
 
-// Short, stable content hash (djb2) — used to VERSION the share-preview image
-// URL so a card edit busts the aggressive image cache in iMessage / WhatsApp /
-// social (they cache by URL, so a static URL keeps showing the OLD card forever).
-// When any visible field changes, `v` changes → they refetch the fresh preview.
-function metaVersion(p: NonNullable<Awaited<ReturnType<typeof resolveCardMeta>>>): string {
-  const s = JSON.stringify([
-    p.name, p.title, p.company, p.photoUrl, p.logoUrl, p.template,
-    p.accentColor, p.phone, p.email, p.website, p.address,
-  ]);
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return h.toString(36);
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -89,7 +76,7 @@ export async function generateMetadata({
   // one) so the unfurl updates whenever the card changes. Dimensions MUST match
   // the opengraph-image route's `size` (1200×686) so messengers reserve the
   // right box and never letterbox/crop the card.
-  const ogImageUrl = `${APP_URL}/${username}/opengraph-image?v=${metaVersion(p)}`;
+  const ogImageUrl = shareImageUrl(APP_URL, username, p);
 
   return {
     title: `${name}${parts ? ` — ${parts}` : ""}`,
