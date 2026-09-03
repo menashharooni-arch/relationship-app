@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnablePushButton from "@/components/EnablePushButton";
+import { GetTheAppCard } from "@/components/AppStoreBadge";
 import PlanCards, { type PaidPlan } from "@/components/PlanCards";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
@@ -93,6 +94,7 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
             <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">Get an instant alert the moment someone shares their info through your card.</p>
           </div>
           <EnablePushButton />
+          <GetTheAppCard className="mt-3" />
         </div>
 
         {/* Plan finalize / chooser */}

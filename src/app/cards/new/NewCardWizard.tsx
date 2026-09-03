@@ -8,6 +8,7 @@ import DashboardLink from "@/components/DashboardLink";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import EnablePushButton from "@/components/EnablePushButton";
+import { GetTheAppCard } from "@/components/AppStoreBadge";
 import CardScaler from "@/components/CardScaler";
 import { DEFAULT_PRESET, buildPreset } from "@/lib/custom-layout";
 import InertPreview from "@/components/InertPreview";
@@ -1366,6 +1367,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </div>
 
             <EnablePushButton />
+
+            <GetTheAppCard />
 
             {postCheckout === "office" ? (
               <button

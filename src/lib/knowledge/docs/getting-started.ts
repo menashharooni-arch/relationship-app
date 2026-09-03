@@ -51,7 +51,7 @@ export const gettingStartedDocs = defineDocs([
     audience: ["user"],
     triggers: ["welcome", "first card", "just signed up", "card is live", "what now", "next steps"],
     answer:
-      "You land on a \"Your card is live!\" screen (/welcome) with your card URL, an offer to turn on notifications, and — if you picked a paid plan while building — a link on to /checkout to finish it. After that the dashboard opens with a short guided tour.",
+      "You land on a \"Your card is live!\" screen (/welcome) with your card URL, an offer to turn on notifications, a \"Get SwiftCard on iPhone\" box with a Download on the App Store button, and — if you picked a paid plan while building — a link on to /checkout to finish it. After that the dashboard opens with a short guided tour. Creating a further card later ends on the same screen inside the builder, with the same notifications switch and app download.",
     detail:
       "If the card was designed with Pro-only colours but Free was chosen, a note explains the content is saved and the design falls back to a Free-safe version; nothing is lost.",
   },

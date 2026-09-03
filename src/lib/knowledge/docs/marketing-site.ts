@@ -78,9 +78,9 @@ export const marketingDocs = defineDocs([
       "is there an app", "mobile app", "play store",
     ],
     answer:
-      "Yes — the iPhone app is live on the App Store. Search for \"SwiftCard: Business Card\" or tap the Download on the App Store button on the homepage or in the site footer. It's free to download, and everything also still works in the browser on any phone. There's no Android app yet — Android users just use the browser, and nobody needs an app to receive your card either way.",
+      "Yes — the iPhone app is live on the App Store. There's a Download on the App Store button in the site header on the right, on the homepage, and in the footer. It's free to download, and everything also still works in the browser on any phone. There's no Android app yet — Android users just use the browser, and nobody needs an app to receive your card either way.",
     detail:
-      "The listing is https://apps.apple.com/app/id6798875872, published by Swift Card Inc. Point people at the App Store badge on the homepage hero or footer rather than reading the URL aloud. The app needs iOS 15 or later. If an Android user asks: no Play Store app and no date to promise — the browser is the answer there.",
+      "The listing is https://apps.apple.com/app/id6798875872, published by Swift Card Inc. Point people at a badge rather than reading the URL aloud — the header carries one on every page (on a phone it's the small Apple square next to Get started, and the full-width badge inside the menu). The homepage hero and the footer have one too, and you're offered the app again on the \"Your card is live!\" screen right after you create a card. The app needs iOS 15 or later. If an Android user asks: no Play Store app and no date to promise — the browser is the answer there.",
   },
   {
     id: "privacy-and-data",
