@@ -63,7 +63,7 @@ describe("requestLocation", () => {
 // and then the only honest label is the level they still agree on.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { edgeGeo, formatLocation, reconcile, resolveLocation, type GeoGuess } from "@/lib/request-geo";
+import { edgeGeo, formatLocation, locationAliases, reconcile, resolveLocation, type GeoGuess } from "@/lib/request-geo";
 
 const g = (p: Partial<GeoGuess>): GeoGuess => ({ city: null, regionCode: null, regionName: null, country: null, org: null, ...p });
 const NY_EDGE = g({ city: "Bolton Landing", regionCode: "NY", regionName: "New York", country: "US" });
@@ -158,5 +158,33 @@ describe("resolveLocation", () => {
     globalThis.fetch = (async (u: RequestInfo | URL) => { url = String(u); return new Response(JSON.stringify({ success: false })); }) as typeof fetch;
     await resolveLocation(reqWith({}), "203.0.113.9");
     expect(url).toMatch(/^https:\/\/ipwho\.is\/203\.0\.113\.9$/);
+  });
+});
+
+describe("locationAliases (the Locations tab must not split one town in two)", () => {
+  const fold = (labels: string[]) => {
+    const alias = locationAliases(labels);
+    const out: Record<string, number> = {};
+    for (const l of labels) { const k = alias.get(l) ?? l; out[k] = (out[k] ?? 0) + 1; }
+    return out;
+  };
+
+  it("folds the old country-tailed rows into the state-tailed ones", () => {
+    // 65 rows of "Great Neck, US" predate the state; every new one says NY.
+    expect(fold(["Great Neck, US", "Great Neck, US", "Great Neck, NY"])).toEqual({ "Great Neck, NY": 3 });
+    expect(fold(["Toronto, CA", "Toronto, ON"])).toEqual({ "Toronto, ON": 2 });
+  });
+
+  it("NEVER folds a state-level label into the city of the same name", () => {
+    // "New York, US" is "somewhere in New York State" — the two databases
+    // disagreed on the town. Counting it as New York City would invent the
+    // precision this whole change exists to remove.
+    expect(fold(["New York, US", "New York, NY"])).toEqual({ "New York, US": 1, "New York, NY": 1 });
+  });
+
+  it("leaves everything else exactly as it is", () => {
+    expect(locationAliases(["Roslyn, US"]).size).toBe(0);        // no specific twin yet
+    expect(locationAliases(["Paris, FR", "Paris, US"]).size).toBe(0); // FR is a country, not a state
+    expect(fold(["Austin, TX", "US", "Tel Aviv, IL", "Bogotá, CO"])).toEqual({ "Austin, TX": 1, US: 1, "Tel Aviv, IL": 1, "Bogotá, CO": 1 });
   });
 });

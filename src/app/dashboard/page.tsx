@@ -6,6 +6,7 @@ import { safeTimeZone, localDayKey, startOfLocalDayUtc } from "@/lib/tz-days";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
+import { locationAliases } from "@/lib/request-geo";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -487,10 +488,15 @@ export default async function DashboardPage({
   // with the SwiftCard vs Swift Links split per location. All-time totals.
   let topLocations: { location: string; card: number; link: number; total: number }[] = [];
   if (viewsRange === "locations") {
+    const rows = ((locViewsRes.data ?? []) as { username: string; location: string | null }[])
+      .map((v) => ({ username: v.username, loc: v.location?.trim() }))
+      .filter((v): v is { username: string; loc: string } => !!v.loc);
+    // "Great Neck, US" (written before views carried the state) and
+    // "Great Neck, NY" are one place, not two rows — see locationAliases.
+    const alias = locationAliases(rows.map((v) => v.loc));
     const locMap: Record<string, { card: number; link: number }> = {};
-    for (const v of (locViewsRes.data ?? []) as { username: string; location: string | null }[]) {
-      const loc = v.location?.trim();
-      if (!loc) continue;
+    for (const v of rows) {
+      const loc = alias.get(v.loc) ?? v.loc;
       const slot = (locMap[loc] ??= { card: 0, link: 0 });
       if (v.username === linkUsername) slot.link++; else slot.card++;
     }
