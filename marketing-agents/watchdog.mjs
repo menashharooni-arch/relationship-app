@@ -106,7 +106,7 @@ async function tick() {
     try {
       // Blindness first: a watchdog missing the credential its eyes need must
       // report THAT, rather than an all-clear it cannot actually vouch for.
-      findings = [...blindnessFindings(agentId), ...(await DETECTORS[agentId]())];
+      findings = [...(await blindnessFindings(agentId)), ...(await DETECTORS[agentId]())];
     } catch (e) {
       console.log(`${stamp()} ${agentId} probe threw: ${String(e?.message ?? e).slice(0, 200)}`);
       continue;

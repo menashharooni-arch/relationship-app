@@ -165,27 +165,86 @@ export async function veraSecurityCheck() {
 // owner's account); until it is armed, Vercel's runtime-error API is the honest
 // substitute, and if neither is reachable Bo simply reports nothing rather than
 // inventing calm.
+/** Noise that is not a bug: every real user eventually hits an expired session. */
+const NOT_A_BUG = /refresh.?token|AuthApiError|AbortError|NEXT_REDIRECT|NEXT_NOT_FOUND/i;
+
+/**
+ * Bo's primary source: the app's OWN error table, read with the Supabase key
+ * every agent already holds.
+ *
+ * This exists because Bo used to need a Vercel API token just to see what the
+ * app already knew about itself — reportError only wrote to an ephemeral
+ * console stream. Now production errors land in error_events, so Bo watches
+ * crashes with zero extra credentials, and the history is queryable instead of
+ * scrolling away. Returns null (not []) when the table isn't reachable, so the
+ * caller can tell "nothing broken" from "cannot see".
+ */
+async function errorsFromDb() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/error_events?select=fingerprint,context,message,env,created_at` +
+        `&created_at=gte.${since}&env=eq.production&order=created_at.desc&limit=500`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) return null; // table missing (migration pending) or REST error
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return null;
+
+    // Group by fingerprint — N occurrences of one bug is ONE finding.
+    const groups = new Map();
+    for (const r of rows) {
+      if (NOT_A_BUG.test(r.message ?? "") || NOT_A_BUG.test(r.context ?? "")) continue;
+      const g = groups.get(r.fingerprint) ?? { count: 0, sample: r };
+      g.count++;
+      groups.set(r.fingerprint, g);
+    }
+
+    const findings = [];
+    for (const [fp, g] of groups) {
+      // One-off blips are not incidents; three in fifteen minutes is a pattern.
+      if (g.count < 3) continue;
+      findings.push({
+        key: `bug:${fp}`,
+        title: `${g.sample.context} — ${String(g.sample.message).slice(0, 90)} (${g.count}× in 15 min)`,
+        detail:
+          `${g.count} production errors sharing one fingerprint in the last 15 minutes.\n` +
+          `Context: ${g.sample.context}\nMessage: ${String(g.sample.message).slice(0, 500)}\n` +
+          `First seen in this window: ${g.sample.created_at}`,
+        severity: g.count >= 25 ? "critical" : "warn",
+      });
+    }
+    return findings;
+  } catch {
+    return null;
+  }
+}
+
 export async function boBugCheck() {
+  // Primary: the app's own error table (no extra credential needed).
+  const fromDb = await errorsFromDb();
+
+  // Secondary: Vercel's runtime-error API, when a token happens to be set. It
+  // adds nothing the table doesn't already have, so it is a bonus, not a
+  // requirement — Bo is fully operational on the table alone.
   const token = process.env.VERCEL_TOKEN;
   const projectId = process.env.VERCEL_PROJECT_ID;
   const teamId = process.env.VERCEL_TEAM_ID;
-  // A blind watchdog must SAY it is blind. Returning [] here read as "all
-  // clear" for Bo's entire existence — he has never once run — and the board
-  // showed him on watch the whole time. Never let a missing credential look
-  // like good news; see BLINDNESS_CHECKS below, which turns this into a
-  // standing report instead of silence.
-  if (!token || !projectId) return [];
+  if (!token || !projectId) return fromDb ?? [];
 
   const since = Date.now() - 15 * 60 * 1000;
   const url = `https://api.vercel.com/v1/observability/runtime-errors?projectId=${projectId}&since=${since}${teamId ? `&teamId=${teamId}` : ""}`;
   let groups = [];
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) return [];
+    if (!res.ok) return fromDb ?? [];
     const d = await res.json();
     groups = d?.errors ?? d?.groups ?? [];
   } catch {
-    return [];
+    return fromDb ?? [];
   }
 
   const findings = [];
@@ -194,7 +253,7 @@ export async function boBugCheck() {
     const name = g.name ?? g.errorName ?? "Error";
     const route = g.route ?? g.routes?.[0] ?? "unknown route";
     // Expired-session noise is not a bug; every real user hits it eventually.
-    if (/refresh.?token|AuthApiError/i.test(name)) continue;
+    if (NOT_A_BUG.test(name)) continue;
     if (count < 5) continue;
     findings.push({
       key: `bug:${name}:${route}`,
@@ -203,7 +262,11 @@ export async function boBugCheck() {
       severity: count >= 25 ? "critical" : "warn",
     });
   }
-  return findings;
+  // Both sources, deduped by key — the table is authoritative, Vercel adds
+  // anything it saw that never reached reportError.
+  const merged = new Map();
+  for (const f of [...(fromDb ?? []), ...findings]) merged.set(f.key, f);
+  return [...merged.values()];
 }
 
 /** agent_id → its code-only detector. The set of continuous watchdogs. */
@@ -227,18 +290,22 @@ export const DETECTORS = {
 // and keeps saying so until it can. Add an entry here for every future
 // credential any watchdog depends on — that is the guard against repeating it.
 const BLINDNESS_CHECKS = {
-  bugwatch: () => {
-    const missing = ["VERCEL_TOKEN", "VERCEL_PROJECT_ID"].filter((v) => !process.env[v]);
-    if (!missing.length) return null;
+  bugwatch: async () => {
+    // Bo's primary source needs no special credential — just the Supabase key
+    // every agent holds. He is blind only if that table is unreachable AND no
+    // Vercel token is set, i.e. he genuinely has nothing to read.
+    if (await errorsFromDb() !== null) return null;
+    const hasVercel = !!(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID);
+    if (hasVercel) return null;
     return {
-      key: `blind:bugwatch:${missing.join("+")}`,
-      title: `Bo cannot see crashes — missing ${missing.join(" and ")}`,
+      key: "blind:bugwatch:no-source",
+      title: "Bo cannot see crashes — no readable error source",
       detail:
-        `Bo watches real user-facing errors through Vercel's runtime-error API, and ${missing.join(" and ")} ` +
-        `${missing.length > 1 ? "are" : "is"} not set as a repo secret, so he has nothing to read and reports nothing. ` +
-        `This is a CONFIGURATION gap, not a healthy silence — until it is fixed, nobody is watching for crashes. ` +
-        `Fix: create a Vercel token at vercel.com/account/tokens, then ` +
-        `gh secret set VERCEL_TOKEN. VERCEL_PROJECT_ID and VERCEL_TEAM_ID come from .vercel/project.json.`,
+        "Bo reads production errors from the error_events table using the Supabase key the agents already hold, " +
+        "and that table is not reachable — most likely supabase/error-events.sql has not been applied yet. " +
+        "This is a CONFIGURATION gap, not a healthy silence: until it is fixed nobody is watching for crashes. " +
+        "Fix: run supabase/error-events.sql in the Supabase SQL editor. " +
+        "(Optional second source: set VERCEL_TOKEN from vercel.com/account/tokens — not required.)",
       severity: "warn",
     };
   },
@@ -249,8 +316,8 @@ const BLINDNESS_CHECKS = {
  * Runs alongside the real probes on every tick; deduped like any finding, so it
  * reports once and closes itself the moment the credential appears.
  */
-export function blindnessFindings(agentId) {
+export async function blindnessFindings(agentId) {
   const check = BLINDNESS_CHECKS[agentId];
-  const f = check?.();
+  const f = check ? await check() : null;
   return f ? [f] : [];
 }

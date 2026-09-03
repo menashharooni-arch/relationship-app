@@ -12,6 +12,24 @@
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL;
 const APP_ENV = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
 
+/**
+ * Stable grouping key for "the same bug". Numbers, uuids, and quoted values are
+ * stripped so `card 41 not found` and `card 92 not found` group together —
+ * otherwise every occurrence looks like a brand-new incident and the watchdog's
+ * dedupe cannot hold.
+ */
+function fingerprintOf(context: string, message: string): string {
+  const shape = message
+    .toLowerCase()
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, "<id>")
+    .replace(/\b\d+\b/g, "<n>")
+    .replace(/["'`][^"'`]{0,80}["'`]/g, "<v>")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+  return `${context}|${shape}`;
+}
+
 export async function reportError(
   context: string,
   error: unknown,
@@ -34,7 +52,26 @@ export async function reportError(
     console.error("[error]", context, err.message);
   }
 
-  // (b) Real-time chat alert — only if a webhook is configured. Short-timeout,
+  // (b) Durable row — so something can READ this back. The console line above
+  // is ephemeral and needs a Vercel token to reach; this is what lets Bo watch
+  // for crashes with the Supabase key the agents already hold. Fire-and-forget
+  // and fully swallowed: if the table is missing (migration not yet applied) or
+  // Supabase is down, the path that failed must not fail twice.
+  try {
+    const { getAdminSupabase } = await import("@/lib/supabase-admin");
+    await getAdminSupabase().from("error_events").insert({
+      context,
+      message: err.message.slice(0, 2000),
+      stack: err.stack?.slice(0, 8000) ?? null,
+      env: APP_ENV,
+      fingerprint: fingerprintOf(context, err.message),
+      ...(extra ? { extra } : {}),
+    });
+  } catch {
+    /* durable sink is best-effort — the structured log above is the fallback */
+  }
+
+  // (c) Real-time chat alert — only if a webhook is configured. Short-timeout,
   // best-effort; a down webhook must never delay or break the caller.
   if (ALERT_URL) {
     const text = `🚨 *SwiftCard error* [${APP_ENV}] — *${context}*\n${err.message}`;
