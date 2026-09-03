@@ -82,21 +82,34 @@ cd "$ROOT"
 npx cap sync ios
 
 # ── archive ──────────────────────────────────────────────────────────────────
-# The archive is deliberately UNSIGNED (CODE_SIGNING_ALLOWED=NO). Signing an
-# archive with automatic style wants an "Apple Development" profile, and
-# development profiles require at least one registered device — this team has
-# none, so a signed archive fails with "Your team has no devices". App Store
-# distribution profiles require NO devices, and -exportArchive below does the
-# actual distribution signing. Archive unsigned → sign at export is the
-# standard device-less CI pattern.
+# The archive is SIGNED, with MANUAL style pinned per target in project.pbxproj
+# (App → "SwiftCard App Store", widget → "SwiftCard Widget App Store").
+#
+# It used to archive with CODE_SIGNING_ALLOWED=NO on the reasoning that
+# automatic signing wants an "Apple Development" profile and this team has no
+# registered devices. The reasoning was right; the fix was not. Disabling
+# signing also skips ProcessProductPackaging, the step that compiles
+# CODE_SIGN_ENTITLEMENTS into the .xcent that gets embedded at signing time.
+# -exportArchive cannot recover entitlements that were never compiled, so it
+# signed the app with only what it could infer — application-identifier and
+# team-identifier. Builds 1-10 all shipped with NO aps-environment, NO app
+# group and NO associated-domains, even though the profile granted all three.
+# That is why push registration failed on every device, Universal Links opened
+# Safari, and the widget never saw its shared container.
+#
+# Manual signing keeps the device-less property that made unsigned archives
+# attractive — App Store distribution profiles require no registered devices —
+# while actually producing the entitlements. The verification gate after export
+# is what makes the failure impossible to ship again.
 rm -rf "$ARCHIVE" "$EXPORT_DIR"
 mkdir -p "$BUILD"
 cd "$ROOT/ios/App"
-echo "Archiving (unsigned — distribution signing happens at export)…"
+echo "Archiving (signed with the App Store distribution profile)…"
 xcodebuild -scheme App -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+  OTHER_CODE_SIGN_FLAGS="--keychain $KC" \
+  "${AUTH[@]}" \
   archive
 
 # ── export (and upload, unless --dry) ────────────────────────────────────────
@@ -113,6 +126,42 @@ xcodebuild -exportArchive \
 IPA="$(ls "$EXPORT_DIR"/*.ipa 2>/dev/null | head -1 || true)"
 [[ -n "$IPA" ]] || die "export produced no .ipa (look in $EXPORT_DIR)"
 echo "Built $(basename "$IPA") ($(du -h "$IPA" | cut -f1))"
+
+# ── entitlement gate ─────────────────────────────────────────────────────────
+# Read the entitlements out of the SIGNED BINARY — not the .entitlements source
+# and not the provisioning profile. The profile only says what the app is
+# ALLOWED to claim; the code signature is what iOS actually enforces at runtime,
+# and for ten builds those two disagreed silently. Apple accepts such a build,
+# review passes, and the capability is simply dead on every device.
+#
+# There is no warning for this anywhere in the toolchain. This gate is it.
+echo "Verifying embedded entitlements…"
+VERIFY_DIR="$BUILD/verify"
+rm -rf "$VERIFY_DIR"; mkdir -p "$VERIFY_DIR"
+unzip -q -o "$IPA" -d "$VERIFY_DIR"
+APP_BIN="$VERIFY_DIR/Payload/App.app"
+[[ -d "$APP_BIN" ]] || die "no Payload/App.app inside the .ipa"
+ENTS="$(codesign -d --entitlements :- "$APP_BIN" 2>/dev/null || true)"
+
+missing=()
+grep -q 'aps-environment' <<<"$ENTS" || missing+=("aps-environment (push notifications)")
+grep -q 'production'      <<<"$ENTS" || missing+=("aps-environment=production (would register against SANDBOX APNs)")
+grep -q 'associated-domains' <<<"$ENTS" || missing+=("com.apple.developer.associated-domains (Universal Links)")
+grep -q 'group.me.swiftcard.app' <<<"$ENTS" || missing+=("application-groups (home-screen widget)")
+
+WIDGET="$(find "$APP_BIN/PlugIns" -maxdepth 1 -name '*.appex' 2>/dev/null | head -1 || true)"
+if [[ -n "$WIDGET" ]]; then
+  WENTS="$(codesign -d --entitlements :- "$WIDGET" 2>/dev/null || true)"
+  grep -q 'group.me.swiftcard.app' <<<"$WENTS" || missing+=("widget application-groups (widget cannot read the shared container)")
+fi
+
+if (( ${#missing[@]} )); then
+  printf '\nerror: the signed binary is missing entitlements the app depends on:\n' >&2
+  printf '  - %s\n' "${missing[@]}" >&2
+  printf '\nApp entitlements actually embedded:\n%s\n' "$ENTS" >&2
+  die "refusing to ship a build whose capabilities are dead on device."
+fi
+echo "Entitlements OK: push (production), Universal Links, app group — app and widget."
 
 # Validation catches the things App Store Connect would reject hours later:
 # missing privacy manifest reasons, bad icon, entitlement/profile mismatch,

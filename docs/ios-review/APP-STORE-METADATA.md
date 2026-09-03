@@ -123,7 +123,22 @@ Suggested five:
 5. Swift Links page
 
 ## Version
-- 1.0.0, build 10. "What's New": `Your digital business card, now on iPhone.`
+- 1.0.1, build 11. "What's New": `Push notifications now work — get alerted the
+  moment someone views your card or saves their details. Also fixes Universal
+  Links and the home-screen widget.`
+  (Build 11 is the ENTITLEMENTS FIX. Every build up to and including build 10 —
+  the one live on the App Store — shipped with an empty entitlement set: the
+  archive was created with CODE_SIGNING_ALLOWED=NO, which skips the step that
+  compiles CODE_SIGN_ENTITLEMENTS into a .xcent, and exportArchive then signed
+  the app with only application-identifier + team-identifier. The provisioning
+  profile granted aps-environment=production, the app group and the associated
+  domain; the binary carried none of them. Push registration therefore failed
+  on every device with "no valid aps-environment entitlement string found",
+  Universal Links fell through to Safari, and the widget could not read the
+  shared App Group container. scripts/ios-release.sh now signs the archive with
+  the distribution profile and REFUSES to upload an .ipa whose real, embedded
+  entitlements are missing any of the three.)
+- 1.0.0, build 10 shipped 2026-09-02 and remains live.
   (Build 9 is the IAP-era binary: RevenueCat SDK + the NativePaywall sell Pro
   in-app per the 4th rejection's 3.1.1/3.1.3(b) demand, and apps.apple.com is
   allow-listed in the ExternalPurchase plugin so "Manage subscription" opens

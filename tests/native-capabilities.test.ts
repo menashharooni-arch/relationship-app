@@ -94,6 +94,69 @@ describe("iOS shell project wiring", () => {
     const pbx = read("ios/App/App.xcodeproj/project.pbxproj");
     expect(pbx).toContain("CODE_SIGN_ENTITLEMENTS = App/App.entitlements;");
   });
+
+  // ── The assertion above passed for ten consecutive builds that shipped with
+  // NO entitlements at all. It reads the SOURCE .entitlements file and a build
+  // setting; neither survives to the binary unless the archive is signed.
+  // CODE_SIGNING_ALLOWED=NO skipped ProcessProductPackaging, so no .xcent was
+  // ever compiled and exportArchive signed the app with application-identifier
+  // and team-identifier only. Push was dead on every device, Universal Links
+  // opened Safari, and the widget never read its shared container — with a
+  // green test suite throughout. These pin the things that actually decide it.
+  it("the release archive is SIGNED, so entitlements are compiled into the binary", () => {
+    // Comments explain the old failure and name the flag, so read only the
+    // executable lines.
+    const code = read("scripts/ios-release.sh")
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("#"))
+      .join("\n");
+    expect(code).not.toMatch(/CODE_SIGNING_ALLOWED=NO/);
+    expect(code).not.toMatch(/CODE_SIGNING_REQUIRED=NO/);
+  });
+
+  it("the release script verifies the SIGNED binary's real entitlements before upload", () => {
+    const sh = read("scripts/ios-release.sh");
+    // Must read them back out of the .ipa — not the profile, which only says
+    // what the app is allowed to claim, and disagreed with the binary for ten
+    // builds without a single warning from the toolchain.
+    expect(sh).toMatch(/codesign -d --entitlements/);
+    expect(sh).toMatch(/aps-environment/);
+    expect(sh).toMatch(/associated-domains/);
+    expect(sh).toMatch(/group\.me\.swiftcard\.app/);
+  });
+
+  it("Release signs against the distribution profile with production APNs", () => {
+    const pbx = read("ios/App/App.xcodeproj/project.pbxproj");
+    expect(pbx).toContain("CODE_SIGN_ENTITLEMENTS = App/AppRelease.entitlements;");
+    expect(pbx).toContain('PROVISIONING_PROFILE_SPECIFIER = "SwiftCard App Store";');
+    expect(pbx).toContain('PROVISIONING_PROFILE_SPECIFIER = "SwiftCard Widget App Store";');
+    // A development aps-environment in a distribution build registers against
+    // SANDBOX APNs: registration succeeds, a token is stored, and every send
+    // fails with DeviceTokenNotForTopic. Strictly worse than failing loudly.
+    const rel = read("ios/App/App/AppRelease.entitlements");
+    expect(rel).toContain("<string>production</string>");
+    expect(rel).toContain("applinks:swiftcard.me");
+    expect(rel).toContain("group.me.swiftcard.app");
+  });
+
+  // The plugin fires "registration" with retainUntilConsumed FALSE, so an event
+  // that lands before the listener is attached is dropped and never redelivered.
+  // register() must therefore come after an AWAITED addListener.
+  it("push registration attaches its listeners before calling register()", () => {
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/await\s+PushNotifications\.addListener\("registration"/);
+    expect(btn).toMatch(/await\s+PushNotifications\.addListener\("registrationError"/);
+    const attach = btn.indexOf('addListener("registrationError"');
+    const register = btn.indexOf("PushNotifications.register()");
+    expect(attach).toBeGreaterThan(-1);
+    expect(register).toBeGreaterThan(attach);
+  });
+
+  it("a push failure reports its real reason instead of being swallowed", () => {
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/reportPushFailure/);
+    expect(btn).toMatch(/api\/client-error/);
+  });
   it("official Capacitor plugins are dependencies", () => {
     const pkg = JSON.parse(read("package.json"));
     for (const p of ["@capacitor/browser", "@capacitor/app", "@capacitor/push-notifications", "@capacitor/share"]) {
@@ -250,7 +313,7 @@ describe("native share + Wallet hand-off", () => {
   });
   it("EnablePushButton registers APNs tokens through the shared subscribe route", () => {
     const src = read("src/components/EnablePushButton.tsx");
-    expect(src).toMatch(/apns:\$\{token\}/);
+    expect(src).toMatch(/apns:\$\{result\.token\}/);
     expect(src).toMatch(/@capacitor\/push-notifications/);
   });
 });

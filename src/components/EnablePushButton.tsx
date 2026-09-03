@@ -56,6 +56,25 @@ async function sessionUid(): Promise<string | null> {
   }
 }
 
+// Push failures are invisible by nature: nobody files a bug for a toggle that
+// flicks back, and the user-facing copy has to stay vague. Ship the real reason
+// to the server so the next one is diagnosable from a log instead of a build
+// bisect. Best-effort — never let reporting a failure cause one.
+function reportPushFailure(message: string) {
+  try {
+    fetch("/api/client-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message,
+        context: "push-enable",
+        url: typeof location !== "undefined" ? location.pathname : "",
+      }),
+      keepalive: true,
+    }).catch(() => { /* ignore */ });
+  } catch { /* ignore */ }
+}
+
 function detectEnv() {
   if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false, native: false };
   if (detectNativeApp()) return { supported: false, iosNeedsInstall: false, native: true };
@@ -119,19 +138,44 @@ export function usePushState(): [State, () => Promise<boolean>] {
 
     // Native APNs path (Capacitor shell with the PushNotifications plugin).
     if (detectNativeApp() && nativePushAvailable()) {
+      let handles: { remove: () => void }[] = [];
       try {
         const { PushNotifications } = await import("@capacitor/push-notifications");
         const perm = await PushNotifications.requestPermissions();
         if (perm.receive !== "granted") { setState("denied"); return false; }
 
-        const token = await new Promise<string>((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error("registration timeout")), 15_000);
-          PushNotifications.addListener("registration", (t) => { clearTimeout(timer); resolve(t.value); });
-          PushNotifications.addListener("registrationError", (e) => { clearTimeout(timer); reject(new Error(String(e?.error ?? "registration failed"))); });
-          PushNotifications.register().catch((e) => { clearTimeout(timer); reject(e); });
-        });
+        // Both listeners must be ATTACHED before register() is called, and the
+        // attach is asynchronous (it crosses the JS↔native bridge). The plugin
+        // fires "registration"/"registrationError" with retainUntilConsumed
+        // FALSE — unlike "pushNotificationActionPerformed" — so an event that
+        // arrives before the listener exists is dropped and never redelivered.
+        // Awaiting the handles is the whole difference between a token and a
+        // silent 15-second timeout.
+        let settle: ((r: { token?: string; error?: string }) => void) | null = null;
+        const outcome = new Promise<{ token?: string; error?: string }>((resolve) => { settle = resolve; });
+        const done = (r: { token?: string; error?: string }) => { settle?.(r); settle = null; };
 
-        const endpoint = `apns:${token}`;
+        handles.push(await PushNotifications.addListener("registration", (t) => done({ token: t.value })));
+        handles.push(await PushNotifications.addListener("registrationError", (e) =>
+          done({ error: String((e as { error?: unknown })?.error ?? "registration failed") })));
+
+        await PushNotifications.register();
+
+        const timeout = new Promise<{ token?: string; error?: string }>((resolve) =>
+          setTimeout(() => resolve({ error: "timed out waiting for an APNs token" }), 15_000));
+        const result = await Promise.race([outcome, timeout]);
+
+        if (!result.token) {
+          // The reason matters and used to be discarded. "no valid
+          // aps-environment entitlement string found for application" is a
+          // BUILD defect, not a connection problem, and it looked identical to
+          // being offline for as long as this was swallowed.
+          reportPushFailure(`native registration failed: ${result.error ?? "unknown"}`);
+          setState("error");
+          return false;
+        }
+
+        const endpoint = `apns:${result.token}`;
         // Same table/route as web push; p256dh/auth are web-crypto fields that
         // don't exist for APNs — namespaced placeholders satisfy the schema.
         const res = await fetch("/api/push/subscribe", {
@@ -139,7 +183,11 @@ export function usePushState(): [State, () => Promise<boolean>] {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
         });
-        if (!res.ok) { setState("error"); return false; }
+        if (!res.ok) {
+          reportPushFailure(`subscribe returned ${res.status}`);
+          setState("error");
+          return false;
+        }
         try {
           localStorage.setItem(APNS_ENDPOINT_KEY, endpoint);
           const uid = await sessionUid();
@@ -147,9 +195,14 @@ export function usePushState(): [State, () => Promise<boolean>] {
         } catch { /* ignore */ }
         setState("subscribed");
         return true;
-      } catch {
+      } catch (e) {
+        reportPushFailure(`native enable threw: ${e instanceof Error ? e.message : String(e)}`);
         setState("error");
         return false;
+      } finally {
+        // Every tap used to leave two more live listeners behind.
+        for (const h of handles) { try { h.remove(); } catch { /* ignore */ } }
+        handles = [];
       }
     }
 
