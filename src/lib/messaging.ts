@@ -361,15 +361,18 @@ export async function sendRawEmail(opts: {
   /** Personalises the From ("Dana via SwiftCard"). Only meaningful on `connect`. */
   fromName?: string | null;
   /** WHICH identity sends this. Defaults to `support` — the platform speaking
-   *  to its own user, which is the safe assumption for an unclassified send. */
-  sender?: SenderKey;
+   *  to its own user, which is the safe assumption for an unclassified send.
+   *  "inbox" is excluded at the TYPE level: from() throws on it, and that throw
+   *  would land in this function's own catch and be reported as a plain send
+   *  failure. A compile error is the correct place to catch that. */
+  sender?: Exclude<SenderKey, "inbox">;
   /** A HUMAN pressed send just now (shared their card, typed a reply) — not a
    *  scheduler. Omits the List-Unsubscribe headers. See personalHeaders(). */
   personal?: boolean;
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const key: SenderKey = opts.sender ?? "support";
+  const key: Exclude<SenderKey, "inbox"> = opts.sender ?? "support";
   const replyTo = replyToFor(key, opts.replyTo);
   try {
     const { error } = await resend.emails.send({

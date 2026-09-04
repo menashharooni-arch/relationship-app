@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { from, replyToFor, SENDERS, INBOX_ADDRESS, MUST_RECEIVE } from "../src/lib/email-senders";
+import { from, replyToFor, SENDERS, INBOX_ADDRESS, MUST_RECEIVE, ALIASES_LIVE } from "../src/lib/email-senders";
 import {
   receiptEmail, trialStartedEmail, paymentFailedEmail,
   welcomeEmail, trialEndingSoonEmail, trialEndedEmail,
@@ -62,29 +62,48 @@ describe("the five identities", () => {
 });
 
 describe("no reply goes nowhere", () => {
+  // THE hard rule: no user-facing email may have a reply path that dead-ends.
+  //
+  // Sending from connect@/support@/billing@/news@ works the moment the domain
+  // is verified, but RECEIVING needs the Google Workspace aliases to exist.
+  // Until they do, ALIASES_LIVE stays false and every default reply target is
+  // hello@ — the one mailbox we know is monitored. Pointing a receipt at
+  // billing@ before it exists would be strictly worse than the old behaviour,
+  // where no Reply-To meant replies fell back to hello@ and reached a human.
+
   it("sends a card-share reply to the USER, never to us", () => {
     expect(replyToFor("connect", "dana@acme.com")).toBe("dana@acme.com");
   });
 
-  it("still catches the reply when the card carries no email", () => {
-    // Falls through to the From address, which is why connect@ must receive.
-    expect(replyToFor("connect", null)).toBeNull();
-    expect(MUST_RECEIVE).toContain(SENDERS.connect.address);
+  it("every default reply target is an address that actually receives", () => {
+    for (const key of ["connect", "support", "billing", "news"] as const) {
+      const to = replyToFor(key);
+      expect(to, `${key} has no reply path`).toBeTruthy();
+      expect(MUST_RECEIVE, `${key} replies to an unprovisioned mailbox`).toContain(to);
+    }
   });
 
-  it("routes billing and support replies to a mailbox we read", () => {
+  it("falls back to the monitored inbox while the aliases are not live", () => {
+    if (ALIASES_LIVE) return; // covered by the next test instead
+    expect(MUST_RECEIVE).toEqual([INBOX_ADDRESS]);
+    for (const key of ["connect", "support", "billing", "news"] as const) {
+      expect(replyToFor(key)).toBe(INBOX_ADDRESS);
+    }
+  });
+
+  it("moves every reply onto its own identity once the aliases are live", () => {
+    if (!ALIASES_LIVE) return; // the flip has not happened yet
     expect(replyToFor("billing")).toBe("billing@swiftcard.me");
     expect(replyToFor("support")).toBe("support@swiftcard.me");
-  });
-
-  it("routes campaign replies to support, not into the void", () => {
     expect(replyToFor("news")).toBe("support@swiftcard.me");
-  });
-
-  it("lists every address that must be able to receive", () => {
     expect(MUST_RECEIVE).toEqual(expect.arrayContaining([
       "hello@swiftcard.me", "support@swiftcard.me", "billing@swiftcard.me", "connect@swiftcard.me",
     ]));
+  });
+
+  it("derives the receivable list rather than hand-asserting it", () => {
+    // A hand-written array would prove only that the list contains itself.
+    expect(read("src/lib/email-senders.ts")).toMatch(/MUST_RECEIVE: string\[\] = ALIASES_LIVE/);
   });
 });
 
