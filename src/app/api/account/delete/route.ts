@@ -74,6 +74,23 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", user.id);
 
+  // Tell the owner while the person is still reachable. Best-effort and never
+  // awaited into the failure path: App Review 5.1.1(v) requires deletion to
+  // complete, so a notification problem must not stand in its way.
+  try {
+    const { alertRetention } = await import("@/lib/retention-alert");
+    await alertRetention({
+      userId: user.id,
+      email: user.email ?? null,
+      plan: (profile.plan as string | null) ?? null,
+      outcome: "deleted",
+      reason,
+      comment,
+    });
+  } catch {
+    /* never block deletion */
+  }
+
   // Sign in with Apple (requirement 6.2): if this account was created with an
   // Apple identity, revoke its Apple tokens. Best-effort and fully guarded — it
   // never blocks deletion, and it's a no-op for every current account (no user
