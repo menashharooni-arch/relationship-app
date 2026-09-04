@@ -121,6 +121,30 @@ describe("reconcile", () => {
     expect(reconcile(g({ country: "US", regionCode: "NY" }), g({ city: "Trumansburg", regionName: "New York", country: "US" }))).toBe("Trumansburg, NY");
   });
 
+  // Both sources describe the SAME IP, so a state either of them knows is a
+  // state the answer knows. Reading it only off the edge wrote "Great Neck, US"
+  // for a request whose edge headers carried no region — the pre-2026-09-03
+  // shape, which then sits in the Locations tab as a second row for one town.
+  it("takes the state from whichever source has it", () => {
+    const noRegionEdge = g({ city: "Great Neck", country: "US" });
+    // Both name the town; only the second knows the state.
+    expect(reconcile(noRegionEdge, g({ city: "Great Neck", regionCode: "NY", regionName: "New York", country: "US" })))
+      .toBe("Great Neck, NY");
+    // The second source has no town of its own, but still knows the state.
+    expect(reconcile(noRegionEdge, g({ regionCode: "NY", regionName: "New York", country: "US" })))
+      .toBe("Great Neck, NY");
+    // ipinfo never sends a code, only a name — that has to work too, or the
+    // paid provider is strictly worse than the free one it replaces.
+    expect(reconcile(noRegionEdge, g({ city: "Great Neck", regionName: "New York", country: "US" })))
+      .toBe("Great Neck, NY");
+    // Nothing is invented: an unknown region name stays a country tail.
+    expect(reconcile(noRegionEdge, g({ city: "Great Neck", regionName: "Nordrhein-Westfalen", country: "US" })))
+      .toBe("Great Neck, US");
+    // Outside the US the tail is the country, state table or not.
+    expect(reconcile(g({ city: "Lyon", country: "FR" }), g({ city: "Lyon", regionName: "Auvergne", country: "FR" })))
+      .toBe("Lyon, FR");
+  });
+
   it("never invents: nothing anywhere → null", () => {
     expect(reconcile(g({}), g({}))).toBeNull();
   });

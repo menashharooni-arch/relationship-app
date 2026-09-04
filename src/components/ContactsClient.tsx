@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSourceLabel } from "@/lib/source-labels";
+import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton from "@/components/ShareMyInfoButton";
 import { PlanGate } from "@/components/PlanGate";
@@ -93,8 +94,6 @@ function stepLabel(day: number, time: string): string {
   return `${when} · ${to12h(time)}`;
 }
 
-// Actual calendar date/time a step will send: contact-created + N days, at the
-// step's time-of-day. Used in the post-submit "when they send" summary.
 // The DAY a step goes out — no clock time.
 //
 // This used to render the step's `time` field in the viewer's local timezone
@@ -104,11 +103,21 @@ function stepLabel(day: number, time: string): string {
 // A precise wrong time is worse than an honest date — the owner plans around
 // it, and it's the sort of thing they notice when a contact replies.
 //
+// The DATE has to be derived the same way, and wasn't. `anchor + N days` is an
+// instant; the sender compares it against the end of the UTC day and then sends
+// on the CRON_HOUR_UTC run of the UTC day it falls in. Formatting that raw
+// instant in the viewer's zone therefore named the wrong day whenever the two
+// calendars disagreed at that moment: a flow set up at 9pm Eastern anchors past
+// UTC midnight, so every step read a day EARLIER on screen than it would send.
+// Rendering the moment the cron will actually run is right in both directions —
+// a day later for zones ahead of UTC, unchanged for the US afternoon.
+//
 // If per-step timing is wanted, the sender has to honour it first (that needs
 // more than one cron run a day); the display can follow.
 function sendWhen(createdAt: string, day: number): string {
-  const d = new Date(new Date(createdAt).getTime() + day * 86400000);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const due = new Date(new Date(createdAt).getTime() + day * 86400000);
+  const run = Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate(), CRON_HOUR_UTC);
+  return new Date(run).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const PRESET_FROM_COUNT = (n: number): string => (n >= 4 ? "Aggressive" : n === 2 ? "Light" : "Medium");
