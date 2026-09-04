@@ -119,3 +119,40 @@ describe("owner-supplied text can't break the tag it sits in", () => {
     expect(src).toMatch(/replace\(\/'\/g, "&#39;"\)/);
   });
 });
+
+describe("every personal email is a real HTML document", () => {
+  // These bodies carry "→" and "·". A client that is not told the encoding
+  // renders them as "â†'" and "Â·" — which is what the recipient sees as a
+  // broken, unprofessional signature. The transactional templates always
+  // declared a charset; the personal ones did not.
+  const wrapped = [
+    "src/app/api/leads/share-card/route.ts",
+    "src/app/api/scanner/send/route.ts",
+  ];
+
+  it("declares utf-8, a viewport and a light color-scheme once, centrally", () => {
+    const src = messaging();
+    expect(src).toMatch(/export function emailDocument\(/);
+    expect(src).toMatch(/<!doctype html><html lang="en"><head><meta charset="utf-8">/);
+    expect(src).toMatch(/<meta name="viewport" content="width=device-width,initial-scale=1">/);
+    expect(src).toMatch(/<meta name="color-scheme" content="light">/);
+  });
+
+  for (const path of wrapped) {
+    it(`${path} sends through emailDocument, not a bare <div>`, () => {
+      const src = read(path);
+      expect(src, `${path} does not import emailDocument`).toMatch(/emailDocument/);
+      expect(src, `${path} still builds a bare <div> body`).toMatch(/emailDocument\(`?\s*\n?\s*<div/);
+    });
+  }
+
+  it("the typed follow-up shell is wrapped too", () => {
+    expect(messaging()).toMatch(/return emailDocument\(`<div style="font-family/);
+  });
+
+  it("gives Gmail a preheader instead of letting it scrape 'Hi Sarah,'", () => {
+    expect(messaging()).toMatch(/display:none!important;visibility:hidden/);
+    expect(read("src/app/api/leads/share-card/route.ts"))
+      .toMatch(/\[ownerName, ownerTitle, ownerCompany\]\.filter\(Boolean\)\.join\(" · "\)/);
+  });
+});

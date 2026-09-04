@@ -13,6 +13,7 @@ import {
   logMessage,
   toGsm7,
   contactUnsubUrl,
+  emailDocument,
   signatureImageUrl,
   type SendResult,
 } from "@/lib/messaging";
@@ -180,14 +181,17 @@ export async function POST(req: NextRequest) {
         replyTo ? `<p style="margin:2px 0 0;font-size:13px;color:#4b5563;">${esc(replyTo)}</p>` : "",
       ].filter(Boolean).join("");
 
-      const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
+      // A real HTML document, not a bare <div>: this body carries "→" and "·",
+      // and a client that is not told the encoding renders those as "â†'" and
+      // "Â·". The preheader is what Gmail shows next to the subject.
+      const html = emailDocument(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <p style="margin:0 0 16px;">${contactFirst ? `Hi ${esc(contactFirst)},` : "Hi,"}</p>
   <p style="margin:0 0 16px;">Save my contact information in the link below. It opens my digital business card, and you can add me to your phone with one tap.</p>
   <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(cardUrl.replace(/^https?:\/\//, ""))}</a></p>
   ${preview}
   <div style="margin-top:20px;padding-top:14px;border-top:1px solid #e5e7eb;">${sigLines}</div>
   <p style="margin-top:24px;color:#9ca3af;font-size:11px;">You're receiving this because ${esc(ownerName)} shared their contact card with you.${paid ? "" : ` Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a>.`} <a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
-</div>`;
+</div>`, [ownerName, ownerTitle, ownerCompany].filter(Boolean).join(" · "));
 
       results.email = await sendRawEmail({
         to: lead.email as string,

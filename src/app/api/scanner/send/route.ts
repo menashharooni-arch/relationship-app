@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
 import { escapeHtml } from "@/lib/escape";
-import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
+import { sendRawEmail, isOptedOut, contactUnsubUrl, emailDocument } from "@/lib/messaging";
 import { publicCardSlug } from "@/lib/owner-usernames";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -55,8 +55,10 @@ export async function POST(request: NextRequest) {
     // Same act as the Share button, from the scanner: one person handing another
     // their card. Not a list send — no List-Unsubscribe headers.
     personal: true,
-    html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px 16px;">
+    // A real HTML document, not a bare <div> — this body carries "·" and "'",
+    // which render as mojibake in any client that isn't told the encoding.
+    html: emailDocument(`
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background-color:#ffffff;max-width:480px;margin:0 auto;padding:32px 16px;">
         <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hi,</p>
         <p style="font-size:15px;color:#334155;line-height:1.6;margin:0 0 24px;">
           ${safeFirstName} shared their digital business card with you. Save their contact in one tap:
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
           <a href="${contactUnsubUrl(toEmail)}" style="color:#94a3b8;">Unsubscribe</a>
         </p>
       </div>
-    `,
+    `, `${firstName} shared their digital business card with you`),
   });
 
   if (result !== "sent") {
