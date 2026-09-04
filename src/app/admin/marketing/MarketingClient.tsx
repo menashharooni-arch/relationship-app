@@ -221,7 +221,7 @@ export default function MarketingClient() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="font-semibold text-sm">
               {domain.status === "verified" ? (
-                <span className="text-emerald-300">✓ swiftcard.me is verified — emails send from hello@swiftcard.me and deliver to everyone.</span>
+                <span className="text-emerald-300">✓ swiftcard.me is verified. Campaigns send from news@swiftcard.me; receipts from billing@, account mail from support@, and card shares from connect@ (see lib/email-senders.ts).</span>
               ) : (
                 <span className="text-amber-200">Email domain not verified yet — broadcasts only deliver once swiftcard.me is verified with Resend.</span>
               )}

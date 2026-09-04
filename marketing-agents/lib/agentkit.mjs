@@ -111,7 +111,23 @@ export async function email(subject, html) {
     // own address to your own address is a spoofing pattern that trains the
     // owner's mailbox against the domain their user-facing mail sends from.
     // Kept in sync with src/lib/email-senders.ts (this file cannot import TS).
-    body: JSON.stringify({ from: "SwiftCard Agents <support@swiftcard.me>", to: [sys.digest_email], subject, html }),
+    // A plain-text part on EVERY send — HTML-only mail is a spam signal, and
+    // this path shares a domain reputation with the card shares users send.
+    // Crude tag-strip rather than the app's htmlToText: this file is plain
+    // .mjs run from GitHub Actions and cannot import the TypeScript helper.
+    body: JSON.stringify({
+      from: "SwiftCard Agents <support@swiftcard.me>",
+      to: [sys.digest_email],
+      subject,
+      html,
+      text: String(html)
+        .replace(/<(style|script)[\s\S]*?<\/\1>/gi, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+        .replace(/\n{3,}/g, "\n\n").trim(),
+    }),
   });
   if (!res.ok) console.error(`resend → ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.ok;

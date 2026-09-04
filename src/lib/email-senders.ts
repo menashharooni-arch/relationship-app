@@ -39,25 +39,50 @@ type SenderDef = {
   canSend: boolean;
 };
 
+// ── Are the aliases live yet? ────────────────────────────────────────────────
+//
+// connect@, support@, billing@ and news@ can SEND the moment the domain is
+// verified — sending never requires the mailbox to exist. RECEIVING does.
+//
+// Until those aliases are actually provisioned in Google Workspace, pointing a
+// receipt's Reply-To at billing@ would be STRICTLY WORSE than today: right now
+// those emails carry no Reply-To at all, so replies fall back to the From —
+// hello@, a real monitored mailbox — and reach a human. Sending them to an
+// address that does not exist turns a customer's reply into a bounce.
+//
+// So the From splits immediately (that is the deliverability and organisation
+// win) while replies keep going somewhere known-good. Flip this to true the
+// moment the aliases exist and every reply path moves in one line.
+export const ALIASES_LIVE = false;
+
+const INBOX = `hello@${DOMAIN}`;
+
+/** Where replies go for a platform identity: itself once live, hello@ until then. */
+function replyHome(self: string): string {
+  return ALIASES_LIVE ? self : INBOX;
+}
+
 export const SENDERS: Record<SenderKey, SenderDef> = {
   // A user sending to a person they met. The display name carries THEIR name
-  // and the reply must reach them, not us — see replyToFor().
-  connect: { address: `connect@${DOMAIN}`, name: BRAND, defaultReplyTo: null, canSend: true },
+  // and the reply must reach them — replyToFor() takes their address as an
+  // override. The default below only catches a card with no email on file,
+  // which before this change fell through to hello@ and must keep doing so.
+  connect: { address: `connect@${DOMAIN}`, name: BRAND, defaultReplyTo: replyHome(`connect@${DOMAIN}`), canSend: true },
 
   // Onboarding, account status, team invitations, time-sensitive notices.
-  support: { address: `support@${DOMAIN}`, name: BRAND, defaultReplyTo: `support@${DOMAIN}`, canSend: true },
+  support: { address: `support@${DOMAIN}`, name: BRAND, defaultReplyTo: replyHome(`support@${DOMAIN}`), canSend: true },
 
   // Receipts, dunning, subscription state. Nothing else, ever — mixing product
   // mail into the billing identity is how billing mail stops being trusted.
-  billing: { address: `billing@${DOMAIN}`, name: BRAND, defaultReplyTo: `billing@${DOMAIN}`, canSend: true },
+  billing: { address: `billing@${DOMAIN}`, name: BRAND, defaultReplyTo: replyHome(`billing@${DOMAIN}`), canSend: true },
 
   // Campaigns and promos. Replies go to a human queue, not into the void.
-  news: { address: `news@${DOMAIN}`, name: BRAND, defaultReplyTo: `support@${DOMAIN}`, canSend: true },
+  news: { address: `news@${DOMAIN}`, name: BRAND, defaultReplyTo: replyHome(`support@${DOMAIN}`), canSend: true },
 
   // The public front door and the internal alert destination. RECEIVE ONLY:
   // mail From hello@ To hello@ is the shape of a spoof, and every one of those
   // teaches the owner's own mailbox that hello@ arrives from outside.
-  inbox: { address: `hello@${DOMAIN}`, name: BRAND, defaultReplyTo: null, canSend: false },
+  inbox: { address: INBOX, name: BRAND, defaultReplyTo: null, canSend: false },
 };
 
 /** Where humans write to us. Contact form, abuse reports, agent digests land here. */
@@ -106,12 +131,14 @@ export function replyToFor(key: SenderKey, override?: string | null): string | n
   return SENDERS[key].defaultReplyTo;
 }
 
-/** Every address that must be able to RECEIVE mail for replies not to be lost. */
-export const MUST_RECEIVE: string[] = [
-  SENDERS.inbox.address,
-  SENDERS.support.address,
-  SENDERS.billing.address,
-  // connect@ receives the replies to card shares whose owner has no email on
-  // file, so it cannot be a black hole either.
-  SENDERS.connect.address,
-];
+/**
+ * Every address a reply can actually land on, given the CURRENT alias state.
+ *
+ * This is deliberately derived from ALIASES_LIVE rather than hand-listed: a
+ * hand-written list would just assert the aspiration and the test would prove
+ * only that the list contains itself. While the aliases are not provisioned
+ * this is exactly one address — the mailbox we know is monitored.
+ */
+export const MUST_RECEIVE: string[] = ALIASES_LIVE
+  ? [INBOX, SENDERS.connect.address, SENDERS.support.address, SENDERS.billing.address]
+  : [INBOX];
