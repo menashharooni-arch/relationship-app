@@ -98,7 +98,9 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     // accepted by the public route at all now.
     expect(events).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard"\]\)/);
     const block = events.slice(events.indexOf('event_type === "viewed_card"'));
-    expect(block).toContain("insertNotification");
+    // The bell row and the push now both go through notifyVisit, which holds
+    // one person's visit to a single notification (lib/visit-notify.ts).
+    expect(block).toContain("notifyVisit");
     expect(block).toContain("dispatchCrmEvent");
 
     const { cardEventNotice } = await import("@/lib/card-event-notify");

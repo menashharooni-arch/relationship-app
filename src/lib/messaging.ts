@@ -340,8 +340,12 @@ export async function sendSms(to: string, body: string): Promise<{ status: SendR
   }
 }
 
+// Quotes too — these values are interpolated into alt="…" attributes, where an
+// unescaped double quote closes the attribute and breaks the tag.
 function esc(v: string | null | undefined) {
-  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(v ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 // Send pre-built HTML (used by automations that have their own templates).
@@ -475,21 +479,22 @@ export async function deliverToLead(opts: {
   return { channel: "none", status: "no_contact" };
 }
 
-// The public URL of the sender's stored Swift Signature image (the exact card
-// image they copy from the dashboard), or null if they haven't generated one.
-// HEAD-checked so we never embed a broken image.
-export async function resolveSignatureImageUrl(username: string | null | undefined): Promise<string | null> {
+/**
+ * THE signature image URL to embed in mail — one stable link per card.
+ *
+ * Resolution happens at FETCH time, inside /api/card-signature/<slug>.png:
+ * the owner's stored Swift Signature when it exists, the card's live
+ * opengraph render when it doesn't. That matters because the stored PNG is
+ * deleted on every signature-affecting card edit, so embedding the storage URL
+ * put a grey fallback box in new mail and broke the image in mail already
+ * delivered. Never returns null: every email shows the card.
+ *
+ * No HEAD check here — checking on the send path cost a blocking round trip and
+ * still went stale the moment the owner edited their card afterwards.
+ */
+export function signatureImageUrl(username: string | null | undefined): string | null {
   if (!username) return null;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return null;
-  const url = `${base}/storage/v1/object/public/card-signatures/${encodeURIComponent(username)}.png`;
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(url, { method: "HEAD", signal: ctrl.signal });
-    clearTimeout(t);
-    return res.ok ? `${url}?v=${Date.now()}` : null; // cache-bust so an updated card refreshes
-  } catch { return null; }
+  return `${APP_URL}/api/card-signature/${encodeURIComponent(username.toLowerCase())}.png`;
 }
 
 // Build the shared HTML signature block. When the sender has a Swift Signature
@@ -555,14 +560,11 @@ export async function sendBrandedEmail(opts: {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
-  // Sign off with the sender's actual Swift Signature card image when available.
-  // No stored signature yet (they never opened Preview & copy)? Fall back to the
-  // card page's opengraph-image — a live render of the same card that always
-  // exists — so every automated email still shows the card, not a bare link.
-  const signatureImageUrl =
-    (await resolveSignatureImageUrl(opts.cardUsername)) ??
-    (opts.cardUsername ? `${APP_URL}/${encodeURIComponent(opts.cardUsername)}/opengraph-image?v=${Date.now()}` : null);
+  // Sign off with the sender's card — the stored Swift Signature when they have
+  // one, the live card render when they don't. Both live behind one URL that
+  // resolves at fetch time, so this email still shows the card months from now.
   const signature = emailSignatureHtml({
+    signatureImageUrl: signatureImageUrl(opts.cardUsername),
     senderName: opts.senderName,
     company: opts.company,
     title: opts.title,
@@ -570,7 +572,6 @@ export async function sendBrandedEmail(opts: {
     email: opts.replyTo,
     website: opts.website,
     cardUrl,
-    signatureImageUrl,
   });
 
   const html = personalEmailHtml(opts.text, signature, contactUnsubUrl(opts.to), opts.senderPaid);

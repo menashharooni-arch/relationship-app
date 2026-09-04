@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { dispatchCrmEvent } from "@/lib/crm-events";
-import { checkViewMilestone } from "@/lib/milestones";
+import { checkViewMilestone, type MilestoneNotice } from "@/lib/milestones";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
@@ -30,7 +30,14 @@ export async function recordView(opts: {
   visitorId: string | null;
   source: string | null;
   ip: string;
-}): Promise<{ outcome: RecordViewOutcome; location: string | null }> {
+  /**
+   * Hand the milestone back instead of pushing it. The caller is about to
+   * notify the owner about this same visit and folds the achievement into that
+   * one notification — two pushes a second apart for one visitor is the exact
+   * duplicate we removed (lib/visit-notify.ts).
+   */
+  deferMilestonePush?: boolean;
+}): Promise<{ outcome: RecordViewOutcome; location: string | null; milestone?: MilestoneNotice | null }> {
   const { req, visitorId, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
@@ -102,7 +109,7 @@ export async function recordView(opts: {
   });
 
   // Milestone notification (5, 10, 25, 50, 100, …). Best-effort.
-  await checkViewMilestone(username);
+  const milestone = await checkViewMilestone(username, { deferPush: opts.deferMilestonePush });
 
-  return { outcome: "recorded", location };
+  return { outcome: "recorded", location, milestone };
 }

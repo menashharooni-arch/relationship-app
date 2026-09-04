@@ -13,7 +13,7 @@ import {
   logMessage,
   toGsm7,
   contactUnsubUrl,
-  resolveSignatureImageUrl,
+  signatureImageUrl,
   type SendResult,
 } from "@/lib/messaging";
 
@@ -29,8 +29,13 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // HAVE, so the card page tells the recipient their info has already been shared
 // instead of asking them to fill the share-back form.
 
+// Quotes too: these values land inside alt="…" attributes, and a card name
+// containing a double quote would otherwise close the attribute early and
+// mangle the <img> tag.
 function esc(v: string | null | undefined): string {
-  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(v ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 export async function POST(req: NextRequest) {
@@ -95,7 +100,10 @@ export async function POST(req: NextRequest) {
   // those are compliance, not branding).
   const paid = isPaidPlan(profile?.plan as string | null);
 
-  const contactFirst = ((lead.name as string) || "").split(" ")[0];
+  // "Hi john@acme.com," is worse than "Hi," — a contact saved from an address
+  // (or a company row) greets by nothing rather than by a string of noise.
+  const firstWord = ((lead.name as string) || "").trim().split(/\s+/)[0] ?? "";
+  const contactFirst = /^[\p{L}'’-]{2,}$/u.test(firstWord) ? firstWord : "";
   const cardUrl = `${APP_URL}/${lead.card_owner}?shared=1`;
 
   // Heat the link preview BEFORE the message leaves, so the recipient's
@@ -141,19 +149,17 @@ export async function POST(req: NextRequest) {
     if (await isOptedOut("email", lead.email as string)) {
       results.email = "opted_out";
     } else {
-      // The preview right under the message: the owner's Swift Signature card
-      // image when they have one (the exact card, linked), otherwise a clean
-      // card-style block with their name/company.
-      const signatureImageUrl = await resolveSignatureImageUrl(lead.card_owner as string);
-      const preview = signatureImageUrl
-        ? `<a href="${cardUrl}" style="text-decoration:none;"><img src="${signatureImageUrl}" alt="${esc(ownerName)}${ownerCompany ? `, ${esc(ownerCompany)}` : ""} — SwiftCard" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:14px;" /></a>`
-        : `<a href="${cardUrl}" style="display:block;text-decoration:none;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;background:#f9fafb;">
-             <span style="display:block;font-size:16px;font-weight:700;color:#0f172a;">${esc(ownerName)}</span>
-             ${ownerCompany ? `<span style="display:block;font-size:13px;color:#6b7280;margin-top:2px;">${esc(ownerCompany)}</span>` : ""}
-             <span style="display:inline-block;margin-top:10px;font-size:13px;font-weight:600;color:#2563eb;">View &amp; save my card →</span>
-           </a>`;
+      // The signature right under the message: a real picture of the card,
+      // always. One URL that resolves at fetch time to the owner's stored
+      // Swift Signature, or to the live card render when they have none —
+      // so this never degrades to a name-only box, and never rots into a
+      // broken image after the owner edits their card (see messaging.ts).
+      const sigUrl = signatureImageUrl(lead.card_owner as string);
+      const altName = `${esc(ownerName)}${ownerCompany ? `, ${esc(ownerCompany)}` : ""}${paid ? "" : " — SwiftCard"}`;
+      const preview = `<a href="${cardUrl}" style="text-decoration:none;"><img src="${sigUrl}" alt="${altName}" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:14px;" /></a>
+  <p style="margin:12px 0 0;font-size:13px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;text-decoration:none;">View &amp; save my card →</a></p>`;
 
-      const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
+      const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <p style="margin:0 0 16px;">${contactFirst ? `Hi ${esc(contactFirst)},` : "Hi,"}</p>
   <p style="margin:0 0 16px;">Save my contact information in the link below.</p>
   <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(cardUrl.replace(/^https?:\/\//, ""))}</a></p>

@@ -189,10 +189,15 @@ export default function NativeAppBridge() {
             if (session?.user?.id && session.user.id === pushUid) {
               const regHandle = await PushNotifications.addListener("registration", (t) => {
                 const endpoint = `apns:${t.value}`;
+                // A rotated token must retire the row it replaces, or this
+                // phone keeps two live subscriptions and every notification
+                // arrives twice (see /api/push/subscribe).
+                let previous: string | null = null;
+                try { previous = localStorage.getItem("swiftcard_apns_endpoint"); } catch { /* ignore */ }
                 fetch("/api/push/subscribe", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
+                  body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous }),
                 }).then((r) => {
                   if (r.ok) { try { localStorage.setItem("swiftcard_apns_endpoint", endpoint); } catch { /* ignore */ } }
                 }).catch(() => { /* offline — next launch retries */ });
