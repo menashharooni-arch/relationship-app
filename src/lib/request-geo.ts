@@ -19,6 +19,10 @@ import type { NextRequest } from "next/server";
 // cannot know it is wrong. Two sources that disagree can, and the honest
 // answer then is the level they DO agree on:
 //
+// The state in "City, ST" comes from whichever source has it — they are both
+// describing the same IP, so there is no such thing as the edge "not knowing"
+// a state the second database just supplied.
+//
 //   both name the same city   → "City, ST"        (US/CA) or "City, CC"
 //   they disagree             → "State, CC"       the region they share
 //   cellular carrier IP       → "State, CC"       a carrier hub is never a city
@@ -78,8 +82,17 @@ export async function resolveLocation(req: NextRequest, ip: string): Promise<str
 export function reconcile(edge: GeoGuess, second: GeoGuess | null): string | null {
   if (!second) return formatLocation(edge);
   const country = edge.country ?? second.country;
-  const regionCode = edge.regionCode ?? second.regionCode;
-  const regionName = second.regionName ?? edge.regionName ?? (regionCode ? US_STATES[regionCode] ?? null : null);
+  const regionName = second.regionName ?? edge.regionName ?? (edge.regionCode ? US_STATES[edge.regionCode] ?? null : null);
+  // WHOEVER KNOWS THE STATE, KNOWS IT. Both sources are describing the same IP,
+  // so a region either of them supplies applies to the answer either of them
+  // produced. This used to be `edge.regionCode ?? second.regionCode` but was
+  // only ever READ on the branch where the second source supplied the town —
+  // so a request whose edge headers carried no region (and ipinfo never sends
+  // a code at all, only a name) wrote "Great Neck, US" even when the second
+  // database had said NY. That is the pre-2026-09-03 shape coming back: the
+  // Locations tab then carries the same town twice, once per label, and
+  // locationAliases cannot fold them because the specific twin never exists.
+  const regionCode = edge.regionCode ?? second.regionCode ?? stateCode(regionName, country);
   // The region is only worth naming if the two sources don't contradict there
   // as well; a code and a name are compared through the same state table.
   const regionsClash =
@@ -92,14 +105,16 @@ export function reconcile(edge: GeoGuess, second: GeoGuess | null): string | nul
   if (second.org && CELLULAR.test(second.org)) return regional();
 
   if (edge.city && second.city) {
-    if (sameCity(edge.city, second.city)) return formatLocation(edge);
+    // The edge keeps its spelling of the town (accents survive), but the region
+    // and country are the best either source has.
+    if (sameCity(edge.city, second.city)) return formatLocation({ city: edge.city, regionCode, country });
     // Two databases, two towns: the only thing known is the region.
     if (edge.country && second.country && edge.country !== second.country) return edge.country;
     return regional();
   }
   // One of them has a city and the other doesn't: no contradiction to act on.
-  if (edge.city) return formatLocation(edge);
-  if (second.city) return formatLocation({ ...second, country: country, regionCode });
+  if (edge.city) return formatLocation({ city: edge.city, regionCode, country });
+  if (second.city) return formatLocation({ city: second.city, regionCode, country });
   return formatLocation(edge);
 }
 
@@ -201,6 +216,20 @@ async function lookup(ip: string): Promise<GeoGuess | null> {
 const CELLULAR =
   /\b(verizon wireless|cellco|t-mobile|tmobile|sprint|at&t mobility|att mobility|us cellular|metropcs|cricket|boost mobile|dish wireless|vodafone|orange s\.?a|ee limited|telefonica moviles|rogers wireless|bell mobility|telus mobility|freedom mobile|wireless|mobility|mobile|cellular)\b/i;
 
+/**
+ * "New York" → "NY", for US answers only.
+ *
+ * ipinfo reports a region NAME and never a code, and the Vercel edge reports a
+ * code and never a name — so without this the ipinfo path could never produce
+ * the "City, ST" form at all, no matter how confidently both sources agreed.
+ * Returns null for anything not an exact US state name (D.C. included: every
+ * database calls it "District of Columbia", which is not the key we hold).
+ */
+function stateCode(regionName: string | null, country: string | null): string | null {
+  if (!regionName || country !== "US") return null;
+  return US_STATE_CODES.get(regionName.trim().toLowerCase()) ?? null;
+}
+
 function sameCity(a: string, b: string): boolean {
   const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return norm(a) === norm(b);
@@ -244,6 +273,13 @@ const US_STATES: Record<string, string> = {
   TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
   WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", PR: "Puerto Rico",
 };
+
+// Name → code, so a source that only knows "New York" still yields "NY".
+// DC's entry here is "Washington, D.C.", which no IP database returns, so it
+// simply never matches — deliberately, rather than guessing.
+const US_STATE_CODES = new Map(
+  Object.entries(US_STATES).map(([code, name]) => [name.toLowerCase(), code]),
+);
 
 // Canadian provinces/territories — codes only; used to tell a province tail
 // ("Toronto, ON") from a country tail ("Toronto, CA") when merging labels.
