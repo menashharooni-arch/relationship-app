@@ -13,6 +13,8 @@ import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveLocation } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
+import type { MilestoneNotice } from "@/lib/milestones";
+import { notifyVisit } from "@/lib/visit-notify";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -97,18 +99,26 @@ export async function POST(req: NextRequest) {
     // through the same function /api/views uses, and only carry on to the
     // notification when it was genuinely recorded. Keyed on the SURFACE
     // ("<slug>__links" for Swift Links), so a card view and a links view by
-    // the same visitor are two views and two notifications — which is what the
-    // chart shows. Anything not recorded (same-visit reload, self-view) makes
-    // no notification either: the bell can never say something the bars don't.
+    // the same visitor are two BARS on the chart. They are still only one
+    // NOTIFICATION — one person, one visit, one buzz (lib/visit-notify.ts).
+    // Anything not recorded (same-visit reload, self-view) makes no
+    // notification either: the bell can never say something the bars don't.
     let viewOutcome: "recorded" | null = null;
+    let milestone: MilestoneNotice | null = null;
     if (event_type === "viewed_card") {
       const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
-      const { outcome } = await recordView({ req, username: viewsKey, visitorId: visitor_id, source, ip });
+      const { outcome, milestone: reached } = await recordView({
+        req, username: viewsKey, visitorId: visitor_id, source, ip,
+        // We are about to notify about this visit; the milestone rides along
+        // in that one notification rather than buzzing the phone again.
+        deferMilestonePush: true,
+      });
       if (outcome !== "recorded") return NextResponse.json({ ok: true, [outcome]: true });
       viewOutcome = "recorded";
+      milestone = reached ?? null;
     }
 
-    // ONE VISIT = ONE EVENT = ONE NOTIFICATION. The same visitor re-touching
+    // ONE VISIT = ONE EVENT. The same visitor re-touching
     // the same card inside the visit window (reload, double-fire, browser
     // retry) is the same event; past the window a return is a genuine repeat
     // and records — and notifies — again. Checked against the DATABASE, not an
@@ -218,37 +228,39 @@ export async function POST(req: NextRequest) {
         const flooded = await isRateLimited(`notify-ip:${card_owner_username}:${ip}`, 6, 60 * 60 * 1000);
 
         if (notice && !flooded) {
-          const { title, body: noticeBody } = notice;
-          const { insertNotification } = await import("@/lib/notify");
-          const wrote = await insertNotification({
-            user_id: owner.id,
-            card_owner: card_owner_username,
-            type: notice.type,
-            title,
-            body: noticeBody,
-          });
-          // Buzz the phone too, like new_lead and milestones already do — the
-          // bell row alone meant the owner only learned about a save the next
-          // time they opened the dashboard. Gated on `wrote` so the loser of a
-          // dedupe race doesn't push a notification it never created.
-          if (wrote) {
-            const { sendPushToUser } = await import("@/lib/push");
-            await sendPushToUser(owner.id, {
-              title,
-              body: noticeBody,
+          // ONE NOTIFICATION PER PERSON PER VISIT. A view then a save by the
+          // same visitor upgrades the notification the owner already has
+          // (and replaces the banner) instead of buzzing a second time.
+          await notifyVisit({
+            userId: owner.id,
+            cardOwner: card_owner_username,
+            visitorId: visitor_id,
+            ip,
+            notice: {
+              type: notice.type,
+              title: notice.title,
+              body: notice.body,
+              // A milestone crossed by THIS view is SAID in the same push
+              // rather than sent as a second one a second later — that pair
+              // ("First 5 views!" at 21:28:02, "Aaron Lavi viewed your card"
+              // at 21:28:03) is the duplicate the owner reported. The
+              // milestone keeps its own bell row, which is its once-ever
+              // ledger; what it no longer keeps is its own buzz.
+              ...(milestone ? { pushBody: `${notice.body} ${milestone.title}` } : {}),
               // Deep-link to THIS card's dashboard — a bare /dashboard opened
               // whichever card the owner last had selected, which on a
               // multi-card account could be the wrong one.
               url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,
-              tag: `card-event-${card_owner_username}`,
-            }).catch(() => { /* a dead subscription must never fail the event */ });
-          }
-          // Mirror this conversation notification to the owner's CRM.
+            },
+          });
+          // Mirror this conversation notification to the owner's CRM. The CRM
+          // wants the EVENT, not the merged headline — a milestone is our
+          // gamification, not something to write into their pipeline.
           await dispatchCrmEvent(card_owner_username, {
             type: "conversation.notification",
             event: isView ? "card_viewed" : "contact_saved",
-            title,
-            body: noticeBody,
+            title: notice.title,
+            body: notice.body,
             contact: { name: identity.visitor_name, email: identity.visitor_email, phone: identity.visitor_phone },
             source: source || "direct_link",
             location: location ?? undefined,

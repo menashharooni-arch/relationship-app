@@ -6,7 +6,6 @@ import { syncLeadToPipedrive } from "@/lib/sync-pipedrive";
 import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
 import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
 import { getSourceLabel } from "@/lib/source-labels";
-import { sendPushToUser } from "@/lib/push";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
@@ -21,6 +20,7 @@ export const maxDuration = 60;
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
+import { notifyVisit } from "@/lib/visit-notify";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveLocation } from "@/lib/request-geo";
 
@@ -311,12 +311,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Insert in-app notification for the card owner (non-blocking; falls back
-    // gracefully if the card_owner column migration hasn't run yet)
+    // Tell the card owner (non-blocking).
     if (ownerProfile?.id) {
       const sourceLabel = source ? getSourceLabel(source) : null;
       const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
-      const { insertNotification } = await import("@/lib/notify");
       // A locked lead (over the free monthly cap) gets a TEASER notification —
       // it must not reveal the contact's name/details, or that would bypass the
       // lock. It's a conversion nudge instead.
@@ -326,33 +324,37 @@ export async function POST(req: NextRequest) {
       // the row saves, so nothing looks wrong, but the owner gets no bell and
       // never learns the contact exists. The syncs twenty lines up were fixed
       // for this; the notification and push right here were missed.
+      // ONE NOTIFICATION PER PERSON PER VISIT: this same person almost always
+      // viewed the card and saved the contact minutes ago, each of which
+      // already notified. Sharing their info is the biggest news of the visit,
+      // so it UPGRADES that notification in place and replaces the banner —
+      // rather than being the third buzz from one visitor.
+      const title = locked ? "New lead locked" : `New contact: ${name}`;
+      const body = locked
+        ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
+        : `${name} shared their info with you${sourceStr}.`;
       after(
-        insertNotification({
-          user_id: ownerProfile.id,
-          card_owner,
-          type: "new_lead",
-          title: locked ? "New lead locked" : `New contact: ${name}`,
-          body: locked
-            ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
-            : `${name} shared their info with you${sourceStr}.`,
-        }).catch((e) => reportError("leads.notify", e)),
-      );
-
-      // Push notification — phone buzz + optional vCard save (teaser when locked)
-      if (insertedLead?.id) {
-        const vcardUrl = `${APP_URL}/api/leads/vcard?id=${insertedLead.id}`;
-        after(
-          sendPushToUser(ownerProfile.id, {
-            title: locked ? "New lead locked" : `New contact: ${name}`,
-            body: locked
+        notifyVisit({
+          userId: ownerProfile.id,
+          cardOwner: card_owner,
+          visitorId: visitor_id,
+          ip,
+          notice: {
+            type: "new_lead",
+            title,
+            body,
+            url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner)}`,
+            // The push carries the saveable vCard; a locked lead must not
+            // hand over the contact details it is withholding.
+            ...(locked || !insertedLead?.id
+              ? {}
+              : { vcardUrl: `${APP_URL}/api/leads/vcard?id=${insertedLead.id}` }),
+            pushBody: locked
               ? "Upgrade to Pro to unlock this lead."
               : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
-            url: `${APP_URL}/dashboard`,
-            ...(locked ? {} : { vcardUrl }),
-            tag: `lead-${insertedLead.id}`,
-          }).catch((e) => reportError("leads.push", e)),
-        );
-      }
+          },
+        }).catch((e) => reportError("leads.notify", e)),
+      );
     }
 
 

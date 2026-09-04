@@ -321,16 +321,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
         // SWIFT SIGNATURE freshness: same problem, and it was never handled —
         // only the share preview above was invalidated. card-signatures/<u>.png
-        // is what automated emails sign off with (resolveSignatureImageUrl), so
-        // after any card edit every automated email kept embedding the OLD card:
-        // the previous title, company or phone number, sent to real contacts.
-        // The signature_stale notification below only ASKS the user to re-copy;
-        // nothing stopped the stale image being used until they did.
+        // is what outgoing email signs off with, so after any card edit every
+        // email kept embedding the OLD card: the previous title, company or
+        // phone number, sent to real contacts. The signature_stale notification
+        // below only ASKS the user to re-copy; nothing stopped the stale image
+        // being used until they did.
         //
-        // Safe to delete: resolveSignatureImageUrl HEAD-checks this object and
-        // returns null when it's gone, and emailSignatureHtml then falls back to
-        // the text signature block — so mail keeps sending, with correct details
-        // instead of an outdated card image. Best-effort, never blocks the save.
+        // Safe to delete: mail embeds /api/card-signature/<u>.png, which
+        // resolves at FETCH time and falls through to the card's live
+        // opengraph render when this object is gone. So deleting swaps a stale
+        // card for a current one — in new mail AND in mail already delivered —
+        // and never leaves a broken image. Best-effort, never blocks the save.
         if (signatureChanged) {
           admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {});
         }

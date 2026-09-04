@@ -185,12 +185,17 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
         }
 
         const endpoint = `apns:${result.token}`;
+        // The endpoint this device held before, if the token rotated (OS
+        // upgrade, restore from backup). The server deletes it, so one phone
+        // never keeps two live rows and buzzing twice for every event.
+        let previous: string | null = null;
+        try { previous = localStorage.getItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
         // Same table/route as web push; p256dh/auth are web-crypto fields that
         // don't exist for APNs — namespaced placeholders satisfy the schema.
         const res = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns" }),
+          body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous }),
         });
         if (!res.ok) {
           reportPushFailure(`subscribe returned ${res.status}`);

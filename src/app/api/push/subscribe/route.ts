@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const { endpoint, p256dh, auth } = await req.json();
+  const { endpoint, p256dh, auth, replaces } = await req.json();
   if (!endpoint || !p256dh || !auth) {
     return NextResponse.json({ error: "Missing subscription fields" }, { status: 400 });
   }
@@ -63,6 +63,21 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error("push_subscriptions upsert failed:", error.message);
     return NextResponse.json({ error: "Subscription not stored" }, { status: 500 });
+  }
+
+  // ONE ROW PER DEVICE. An APNs token rotates (OS upgrade, restore from
+  // backup) and the client then registers the NEW endpoint while the old row
+  // stays behind — same phone, two rows, and every notification arrives twice
+  // until Apple eventually reports the old token unregistered. The client
+  // sends the endpoint it is replacing; deleting it here closes that window.
+  // Scoped to this user's own rows, so it can't be used to unsubscribe anyone
+  // else's device.
+  if (typeof replaces === "string" && replaces && replaces !== endpoint) {
+    await admin
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("endpoint", replaces);
   }
 
   return NextResponse.json({ ok: true });

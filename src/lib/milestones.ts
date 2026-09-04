@@ -31,10 +31,21 @@ const MILESTONE_COUNTS = Object.keys(MILESTONES).map(Number).sort((a, b) => b - 
 // over a milestone (4 → 6), and an exact-match check skipped it forever.
 // The notifications table doubles as the dedupe ledger so a burst of
 // simultaneous views can't fire the same milestone twice.
-export async function checkViewMilestone(rawUsername: string): Promise<void> {
+export type MilestoneNotice = { type: string; title: string; body: string };
+
+/** The milestone this view crossed when the caller deferred its push, else null. */
+export async function checkViewMilestone(
+  rawUsername: string,
+  // The view that crossed this milestone is about to notify the owner itself.
+  // Pushing here too is how one visitor produced two lock-screen banners a
+  // second apart ("First 5 views!" and "Someone viewed your card"). When the
+  // caller defers, it gets the milestone back and folds it into that one
+  // notification — the achievement still reaches the owner, as one buzz.
+  opts?: { deferPush?: boolean },
+): Promise<MilestoneNotice | null> {
   try {
     const base = rawUsername.replace(/__links$/, "");
-    if (!base) return;
+    if (!base) return null;
 
     const admin = getAdminSupabase();
     // Seeded demo rows (App Review account) are not real traffic and must not
@@ -47,7 +58,7 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
       .or(`visitor_id.is.null,visitor_id.not.like.${SEEDED_VISITOR_PREFIX}%`);
 
     const reached = MILESTONE_COUNTS.find((c) => (count ?? 0) >= c);
-    if (!reached) return;
+    if (!reached) return null;
     const m = MILESTONES[reached];
 
     // Resolve the card owner: cards table first, legacy profile slug second.
@@ -57,7 +68,7 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
       const { data: prof } = await admin.from("profiles").select("id").eq("username", base).maybeSingle();
       ownerId = prof?.id as string | undefined;
     }
-    if (!ownerId) return;
+    if (!ownerId) return null;
 
     // Dedupe: one notification per milestone per card, ever. If the card_owner
     // column isn't migrated yet (42703), dedupe per-user instead.
@@ -65,9 +76,9 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
     const scoped = await admin.from("notifications").select("id").eq("card_owner", base).eq("type", type).limit(1);
     if (scoped.error) {
       const { data: byUser } = await admin.from("notifications").select("id").eq("user_id", ownerId).eq("type", type).limit(1);
-      if (byUser?.length) return;
+      if (byUser?.length) return null;
     } else if (scoped.data?.length) {
-      return;
+      return null;
     }
 
     const { insertNotification } = await import("@/lib/notify");
@@ -82,7 +93,14 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
       title: m.title,
       body: `${m.body} (/${base})`,
     });
-    if (!created) return;
+    if (!created) return null;
+
+    // Deferred: the view that crossed this milestone is already notifying the
+    // owner, and a second buzz a second later is exactly the duplicate we are
+    // removing. The bell row above still stands on its own — it IS the
+    // once-ever ledger, so it must always be written — and the caller mentions
+    // the achievement inside that single push instead.
+    if (opts?.deferPush) return { type, title: m.title, body: m.body };
 
     await sendPushToUser(ownerId, {
       title: m.title,
@@ -90,7 +108,9 @@ export async function checkViewMilestone(rawUsername: string): Promise<void> {
       url: `${APP_URL}/dashboard?card=${encodeURIComponent(base)}`,
       tag: `milestone-${base}-${reached}`,
     }).catch(() => {});
+    return null;
   } catch {
     /* achievements are best-effort — never block view tracking */
+    return null;
   }
 }

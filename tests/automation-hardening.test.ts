@@ -83,9 +83,10 @@ describe("a captured lead always reaches the owner", () => {
     // Bare floating promises can be frozen off when the serverless function
     // returns — the lead saves and the owner is simply never told. The CRM
     // syncs in the same file were fixed for this; these two were missed.
-    const notify = src.indexOf("insertNotification({");
-    const push = src.indexOf("sendPushToUser(");
-    for (const [name, i] of [["notification", notify], ["push", push]] as const) {
+    // One call now writes the bell row AND sends the push (notifyVisit), so
+    // there is one place that must survive the function freezing.
+    const notify = src.indexOf("notifyVisit({");
+    for (const [name, i] of [["notification", notify]] as const) {
       const before = src.slice(Math.max(0, i - 200), i);
       expect(before, `${name} is not wrapped in after()`).toMatch(/after\(\s*$/m);
     }
@@ -93,7 +94,6 @@ describe("a captured lead always reaches the owner", () => {
 
   it("reports side-effect failures rather than swallowing them", () => {
     expect(src).toMatch(/reportError\("leads\.notify"/);
-    expect(src).toMatch(/reportError\("leads\.push"/);
     // Zapier was the one integration with no error surface at all.
     expect(src).toMatch(/reportError\("leads\.zapier"/);
   });

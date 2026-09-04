@@ -167,12 +167,26 @@ describe("push binding — a device never keeps serving an account that left it"
   const route = read("src/app/api/push/subscribe/route.ts");
   const device = read("src/lib/push-device.ts");
 
+  // Scoped to the DELETE handler: POST has its own delete (retiring the
+  // endpoint a rotated APNs token replaces) whose authorization model is the
+  // opposite and deliberately so — see the test below it.
+  const deleteHandler = route.slice(route.indexOf("export async function DELETE"));
+
   it("DELETE authorizes by ENDPOINT POSSESSION so a new session can sever the old account's row", () => {
     // .eq("user_id") on the delete would silently keep the previous account's
     // notifications flowing to a device it no longer occupies — the new user
     // can present the endpoint but never owned the row.
-    expect(route).toMatch(/\.delete\(\)\.eq\("endpoint", endpoint\)/);
-    expect(route).not.toMatch(/\.delete\(\)[\s\S]{0,80}eq\("user_id"/);
+    expect(deleteHandler).toMatch(/\.delete\(\)\.eq\("endpoint", endpoint\)/);
+    expect(deleteHandler).not.toMatch(/\.delete\(\)[\s\S]{0,80}eq\("user_id"/);
+  });
+
+  it("POST's stale-endpoint cleanup IS user-scoped — `replaces` is client-supplied", () => {
+    // Retiring the row a rotated token replaces stops one phone holding two
+    // live subscriptions and buzzing twice. But the endpoint to retire comes
+    // from the client, so without the user filter anyone could name someone
+    // else's endpoint and silently unsubscribe their device.
+    const postHandler = route.slice(route.indexOf("export async function POST"), route.indexOf("export async function DELETE"));
+    expect(postHandler).toMatch(/\.delete\(\)\s*\.eq\("user_id", user\.id\)\s*\.eq\("endpoint", replaces\)/);
   });
 
   it("DELETE still requires a signed-in caller; POST still binds strictly to the session user", () => {

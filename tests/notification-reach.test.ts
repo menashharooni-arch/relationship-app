@@ -61,29 +61,27 @@ describe("the unread cliff: unread rows stay inside the fetched window", () => {
 describe("contact_saved reaches the phone, not just the bell", () => {
   const src = stripComments(read("src/app/api/card-events/route.ts"));
 
-  it("pushes as well as inserting the notification", () => {
-    expect(src).toMatch(/insertNotification\(/);
-    expect(src).toMatch(/sendPushToUser\(/);
+  it("writes the bell row and buzzes the phone through one call", () => {
+    // Both used to happen here, separately, and the push had to be gated on
+    // the insert's return value or a deduped row still sent a buzz. Both now
+    // live in notifyVisit, which owns that gate — and the visit gate on top of
+    // it, so one person's visit can only ever produce one of each.
+    expect(src).toMatch(/await notifyVisit\(\{/);
+    expect(src).not.toMatch(/insertNotification\(/);
+    expect(src).not.toMatch(/sendPushToUser\(/);
   });
 
-  it("gates the push on the insert having actually written the row", () => {
-    // insertNotification returns false when a dedupe index rejected the row as
-    // a duplicate. Pushing anyway sends a buzz for a notification this request
-    // never created — the exact duplicate the return value exists to prevent.
-    const insertIdx = src.indexOf("insertNotification(");
-    const pushIdx = src.indexOf("sendPushToUser(");
-    expect(insertIdx).toBeGreaterThan(-1);
-    expect(pushIdx).toBeGreaterThan(insertIdx);
-    const between = src.slice(insertIdx, pushIdx);
-    expect(between, "the push is not gated on the insert's return value")
-      .toMatch(/if\s*\(\s*wrote\s*\)/);
+  it("never pushes for a notification it did not write", () => {
+    const lib = stripComments(read("src/lib/visit-notify.ts"));
+    // Every push() call site sits behind a successful write: the insert with
+    // no error, or an upgrade that returned true.
+    expect(lib).toMatch(/if \(!error\) \{\s*await push\(\);/);
+    expect(lib).toMatch(/\? \(await push\(\), "upgraded"\) : "failed"/);
   });
 
   it("a dead push subscription can never fail the event write", () => {
-    // The whole POST is already wrapped in a try that returns ok:true, but a
-    // throw would skip the response body's shape — and this endpoint is called
-    // from the public card page, where a failure is a lost analytics event.
-    const pushCall = src.slice(src.indexOf("sendPushToUser("));
-    expect(pushCall.slice(0, 400)).toMatch(/\.catch\(/);
+    const lib = read("src/lib/visit-notify.ts");
+    const pushCall = lib.slice(lib.indexOf("sendPushToUser("));
+    expect(pushCall.slice(0, 500)).toMatch(/\.catch\(/);
   });
 });

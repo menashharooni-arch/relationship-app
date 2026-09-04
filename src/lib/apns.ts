@@ -203,5 +203,23 @@ export async function sendApnsNotification(
     url: payload.url,
   });
 
-  return apnsPost(deviceToken, { "apns-topic": topic, "apns-push-type": "alert", "apns-priority": "10" }, body);
+  // apns-collapse-id is what makes "one notification per visitor per visit"
+  // TRUE ON THE LOCK SCREEN: iOS replaces a delivered notification carrying an
+  // id it has already shown, instead of stacking a second one. Without it the
+  // upgrade from "viewed your card" to "saved your contact card" arrives as a
+  // second banner — which is the duplicate we are removing (lib/visit-notify).
+  // Apple caps the header at 64 bytes; tags are short by construction, but
+  // truncate rather than let APNs reject the whole send.
+  const collapseId = (payload.tag ?? "").slice(0, 64);
+
+  return apnsPost(
+    deviceToken,
+    {
+      "apns-topic": topic,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      ...(collapseId ? { "apns-collapse-id": collapseId } : {}),
+    },
+    body,
+  );
 }
