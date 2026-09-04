@@ -3,7 +3,6 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
 import { marketingEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
-import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
 import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
@@ -76,8 +75,6 @@ export async function POST(req: NextRequest) {
 
   const admin = getAdminSupabase();
   const resend = new Resend(process.env.RESEND_API_KEY);
-  // Branded from-address once the sending domain is verified; sandbox fallback until then.
-  const from = await getMarketingFrom();
 
   // Test mode: one email, to the admin, clearly labeled. Nothing else sent.
   if (test) {
@@ -102,8 +99,11 @@ export async function POST(req: NextRequest) {
     });
     try {
       const { error } = await resend.emails.send({
+        // NO `from` override here. It used to be spread AFTER the template,
+        // which silently replaced the campaign sender with the transactional
+        // one — so the marketing/transactional split never actually happened.
+        // The template carries news@ (lib/email-senders).
         ...template,
-        from,
         subject: `[TEST] ${subject}`,
         to: adminUser.email!,
         ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
@@ -321,8 +321,11 @@ export async function POST(req: NextRequest) {
 
     try {
       const { data: emailData, error: sendErr } = await resend.emails.send({
+        // NO `from` override here. It used to be spread AFTER the template,
+        // which silently replaced the campaign sender with the transactional
+        // one — so the marketing/transactional split never actually happened.
+        // The template carries news@ (lib/email-senders).
         ...template,
-        from,
         to: recipient,
         ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
       });

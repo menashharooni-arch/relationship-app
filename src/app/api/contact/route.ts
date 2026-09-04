@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { from as senderAddress, INBOX_ADDRESS } from "@/lib/email-senders";
 import { Resend } from "resend";
 import { escapeHtml } from "@/lib/escape";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -28,8 +29,11 @@ export async function POST(req: NextRequest) {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>",
-      to: "hello@swiftcard.me",
+      // From support@, TO hello@ — never hello@ to itself. The old
+      // self-addressed relay was a spoofing pattern that trained the owner's
+      // own Gmail against the address their user-facing mail sends from.
+      from: senderAddress("support", "SwiftCard Contact Form"),
+      to: INBOX_ADDRESS,
       replyTo: email,
       subject: `SwiftCard contact form — ${name}`,
       html: `

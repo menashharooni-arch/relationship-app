@@ -65,17 +65,22 @@ describe("From: the person, via SwiftCard", () => {
   // the shape of display-name spoofing, and Gmail scores it as such — and when
   // a user mails THEMSELVES to test, Gmail flags "someone is using your name".
   it("a user's name is suffixed with 'via SwiftCard'", () => {
-    expect(senderFrom("Dana Reed")).toBe("Dana Reed via SwiftCard <hello@swiftcard.me>");
+    // Default identity is connect@ — a user writing to another person.
+    expect(senderFrom("Dana Reed")).toBe("Dana Reed via SwiftCard <connect@swiftcard.me>");
   });
 
   it("SwiftCard's own mail is not 'SwiftCard via SwiftCard'", () => {
-    expect(senderFrom("SwiftCard")).toBe("SwiftCard <hello@swiftcard.me>");
-    expect(senderFrom(null)).toBe("SwiftCard <hello@swiftcard.me>");
-    expect(senderFrom("SwiftCard Agents")).toBe("SwiftCard Agents <hello@swiftcard.me>");
+    expect(senderFrom("SwiftCard")).toBe("SwiftCard <connect@swiftcard.me>");
+    expect(senderFrom(null)).toBe("SwiftCard <connect@swiftcard.me>");
+    expect(senderFrom("SwiftCard Agents", "support")).toBe("SwiftCard Agents <support@swiftcard.me>");
   });
 
-  it("the address never changes — only the display name", () => {
-    expect(senderFrom("Dana", "Acme <news@example.com>")).toBe("Dana via SwiftCard <news@example.com>");
+  it("the address is chosen by IDENTITY, never by a caller-supplied string", () => {
+    // The second argument used to be a raw address, which is how a campaign
+    // could accidentally ship from the transactional sender. It is now a
+    // closed set of keys resolved in lib/email-senders.
+    expect(senderFrom("Dana", "billing")).toBe("Dana via SwiftCard <billing@swiftcard.me>");
+    expect(senderFrom("Dana", "news")).toBe("Dana via SwiftCard <news@swiftcard.me>");
   });
 
   it("header injection still cannot escape the display name", () => {
